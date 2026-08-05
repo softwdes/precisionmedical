@@ -42,6 +42,45 @@ interface SendResult {
 type Channel  = 'SMS' | 'EMAIL';
 type Lang     = 'es'  | 'en';
 
+// ─── Destinatario real del link ────────────────────────────────────────────────
+// El link no siempre va al paciente: si es menor con tutor vinculado, va al
+// tutor. El server resuelve eso en GET send-portal-link (misma regla que el
+// POST) — acá solo se consulta, nunca se re-implementa.
+
+export interface PortalRecipient {
+  firstName: string;
+  lastName:  string;
+  phone:     string | null;
+  email:     string | null;
+  /** true → el destinatario es el responsable legal, no el paciente */
+  forGuardian: boolean;
+  /** true → menor sin tutor vinculado: el envío está bloqueado por el server */
+  guardianRequired: boolean;
+  /** nombre del menor cuando forGuardian */
+  minorName: string | null;
+}
+
+export function usePortalRecipient(caseId: string | null | undefined, open: boolean) {
+  const [recipient, setRecipient] = useState<PortalRecipient | null>(null);
+  const [loading,   setLoading]   = useState(false);
+
+  useEffect(() => {
+    if (!open || !caseId) { setRecipient(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/admin/cases/${caseId}/send-portal-link`)
+      .then(res => (res.ok ? res.json() : null))
+      .then((data: { ok?: boolean; recipient?: PortalRecipient } | null) => {
+        if (!cancelled && data?.ok && data.recipient) setRecipient(data.recipient);
+      })
+      .catch(() => { /* fallback: se gatea con los datos del paciente */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, caseId]);
+
+  return { recipient, loading };
+}
+
 // ─── i18n (UI labels + message templates, switch with lang toggle) ─────────────
 
 function ui(lang: Lang) {
@@ -75,6 +114,10 @@ function ui(lang: Lang) {
     expires:      '⏱ Expira:',
     close:        'Cerrar',
     statusUpdate: 'Estado actualizado a',
+    guardianBadge:    'Responsable legal',
+    guardianReceives: 'Recibe el formulario de',
+    guardianRequired: 'es menor de edad y no tiene responsable legal asignado. Asignalo en la ficha del paciente antes de enviar — es quien firma los consentimientos. Si el paciente ya está en la clínica, se puede llenar en la tablet.',
+    resolving:        'Verificando destinatario...',
   };
   const en: typeof es = {
     title:        'Send portal to patient',
@@ -106,23 +149,46 @@ function ui(lang: Lang) {
     expires:      '⏱ Expires:',
     close:        'Close',
     statusUpdate: 'Status updated to',
+    guardianBadge:    'Legal guardian',
+    guardianReceives: 'Receives the form for',
+    guardianRequired: 'is a minor with no legal guardian assigned. Assign one on the patient record before sending — the guardian is who signs the consents. If the patient is at the clinic, the form can be filled on the tablet.',
+    resolving:        'Checking recipient...',
   };
   return lang === 'es' ? es : en;
 }
 
-function smsTemplate(lang: Lang, firstName: string, caseCode: string): string {
+// Cuando el destinatario es el tutor, el mensaje nombra al menor — si le
+// llegara el mismo texto que al paciente, no sabría de quién es el caso.
+// El copy del SMS replica el que arma el server en send-portal-link.
+
+function smsTemplate(lang: Lang, firstName: string, caseCode: string, minorName: string | null): string {
+  if (minorName) {
+    return lang === 'es'
+      ? `Hola ${firstName}, soy de Precision Medical. Para completar el intake de ${minorName} (caso ${caseCode}), click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
+      : `Hi ${firstName}, this is Precision Medical. To complete the intake for ${minorName} (case ${caseCode}), click: [magic-link]. Expires in 24h. Questions: (801) 375-2207.`;
+  }
   return lang === 'es'
     ? `Hola ${firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseCode}, click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
     : `Hi ${firstName}, this is Precision Medical. To complete intake for case ${caseCode}, click: [magic-link]. Expires 24h. Questions: (801) 375-2207.`;
 }
 
-function emailSubject(lang: Lang, fullName: string): string {
+function emailSubject(lang: Lang, fullName: string, minorName: string | null): string {
+  if (minorName) {
+    return lang === 'es'
+      ? `Recordatorio: completa el formulario de ${minorName}`
+      : `Reminder: complete the information form for ${minorName}`;
+  }
   return lang === 'es'
     ? `Recordatorio: completa tu formulario, ${fullName}`
     : `Reminder: complete your information form, ${fullName}`;
 }
 
-function emailBody(lang: Lang, fullName: string): string {
+function emailBody(lang: Lang, fullName: string, minorName: string | null): string {
+  if (minorName) {
+    return lang === 'es'
+      ? `Hola ${fullName},\n\nComo responsable legal de ${minorName}, tu clínica te recuerda completar su formulario de información antes de la próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar el registro.\n\nGracias,\nPrecision Medical`
+      : `Hello ${fullName},\n\nAs the legal guardian of ${minorName}, your clinic is reminding you to complete their information form before the next visit.\n\nUse the secure link that will follow to complete the registration.\n\nThank you,\nPrecision Medical`;
+  }
   return lang === 'es'
     ? `Hola ${fullName},\n\nTu clínica te recuerda completar tu formulario de información antes de tu próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar tu registro.\n\nGracias,\nPrecision Medical`
     : `Hello ${fullName},\n\nYour clinic is reminding you to complete your information form before your next visit.\n\nUse the secure link that will follow to complete your registration.\n\nThank you,\nPrecision Medical`;
@@ -197,8 +263,26 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   const [result,   setResult]   = useState<SendResult | null>(null);
   const [copied,   setCopied]   = useState(false);
 
+  // El destinatario real puede ser el tutor (menor con responsable legal
+  // vinculado) — lo resuelve el server con la misma regla que usa al enviar.
+  const { recipient: resolved, loading: resolvingDest } = usePortalRecipient(caseInfo?.id, open);
+
   const L = ui(lang);
   const fullName = caseInfo ? `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}` : '';
+
+  // Mientras el GET no llegó (o falló), se gatea con los datos del paciente —
+  // igual que antes de existir la resolución. El server valida de nuevo al enviar.
+  const dest = resolved ?? (caseInfo ? {
+    firstName: caseInfo.patient.firstName,
+    lastName:  caseInfo.patient.lastName,
+    phone:     caseInfo.patient.phone,
+    email:     caseInfo.patient.email,
+    forGuardian: false,
+    guardianRequired: false,
+    minorName: null,
+  } : null);
+  const destName  = dest ? `${dest.firstName} ${dest.lastName}` : '';
+  const minorName = dest?.forGuardian ? dest.minorName : null;
 
   // Reset on open
   useEffect(() => {
@@ -212,19 +296,27 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
     }
   }, [open, caseInfo]);
 
-  // Sync email subject/body when lang or name changes
+  // Cuando llega el destinatario resuelto, re-elegir el canal con SUS datos
+  // (el tutor puede tener teléfono aunque el menor no, y viceversa)
   useEffect(() => {
-    if (!caseInfo) return;
-    setSubject(emailSubject(lang, fullName));
-    setBody(emailBody(lang, fullName));
-  }, [lang, fullName, caseInfo]);
+    if (!resolved) return;
+    setChannel(resolved.phone ? 'SMS' : 'EMAIL');
+  }, [resolved]);
 
-  if (!caseInfo) return null;
+  // Sync email subject/body when lang or recipient changes
+  useEffect(() => {
+    if (!caseInfo || !destName) return;
+    setSubject(emailSubject(lang, destName, minorName));
+    setBody(emailBody(lang, destName, minorName));
+  }, [lang, destName, minorName, caseInfo]);
 
-  const canSendSms   = !!caseInfo.patient.phone;
-  const canSendEmail = !!caseInfo.patient.email;
+  if (!caseInfo || !dest) return null;
 
-  const smsText = smsTemplate(lang, caseInfo.patient.firstName, caseInfo.caseCode);
+  const sendBlocked  = dest.guardianRequired;
+  const canSendSms   = !!dest.phone  && !sendBlocked;
+  const canSendEmail = !!dest.email && !sendBlocked;
+
+  const smsText = smsTemplate(lang, dest.firstName, caseInfo.caseCode, minorName);
   const smsChars = smsText.replace('[magic-link]', 'https://forms.lienmaster.net/c/pt_xxxxx').length;
 
   const handleSend = async () => {
@@ -352,31 +444,53 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
         {/* Scrollable body */}
         <div className="px-5 py-4 overflow-y-auto flex-1 flex flex-col gap-4">
 
-          {/* Patient card */}
+          {/* Recipient card — el tutor cuando el paciente es menor */}
           <div className="flex items-center gap-3 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
             <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
               style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)' }}>
-              {initials(caseInfo.patient.firstName, caseInfo.patient.lastName)}
+              {initials(dest.firstName, dest.lastName)}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] font-semibold text-text-1">
-                {fullName}
-                <code className="text-[10px] text-text-muted font-mono ml-2">{caseInfo.caseCode}</code>
+              <div className="text-[12.5px] font-semibold text-text-1 flex items-center gap-2 flex-wrap">
+                {destName}
+                {dest.forGuardian && (
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide px-1.5 py-px rounded bg-violet/15 text-violet border border-violet/25">
+                    {L.guardianBadge}
+                  </span>
+                )}
+                <code className="text-[10px] text-text-muted font-mono">{caseInfo.caseCode}</code>
               </div>
+              {dest.forGuardian && (
+                <div className="text-[10px] text-text-muted mt-0.5">
+                  {L.guardianReceives} <span className="text-text-2 font-medium">{minorName}</span>
+                </div>
+              )}
               <div className="flex flex-col gap-0.5 mt-1">
                 <div className="flex items-center gap-1.5 text-[11px] text-text-2">
-                  <ContactDot ok={canSendSms} />
+                  <ContactDot ok={!!dest.phone} />
                   <Phone className="w-2.5 h-2.5 text-text-muted" />
-                  <span className="font-mono text-[10.5px]">{caseInfo.patient.phone ?? L.noPhone}</span>
+                  <span className="font-mono text-[10.5px]">{dest.phone ?? L.noPhone}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-text-2">
-                  <ContactDot ok={canSendEmail} />
+                  <ContactDot ok={!!dest.email} />
                   <Mail className="w-2.5 h-2.5 text-text-muted" />
-                  <span className="font-mono text-[10.5px]">{caseInfo.patient.email ?? L.noEmail}</span>
+                  <span className="font-mono text-[10.5px]">{dest.email ?? L.noEmail}</span>
                 </div>
               </div>
             </div>
+            {resolvingDest && (
+              <span className="text-[9.5px] text-text-muted flex-shrink-0">{L.resolving}</span>
+            )}
           </div>
+
+          {/* Menor sin responsable legal → el server rechaza el envío (400).
+              Se avisa acá para que nadie llegue a un botón que va a fallar. */}
+          {sendBlocked && (
+            <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11.5px] text-amber leading-relaxed">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+              <span><strong className="font-semibold">{fullName}</strong> {L.guardianRequired}</span>
+            </div>
+          )}
 
           {/* Channel selector */}
           <div>
@@ -505,7 +619,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 <div className="px-3 py-3 bg-bg-1/60">
                   <p className="text-[11px] text-text-muted mb-2">
                     <span className="uppercase tracking-wider font-semibold text-[9.5px]">{L.previewTo}</span>{' '}
-                    <code className="font-mono text-text-1">{caseInfo.patient.email}</code>
+                    <code className="font-mono text-text-1">{dest.email}</code>
                   </p>
                   <div className="text-[11.5px] text-text-2 leading-relaxed whitespace-pre-wrap">
                     {body.split('[magic-link]').map((part, i, arr) => (

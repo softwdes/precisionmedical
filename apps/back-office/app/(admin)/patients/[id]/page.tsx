@@ -30,6 +30,12 @@ export default async function PatientDetailPage({
       providerReferrer: {
         select: { id: true, firstName: true, lastName: true },
       },
+      // Tutor legal vinculado. Sin esto el diálogo de edición no puede mostrar
+      // el tutor que ya existe y lo desvincularía al guardar. Tiene que quedar
+      // simétrico con patients-data.tsx y /api/admin/patients/list.
+      guardianPatient: {
+        select: { id: true, patientCode: true, firstName: true, lastName: true, email: true, phone: true },
+      },
       cases: {
         include: {
           lawFirm: {

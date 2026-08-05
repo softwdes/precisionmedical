@@ -56,4 +56,10 @@ export type { DatePickerProps } from './date-picker';
 export { RichTextEditor } from './rich-text-editor';
 export type { RichTextEditorProps } from './rich-text-editor';
 
+export { Autocomplete } from './autocomplete';
+export type { AutocompleteProps, AutoResult } from './autocomplete';
+
+export { CaseStageProgress } from './case-stage-progress';
+export type { CaseStageProgressProps, CaseStageProgressLabels } from './case-stage-progress';
+
 export { ToastProvider, useToast } from './toast';

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall } from 'lucide-react';
+import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall, UserPlus } from 'lucide-react';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
@@ -15,11 +15,26 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  Label,
 } from '@precision/ui';
-import { FormField, PersonAvatar } from '@/components/ui-phoenix';
+import { FormField, PersonAvatar, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
 
 type PatientStatus    = 'NEW' | 'ACTIVE' | 'COMPLETED' | 'DISCHARGED' | 'INACTIVE';
-type GuardianRelation = 'FATHER' | 'MOTHER' | 'LEGAL_GUARDIAN' | 'OTHER';
+
+/** Mismos valores que el enum del PATCH y que el alta de caso. */
+const GUARDIAN_RELATIONS = ['FATHER', 'MOTHER', 'LEGAL_GUARDIAN', 'OTHER'] as const;
+type GuardianRelation = (typeof GUARDIAN_RELATIONS)[number];
+
+/**
+ * `Patient.guardianRelation` es una columna de texto libre, así que puede traer
+ * cualquier cosa de la data migrada. Todo lo que no sea del enum cae en MOTHER,
+ * que es el default del backend.
+ */
+function normalizeGuardianRelation(stored: string | null | undefined): GuardianRelation {
+  return GUARDIAN_RELATIONS.includes(stored as GuardianRelation)
+    ? (stored as GuardianRelation)
+    : 'MOTHER';
+}
 
 export interface EditablePatient {
   id:                          string;
@@ -119,6 +134,10 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [open,         setOpen]         = useState(externalOpen ?? false);
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState('');
+  // Marca si el error en pantalla es de la seccion del tutor, para que el boton
+  // del alert ofrezca llevar hasta ahi. Es un flag y no una comparacion del
+  // texto porque el texto viene traducido.
+  const [guardianError, setGuardianError] = useState(false);
   const [confirmExit,  setConfirmExit]  = useState(false);
   const [emailError,   setEmailError]   = useState('');
   const [phoneError,   setPhoneError]   = useState('');
@@ -173,24 +192,63 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     emergency2Name:            patient.emergency2Name           ?? '',
     emergency2Phone:           patient.emergency2Phone          ?? '',
     emergency2Relation:        normalizeRelation(patient.emergency2Relation ?? '').selectVal,
-    guardianName:              patient.guardianName             ?? '',
-    guardianPhone:             patient.guardianPhone            ?? '',
-    guardianRelation:          patient.guardianRelation         ?? '',
   };
 
   const [form, setForm] = useState(initialForm);
 
   const age     = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
-  const guardianMissing = isMinor && !form.guardianName.trim();
-  // Tutor vinculado (guardianPatientId). Su correo es el canal de contacto real
-  // del menor — ver pending-tasks.md.
-  const linkedGuardian = patient.guardianPatient ?? null;
-  const guardianEmail  = linkedGuardian?.email ?? null;
+
+  // ─── Tutor legal ────────────────────────────────────────────────────────
+  // El tutor es un Patient vinculado por `guardianPatientId`, y su correo es el
+  // canal de contacto real del menor (ver docs/plan-tutor-legal.md §3.2). Los
+  // campos de texto `guardianName`/`guardianPhone` son legado: se MUESTRAN si
+  // traen algo, pero ya no se editan desde acá — mantener las dos vías abiertas
+  // es lo que dejó el dato en dos lugares y la ficha del tutor sin llenar.
+  const [guardianSel, setGuardianSel] = useState<AutoResult | null>(() => {
+    const g = patient.guardianPatient;
+    if (!g) return null;
+    return {
+      id:          g.id,
+      label:       `${g.firstName} ${g.lastName}`.trim(),
+      subtitle:    [g.patientCode, g.phone, g.email].filter(Boolean).join(' · '),
+      firstName:   g.firstName,
+      lastName:    g.lastName,
+      email:       g.email ?? '',
+      phone:       g.phone ?? '',
+      patientCode: g.patientCode ?? undefined,
+    };
+  });
+  // Ficha nueva a crear. Es un objeto aparte del vínculo porque la creación es
+  // EXPLÍCITA: se llena acá y se crea recién al guardar, dentro de la misma
+  // transacción del paciente. Nunca al perder el foco — así se multiplican los
+  // duplicados.
+  const [guardianNew, setGuardianNew] = useState<{
+    firstName: string; lastName: string; email: string; phone: string; dateOfBirth: string;
+  } | null>(null);
+  const [gRelation,       setGRelation]       = useState<string>(
+    () => normalizeGuardianRelation(patient.guardianRelation),
+  );
+  const [guardianTouched, setGuardianTouched] = useState(false);
+
+  const guardianEmail   = guardianSel?.email?.trim() || null;
+  const guardianLegacy  = [patient.guardianName, patient.guardianPhone].filter(Boolean).join(' · ');
+  const guardianNewAge  = useMemo(
+    () => (guardianNew ? calcAge(guardianNew.dateOfBirth) : null),
+    [guardianNew],
+  );
+
+  function setGuardianNewField(key: keyof NonNullable<typeof guardianNew>) {
+    return (v: string) => {
+      setGuardianTouched(true);
+      setGuardianNew(prev => (prev ? { ...prev, [key]: key === 'phone' ? formatPhone(v) : v } : prev));
+    };
+  }
 
   const isDirty = Object.keys(initialForm).some(
     k => form[k as keyof typeof initialForm] !== initialForm[k as keyof typeof initialForm]
-  );
+  ) || guardianTouched;
+
 
   function set(key: keyof typeof initialForm) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
@@ -213,6 +271,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   }
 
   async function handleSave() {
+    setGuardianError(false);
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError(t('errorNameRequired'));
       return;
@@ -227,12 +286,25 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
       if (a > 120) { setError(t('errorDOBYear')); return; }
     }
-    // El tutor NO bloquea guardar (regla confirmada 2026-08-02): solo se exige
-    // para FIRMAR los consentimientos, que es otro momento del flujo — el
-    // formulario se le envia al apoderado y el firma. Ademas el dato suele YA
-    // existir en `guardianPatientId` (lo escribe el alta del menor) y este
-    // form todavia mira el campo de texto legado `guardianName`, asi que
-    // bloquear aca pedia un dato que la base ya tiene.
+    // NO tener tutor no bloquea guardar (regla confirmada 2026-08-02): solo se
+    // exige para FIRMAR los consentimientos, que es otro momento del flujo — el
+    // formulario se le envia al apoderado y el firma.
+    //
+    // Lo que si se valida es una ficha nueva a medias: si se abrio el formulario
+    // del tutor nuevo, no puede quedar sin nombre (el backend la descartaria en
+    // silencio) ni con una fecha de nacimiento de menor (no podria firmar).
+    if (guardianNew) {
+      if (!guardianNew.firstName.trim() || !guardianNew.lastName.trim()) {
+        setGuardianError(true);
+        setError(t('errorGuardianIncomplete'));
+        return;
+      }
+      if (guardianNewAge !== null && guardianNewAge < 18) {
+        setGuardianError(true);
+        setError(t('errorGuardianMinor'));
+        return;
+      }
+    }
     if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) {
       setError(t('errorZipInvalid'));
       return;
@@ -246,12 +318,31 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     }
     setSaving(true);
     setError('');
+    // `guardian` ausente = no tocar el vinculo · null = desvincular.
+    // Si nadie toco la seccion, se manda el vinculo que ya habia (no-op) y si
+    // tampoco habia vinculo se omite la clave: asi un guardado desde otra vista
+    // no puede desvincular al tutor por no haber mandado el dato.
+    const guardianPayload =
+      guardianSel
+        ? { patientId: guardianSel.id, relation: gRelation }
+        : guardianNew
+          ? {
+              patientId:   null,
+              firstName:   guardianNew.firstName.trim(),
+              lastName:    guardianNew.lastName.trim(),
+              email:       guardianNew.email.trim() || null,
+              phone:       guardianNew.phone.trim(),
+              dateOfBirth: guardianNew.dateOfBirth || null,
+              relation:    gRelation,
+            }
+          : guardianTouched ? null : undefined;
     try {
       const res = await fetch(`/api/admin/patients/${patient.id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           ...form,
+          ...(guardianPayload !== undefined ? { guardian: guardianPayload } : {}),
           sex:                     form.sex                     || null,
           maritalStatus:           form.maritalStatus           || null,
           communicationPreference: form.communicationPreference || null,
@@ -259,7 +350,6 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
           referralSourceOther:     form.referralSource === 'OTHER' ? (referralSourceOther.trim() || null) : null,
           race:                    form.race                    || null,
           ethnicity:               form.ethnicity               || null,
-          guardianRelation:        form.guardianRelation        || null,
           emergencyContactRelation: form.emergencyContactRelation === 'OTHER'
             ? (emergency1RelationOther.trim() || 'OTHER')
             : (form.emergencyContactRelation || null),
@@ -367,13 +457,12 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     { value: 'OTHER',            label: t('referral.OTHER') },
   ];
 
-  const GUARDIAN_OPTIONS = [
-    { value: '', label: '—' },
-    { value: 'FATHER',         label: t('guardianRelation.FATHER') },
-    { value: 'MOTHER',         label: t('guardianRelation.MOTHER') },
-    { value: 'LEGAL_GUARDIAN', label: t('guardianRelation.LEGAL_GUARDIAN') },
-    { value: 'OTHER',          label: t('guardianRelation.OTHER') },
-  ];
+  // Sin opción vacía: solo se muestra cuando ya hay un tutor, y en ese caso la
+  // relación es obligatoria (el backend la valida contra el enum).
+  const GUARDIAN_OPTIONS = GUARDIAN_RELATIONS.map(r => ({
+    value: r,
+    label: t(`guardianRelation.${r}`),
+  }));
 
   const EMERGENCY_RELATION_OPTIONS = [
     { value: '',        label: '—' },
@@ -394,16 +483,19 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
       {/* Error de validacion como alert centrado, no como texto al pie: antes
           quedaba fuera de pantalla y parecia que Guardar no hacia nada.
-          Si el problema es el responsable legal, al aceptar lleva al campo. */}
+          Si el problema es el responsable legal, al aceptar lleva a la seccion. */}
       <ConfirmDialog
         open={!!error}
         variant="danger"
         showCancel={false}
         title={t('editErrorTitle')}
         description={error}
-        confirmLabel={guardianMissing ? t('errorGoToGuardian') : t('btnAccept')}
+        // El label depende del error CONCRETO. Antes miraba si faltaba el tutor,
+        // y como desde ff16226 eso ya no bloquea, cualquier otro error (un ZIP
+        // mal, por ejemplo) en un menor mostraba "Ir al responsable legal".
+        confirmLabel={guardianError ? t('errorGoToGuardian') : t('btnAccept')}
         onConfirm={() => {
-          const goGuardian = guardianMissing;
+          const goGuardian = guardianError;
           setError('');
           if (goGuardian) {
             requestAnimationFrame(() => {
@@ -581,35 +673,126 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                   <h3 className="text-sm font-semibold text-amber">{t('sectionGuardian')}</h3>
                   <span className="text-[10px] text-amber/70 italic">{t('guardianRequired')}</span>
                 </div>
-                {linkedGuardian ? (
-                  /* Tutor ya vinculado: se muestra su ficha y, sobre todo, la
+                {guardianSel ? (
+                  /* Tutor vinculado: se muestra su ficha y, sobre todo, la
                      CONSECUENCIA — a que correo se envia todo. */
                   <div className="rounded-md border border-emerald/30 bg-emerald/5 px-3 py-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <PersonAvatar size={6} firstName={linkedGuardian.firstName} lastName={linkedGuardian.lastName} />
-                      <span className="text-text-1 text-sm font-semibold">
-                        {linkedGuardian.firstName} {linkedGuardian.lastName}
-                      </span>
-                      {linkedGuardian.patientCode && (
-                        <span className="font-mono text-[10px] text-text-muted">{linkedGuardian.patientCode}</span>
+                      <PersonAvatar size={6} firstName={guardianSel.firstName ?? ''} lastName={guardianSel.lastName ?? ''} />
+                      <span className="text-text-1 text-sm font-semibold">{guardianSel.label}</span>
+                      {guardianSel.patientCode && (
+                        <span className="font-mono text-[10px] text-text-muted">{guardianSel.patientCode}</span>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => { setGuardianTouched(true); setGuardianSel(null); }}
+                        className="ml-auto shrink-0 rounded-md border border-border-strong px-2.5 py-1 text-[11px] text-text-muted transition-colors hover:text-rose"
+                      >
+                        {t('guardianUnlink')}
+                      </button>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text-2">
-                      {linkedGuardian.email && <span>{linkedGuardian.email}</span>}
-                      {linkedGuardian.phone && <span className="font-mono">{linkedGuardian.phone}</span>}
+                      {guardianSel.email && <span>{guardianSel.email}</span>}
+                      {guardianSel.phone && <span className="font-mono">{guardianSel.phone}</span>}
                     </div>
                     <p className="mt-1.5 text-[10px] text-emerald">{t('guardianIsContact')}</p>
                   </div>
+                ) : guardianNew ? (
+                  /* Ficha nueva: se crea al GUARDAR, no al escribir. */
+                  <div className="space-y-3 rounded-md border border-cyan/30 bg-cyan/5 px-3 py-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <UserPlus className="w-3.5 h-3.5 text-cyan shrink-0" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan">
+                        {t('guardianCreateTitle')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setGuardianTouched(true); setGuardianNew(null); }}
+                        className="ml-auto shrink-0 rounded-md border border-border-strong px-2.5 py-1 text-[11px] text-text-muted transition-colors hover:text-rose"
+                      >
+                        {t('guardianCancelCreate')}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField.Input label={`${t('fieldGuardianFirstName')} *`} value={guardianNew.firstName} onChange={setGuardianNewField('firstName')} placeholder={t('fieldGuardianFirstName')} />
+                      <FormField.Input label={`${t('fieldGuardianLastName')} *`}  value={guardianNew.lastName}  onChange={setGuardianNewField('lastName')}  placeholder={t('fieldGuardianLastName')} />
+                      <FormField.Input label={t('fieldGuardianEmail')} value={guardianNew.email} onChange={setGuardianNewField('email')} placeholder="guardian@email.com" type="email" />
+                      <FormField.Input label={t('fieldGuardianPhone')} value={guardianNew.phone} onChange={setGuardianNewField('phone')} placeholder="(801) 555-0100" type="tel" />
+                      <div className="space-y-1">
+                        <FormField.Input label={t('fieldGuardianDOB')} value={guardianNew.dateOfBirth} onChange={setGuardianNewField('dateOfBirth')} type="date" />
+                        {guardianNewAge !== null && (
+                          <p className={`text-[11px] ${guardianNewAge < 18 ? 'text-rose font-semibold' : 'text-text-muted'}`}>
+                            {guardianNewAge < 18 ? t('guardianMustBeAdult', { age: guardianNewAge }) : t('ageYears', { age: guardianNewAge })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-cyan">{t('guardianCreateNote')}</p>
+                  </div>
                 ) : (
-                  <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-                    {t('guardianNote')}
+                  <div className="space-y-2">
+                    <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                      {t('guardianNote')}
+                    </div>
+                    {/* El dato legado no se pierde de vista, pero tampoco se
+                        edita: el correo que vale vive en la ficha del tutor. */}
+                    {guardianLegacy && (
+                      <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-0.5">
+                        <p className="text-[11px] text-text-2">{t('guardianLegacyText', { value: guardianLegacy })}</p>
+                        <p className="text-[10px] text-text-muted italic">{t('guardianLegacyHint')}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <Label>{t('guardianSearchLabel')}</Label>
+                      <Autocomplete
+                        endpoint="/api/admin/patients/autocomplete"
+                        extraParams={{ excludeId: patient.id }}
+                        placeholder={t('guardianSearchPlaceholder')}
+                        selected={null}
+                        showAge
+                        blockMinors
+                        onSelect={(r) => { if (!r) return; setGuardianTouched(true); setGuardianSel(r); }}
+                        renderEmpty={(query, close) => (
+                          <button
+                            type="button"
+                            disabled={!query}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!query) return;
+                              // Nombre partido en primera palabra / resto: el
+                              // buscador acepta "Maria Lopez Perez".
+                              const parts = query.split(/\s+/).filter(Boolean);
+                              setGuardianTouched(true);
+                              setGuardianNew({
+                                firstName:   parts[0] ?? '',
+                                lastName:    parts.slice(1).join(' '),
+                                email: '', phone: '', dateOfBirth: '',
+                              });
+                              close();
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-brand transition-colors hover:bg-white/5 disabled:opacity-50"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 shrink-0" />
+                            <span className="min-w-0 flex-1">
+                              {query ? t('guardianCreateNew', { name: query }) : t('guardianCreateNewEmpty')}
+                            </span>
+                          </button>
+                        )}
+                      />
+                      <p className="text-[11px] text-text-muted italic">{t('guardianSearchHint')}</p>
+                    </div>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={set('guardianName')}     placeholder={t('fieldGuardianName')} />
-                  <FormField.Select label={t('fieldGuardianRelation')}     value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />
-                </div>
-                <FormField.Input label={t('fieldGuardianPhone')} value={form.guardianPhone} onChange={setPhone('guardianPhone')} placeholder="(801) 555-0100" type="tel" />
+                {/* La relacion es un dato DE ESTA relacion, no de la ficha del
+                    tutor, asi que se edita siempre que haya un tutor. */}
+                {(guardianSel || guardianNew) && (
+                  <FormField.Select
+                    label={t('fieldGuardianRelation')}
+                    value={gRelation}
+                    onChange={(v) => { setGuardianTouched(true); setGRelation(v); }}
+                    options={GUARDIAN_OPTIONS}
+                  />
+                )}
               </div>
             )}
 

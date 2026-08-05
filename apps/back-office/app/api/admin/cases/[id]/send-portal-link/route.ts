@@ -26,6 +26,56 @@ const InputSchema = z.object({
   body:          z.string().max(2000).optional(),
 });
 
+// El GET y el POST tienen que resolver al destinatario con el mismo select:
+// si divergen, el diálogo gatea los canales con una regla y el envío con otra.
+const PATIENT_WITH_GUARDIAN_SELECT = {
+  id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
+  guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+} as const;
+
+/**
+ * GET — a quién le llegaría el link, sin enviar nada.
+ *
+ * El diálogo de envío lo consulta al abrir para gatear los canales SMS/Email
+ * con los datos del DESTINATARIO real (el tutor cuando el paciente es menor),
+ * no con los del paciente. Antes un menor sin correo propio pero con tutor
+ * con correo veía el botón Email apagado sin motivo.
+ */
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id: caseId } = await ctx.params;
+
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+    include: { patient: { select: PATIENT_WITH_GUARDIAN_SELECT } },
+  });
+
+  if (!caseRecord) {
+    return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
+  }
+
+  const esMenor   = isMinor(caseRecord.patient.dateOfBirth);
+  const apoderado = esMenor ? caseRecord.patient.guardianPatient : null;
+  const destino   = apoderado ?? caseRecord.patient;
+
+  return NextResponse.json({
+    ok: true,
+    recipient: {
+      firstName:        destino.firstName,
+      lastName:         destino.lastName,
+      phone:            destino.phone,
+      email:            destino.email,
+      forGuardian:      !!apoderado,
+      guardianRequired: esMenor && !apoderado,
+      minorName:        apoderado
+        ? `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim()
+        : null,
+    },
+  });
+}
+
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
@@ -46,14 +96,7 @@ export async function POST(
   // Find case + patient (+ apoderado si el paciente es menor)
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    include: {
-      patient: {
-        select: {
-          id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
-          guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
-        },
-      },
-    },
+    include: { patient: { select: PATIENT_WITH_GUARDIAN_SELECT } },
   });
 
   if (!caseRecord) {
@@ -68,6 +111,25 @@ export async function POST(
   const apoderado  = esMenor ? caseRecord.patient.guardianPatient : null;
   const destino    = apoderado ?? caseRecord.patient;
   const paraMenor  = !!apoderado;
+
+  // ─── Menor SIN responsable legal: no se envía ──────────────────────────
+  // Decisión de negocio (Erick, 2026-08-03): se bloquea. El que firma los
+  // consentimientos y el lien es el tutor, así que un intake que llenó y firmó
+  // el menor no sirve legalmente. Hasta ahora el link caía al correo del propio
+  // menor y nadie se enteraba de que había salido al destinatario equivocado.
+  //
+  // La vía cuando falta el tutor es la tablet en clínica: `generate-portal-token`
+  // (que no manda nada a nadie) sigue funcionando sin esta restricción.
+  if (esMenor && !apoderado) {
+    const nombreDelMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
+    return NextResponse.json({
+      error: 'GUARDIAN_REQUIRED',
+      message: `${nombreDelMenor} es menor de edad y no tiene responsable legal asignado. `
+        + 'Asignalo en la ficha del paciente antes de enviar el formulario — es quien tiene que firmar '
+        + 'los consentimientos. Si el paciente ya está en la clínica, se puede llenar en la tablet.',
+      patientId: caseRecord.patient.id,
+    }, { status: 400 });
+  }
 
   // Validation — contra los datos de quien realmente va a recibir el link
   if (parsed.via === 'SMS' && !destino.phone) {

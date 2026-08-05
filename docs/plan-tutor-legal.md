@@ -1,6 +1,27 @@
 # Plan · Tutor legal como Paciente vinculado
 
-> **Documento de traspaso.** Escrito 2026-08-03. Todo lo necesario para
+> ## ✅ IMPLEMENTADO 2026-08-03 — las 4 piezas están hechas (sin commitear)
+>
+> Lo que queda es **probarlo en el navegador logueado** (checklist al final,
+> §9). El resto del documento se conserva como registro de por qué se hizo así.
+>
+> | Pieza | Estado | Dónde quedó |
+> |---|---|---|
+> | 1 · helper | ✅ | `packages/database/src/guardian.ts` · `resolveGuardian()` |
+> | 2 · PATCH acepta tutor | ✅ | `api/admin/patients/[id]/route.ts` · sub-objeto `guardian` |
+> | 3 · UI con autocomplete | ✅ | `app/(admin)/patients/patient-edit-dialog.tsx` |
+> | 4 · el envío resuelve el tutor | ✅ | ya estaba resuelto en `98b5987`; se agregó el bloqueo |
+>
+> **Decisión de Erick (2026-08-03), pieza 4:** menor **sin** tutor vinculado →
+> se **BLOQUEA** el envío (400 `GUARDIAN_REQUIRED`). La vía cuando falta el
+> tutor es la tablet en clínica: `generate-portal-token` no está restringido.
+>
+> **Decisión sobre el segundo `patient-edit-dialog.tsx` (§7):** se **eliminó**.
+> `patients/[id]/` ahora importa el de `patients/`. La copia simple ya había
+> divergido — seguía bloqueando el guardado por falta de tutor (lo que `ff16226`
+> quitó) y no veía el vínculo real.
+>
+> **Documento de traspaso original.** Escrito 2026-08-03. Todo lo necesario para
 > implementar está acá — no hace falta re-analizar.
 >
 > ⚠️ **Conviene hacerlo ANTES de re-migrar** (ver `plan-migracion-v2-v3.md`):
@@ -211,7 +232,80 @@ Alternativa: 1 y 2 juntas si se prefiere hacer el refactor de una.
 
 ---
 
-## 8. Reglas del proyecto
+## 8. Hallazgos de la implementación (2026-08-03)
+
+Cosas que el plan no preveía y aparecieron al hacerlo:
+
+1. **La pieza 4 ya estaba hecha** en el camino que se usa.
+   `api/admin/cases/[id]/send-portal-link/route.ts` resolvía al tutor desde el
+   commit `98b5987` (`isMinor` + `guardianPatient`). Y
+   `api/sms/send-portal-link` es un stub de Phase 0 **sin ningún caller** —
+   código muerto, no se tocó.
+
+2. **Corregir el dedupe abre una vía de fallo nueva.** Excluir al menor del
+   dedupe por correo evita el self-link silencioso, pero entonces el `create`
+   del tutor choca contra el `@unique` de `Patient.email` y eso sale como un
+   500 sin explicación. Los dos routes lo cortan antes con un 400
+   `GUARDIAN_EMAIL_IS_PATIENT_EMAIL`. **Verificado contra la base real.**
+
+3. **Los canales de envío del wizard mentían.** `canEmail`/`canSms` en el paso 4
+   de `new-case-dialog` se calculaban con el correo y teléfono **del menor**,
+   no del apoderado, que es quien recibe. Fallaba en las dos direcciones:
+   apagaba el email cuando el menor no tenía correo aunque el apoderado sí
+   (envío legítimo bloqueado), y lo dejaba encendido cuando el menor tenía
+   correo y el apoderado no (400 `NO_EMAIL` que nadie leía).
+
+4. **El `Autocomplete` era local de `new-case-dialog.tsx`.** Se movió a
+   `components/ui-phoenix/autocomplete.tsx` en lugar de copiarlo (Regla #0). Al
+   hacerlo apareció un bug vivo: `extraParams` es un literal inline, o sea un
+   objeto nuevo en cada render, y estaba en las dependencias del `useEffect` de
+   búsqueda — el componente pedía al endpoint **cada 200 ms** mientras estuviera
+   montado. Ahora las deps comparan el objeto serializado.
+
+5. **La vista de detalle (modal "ver") tenía el mismo defecto que el
+   formulario:** miraba solo `guardianName`. Un menor con apoderado bien
+   vinculado no mostraba nada. Corregido en `patients-client.tsx`.
+
+6. **El label del alert de validación estaba mal.** `guardianMissing` seguía
+   calculándose sobre el campo legado, así que cualquier error en un menor (un
+   ZIP mal, por ejemplo) mostraba el botón "Ir al responsable legal". Ahora es
+   un flag explícito del error concreto.
+
+7. **El helper NO lo puede usar la migración todavía.** Los scripts de
+   `scripts/migration/` son `.mjs` y no pueden importar TS. Para reusar la misma
+   regla hay que correrlos con `tsx` o exponer un subpath compilado.
+
+---
+
+## 9. Checklist de prueba pendiente (navegador logueado)
+
+No se pudo correr acá: el back-office está detrás del login de Supabase. Lo que
+sí se verificó sin navegador: `tsc --noEmit` limpio en toda la app, y
+`resolveGuardian` probado contra la base real con 15 aserciones dentro de
+transacciones revertidas (nada persistió).
+
+- [ ] **⚠️ Alto riesgo — alta de caso desde llamada** (B.2), menor con apoderado
+      **nuevo**: se crea la ficha del apoderado con código `P-xxxx`, el menor
+      queda con `guardianPatientId`, y el caso se crea igual que antes.
+- [ ] Alta de caso, menor con apoderado **existente** elegido del buscador.
+- [ ] Alta de caso de un **adulto** (que el refactor no rompió el camino común).
+- [ ] Paso 4 del wizard con un menor: los toggles de Email/SMS deben mostrar el
+      correo y teléfono **del apoderado** con la marca "al apoderado".
+- [ ] Editar uno de los 5 pacientes que ya tienen `guardianPatientId`: la ficha
+      del tutor aparece, y guardar sin tocar nada **no** lo desvincula.
+- [ ] Editar un menor sin tutor → buscar, elegir uno existente, guardar.
+- [ ] Editar un menor sin tutor → buscar algo que no existe → "Crear a X como
+      paciente nuevo" → completar → guardar → verificar que se creó UNA sola
+      ficha (no una por cada blur).
+- [ ] Botón [Cambiar] sobre un tutor vinculado → guardar → queda desvinculado.
+- [ ] Enviar formulario a un menor **sin** tutor → 400 con el mensaje que dice
+      qué hacer. Con tutor → sale al correo del tutor.
+- [ ] El diálogo de edición desde `/patients/[id]` (el que ahora es el
+      compartido) abre y guarda bien.
+
+---
+
+## 10. Reglas del proyecto
 
 - `apps/back-office/CLAUDE.md` es **vinculante**: primitivos de `ui-phoenix`,
   i18n obligatorio (`phoenix.*`), mobile-first, tokens de color por intención.

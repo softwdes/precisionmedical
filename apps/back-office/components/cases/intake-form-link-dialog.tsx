@@ -16,7 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button,
 } from '@precision/ui';
-import { SendPortalDialog } from './send-portal-dialog';
+import { SendPortalDialog, usePortalRecipient } from './send-portal-dialog';
 
 interface IntakeFormLinkDialogProps {
   open: boolean;
@@ -41,6 +41,11 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
   const [qrDataUrl,  setQrDataUrl]  = useState<string>('');
   const [sendOpen,   setSendOpen]   = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // "Also send via" se gatea con los datos del DESTINATARIO real (el tutor si
+  // el paciente es menor), no con los del paciente. El QR/link de la tablet
+  // no depende de esto — generate-portal-token no exige tutor.
+  const { recipient } = usePortalRecipient(caseInfo?.id, open);
 
   useEffect(() => {
     if (!open || !caseInfo) return;
@@ -97,6 +102,11 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
 
   const patientName = `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}`;
   const initials    = `${caseInfo.patient.firstName[0]}${caseInfo.patient.lastName[0]}`.toUpperCase();
+
+  // Antes de que llegue el GET (o si falla), se gatea con el paciente — igual
+  // que siempre. El server valida de nuevo al enviar.
+  const canSms   = recipient ? (!!recipient.phone && !recipient.guardianRequired) : !!caseInfo.patient.phone;
+  const canEmail = recipient ? (!!recipient.email && !recipient.guardianRequired) : !!caseInfo.patient.email;
 
   return (
     <>
@@ -200,7 +210,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
               <div className="flex gap-2">
                 <button
                   type="button"
-                  disabled={!caseInfo.patient.phone}
+                  disabled={!canSms}
                   onClick={() => setSendOpen(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -208,7 +218,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                 </button>
                 <button
                   type="button"
-                  disabled={!caseInfo.patient.email}
+                  disabled={!canEmail}
                   onClick={() => setSendOpen(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
@@ -216,6 +226,13 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                 </button>
               </div>
             </div>
+
+            {recipient?.guardianRequired && (
+              <p className="text-[10px] text-amber leading-relaxed -mt-2">
+                Minor with no legal guardian assigned — sending is blocked. Use the QR/link
+                on the clinic tablet, or assign the guardian on the patient record.
+              </p>
+            )}
 
             <p className="text-[10px] text-text-muted flex items-center gap-1.5">
               ⏱ Link expires in 24 hours

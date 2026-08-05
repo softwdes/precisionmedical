@@ -1,20 +1,18 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
 import {
-  PhoneCall, PhoneOff, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
+  PhoneCall, PhoneOff, User, Car, Scale, ShieldCheck, Check, AlertCircle,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
   Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare, Tablet,
   Users, Link as LinkIcon,
 } from 'lucide-react';
 import {
   Button,
-  Input,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -23,7 +21,7 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
-import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
+import { TagPill, PersonAvatar, InfoCard, FormField, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
@@ -60,24 +58,6 @@ interface NewCaseDialogProps {
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string; specialtyCatalogIds?: string[] }>;
   initialState?: NewCaseInitialState | null;
   agentName?: string;
-}
-
-interface AutoResult {
-  id: string;
-  label: string;
-  subtitle?: string;
-  shortCode?: string;
-  color?: string;
-  /** Campos extra del autocomplete de pacientes (apoderado de un menor) */
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  dateOfBirth?: string;
-  patientCode?: string;
-  age?: number | null;
-  /** Un apoderado menor de edad no puede firmar — el UI lo marca y bloquea */
-  isMinor?: boolean;
 }
 
 /** Mismos valores que el enum del schema y que patient-create-dialog. */
@@ -445,9 +425,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // recibió el link. Peor que un bloqueo, porque era invisible.
   //
   // Ahora todo el paso 4 usa estos flags derivados: un canal está activo solo
-  // si el paciente tiene con qué recibirlo.
-  const canEmail = !!email.trim();
-  const canSms   = !!phone.trim();
+  // si QUIEN VA A RECIBIR EL LINK tiene con qué recibirlo.
+  //
+  // Para un menor ese destinatario es el apoderado, no el menor: así lo resuelve
+  // send-portal-link. Mirando los datos del menor la UI se equivocaba en las dos
+  // direcciones — apagaba el email cuando el menor no tenía correo aunque el
+  // apoderado sí (envío legítimo bloqueado), y lo dejaba encendido cuando el
+  // menor tenía correo y el apoderado no (400 NO_EMAIL que nadie leía).
+  const contactEmail = patientIsMinor ? (guardianLinked?.email ?? gEmail) : email;
+  const contactPhone = patientIsMinor ? (guardianLinked?.phone ?? gPhone) : phone;
+  const canEmail = !!contactEmail.trim();
+  const canSms   = !!contactPhone.trim();
   const emailOn  = formDelivery.email && canEmail && !formDelivery.tablet;
   const smsOn    = formDelivery.sms   && canSms   && !formDelivery.tablet;
   const noChannel = !emailOn && !smsOn && !formDelivery.tablet;
@@ -1449,13 +1437,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {/* Email toggle */}
                   <button
                     type="button"
-                    disabled={!email.trim()}
+                    disabled={!canEmail}
                     onClick={() => setFormDelivery((d) => ({ ...d, email: !d.email, tablet: false }))}
                     className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
                       emailOn
                         ? 'border-emerald/50 bg-emerald/10'
                         : 'border-border bg-bg-2/40 hover:border-border-strong'
-                    } ${!email.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                    } ${!canEmail ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                       emailOn ? 'bg-emerald/20' : 'bg-bg-2'
@@ -1466,8 +1454,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <div className={`text-sm font-semibold ${emailOn ? 'text-emerald' : 'text-text-1'}`}>
                         Email
                       </div>
+                      {/* Se muestra el correo del DESTINATARIO real: en un menor
+                          el link va al apoderado, y ver el correo del menor acá
+                          hacía creer que llegaba a otro lado. */}
                       <div className="text-[11px] text-text-muted truncate">
-                        {email.trim() ? email.trim() : 'Sin email registrado'}
+                        {contactEmail.trim() ? contactEmail.trim() : 'Sin email registrado'}
+                        {patientIsMinor && contactEmail.trim() && (
+                          <span className="text-amber"> · {t('deliveryToGuardian')}</span>
+                        )}
                       </div>
                     </div>
                     {/* Toggle pill */}
@@ -1483,13 +1477,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {/* SMS toggle */}
                   <button
                     type="button"
-                    disabled={!phone.trim()}
+                    disabled={!canSms}
                     onClick={() => setFormDelivery((d) => ({ ...d, sms: !d.sms, tablet: false }))}
                     className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
                       smsOn
                         ? 'border-cyan/50 bg-cyan/10'
                         : 'border-border bg-bg-2/40 hover:border-border-strong'
-                    } ${!phone.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                    } ${!canSms ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                       smsOn ? 'bg-cyan/20' : 'bg-bg-2'
@@ -1501,7 +1495,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                         SMS
                       </div>
                       <div className="text-[11px] text-text-muted truncate">
-                        {phone.trim() ? phone.trim() : 'Sin teléfono registrado'}
+                        {contactPhone.trim() ? contactPhone.trim() : 'Sin teléfono registrado'}
+                        {patientIsMinor && contactPhone.trim() && (
+                          <span className="text-amber"> · {t('deliveryToGuardian')}</span>
+                        )}
                       </div>
                     </div>
                     <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
@@ -1561,7 +1558,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>
                       {!canEmail && !canSms
-                        ? t('deliveryNoContact')
+                        ? (patientIsMinor ? t('deliveryNoContactGuardian') : t('deliveryNoContact'))
                         : t('deliveryNoChannel')}
                     </span>
                   </div>
@@ -1777,151 +1774,6 @@ function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?
   };
   return (
     <div className={`rounded-md border px-3 py-2 text-[11px] ${toneClasses[tone]}`}>{children}</div>
-  );
-}
-
-function Autocomplete({
-  endpoint, extraParams, placeholder, selected, onSelect, renderAvatar,
-  showAge = false, blockMinors = false, emptyHint,
-}: {
-  endpoint: string; extraParams?: Record<string, string>; placeholder: string;
-  selected: AutoResult | null; onSelect: (result: AutoResult | null) => void;
-  renderAvatar?: (r: AutoResult) => React.ReactNode;
-  /** Muestra la edad de cada resultado — usado al elegir apoderado */
-  showAge?: boolean;
-  /** Impide seleccionar resultados menores de edad (no pueden firmar) */
-  blockMinors?: boolean;
-  /** Mensaje cuando la búsqueda no trae nada (por defecto no se muestra nada) */
-  emptyHint?: string;
-}) {
-  const t = useTranslations('phoenix.frontOffice.newCase');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<AutoResult[]>([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>(
-    { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' }
-  );
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setMounted(true); }, []);
-
-  useEffect(() => {
-    if (selected) { setQuery(''); setOpen(false); return; }
-    const handle = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ q: query, ...(extraParams ?? {}) });
-        const res = await fetch(`${endpoint}?${params}`);
-        if (res.ok) { const data = await res.json(); setResults(data.results ?? []); }
-      } catch { setResults([]); } finally { setLoading(false); }
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [query, endpoint, extraParams, selected]);
-
-  // Recalculate position on open, results change, AND any scroll/resize
-  useLayoutEffect(() => {
-    const compute = () => {
-      if (!open || !wrapRef.current) {
-        setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' });
-        return;
-      }
-      const rect = wrapRef.current.getBoundingClientRect();
-      const dropH = Math.min(240, results.length * 44 + 8);
-      if (rect.top >= dropH) {
-        setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
-      } else {
-        setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
-      }
-    };
-    compute();
-    if (!open) return;
-    // Find the dialog's scrollable container and listen so dropdown tracks it
-    let scrollable: HTMLElement | null = wrapRef.current?.parentElement ?? null;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open, results.length]);
-
-  // Close on outside click — check both input wrapper and portal dropdown
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!wrapRef.current?.contains(target) && !dropRef.current?.contains(target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-
-  if (selected) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-brand/10 border border-brand/30">
-        {renderAvatar?.(selected)}
-        <div className="flex-1 min-w-0">
-          <div className="text-text-1 text-sm font-medium truncate">{selected.label}</div>
-          {selected.subtitle && <div className="text-text-muted text-xs truncate">{selected.subtitle}</div>}
-        </div>
-        <button type="button" onClick={() => onSelect(null)} className="text-text-muted hover:text-rose text-xs shrink-0">
-          {t('autocompleteChange')}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative" ref={wrapRef}>
-      <div className="relative">
-        <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
-      </div>
-      {mounted && open && (results.length > 0 || loading || (!!emptyHint && query.length >= 2)) && createPortal(
-        <div ref={dropRef} style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
-          {loading && results.length === 0 ? (
-            <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
-          ) : results.length === 0 && emptyHint ? (
-            <div className="px-3 py-3 text-text-muted text-xs text-center">{emptyHint}</div>
-          ) : results.map((r) => {
-            // Un menor no puede ser apoderado: se muestra pero no se puede elegir
-            const disabled = blockMinors && r.isMinor === true;
-            return (
-              <button key={r.id} type="button" disabled={disabled}
-                onMouseDown={(e) => { e.preventDefault(); if (disabled) return; onSelect(r); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'
-                }`}>
-                {renderAvatar?.(r)}
-                <div className="flex-1 min-w-0">
-                  <div className="text-text-1 truncate">{r.label}</div>
-                  {r.subtitle && <div className="text-text-muted text-xs truncate">{r.subtitle}</div>}
-                </div>
-                {showAge && r.age !== null && r.age !== undefined && (
-                  <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                    r.isMinor
-                      ? 'bg-rose/10 border-rose/30 text-rose'
-                      : 'bg-emerald/10 border-emerald/30 text-emerald'
-                  }`}>
-                    {r.age} {r.age === 1 ? 'año' : 'años'}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>,
-        document.body
-      )}
-    </div>
   );
 }
 

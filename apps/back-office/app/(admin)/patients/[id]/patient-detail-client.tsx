@@ -15,7 +15,12 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { PatientEditDialog } from './patient-edit-dialog';
+// El diálogo de edición es el mismo que usa la lista de pacientes. Había una
+// segunda implementación acá (más simple y ya divergida: seguía bloqueando el
+// guardado por falta de tutor y no veía el vínculo real), y mantener dos
+// formularios para la misma tabla garantizaba que cada arreglo se hiciera en uno
+// solo — es la duplicación que ya nos pasó con calcAge y los generadores de código.
+import { PatientEditDialog } from '../patient-edit-dialog';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -77,6 +82,13 @@ interface PatientData {
   guardianName: string | null;
   guardianPhone: string | null;
   guardianRelation: string | null;
+  // El vínculo real al tutor; los tres de arriba son legado.
+  guardianPatientId: string | null;
+  guardianPatient: {
+    id: string; patientCode: string | null;
+    firstName: string; lastName: string;
+    email: string | null; phone: string | null;
+  } | null;
   lawyerReferrer: { id: string; firmName: string | null } | null;
   providerReferrer: { id: string; firstName: string; lastName: string } | null;
   cases: PatientCase[];

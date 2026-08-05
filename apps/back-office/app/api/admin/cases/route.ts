@@ -20,7 +20,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma, nextCaseCode, nextPatientCode } from '@precision-medical/database';
+import {
+  db, writeAuditLog, actorFromHeaders, Prisma, nextCaseCode, nextPatientCode,
+  casePrefixFor, resolveGuardian, GuardianIsSelfError,
+} from '@precision-medical/database';
 
 const InputSchema = z.object({
   // Patient
@@ -203,6 +206,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // ─── El correo del apoderado no puede ser el del propio menor ───────
+  // Solo aplica cuando hay que CREAR/reutilizar la ficha del apoderado: si vino
+  // `patientId` ya está elegido y no se toca ningún correo.
+  //
+  // Antes esto no se podía dar porque el dedupe por correo encontraba al propio
+  // menor y lo vinculaba como su propio tutor — silencioso y peor. Ahora que el
+  // dedupe lo excluye, el intento de crear al apoderado con un correo que el
+  // menor ya tiene reventaría contra el @unique de Patient.email en medio de la
+  // transacción, y eso sale como un 500 sin explicación. Se corta acá con un
+  // mensaje que dice qué hacer.
+  if (parsed.guardian?.email && !parsed.guardian.patientId) {
+    const correoApoderado = parsed.guardian.email.toLowerCase();
+    const correoMenor = parsed.existingPatientId
+      ? (await db.patient.findUnique({
+          where:  { id: parsed.existingPatientId },
+          select: { email: true },
+        }))?.email ?? null
+      : parsed.patient.email ?? null;
+    if (correoMenor && correoMenor.toLowerCase() === correoApoderado) {
+      return NextResponse.json({
+        error: 'GUARDIAN_EMAIL_IS_PATIENT_EMAIL',
+        message: 'El correo del apoderado no puede ser también el del paciente. '
+          + 'El correo del apoderado vive en su propia ficha — dejá vacío el del menor.',
+      }, { status: 400 });
+    }
+  }
+
   // ─── Validaciones cruzadas ──────────────────────────────────────────
   if (parsed.appointment) {
     const [clinic, provider] = await Promise.all([
@@ -269,7 +299,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // El prefijo es solo una etiqueta; los códigos se generan dentro de la
   // transacción porque el advisory lock que los protege vive con ella.
-  const casePrefix = parsed.caseType === 'MVA' ? 'MVA' : 'CASE';
+  // El mapeo tipo→prefijo vive en codes.ts — es el MISMO que usa el PATCH
+  // al renombrar cuando se corrige el tipo de caso.
+  const casePrefix = casePrefixFor(parsed.caseType);
 
   // ─── Determinar status inicial ──────────────────────────────────────
   // Si agendamos cita en la llamada → CONFIRMED (todo listo)
@@ -278,45 +310,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const now = new Date();
 
   // ─── Transacción · Patient + Case (+ Appointment opcional) ──────────
-  const result = await db.$transaction(async (tx) => {
+  const run = () => db.$transaction(async (tx) => {
     // Consecutivo; la función toma su propio advisory lock (ver codes.ts).
     const caseCode = await nextCaseCode(tx, casePrefix);
 
     // ─── Padre / apoderado (paciente menor de edad) ────────────────────────
-    // El apoderado siempre termina siendo un Patient: si ya existe se linkea,
-    // si no se crea uno nuevo SIN caso, para que quede disponible para sus
-    // propias citas y casos futuros. Va en la misma transacción que el menor
-    // para que no pueda quedar un apoderado huérfano si algo falla después.
-    let guardianPatientId: string | null = null;
-    if (parsed.guardian) {
-      const g = parsed.guardian;
-      if (g.patientId) {
-        guardianPatientId = g.patientId;
-      } else if (g.firstName.trim() && g.lastName.trim()) {
-        // Si ya hay alguien con ese email, se reutiliza en vez de duplicar —
-        // el buscador del UI puede haberse salteado.
-        const yaExiste = g.email
-          ? await tx.patient.findFirst({ where: { email: g.email }, select: { id: true } })
-          : null;
-        if (yaExiste) {
-          guardianPatientId = yaExiste.id;
-        } else {
-          const nuevoApoderado = await tx.patient.create({
-            data: {
-              patientCode: await nextPatientCode(tx),
-              firstName:   g.firstName.trim(),
-              lastName:    g.lastName.trim(),
-              email:       g.email ?? null,
-              phone:       g.phone || null,
-              dateOfBirth: g.dateOfBirth ? new Date(`${g.dateOfBirth}T12:00:00Z`) : null,
-              status:      'NEW',
-            },
-            select: { id: true },
-          });
-          guardianPatientId = nuevoApoderado.id;
-        }
-      }
-    }
+    // La regla vive en packages/database/src/guardian.ts: es la misma que usan
+    // el PATCH del paciente y la re-migración. Va en esta transacción para que
+    // no pueda quedar un apoderado huérfano si algo falla después.
+    const guardian = await resolveGuardian(tx, parsed.guardian, {
+      forPatientId: parsed.existingPatientId ?? null,
+    });
+    const guardianPatientId = guardian.guardianPatientId;
 
     // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
     //                     demografía (nombre, teléfono) para evitar corrupción
@@ -477,8 +482,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
 
-    return { patient, case: newCase, appointment };
+    return { patient, case: newCase, appointment, guardian };
   });
+
+  let result: Awaited<ReturnType<typeof run>>;
+  try {
+    result = await run();
+  } catch (err) {
+    if (err instanceof GuardianIsSelfError) {
+      return NextResponse.json(
+        { error: 'GUARDIAN_IS_SELF', message: err.message },
+        { status: 400 },
+      );
+    }
+    throw err;
+  }
 
   // ─── Vincular CallLog con paciente y caso ──────────────────────────
   if (parsed.twilioCallSid) {
@@ -508,6 +526,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       caseManagerName: parsed.legal.caseManagerName ?? null,
       primaryInsuranceId: parsed.insurance.primaryInsuranceId,
       initialStatus,
+      // 'created' = se abrió una ficha de paciente nueva para el apoderado.
+      guardianAction:    result.guardian.action,
+      guardianPatientId: result.guardian.guardianPatientId,
       scheduledInCall: !!parsed.appointment,
       formDelivery: parsed.formDelivery ?? null,
       callDurationSeconds: parsed.callDurationSeconds ?? null,

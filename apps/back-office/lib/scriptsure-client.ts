@@ -453,7 +453,12 @@ export async function addToMedCart(
     useSubstitution: true,
     // line1 = presentación ("600 mg tablet"); epn = nombre + presentación
     ...(drug.line1 ? { line1: drug.line1, epn: `${drug.drugName} ${drug.line1}`.trim() } : {}),
-    ...(drug.daysSupply ? { drugDuration: drug.daysSupply } : {}),
+    // drugDuration es una FECHA en texto ("2026-08-15" = hoy + días de
+    // suministro), no un número — así lo manda su propio widget y así lo
+    // exige su validación ("Expected string, received number").
+    ...(drug.daysSupply
+      ? { drugDuration: new Date(Date.now() + drug.daysSupply * 86400000).toISOString().slice(0, 10) }
+      : {}),
   };
 
   const addBody = {

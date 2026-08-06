@@ -8,9 +8,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
-  db, writeAuditLog, actorFromHeaders,
+  db, writeAuditLog,
   resolveGuardian, GuardianIsSelfError, type GuardianResolution,
 } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { Prisma } from '@precision-medical/database';
 
 const empty = z.literal('').transform(() => null);
@@ -180,10 +181,11 @@ export async function PATCH(
     throw e;
   }
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'UPDATE_PATIENT',
     entityType:  'patients',
     entityId:    id,
@@ -236,10 +238,11 @@ export async function DELETE(
       : []),
   ]);
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'DELETE_PATIENT',
     entityType:  'patients',
     entityId:    id,

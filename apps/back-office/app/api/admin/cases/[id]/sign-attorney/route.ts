@@ -3,7 +3,8 @@
  * Saves an attorney lien signature from the back-office.
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 export async function POST(
   req: NextRequest,
@@ -53,13 +54,14 @@ export async function POST(
     select: { id: true, signedAt: true },
   });
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     entityType: 'cases',
     entityId: caseId,
     action: 'ATTORNEY_SIGN_LIEN',
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     metadata: { signerName: signerName.trim(), caseCode: caseRecord.caseCode },
   });
 

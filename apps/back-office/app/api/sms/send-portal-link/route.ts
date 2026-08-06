@@ -16,7 +16,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 // ─── Zod schema estricto ────────────────────────────────────────────
 const InputSchema = z.object({
@@ -32,7 +33,7 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   // 1. Validate
   let parsed;
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const log = await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'SEND_PORTAL_LINK',
     entityType: 'cases',
     entityId: parsed.caseId,

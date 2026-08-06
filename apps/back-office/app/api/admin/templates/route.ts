@@ -9,9 +9,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { resolveActor } from '@/lib/actor';
 
 const SectionSchema = z.object({
   id: z.string().optional(),
@@ -35,6 +36,21 @@ const TemplateInputSchema = z.object({
   sections: z.array(SectionSchema).default([]),
 });
 
+/**
+ * users.id de Phoenix a partir del email de sesión.
+ *
+ * OJO: `supabase.auth.getUser().id` es el UUID del proyecto de Auth y NO sirve
+ * como FK — `users.id` de Phoenix son cuid. El email corporativo es la llave
+ * común (mismo puente que usan visit-notes/sign y templates/[id]/favorite).
+ */
+async function phoenixUserId(email: string): Promise<string | null> {
+  const row = await db.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  return row?.id ?? null;
+}
+
 export async function GET(): Promise<NextResponse> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -53,10 +69,10 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
   let parsed;
   try {
@@ -68,6 +84,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Autor de la plantilla: users.id de Phoenix, no el UUID de Auth (el FK
+  // templates_createdById_fkey apunta a users(id)).
+  const createdById = await phoenixUserId(user.email);
+  if (!createdById) return NextResponse.json({ error: 'USER_NOT_LINKED' }, { status: 403 });
+
   const created = await db.template.create({
     data: {
       title:         parsed.title,
@@ -77,7 +98,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       scope:         parsed.scope,
       specialty:     (parsed.specialty as Prisma.TemplateCreateInput['specialty']) ?? null,
       isActive:      parsed.isActive,
-      createdById:   user.id,
+      createdById,
       sections: {
         create: parsed.sections.map((s, i) => ({
           sectionKey:       s.sectionKey,
@@ -92,7 +113,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
-    actorUserId: actor.actorUserId,
+    // El cliente no manda x-actor-user-id; sin este fallback la mutación queda
+    // sin autor en el audit log (Regla #3).
+    actorUserId: actor.actorUserId ?? createdById,
+    actorRole: actor.actorRole,
     action: 'CREATE_TEMPLATE',
     entityType: 'templates',
     entityId: created.id,
@@ -105,7 +129,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   let parsed;
   try {
@@ -151,6 +175,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'UPDATE_TEMPLATE',
     entityType: 'templates',
     entityId: updated.id,
@@ -164,7 +189,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
@@ -191,6 +216,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'SOFT_DELETE_TEMPLATE',
     entityType: 'templates',
     entityId: id,

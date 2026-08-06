@@ -7,7 +7,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma, nextPatientCode } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma, nextPatientCode } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const empty = z.literal('').transform(() => null);
 
@@ -121,15 +122,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw e;
   }
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'CREATE_PATIENT',
     entityType:  'patients',
     entityId:    patient.id,
     metadata:    { patientCode: patient.patientCode },
-    ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
+    ipAddress:   actor.ipAddress,
+    userAgent:   actor.userAgent,
   });
 
   return NextResponse.json({ ok: true, patient }, { status: 201 });

@@ -9,7 +9,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const CreateSchema = z.object({
   name:     z.string().trim().min(1).max(255),
@@ -59,7 +60,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { id: caseId } = await ctx.params;
 
   let parsed;
@@ -99,12 +100,14 @@ export async function POST(
       s3Key:    parsed.s3Key,
       mimeType: parsed.mimeType,
       size:     parsed.size,
+      createdByUserId: actor.actorUserId,
     },
   });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: parsed.isFolder ? 'CREATE_DOCUMENT_FOLDER' : 'UPLOAD_DOCUMENT',
     entityType: 'cases',
     entityId: caseId,

@@ -9,7 +9,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkOrderAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -57,7 +58,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   if (body.status && body.status !== current.status) {
     writeAuditLog(db, {
-      ...actorFromHeaders(req.headers),
+      ...(await resolveActor(req.headers)),
       action: body.status === 'VOIDED' ? 'VOID_LAB_ORDER' : 'UPDATE_LAB_ORDER_STATUS',
       entityType: 'LabOrder',
       entityId: id,

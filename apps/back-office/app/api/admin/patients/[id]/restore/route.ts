@@ -5,7 +5,8 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 export async function POST(
   req: NextRequest,
@@ -41,10 +42,11 @@ export async function POST(
       : []),
   ]);
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'RESTORE_PATIENT',
     entityType:  'patients',
     entityId:    id,

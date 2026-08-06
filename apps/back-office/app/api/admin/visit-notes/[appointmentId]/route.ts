@@ -11,7 +11,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
@@ -63,7 +64,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { appointmentId } = await ctx.params;
   const denied = await denyAccess(appointmentId);
   if (denied) return denied;
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   let parsed;
   try { parsed = NoteSchema.parse(await req.json()); }
@@ -119,6 +120,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
+      actorRole: actor.actorRole,
       action: 'CREATE_VISIT_NOTE',
       entityType: 'visit_notes',
       entityId: note.id,

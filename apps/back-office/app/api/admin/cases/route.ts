@@ -21,9 +21,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
-  db, writeAuditLog, actorFromHeaders, Prisma, nextCaseCode, nextPatientCode,
+  db, writeAuditLog, Prisma, nextCaseCode, nextPatientCode,
   casePrefixFor, resolveGuardian, GuardianIsSelfError,
 } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
   // Patient
@@ -124,7 +125,7 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   let parsed;
   try {
@@ -377,6 +378,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         accidentNotes: parsed.accident.notes ?? null,
         status: initialStatus,
         source: parsed.source,
+        createdByUserId: actor.actorUserId,
         // consentsData: pre-llenado desde la llamada (wizard lo lee al abrirse)
         // Los campos del wizard sobreescriben via PATCH al ir completando steps.
         consentsData: parsed.consents
@@ -510,6 +512,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'CREATE_CASE_FROM_CALL',
     entityType: 'cases',
     entityId: result.case.id,
@@ -540,6 +543,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
+      actorRole: actor.actorRole,
       action: 'SCHEDULE_FIRST_APPOINTMENT',
       entityType: 'cases',
       entityId: result.case.id,
@@ -563,6 +567,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
+      actorRole: actor.actorRole,
       action: 'SEND_PORTAL_LINK',
       entityType: 'cases',
       entityId: result.case.id,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 /**
  * B.28 — Settlement Workflow
@@ -71,7 +72,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: 'ALREADY_SETTLED' }, { status: 409 });
   }
 
-  const actor       = actorFromHeaders(req.headers);
+  const actor       = await resolveActor(req.headers);
   const receivedAt  = new Date(body.receivedDate);
   const methodLabel = METHOD_LABELS[body.method] ?? body.method;
   const refStr      = body.reference ? ` · ${body.reference}` : '';
@@ -112,6 +113,7 @@ export async function POST(
     entityId:     caseId,
     actorType:    actor.actorType,
     actorUserId:  actor.actorUserId,
+    actorRole:    actor.actorRole,
     ipAddress:    actor.ipAddress,
     userAgent:    actor.userAgent,
     idempotencyKey: actor.idempotencyKey,

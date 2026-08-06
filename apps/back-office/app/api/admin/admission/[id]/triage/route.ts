@@ -6,8 +6,8 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { getSessionUser } from '@/lib/session';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 export async function PUT(
   req: NextRequest,
@@ -87,9 +87,20 @@ export async function PUT(
       chiefComplaint: str(body.chiefComplaint),
     };
 
+    // Actor real (sesión Supabase o headers x-actor-*) — se usa tanto para el
+    // audit log como para sellar quién capturó los vitales.
+    const actor = await resolveActor(req.headers);
+
     const triage = await db.triageRecord.upsert({
       where:  { appointmentId: id },
-      create: { appointmentId: id, ...data },
+      create: {
+        appointmentId:    id,
+        // Quién hizo la carga original — solo en el create: una corrección
+        // posterior NO debe pisar al capturador original.
+        capturedByUserId: actor.actorUserId,
+        capturedByName:   actor.actorName ?? actor.email ?? undefined,
+        ...data,
+      },
       update: data,
     });
 
@@ -97,23 +108,14 @@ export async function PUT(
     // En una corrección post-admisión guardamos también QUIÉN la hizo: la
     // pantalla muestra "vitales corregidos {hora} · {nombre}" para que el doctor
     // sepa que los números cambiaron después de que él los vio.
-    const actor = actorFromHeaders(req.headers);
     let correctedByName: string | null = null;
     if (esCorreccionPostAdmision) {
-      const user = await getSessionUser();
-      if (user?.email) {
-        const dbUser = await db.user.findFirst({
-          where: { email: { equals: user.email, mode: 'insensitive' } },
-          select: { firstName: true, lastName: true },
-        });
-        correctedByName = dbUser
-          ? `${dbUser.firstName ?? ''} ${dbUser.lastName ?? ''}`.trim() || user.email
-          : user.email;
-      }
+      correctedByName = actor.actorName ?? actor.email ?? null;
     }
     await writeAuditLog(db, {
       actorType:   actor.actorType,
-      actorUserId: actor.actorUserId ?? undefined,
+      actorUserId: actor.actorUserId,
+      actorRole:   actor.actorRole,
       action:      esCorreccionPostAdmision ? 'TRIAGE_VITALS_CORRECTED' : 'TRIAGE_VITALS_SAVED',
       entityType:  'TriageRecord',
       entityId:    triage.id,

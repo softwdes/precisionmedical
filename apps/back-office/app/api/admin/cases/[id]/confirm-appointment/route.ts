@@ -10,7 +10,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
   // Checklist items confirmed (Phase 1A: simple booleans · Phase 2: structured)
@@ -27,7 +28,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { id: caseId } = await ctx.params;
 
   let parsed;
@@ -100,6 +101,7 @@ export async function POST(
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'CONFIRM_FIRST_APPOINTMENT',
     entityType: 'cases',
     entityId: caseId,

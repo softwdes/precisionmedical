@@ -11,7 +11,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
   content: z.string().trim().min(1, 'La nota no puede estar vacía').max(5000, 'Máximo 5000 caracteres'),
@@ -22,7 +23,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { id: caseId } = await ctx.params;
 
   let parsed;
@@ -60,6 +61,7 @@ export async function POST(
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'INSERT_CASE_NOTE',
     entityType: 'cases',
     entityId: caseId,

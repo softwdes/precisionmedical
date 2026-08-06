@@ -19,7 +19,8 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   `;
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: 'DOCTOR_DONE_WITH_PATIENT',
     entityType: 'Appointment',
     entityId: id,
@@ -62,7 +63,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   `;
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: 'DOCTOR_REOPEN_VISIT',
     entityType: 'Appointment',
     entityId: id,

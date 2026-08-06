@@ -16,7 +16,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, isMinor } from '@precision-medical/database';
+import { db, writeAuditLog, isMinor } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
@@ -80,7 +81,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { id: caseId } = await ctx.params;
 
   let parsed;
@@ -192,6 +193,7 @@ export async function POST(
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'SEND_PORTAL_LINK',
     entityType: 'cases',
     entityId: caseId,

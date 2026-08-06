@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 /**
  * POST /api/admin/intake/seguimiento/[caseId]/note
@@ -34,7 +35,7 @@ export async function POST(
   ctx: { params: Promise<{ caseId: string }> },
 ): Promise<NextResponse> {
   const { caseId } = await ctx.params;
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   const body = (await req.json()) as NoteBody;
 
@@ -66,6 +67,7 @@ export async function POST(
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      cfg.action,
     entityType:  'case',
     entityId:    caseId,

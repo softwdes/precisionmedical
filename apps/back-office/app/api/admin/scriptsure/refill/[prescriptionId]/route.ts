@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import {
   setPracticePrescriber,
@@ -116,7 +117,7 @@ export async function POST(
     }, { practiceId, doctorId: prescriberId });
 
     writeAuditLog(db, {
-      ...actorFromHeaders(req.headers),
+      ...(await resolveActor(req.headers)),
       action: 'SCRIPTSURE_REFILL',
       entityType: 'prescriptions',
       entityId: rx.id,

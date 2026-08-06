@@ -16,7 +16,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 // ─── Zod schema estricto — AI agent puede mandar payloads creativos ──
 const InputSchema = z.object({
@@ -41,7 +42,7 @@ const InputSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1. Extract actor context (HUMAN_USER | AI_AGENT | SYSTEM)
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   // 2. Validate input
   let parsed;
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const log = await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'CREATE_CASE_FROM_CALL',
     entityType: 'cases',
     entityId: stubCaseId,

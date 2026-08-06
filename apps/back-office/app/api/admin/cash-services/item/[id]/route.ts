@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { syncCashServiceBilling } from '@/lib/cash-service-billing';
 
@@ -65,7 +66,7 @@ export async function PATCH(
   await syncCashServiceBilling(charge.appointmentId);
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: voiding ? 'VOID_CASH_SERVICE' : 'UPDATE_CASH_SERVICE',
     entityType: 'appointment_services',
     entityId: id,

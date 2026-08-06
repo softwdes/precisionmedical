@@ -8,7 +8,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const MemberInputSchema = z.object({
   id: z.string().optional(),
@@ -27,7 +28,7 @@ const MemberInputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try {
     parsed = MemberInputSchema.parse(await req.json());
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'CREATE_LAWYER_MEMBER',
     entityType: 'lawyers',
     entityId: created.id,
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try {
     parsed = MemberInputSchema.parse(await req.json());
@@ -135,6 +137,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'UPDATE_LAWYER_MEMBER',
     entityType: 'lawyers',
     entityId: updated.id,
@@ -148,7 +151,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
@@ -164,6 +167,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'SOFT_DELETE_LAWYER_MEMBER',
     entityType: 'lawyers',
     entityId: id,

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,7 @@ const UpdateSchema = z.object({
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { id } = await ctx.params;
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try { parsed = UpdateSchema.parse(await req.json()); }
   catch { return NextResponse.json({ error: 'INVALID_PAYLOAD', message: 'Datos inválidos. Verifica que todos los campos estén completos.' }, { status: 400 }); }
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const updated = await db.clinic.update({ where: { id }, data: parsed });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'UPDATE_CLINIC', entityType: 'clinics', entityId: id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     after: updated,
@@ -45,7 +46,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
 export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { id } = await ctx.params;
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   const clinic = await db.clinic.findUnique({
     where: { id },
@@ -63,7 +64,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   await db.clinic.delete({ where: { id } });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'DELETE_CLINIC', entityType: 'clinics', entityId: id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
   });

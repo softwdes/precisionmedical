@@ -16,7 +16,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, Prisma, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
@@ -227,7 +228,7 @@ const CreateSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   let parsed: z.infer<typeof CreateSchema>;
   try {
@@ -334,6 +335,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType:    actor.actorType,
     actorUserId:  actor.actorUserId,
+    actorRole:    actor.actorRole,
     action:       'CREATE_APPOINTMENT',
     entityType:   'appointments',
     entityId:     appointment.id,

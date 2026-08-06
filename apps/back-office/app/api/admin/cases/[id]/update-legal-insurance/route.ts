@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,10 +35,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     },
   });
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'UPDATE_CASE_INSURANCE_LEGAL',
     entityType:  'cases',
     entityId:    caseId,

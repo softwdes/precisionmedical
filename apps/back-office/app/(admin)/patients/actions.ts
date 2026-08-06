@@ -1,8 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { db } from '@precision-medical/database';
 import { writeAuditLog } from '@precision-medical/database/audit';
+import { resolveActor } from '@/lib/actor';
 import type { MedicalHistoryData } from './medical-history-dialog';
 
 export async function searchDrugs(q: string): Promise<Array<{ id: number; name: string; generic: string; category: string }>> {
@@ -87,12 +89,15 @@ export async function updateMedicalHistory(
       data:  { medicalHistory: updated },
     });
 
+    const actor = await resolveActor(await headers());
     await writeAuditLog(db, {
-      action:     'UPDATE_MEDICAL_HISTORY',
-      actorType:  'HUMAN_USER',
-      entityType: 'patients',
-      entityId:   patientId,
-      metadata:   { fields: Object.keys(patch) },
+      action:      'UPDATE_MEDICAL_HISTORY',
+      actorType:   actor.actorType,
+      actorUserId: actor.actorUserId,
+      actorRole:   actor.actorRole,
+      entityType:  'patients',
+      entityId:    patientId,
+      metadata:    { fields: Object.keys(patch) },
     });
 
     revalidatePath('/patients');

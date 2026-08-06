@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const CLINIC_SELECT = {
   id: true, name: true, address: true, phone: true, cellPhone: true,
@@ -26,7 +27,7 @@ const CreateSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try { parsed = CreateSchema.parse(await req.json()); }
   catch { return NextResponse.json({ error: 'INVALID_PAYLOAD', message: 'Datos inválidos. Verifica que todos los campos estén completos.' }, { status: 400 }); }
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'CREATE_CLINIC', entityType: 'clinics', entityId: clinic.id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     after: clinic,

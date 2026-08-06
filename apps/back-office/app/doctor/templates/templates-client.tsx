@@ -388,8 +388,10 @@ function TemplateDialog({
         }),
       });
       if (!res.ok) {
-        const d = await res.json() as { error?: string };
-        setError(d.error ?? t('tplErrSave'));
+        // `.catch` porque un 500 devuelve HTML, no JSON: sin esto el error real
+        // se perdía en el catch de abajo y siempre se veía el mensaje genérico.
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setError(d.error === 'USER_NOT_LINKED' ? t('tplErrNoUser') : t('tplErrSave'));
         setSaving(false);
         return;
       }

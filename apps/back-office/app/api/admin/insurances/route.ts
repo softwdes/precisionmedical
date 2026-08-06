@@ -8,7 +8,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
   id: z.string().optional(),
@@ -31,7 +32,7 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try {
     parsed = InputSchema.parse(await req.json());
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'CREATE_INSURANCE',
     entityType: 'insurance_carriers',
     entityId: created.id,
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try {
     parsed = InputSchema.parse(await req.json());
@@ -139,6 +141,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'UPDATE_INSURANCE',
     entityType: 'insurance_carriers',
     entityId: updated.id,
@@ -152,7 +155,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
@@ -168,6 +171,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'SOFT_DELETE_INSURANCE',
     entityType: 'insurance_carriers',
     entityId: deleted.id,

@@ -6,7 +6,8 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
@@ -90,7 +91,7 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try { parsed = InputSchema.parse(await req.json()); }
   catch (err) {
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'CREATE_DIAGNOSIS', entityType: 'diagnoses', entityId: created.id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     after: created as unknown as Prisma.JsonValue,
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   let parsed;
   try { parsed = InputSchema.parse(await req.json()); }
   catch (err) {
@@ -157,7 +158,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'UPDATE_DIAGNOSIS', entityType: 'diagnoses', entityId: updated.id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     before: before as unknown as Prisma.JsonValue,
@@ -168,7 +169,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
@@ -182,7 +183,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType: actor.actorType, actorUserId: actor.actorUserId,
+    actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
     action: 'DEACTIVATE_DIAGNOSIS', entityType: 'diagnoses', entityId: id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     before: before as unknown as Prisma.JsonValue,

@@ -7,6 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -94,9 +95,11 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     data:  { consentsData: { ...prev, photos: { ...photos, [photoType]: url } } as object },
   });
 
+  const actor = await resolveActor(req.headers);
   writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
-    actorUserId: null,
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'STAFF_PHOTO_UPLOAD',
     entityType:  'Case',
     entityId:    latestCase.id,
@@ -142,9 +145,11 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     }
   }
 
+  const actor = await resolveActor(req.headers);
   writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
-    actorUserId: null,
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'STAFF_PHOTO_DELETE',
     entityType:  'Case',
     entityId:    latestCase.id,

@@ -9,7 +9,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, Prisma, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 
 export async function GET(
@@ -57,7 +58,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
-  const actor  = actorFromHeaders(req.headers);
+  const actor  = await resolveActor(req.headers);
 
   let parsed: z.infer<typeof PatchSchema>;
   try {
@@ -154,6 +155,7 @@ export async function PATCH(
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      parsed.status === 'CANCELLED' ? 'CANCEL_APPOINTMENT' : 'UPDATE_APPOINTMENT',
     entityType:  'appointments',
     entityId:    id,

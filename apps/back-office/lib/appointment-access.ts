@@ -17,11 +17,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
+import { getDbUserByEmail } from './actor';
 
 export interface ApptActor {
   email: string;
   /** Nombre para los snapshots ("ordenado por", "resultado subido por") */
   name: string;
+  /** users.id (cuid de Phoenix) — para actorUserId del audit log y métricas. null si el email no está vinculado. */
+  userId: string | null;
   /** true solo si es el doctor de la cita */
   isProviderOwner: boolean;
   role: string;
@@ -54,6 +57,11 @@ export async function checkAppointmentAccess(
   if (!appt) return { deny: NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 }) };
 
   const role = await fetchDbRole(email);
+  const dbUser = await getDbUserByEmail(email);
+  const userId = dbUser?.id ?? null;
+  // Nombre real para los snapshots; antes staff/admin quedaban como email
+  const staffName =
+    `${dbUser?.firstName ?? ''} ${dbUser?.lastName ?? ''}`.trim() || email;
 
   // 1 — El doctor de la cita
   if (appt.provider?.email?.toLowerCase() === email.toLowerCase()) {
@@ -61,6 +69,7 @@ export async function checkAppointmentAccess(
       actor: {
         email,
         name: `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`.trim(),
+        userId,
         isProviderOwner: true,
         role,
       },
@@ -69,12 +78,12 @@ export async function checkAppointmentAccess(
 
   // 2 — Admins
   if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
-    return { actor: { email, name: email, isProviderOwner: false, role } };
+    return { actor: { email, name: staffName, userId, isProviderOwner: false, role } };
   }
 
   // 3 — Staff del back-office (asistentes). No firma notas.
   if (!opts.requireProvider && await fetchRoleClinicAccess(role)) {
-    return { actor: { email, name: email, isProviderOwner: false, role } };
+    return { actor: { email, name: staffName, userId, isProviderOwner: false, role } };
   }
 
   return { deny: NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 }) };

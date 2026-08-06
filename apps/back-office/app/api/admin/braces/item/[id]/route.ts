@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { syncBraceBilling } from '@/lib/brace-billing';
 
@@ -71,7 +72,7 @@ export async function PATCH(
   await syncBraceBilling(brace.appointmentId);
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: leavingDispensed ? 'VOID_BRACE' : 'UPDATE_BRACE',
     entityType: 'appointment_braces',
     entityId: id,

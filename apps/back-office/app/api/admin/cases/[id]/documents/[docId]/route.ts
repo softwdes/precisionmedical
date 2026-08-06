@@ -4,13 +4,14 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 
 export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ id: string; docId: string }> },
 ): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const { id: caseId, docId } = await ctx.params;
 
   const doc = await db.patientDocument.findUnique({
@@ -45,6 +46,7 @@ export async function DELETE(
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
     action: 'DELETE_DOCUMENT',
     entityType: 'cases',
     entityId: caseId,

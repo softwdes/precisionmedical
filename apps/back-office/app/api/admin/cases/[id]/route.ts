@@ -6,7 +6,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, casePrefixFor } from '@precision-medical/database';
+import { db, writeAuditLog, casePrefixFor } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -144,7 +145,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
 
   const updated = await db.case.update({ where: { id }, data, select: { id: true, caseCode: true } });
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
 
   // Write one audit entry per changed assignment field
   if (changingAssignment && prevCase) {
@@ -177,7 +178,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
 
       await writeAuditLog(db, {
         actorType:   actor.actorType,
-        actorUserId: actor.actorUserId ?? undefined,
+        actorUserId: actor.actorUserId,
+        actorRole:   actor.actorRole,
         action:      'ASSIGNMENT_CHANGE',
         entityType:  'cases',
         entityId:    id,
@@ -198,7 +200,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     // Generic update log for non-assignment changes
     await writeAuditLog(db, {
       actorType:   actor.actorType,
-      actorUserId: actor.actorUserId ?? undefined,
+      actorUserId: actor.actorUserId,
+      actorRole:   actor.actorRole,
       action:      'UPDATE_CASE',
       entityType:  'cases',
       entityId:    id,
@@ -218,7 +221,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
   if (changingAssignment && codeRename) {
     await writeAuditLog(db, {
       actorType:   actor.actorType,
-      actorUserId: actor.actorUserId ?? undefined,
+      actorUserId: actor.actorUserId,
+      actorRole:   actor.actorRole,
       action:      'UPDATE_CASE',
       entityType:  'cases',
       entityId:    id,
@@ -253,10 +257,11 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<NextRes
     data: { status: 'CANCELLED' },
   });
 
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
     action:      'DELETE_CASE',
     entityType:  'cases',
     entityId:    id,

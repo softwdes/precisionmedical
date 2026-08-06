@@ -300,6 +300,8 @@ export interface MedCartDrug {
   refills: number;
   sig: string | null;
   daysSupply: number | null;
+  /** Presentación del fármaco ("600 mg tablet") — `line1` en el modelo de ScriptSure */
+  line1: string | null;
 }
 
 export interface MedCartResult {
@@ -428,44 +430,37 @@ export async function addToMedCart(
     return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates', clear: clearInfo };
   }
 
-  // Cada entrada de `prescriptions` lleva los datos del fármaco afuera y un
-  // objeto `prescription` adentro con los del envío — la misma forma que usa su
-  // historial (ahí el anidado se llama `Prescription`, acá en minúscula).
-  // Confirmado por su validación: path ["prescriptions", 0, "prescription"].
-  // El medicamento NO va suelto en la entrada: va en `Medication.PrescriptionDrugs`.
-  // Lo dijo su propia UI al editar el ítem — "Medication.PrescriptionDrugs must
-  // be set" — y lo confirma que el objeto `prescription` tiene un esquema fijo
-  // y chico (patientId, userId, doctorId, refill, duration, pharmacyId): todo lo
-  // demás que le mandábamos ahí lo descartaba en silencio.
+  // Forma REAL del medicamento, capturada del flujo nativo del widget
+  // (POST /v3/drughistory/prescription, 2026-08-05): `PrescriptionDrugs` vive
+  // DENTRO de `prescription`, con ids numéricos y nombres en el casing exacto
+  // de su modelo (ndc/rxnorm en minúscula, ROUTED_MED_ID/GCN_SEQNO en mayúscula).
+  const num = (v: string | null): number | null => {
+    if (v === null) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
   const prescriptionDrug = {
+    drugOrder: 1,
     drugName: drug.drugName,
-    ROUTED_MED_ID: drug.routedMedId,
-    GCN_SEQNO: drug.gcnSeqno,
-    Ndc: drug.ndc,
-    RxNorm: drug.rxNorm,
-    drugId: drug.scriptsureDrugId,
+    ndc: drug.ndc,
+    rxnorm: drug.rxNorm,
+    ROUTED_MED_ID: num(drug.routedMedId),
+    GCN_SEQNO: num(drug.gcnSeqno),
     quantity: drug.quantity,
     ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
-    ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
-    ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+    calculate: true,
+    useSubstitution: true,
+    // line1 = presentación ("600 mg tablet"); epn = nombre + presentación
+    ...(drug.line1 ? { line1: drug.line1, epn: `${drug.drugName} ${drug.line1}`.trim() } : {}),
+    ...(drug.daysSupply ? { drugDuration: drug.daysSupply } : {}),
   };
 
   const addBody = {
     prescriptions: [{
-      // Se mantienen también a nivel de la entrada por si los lee de ahí —
-      // los ignora sin romper nada si no corresponden.
-      drugName: drug.drugName,
-      ROUTED_MED_ID: drug.routedMedId,
-      GCN_SEQNO: drug.gcnSeqno,
-      Ndc: drug.ndc,
-      RxNorm: drug.rxNorm,
-      drugId: drug.scriptsureDrugId,
-      quantity: drug.quantity,
-      ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
-      Medication: {
-        PrescriptionDrugs: [prescriptionDrug],
-      },
       prescription: {
+        ...(drug.sig ? { PrescriptionScript: { drugFormat: drug.sig } } : {}),
+        PrescriptionDrugs: [prescriptionDrug],
         // patientId es obligatorio y NUMÉRICO — su validación lo dijo con esas
         // palabras ("patientId must be a number"). doctorId y practiceId van
         // por adelantado: son los que suele pedir a continuación.

@@ -111,6 +111,8 @@ export async function POST(
       refills: rx.refills,
       sig: rx.frequency !== '—' ? rx.frequency : null,
       daysSupply: Number.isNaN(days) ? null : days,
+      // `dose` guarda la presentación tal como vino del historial ("25 mg tablet")
+      line1: rx.dose !== '—' ? rx.dose : null,
     }, { practiceId, doctorId: prescriberId });
 
     writeAuditLog(db, {

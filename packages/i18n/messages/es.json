@@ -1855,6 +1855,7 @@
       "sumDoneHandoff": "el asistente cobra y cierra la cita",
       "sumReopen": "Volver a abrir",
       "sumArrived": "Llegó a las",
+      "sumVisitLeftOpen": "Sin cerrar desde el {date}",
       "sumTimeInClinic": "Tiempo en la clínica",
       "sumNoteState": "Estado de la nota",
       "sumOpenNote": "Abrir la nota",

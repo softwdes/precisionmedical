@@ -951,6 +951,10 @@ model Appointment {
   /// NO cierra la cita: el asistente sigue viéndola en su cola y la pasa a
   /// COMPLETED cuando cobra. Son dos actos de dos personas distintas.
   doctorDoneAt DateTime?
+  /// Hora en que el asistente cerró la visita (Checkout). Cierra el reloj de
+  /// "tiempo en clínica": sin esto el contador corría desde el check-in hasta
+  /// AHORA y las visitas sin cerrar mostraban 30 y 50 horas.
+  checkedOutAt DateTime?
 
   // B.14.1 Firma de asistencia (paciente firma en tablet al llegar)
   attendanceSignedAt      DateTime?
@@ -1823,7 +1827,9 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
-  @@index([actorUserId])
+  // Métricas por empleado: groupBy(actorUserId, action) en un rango de fechas.
+  // El compuesto cubre también las búsquedas por actorUserId solo (prefijo).
+  @@index([actorUserId, action, createdAt])
   @@index([actorType])
   @@index([action])
   @@index([entityType, entityId])

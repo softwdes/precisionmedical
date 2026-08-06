@@ -35,6 +35,7 @@ interface Props {
   appointmentStatus: string;
   checkedInAt: string | null;
   doctorDoneAt: string | null;
+  checkedOutAt?: string | null;
   providerName: string | null;
   triage: SummaryTriage | null;
   /** Payload del panel de servicios y pagos (el mismo del viejo step 4) */
@@ -49,7 +50,7 @@ interface Props {
 }
 
 export function DoctorStepPanel({
-  appointmentId, appointmentStatus, checkedInAt, doctorDoneAt, providerName,
+  appointmentId, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
   triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -166,6 +167,7 @@ export function DoctorStepPanel({
                 services={(servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
                 checkedInAt={checkedInAt}
                 doctorDoneAt={doctorDoneAt}
+                checkedOutAt={checkedOutAt}
                 onFix={(target) => setTab(target)}
                 onStatusChange={onRefresh}
                 followUp={servicesPanel.case ? {

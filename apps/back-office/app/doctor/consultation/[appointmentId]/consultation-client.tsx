@@ -59,6 +59,8 @@ export interface ConsultationAppointment {
   noteStatus: string | null;
   /** El doctor ya terminó con el paciente (nodo 4) — no cierra la cita */
   doctorDoneAt: string | null;
+  /** El asistente cerró la visita — cierra el reloj de tiempo en clínica */
+  checkedOutAt: string | null;
   clinicName: string;
   caseId: string | null;
   caseCode: string | null;
@@ -482,6 +484,7 @@ export function ConsultationClient({
           services={(a.servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
           checkedInAt={a.checkedInAt}
           doctorDoneAt={a.doctorDoneAt}
+          checkedOutAt={a.checkedOutAt}
           onFix={(target) => { setTab(target); setView(3); }}
           followUp={a.servicesPanel.case ? {
             caseId: a.servicesPanel.case.id,

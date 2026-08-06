@@ -129,6 +129,8 @@ export async function GET(
         // El doctor marcó que terminó con el paciente (portal médico) — el
         // asistente lo usa para saber que puede cobrar y cerrar la cita.
         doctorDoneAt:    (appt as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
+        // Hora de salida — cierra el reloj de "tiempo en clínica" del Resumen.
+        checkedOutAt:    (appt as { checkedOutAt?: Date | null }).checkedOutAt?.toISOString() ?? null,
         triageCorrection,
         patient: {
           id:          appt.patient.id,

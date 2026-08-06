@@ -87,6 +87,8 @@ interface Props {
   services: ServiceCode[];
   checkedInAt: string | null;
   doctorDoneAt: string | null;
+  /** Hora en que el asistente cerró la visita — cierra el reloj de tiempo en clínica. */
+  checkedOutAt?: string | null;
   /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
    *  pantallas que los tienen; el caller ignora los que no aplican. */
   onFix: (tab: 'notes' | 'labs' | 'services' | 'braces' | 'rx') => void;
@@ -144,6 +146,13 @@ function fmtTime(iso: string | null): string {
   });
 }
 
+/** Día en Denver (YYYY-MM-DD) — la clínica opera en esa zona, no en la del navegador. */
+function denverDayKey(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
 /** Minutos entre dos instantes, en texto corto (1 h 20 min) */
 function elapsed(from: string | null, to: Date): string | null {
   if (!from) return null;
@@ -181,7 +190,7 @@ function Card({
 }
 
 export function VisitSummary({
-  appointmentId, note, triage, services, checkedInAt, doctorDoneAt, onFix,
+  appointmentId, note, triage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -270,7 +279,23 @@ export function VisitSummary({
   // "cobra hoy" (regla de negocio: CatalogItem.alwaysFullPayment).
   const collectToday = cashTotal + bracesTotal;
   const chargeCount = services.length + cash.length + braces.length;
-  const timeInRoom = elapsed(checkedInAt, doneAt ? new Date(doneAt) : new Date());
+  // Tiempo en clínica, con el reloj CERRADO.
+  //
+  // Antes era `elapsed(checkedInAt, doneAt ?? ahora)`: si nadie sellaba
+  // `doctorDoneAt`, seguía contando para siempre y se veían visitas con "31 h" y
+  // "53 h" en clínica. Un número que crece solo no es un dato, es ruido que
+  // enseña a ignorar el campo.
+  //
+  // Cierra con el primer hecho real que exista: el doctor terminó, o el asistente
+  // cerró la visita. Si no hay ninguno y el check-in NO es de hoy, la visita
+  // quedó abierta de otro día: se dice eso en ámbar en vez de inventar un número.
+  // Eso además delata las visitas colgadas, que hoy nadie ve.
+  const closedAt = doneAt ?? checkedOutAt;
+  const checkedInToday = !!checkedInAt && denverDayKey(new Date(checkedInAt)) === denverDayKey(new Date());
+  const timeInRoom = closedAt
+    ? elapsed(checkedInAt, new Date(closedAt))
+    : checkedInToday ? elapsed(checkedInAt, new Date()) : null;
+  const staleOpenVisit = !closedAt && !!checkedInAt && !checkedInToday;
 
   // Checklist de salida — NADA bloquea (decisión de Erick 2026-07-29). La nota
   // clínica se puede firmar otro día: la documentación tiene una ventana de
@@ -574,7 +599,18 @@ export function VisitSummary({
         </div>
         <div className="rounded-lg border border-border bg-bg-1 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sumTimeInClinic')}</div>
-          <div className="text-text-1 font-semibold text-sm mt-0.5">{timeInRoom ?? '—'}</div>
+          {staleOpenVisit ? (
+            <div className="text-amber font-semibold text-[12.5px] mt-0.5 flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              {t('sumVisitLeftOpen', {
+                date: new Date(checkedInAt!).toLocaleDateString(undefined, {
+                  day: 'numeric', month: 'short', timeZone: 'America/Denver',
+                }),
+              })}
+            </div>
+          ) : (
+            <div className="text-text-1 font-semibold text-sm mt-0.5">{timeInRoom ?? '—'}</div>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-bg-1 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sumNoteState')}</div>

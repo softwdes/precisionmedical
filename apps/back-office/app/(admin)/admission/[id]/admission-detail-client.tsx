@@ -62,6 +62,8 @@ interface ApptDetail {
   checkedInAt: string | null;
   /** El doctor marcó que terminó con el paciente (portal médico) */
   doctorDoneAt?: string | null;
+  /** Hora de salida — cierra el reloj de tiempo en clínica */
+  checkedOutAt?: string | null;
   /** Última corrección de vitales después de que el paciente pasó a sala */
   triageCorrection?: { at: string; by: string | null } | null;
   notes: string | null;
@@ -685,6 +687,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             appointmentStatus={d.status}
             checkedInAt={d.checkedInAt}
             doctorDoneAt={d.doctorDoneAt ?? null}
+            checkedOutAt={d.checkedOutAt ?? null}
             providerName={d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : null}
             triage={summaryTriage}
             servicesPanel={{

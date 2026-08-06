@@ -1856,6 +1856,7 @@
       "sumDoneHandoff": "the assistant collects payment and closes the appointment",
       "sumReopen": "Reopen",
       "sumArrived": "Arrived at",
+      "sumVisitLeftOpen": "Left open since {date}",
       "sumTimeInClinic": "Time in clinic",
       "sumNoteState": "Note status",
       "sumOpenNote": "Open the note",

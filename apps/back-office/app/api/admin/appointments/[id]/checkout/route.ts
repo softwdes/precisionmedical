@@ -14,8 +14,9 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
+import { resolveActor } from '@/lib/actor';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -44,7 +45,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   await db.appointment.update({
     where: { id },
-    data: { status: 'COMPLETED' },
+    // `checkedOutAt` cierra el reloj de "tiempo en clínica". Sin sellar la hora,
+    // el Resumen seguía contando desde el check-in hasta AHORA y las visitas
+    // cerradas ayer mostraban 30+ horas en clínica.
+    data: { status: 'COMPLETED', checkedOutAt: new Date() },
   });
 
   const pending = {
@@ -53,7 +57,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   };
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: 'CHECKOUT_APPOINTMENT',
     entityType: 'Appointment',
     entityId: id,
@@ -79,11 +83,13 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
 
   await db.appointment.update({
     where: { id },
-    data: { status: appt.checkedInAt ? 'IN_PROGRESS' : 'CHECKED_IN' },
+    // Reabrir borra la hora de salida: el paciente volvió a estar en clínica y
+    // dejar la vieja daría un tiempo que no corresponde a nada.
+    data: { status: appt.checkedInAt ? 'IN_PROGRESS' : 'CHECKED_IN', checkedOutAt: null },
   });
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: 'REOPEN_APPOINTMENT',
     entityType: 'Appointment',
     entityId: id,

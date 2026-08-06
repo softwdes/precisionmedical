@@ -1864,6 +1864,7 @@
       "sumOpenRx": "Open prescription",
       "sumNoRx": "No prescriptions on this visit",
       "sumOpenBraces": "Open braces",
+      "sumIncludesBraces": "includes {count} brace(s)",
       "sumOpenServices": "Open services",
       "sumNoServices": "No services recorded",
       "sumPrintNote": "Print the note",

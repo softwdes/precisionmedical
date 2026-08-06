@@ -696,6 +696,38 @@ export function VisitSummary({
         )}
       </Card>
 
+      {/* Férulas — tarjeta propia, igual que Labs y Recetas. Estaban metidas
+          dentro de "Servicios", debajo de los CPT: se renderizaban, pero quien
+          busca férulas escanea los TÍTULOS de las tarjetas y no había ninguno.
+          Se pagan completas, sin lien ni seguro. */}
+      {braces.length > 0 && (
+        <Card
+          icon={Bandage}
+          title={t('braceTitle')}
+          action={
+            <button type="button" onClick={() => onFix('braces')} className="text-[11px] font-semibold text-violet hover:underline">
+              {t('sumOpenBraces')}
+            </button>
+          }
+        >
+          <div className="space-y-1">
+            {braces.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 text-[12.5px]">
+                <span className="text-text-2 flex-1 min-w-0">
+                  {r.name}
+                  {r.sizeLabel && <span className="text-text-muted"> · {r.sizeLabel}</span>}
+                  {r.quantity > 1 && <span className="text-text-muted"> ×{r.quantity}</span>}
+                </span>
+                <span className="text-text-2 shrink-0 tabular-nums">{money(Number(r.unitPrice) * r.quantity)}</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-end border-t border-border/60 pt-2 mt-1">
+              <span className="text-[11px] text-text-muted">{t('braceTotal', { amount: money(bracesTotal) })}</span>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Servicios */}
       <Card
         icon={Briefcase}
@@ -747,36 +779,6 @@ export function VisitSummary({
               </div>
             )}
 
-            {/* Férulas — se pagan completas, sin lien ni seguro */}
-            {braces.length > 0 && (
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-2">
-                  {t('braceTitle')}
-                  {/* Las férulas viven en SU tab, no en el de cargos: sin este
-                      atajo el "Ver servicios" de arriba llevaba a una pantalla
-                      donde no están. */}
-                  <button
-                    type="button"
-                    onClick={() => onFix('braces')}
-                    className="normal-case tracking-normal font-semibold text-violet hover:underline"
-                  >
-                    {t('sumOpenBraces')}
-                  </button>
-                </div>
-                {braces.map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 text-[12.5px]">
-                    <Bandage className="w-3.5 h-3.5 text-violet shrink-0" />
-                    <span className="text-text-2 flex-1 min-w-0">
-                      {r.name}
-                      {r.sizeLabel && <span className="text-text-muted"> · {r.sizeLabel}</span>}
-                      {r.quantity > 1 && <span className="text-text-muted"> ×{r.quantity}</span>}
-                    </span>
-                    <span className="text-text-2 shrink-0 tabular-nums">{money(Number(r.unitPrice) * r.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Desglose: el mismo par de números del tab de cargos, para que la
                 salida y el cobro no se contradigan. */}
             <div className="flex items-center justify-end gap-3 flex-wrap border-t border-border/60 pt-2">
@@ -788,6 +790,12 @@ export function VisitSummary({
               {collectToday > 0 && (
                 <span className="text-[11px] text-text-muted">
                   {tc('totalCashToday')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{money(collectToday)}</b>
+                  {/* Las férulas se listan en su propia tarjeta pero suman acá:
+                      sin la nota, este total incluiría plata que no está
+                      itemizada en esta tarjeta. */}
+                  {bracesTotal > 0 && (
+                    <span className="text-text-muted"> · {t('sumIncludesBraces', { count: braces.length })}</span>
+                  )}
                 </span>
               )}
             </div>

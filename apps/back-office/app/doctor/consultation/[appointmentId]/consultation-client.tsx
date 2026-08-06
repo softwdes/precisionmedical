@@ -433,6 +433,11 @@ export function ConsultationClient({
               note={note}
               templates={templates}
               userId={userId}
+              /* El nodo 4 lee `note` del payload del SERVER. Sin avisar, el
+                 doctor escribía diagnósticos, iba al Resumen y el checklist le
+                 decía que faltaban. Day Admission ya recargaba con onSaved; esto
+                 iguala el lado del doctor. */
+              onSaved={() => router.refresh()}
             />
           )}
           {tab === 'labs' && (

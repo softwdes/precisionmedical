@@ -17,16 +17,18 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, FileText, FlaskConical, Briefcase, Bandage, Loader2 } from 'lucide-react';
+import { ClipboardList, FileText, FlaskConical, Briefcase, Bandage, Pill, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import { LabsTab } from '@/components/visit/labs-tab';
 import { BracesTab } from '@/components/visit/braces-tab';
+import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
+import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import type { CoverageDTO } from '@/lib/coverage';
 
-type Tab = 'summary' | 'notes' | 'labs' | 'braces' | 'services';
+type Tab = 'summary' | 'notes' | 'labs' | 'rx' | 'braces' | 'services';
 
 interface Props {
   appointmentId: string;
@@ -101,6 +103,7 @@ export function DoctorStepPanel({
     { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
     { id: 'notes', label: t('tabNotes'), icon: FileText },
     { id: 'labs', label: t('tabLabs'), icon: FlaskConical },
+    { id: 'rx', label: t('tabRx'), icon: Pill },
     { id: 'braces', label: t('tabBraces'), icon: Bandage },
     { id: 'services', label: t('tabServicesPayments'), icon: Briefcase },
   ];
@@ -114,6 +117,13 @@ export function DoctorStepPanel({
           <div className="text-violet font-bold text-[13px]">{t('stepDoctor')}</div>
           <div className="text-violet/60 text-[10px]">{t('stepDoctorAssistantDesc')}</div>
         </div>
+        {/* Cobertura acá también: el asistente trabaja los cargos en este step y
+            el chip vivía solo en el sidebar del step 2 — lo veía antes de entrar y
+            después tenía que acordarse. En la consulta del doctor está siempre en
+            el encabezado; esto lo iguala. */}
+        {coverage && (
+          <CoverageChip caseId={servicesPanel.case?.id ?? null} coverage={coverage} />
+        )}
         {providerName && (
           <div className="text-[10px] font-semibold text-violet bg-violet/15 border border-violet/25 px-2 py-0.5 rounded-full shrink-0">
             {providerName}
@@ -188,6 +198,12 @@ export function DoctorStepPanel({
                 seedDiagnoses={note?.diagnoses ?? []}
               />
             )}
+
+            {/* Receta — el MISMO componente del portal del doctor, en modo
+                lectura: el asistente necesita responder "¿se le mandó la receta
+                a la farmacia?" en el checkout, pero prescribir y repetir son del
+                médico (misma regla que `canSign` en la nota). */}
+            {tab === 'rx' && <RxIntegrationStatus appointmentId={appointmentId} readOnly />}
 
             {/* Férulas / DME — el mismo componente que usa el doctor en su portal.
                 El cobro cae solo en "Servicios y pagos": se paga todo junto. */}

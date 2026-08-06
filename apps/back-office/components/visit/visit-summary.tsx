@@ -19,12 +19,13 @@ import { Button } from '@precision/ui';
 import {
   CheckCircle2, AlertTriangle, Clock3, FileText, FlaskConical, Briefcase,
   HeartPulse, Stethoscope, Loader2, LogOut, RotateCcw, Printer, ChevronRight,
-  CalendarPlus, CalendarCheck2, Bandage, DollarSign,
+  CalendarPlus, CalendarCheck2, Bandage, DollarSign, Pill, MapPin,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
+import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS } from './rx-integration-status';
 
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
 export interface SummaryTriage {
@@ -57,6 +58,16 @@ interface CashChargeRow {
   unitLabel: string | null;
 }
 
+/** Receta de la visita (`prescriptions` vía ScriptSure). */
+interface RxRow {
+  id: string;
+  drugName: string;
+  dose: string | null;
+  frequency: string | null;
+  pharmacyName: string | null;
+  status: string;
+}
+
 /** Férula entregada (`appointment_braces`) — se paga completa, sin lien ni seguro. */
 interface BraceRow {
   id: string;
@@ -76,8 +87,9 @@ interface Props {
   services: ServiceCode[];
   checkedInAt: string | null;
   doctorDoneAt: string | null;
-  /** Salta al tab que resuelve lo que falta */
-  onFix: (tab: 'notes' | 'labs' | 'services') => void;
+  /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
+   *  pantallas que los tienen; el caller ignora los que no aplican. */
+  onFix: (tab: 'notes' | 'labs' | 'services' | 'braces' | 'rx') => void;
   /**
    * 'doctor'    — botón "Terminé con el paciente": sella doctorDoneAt, no cierra la cita.
    * 'assistant' — botón "Checkout": cierra la cita (COMPLETED) y ve el estado del doctor.
@@ -140,6 +152,10 @@ function elapsed(from: string | null, to: Date): string | null {
   return `${Math.floor(mins / 60)} h ${mins % 60} min`;
 }
 
+/** Estado de receta desconocido → DRAFT, para no romper si ScriptSure agrega uno. */
+type RxStatus = keyof typeof RX_STATUS_KEY;
+const rxStatusOf = (s: string): RxStatus => (s in RX_STATUS_KEY ? (s as RxStatus) : 'DRAFT');
+
 /** Mismo formato que el tab de férulas y el de cargos. */
 const money = (n: number): string => `$${n.toFixed(2)}`;
 
@@ -184,6 +200,9 @@ export function VisitSummary({
   // padres (la consulta del doctor y Day Admission).
   const [cash, setCash] = React.useState<CashChargeRow[]>([]);
   const [braces, setBraces] = React.useState<BraceRow[]>([]);
+  // Recetas de la visita: el asistente tiene que poder responder "¿se le mandó la
+  // receta?" antes de dejar salir al paciente, y el doctor ver qué mandó.
+  const [rx, setRx] = React.useState<RxRow[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [doneAt, setDoneAt] = React.useState<string | null>(doctorDoneAt);
@@ -202,11 +221,14 @@ export function VisitSummary({
   React.useEffect(() => {
     let alive = true;
     void (async () => {
-      const [c, b] = await Promise.all([
+      const [c, b, p] = await Promise.all([
         fetch(`/api/admin/cash-services/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/admin/braces/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+        fetch(`/api/admin/scriptsure/prescriptions/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
       ]);
       if (!alive) return;
+      // VOIDED fuera: una receta anulada no se le entregó al paciente.
+      setRx(((p as { prescriptions?: RxRow[] }).prescriptions ?? []).filter((r) => r.status !== 'VOIDED'));
       setCash((c as { charges?: CashChargeRow[] }).charges ?? []);
       // Solo las entregadas: una devuelta o anulada no se cobra ni sale con el paciente.
       setBraces(((b as { braces?: BraceRow[] }).braces ?? []).filter((r) => r.status === 'DISPENSED'));
@@ -256,7 +278,7 @@ export function VisitSummary({
   // visita sin cerrar. Lo que falta queda en ámbar y, si es la firma, sigue
   // apareciendo en "Acción requerida" de Mi Día hasta que se resuelva.
   const checks: Array<{
-    key: string; ok: boolean; label: string; fix?: 'notes' | 'labs' | 'services';
+    key: string; ok: boolean; label: string; fix?: 'notes' | 'labs' | 'services' | 'braces' | 'rx';
   }> = [
     { key: 'note', ok: isSigned, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
     { key: 'dx', ok: dxCount > 0, label: dxCount > 0 ? t('sumCheckDxOk', { count: dxCount }) : t('sumCheckDxMissing'), fix: 'notes' },
@@ -635,6 +657,45 @@ export function VisitSummary({
         )}
       </Card>
 
+      {/* Recetas — lo que el paciente se lleva. Iba antes de los cargos: primero
+          lo clínico, después la plata. */}
+      <Card
+        icon={Pill}
+        title={t('tabRx')}
+        action={
+          <button type="button" onClick={() => onFix('rx')} className="text-[11px] font-semibold text-violet hover:underline">
+            {t('sumOpenRx')}
+          </button>
+        }
+      >
+        {rx.length === 0 ? (
+          <div className="text-[12px] text-text-muted">{t('sumNoRx')}</div>
+        ) : (
+          <div className="space-y-1">
+            {rx.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 text-[12.5px] flex-wrap">
+                <span className="text-text-2 flex-1 min-w-[140px]">
+                  {r.drugName}
+                  {r.dose && <span className="text-text-muted"> · {r.dose}</span>}
+                  {r.frequency && <span className="text-text-muted"> · {r.frequency}</span>}
+                </span>
+                {/* La farmacia es el dato que cierra la pregunta del checkout:
+                    "¿a dónde se mandó?" */}
+                {r.pharmacyName && (
+                  <span className="text-[11px] text-text-muted inline-flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {r.pharmacyName}
+                  </span>
+                )}
+                <TagPill
+                  label={t(`rxStatus_${RX_STATUS_KEY[rxStatusOf(r.status)]}`)}
+                  colorClass={RX_STATUS_CLASS[rxStatusOf(r.status)]}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Servicios */}
       <Card
         icon={Briefcase}
@@ -689,8 +750,18 @@ export function VisitSummary({
             {/* Férulas — se pagan completas, sin lien ni seguro */}
             {braces.length > 0 && (
               <div className="space-y-1">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-2">
                   {t('braceTitle')}
+                  {/* Las férulas viven en SU tab, no en el de cargos: sin este
+                      atajo el "Ver servicios" de arriba llevaba a una pantalla
+                      donde no están. */}
+                  <button
+                    type="button"
+                    onClick={() => onFix('braces')}
+                    className="normal-case tracking-normal font-semibold text-violet hover:underline"
+                  >
+                    {t('sumOpenBraces')}
+                  </button>
                 </div>
                 {braces.map((r) => (
                   <div key={r.id} className="flex items-center gap-2 text-[12.5px]">

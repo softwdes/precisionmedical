@@ -46,8 +46,9 @@ interface SentRx {
   canRefill: boolean;
 }
 
-/** Estado de la receta → clave i18n y color. ERROR va en rose: no llegó a la farmacia. */
-const STATUS_KEY: Record<SentRx['status'], string> = {
+/** Estado de la receta → clave i18n y color. ERROR va en rose: no llegó a la farmacia.
+ *  Exportados para que el Resumen pinte los estados igual y no haya dos verdades. */
+export const STATUS_KEY: Record<SentRx['status'], string> = {
   SENT: 'sent',
   DRAFT: 'draft',
   PENDING_DAW: 'pending',
@@ -55,7 +56,7 @@ const STATUS_KEY: Record<SentRx['status'], string> = {
   ERROR: 'error',
 };
 
-const STATUS_CLASS: Record<SentRx['status'], string> = {
+export const STATUS_CLASS: Record<SentRx['status'], string> = {
   SENT: 'bg-emerald/15 text-emerald border-emerald/30',
   DRAFT: 'bg-white/5 text-text-muted border-border',
   PENDING_DAW: 'bg-amber/15 text-amber border-amber/30',
@@ -63,7 +64,16 @@ const STATUS_CLASS: Record<SentRx['status'], string> = {
   ERROR: 'bg-rose/15 text-rose border-rose/30',
 };
 
-export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }): React.ReactElement {
+/**
+ * `readOnly` — Day Admission: el asistente VE las recetas de la visita pero no
+ * prescribe ni repite. Prescribir es firmar una orden médica y no se delega
+ * (misma regla que `canSign` en la nota clínica). Lo que sí necesita es poder
+ * responder "¿se le mandó la receta a la farmacia?" en el checkout.
+ */
+export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
+  appointmentId: string;
+  readOnly?: boolean;
+}): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
@@ -192,7 +202,8 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
 
       {/* Prescribir (izquierda) · Recetas enviadas (derecha).
           La farmacia se elige DENTRO del widget (SET PHARMACY). */}
-      <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr] gap-2.5">
+      <div className={`px-5 pb-5 grid gap-2.5 ${readOnly ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-[1.6fr_1fr]'}`}>
+        {!readOnly && (
         <button
           type="button"
           onClick={() => openWidget('drug-list')}
@@ -212,6 +223,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
           </div>
           <ArrowRight className="relative w-5 h-5 text-white/80 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </button>
+        )}
 
         <button
           type="button"
@@ -302,8 +314,9 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
                           })}
                         </span>
                         {/* Repetir: sirve para cualquier receta del historial, no
-                            solo las que fallaron */}
-                        {rx.canRefill && (
+                            solo las que fallaron. Repetir ES prescribir, así que
+                            en modo lectura no aparece. */}
+                        {rx.canRefill && !readOnly && (
                           <button
                             type="button"
                             onClick={() => void refill(rx)}

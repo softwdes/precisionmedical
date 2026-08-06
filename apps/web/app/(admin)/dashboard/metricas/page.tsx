@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 import * as React from 'react';
 import { api } from '@/lib/trpc/server';
-import { EmployeesClient } from '../employees/employees-client';
 import { LawyersClient } from '../lawyers/lawyers-client';
 import { ProvidersClient } from '../providers/providers-client';
 import { AppointmentsClient } from '../appointments/appointments-client';
 import { ComunicacionesClient } from './comunicaciones-client';
+import { EmpleadosMetricasClient } from './empleados-metricas-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
 export const metadata = { title: 'Métricas' };
@@ -68,11 +68,9 @@ export default async function MetricasPage({
       />
     );
   } else if (activeTab === 'empleados') {
-    const [initial, departments] = await Promise.all([
-      api.employees.list({ page: 1, pageSize: 25 }),
-      api.departments.list(),
-    ]);
-    content = <EmployeesClient initial={initial} departments={departments} />;
+    // Productividad por empleado — la data viene de la DB de Clinic vía tRPC
+    // (api.metrics.employeeActivity); el cliente maneja el período.
+    content = <EmpleadosMetricasClient />;
   } else if (activeTab === 'abogados') {
     const initial = await api.lawyers.list();
     content = <LawyersClient initial={initial} />;

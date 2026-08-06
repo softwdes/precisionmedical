@@ -32,7 +32,7 @@ const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
   ['edson',     /^\/edson/],
   ['intake',    /^\/intake/],
   ['billing',   /^\/billing/],
-  ['settings',  /^\/(settings|audit-logs|admin\/(specialties|insurances|services|diagnoses|providers|templates|metrics))/],
+  ['settings',  /^\/(settings|audit-logs|admin\/(specialties|insurances|services|diagnoses|providers|templates))/],
 ];
 
 // Ruta home de cada módulo (para redirigir al primero permitido)

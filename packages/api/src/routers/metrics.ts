@@ -12,7 +12,168 @@ function getBackofficeClient() {
   return createClientWithCredentials(url, key);
 }
 
+// ─── Métricas por empleado (productividad, data del back-office) ─────────────
+
+/** Medianoche de un día de America/Denver, en UTC (DST-aware por fecha). */
+function denverDayStart(day: string): Date {
+  const probe = new Date(`${day}T12:00:00Z`);
+  const offsetPart = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', timeZoneName: 'shortOffset' })
+    .formatToParts(probe)
+    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-6';
+  const m = /GMT([+-]\d+)/.exec(offsetPart);
+  const hours = m?.[1] ? parseInt(m[1], 10) : -6;
+  const hh = String(Math.abs(hours)).padStart(2, '0');
+  return new Date(`${day}T00:00:00${hours <= 0 ? '-' : '+'}${hh}:00`);
+}
+
+function nextDay(day: string): string {
+  return new Date(new Date(`${day}T00:00:00Z`).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** Acción del audit log del back-office → columna del reporte. */
+const ACTION_TO_METRIC: Record<string, keyof EmployeeCounters> = {
+  CREATE_PATIENT:             'patientsCreated',
+  CREATE_CASE_FROM_CALL:      'casesCreated',
+  CREATE_APPOINTMENT:         'appointmentsCreated',
+  SCHEDULE_FIRST_APPOINTMENT: 'appointmentsCreated',
+  CHECK_IN:                   'checkIns',
+  TRIAGE_VITALS_SAVED:        'triages',
+  CREATE_LAB_ORDER:           'labs',
+  ADD_LAB_ORDER:              'labs',
+  UPLOAD_LAB_RESULT:          'labs',
+  CHARGE_CASH_SERVICE:        'cashServices',
+  DISPENSE_BRACE:             'braces',
+  REGISTER_BILLING_PAYMENT:   'payments',
+  CHECKOUT_APPOINTMENT:       'checkouts',
+  DOCTOR_DONE_WITH_PATIENT:   'doctorDone',
+  SIGN_VISIT_NOTE:            'notesSigned',
+};
+
+export interface EmployeeCounters {
+  patientsCreated: number; casesCreated: number; appointmentsCreated: number;
+  checkIns: number; triages: number; labs: number; cashServices: number;
+  braces: number; payments: number; checkouts: number; doctorDone: number;
+  notesSigned: number;
+}
+
+export interface EmployeeActivityRow extends EmployeeCounters {
+  userId: string;
+  name: string;
+  role: string;
+  activeMinutes: number;
+  callsMade: number;
+  callsAnswered: number;
+  callsDurationSeconds: number;
+  byAction: Record<string, number>;
+}
+
+const emptyCounters = (): EmployeeCounters => ({
+  patientsCreated: 0, casesCreated: 0, appointmentsCreated: 0, checkIns: 0,
+  triages: 0, labs: 0, cashServices: 0, braces: 0, payments: 0, checkouts: 0,
+  doctorDone: 0, notesSigned: 0,
+});
+
+interface EmployeeMetricsPayload {
+  users: Array<{ userId: string; name: string | null; email: string; role: string }>;
+  audit: Array<{ userId: string; action: string; n: number }>;
+  callsById: Array<{ agentUserId: string; direction: 'INBOUND' | 'OUTBOUND'; n: number; durationSeconds: number }>;
+  callsByName: Array<{ userId: string; direction: 'INBOUND' | 'OUTBOUND'; n: number; durationSeconds: number }>;
+  activity: Array<{ userId: string; minutes: number }>;
+}
+
 export const metricsRouter = router({
+  /**
+   * Productividad por empleado — tab Empleados de Métricas.
+   *
+   * La agregación vive en la DB del back-office (fn `employee_metrics`,
+   * packages/database/prisma/sql/20260806-employee-metrics-fn.sql): AuditLog
+   * atribuido (Fase 1) + CallLog + user_activity (Fase 2). `from`/`to` son
+   * DÍAS de America/Denver inclusivos.
+   *
+   * CallLog.agentUserId es un UUID de Supabase Auth: tras la unificación las
+   * cuentas del staff viven en el proyecto ADMIN, así que el puente
+   * UUID→email→users.id se hace acá — se intenta contra los DOS proyectos
+   * porque en la DB del back-office quedan cuentas legadas (doctores).
+   */
+  employeeActivity: adminProcedure
+    .input(z.object({
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }))
+    .query(async ({ input }) => {
+      const bo = getBackofficeClient();
+      const { data, error } = await bo.rpc('employee_metrics', {
+        p_from: denverDayStart(input.from).toISOString(),
+        p_to:   denverDayStart(nextDay(input.to)).toISOString(),
+      });
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      const m = data as unknown as EmployeeMetricsPayload;
+
+      const rows = new Map<string, EmployeeActivityRow>();
+      const userIdByEmail = new Map<string, string>();
+      for (const u of m.users) {
+        userIdByEmail.set(u.email.toLowerCase(), u.userId);
+        rows.set(u.userId, {
+          userId: u.userId,
+          name: u.name ?? u.email,
+          role: u.role,
+          activeMinutes: 0, callsMade: 0, callsAnswered: 0, callsDurationSeconds: 0,
+          byAction: {},
+          ...emptyCounters(),
+        });
+      }
+
+      for (const g of m.audit) {
+        const row = rows.get(g.userId);
+        if (!row) continue;
+        row.byAction[g.action] = (row.byAction[g.action] ?? 0) + g.n;
+        const metric = ACTION_TO_METRIC[g.action];
+        if (metric) row[metric] += g.n;
+      }
+
+      // UUID de Auth → email → users.id del back-office (ambos proyectos)
+      const agentIds = [...new Set(m.callsById.map((g) => g.agentUserId))];
+      const phoenixIdByAgent = new Map<string, string>();
+      await Promise.all(agentIds.map(async (id) => {
+        for (const client of [supabaseAdmin, bo]) {
+          try {
+            const { data: authUser } = await client.auth.admin.getUserById(id);
+            const email = authUser?.user?.email?.toLowerCase();
+            const phoenixId = email ? userIdByEmail.get(email) : undefined;
+            if (phoenixId) { phoenixIdByAgent.set(id, phoenixId); return; }
+          } catch { /* siguiente proyecto */ }
+        }
+      }));
+
+      const addCalls = (userId: string | undefined, g: { direction: string; n: number; durationSeconds: number }) => {
+        const row = userId ? rows.get(userId) : undefined;
+        if (!row) return;
+        if (g.direction === 'OUTBOUND') row.callsMade += g.n;
+        else row.callsAnswered += g.n;
+        row.callsDurationSeconds += g.durationSeconds;
+      };
+      for (const g of m.callsById)   addCalls(phoenixIdByAgent.get(g.agentUserId), g);
+      for (const g of m.callsByName) addCalls(g.userId, g);
+
+      for (const g of m.activity) {
+        const row = rows.get(g.userId);
+        if (row) row.activeMinutes = g.minutes;
+      }
+
+      const totalOf = (r: EmployeeActivityRow): number =>
+        r.activeMinutes + r.callsMade + r.callsAnswered +
+        Object.values(r.byAction).reduce((a, b) => a + b, 0);
+
+      const employees = [...rows.values()].sort((a, b) => {
+        const ta = totalOf(a); const tb = totalOf(b);
+        if (ta !== tb) return tb - ta;
+        return a.name.localeCompare(b.name);
+      });
+
+      return { from: input.from, to: input.to, employees };
+    }),
+
   listCalls: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {

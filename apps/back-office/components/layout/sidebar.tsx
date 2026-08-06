@@ -18,6 +18,7 @@ import {
   Sun,
   FileText,
   FlaskConical,
+  TrendingUp,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ const SECTIONS: NavSection[] = [
       { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24', moduleKey: 'edson' },
       { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13', moduleKey: 'intake'    },
       { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28', moduleKey: 'billing'   },
+      { href: '/admin/metrics', icon: TrendingUp,  labelKey: 'metrics',    mockup: 'B.29+',      moduleKey: 'settings'  },
       { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+',      moduleKey: 'settings'  },
     ],
   },

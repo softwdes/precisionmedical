@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-US">
+    <html lang="es">
       <body className={font.className}>
         <SuppressDesktopInstall />
         <UpdateBanner />

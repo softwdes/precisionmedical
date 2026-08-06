@@ -234,6 +234,41 @@ export function AsistenciaClient() {
     });
   };
 
+  // ── Missed checkouts (open shifts from previous days) ─────────────────────
+  interface MissedRow { id: string; date: string; employee_id: string; firstName: string; lastName: string; clinic_name: string | null; check_in: string | null; }
+  const [missedRows, setMissedRows] = useState<MissedRow[]>([]);
+
+  const fetchMissed = useCallback(async () => {
+    try {
+      const supabase = createBrowserClient();
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+      const { data } = await supabase
+        .from('attendance_records')
+        .select('id, date, employee_id, check_in, clinic_name, employees(firstName, lastName)')
+        .is('check_out', null)
+        .not('check_in', 'is', null)
+        .eq('missed_checkout', true)
+        .lt('date', today)
+        .order('date', { ascending: false })
+        .limit(20);
+      if (!data) return;
+      setMissedRows(data.map(r => {
+        const emp = Array.isArray(r.employees) ? r.employees[0] : r.employees;
+        return {
+          id: r.id as string,
+          date: r.date as string,
+          employee_id: r.employee_id as string,
+          firstName: (emp as { firstName: string } | null)?.firstName ?? '',
+          lastName:  (emp as { lastName: string }  | null)?.lastName  ?? '',
+          clinic_name: r.clinic_name as string | null,
+          check_in: r.check_in as string | null,
+        };
+      }));
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { void fetchMissed(); }, [fetchMissed]);
+
   // ── Historial state ────────────────────────────────────────────────────────
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -559,6 +594,7 @@ export function AsistenciaClient() {
       });
       if (!res.ok) { setCorrError('Error al guardar.'); return; }
       setCorrection(null);
+      void fetchMissed();
       if (view === 'hoy') void fetchToday(true);
       else void fetchHistory();
     } finally {
@@ -811,6 +847,54 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               >
                 Reintentar
               </button>
+            </div>
+          )}
+
+          {/* ── Missed checkout alert banner ── */}
+          {missedRows.length > 0 && (
+            <div className="rounded-lg border px-3 py-2.5 flex flex-col gap-2" style={{ background: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.28)' }}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="shrink-0" style={{ color: '#F59E0B' }} />
+                <span className="text-[12px] font-semibold" style={{ color: '#F59E0B' }}>
+                  {missedRows.length === 1 ? '1 empleado olvidó marcar su salida' : `${missedRows.length} empleados olvidaron marcar su salida`}
+                </span>
+                <button
+                  onClick={() => void fetchMissed()}
+                  className="ml-auto p-0.5 rounded hover:bg-amber-500/10 transition-colors"
+                  title="Actualizar"
+                >
+                  <RefreshCw size={12} style={{ color: '#F59E0B' }} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-1">
+                {missedRows.map(r => (
+                  <div key={r.id} className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                    <span className="font-medium" style={{ color: 'var(--color-text-2)' }}>{r.firstName} {r.lastName}</span>
+                    <span>·</span>
+                    <span>{new Date(r.date + 'T12:00:00').toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                    {r.clinic_name && <><span>·</span><span>{r.clinic_name}</span></>}
+                    <button
+                      className="ml-auto text-[10px] px-2 py-0.5 rounded font-medium transition-colors hover:bg-amber-500/15"
+                      style={{ color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)' }}
+                      onClick={() => {
+                        const row = todayRows.find(t => t.employee_id === r.employee_id) ?? {
+                          id: r.id, date: r.date, employee_id: r.employee_id,
+                          firstName: r.firstName, lastName: r.lastName,
+                          check_in: r.check_in, check_out: null,
+                          clinic_name: r.clinic_name, hours_worked: null,
+                          break_minutes: 0, status: null, late_minutes: 0,
+                          check_in_lat: null, check_in_lng: null,
+                          check_out_lat: null, check_out_lng: null,
+                          location_status: null,
+                        };
+                        openCorrection(row as Parameters<typeof openCorrection>[0]);
+                      }}
+                    >
+                      Corregir
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

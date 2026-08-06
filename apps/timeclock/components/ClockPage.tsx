@@ -291,6 +291,10 @@ export default function ClockPage({ userId }: { userId: string }) {
   // Auto sign-out after 12h of session lifetime → /login?expired=true
   useSessionGuard(12);
 
+  // Missed checkout alert (open shift from a previous day)
+  const [missedShift, setMissedShift] = useState<{ id: string; date: string; clinic: string } | null>(null);
+  const [dismissingMissed, setDismissingMissed] = useState(false);
+
   // Profile
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [role, setRole] = useState('EMPLOYEE');
@@ -610,13 +614,40 @@ export default function ClockPage({ userId }: { userId: string }) {
     setEmployee(emp);
 
     await Promise.all([loadClinics(), loadTodayRecord(emp.id), loadStats(emp.id)]);
-
-    // After today's record is loaded, if there's no active shift yet
-    // and the employee is in a multi-clinic country (US), try to
-    // pre-select the clinic from today's active schedule. This keeps
-    // the UX the user described: "shows their assigned clinic by
-    // default, but they can change it".
     await loadDefaultClinicFromSchedule(emp.id);
+    await checkMissedCheckout(emp.id);
+  }
+
+  async function checkMissedCheckout(empId: string) {
+    const today = localDateString(new Date());
+    const { data } = await supabase
+      .from('attendance_records')
+      .select('id, date, clinic_name, missed_checkout')
+      .eq('employee_id', empId)
+      .is('check_out', null)
+      .not('check_in', 'is', null)
+      .lt('date', today)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data && !data.missed_checkout) {
+      setMissedShift({ id: data.id as string, date: data.date as string, clinic: data.clinic_name as string });
+    }
+  }
+
+  async function dismissMissedCheckout() {
+    if (!missedShift) return;
+    setDismissingMissed(true);
+    try {
+      await supabase
+        .from('attendance_records')
+        .update({ missed_checkout: true })
+        .eq('id', missedShift.id);
+    } finally {
+      setDismissingMissed(false);
+      setMissedShift(null);
+    }
   }
 
   async function loadDefaultClinicFromSchedule(empId: string) {
@@ -1116,6 +1147,85 @@ export default function ClockPage({ userId }: { userId: string }) {
       {/* Background glows */}
       <div style={{ position: 'absolute', top: 0, right: 0, width: 280, height: 280, background: 'radial-gradient(circle at 80% 10%, rgba(16,185,129,0.07), transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
       <div style={{ position: 'absolute', bottom: 0, left: 0, width: 220, height: 220, background: 'radial-gradient(circle at 20% 90%, rgba(99,102,241,0.05), transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
+
+      {/* ── Missed checkout blocking overlay ── */}
+      {missedShift && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 340,
+            background: 'var(--bg-primary)',
+            border: '1px solid rgba(245,158,11,0.35)',
+            borderRadius: 18,
+            padding: '24px 20px',
+            display: 'flex', flexDirection: 'column', gap: 16,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,158,11,0.1)',
+          }}>
+            {/* Icon + title */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 14,
+                background: 'rgba(245,158,11,0.15)',
+                border: '1px solid rgba(245,158,11,0.30)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  {t.missedCheckoutTitle}
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+                  {t.missedCheckoutBody(
+                    new Date(missedShift.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }),
+                    missedShift.clinic,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Info box */}
+            <div style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.20)',
+              borderRadius: 10,
+              padding: '10px 14px',
+              fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
+            }}>
+              {t.missedCheckoutNote}
+            </div>
+
+            {/* Button */}
+            <button
+              onClick={() => void dismissMissedCheckout()}
+              disabled={dismissingMissed}
+              style={{
+                width: '100%', height: 48, borderRadius: 12,
+                background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                border: 'none', color: 'white',
+                fontSize: 14, fontWeight: 600, cursor: dismissingMissed ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: dismissingMissed ? 0.7 : 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              {dismissingMissed
+                ? <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+                : null
+              }
+              {t.missedCheckoutDismiss}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── A: Employee header ── */}
       <div style={{ ...sectionStyle, display: 'flex', alignItems: 'center', gap: 10 }}>

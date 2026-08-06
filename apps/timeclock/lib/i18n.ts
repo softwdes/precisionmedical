@@ -37,6 +37,12 @@ interface Dict {
   // ─── Stats progress vs goal ────────────────────────────────────────
   statProgressOf: (pct: number, goalH: number) => string;
 
+  // ─── Missed checkout alert ──────────────────────────────────────────
+  missedCheckoutTitle: string;
+  missedCheckoutBody:  (date: string, clinic: string) => string;
+  missedCheckoutNote:  string;
+  missedCheckoutDismiss: string;
+
   // ─── Geo banner (prompt) ────────────────────────────────────────────
   geoTitle: string;
   geoBody: string;
@@ -149,6 +155,10 @@ const dict: Record<Locale, Dict> = {
     scheduleStarting:      'Tu turno es ahora',
     scheduleTodayLine:     (h, c, e) => `Hoy: ${h}h en ${c} hasta las ${e}`,
     statProgressOf:        (p, g) => `${p}% de ${g}h`,
+    missedCheckoutTitle:   'Olvidaste marcar tu salida',
+    missedCheckoutBody:    (date, clinic) => `El ${date} en ${clinic} quedó un turno abierto sin registrar salida.`,
+    missedCheckoutNote:    'El administrador será notificado para corregir el horario. Esto no afecta tu registro de hoy.',
+    missedCheckoutDismiss: 'Entendido',
     geoBannerNeutral: 'para verificar tu lugar de trabajo. El registro se guarda igual sin permiso.',
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     invalidCredentials: 'Email o contraseña incorrectos',
@@ -285,6 +295,10 @@ const dict: Record<Locale, Dict> = {
     scheduleStarting:      'Your shift is starting now',
     scheduleTodayLine:     (h, c, e) => `Today: ${h}h at ${c} until ${e}`,
     statProgressOf:        (p, g) => `${p}% of ${g}h`,
+    missedCheckoutTitle:   'You forgot to clock out',
+    missedCheckoutBody:    (date, clinic) => `On ${date} at ${clinic} your shift was left open with no clock-out.`,
+    missedCheckoutNote:    'Your administrator will be notified to correct the record. This does not affect today\'s shift.',
+    missedCheckoutDismiss: 'Got it',
     geoBannerNeutral: 'to verify your work location. Your record is saved either way.',
     sessionExpired: 'Your session expired. Sign in again.',
     invalidCredentials: 'Incorrect email or password',

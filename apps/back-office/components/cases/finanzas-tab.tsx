@@ -439,7 +439,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                               <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
                             </div>
                           ) : (
-                            <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
+                            /* Ídem en el historial: sin código, la descripción. */
+                            <div className="min-w-0">
+                              <div className="text-[12px] text-text-1 truncate">
+                                {b.serviceDescription ?? fmtDate(b.appointmentDate)}
+                              </div>
+                              {b.serviceDescription && (
+                                <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
@@ -609,7 +617,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                 <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
                               </div>
                             ) : (
-                              <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
+                              /* Sin código (férulas: el código vive en el registro
+                                 de la férula) igual se muestra la descripción. Antes
+                                 solo salía la fecha y quien cobraba veía dos líneas
+                                 anónimas de $50 y $75. */
+                              <div className="min-w-0">
+                                <div className="text-[12px] text-text-1 truncate">
+                                  {b.serviceDescription ?? fmtDate(b.appointmentDate)}
+                                </div>
+                                {b.serviceDescription && (
+                                  <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
+                                )}
+                              </div>
                             )}
                           </div>
                           <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</div>

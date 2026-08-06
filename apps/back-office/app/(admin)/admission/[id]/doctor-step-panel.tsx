@@ -56,6 +56,9 @@ export function DoctorStepPanel({
   const t = useTranslations('phoenix.doctor');
 
   const [tab, setTab] = React.useState<Tab>('summary');
+  /** El Resumen pidió cobrar: se salta al tab de Servicios y el panel abre el
+   *  modal de "Pago del caso" al montarse. Se limpia al cambiar de tab a mano. */
+  const [goToPayments, setGoToPayments] = React.useState(false);
   const [note, setNote] = React.useState<VisitNoteData | null>(null);
   const [templates, setTemplates] = React.useState<PickableTemplate[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -138,7 +141,7 @@ export function DoctorStepPanel({
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
+            onClick={() => { setGoToPayments(false); setTab(id); }}
             className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
               tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
             }`}
@@ -168,6 +171,9 @@ export function DoctorStepPanel({
                 checkedInAt={checkedInAt}
                 doctorDoneAt={doctorDoneAt}
                 checkedOutAt={checkedOutAt}
+                // El saldo de facturación es la autoridad del monto a cobrar.
+                balanceDue={billingTotal}
+                onCollect={() => { setGoToPayments(true); setTab('services'); }}
                 onFix={(target) => setTab(target)}
                 onStatusChange={onRefresh}
                 followUp={servicesPanel.case ? {
@@ -220,6 +226,7 @@ export function DoctorStepPanel({
                   initialTab="services"
                   appointment={servicesPanel}
                   coverage={coverage}
+                  openPaymentsOnMount={goToPayments}
                   onClose={() => {}}
                   onRefresh={onRefresh}
                   billingTotal={billingTotal}

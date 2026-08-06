@@ -1928,6 +1928,7 @@
       "sumNoteState": "Note status",
       "sumOpenNote": "Open the note",
       "sumOpenLabs": "Open labs",
+      "sumCollectHint": "Case balance / line detail, discounts and method",
       "sumCollect": "Collect {amount}",
       "sumOpenRx": "Open prescription",
       "sumNoRx": "No prescriptions on this visit",

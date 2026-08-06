@@ -107,6 +107,14 @@ interface Props {
    * de menos.
    */
   coverage?: CoverageDTO;
+  /**
+   * Abre el modal de "Pago del caso" al montarse. Lo usa el botón de cobro del
+   * Resumen: cambia al tab de Servicios y el modal aparece solo, en vez de
+   * dejar al asistente buscando dónde se paga. El modal vive acá adentro, así
+   * que no se puede abrir desde afuera de otra forma — y duplicarlo sería tener
+   * dos pantallas de cobro.
+   */
+  openPaymentsOnMount?: boolean;
 }
 
 /** Cobertura sin responder — default cuando el caller no la pasa. */
@@ -182,7 +190,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -261,6 +269,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   // ── Carga de los cargos al abrir el tab/modal ─────────────────────────────
   const servicesVisible = inline ? activeTab === 'services' : servicesModalOpen;
+
+  // Apertura automática del modal de pago cuando se entra desde el Resumen.
+  // `finanzasRef` se puebla al montar el hijo, así que se espera un tick.
+  useEffect(() => {
+    if (!openPaymentsOnMount || hidePayments || !appt.case) return;
+    const id = setTimeout(() => finanzasRef.current?.reloadAndOpen(), 0);
+    return () => clearTimeout(id);
+  }, [openPaymentsOnMount, hidePayments, appt.case]);
 
   const loadCashCharges = useCallback(async () => {
     try {

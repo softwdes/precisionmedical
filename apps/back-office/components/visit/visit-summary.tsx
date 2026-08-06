@@ -19,7 +19,7 @@ import { Button } from '@precision/ui';
 import {
   CheckCircle2, AlertTriangle, Clock3, FileText, FlaskConical, Briefcase,
   HeartPulse, Stethoscope, Loader2, LogOut, RotateCcw, Printer, ChevronRight,
-  CalendarPlus, CalendarCheck2, Bandage, DollarSign, Pill, MapPin,
+  CalendarPlus, CalendarCheck2, Bandage, DollarSign, Pill, MapPin, CreditCard,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
@@ -89,6 +89,15 @@ interface Props {
   doctorDoneAt: string | null;
   /** Hora en que el asistente cerró la visita — cierra el reloj de tiempo en clínica. */
   checkedOutAt?: string | null;
+  /**
+   * Saldo pendiente de facturación DEL CASO (`appointment_billing.balanceDue`,
+   * sumado por caso — es el mismo alcance del modal "Pago del caso").
+   * Es la ÚNICA autoridad sobre cuánto hay que cobrar: incluye los CPT sin pagar,
+   * no solo lo de efectivo y férulas. El Resumen no lo recalcula.
+   */
+  balanceDue?: number;
+  /** Abre el modal real de "Pago del caso" (variant assistant). */
+  onCollect?: () => void;
   /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
    *  pantallas que los tienen; el caller ignora los que no aplican. */
   onFix: (tab: 'notes' | 'labs' | 'services' | 'braces' | 'rx') => void;
@@ -192,6 +201,7 @@ function Card({
 export function VisitSummary({
   appointmentId, note, triage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
+  balanceDue, onCollect,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** Etiquetas de cargos, compartidas con el tab y el picker. */
@@ -275,9 +285,10 @@ export function VisitSummary({
   const insuranceTotal = services.reduce((s, c) => s + (Number(c.fee) || 0), 0);
   const cashTotal = cash.reduce((s, c) => s + Number(c.unitPrice) * c.quantity, 0);
   const bracesTotal = braces.reduce((s, r) => s + Number(r.unitPrice) * r.quantity, 0);
-  // Las férulas se pagan completas siempre, así que van con lo de efectivo en el
-  // "cobra hoy" (regla de negocio: CatalogItem.alwaysFullPayment).
-  const collectToday = cashTotal + bracesTotal;
+  // Composición de lo CARGADO en la visita, por quién paga. NO es lo que hay que
+  // cobrar: los CPT también generan saldo (copago, o el total si el seguro no
+  // paga). El monto a cobrar es `balanceDue`, que sale de la facturación.
+  const chargedDirect = cashTotal + bracesTotal;
   const chargeCount = services.length + cash.length + braces.length;
   // Tiempo en clínica, con el reloj CERRADO.
   //
@@ -823,9 +834,9 @@ export function VisitSummary({
                   {tc('totalToInsurance')} <b className="text-cyan text-[12.5px] ml-0.5 tabular-nums">{money(insuranceTotal)}</b>
                 </span>
               )}
-              {collectToday > 0 && (
+              {chargedDirect > 0 && (
                 <span className="text-[11px] text-text-muted">
-                  {tc('totalCashToday')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{money(collectToday)}</b>
+                  {tc('badgeCash')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{money(chargedDirect)}</b>
                   {/* Las férulas se listan en su propia tarjeta pero suman acá:
                       sin la nota, este total incluiría plata que no está
                       itemizada en esta tarjeta. */}
@@ -836,19 +847,33 @@ export function VisitSummary({
               )}
             </div>
 
-            {/* Cobrar — solo del lado del asistente. El doctor no cobra (misma
-                regla que `hidePayments` en el tab de cargos). Manda al tab de
-                Servicios y pagos en vez de duplicar acá el modal de pago: una
-                segunda copia de la lógica de cobro es la forma de que los dos
-                totales empiecen a diferir. */}
-            {isAssistant && collectToday > 0 && (
+            {/* Cobrar — solo del lado del asistente (el doctor no cobra, misma
+                regla que `hidePayments`).
+                El monto es el SALDO de facturación, no una cuenta propia: antes
+                decía "efectivo + férulas" y mostraba $125 cuando había $367
+                pendientes, porque los CPT sin pagar también se le cobran al
+                paciente.
+                Abre el modal REAL de "Pago del caso" — ahí se distribuye por
+                línea, se aplican descuentos y se pueden dejar líneas sin pagar.
+                El Resumen no es una segunda pantalla de cobro: es la puerta. */}
+            {isAssistant && balanceDue !== undefined && balanceDue > 0 && (
               <button
                 type="button"
-                onClick={() => onFix('services')}
-                className="w-full h-9 rounded-md bg-emerald text-black text-[12.5px] font-semibold hover:bg-emerald/90 transition-colors inline-flex items-center justify-center gap-1.5"
+                onClick={() => (onCollect ? onCollect() : onFix('services'))}
+                className="w-full rounded-lg border border-emerald/40 bg-emerald/10 hover:bg-emerald/20 hover:border-emerald/60 transition-colors px-4 py-3 flex items-center gap-3 text-left group"
               >
-                <DollarSign className="w-3.5 h-3.5" />
-                {t('sumCollect', { amount: money(collectToday) })}
+                <span className="w-9 h-9 rounded-lg bg-emerald/20 border border-emerald/30 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-4 h-4 text-emerald" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-semibold text-emerald">
+                    {t('sumCollect', { amount: money(balanceDue) })}
+                  </span>
+                  {/* Dice qué va a pasar al tocarlo — el botón viejo no explicaba
+                      que abría una pantalla con el detalle línea por línea. */}
+                  <span className="block text-[11px] text-text-muted mt-0.5">{t('sumCollectHint')}</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-emerald/70 shrink-0 transition-transform group-hover:translate-x-0.5" />
               </button>
             )}
           </div>

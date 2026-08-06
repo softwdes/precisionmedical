@@ -1927,6 +1927,7 @@
       "sumNoteState": "Estado de la nota",
       "sumOpenNote": "Abrir la nota",
       "sumOpenLabs": "Abrir laboratorios",
+      "sumCollectHint": "Saldo del caso · detalle por servicio, descuentos y método",
       "sumCollect": "Cobrar {amount}",
       "sumOpenRx": "Ver prescripción",
       "sumNoRx": "Sin recetas en esta visita",

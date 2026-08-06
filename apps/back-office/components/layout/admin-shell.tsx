@@ -7,6 +7,7 @@ import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { ToastProvider } from '@/components/ui-phoenix';
+import { useActivityHeartbeat } from '@/lib/use-activity-heartbeat';
 
 // Wrapper client component que maneja el state del mobile drawer.
 // Desktop (md+): sidebar siempre visible · Mobile: drawer con hamburger.
@@ -38,6 +39,10 @@ export function AdminShell({
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Tiempo de uso activo (métricas por empleado) — acá cubre admin Y doctor,
+  // los dos layouts montan este shell.
+  useActivityHeartbeat();
 
   useEffect(() => {
     if (localStorage.getItem('pm_sidebar_collapsed') === 'true') setCollapsed(true);

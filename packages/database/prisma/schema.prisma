@@ -61,6 +61,7 @@ model User {
   notifications Notification[]
   agentActions  AgentAction[]  @relation("ReviewedBy")
   auditLogs     AuditLog[]     @relation("ActorUser")
+  activityBuckets UserActivityBucket[]
 
   // Phoenix 2026-06-05: relations a clinical catalogs (Templates + Diagnoses)
   createdTemplates   Template[]              @relation("TemplateCreatedBy")
@@ -910,6 +911,31 @@ model CallAgentPresence {
 
   @@index([lastSeenAt])
   @@map("call_agent_presence")
+}
+
+/// Fase 2 métricas por empleado — tiempo de uso ACTIVO en el back-office.
+///
+/// Una fila por usuario y por HORA (bucketStart truncado a la hora, UTC):
+/// `activeMinutes` cuenta cuántos de esos 60 minutos hubo interacción real
+/// (mouse/teclado/touch con la pestaña visible). Lo alimenta el heartbeat de
+/// `/api/activity/heartbeat` (1 ping/minuto solo si hubo interacción); el
+/// upsert es atómico y descarta pings a <50s del anterior, así que varias
+/// pestañas del mismo usuario no inflan el conteo. Máximo 24 filas/usuario/día.
+/// "Tiempo activo del día" = SUM(activeMinutes) del rango.
+model UserActivityBucket {
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  /// Inicio de la hora (UTC). Denver va en horas enteras respecto de UTC, así
+  /// que re-bucketear a días locales en la UI es exacto.
+  bucketStart DateTime
+
+  activeMinutes Int      @default(0)
+  lastPingAt    DateTime
+
+  @@id([userId, bucketStart])
+  @@index([bucketStart])
+  @@map("user_activity")
 }
 
 model Appointment {

@@ -73,6 +73,73 @@ const emptyCounters = (): EmployeeCounters => ({
   doctorDone: 0, notesSigned: 0,
 });
 
+export interface DoctorActivityRow {
+  providerId: string;
+  name: string;
+  specialty: string | null;
+  activeMinutes: number;
+  /** Consultas cerradas (doctorDoneAt o checkout) en el rango. */
+  consultations: number;
+  /** Cuántas de esas tienen admittedAt → entran al promedio de duración. */
+  measuredConsultations: number;
+  avgConsultSeconds: number;
+  uniquePatients: number;
+  rx: number;
+  labs: number;
+  braces: number;
+  services: number;
+}
+
+export interface DoctorConsultation {
+  id: string;
+  scheduledFor: string;
+  checkedInAt: string | null;
+  admittedAt: string | null;
+  doctorDoneAt: string | null;
+  checkedOutAt: string | null;
+  endedAt: string;
+  status: string;
+  patientName: string;
+  patientCode: string | null;
+  noteStatus: string | null;
+  signedAt: string | null;
+  rxCount: number;
+  labCount: number;
+  braceCount: number;
+  serviceCount: number;
+}
+
+export interface ConsultationDetail {
+  appointment: {
+    id: string; scheduledFor: string; checkedInAt: string | null;
+    admittedAt: string | null; doctorDoneAt: string | null;
+    checkedOutAt: string | null; status: string;
+    patientName: string; patientCode: string | null;
+    providerName: string | null; caseCode: string | null;
+  } | null;
+  triage: {
+    systolicMmhg: number | null; diastolicMmhg: number | null;
+    pulseBpm: number | null; respiratoryRate: number | null;
+    tempFahrenheit: number | null; o2Saturation: number | null;
+    painScale: number | null; heightFt: number | null; heightIn: number | null;
+    weightLbs: number | null; chiefComplaint: string | null;
+    capturedByName: string | null;
+  } | null;
+  note: {
+    status: string; signedAt: string | null; signedByName: string | null;
+    diagnoses: Array<{ icd10Code: string | null; icd10Label: string | null }>;
+    serviceCodes: Array<{ cptCode: string; units: number; fee: string | number | null }>;
+  } | null;
+  labs: Array<{ studyName: string; status: string; orderedAt: string | null; urgency: string | null }>;
+  rx: Array<{ drugName: string; dose: string | null; frequency: string | null; status: string; createdAt: string }>;
+  braces: Array<{ name: string; side: string | null; quantity: number; unitPrice: string | number; status: string }>;
+  services: Array<{ name: string; quantity: number; unitPrice: string | number; status: string }>;
+  billing: {
+    totalCost: string | number; amountPaid: string | number; balanceDue: string | number;
+    payments: Array<{ amount: string | number; method: string; source: string; paidAt: string | null }>;
+  } | null;
+}
+
 interface EmployeeMetricsPayload {
   users: Array<{ userId: string; name: string | null; email: string; role: string }>;
   audit: Array<{ userId: string; action: string; n: number }>;
@@ -172,6 +239,104 @@ export const metricsRouter = router({
       });
 
       return { from: input.from, to: input.to, employees };
+    }),
+
+  /**
+   * Métricas por doctor — tab Doctores de Métricas (solo ADMIN/SUPER_ADMIN).
+   *
+   * Agregación en la DB del back-office (fn `doctor_metrics`,
+   * prisma/sql/20260807-doctor-metrics.sql). Consulta realizada = la cerró el
+   * doctor ("Terminé") o el asistente (checkout); duración = admittedAt →
+   * ese cierre. El tiempo de uso viene de user_activity vía providers.userId.
+   */
+  doctorActivity: adminProcedure
+    .input(z.object({
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }))
+    .query(async ({ input }) => {
+      const bo = getBackofficeClient();
+      const { data, error } = await bo.rpc('doctor_metrics', {
+        p_from: denverDayStart(input.from).toISOString(),
+        p_to:   denverDayStart(nextDay(input.to)).toISOString(),
+      });
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      const m = data as unknown as {
+        doctors: Array<{ providerId: string; userId: string | null; name: string; specialty: string | null }>;
+        activity: Array<{ providerId: string; minutes: number }>;
+        consultations: Array<{ providerId: string; done: number; measured: number; avgSeconds: number; uniquePatients: number }>;
+        rx: Array<{ providerId: string; n: number }>;
+        labs: Array<{ providerId: string; n: number }>;
+        braces: Array<{ providerId: string; n: number }>;
+        services: Array<{ providerId: string; n: number }>;
+      };
+
+      const rows = new Map(m.doctors.map((d) => [d.providerId, {
+        providerId: d.providerId,
+        name: d.name,
+        specialty: d.specialty,
+        activeMinutes: 0,
+        consultations: 0,
+        avgConsultSeconds: 0,
+        measuredConsultations: 0,
+        uniquePatients: 0,
+        rx: 0, labs: 0, braces: 0, services: 0,
+      }]));
+
+      for (const g of m.activity) { const r = rows.get(g.providerId); if (r) r.activeMinutes = g.minutes; }
+      for (const g of m.consultations) {
+        const r = rows.get(g.providerId);
+        if (!r) continue;
+        r.consultations = g.done;
+        r.measuredConsultations = g.measured;
+        r.avgConsultSeconds = g.avgSeconds;
+        r.uniquePatients = g.uniquePatients;
+      }
+      for (const g of m.rx)       { const r = rows.get(g.providerId); if (r) r.rx = g.n; }
+      for (const g of m.labs)     { const r = rows.get(g.providerId); if (r) r.labs = g.n; }
+      for (const g of m.braces)   { const r = rows.get(g.providerId); if (r) r.braces = g.n; }
+      for (const g of m.services) { const r = rows.get(g.providerId); if (r) r.services = g.n; }
+
+      const totalOf = (r: DoctorActivityRow): number =>
+        r.activeMinutes + r.consultations + r.rx + r.labs + r.braces + r.services;
+      const doctors = [...rows.values()].sort((a, b) => {
+        const ta = totalOf(a); const tb = totalOf(b);
+        if (ta !== tb) return tb - ta;
+        return a.name.localeCompare(b.name);
+      });
+
+      return { from: input.from, to: input.to, doctors };
+    }),
+
+  /** Drill-down nivel 1: las consultas cerradas de un doctor en el rango. */
+  doctorConsultations: adminProcedure
+    .input(z.object({
+      providerId: z.string().min(1),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }))
+    .query(async ({ input }) => {
+      const bo = getBackofficeClient();
+      const { data, error } = await bo.rpc('doctor_consultations', {
+        p_provider: input.providerId,
+        p_from: denverDayStart(input.from).toISOString(),
+        p_to:   denverDayStart(nextDay(input.to)).toISOString(),
+      });
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { consultations: (data ?? []) as DoctorConsultation[] };
+    }),
+
+  /** Drill-down nivel 2: el detalle completo de una consulta (espejo del Resumen). */
+  consultationDetail: adminProcedure
+    .input(z.object({ appointmentId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const bo = getBackofficeClient();
+      const { data, error } = await bo.rpc('consultation_detail', {
+        p_appointment: input.appointmentId,
+      });
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data as ConsultationDetail;
     }),
 
   listCalls: protectedProcedure

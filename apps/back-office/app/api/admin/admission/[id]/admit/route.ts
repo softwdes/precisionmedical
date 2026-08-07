@@ -35,8 +35,11 @@ export async function POST(
 
   // Si por alguna razón pasaron directo sin check-in, también setear checkedInAt
   const data: Record<string, unknown> = {
-    status:    'IN_PROGRESS',
-    updatedAt: now,
+    status:     'IN_PROGRESS',
+    // Sello de inicio de la consulta — con doctorDoneAt/checkedOutAt da la
+    // duración real de la atención del doctor (métricas por doctor).
+    admittedAt: now,
+    updatedAt:  now,
   };
   if (appt.status !== 'CHECKED_IN') {
     data.checkedInAt = now;

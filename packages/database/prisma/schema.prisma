@@ -973,6 +973,11 @@ model Appointment {
   // B.14 Check-in: timestamp cuando recepción confirma la llegada del paciente
   checkedInAt DateTime?
 
+  /// B.15 — cuándo pasó a consulta con el doctor (IN_PROGRESS). Con
+  /// doctorDoneAt/checkedOutAt define la DURACIÓN real de la consulta
+  /// (métricas por doctor); checkedInAt incluye sala de espera y triaje.
+  admittedAt DateTime?
+
   /// B.18 · El doctor terminó con el paciente (nodo Resumen del portal médico).
   /// NO cierra la cita: el asistente sigue viéndola en su cola y la pasa a
   /// COMPLETED cuando cobra. Son dos actos de dos personas distintas.

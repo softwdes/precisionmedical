@@ -20,6 +20,9 @@ import {
   UserPlus, CalendarDays, DollarSign, X,
 } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
+import {
+  KpiCard, Num, PeriodFilter, denverDay, fmtMinutes, presetRange, type Preset,
+} from './metricas-shared';
 
 // ─── Types (espejo de EmployeeActivityRow del router) ────────────────────────
 
@@ -46,23 +49,7 @@ interface EmployeeRow {
   byAction: Record<string, number>;
 }
 
-type Preset = 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'custom';
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Día actual (o desplazado) en America/Denver como YYYY-MM-DD. */
-function denverDay(offsetDays = 0): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000));
-}
-
-function fmtMinutes(min: number): string {
-  if (min <= 0) return '—';
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
 
 function totalOf(r: EmployeeRow): number {
   return r.activeMinutes + r.callsMade + r.callsAnswered +
@@ -110,33 +97,6 @@ const ACTION_LABELS: Record<string, string> = {
 const actionLabel = (a: string): string =>
   ACTION_LABELS[a] ?? a.replaceAll('_', ' ').toLowerCase();
 
-// ─── KPI Card (mismo átomo que Comunicaciones) ───────────────────────────────
-
-function KpiCard({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string; color: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-3">{label}</span>
-        <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
-          <Icon className="w-4 h-4" />
-        </div>
-      </div>
-      <div>
-        <div className="text-2xl font-bold text-text-1 tabular-nums">{value}</div>
-        {sub && <div className="text-xs text-text-3 mt-0.5">{sub}</div>}
-      </div>
-    </div>
-  );
-}
-
-function Num({ value }: { value: number }) {
-  return value > 0
-    ? <span className="font-mono tabular-nums text-text-1">{value}</span>
-    : <span className="font-mono tabular-nums text-text-3/40">0</span>;
-}
-
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 const COLUMNS: Array<{ key: keyof EmployeeRow; label: string }> = [
@@ -156,14 +116,6 @@ const COLUMNS: Array<{ key: keyof EmployeeRow; label: string }> = [
   { key: 'notesSigned',         label: 'Notas firm.' },
 ];
 
-const PRESETS: Array<{ key: Preset; label: string }> = [
-  { key: 'today',     label: 'Hoy' },
-  { key: 'yesterday', label: 'Ayer' },
-  { key: 'last7',     label: 'Últimos 7 días' },
-  { key: 'thisMonth', label: 'Este mes' },
-  { key: 'custom',    label: 'Rango' },
-];
-
 export function EmpleadosMetricasClient() {
   const [preset, setPreset] = useState<Preset>('today');
   const [from, setFrom] = useState(() => denverDay());
@@ -180,11 +132,8 @@ export function EmpleadosMetricasClient() {
 
   const applyPreset = useCallback((p: Preset) => {
     setPreset(p);
-    const today = denverDay();
-    if (p === 'today')     { setFrom(today); setTo(today); }
-    if (p === 'yesterday') { const y = denverDay(-1); setFrom(y); setTo(y); }
-    if (p === 'last7')     { setFrom(denverDay(-6)); setTo(today); }
-    if (p === 'thisMonth') { setFrom(`${today.slice(0, 8)}01`); setTo(today); }
+    const r = presetRange(p);
+    if (r) { setFrom(r.from); setTo(r.to); }
   }, []);
 
   // Cerrar el desglose con Escape
@@ -246,36 +195,7 @@ export function EmpleadosMetricasClient() {
 
       {/* Filtro de período */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-          {PRESETS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => applyPreset(p.key)}
-              className={cn(
-                'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                preset === p.key ? 'bg-brand text-white' : 'text-text-3 hover:text-text-1',
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {preset === 'custom' && (
-          <div className="flex items-center gap-2">
-            <input
-              type="date" value={from} max={to}
-              onChange={(e) => setFrom(e.target.value)}
-              className="text-sm bg-surface border border-border rounded-lg px-3 py-1.5 text-text-1 focus:outline-none focus:border-brand/50"
-            />
-            <span className="text-text-3 text-xs">→</span>
-            <input
-              type="date" value={to} min={from} max={denverDay()}
-              onChange={(e) => setTo(e.target.value)}
-              className="text-sm bg-surface border border-border rounded-lg px-3 py-1.5 text-text-1 focus:outline-none focus:border-brand/50"
-            />
-          </div>
-        )}
+        <PeriodFilter preset={preset} from={from} to={to} onPreset={applyPreset} onFrom={setFrom} onTo={setTo} />
 
         <label className="flex items-center gap-2 text-xs text-text-2 cursor-pointer select-none">
           <input

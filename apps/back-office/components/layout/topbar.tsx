@@ -7,6 +7,7 @@ import { Bell, Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap } fr
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
+import { InboxBell } from '@/components/messaging/inbox-bell';
 import { createClient } from '@precision-medical/auth/client';
 
 // Amber identity color for back-office (single value in tailwind config — no scale)
@@ -186,7 +187,26 @@ export function Topbar({
             <span className="font-mono text-xs text-text-2 tabular-nums">{time}</span>
           </div>
 
-          {/* Language toggle — usa AMBER inline para el estado activo */}
+          {/* ─── Acciones (uso diario): Mensajes + notificaciones ─────────────
+              Van primero y juntas; las preferencias personales (idioma, tema)
+              se agrupan después, pegadas al avatar. La jerarquía visual sigue
+              a la urgencia clínica: nada debe gritar más que un urgente. */}
+          <InboxBell />
+
+          {/* Notificaciones */}
+          <button
+            type="button"
+            className="relative w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
+            aria-label={`${t('notifications')}, ${t('notificationsUnread', { count: 2 })}`}
+          >
+            <Bell className="w-4 h-4" aria-hidden="true" />
+            <span aria-hidden="true" className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center">
+              2
+            </span>
+          </button>
+
+          {/* ─── Preferencias personales: idioma + tema, junto al avatar ────── */}
+          {/* Language toggle — ámbar suavizado para no competir con Mensajes */}
           <div
             className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
             role="group"
@@ -204,8 +224,9 @@ export function Topbar({
                   aria-pressed={active}
                   className="px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed"
                   style={active ? {
-                    background: `linear-gradient(135deg, ${AMBER} 0%, ${AMBER_DARK} 100%)`,
-                    color: '#0a0a0a',
+                    background: `${AMBER}26`,
+                    color: AMBER,
+                    boxShadow: `inset 0 0 0 1px ${AMBER}66`,
                   } : {
                     color: 'var(--text-muted)',
                   }}
@@ -215,18 +236,6 @@ export function Topbar({
               );
             })}
           </div>
-
-          {/* Notificaciones */}
-          <button
-            type="button"
-            className="relative w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
-            aria-label={`${t('notifications')}, ${t('notificationsUnread', { count: 2 })}`}
-          >
-            <Bell className="w-4 h-4" aria-hidden="true" />
-            <span aria-hidden="true" className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center">
-              2
-            </span>
-          </button>
 
           {/* Theme toggle */}
           <ThemeSwitch />

@@ -780,9 +780,10 @@ model Patient {
   commissions  Commission[]
 
   // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
-  cases     Case[]            @relation("PatientCases")
-  documents PatientDocument[]
-  callLogs  CallLog[]
+  cases          Case[]            @relation("PatientCases")
+  documents      PatientDocument[]
+  callLogs       CallLog[]
+  messageThreads MessageThread[]   @relation("PatientMessageThreads")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2536,6 +2537,7 @@ model Case {
   consents             CaseConsent[]
   authorizedDependents AuthorizedDependent[]
   callLogs             CallLog[]
+  messageThreads       MessageThread[]       @relation("CaseMessageThreads")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -3140,4 +3142,234 @@ model AuthorizedDependent {
 
   @@index([caseId])
   @@map("authorized_dependents")
+}
+
+// ─── Mensajería interna (M1 — módulo Clínica + portal Doctor) ────────────────
+//
+// Correo interno entre usuarios del back-office, calcado del flujo del EMR
+// legacy (MedPrime): el mensaje casi siempre nace ANCLADO a un paciente y
+// aparece tanto en los inboxes de los destinatarios como en la sección
+// Mensajes del paciente. Dos capas independientes sobre el mismo hilo:
+//
+//  · INBOX — bandeja de trabajo de cada usuario. "Delete" es por-destinatario
+//    (MessageRecipient.deletedAt), "Delete From All" es del hilo
+//    (removedFromInboxesAt). Ninguno toca el historial del paciente.
+//  · HISTORIAL DEL PACIENTE — permanente. Solo se borra desde ahí (soft,
+//    deletedAt + AuditLog, solo admin).
+//
+// El SELLO (Move to Patient Folder): sealedAt congela lo previo — las entradas
+// con sentAt <= sealedAt son inmutables — y saca el hilo de todos los inboxes.
+// Se puede seguir agregando entradas; una entrada nueva REVIVE el hilo en los
+// inboxes de todos (limpia removedFromInboxesAt y los deletedAt individuales).
+//
+// Todos los userId de este módulo son `users.id` (cuid de Phoenix, lo que
+// devuelve resolveActor) — NO el UUID de Supabase Auth (la trampa de
+// CallLog.agentUserId). Nombres denormalizados junto a cada id, mismo criterio
+// que agentName / chargedByName.
+
+enum MessageType {
+  ALERT
+  REMINDER
+  REQUEST
+  MESSAGE
+
+  @@map("message_type")
+}
+
+enum MessageCategory {
+  GENERAL
+  PHONE_MESSAGE
+  PATIENT_RELATED
+
+  @@map("message_category")
+}
+
+enum MessagePriority {
+  NORMAL
+  URGENT
+
+  @@map("message_priority")
+}
+
+enum MessageEntryKind {
+  MESSAGE // primera entrada del hilo
+  REPLY // Reply (solo al autor) / Reply All
+  FORWARD // reenvío — puede sumar destinatarios nuevos
+  NOTE // Add Note: anotación sobre el hilo, notifica a todos
+  SEAL_NOTE // nota final capturada al sellar (Move to Patient Folder with Note)
+
+  @@map("message_entry_kind")
+}
+
+enum MessageRecipientKind {
+  TO
+  CC
+
+  @@map("message_recipient_kind")
+}
+
+model MessageThread {
+  id String @id @default(cuid())
+
+  subject  String
+  type     MessageType     @default(MESSAGE)
+  category MessageCategory @default(GENERAL)
+  priority MessagePriority @default(NORMAL)
+
+  // Vínculo opcional — el 99% de los hilos lo llevan; los creados desde el
+  // inbox sin paciente viven solo en las bandejas de los participantes.
+  patientId String?
+  patient   Patient? @relation("PatientMessageThreads", fields: [patientId], references: [id])
+  caseId    String?
+  case      Case?    @relation("CaseMessageThreads", fields: [caseId], references: [id])
+
+  createdByUserId String
+  createdByName   String
+
+  // Sello — Move to Patient Folder (±nota). Congela lo previo y saca el hilo
+  // de todos los inboxes. NO impide agregar entradas nuevas.
+  sealedAt       DateTime?
+  sealedByUserId String?
+  sealedByName   String?
+
+  // Delete From All — fuera de todos los inboxes, intacto en el paciente.
+  removedFromInboxesAt DateTime?
+
+  // Borrado desde el historial del paciente — la única eliminación real.
+  // Soft a propósito: es registro clínico-operativo (criterio férulas/labs).
+  deletedAt       DateTime?
+  deletedByUserId String?
+
+  /// Denormalizado: sentAt de la última entrada. Ordena los inboxes y decide
+  /// el bold (lastEntryAt > MessageRecipient.lastReadAt) sin agregar sobre
+  /// message_entries en cada listado.
+  lastEntryAt DateTime @default(now())
+
+  entries    MessageEntry[]
+  recipients MessageRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([caseId])
+  @@index([lastEntryAt])
+  @@index([deletedAt])
+  @@map("message_threads")
+}
+
+model MessageEntry {
+  id       String        @id @default(cuid())
+  threadId String
+  thread   MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  kind MessageEntryKind @default(MESSAGE)
+
+  authorUserId String
+  authorName   String // snapshot — el hilo muestra quién escribió sin join
+
+  /// HTML del RichTextEditor (mismo formato que las plantillas clínicas).
+  body String @db.Text
+
+  sentAt DateTime @default(now())
+
+  attachments MessageAttachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([threadId, sentAt])
+  @@index([authorUserId])
+  @@map("message_entries")
+}
+
+model MessageRecipient {
+  threadId String
+  thread   MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  /// users.id (cuid Phoenix) — ver nota de cabecera del módulo.
+  userId   String
+  userName String // snapshot para pintar To/CC sin join
+
+  kind MessageRecipientKind @default(TO)
+
+  /// Read-state POR HILO (estilo Gmail): bold si thread.lastEntryAt > lastReadAt.
+  /// Cualquier entrada nueva —reply, nota, incluso post-sello— re-embolda para
+  /// todos sin tocar filas. Solo lo escribe el DUEÑO del inbox: mirar el inbox
+  /// de otro usuario nunca marca leído.
+  lastReadAt DateTime?
+
+  /// Mi "Delete" personal: fuera de MI inbox, nadie más se entera.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@id([threadId, userId])
+  @@index([userId, deletedAt])
+  @@map("message_recipients")
+}
+
+/// Plantilla de mensaje (M1 F4) — el panel de plantillas del legacy
+/// (DM/Prediabetes instructions, Lab results…). Compartidas por toda la
+/// clínica: cualquiera las usa, cualquiera puede crear; borrado soft.
+model MessageTemplate {
+  id    String @id @default(cuid())
+  title String
+  /// HTML del RichTextEditor, mismo formato que MessageEntry.body
+  body  String @db.Text
+
+  createdByUserId String
+  createdByName   String
+
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deletedAt])
+  @@map("message_templates")
+}
+
+/// Borrador de mensaje (M1 F4 — Save as Draft). Privado del autor: el
+/// formulario completo del compose serializado en `payload` (to/cc/tipo/
+/// categoría/prioridad/asunto/cuerpo/adjuntos/paciente). Se elimina al enviar.
+model MessageDraft {
+  id     String @id @default(cuid())
+  userId String
+
+  /// Denormalizados para listar borradores sin deserializar el payload
+  subject     String?
+  patientId   String?
+  patientName String?
+
+  payload Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@map("message_drafts")
+}
+
+model MessageAttachment {
+  id      String       @id @default(cuid())
+  entryId String
+  entry   MessageEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  /// "Attach From Chart" — referencia a un documento existente del paciente.
+  /// Sin FK: el documento puede borrarse y el mensaje debe seguir contando
+  /// que se adjuntó (queda fileName como evidencia).
+  patientDocumentId String?
+
+  /// Subida nueva → bucket privado `message-attachments` (criterio lab-results).
+  fileUrl String?
+
+  fileName     String
+  documentType String?
+  description  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entryId])
+  @@map("message_attachments")
 }

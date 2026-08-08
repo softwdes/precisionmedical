@@ -73,15 +73,22 @@ export async function PatientsData({
   scopeProviderId?: string;
   basePath?: string;
 }) {
-  // Obtener nombre del usuario actual para etiquetar llamadas
+  // Usuario actual: nombre para etiquetar llamadas + id/rol para mensajería
+  // (currentUserId es users.id cuid de Phoenix — lo que espera MessageRecipient)
   let agentName: string | undefined;
+  let currentUserId: string | undefined;
+  let isAdmin = false;
   try {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
       const admin = createAdminClient();
-      const { data } = await admin.from('users').select('firstName, lastName').eq('email', user.email).single();
-      if (data) agentName = `${data.firstName} ${data.lastName}`.trim() || undefined;
+      const { data } = await admin.from('users').select('id, firstName, lastName, role').eq('email', user.email).single();
+      if (data) {
+        agentName = `${data.firstName} ${data.lastName}`.trim() || undefined;
+        currentUserId = data.id;
+        isAdmin = data.role === 'SUPER_ADMIN' || data.role === 'ADMIN';
+      }
     }
   } catch { /* fallback: sin nombre */ }
 
@@ -256,6 +263,8 @@ export async function PatientsData({
       providers={providers}
       inactiveOnly={inactiveOnly}
       agentName={agentName}
+      currentUserId={currentUserId}
+      isAdmin={isAdmin}
       scopeProviderId={scopeProviderId}
       basePath={basePath}
     />

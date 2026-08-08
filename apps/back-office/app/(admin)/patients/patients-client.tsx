@@ -6,7 +6,7 @@ import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
@@ -18,6 +18,8 @@ import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
+import { PatientMessagesDialog } from '@/components/messaging/patient-messages-dialog';
+import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
 import QRCode from 'qrcode';
 
@@ -940,6 +942,10 @@ interface Props {
   inactiveTotal?: number;
   activeTotal?: number;
   agentName?: string;
+  /** users.id (cuid Phoenix) del usuario logueado — mensajería interna */
+  currentUserId?: string;
+  /** SUPER_ADMIN/ADMIN — habilita borrar hilos del historial del paciente */
+  isAdmin?: boolean;
   /**
    * Portal médico: limita la vista a los pacientes del doctor de sesión.
    * Oculta acciones administrativas (crear/archivar/enviar portal) y las
@@ -1796,11 +1802,12 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, currentUserId, isAdmin = false, scopeProviderId, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const tCalls  = useTranslations('phoenix.calls');
   const tPrices = useTranslations('phoenix.catalog.priceList');
+  const tMsg    = useTranslations('phoenix.messaging');
   const router = useRouter();
 
   const STATUS_LABEL: Record<string, string> = {
@@ -1909,6 +1916,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   };
 
   const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
+
+  // ─── Mensajería interna (M1) — historial del paciente + compose ──────────
+  const [msgPatient, setMsgPatient] = useState<ComposePatientRef | null>(null);
 
   // ─── Llamar al paciente (Twilio real) ───────────────────────────────────
   const twilio = useTwilioDevice();
@@ -2427,6 +2437,22 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         <Mail className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
+                    {/* Mensajería interna — disponible también en el portal
+                        médico (mismo componente para ambos módulos). */}
+                    {currentUserId && (
+                      <button
+                        onClick={() => setMsgPatient({
+                          id: p.id,
+                          name: `${p.lastName}, ${p.firstName}`,
+                          caseId: p.latestCase?.id ?? null,
+                        })}
+                        className="p-1.5 rounded hover:bg-brand/10 transition-colors group"
+                        title={tMsg('tooltipPatientMessages')}
+                        aria-label={`${tMsg('tooltipPatientMessages')} — ${p.firstName} ${p.lastName}`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-text-muted group-hover:text-brand transition-colors" />
+                      </button>
+                    )}
                   </div>
                 </td>
 
@@ -2893,6 +2919,19 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         onOpenChange={(o) => { if (!o) setSendPortalTarget(null); }}
         caseInfo={sendPortalTarget}
       />
+
+      {/* ─── Mensajería interna del paciente (M1) ────────────────────────────
+          "Messages & Requests": historial permanente del paciente + nuevo
+          mensaje ya vinculado a él y a su caso más reciente. */}
+      {currentUserId && (
+        <PatientMessagesDialog
+          open={!!msgPatient}
+          onClose={() => setMsgPatient(null)}
+          patient={msgPatient}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+        />
+      )}
 
       {/* ─── Historial de llamadas ───────────────────────────────────────────
           "Devolver" no abre un flujo propio: entrega el destino acá y cae en

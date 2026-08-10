@@ -14,17 +14,17 @@ import { useTranslations, useLocale } from 'next-intl';
 import {
   Phone, MessageSquare, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
-  User, Scale, Shield, Headphones, Check, Edit2, Ban,
+  Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
-  Stethoscope, Loader2, Clock,
+  Stethoscope, Loader2, Clock, FolderOpen,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { EmptyState } from '@/components/ui-phoenix/empty-state';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { codigosRepetidos, horaCobro } from '@/lib/repeated-charges';
 import type { CoverageDTO } from '@/lib/coverage';
-import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -85,6 +85,8 @@ interface CashCharge {
   unitLabel: string | null;
   cptCode: string | null;
   quantity: number;
+  /** Para distinguir dos cobros idénticos del mismo ítem en la lista */
+  chargedAt: string;
 }
 
 interface Props {
@@ -115,6 +117,21 @@ interface Props {
    * dos pantallas de cobro.
    */
   openPaymentsOnMount?: boolean;
+  /**
+   * Abre el detalle del CASO (labs, servicios, férulas y cobro, todo junto).
+   * El panel no sabe a qué URL va: la superficie que lo monta decide si es
+   * /front-office/[id] (clínica) o /doctor/case/[id] (portal médico), y ambas
+   * lo abren como modal interceptado sobre sí mismas. Sin este callback —o sin
+   * caso en la cita— el botón no se muestra.
+   */
+  onOpenCase?: (caseId: string) => void;
+  /**
+   * Repliega el modal sin desmontar el componente: se usa mientras el detalle
+   * del caso está encima. Al volver, el panel reaparece con su estado intacto
+   * (cita seleccionada, llamada en curso, cargos ya cargados). Es lo que evita
+   * apilar dos Dialog de Radix que viven en árboles React distintos.
+   */
+  suspended?: boolean;
 }
 
 /** Cobertura sin responder — default cuando el caller no la pasa. */
@@ -190,7 +207,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false, onOpenCase, suspended = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -200,13 +217,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const finanzasRef = useRef<FinanzasTabHandle>(null);
-  // En modo NO inline, "Servicios" abre como modal sobre el Detalle (como
-  // Pagos ya hacia) en vez de navegar a otro tab — en inline (embebido en
-  // consulta/admision) sigue siendo un tab de verdad, sin modal de por medio.
-  const [servicesModalOpen, setServicesModalOpen] = useState(false);
 
   // ── Detail tab ────────────────────────────────────────────────────────────
-  const [activeModal,   setActiveModal]   = useState<SecondaryModalType | null>(null);
   const [confirming,    setConfirming]    = useState(false);
   const [cancelOpen,    setCancelOpen]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
@@ -267,8 +279,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const lawyerDone    = !!appt.case?.attorney;
   const insuranceDone = !!appt.case?.primaryInsurance;
 
-  // ── Carga de los cargos al abrir el tab/modal ─────────────────────────────
-  const servicesVisible = inline ? activeTab === 'services' : servicesModalOpen;
+  // ── Carga de los cargos al abrir el tab ───────────────────────────────────
+  // Solo inline: en el modal del calendario los cargos ya no se editan acá,
+  // se ven y se cobran en el detalle del caso.
+  const servicesVisible = inline && activeTab === 'services';
 
   // Apertura automática del modal de pago cuando se entra desde el Resumen.
   // `finanzasRef` se puebla al montar el hijo, así que se espera un tick.
@@ -426,11 +440,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const svcTotal = insuranceTotal + cashTotal;
   const chargeCount = services.length + cashCharges.length;
 
-  /** Claves que ya están en la visita, en el formato del picker. */
-  const addedKeys = new Set<string>([
-    ...services.map(s => `s${s.id}`),
-    ...cashCharges.map(c => c.catalogItemId !== null ? `c${c.catalogItemId}` : `c-${c.code}`),
-  ]);
+  const cashRepetidos = codigosRepetidos(cashCharges);
+
+  /** Qué ya está en la visita y cuántas veces, en el formato del picker.
+   *  El de efectivo se cuenta porque el mismo ítem puede cobrarse dos veces. */
+  const addedCharges = new Map<string, number>();
+  for (const s of services) addedCharges.set(`s${s.id}`, 1);
+  for (const c of cashCharges) {
+    const k = c.catalogItemId !== null ? `c${c.catalogItemId}` : `c-${c.code}`;
+    addedCharges.set(k, (addedCharges.get(k) ?? 0) + c.quantity);
+  }
 
   // ── Detail handlers ───────────────────────────────────────────────────────
   const handleConfirm = async () => {
@@ -501,10 +520,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             <button
               type="button"
               onClick={() => {
-                // Cerramos este modal antes de abrir el de pago — son dos overlays
-                // independientes (Dialog vs. el modal propio de FinanzasTab) y
-                // apilarlos se veía mal (doble fondo oscurecido, bordes encimados).
-                if (!inline) setServicesModalOpen(false);
                 // sync-billing en background — no bloqueamos apertura del modal
                 fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
                   method: 'POST',
@@ -596,6 +611,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       {c.name}
                       {c.quantity > 1 && <span className="text-text-muted"> ×{c.quantity}</span>}
                       {c.unitLabel && <span className="text-text-muted"> · {c.unitLabel}</span>}
+                      {/* Solo si el ítem está repetido: dos renglones idénticos
+                          no se pueden distinguir a la hora de borrar uno */}
+                      {cashRepetidos.has(c.code) && (
+                        <span className="text-text-muted"> · {horaCobro(c.chargedAt)}</span>
+                      )}
                     </span>
                     <span className="w-[78px] shrink-0 text-right tabular-nums text-[12.5px] font-semibold text-text-1 px-1.5">
                       {fmt$(c.unitPrice * c.quantity)}
@@ -722,47 +742,36 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 </div>
               </div>
 
-              {/* Accesos directos a Servicios y Pagos — bien visibles, no escondidos
-                  atrás de un tab que pasaba desapercibido. Un clic y se ve el
-                  contenido (Servicios cambia de tab; Pagos abre el modal real). */}
-              <div className={`grid grid-cols-1 ${appt.case && !hidePayments ? 'sm:grid-cols-2' : ''} gap-3`}>
+              {/* UN solo acceso: el detalle del caso. Antes eran dos tarjetas
+                  (Servicios y Pagos) que abrían vistas reducidas de esta misma
+                  cita; el caso ya trae labs, servicios, férulas y el cobro en un
+                  lugar, y es donde el mostrador tiene que estar. Sin caso
+                  vinculado no hay a dónde ir, así que no se muestra nada. */}
+              {appt.case && onOpenCase && (
                 <button
                   type="button"
-                  onClick={() => setServicesModalOpen(true)}
-                  className="flex items-center gap-3 rounded-lg border border-cyan/30 bg-cyan/5 hover:bg-cyan/10 p-4 transition-colors text-left"
+                  onClick={() => {
+                    // sync-billing en background: el caso abre con las líneas de
+                    // esta visita ya reflejadas en Finanzas, sin esperar al fetch.
+                    fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ caseId: appt.case?.id }),
+                    }).catch(() => {});
+                    onOpenCase(appt.case!.id);
+                  }}
+                  className="w-full flex items-center gap-3 rounded-lg border border-emerald/30 bg-emerald/5 hover:bg-emerald/10 p-4 transition-colors text-left"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-cyan/15 flex items-center justify-center shrink-0">
-                    <Stethoscope className="w-4 h-4 text-cyan" />
+                  <div className="w-9 h-9 rounded-lg bg-emerald/15 flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-4 h-4 text-emerald" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-text-1 font-semibold text-sm">{t('tabServices')}</div>
-                    <div className="text-text-muted text-[11px]">{t('quickAccessServicesHint')}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-text-1 font-semibold text-sm">{t('quickAccessCase')}</div>
+                    <div className="text-text-muted text-[11px]">{t('quickAccessCaseHint')}</div>
                   </div>
+                  <ChevronRight className="w-4 h-4 text-emerald shrink-0" />
                 </button>
-
-                {appt.case && !hidePayments && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ caseId: appt.case?.id }),
-                      }).catch(() => {});
-                      finanzasRef.current?.reloadAndOpen();
-                    }}
-                    className="flex items-center gap-3 rounded-lg border border-amber/30 bg-amber/5 hover:bg-amber/10 p-4 transition-colors text-left"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-amber/15 flex items-center justify-center shrink-0">
-                      <DollarSign className="w-4 h-4 text-amber" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-text-1 font-semibold text-sm">{t('quickAccessPayments')}</div>
-                      <div className="text-text-muted text-[11px]">{t('quickAccessPaymentsHint')}</div>
-                    </div>
-                  </button>
-                )}
-              </div>
+              )}
 
               {/* Info de la cita + Checklist pre-cita — lado a lado en pantallas anchas */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -877,16 +886,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 </div>
               </div>
 
-              {/* Info detallada — 4 en fila con el ancho nuevo */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📂 {t('sectionDetailedInfo')}</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <SecondaryBtn icon={<User className="w-4 h-4" />}       label={t('secondaryBtnPersonal')}    color="brand"   onClick={() => setActiveModal('personal')} />
-                  <SecondaryBtn icon={<Scale className="w-4 h-4" />}      label={t('secondaryBtnLawyer')}      color="rose"    done={lawyerDone}    onClick={() => setActiveModal('lawyer')} />
-                  <SecondaryBtn icon={<Shield className="w-4 h-4" />}     label={t('secondaryBtnInsurance')}   color="emerald" done={insuranceDone} onClick={() => setActiveModal('insurance')} />
-                  <SecondaryBtn icon={<Headphones className="w-4 h-4" />} label={t('secondaryBtnCallHandler')} color="cyan"    onClick={() => setActiveModal('callHandler')} />
-                </div>
-              </div>
+              {/* La fila "Info detallada" (personal · abogado · seguro · quién
+                  atendió la llamada) se quitó: eran cuatro modales de solo
+                  lectura con recortes de lo que el detalle del caso ya muestra
+                  completo, y el botón de arriba lleva justo ahí. */}
             </div>
           )}
 
@@ -897,8 +900,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             </div>
           )}
 
-          {/* FinanzasTab oculto — expone modal "Pagar deuda" al botón del header */}
-          {appt.case && !hidePayments && (
+          {/* FinanzasTab oculto — expone el modal "Pagar deuda" al botón del tab
+              de Servicios. Solo inline: en el modal del calendario el cobro se
+              hace en el detalle del caso, no acá. */}
+          {inline && appt.case && !hidePayments && (
             <div className="h-0 overflow-hidden">
               <FinanzasTab ref={finanzasRef} caseId={appt.case.id} filterAppointmentId={appt.id} />
             </div>
@@ -992,15 +997,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         onCancel={() => setCallConfirmOpen(false)}
       />
 
-      {/* Secondary modals */}
-      {activeModal && (
-        <AppointmentSecondaryModals
-          type={activeModal}
-          appointment={appt}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
-
       {/* Editar */}
       {appt.case && (
         <AppointmentDialog
@@ -1051,31 +1047,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         />
       )}
 
-      {/* Servicios como modal sobre el Detalle (no inline) — un clic y se ve
-          ahí mismo, sin navegar a otro tab (mismo criterio que Pagos, que ya
-          abre su propio modal desde FinanzasTab). */}
-      {!inline && (
-        <Dialog open={servicesModalOpen} onOpenChange={setServicesModalOpen}>
-          <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
-            <DialogTitle className="sr-only">{t('tabServices')}</DialogTitle>
-            <div className="px-5 py-4 border-b border-border shrink-0 flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-cyan" />
-              <h2 className="text-text-1 font-semibold text-base">{t('tabServices')}</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-3">
-              {servicesBody}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Picker de cargos — una búsqueda sobre los dos catálogos. Se abre tanto
-          en modo inline (consulta del doctor) como desde el modal de Detalle,
-          por eso no está condicionado por `inline`. */}
+      {/* Picker de cargos — una búsqueda sobre los dos catálogos. Solo se abre
+          desde el tab de Servicios (inline: consulta del doctor y Day
+          Admission); el modal del calendario ya no edita cargos. */}
       {catalogOpen && (
         <ChargePickerDialog
           coverage={coverage}
-          addedKeys={addedKeys}
+          added={addedCharges}
           onClose={() => setCatalogOpen(false)}
           onAdd={addBillable}
         />
@@ -1092,7 +1070,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   }
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) { twilio.hangUp(); onClose(); } }}>
+    // `suspended` repliega el modal mientras el detalle del caso está encima,
+    // sin desmontar el componente: al volver reaparece con todo su estado.
+    <Dialog open={!suspended} onOpenChange={(v) => { if (!v && !suspended) { twilio.hangUp(); onClose(); } }}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
         <DialogTitle className="sr-only">Appointment detail</DialogTitle>
         {panelContent}
@@ -1134,26 +1114,3 @@ function CheckItem({ done, label, sublabel }: { done: boolean; label: string; su
   );
 }
 
-type BtnColor = 'brand' | 'rose' | 'emerald' | 'cyan';
-const BTN_COLOR_MAP: Record<BtnColor, { bg: string; border: string; text: string }> = {
-  brand:   { bg: 'rgba(99,102,241,0.08)',  border: 'rgba(99,102,241,0.25)',  text: '#a5b4fc' },
-  rose:    { bg: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.25)',   text: '#fda4af' },
-  emerald: { bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.25)', text: '#6ee7b7' },
-  cyan:    { bg: 'rgba(6,182,212,0.08)',   border: 'rgba(6,182,212,0.25)',  text: '#67e8f9' },
-};
-
-function SecondaryBtn({ icon, label, color, done, onClick }: {
-  icon: React.ReactNode; label: string; color: BtnColor; done?: boolean; onClick: () => void;
-}) {
-  const c = BTN_COLOR_MAP[color];
-  return (
-    <button type="button" onClick={onClick}
-      className="flex items-center gap-2.5 p-3 rounded-lg text-left transition-opacity hover:opacity-80"
-      style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-      <span style={{ color: c.text }}>{icon}</span>
-      <span className="flex-1 text-[12.5px] font-medium" style={{ color: c.text }}>{label}</span>
-      {done !== undefined && <span className={`text-[10px] ${done ? 'text-emerald' : 'text-amber'}`}>{done ? '✓' : '⏳'}</span>}
-      <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-    </button>
-  );
-}

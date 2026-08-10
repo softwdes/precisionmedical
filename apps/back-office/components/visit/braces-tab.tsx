@@ -92,7 +92,8 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
       }),
     });
     if (!res.ok) { setError(t('braceErrSave')); return; }
-    setPickerOpen(false);
+    // El picker NO se cierra: se entregan varias férulas de una (bota izquierda
+    // + muñequera) sin volver a abrir el catálogo.
     await load();
   };
 
@@ -173,6 +174,12 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
 
   const dispensed = rows.filter((r) => r.status === 'DISPENSED').length;
 
+  /** Lo ya entregado en esta visita, por código — el picker lo marca. */
+  const entregadas = new Map<string, number>();
+  for (const r of rows) {
+    if (r.status === 'DISPENSED') entregadas.set(r.code, (entregadas.get(r.code) ?? 0) + r.quantity);
+  }
+
   return (
     <div className="space-y-4">
       {/* Barra de acción — mismo patrón que el tab de Laboratorios */}
@@ -235,7 +242,7 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
       )}
 
       {pickerOpen && (
-        <BracePickerDialog onClose={() => setPickerOpen(false)} onAdd={handleAdd} />
+        <BracePickerDialog onClose={() => setPickerOpen(false)} onAdd={handleAdd} added={entregadas} />
       )}
 
       {voidTarget && (

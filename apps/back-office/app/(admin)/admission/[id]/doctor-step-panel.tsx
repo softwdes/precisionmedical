@@ -203,7 +203,7 @@ export function DoctorStepPanel({
               <LabsTab
                 appointmentId={appointmentId}
                 userId={null}
-                seedDiagnoses={note?.diagnoses ?? []}
+                defaultProviderId={servicesPanel.provider?.id ?? null}
               />
             )}
 

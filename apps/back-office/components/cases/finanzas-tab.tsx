@@ -45,7 +45,22 @@ interface BillingRecord {
 }
 
 interface CaseInsurance { id: string; name: string; label: string }
-interface Kpis { totalCost: number; totalPaid: number; totalBalance: number }
+/**
+ * `patientBalance` / `insuranceBalance` — el saldo NO es uno solo: lo del
+ * paciente se cobra en el momento, lo del seguro/abogado lo gestiona el
+ * encargado después y puede tardar meses (regla de Erick 2026-08-08).
+ */
+interface Kpis {
+  totalCost: number; totalPaid: number; totalBalance: number;
+  patientBalance: number; insuranceBalance: number;
+  /** Lo cobrado, por quién lo puso — un copago es plata del paciente sobre una
+   *  línea que se le factura al seguro, y sin esto no se distinguía. */
+  paidByPatient: number; paidByInsurance: number;
+}
+const EMPTY_KPIS: Kpis = {
+  totalCost: 0, totalPaid: 0, totalBalance: 0, patientBalance: 0, insuranceBalance: 0,
+  paidByPatient: 0, paidByInsurance: 0,
+};
 
 // ─── Payment type options (igual a v2) ─────────────────────────────────────────
 
@@ -157,11 +172,16 @@ function SelectUp({
 
 // ─── KPI Card ──────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
+function KpiCard({ label, value, color, hint }: {
+  label: string; value: number; color: string;
+  /** Segunda línea — el desglose de la cifra grande, cuando la cifra sola no alcanza */
+  hint?: string;
+}) {
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
       <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
       <div className={`text-2xl font-bold font-mono ${color}`}>{fmt$(value)}</div>
+      {hint && <div className="text-[11px] text-text-muted mt-1 truncate">{hint}</div>}
     </div>
   );
 }
@@ -170,11 +190,18 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void; reloadAndOpen: () => void }
 
-export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string }>(function FinanzasTab({ caseId, filterAppointmentId }, ref) {
+/**
+ * `readOnly` — vista del doctor: ve el summary completo (costos, pagado, saldo,
+ * detalle por línea) pero SIN acciones de cobro. El cobro es del asistente —
+ * misma regla que `hidePayments` en el panel de servicios.
+ */
+export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string; readOnly?: boolean }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
+  // Claves del CTA "Cobrar $X" — las mismas del Resumen (una sola voz)
+  const tDoc = useTranslations('phoenix.doctor');
   const [billings, setBillings]     = useState<BillingRecord[]>([]);
-  const [kpis, setKpis]             = useState<Kpis>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
+  const [kpis, setKpis]             = useState<Kpis>(EMPTY_KPIS);
   const [insurances, setInsurances] = useState<CaseInsurance[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -210,7 +237,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       const freshBillings: BillingRecord[] = data.billings ?? [];
       const freshInsurances: CaseInsurance[] = data.insurances ?? [];
       setBillings(freshBillings);
-      setKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
+      setKpis({ ...EMPTY_KPIS, ...(data.kpis ?? {}) });
       setInsurances(freshInsurances);
 
       // Open pay modal with fresh data if flagged
@@ -237,6 +264,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   useEffect(() => { load(); }, [load]);
 
   function openPayModal() {
+    if (readOnly) return; // el doctor no cobra — gate también acá porque el handle es imperativo
     const pending = pendingOf(billings);
     const init: Record<string, string> = {};
     pending.forEach(b => { init[b.id] = ''; });
@@ -369,9 +397,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{t('refresh')}</span>
           </Button>
-          {kpis.totalBalance > 0 && (
-            <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0">
-              <CreditCard className="w-3.5 h-3.5" /> {t('payDebt')}
+          {/* Cobrar — acción principal del tab, en la esquina donde vive la
+              acción principal de todos los demás (Add charge, Dispense brace,
+              New order). Dice el monto antes del clic. Verde sólido: la plata
+              del paciente ya es verde en todo el sistema y el ámbar acá se
+              leería como alerta. Oculto en readOnly (doctor). */}
+          {kpis.patientBalance > 0 && !readOnly && (
+            <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-emerald hover:bg-emerald/90 text-bg-0 border-transparent">
+              <CreditCard className="w-3.5 h-3.5" />
+              {tDoc('sumCollect', { amount: fmt$(kpis.patientBalance) })}
             </Button>
           )}
         </div>
@@ -380,8 +414,23 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap">
         <KpiCard label={t('kpiTotalCost')}  value={kpis.totalCost}    color="text-text-1" />
-        <KpiCard label={t('kpiTotalPaid')}  value={kpis.totalPaid}    color="text-emerald" />
-        <KpiCard label={t('kpiTotalDebt')}  value={kpis.totalBalance} color={kpis.totalBalance > 0 ? 'text-rose' : 'text-text-1'} />
+        {/* El desglose importa: un copago es plata del PACIENTE sobre una línea
+            que se le factura al SEGURO. Con la cifra sola no había forma de
+            saber de dónde salió lo cobrado. */}
+        <KpiCard
+          label={t('kpiTotalPaid')}
+          value={kpis.totalPaid}
+          color="text-emerald"
+          hint={kpis.totalPaid > 0
+            ? `${t('paidByPatient')} ${fmt$(kpis.paidByPatient)} · ${t('paidByInsurance')} ${fmt$(kpis.paidByInsurance)}`
+            : undefined}
+        />
+        {/* El saldo, separado por quién paga y CUÁNDO: el paciente en el
+            momento; el seguro/abogado lo gestiona el encargado y puede tardar
+            meses. Antes un solo "Deuda total" mezclaba los dos y el mostrador
+            terminaba pidiéndole al paciente plata de la aseguradora. */}
+        <KpiCard label={t('kpiPatientDebt')}   value={kpis.patientBalance}   color={kpis.patientBalance > 0 ? 'text-rose' : 'text-text-1'} />
+        <KpiCard label={t('kpiInsuranceDebt')} value={kpis.insuranceBalance} color={kpis.insuranceBalance > 0 ? 'text-cyan' : 'text-text-1'} />
       </div>
 
       {/* Tabla */}
@@ -511,7 +560,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                         </span>
                                       </td>
                                       <td className="py-1.5">
-                                        {p.status !== 'CANCELLED' && (
+                                        {p.status !== 'CANCELLED' && !readOnly && (
                                           <button
                                             onClick={() => deletePayment(b.id, p.id)}
                                             disabled={deletingPay === p.id}
@@ -548,7 +597,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
           los 768px del padre; (2) Radix maneja dialogos anidados, incluyendo el
           pointer-events/focus trap -- un portal manual a body quedaba fuera de
           su subarbol y el modal se veia pero no se podia clickear. */}
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+      <Dialog open={payOpen && !readOnly} onOpenChange={setPayOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
             {/* Modal header */}

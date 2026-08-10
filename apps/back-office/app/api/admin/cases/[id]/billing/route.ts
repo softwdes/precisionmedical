@@ -68,6 +68,18 @@ export async function GET(
     appointmentStatus: b.appointment?.status ?? null,
     serviceCode: (b as Record<string, unknown>).serviceCode as string | null ?? null,
     serviceDescription: (b as Record<string, unknown>).serviceDescription as string | null ?? null,
+    /**
+     * Quién paga esta línea — son dos circuitos con tiempos distintos
+     * (regla de Erick 2026-08-08):
+     *  · PATIENT   — férulas, servicios/inyectables del catálogo cash y
+     *    laboratorios. Se cobran EN EL MOMENTO, al salir.
+     *  · INSURANCE — los CPT. La clínica solo anota los códigos; después el
+     *    encargado le cobra al seguro o al abogado, y eso puede tardar MESES.
+     *    Nunca se le pide al paciente en el mostrador.
+     */
+    payer: (b.braceId || b.cashServiceId || b.labOrderId)
+      ? 'PATIENT' as const
+      : 'INSURANCE' as const,
     totalCost: Number(b.totalCost),
     discount: Number(b.discount),
     insuranceCovered: Number(b.insuranceCovered),
@@ -92,10 +104,26 @@ export async function GET(
   const totalCost    = serialized.reduce((s, b) => s + b.totalCost, 0);
   const totalPaid    = serialized.reduce((s, b) => s + b.amountPaid, 0);
   const totalBalance = serialized.reduce((s, b) => s + b.balanceDue, 0);
+  // Los dos saldos NO se mezclan: uno se cobra hoy en el mostrador, el otro
+  // lo gestiona el encargado con el seguro o el abogado y puede tardar meses.
+  const patientBalance   = serialized.filter(b => b.payer === 'PATIENT').reduce((s, b) => s + b.balanceDue, 0);
+  const insuranceBalance = serialized.filter(b => b.payer === 'INSURANCE').reduce((s, b) => s + b.balanceDue, 0);
+
+  /**
+   * Lo cobrado, por QUIÉN LO PUSO — se mira el `source` del pago, no de qué
+   * circuito es la línea. No es lo mismo: un copago es plata del PACIENTE
+   * sobre un CPT que se le factura al SEGURO, y pasa de verdad. Con un solo
+   * "Total pagado" no había forma de saber de dónde salió esa plata.
+   */
+  const pagos = serialized.flatMap(b => b.payments).filter(p => p.status !== 'CANCELLED');
+  const suma = (src: string): number =>
+    pagos.filter(p => p.source === src).reduce((s, p) => s + p.amount, 0);
+  const paidByPatient   = suma('PATIENT');
+  const paidByInsurance = suma('INSURANCE') + suma('LAWYER');
 
   return NextResponse.json({
     billings: serialized,
-    kpis: { totalCost, totalPaid, totalBalance },
+    kpis: { totalCost, totalPaid, totalBalance, patientBalance, insuranceBalance, paidByPatient, paidByInsurance },
     insurances,
   });
 }

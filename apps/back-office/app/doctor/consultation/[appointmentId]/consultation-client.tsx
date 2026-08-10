@@ -446,7 +446,7 @@ export function ConsultationClient({
             <LabsTab
               appointmentId={a.id}
               userId={userId}
-              seedDiagnoses={note?.diagnoses ?? []}
+              defaultProviderId={a.servicesPanel.provider?.id ?? null}
             />
           )}
           {tab === 'rx' && (

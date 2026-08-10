@@ -49,7 +49,14 @@ export interface BillableItem {
   insuranceCode: string | null;
 }
 
-type View = 'ALL' | 'INSURANCE' | 'CASH';
+/**
+ * Solo los dos circuitos reales. Había un "Todos" y confundía: mezclado, nadie
+ * distinguía lo que se le factura al seguro de lo que el paciente paga hoy —
+ * que es justo la decisión que se está tomando acá. La búsqueda sigue mirando
+ * las dos listas, así que nada queda escondido: si hay resultados del otro
+ * lado, aparece el aviso de abajo para cruzar.
+ */
+type View = 'INSURANCE' | 'CASH';
 
 interface Payload {
   pairs: Array<{ insurance: BillableItem; cash: BillableItem }>;
@@ -66,8 +73,15 @@ interface Props {
    * buscador. Nunca oculta el otro grupo.
    */
   coverage: CoverageDTO;
-  /** Claves de los CPT ya agregados, para marcarlos "Agregado". */
-  addedKeys: Set<string>;
+  /**
+   * Qué está ya cargado en la visita y CUÁNTAS veces, por `key`.
+   *
+   * El CPT se bloquea (un duplicado se perdería igual, el JSON los indexa por
+   * código). El de efectivo no: dos aplicaciones del mismo inyectable son dos
+   * cobros legítimos. Pero tiene que VERSE que entró — sin eso el botón queda
+   * idéntico después de agregar y no hay forma de saber si el clic tomó.
+   */
+  added: ReadonlyMap<string, number>;
   onClose: () => void;
   onAdd: (item: BillableItem) => Promise<void>;
 }
@@ -80,13 +94,14 @@ const EMPTY: Payload = {
 };
 
 export function ChargePickerDialog({
-  coverage, addedKeys, onClose, onAdd,
+  coverage, added, onClose, onAdd,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.charges');
   const pathname = usePathname();
 
   const [q, setQ] = React.useState('');
-  const [view, setView] = React.useState<View>('ALL');
+  // Arranca en el circuito que le corresponde al paciente; el otro está a un clic.
+  const [view, setView] = React.useState<View>(coverage.type === 'SELF_PAY' ? 'CASH' : 'INSURANCE');
   const [favoritesOnly, setFavoritesOnly] = React.useState(false);
   const [data, setData] = React.useState<Payload>(EMPTY);
   const [loading, setLoading] = React.useState(true);
@@ -165,27 +180,44 @@ export function ChargePickerDialog({
 
   const fmt$ = (n: number): string => `$${n.toFixed(2)}`;
 
-  const addBtn = (item: BillableItem, label: string): React.ReactElement => {
-    // El bloqueo de "ya agregado" es SOLO para los CPT: el JSON de la cita los
-    // indexa por código y un duplicado se perdería igual. En efectivo, dos
-    // aplicaciones del mismo inyectable son dos cobros legítimos — por eso cada
-    // cargo es su propia fila (ver lib/cash-service-billing.ts).
-    const already = item.source === 'INSURANCE' && addedKeys.has(item.key);
+  /**
+   * "Ya está en esta visita" — la MISMA marca en los dos circuitos, siempre
+   * pegada al nombre del ítem.
+   *
+   * Antes se decía de dos formas: una pastilla que reemplazaba al botón en
+   * seguro y un texto al costado en efectivo. Mismo significado, dos vestidos —
+   * y la pastilla parecía un botón que no responde. Al ir junto al nombre, la
+   * columna de botones además queda alineada.
+   *
+   * El número solo aparece cuando dice algo (de dos en adelante): así un cargo
+   * de seguro y uno de efectivo se leen igual.
+   */
+  const addedMark = (item: BillableItem): React.ReactElement | null => {
+    const n = added.get(item.key) ?? 0;
+    if (n === 0) return null;
+    return (
+      <span
+        title={item.source === 'INSURANCE' ? t('alreadyAddedHint') : t('addedTimesHint')}
+        className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald shrink-0 cursor-default"
+      >
+        <Check className="w-3 h-3" />
+        {n > 1 ? t('addedTimes', { count: n }) : t('alreadyAdded')}
+      </span>
+    );
+  };
+
+  /**
+   * Botón de agregar. Devuelve `null` en un CPT ya cargado: el JSON de la cita
+   * los indexa por código y un duplicado se perdería igual, así que la acción
+   * NO existe — sin botón no hay nada que clickear. En efectivo el botón sigue
+   * siempre, porque dos aplicaciones del mismo inyectable son dos cobros
+   * legítimos y cada uno es su propia fila (ver lib/cash-service-billing.ts).
+   */
+  const addBtn = (item: BillableItem, label: string): React.ReactElement | null => {
     const cash = item.source === 'CASH';
     const busy = addingKey === item.key;
 
-    if (already) {
-      // Deshabilitado CON explicación: "Agregado" a secas se leía como un botón
-      // roto. Ahora dice por qué no se puede tocar y dónde se cambia el monto.
-      return (
-        <span
-          title={t('alreadyAddedHint')}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald/15 text-emerald shrink-0 cursor-default"
-        >
-          <Check className="w-3 h-3" /> {t('alreadyAdded')}
-        </span>
-      );
-    }
+    if (!cash && added.has(item.key)) return null;
 
     // Sin precio cargado. No se agrega en cero: `sync-billing` saltea los
     // servicios con fee <= 0, así que entraba a la visita y NUNCA generaba
@@ -270,6 +302,7 @@ export function ChargePickerDialog({
               {favBtn(i)}
               <span className="font-mono text-[11px] text-cyan w-[58px] shrink-0">{i.code}</span>
               <span className="text-xs text-text-1 flex-1 min-w-0 truncate">{i.name}</span>
+              {addedMark(i)}
               {addBtn(i, t('addInsurance'))}
             </div>
           ))}
@@ -305,6 +338,7 @@ export function ChargePickerDialog({
                 {i.name}
                 {i.unitLabel && <span className="text-text-muted"> · {i.unitLabel}</span>}
               </span>
+              {addedMark(i)}
               {/* Aviso, no bloqueo: que nadie cobre en efectivo algo facturable
                   sin saberlo. La decisión sigue siendo del staff. */}
               {i.insuranceCode && (
@@ -335,7 +369,9 @@ export function ChargePickerDialog({
             {/* El mismo servicio con sus dos precios: el asegurado que quiere
                 pagar de su bolsillo se resuelve acá, sin explicación. */}
             <div className="flex items-center gap-2 flex-wrap">
+              {addedMark(p.insurance)}
               {addBtn(p.insurance, t('addInsurance'))}
+              {addedMark(p.cash)}
               {addBtn(p.cash, t('addCash'))}
             </div>
           </div>
@@ -365,8 +401,6 @@ export function ChargePickerDialog({
   const CovIcon = covBanner.icon;
 
   const VIEWS: Array<{ v: View; label: string; count: number; cls: string }> = [
-    { v: 'ALL', label: t('viewAll'), count: data.counts.insurance + data.counts.cash + data.counts.pairs,
-      cls: 'border-border-strong text-text-1 bg-white/5' },
     { v: 'INSURANCE', label: t('viewInsurance'), count: data.counts.insurance + data.counts.pairs,
       cls: 'border-cyan/40 text-cyan bg-cyan/10' },
     { v: 'CASH', label: t('viewCash'), count: data.counts.cash + data.counts.pairs,
@@ -390,7 +424,7 @@ export function ChargePickerDialog({
             <span>{covBanner.text}</span>
           </div>
 
-          {/* 3 botones de vista con sus conteos. Los conteos enseñan solos que la
+          {/* Los dos circuitos con sus conteos. Los conteos enseñan solos que la
               lista de efectivo es chica — cuando falte algo ahí, se va a pedir en
               vez de asumir que no se puede cobrar. */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -467,11 +501,12 @@ export function ChargePickerDialog({
                 ? <>{view !== 'CASH' && insuranceGroup}{view !== 'INSURANCE' && cashGroup}</>
                 : <>{view !== 'INSURANCE' && cashGroup}{view !== 'CASH' && insuranceGroup}</>}
 
-              {/* El filtro nunca oculta en silencio. */}
+              {/* El filtro nunca oculta en silencio: el aviso cruza al otro
+                  circuito, que es donde están esos resultados. */}
               {data.hiddenByView.cash > 0 && (
                 <button
                   type="button"
-                  onClick={() => setView('ALL')}
+                  onClick={() => setView('CASH')}
                   className="mt-3 w-full text-left rounded-md border border-emerald/30 bg-emerald/10 px-3 py-2 text-[11.5px] text-emerald hover:bg-emerald/15 transition-colors flex items-center gap-1.5"
                 >
                   <Banknote className="w-3.5 h-3.5 shrink-0" />
@@ -481,7 +516,7 @@ export function ChargePickerDialog({
               {data.hiddenByView.insurance > 0 && (
                 <button
                   type="button"
-                  onClick={() => setView('ALL')}
+                  onClick={() => setView('INSURANCE')}
                   className="mt-3 w-full text-left rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-[11.5px] text-cyan hover:bg-cyan/15 transition-colors flex items-center gap-1.5"
                 >
                   <Shield className="w-3.5 h-3.5 shrink-0" />

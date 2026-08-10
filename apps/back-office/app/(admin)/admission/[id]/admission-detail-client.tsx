@@ -331,6 +331,8 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
     id: string; serviceCode: string | null; serviceDescription: string | null;
     totalCost: number; balanceDue: number; amountPaid: number;
     appointmentDate: string | null;
+    /** PATIENT = se cobra al salir · INSURANCE = lo gestiona el encargado después */
+    payer?: 'PATIENT' | 'INSURANCE';
   }>>([]);
   const [billingLoaded, setBillingLoaded] = useState(false);
   const [confirm1,  setConfirm1]  = useState(false);
@@ -720,7 +722,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 primaryInsurance: d.case.primaryInsurance ?? null,
               } : null,
             }}
-            billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
+            /* Solo lo que paga el PACIENTE al salir. Los CPT se le cobran al
+               seguro o al abogado meses después — pedírselos en el mostrador
+               era cobrarle plata que no le toca (Erick 2026-08-08). */
+            billingTotal={billingHistory
+              .filter(b => b.payer !== 'INSURANCE')
+              .reduce((s, b) => s + b.balanceDue, 0) || undefined}
             servicesExtra={<BillingHistoryList rows={billingHistory} />}
             coverage={d.coverage}
             onRefresh={load}

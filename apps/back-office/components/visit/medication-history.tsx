@@ -15,7 +15,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Button } from '@precision/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { Pill, Plus, Loader2, Flag, AlertTriangle } from 'lucide-react';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
 
@@ -83,10 +83,10 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
   const activeCount = items.filter((m) => m.status === 'IN_USE').length;
 
   return (
-    <div className="rounded-lg border border-border bg-bg-1">
+    <div className="rounded-lg bg-bg-1">
       {/* El botón de agregar vive en el encabezado — abajo quedaba enterrado
           cuando la lista crecía (pedido de Erick 2026-08-03). */}
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2 flex-wrap">
+      <div className="px-4 py-3 border-b border-row-sep flex items-center gap-2 flex-wrap">
         <Pill className="w-4 h-4 text-violet shrink-0" />
         <span className="text-text-1 font-semibold text-[12px] uppercase tracking-wider">
           {t('medHxTitle')}
@@ -98,21 +98,17 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
           />
         )}
         <span className="text-[10px] text-text-muted">{t('medHxCount', { count: items.length })}</span>
-        {!formOpen && (
-          <button
-            type="button"
-            onClick={() => setFormOpen(true)}
-            className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet bg-violet/10 border border-violet/30 hover:bg-violet/20 hover:border-violet/50 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> {t('medHxAddShort')}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet bg-violet/10 hover:bg-violet/20 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" /> {t('medHxAddShort')}
+        </button>
       </div>
 
-      {/* flex-col + order-first en el formulario: se abre ARRIBA de la lista,
-          visible al instante aunque el historial sea largo */}
       <div className="p-4 flex flex-col gap-2">
-        {items.length === 0 && !formOpen ? (
+        {items.length === 0 ? (
           <EmptyState.Rich icon={Pill} title={t('medHxEmptyTitle')} subtitle={t('medHxEmptySubtitle')} />
         ) : (
           sorted.map((m, i) => (
@@ -147,12 +143,22 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
           ))
         )}
 
-        {formOpen && (
-          <div className="order-first rounded-md border border-violet/30 bg-violet/[0.04] p-3.5 space-y-3">
-            <div className="flex items-center gap-1.5 text-[12px] font-semibold text-text-1">
-              <Flag className="w-3.5 h-3.5 text-amber" /> {t('medHxFormTitle')}
-            </div>
-            <p className="text-[11px] text-text-muted leading-relaxed">{t('medHxFormHint')}</p>
+      </div>
+
+      {/* Modal, no un bloque que empuja la lista: anotar un medicamento externo
+          es una tarea aparte —el doctor no está leyendo el historial mientras lo
+          escribe— y expandido tapaba lo que acababa de leer. */}
+      <Dialog open={formOpen} onOpenChange={(v) => { if (!v) resetForm(); }}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden flex flex-col max-h-[88vh]">
+          <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
+            <DialogTitle className="text-[14px] flex items-center gap-2">
+              <Flag className="w-4 h-4 text-amber shrink-0" />
+              {t('medHxFormTitle')}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-5 py-4 overflow-y-auto space-y-3">
+            <p className="text-[11.5px] text-text-muted leading-relaxed">{t('medHxFormHint')}</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="sm:col-span-2">
@@ -162,8 +168,10 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) void handleSave(); }}
                   placeholder={t('medHxFieldNamePh')}
-                  className="w-full h-9 rounded-md bg-bg-0 border border-border px-3 text-sm text-text-1 outline-none focus:border-violet/60"
+                  autoFocus
+                  className="w-full h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 outline-none focus:ring-1 focus:ring-violet/40"
                 />
               </div>
               <div>
@@ -176,8 +184,8 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                       key={s}
                       type="button"
                       onClick={() => setStatus(s)}
-                      className={`h-9 px-3 rounded-md text-[12px] font-semibold border transition-colors ${
-                        status === s ? 'border-violet/50 bg-violet/10 text-violet' : 'border-border text-text-muted hover:text-text-1'
+                      className={`h-9 px-3 rounded-md text-[12px] font-semibold transition-colors ${
+                        status === s ? 'bg-violet/15 text-violet' : 'bg-bg-2 text-text-muted hover:text-text-1'
                       }`}
                     >
                       {s === 'IN_USE' ? t('medHxActive') : t('medHxPrevious')}
@@ -192,30 +200,31 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                 <input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) void handleSave(); }}
                   placeholder={t('medHxFieldNotePh')}
-                  className="w-full h-9 rounded-md bg-bg-0 border border-border px-3 text-sm text-text-1 outline-none focus:border-violet/60"
+                  className="w-full h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 outline-none focus:ring-1 focus:ring-violet/40"
                 />
               </div>
             </div>
 
             {error && (
               <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> {error}
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {error}
               </div>
             )}
-
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
-              <Button variant="outline" onClick={resetForm} className="h-9 w-full sm:w-auto">
-                {t('medHxCancel')}
-              </Button>
-              <Button onClick={() => void handleSave()} disabled={saving || !name.trim()} className="h-9 w-full sm:w-auto gap-1.5">
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                {t('medHxSave')}
-              </Button>
-            </div>
           </div>
-        )}
-      </div>
+
+          <DialogFooter className="px-5 py-3 border-t border-border shrink-0 flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={resetForm} className="h-9 w-full sm:w-auto">
+              {t('medHxCancel')}
+            </Button>
+            <Button onClick={() => void handleSave()} disabled={saving || !name.trim()} className="h-9 w-full sm:w-auto gap-1.5">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              {t('medHxSave')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

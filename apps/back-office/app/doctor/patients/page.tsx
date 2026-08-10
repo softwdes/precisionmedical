@@ -9,18 +9,19 @@
 import { Suspense } from 'react';
 import { PatientsData, PatientsTableSkeleton } from '@/app/(admin)/patients/patients-data';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export const metadata = { title: 'Mis Pacientes · Portal Médico' };
 
 export default async function DoctorPatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string; case?: string; tab?: string }>;
 }) {
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
-  const { q, page: pageParam, showInactive, size: sizeParam } = await searchParams;
+  const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
   const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '10', 10) || 10));
@@ -37,6 +38,10 @@ export default async function DoctorPatientsPage({
           basePath="/doctor/patients"
         />
       </Suspense>
+
+      {/* `?case=` en la URL de la lista: recargar vuelve con la búsqueda y el
+          caso abierto. El server revalida que la cita sea de este doctor. */}
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider.id} />
     </div>
   );
 }

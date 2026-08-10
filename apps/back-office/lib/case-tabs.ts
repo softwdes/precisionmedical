@@ -21,6 +21,17 @@ const CASE_TABS: ActiveTab[] = [
 ];
 
 /**
+ * Tabs que se filtran por visita (`?visit=`).
+ *
+ * Paciente, Citas, Historial y Documentos quedan afuera: no son "lo que pasó en
+ * una visita". Las citas son la lista de visitas en sí, y el historial médico es
+ * del paciente, no de una consulta.
+ */
+export const TABS_CON_FILTRO_DE_VISITA = new Set<ActiveTab>([
+  'labs', 'rx', 'servicios', 'braces', 'finanzas',
+]);
+
+/**
  * ¿El `?tab=` de la URL es un tab real? Devuelve undefined si no lo es, para
  * que el caso abra en su tab por defecto en vez de en uno inexistente.
  */

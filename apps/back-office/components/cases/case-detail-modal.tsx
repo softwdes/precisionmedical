@@ -3,19 +3,22 @@
 /**
  * CaseDetailModal — el detalle de caso completo dentro de un modal grande.
  *
- * Lo renderizan las rutas INTERCEPTADAS (Pacientes admin y Mis Pacientes del
- * doctor): al hacer clic en "ver caso" la URL cambia a la del caso pero la
- * lista queda montada debajo — búsqueda, filas expandidas y scroll intactos.
- * Cerrar es router.back(). Un refresh o el link directo renderizan la página
- * completa de siempre (la intercepción solo aplica a navegación en cliente),
- * así que los deep links no cambian.
+ * Lo monta `CaseUrlModal` cuando la pantalla lleva `?case=<id>` — Pacientes y
+ * Calendario, en admin y en el portal del doctor. La lista queda montada debajo
+ * con su búsqueda, sus filas expandidas y su scroll.
+ *
+ * El id va en la URL de la LISTA, no como ruta propia: así un refresh reproduce
+ * la vista exacta. Antes se usaba una ruta interceptada y recargar servía la
+ * página completa del caso, perdiendo la lista y la búsqueda. Los deep links a
+ * `/front-office/[id]` siguen existiendo como página completa.
  */
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
 import { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-detail-client';
+import { sinCasoAbierto } from '@/lib/case-modal-url';
 
 type ClientProps = React.ComponentProps<typeof CaseDetailClient>;
 
@@ -28,9 +31,24 @@ export function CaseDetailModal({
   initialTab?: ClientProps['initialTab'];
 }): React.ReactElement {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations('phoenix.caseDetail');
 
-  const close = React.useCallback(() => router.back(), [router]);
+  /**
+   * Cerrar = sacar `?case=` de la URL, no `router.back()`.
+   *
+   * Con `back()` el cierre dependía de que existiera una entrada anterior en el
+   * historial: si entraste con la URL pegada o recargaste con el caso abierto,
+   * el botón de cerrar te sacaba del sitio o no hacía nada. Quitar el parámetro
+   * funciona en los dos casos.
+   *
+   * `replace`, no `push`: cerrar no es un paso nuevo de navegación, y con push
+   * el botón Atrás del navegador volvía a abrir el caso.
+   */
+  const close = React.useCallback(() => {
+    router.replace(sinCasoAbierto(pathname, searchParams), { scroll: false });
+  }, [router, pathname, searchParams]);
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) close(); }}>

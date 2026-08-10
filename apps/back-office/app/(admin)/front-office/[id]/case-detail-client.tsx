@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
@@ -15,7 +15,7 @@ import { Button } from '@precision/ui';
 // Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
 // SIN tab Notes: las notas del doctor viven en el Historial Médico del paciente
 // (decisión de Erick 2026-08-08) — un tab aparte era redundante.
-import type { ActiveTab } from '@/lib/case-tabs';
+import { TABS_CON_FILTRO_DE_VISITA, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
@@ -25,8 +25,10 @@ import { DocumentsTab } from '@/components/cases/documents-tab';
 import { FinanzasTab } from '@/components/cases/finanzas-tab';
 import { CitasTab } from '@/components/cases/citas-tab';
 import { HistorialMedicoTab } from '@/components/cases/historial-medico-tab';
+import { VisitFilter } from '@/components/cases/visit-filter';
+import { VISIT_PARAM, conTab, conVisitaFiltrada, escribirUrl, paramsDelNavegador } from '@/lib/case-modal-url';
 import {
-  CaseLabsTab, CaseRxTab, CaseServicesTab, CaseBracesTab,
+  CaseLabsTab, CaseRxTab, CaseServicesTab, CaseBracesTab, useCaseClinical,
 } from '@/components/cases/case-clinical-tabs';
 
 // Front Office · Detalle del caso
@@ -175,7 +177,37 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   // doctor, para que digan exactamente lo mismo en los dos lados.
   const td = useTranslations('phoenix.doctor');
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab ?? 'caso');
+
+  /**
+   * El tab también se escribe en la URL, no solo se lee al entrar. Antes se leía
+   * el `?tab=` de entrada y nunca se actualizaba: recargabas y volvías al tab
+   * con el que habías entrado, no al que estabas mirando.
+   */
+  const cambiarTab = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    escribirUrl(conTab(pathname, paramsDelNavegador(), tab));
+  }, [pathname]);
+
+  /**
+   * Lo clínico se carga UNA vez acá y se reparte a los cinco tabs. Antes cada
+   * tab montaba su propio hook y pedía el mismo endpoint por separado.
+   */
+  const clinical = useCaseClinical(caseInfo.id);
+
+  /**
+   * La visita filtrada vive en la URL (`&visit=`), como el caso y el tab: así
+   * un refresh — o un link pasado por chat — reproduce exactamente la vista
+   * filtrada. `replace` y no `push` porque cambiar un filtro no es un paso de
+   * navegación: con push, Atrás iba deshaciendo filtros de a uno.
+   */
+  const [visitId, setVisitIdState] = useState<string | null>(() => searchParams.get(VISIT_PARAM));
+  const setVisitId = useCallback((id: string | null) => {
+    setVisitIdState(id);
+    escribirUrl(conVisitaFiltrada(pathname, paramsDelNavegador(), id));
+  }, [pathname]);
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
@@ -392,7 +424,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[]).map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => cambiarTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'border-brand text-brand'
@@ -674,6 +706,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           caseCode={caseInfo.caseCode}
           patient={{ firstName: caseInfo.patient.firstName, lastName: caseInfo.patient.lastName }}
           specialty={caseInfo.specialty}
+          hidePayments={isDoctor}
         />
       )}
 
@@ -684,16 +717,34 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           visita y leyendo las fuentes REALES (VisitNote, lab_orders,
           prescriptions de ScriptSure, los dos catálogos de cargos y férulas).
           "Repetir" receta solo en la variante doctor. */}
-      {activeTab === 'labs' && <CaseLabsTab caseId={caseInfo.id} patientId={caseInfo.patient.id} />}
-      {activeTab === 'rx' && (
-        <CaseRxTab caseId={caseInfo.id} canPrescribe={isDoctor} />
+      {/* Un solo selector de visita para los cinco tabs: la pregunta "qué pasó
+          el 5 de agosto" es de la visita, no del tab. Por defecto, todas. */}
+      {TABS_CON_FILTRO_DE_VISITA.has(activeTab) && (
+        <div className="mb-3">
+          <VisitFilter visits={clinical.visits} value={visitId} onChange={setVisitId} />
+        </div>
       )}
-      {activeTab === 'servicios' && <CaseServicesTab caseId={caseInfo.id} />}
-      {activeTab === 'braces' && <CaseBracesTab caseId={caseInfo.id} />}
+
+      {activeTab === 'labs' && (
+        <CaseLabsTab caseId={caseInfo.id} patientId={caseInfo.patient.id} clinical={clinical} visitId={visitId} />
+      )}
+      {activeTab === 'rx' && (
+        <CaseRxTab caseId={caseInfo.id} canPrescribe={isDoctor} clinical={clinical} visitId={visitId} />
+      )}
+      {activeTab === 'servicios' && (
+        <CaseServicesTab caseId={caseInfo.id} clinical={clinical} visitId={visitId} />
+      )}
+      {activeTab === 'braces' && (
+        <CaseBracesTab caseId={caseInfo.id} clinical={clinical} visitId={visitId} />
+      )}
 
       {/* Tab: Finanzas */}
-      {/* Doctor: solo el summary (pagó/no pagó/saldo) — el cobro es del asistente */}
-      {activeTab === 'finanzas' && <FinanzasTab caseId={caseInfo.id} readOnly={isDoctor} />}
+      {/* Doctor: solo el summary (pagó/no pagó/saldo) — el cobro es del asistente.
+          `filterAppointmentId` ya existía en FinanzasTab (lo usa el panel de la
+          cita) y nunca se le pasaba desde el caso: el selector lo aprovecha. */}
+      {activeTab === 'finanzas' && (
+        <FinanzasTab caseId={caseInfo.id} readOnly={isDoctor} filterAppointmentId={visitId ?? undefined} />
+      )}
 
       {/* Tab: Documentos */}
       {activeTab === 'documentos' && <DocumentsTab caseId={caseInfo.id} />}

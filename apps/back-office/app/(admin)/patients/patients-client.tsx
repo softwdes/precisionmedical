@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useRef, useTransition, Fragment } fro
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { useRouter } from 'next/navigation';
+import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
@@ -1809,6 +1810,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const tPrices = useTranslations('phoenix.catalog.priceList');
   const tMsg    = useTranslations('phoenix.messaging');
   const router = useRouter();
+  const searchParamsHook = useSearchParams();
 
   const STATUS_LABEL: Record<string, string> = {
     NEW:        t('patientStatus.NEW'),
@@ -1844,6 +1846,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const [searchValue,   setSearchValue]   = useState(q ?? '');
+
+  /**
+   * Abrir un caso = agregarle `?case=` a la URL de ESTA lista, sin tocar `q`,
+   * `page` ni los filtros. Así un refresh vuelve con la búsqueda Y el caso
+   * abierto; antes navegaba a la página del caso y al recargar se perdía todo.
+   */
+  const abrirCaso = useCallback((caseId: string) => {
+    router.push(conCasoAbierto(basePath, searchParamsHook, caseId), { scroll: false });
+  }, [router, basePath, searchParamsHook]);
   const [isSearching,   setIsSearching]   = useState(false);
   const [localPatients, setLocalPatients] = useState<PatientRow[]>(patients);
   const [localTotal,    setLocalTotal]    = useState(total);
@@ -1927,6 +1938,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     setMsgCase(null);
     setMsgPatient({ id: p.id, name: `${p.lastName}, ${p.firstName}` });
   }, []);
+
+  // Ver el caso desde un hilo reusa `abrirCaso` (el mismo `?case=` de la lista).
+  // Mientras el caso está encima, los diálogos de mensajería se repliegan sin
+  // desmontarse: al cerrarlo el hilo sigue abierto con su borrador intacto.
+  const caseModalOpen = !!searchParamsHook.get(CASE_PARAM);
 
   const openCaseMessages = useCallback((
     p: { id: string; firstName: string; lastName: string },
@@ -2552,7 +2568,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                   <div className="flex items-center gap-0.5">
                                     {/* El doctor también ve el caso — su ruta propia se
                                         intercepta como modal desde Mis Pacientes */}
-                                    <button onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
+                                    <button onClick={() => abrirCaso(c.id)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
                                     {currentUserId && (
                                       <button onClick={() => openCaseMessages(p, c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={tMsg('tooltipCaseMessages')} aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}><MessageSquare className="w-3 h-3" /></button>
                                     )}
@@ -2683,7 +2699,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         {/* Ver caso — para el doctor va a su ruta propia,
                                             que Mis Pacientes intercepta como modal */}
                                         <button
-                                          onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)}
+                                          onClick={() => abrirCaso(c.id)}
                                           className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
                                           title={t('tooltipViewCase')}
                                           aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
@@ -2969,6 +2985,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           caseFilter={msgCase}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
+          onOpenCase={abrirCaso}
+          suspended={caseModalOpen}
         />
       )}
 

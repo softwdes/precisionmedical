@@ -4,33 +4,38 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Clock, MapPin, User, RefreshCw, Plus,
   LayoutList, Table2, CheckCircle2, XCircle, AlertCircle,
-  Loader2,
+  Loader2, ChevronRight,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
+import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
+import type { CoverageDTO } from '@/lib/coverage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Appointment {
-  id: string;
-  scheduledFor: string;
-  durationMinutes: number;
-  type: string;
-  status: string;
-  notes: string | null;
+/**
+ * La cita trae la MISMA forma que consume el panel del calendario, mas los dos
+ * campos que solo usa esta lista. Antes eran 8 campos planos y por eso no se
+ * podia abrir el panel desde aca: mostraba el checklist del caso, el abogado y
+ * el seguro, y sin esos datos abria vacio.
+ */
+type Appointment = CalendarAppointment & {
   checkedInAt: string | null;
   attendanceSignedAt: string | null;
-  clinic: { id: string; name: string } | null;
-  provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
-}
+};
 
 interface Props {
   caseId: string;
   caseCode: string;
   patient: { firstName: string; lastName: string };
   specialty: { id: string; name: string; color: string; workflowType: string } | null;
+  /**
+   * Portal medico: el doctor ve el detalle de la cita pero NO cobra — misma
+   * regla que en el calendario y en Day Admission.
+   */
+  hidePayments?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,12 +63,13 @@ function StatusPill({ status, labels }: { status: string; labels: Record<string,
   );
 }
 
-function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, emptySubtitle }: {
+function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, emptySubtitle, onOpen }: {
   appointments: Appointment[];
   statusLabels: Record<string, { label: string; colorClass: string; icon: React.ElementType }>;
   typeLabels: Record<string, string>;
   emptyTitle: string;
   emptySubtitle: string;
+  onOpen: (a: Appointment) => void;
 }) {
   if (appointments.length === 0) {
     return <EmptyState.Rich icon={Calendar} title={emptyTitle} subtitle={emptySubtitle} />;
@@ -83,7 +89,12 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
             {appts.map(a => {
               const isPast = new Date(a.scheduledFor) < new Date();
               return (
-                <div key={a.id} className={`flex gap-4 items-start rounded-lg border border-border bg-bg-1 p-4 ${isPast ? 'opacity-70' : ''}`}>
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => onOpen(a)}
+                  className={`group w-full text-left flex gap-4 items-start rounded-lg bg-bg-1 p-4 hover:bg-bg-2/40 transition-colors ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}
+                >
                   <div className="shrink-0 w-14 text-center">
                     <div className="text-[11px] text-text-muted uppercase font-semibold">
                       {new Date(a.scheduledFor).toLocaleDateString('es-US', { weekday: 'short' })}
@@ -117,7 +128,8 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
                     {a.notes && <div className="mt-1.5 text-[11px] text-text-2 italic line-clamp-2">{a.notes}</div>}
                     {a.checkedInAt && <div className="mt-1 text-[10px] text-emerald">✓ Check-in: {fmtTime(a.checkedInAt)}</div>}
                   </div>
-                </div>
+                  <ChevronRight className="w-4 h-4 text-text-muted/50 shrink-0 self-center transition-transform group-hover:translate-x-0.5" />
+                </button>
               );
             })}
           </div>
@@ -127,13 +139,14 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
   );
 }
 
-function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTitle, emptySubtitle }: {
+function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTitle, emptySubtitle, onOpen }: {
   appointments: Appointment[];
   statusLabels: Record<string, { label: string; colorClass: string; icon: React.ElementType }>;
   typeLabels: Record<string, string>;
   colHeaders: string[];
   emptyTitle: string;
   emptySubtitle: string;
+  onOpen: (a: Appointment) => void;
 }) {
   if (appointments.length === 0) {
     return <EmptyState.Rich icon={Calendar} title={emptyTitle} subtitle={emptySubtitle} />;
@@ -141,14 +154,22 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
   return (
     <>
       {/* Mobile cards */}
-      <div className="md:hidden rounded-lg border border-border divide-y divide-border/40">
+      <div className="md:hidden rounded-lg bg-bg-1 divide-y divide-row-sep">
         {appointments.map(a => (
-          <div key={a.id} className="px-4 py-3 flex flex-col gap-1">
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onOpen(a)}
+            className="w-full text-left px-4 py-3 flex flex-col gap-1 hover:bg-bg-2/40 transition-colors"
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-xs text-text-1 font-semibold">
                 {fmtDate(a.scheduledFor)} · {fmtTime(a.scheduledFor)}
               </span>
-              <StatusPill status={a.status} labels={statusLabels} />
+              <span className="flex items-center gap-1.5 shrink-0">
+                <StatusPill status={a.status} labels={statusLabels} />
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted/50" />
+              </span>
             </div>
             <span className="text-sm text-text-1">{typeLabels[a.type] ?? a.type}</span>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -166,14 +187,14 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
                 <Clock className="w-3 h-3" />{a.durationMinutes} min
               </span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
       {/* Desktop table */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+      <div className="hidden md:block overflow-x-auto rounded-lg bg-bg-1">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-bg-2/50">
+            <tr className="border-b border-row-sep bg-bg-2/50">
               {colHeaders.map((h, i) => (
                 <th
                   key={h}
@@ -184,7 +205,14 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
           </thead>
           <tbody>
             {appointments.map((a, i) => (
-              <tr key={a.id} className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}>
+              <tr
+                key={a.id}
+                onClick={() => onOpen(a)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(a); } }}
+                tabIndex={0}
+                role="button"
+                className={`cursor-pointer border-b border-row-sep hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}
+              >
                 <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-1 whitespace-nowrap font-mono text-xs">{fmtDate(a.scheduledFor)}</td>
                 <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtTime(a.scheduledFor)}</td>
                 <td className="px-3 py-2.5 text-text-1 whitespace-nowrap">{typeLabels[a.type] ?? a.type}</td>
@@ -205,7 +233,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
+export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false }: Props) {
   const t  = useTranslations('phoenix.caseTabs.citas');
   const tc = useTranslations('phoenix.common');
 
@@ -232,6 +260,10 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'timeline' | 'table'>('timeline');
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  /** Cita abierta en el panel — el MISMO del calendario, sin "Ver caso": ya
+   *  estamos dentro del caso, así que ese atajo no llevaría a ningún lado. */
+  const [detalle, setDetalle] = useState<Appointment | null>(null);
+  const [coverage, setCoverage] = useState<CoverageDTO | undefined>(undefined);
 
   const now = new Date();
   const [dateFrom, setDateFrom] = useState(() => new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
@@ -243,8 +275,13 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
     try {
       const r = await fetch(`/api/admin/cases/${caseId}/appointments`);
       if (r.ok) {
-        const data = await r.json();
-        setAppointments(data.appointments ?? []);
+        const data = await r.json() as { appointments?: Appointment[]; coverage?: CoverageDTO };
+        const lista = data.appointments ?? [];
+        setAppointments(lista);
+        setCoverage(data.coverage);
+        // Si el panel está abierto, seguir la fila recargada: tras editar o
+        // reagendar la cita, el panel tiene que mostrar los datos nuevos.
+        setDetalle((prev) => (prev ? lista.find((a) => a.id === prev.id) ?? null : null));
       }
     } finally {
       setLoading(false);
@@ -372,11 +409,13 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
         <TimelineView
           appointments={sorted} statusLabels={STATUS_CFG} typeLabels={TYPE_LABELS}
           emptyTitle={t('emptyTitle')} emptySubtitle={t('emptySubtitle')}
+          onOpen={setDetalle}
         />
       ) : (
         <TableView
           appointments={sorted} statusLabels={STATUS_CFG} typeLabels={TYPE_LABELS}
           colHeaders={colHeaders} emptyTitle={t('emptyTitle')} emptySubtitle={t('emptySubtitle')}
+          onOpen={setDetalle}
         />
       )}
 
@@ -386,6 +425,20 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
         onOpenChange={open => { setScheduleOpen(open); if (!open) load(); }}
         caseInfo={{ id: caseId, caseCode, patient, specialty }}
       />
+
+      {/* Detalle de la cita — el MISMO panel del calendario. Sin `onOpenCase`:
+          el boton "Ver caso" cuelga de ese callback, y aca ya estamos en el
+          caso. Abre en Detalle, que es lo que se fue a buscar al hacer clic. */}
+      {detalle && (
+        <AppointmentDetailPanel
+          appointment={detalle}
+          initialTab="detail"
+          coverage={coverage}
+          hidePayments={hidePayments}
+          onClose={() => setDetalle(null)}
+          onRefresh={load}
+        />
+      )}
     </div>
   );
 }

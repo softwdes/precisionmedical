@@ -8,10 +8,16 @@
 import { db } from '@precision-medical/database';
 import { CalendarClient } from '@/app/(admin)/calendar/calendar-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export const metadata = { title: 'Mi Calendario · Portal Médico' };
 
-export default async function DoctorCalendarPage(): Promise<React.ReactElement> {
+export default async function DoctorCalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ case?: string; tab?: string }>;
+}): Promise<React.ReactElement> {
+  const { case: caseId, tab } = await searchParams;
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
@@ -21,16 +27,18 @@ export default async function DoctorCalendarPage(): Promise<React.ReactElement> 
   });
 
   return (
-    <CalendarClient
-      clinics={clinics}
-      providers={[{
-        id: provider.id,
-        firstName: provider.firstName,
-        lastName: provider.lastName,
-        specialty: provider.specialty,
-      }]}
-      lockedProviderId={provider.id}
-      variant="doctor"
-    />
+    <>
+      <CalendarClient
+        clinics={clinics}
+        providers={[{
+          id: provider.id,
+          firstName: provider.firstName,
+          lastName: provider.lastName,
+          specialty: provider.specialty,
+        }]}
+        lockedProviderId={provider.id}
+      />
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider.id} />
+    </>
   );
 }

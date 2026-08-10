@@ -15,11 +15,12 @@
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -74,13 +75,6 @@ interface CalendarClientProps {
    * Oculta el filtro de doctor; el resto de la funcionalidad queda intacta.
    */
   lockedProviderId?: string;
-  /**
-   * Superficie que monta el calendario. Decide a qué ruta abre el detalle del
-   * caso — /front-office/[id] (clínica) o /doctor/case/[id] (portal médico, con
-   * Finanzas en solo lectura) — y cuál es la ruta base contra la que se detecta
-   * que el modal interceptado está abierto encima.
-   */
-  variant?: 'admin' | 'doctor';
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -468,10 +462,11 @@ function LegendStats({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function CalendarClient({ clinics, providers, lockedProviderId, variant = 'admin' }: CalendarClientProps) {
+export function CalendarClient({ clinics, providers, lockedProviderId }: CalendarClientProps) {
   const t = useTranslations('phoenix.calendar');
   const router   = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const WEEKDAYS     = Object.values(t.raw('weekdays') as Record<string, string>);
   const WEEKDAYS_ALL = Object.values(t.raw('weekdaysAll') as Record<string, string>);
@@ -537,21 +532,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId, variant =
     setNewApptOpen(true);
   };
 
-  // ─── Detalle del caso como modal interceptado ────────────────────────────
+  // ─── Detalle del caso como modal ─────────────────────────────────────────
   // El panel de la cita manda al caso completo (labs, servicios, férulas y
-  // cobro). La navegación es una ruta de verdad — /front-office/[id] o
-  // /doctor/case/[id] — interceptada por el slot @modal de este segmento, así
-  // que el calendario NO se desmonta: al cerrar el caso vuelve tal cual estaba.
-  const calendarPath = variant === 'doctor' ? '/doctor/calendar' : '/calendar';
-  const caseBasePath = variant === 'doctor' ? '/doctor/case'     : '/front-office';
-  const caseModalOpen = pathname !== calendarPath;
+  // cobro). El caso se abre agregando `?case=` a la URL del calendario, así que
+  // el calendario NO se desmonta y un refresh vuelve con el caso encima.
+  const caseModalOpen = !!searchParams.get(CASE_PARAM);
 
   // Abre en Laboratorios, no en el resumen del caso: desde el calendario se
   // entra a ver qué se le va a cobrar al paciente, y los labs son el primer
   // renglón de esa cuenta (decisión de Erick 2026-08-09).
   const openCase = useCallback((caseId: string) => {
-    router.push(`${caseBasePath}/${caseId}?tab=labs`);
-  }, [router, caseBasePath]);
+    router.push(conCasoAbierto(pathname, searchParams, caseId, 'labs'), { scroll: false });
+  }, [router, pathname, searchParams]);
 
   // Al volver del caso, la data del calendario puede haber cambiado (cobros,
   // labs, estado de la cita). Se refresca en la transición abierto → cerrado,

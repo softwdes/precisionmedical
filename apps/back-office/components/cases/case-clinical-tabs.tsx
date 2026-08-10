@@ -41,6 +41,16 @@ import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge
 import type { CoverageDTO } from '@/lib/coverage';
 import { codigosRepetidos, horaCobro } from '@/lib/repeated-charges';
 
+/**
+ * Lo que reciben los tabs clinicos: el payload ya cargado por el caso y la
+ * visita elegida en el selector (`null` = todas).
+ */
+export interface ClinicalTabProps {
+  caseId: string;
+  clinical: CaseClinical;
+  visitId: string | null;
+}
+
 // ─── Payload de /api/admin/cases/[id]/clinical ────────────────────────────────
 
 interface RxRow {
@@ -74,7 +84,7 @@ interface LabRow {
   resultFileName: string | null;
 }
 
-interface Visit {
+export interface Visit {
   appointmentId: string;
   scheduledFor: string;
   status: string;
@@ -103,9 +113,17 @@ interface ClinicalPayload {
   coverage: CoverageDTO | null;
 }
 
-function useCaseClinical(caseId: string): ClinicalPayload & {
+export type CaseClinical = ClinicalPayload & {
   loading: boolean; error: boolean; reload: () => Promise<void>;
-} {
+};
+
+/**
+ * Lo clinico del caso. Lo llama UNA vez el detalle del caso y lo reparte a los
+ * cinco tabs: antes cada tab montaba su propia instancia y pedia el mismo
+ * endpoint por separado — cuatro requests identicos al recorrer los tabs, y
+ * cuatro listas de visitas que podian quedar desfasadas entre si.
+ */
+export function useCaseClinical(caseId: string): CaseClinical {
   const [data, setData] = React.useState<ClinicalPayload>({ visits: [], medications: [], latestAppointmentId: null, coverage: null });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -134,6 +152,30 @@ function useCaseClinical(caseId: string): ClinicalPayload & {
 }
 
 const money = (n: number): string => `$${n.toFixed(2)}`;
+
+/**
+ * Las visitas que se muestran: todas, o solo la elegida en el selector del caso.
+ *
+ * El filtro es por VISITA, nunca por la fecha que se ve en pantalla. En labs
+ * importa: una orden creada dias despues se fecha con `orderedAt` pero pertenece
+ * a su visita, y filtrando por fecha mostrada desapareceria del dia al que
+ * corresponde.
+ */
+function visitasVisibles(visits: Visit[], visitId: string | null): Visit[] {
+  return visitId ? visits.filter((v) => v.appointmentId === visitId) : visits;
+}
+
+/**
+ * La visita que recibe lo nuevo (orden, cargo, ferula).
+ *
+ * Con el selector en "todas" es la ultima que ya ocurrio. Pero si el usuario
+ * filtro a una visita, lo nuevo va A ESA: filtrar al 5 de agosto y que el cargo
+ * caiga en la visita de ayer seria una trampa.
+ */
+function visitaDestino(visits: Visit[], visitId: string | null, latestAppointmentId: string | null): Visit | null {
+  if (visitId) return visits.find((v) => v.appointmentId === visitId) ?? null;
+  return visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
+}
 
 function fmtVisit(iso: string): string {
   return new Date(iso).toLocaleDateString('es-US', {
@@ -244,15 +286,14 @@ const rxStatusOf = (s: string): RxStatusKnown => (s in RX_STATUS_KEY ? (s as RxS
  * si el resultado llega igual, tiene contra qué reconciliarse. Quitar solo se
  * puede durante la visita (consulta / Day Admission).
  */
-export function CaseLabsTab({ caseId, patientId }: {
-  caseId: string;
+export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTabProps & {
   patientId: string;
 }): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
-  const { visits, latestAppointmentId, loading, error, reload } = useCaseClinical(caseId);
+  const { visits, latestAppointmentId, loading, error, reload } = clinical;
 
-  const latestVisit = visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
+  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
 
   // "New order" abre DIRECTO el formulario (feedback de Erick: el paso
   // intermedio con la misma lista era ambiguo). La orden se cuelga de la
@@ -335,7 +376,7 @@ export function CaseLabsTab({ caseId, patientId }: {
   if (loading) return <LoadingRow />;
   if (error) return <LoadErrorRow />;
 
-  const labVisits = visits.filter((v) => v.labOrders.length > 0);
+  const labVisits = visitasVisibles(visits, visitId).filter((v) => v.labOrders.length > 0);
 
   return (
     <div className="space-y-4">
@@ -357,7 +398,7 @@ export function CaseLabsTab({ caseId, patientId }: {
       )}
 
       {labVisits.length === 0 ? (
-        <EmptyState.Rich icon={FlaskConical} title={t('labsEmpty')} subtitle="" />
+        <EmptyState.Rich icon={FlaskConical} title={visitId ? t('labsEmptyVisit') : t('labsEmpty')} subtitle="" />
       ) : (
         <div className="space-y-3">
           {/* Una tarjeta por ORDEN (groupId), no por visita: los estudios
@@ -536,14 +577,13 @@ export function CaseLabsTab({ caseId, patientId }: {
 
 // ─── Tab: Prescription — recetas ScriptSure + conciliación, espejo del doctor ─
 
-export function CaseRxTab({ caseId, canPrescribe }: {
-  caseId: string;
+export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalTabProps & {
   /** true solo en la variante doctor — habilita "Repetir" (refill) */
   canPrescribe: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
-  const { visits, medications, latestAppointmentId, loading, error, reload } = useCaseClinical(caseId);
+  const { visits, medications, latestAppointmentId, loading, error, reload } = clinical;
 
   // ── Repetir receta (widget de ScriptSure, compartido con My Day) ──
   const [widgetOpen, setWidgetOpen] = React.useState(false);
@@ -585,15 +625,17 @@ export function CaseRxTab({ caseId, canPrescribe }: {
 
   // Prescripción NUEVA (no repetición): mismo widget Drug List, sobre la
   // visita más reciente que ya ocurrió. Mismo mapeo de errores que la consulta.
+  const rxTargetId = visitaDestino(visits, visitId, latestAppointmentId)?.appointmentId ?? null;
+
   const openNewRx = async (): Promise<void> => {
-    if (!latestAppointmentId) return;
+    if (!rxTargetId) return;
     setWidgetOpen(true);
     setWidgetStatus('loading');
     setWidgetUrl(null);
     setWidgetError(null);
-    syncApptRef.current = latestAppointmentId;
+    syncApptRef.current = rxTargetId;
     try {
-      const res = await fetch(`/api/admin/scriptsure/widget/${latestAppointmentId}?widget=drug-list`);
+      const res = await fetch(`/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`);
       if (res.status === 409) { setWidgetStatus('not_onboarded'); return; }
       if (res.status === 422) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -614,7 +656,7 @@ export function CaseRxTab({ caseId, canPrescribe }: {
 
   // El mostrador solo ve lo que llegó a la farmacia; el doctor ve todo, porque
   // es el único que puede reenviar una que falló (ver `soloEntregadas`).
-  const rxVisits = visits
+  const rxVisits = visitasVisibles(visits, visitId)
     .map((v) => (canPrescribe ? v : { ...v, prescriptions: soloEntregadas(v.prescriptions) }))
     .filter((v) => v.prescriptions.length > 0);
 
@@ -622,7 +664,7 @@ export function CaseRxTab({ caseId, canPrescribe }: {
     <div className="space-y-4">
       {/* Prescribir — SOLO doctor. Mismo CTA violet del tab de la consulta,
           abre el widget Drug List sobre la visita más reciente. */}
-      {canPrescribe && latestAppointmentId && (
+      {canPrescribe && rxTargetId && (
         <button
           type="button"
           onClick={() => void openNewRx()}
@@ -655,7 +697,7 @@ export function CaseRxTab({ caseId, canPrescribe }: {
         </div>
 
         {rxVisits.length === 0 ? (
-          <EmptyState.Rich icon={Pill} title={t('rxEmpty')} subtitle="" />
+          <EmptyState.Rich icon={Pill} title={visitId ? t('rxEmptyVisit') : t('rxEmpty')} subtitle="" />
         ) : (
           <div className="space-y-3">
             {rxVisits.map((v) => (
@@ -773,10 +815,10 @@ function cargosDeLaVisita(v: Visit): ReadonlyMap<string, number> {
   return m;
 }
 
-export function CaseServicesTab({ caseId }: { caseId: string }): React.ReactElement {
+export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const tc = useTranslations('phoenix.charges');
-  const { visits, coverage, latestAppointmentId, loading, error, reload } = useCaseClinical(caseId);
+  const { visits, coverage, latestAppointmentId, loading, error, reload } = clinical;
 
   // La visita objetivo se guarda por id, NO por objeto: el picker queda abierto
   // mientras se agregan varios cargos y cada uno recarga la lista — con un
@@ -786,7 +828,7 @@ export function CaseServicesTab({ caseId }: { caseId: string }): React.ReactElem
   const [confirmCpt, setConfirmCpt] = React.useState<{ apptId: string; id: string } | null>(null);
   const [confirmCash, setConfirmCash] = React.useState<string | null>(null);
 
-  const latestVisit = visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
+  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
   const pickerVisit = visits.find((v) => v.appointmentId === pickerApptId) ?? null;
 
   /** Los CPT viven en el arreglo `plannedServiceCodes` de la cita: agregar y
@@ -864,7 +906,7 @@ export function CaseServicesTab({ caseId }: { caseId: string }): React.ReactElem
   if (loading) return <LoadingRow />;
   if (error) return <LoadErrorRow />;
 
-  const withServices = visits.filter((v) => v.services.length > 0 || v.cashServices.length > 0);
+  const withServices = visitasVisibles(visits, visitId).filter((v) => v.services.length > 0 || v.cashServices.length > 0);
 
   return (
     <div className="space-y-3">
@@ -881,7 +923,7 @@ export function CaseServicesTab({ caseId }: { caseId: string }): React.ReactElem
       )}
 
       {withServices.length === 0 ? (
-        <EmptyState.Rich icon={Briefcase} title={t('servicesEmpty')} subtitle="" />
+        <EmptyState.Rich icon={Briefcase} title={visitId ? t('servicesEmptyVisit') : t('servicesEmpty')} subtitle="" />
       ) : withServices.map((v) => {
         const insuranceTotal = v.services.reduce((s, c) => s + (Number(c.fee) || 0), 0);
         const cashTotal = v.cashServices.reduce((s, c) => s + c.unitPrice * c.quantity, 0);
@@ -1024,10 +1066,10 @@ function ferulasDeLaVisita(v: Visit | null): ReadonlyMap<string, number> {
   return m;
 }
 
-export function CaseBracesTab({ caseId }: { caseId: string }): React.ReactElement {
+export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
-  const { visits, latestAppointmentId, loading, error, reload } = useCaseClinical(caseId);
+  const { visits, latestAppointmentId, loading, error, reload } = clinical;
 
   // Igual que Servicios: se entrega y se quita EN LA LISTA. El diálogo
   // intermedio metía adentro el BracesTab entero de la consulta, así que la
@@ -1036,7 +1078,7 @@ export function CaseBracesTab({ caseId }: { caseId: string }): React.ReactElemen
   const [saving, setSaving] = React.useState(false);
   const [confirmBrace, setConfirmBrace] = React.useState<{ id: string; name: string } | null>(null);
 
-  const latestVisit = visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
+  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
   // Por id, no por objeto: el picker queda abierto entre entregas y cada una
   // recarga la lista (mismo motivo que en Servicios).
   const pickerVisit = visits.find((v) => v.appointmentId === pickerApptId) ?? null;
@@ -1091,7 +1133,7 @@ export function CaseBracesTab({ caseId }: { caseId: string }): React.ReactElemen
   if (loading) return <LoadingRow />;
   if (error) return <LoadErrorRow />;
 
-  const withBraces = visits.filter((v) => v.braces.length > 0);
+  const withBraces = visitasVisibles(visits, visitId).filter((v) => v.braces.length > 0);
 
   return (
     <div className="space-y-3">
@@ -1105,7 +1147,7 @@ export function CaseBracesTab({ caseId }: { caseId: string }): React.ReactElemen
       )}
 
       {withBraces.length === 0 ? (
-        <EmptyState.Rich icon={Bandage} title={t('bracesEmpty')} subtitle="" />
+        <EmptyState.Rich icon={Bandage} title={visitId ? t('bracesEmptyVisit') : t('bracesEmpty')} subtitle="" />
       ) : withBraces.map((v) => {
         const bracesTotal = v.braces.reduce((s, b) => s + b.unitPrice * b.quantity, 0);
         return (

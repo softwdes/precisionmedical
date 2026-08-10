@@ -34,7 +34,9 @@ import { ActiveCallBar } from '@/components/cases/active-call-bar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface CalendarAppointment {
+/** Forma de cita que consume el panel. Exportada para que las pantallas que lo
+ *  montan (calendario, citas del caso) tipen su payload contra ella. */
+export interface CalendarAppointment {
   id: string;
   scheduledFor: string;
   durationMinutes: number;

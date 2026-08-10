@@ -4320,6 +4320,7 @@
       "draftNoSubject": "(sin asunto)",
       "draftDelete": "Eliminar borrador",
       "actPrint": "Imprimir",
+      "printError": "No se pudo preparar la impresión",
       "fieldPatient": "Paciente",
       "fieldCase": "Caso",
       "casePlaceholder": "Elegí un caso…",

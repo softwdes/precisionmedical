@@ -4320,6 +4320,7 @@
       "draftNoSubject": "(no subject)",
       "draftDelete": "Delete draft",
       "actPrint": "Print",
+      "printError": "Could not prepare the printout",
       "fieldPatient": "Patient",
       "fieldCase": "Case",
       "casePlaceholder": "Pick a case…",

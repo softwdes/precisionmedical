@@ -217,8 +217,16 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
     }
   };
 
-  // Print: ventana propia con el hilo plano (autor, fecha, cuerpo) — sin traer
-  // estilos de la app; el CSS mínimo va inline para que imprima legible.
+  /**
+   * Print: el hilo plano (autor, fecha, cuerpo) con CSS propio inline, para que
+   * imprima legible sin arrastrar el tema oscuro de la app.
+   *
+   * Se imprime desde un IFRAME OCULTO, no desde `window.open`. La primera
+   * versión abría una ventana y quedaba en blanco: pasarle `noopener` en las
+   * opciones hace que `window.open` devuelva `null` por spec, así que el código
+   * se salía sin escribir nada y dejaba la ventana vacía. El iframe además no
+   * lo tocan los bloqueadores de pop-ups.
+   */
   const printThread = (): void => {
     if (!thread) return;
     const esc = (s: string) =>
@@ -233,9 +241,7 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
           ? `<div class="atts">📎 ${e.attachments.map((a) => esc(a.fileName)).join(' · ')}</div>`
           : ''}
       </div>`).join('');
-    const w = window.open('', '_blank', 'noopener,width=800,height=900');
-    if (!w) return;
-    w.document.write(`<!doctype html><html><head><title>${esc(thread.subject)}</title>
+    const html = `<!doctype html><html><head><title>${esc(thread.subject)}</title>
       <style>
         body { font-family: system-ui, sans-serif; color: #111; margin: 24px; }
         h1 { font-size: 18px; margin: 0 0 4px; }
@@ -253,10 +259,26 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
         ${thread.patient ? ` · ${esc(`${thread.patient.lastName}, ${thread.patient.firstName}`)} (${esc(thread.patient.patientCode)})` : ''}
       </div>
       ${entriesHtml}
-      </body></html>`);
-    w.document.close();
-    w.focus();
-    w.print();
+      </body></html>`;
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(frame);
+
+    const doc = frame.contentDocument;
+    if (!doc) { frame.remove(); toast.error(t('printError')); return; }
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Un tick para que el iframe pinte antes de abrir el diálogo de impresión,
+    // y baja diferida: quitarlo de inmediato cancela la impresión en Firefox.
+    setTimeout(() => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(() => frame.remove(), 1000);
+    }, 50);
   };
 
   // Bucket privado: cada apertura pide su URL firmada (15 min) y queda auditada.

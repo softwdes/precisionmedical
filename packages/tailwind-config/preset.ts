@@ -2,24 +2,52 @@ import type { Config } from 'tailwindcss';
 import tailwindcssAnimate from 'tailwindcss-animate';
 import tailwindcssForms from '@tailwindcss/forms';
 
+/**
+ * Token de color que ACEPTA el modificador de opacidad (`bg-bg-2/40`).
+ *
+ * Sin modificador, Tailwind reemplaza `<alpha-value>` por `1` y el color queda
+ * idéntico al de la variable — incluida la alfa que algunas ya traen.
+ */
+const alfa = (v: string): string =>
+  `color-mix(in srgb, var(${v}) calc(<alpha-value> * 100%), transparent)`;
+
 const config: Omit<Config, 'content'> = {
   darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        'bg-0': 'var(--bg-0)',
-        'bg-1': 'var(--bg-1)',
-        'bg-2': 'var(--bg-2)',
-        'bg-3': 'var(--bg-3)',
-        surface: 'var(--surface)',
-        'surface-2': 'var(--surface-2)',
-        border: 'var(--border)',
-        'border-strong': 'var(--border-strong)',
-        'row-sep': 'var(--row-sep)',
-        'text-1': 'var(--text-1)',
-        'text-2': 'var(--text-2)',
-        'text-3': 'var(--text-3)',
-        'text-muted': 'var(--text-muted)',
+        /**
+         * Tokens con `<alpha-value>` — NO uses `var(--x)` a secas acá.
+         *
+         * Con el color declarado como una `var()` suelta, Tailwind no puede
+         * aplicar el modificador de opacidad y **directamente no genera la
+         * clase**. El resultado no era "un poco menos opaco": era otra cosa.
+         *  · `border-border/40` → la clase no existía y el borde caía al gris
+         *    claro OPACO de Tailwind (#E5E7EB). Se pedía 2% de alfa y salía
+         *    100% — de ahí las "líneas gruesas" en todo el sistema.
+         *  · `bg-bg-2/40` → sin clase, sin fondo: las sub-tarjetas quedaban
+         *    transparentes.
+         *  · `text-text-muted/70` → el texto heredaba el color del padre.
+         * Eran 445 usos en 67 archivos, todos silenciosos.
+         *
+         * `color-mix` lo resuelve sin tocar las variables CSS: sin modificador
+         * Tailwind sustituye `<alpha-value>` por 1 y queda el color tal cual,
+         * así que los valores por defecto —incluida la alfa que ya traen
+         * `--border` y `--row-sep`— no cambian.
+         */
+        'bg-0': alfa('--bg-0'),
+        'bg-1': alfa('--bg-1'),
+        'bg-2': alfa('--bg-2'),
+        'bg-3': alfa('--bg-3'),
+        surface: alfa('--surface'),
+        'surface-2': alfa('--surface-2'),
+        border: alfa('--border'),
+        'border-strong': alfa('--border-strong'),
+        'row-sep': alfa('--row-sep'),
+        'text-1': alfa('--text-1'),
+        'text-2': alfa('--text-2'),
+        'text-3': alfa('--text-3'),
+        'text-muted': alfa('--text-muted'),
         brand: '#6366F1',
         'brand-2': '#8B5CF6',
         cyan: '#06B6D4',

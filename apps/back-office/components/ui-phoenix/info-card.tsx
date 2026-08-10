@@ -116,7 +116,7 @@ export function InfoCard({
  */
 export function InfoRow({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-3 gap-3 items-start py-1.5 border-b border-border/20 last:border-0">
+    <div className="grid grid-cols-3 gap-3 items-start py-1.5 border-b border-row-sep last:border-0">
       <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{label}</div>
       <div className="col-span-2 text-sm text-text-1">{value}</div>
     </div>

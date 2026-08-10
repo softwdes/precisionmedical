@@ -88,7 +88,7 @@ function SideSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border/30 last:border-0">
+    <div className="border-b border-row-sep last:border-0">
       <button
         className="flex items-center justify-between w-full py-2.5 px-4 text-left hover:bg-white/[0.02] transition-colors"
         onClick={() => setOpen(o => !o)}
@@ -125,7 +125,7 @@ function SideRow({ label, value, na = 'N/A' }: { label: string; value?: string |
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-md border border-border/60 bg-bg-2/40 px-3 py-2.5 text-[11px] text-text-muted text-center">
+    <div className="rounded-md bg-bg-2/40 px-3 py-2.5 text-[11px] text-text-muted text-center">
       {text}
     </div>
   );
@@ -139,8 +139,8 @@ function SectionCard({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+    <div className="rounded-lg bg-bg-1 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-row-sep">
         <div className="flex items-center gap-2">
           <span className="text-emerald">{icon}</span>
           <span className="text-sm font-semibold text-text-1">{title}</span>
@@ -189,7 +189,7 @@ function TableShell({
     <div className="overflow-x-auto">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="border-b border-border/60">
+          <tr className="border-b border-row-sep">
             {headers.map((h, i) => (
               <th key={i} className="text-left pb-2 pr-4 text-text-muted font-medium last:text-right">{h}</th>
             ))}
@@ -201,7 +201,7 @@ function TableShell({
               <td colSpan={headers.length} className="py-4 text-center text-text-muted italic">{emptyText}</td>
             </tr>
           ) : rows.map((row, i) => (
-            <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-white/[0.02]">
+            <tr key={i} className="border-b border-row-sep last:border-0 hover:bg-white/[0.02]">
               {row.map((cell, j) => (
                 <td key={j} className="py-2 pr-4 text-text-2 last:text-right">{cell}</td>
               ))}
@@ -534,8 +534,8 @@ function AddProblemDialog({
               </button>
 
               {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-border/60">
+                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
+                  <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
                       <input
@@ -568,7 +568,7 @@ function AddProblemDialog({
           </div>
 
           {/* Status */}
-          <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+          <div className="rounded-md bg-bg-2/40 p-4 space-y-3">
             <p className="text-sm font-semibold text-text-1">{t('mh.sub.status')}</p>
             <div className="grid grid-cols-2 gap-3">
               <ToggleRow label={t('mh.sub.current')}  checked={isCurrent}  onChange={setIsCurrent} />
@@ -643,8 +643,8 @@ function SearchDropdown({
         <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
-          <div className="p-2 border-b border-border/60">
+        <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
+          <div className="p-2 border-b border-row-sep">
             <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
@@ -1384,7 +1384,7 @@ function CognitiveEditDialog({
 
         <div className="px-6 py-5 space-y-3 max-h-[65vh] overflow-y-auto">
           {entries.map((entry, i) => (
-            <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+            <div key={i} className="rounded-md bg-bg-2/40 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-text-1">{t('mh.sub.entry', { n: i + 1 })}</span>
                 <button
@@ -1485,7 +1485,7 @@ function FunctionalEditDialog({
 
         <div className="px-6 py-5 space-y-3 max-h-[65vh] overflow-y-auto">
           {entries.map((entry, i) => (
-            <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+            <div key={i} className="rounded-md bg-bg-2/40 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-text-1">{t('mh.sub.entry', { n: i + 1 })}</span>
                 <button type="button" onClick={() => removeEntry(i)} className="p-1 rounded text-text-muted hover:text-rose transition-colors">
@@ -1711,7 +1711,7 @@ function HealthExamsEditDialog({
         </DialogHeader>
 
         <div className="px-6 py-5">
-          <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-4">
+          <div className="rounded-md bg-bg-2/40 p-4 space-y-4">
             <p className="text-sm font-semibold text-text-1">{t('mh.sub.generalExams')}</p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1911,8 +1911,8 @@ function AddFamilyHistoryDialog({
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
               {memberOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-border/60">
+                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
+                  <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
                       <input
@@ -2051,8 +2051,8 @@ function AddHistoryDialog({
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
               {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-border/60">
+                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
+                  <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
                       <input
@@ -2084,7 +2084,7 @@ function AddHistoryDialog({
             </div>
           </div>
 
-          <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+          <div className="rounded-md bg-bg-2/40 p-4 space-y-3">
             <p className="text-sm font-semibold text-text-1">{t('mh.sub.status')}</p>
             <div className="grid grid-cols-2 gap-3">
               <ToggleRow label={t('mh.sub.current')}  checked={isCurrent}  onChange={setIsCurrent} />
@@ -2205,7 +2205,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
           `}>
 
             {/* Patient avatar */}
-            <div className="px-4 py-4 border-b border-border/60 flex items-center gap-3">
+            <div className="px-4 py-4 border-b border-row-sep flex items-center gap-3">
               <PersonAvatar
                 firstName={patient.firstName}
                 lastName={patient.lastName}
@@ -2253,7 +2253,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             <SideSection icon={<Shield className="w-3.5 h-3.5" />} title={t('mh.insuranceDetails')} defaultOpen={false}>
               {insurances && insurances.length > 0 ? (
                 insurances.map((ins, i) => (
-                  <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2 space-y-0.5 mb-2 last:mb-0">
+                  <div key={i} className="rounded-md bg-bg-2/40 px-2.5 py-2 space-y-0.5 mb-2 last:mb-0">
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                       {ins.insType === 'MEDICAL' ? t('mh.medicalInsurance') : t('mh.autoInsurance')}
                     </p>
@@ -2280,7 +2280,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             <SideSection icon={<Heart className="w-3.5 h-3.5" />} title={t('mh.problemList')} defaultOpen={false}>
               {(mh.problems?.length ?? 0) > 0
                 ? mh.problems!.map(p => (
-                    <div key={p.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{p.condition}</div>
+                    <div key={p.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{p.condition}</div>
                   ))
                 : <EmptyState text={t('mh.noProblems')} />}
             </SideSection>
@@ -2289,7 +2289,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             <SideSection icon={<Pill className="w-3.5 h-3.5" />} title={t('mh.activeMedications')} defaultOpen={false}>
               {(mh.medications?.length ?? 0) > 0
                 ? mh.medications!.map(m => (
-                    <div key={m.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{m.name}</div>
+                    <div key={m.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{m.name}</div>
                   ))
                 : <EmptyState text={t('mh.noMedications')} />}
             </SideSection>
@@ -2298,7 +2298,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             <SideSection icon={<Scissors className="w-3.5 h-3.5" />} title={t('mh.surgeriesProcedures')} defaultOpen={false}>
               {(mh.surgeries?.length ?? 0) > 0
                 ? mh.surgeries!.map(s => (
-                    <div key={s.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{s.procedure}</div>
+                    <div key={s.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{s.procedure}</div>
                   ))
                 : <EmptyState text={t('mh.noSurgeries')} />}
             </SideSection>
@@ -2307,7 +2307,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             <SideSection icon={<Users className="w-3.5 h-3.5" />} title={t('mh.familyHistory')} defaultOpen={false}>
               {(mh.familyHistory?.length ?? 0) > 0
                 ? mh.familyHistory!.map(f => (
-                    <div key={f.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{f.relation}: {f.condition}</div>
+                    <div key={f.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{f.relation}: {f.condition}</div>
                   ))
                 : <EmptyState text={t('mh.noFamilyHistory')} />}
             </SideSection>
@@ -2315,19 +2315,19 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             {/* Social history */}
             <SideSection icon={<MessageSquare className="w-3.5 h-3.5" />} title={t('mh.socialHistory')} editBtn defaultOpen={false}>
               <div className="space-y-2">
-                <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
+                <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.workAndFamily')}</p>
                   <SideRow na={t('mh.na')} label={t('mh.work')}     value={mh.socialHistory?.work} />
                   <SideRow na={t('mh.na')} label={t('mh.children')} value={mh.socialHistory?.children} />
                 </div>
-                <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
+                <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Cigarette className="w-3 h-3 text-text-muted" />
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.tobaccoUse')}</p>
                   </div>
                   <SideRow na={t('mh.na')} label={t('mh.status')} value={mh.socialHistory?.tobacco} />
                 </div>
-                <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
+                <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Wine className="w-3 h-3 text-text-muted" />
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.alcoholUse')}</p>
@@ -2339,7 +2339,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                       : <span className="text-text-muted">{t('mh.na')}</span>}
                   </div>
                 </div>
-                <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
+                <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <FlaskConical className="w-3 h-3 text-text-muted" />
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.drugUse')}</p>
@@ -2388,11 +2388,11 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 onEdit={() => setEditHealthInfo(true)}
               >
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
+                  <div className="rounded-md bg-bg-2/40 p-3">
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.healthGoals')}</p>
                     <p className="text-[11px] text-text-2">{mh.healthInfo?.goals || t('mh.noGoals')}</p>
                   </div>
-                  <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
+                  <div className="rounded-md bg-bg-2/40 p-3">
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.selfRating')}</p>
                     <p className="text-[11px] text-text-2">
                       {mh.healthInfo?.selfRating != null ? `${mh.healthInfo.selfRating}/5` : t('mh.notRated')}
@@ -2471,7 +2471,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 {(mh.surgeries?.length ?? 0) === 0
                   ? <EmptyState text={t('mh.noSurgeries')} />
                   : mh.surgeries!.map(s => (
-                      <div key={s.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">{s.procedure}</div>
+                      <div key={s.id} className="text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0">{s.procedure}</div>
                     ))}
               </SectionCard>
 
@@ -2479,7 +2479,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 {(mh.familyHistory?.length ?? 0) === 0
                   ? <EmptyState text={t('mh.noFamilyHistory')} />
                   : mh.familyHistory!.map(f => (
-                      <div key={f.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">
+                      <div key={f.id} className="text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0">
                         <span className="text-text-muted">{f.relation}:</span> {f.condition}
                       </div>
                     ))}
@@ -2492,7 +2492,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 {(mh.providers?.length ?? 0) === 0
                   ? <EmptyState text={t('mh.noProviders')} />
                   : mh.providers!.map(p => (
-                      <div key={p.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">{p.name}</div>
+                      <div key={p.id} className="text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0">{p.name}</div>
                     ))}
               </SectionCard>
 
@@ -2501,7 +2501,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                   ? <EmptyState text={t('mh.noVaccines')} />
                   : <div className="space-y-1">
                       {mh.vaccines!.map((v, i) => (
-                        <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{v}</div>
+                        <div key={i} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{v}</div>
                       ))}
                     </div>
                 }
@@ -2515,7 +2515,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                   ? <EmptyState text={t('mh.noCognitive')} />
                   : <div className="space-y-1">
                       {mh.cognitiveStatus!.map((e, i) => (
-                        <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1 last:border-0">
+                        <div key={i} className="flex justify-between text-[11px] border-b border-row-sep py-1 last:border-0">
                           <span className="text-text-muted">{e.name}</span>
                           <span className="text-text-2">{e.status}</span>
                         </div>
@@ -2529,7 +2529,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                   ? <EmptyState text={t('mh.noFunctional')} />
                   : <div className="space-y-1">
                       {mh.functionalStatus!.map((e, i) => (
-                        <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1 last:border-0">
+                        <div key={i} className="flex justify-between text-[11px] border-b border-row-sep py-1 last:border-0">
                           <span className="text-text-muted">{e.name}</span>
                           <span className="text-text-2">{e.status}</span>
                         </div>
@@ -2546,7 +2546,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                   ? <EmptyState text={t('mh.noDevices')} />
                   : <div className="space-y-1">
                       {mh.implantedDevices!.map((d, i) => (
-                        <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{d}</div>
+                        <div key={i} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{d}</div>
                       ))}
                     </div>
                 }
@@ -2557,7 +2557,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                   ? <EmptyState text={t('mh.noSystems')} />
                   : <div className="space-y-1">
                       {mh.systemsReview!.map((s, i) => (
-                        <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{s}</div>
+                        <div key={i} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{s}</div>
                       ))}
                     </div>
                 }
@@ -2588,7 +2588,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 {(mh.comments?.length ?? 0) === 0
                   ? <EmptyState text={t('mh.noComments')} />
                   : mh.comments!.map(c => (
-                      <div key={c.id} className="border-b border-border/40 py-2 last:border-0">
+                      <div key={c.id} className="border-b border-row-sep py-2 last:border-0">
                         <div className="flex justify-between text-[10px] text-text-muted mb-0.5">
                           <span>{c.author ?? t('mh.system')}</span>
                           <span>{c.date}</span>

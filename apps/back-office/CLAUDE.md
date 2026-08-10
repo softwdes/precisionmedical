@@ -26,8 +26,10 @@ misma familia. Cuando construyas algo nuevo:
 
 | ❌ NO | ✅ SÍ |
 |---|---|
-| `border-2 border-rose/40` (bordes gruesos saturados) | `border border-border` o `border border-rose/30` |
-| `bg-gradient-to-br from-rose/10 to-rose/5 p-4` (gradients en cada section) | `rounded-lg border border-border bg-bg-1 p-5` |
+| `border-2 border-rose/40` (bordes gruesos saturados) | `border border-rose/30` — y solo en avisos de color |
+| Borde en la tarjeta Y en la caja de adentro (dos líneas a 10px) | Una sola frontera por nivel: **el fondo separa, la línea sobra** |
+| `border-b border-border` como separador de filas | `border-b border-row-sep` |
+| `bg-gradient-to-br from-rose/10 to-rose/5 p-4` (gradients en cada section) | `rounded-lg bg-bg-1 p-5` |
 | Crear `<Section>`, `<Field>`, `<Card>` locales en cada pantalla | Usar primitivos de `ui-phoenix` o agregar uno nuevo ahí |
 | Pills grandes con `text-sm px-3 py-1.5` | `TagPill` o `StatusPill` (`text-[10px] px-2 py-0.5`) |
 | Avatars con `w-12 h-12 rounded-lg bg-gradient-cyan` inline | `<EntityAvatar size={12} />` o `<PersonAvatar size={12} />` |
@@ -42,8 +44,9 @@ misma familia. Cuando construyas algo nuevo:
 | Texto label (KPI / th / sección uppercase) | `text-[10px] uppercase tracking-wider font-semibold text-text-muted` |
 | Título de sección | `text-text-1 font-semibold text-sm uppercase tracking-wider` + icon `w-4 h-4 text-brand` |
 | H1 page | `text-2xl font-bold text-text-1` (usar `PageHeader`) |
-| Card container | `rounded-lg border border-border bg-bg-1 p-5` |
-| Sub-card / inner box | `rounded-md bg-bg-2/40 border border-border/40 p-3` |
+| Card container | `rounded-lg bg-bg-1 p-5` — **sin borde** |
+| Sub-card / inner box | `rounded-md bg-bg-2/40 p-3` — **sin borde** |
+| Separador de filas | `border-b border-row-sep last:border-0` |
 | Body cell (default) | `text-sm` |
 | Body cell para texto largo | `text-[12.5px]` |
 | Hover row | `hover:bg-white/[0.02]` |
@@ -53,6 +56,30 @@ misma familia. Cuando construyas algo nuevo:
 | Quote (cita citable) | `text-[11px] italic text-text-muted` |
 | Note de info | `rounded-md border border-{tone}/30 bg-{tone}/10 px-3 py-2 text-[11px] text-{tone}` |
 | Color tokens | `brand`, `cyan`, `emerald`, `amber`, `rose`, `violet`, `pink` (NUNCA inventar nuevos) |
+
+### Bordes: cuándo sí (regla de Erick, confirmada 2026-08-09)
+
+**Por defecto, no.** El escalón de fondo (`bg-0` → `bg-1` → `bg-2`) ya separa cada
+nivel; agregarle una línea encima es decir lo mismo dos veces. El problema nunca fue
+el grosor —`--border` es `rgba(255,255,255,.06)`, casi invisible— sino el
+**apilamiento**: tarjeta con borde + caja interna con borde + línea por fila son tres
+líneas en 40px, y juntas se leen gruesas.
+
+El borde se queda solo donde hace un trabajo que el fondo no puede hacer:
+
+- **Avisos de color** (`border-amber/30`, `border-rose/30`) — el borde ES el significado.
+- **Inputs, botones `outline` y foco** — no tienen cambio de fondo que los defina.
+- **Chrome estructural**: la línea bajo la barra de tabs, el header y el footer de un
+  diálogo. Una sola línea, sin otra cerca.
+
+Los paneles flotantes (dropdowns, popovers) se definen con **sombra**, no con borde —
+ver `ui-phoenix/floating-panel.tsx`.
+
+> **Modificadores de opacidad en tokens** (`bg-bg-2/40`, `border-border/60`): funcionan,
+> pero solo porque el preset declara cada token con `color-mix` y `<alpha-value>`. Si
+> alguien lo vuelve a `var(--x)` a secas, Tailwind deja de generar esas clases y el
+> elemento cae al default (borde gris claro OPACO, fondo transparente) **sin ningún
+> error**. Ver el comentario en `packages/tailwind-config/preset.ts`.
 
 ### Color por intención (no por gusto)
 

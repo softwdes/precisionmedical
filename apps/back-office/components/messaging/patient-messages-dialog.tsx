@@ -7,11 +7,15 @@
  * los sellados y los sacados de las bandejas (Delete From All). Bold = tengo
  * entradas sin leer (solo aplica si soy destinatario). Desde acá se abre el
  * hilo y se crea un mensaje nuevo ya vinculado al paciente.
+ *
+ * Abierto desde la fila de un CASO (`caseFilter`), acota el historial a ese
+ * caso y el mensaje nuevo nace con él ya elegido. "Ver todos" quita el filtro
+ * sin cerrar el diálogo.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Mail, MailOpen, Plus, Lock, MessagesSquare } from 'lucide-react';
+import { Mail, MailOpen, Plus, Lock, MessagesSquare, Briefcase } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
 import { ComposeMessageDialog, type ComposePatientRef } from './compose-message-dialog';
@@ -26,7 +30,14 @@ interface ThreadRow {
   lastAuthorName: string | null;
   lastEntryAt: string;
   sealedAt: string | null;
+  case: { id: string; caseCode: string; accidentDate: string | null } | null;
   unread: boolean;
+}
+
+export interface MessagesCaseFilter {
+  id: string;
+  caseCode: string;
+  accidentDate: string | null;
 }
 
 interface Props {
@@ -35,9 +46,11 @@ interface Props {
   patient: ComposePatientRef | null;
   currentUserId: string;
   isAdmin?: boolean;
+  /** Abierto desde un caso: acota el historial y precarga el caso al escribir */
+  caseFilter?: MessagesCaseFilter | null;
 }
 
-export function PatientMessagesDialog({ open, onClose, patient, currentUserId, isAdmin = false }: Props) {
+export function PatientMessagesDialog({ open, onClose, patient, currentUserId, isAdmin = false, caseFilter = null }: Props) {
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
 
@@ -45,12 +58,17 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
   const [loading, setLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  // Copia local del filtro: "ver todos" lo limpia sin cerrar el diálogo.
+  const [activeCase, setActiveCase] = useState<MessagesCaseFilter | null>(caseFilter);
+
+  useEffect(() => { if (open) setActiveCase(caseFilter); }, [open, caseFilter]);
 
   const load = useCallback(async (): Promise<void> => {
     if (!patient) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/messages/patient/${patient.id}`);
+      const qs = activeCase ? `?caseId=${activeCase.id}` : '';
+      const res = await fetch(`/api/messages/patient/${patient.id}${qs}`);
       if (res.ok) {
         const data = await res.json();
         setThreads(data.threads ?? []);
@@ -60,7 +78,7 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
     } finally {
       setLoading(false);
     }
-  }, [patient]);
+  }, [patient, activeCase]);
 
   useEffect(() => {
     if (open) load();
@@ -70,12 +88,27 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
     new Date(iso).toLocaleString(locale === 'es' ? 'es-MX' : 'en-US', {
       dateStyle: 'short', timeStyle: 'short',
     });
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+
+  // El compose hereda el caso del filtro activo; sin filtro, lo elige él.
+  // MEMOIZADO a propósito: el compose reinicia su formulario cuando cambia la
+  // identidad de `patient`, y un objeto nuevo en cada render del padre (p. ej.
+  // al recargar la lista) borraría lo que se está escribiendo.
+  const composePatient = useMemo<ComposePatientRef | null>(
+    () => (patient ? { id: patient.id, name: patient.name, caseId: activeCase?.id ?? null } : null),
+    [patient, activeCase],
+  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
         <DialogContent className="max-w-2xl p-0 max-h-[92vh] flex flex-col">
-          <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border">
+          {/* pr-12: deja libre la esquina donde Radix pinta la X — si no, el
+              botón de nuevo mensaje queda pegado a ella. */}
+          <DialogHeader className="px-4 sm:px-6 pr-12 sm:pr-14 pt-5 pb-3 border-b border-border">
             <DialogTitle className="flex items-center gap-2 flex-wrap text-text-1 text-base font-semibold">
               <MessagesSquare className="w-4 h-4 text-brand" />
               {t('patientMessagesTitle')}
@@ -86,6 +119,22 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
                 {t('btnNewMessage')}
               </button>
             </DialogTitle>
+            {/* Historial acotado a un caso. Sin escape al historial completo a
+                propósito: el ícono del paciente ya es esa entrada, y mezclar
+                los dos modos acá difuminaba qué está mostrando el diálogo. */}
+            {activeCase && (
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-brand">
+                  <Briefcase className="w-3 h-3" />
+                  <span className="font-mono">{activeCase.caseCode}</span>
+                  {activeCase.accidentDate && (
+                    <span className="text-text-muted">
+                      · {t('caseAccidentPrefix')} {fmtDate(activeCase.accidentDate)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
@@ -101,8 +150,10 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
                   <li key={th.id}>
                     <button type="button" onClick={() => setOpenThreadId(th.id)}
                       className="w-full flex items-center gap-3 px-4 sm:px-6 !py-1 min-h-[44px] text-left hover:bg-white/[0.02] transition-colors">
+                      {/* Verde = sin leer normal · rojo = urgente (mismo
+                          código que el badge del top bar y el inbox) */}
                       {th.unread
-                        ? <Mail className="w-3.5 h-3.5 text-brand shrink-0" />
+                        ? <Mail className={`w-3.5 h-3.5 shrink-0 ${th.priority === 'URGENT' ? 'text-rose' : 'text-emerald'}`} />
                         : <MailOpen className="w-3.5 h-3.5 text-text-muted opacity-60 shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm truncate ${th.unread ? 'font-semibold text-text-1' : 'text-text-1'}`}>
@@ -110,6 +161,11 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
                         </div>
                         <div className="text-[11px] text-text-muted truncate">
                           {th.lastAuthorName ?? th.createdByName} · {t(`type${th.type}`)}
+                          {/* Con filtro activo el caso es obvio; sin filtro
+                              distingue los hilos de cada caso del paciente. */}
+                          {!activeCase && th.case && (
+                            <span className="font-mono text-brand"> · {th.case.caseCode}</span>
+                          )}
                         </div>
                       </div>
                       {th.priority === 'URGENT' && (
@@ -133,7 +189,7 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
       <ComposeMessageDialog
         open={composeOpen}
         onClose={() => setComposeOpen(false)}
-        patient={patient}
+        patient={composePatient}
         onSent={() => load()}
       />
 

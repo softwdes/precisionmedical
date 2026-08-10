@@ -23,7 +23,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer,
+  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -63,13 +63,16 @@ interface ThreadDetail {
   sealedAt: string | null;
   sealedByName: string | null;
   patient: { id: string; firstName: string; lastName: string; patientCode: string } | null;
-  case: { id: string; caseCode: string } | null;
+  case: { id: string; caseCode: string; accidentDate: string | null } | null;
   recipients: Array<{ userId: string; userName: string; kind: 'TO' | 'CC'; lastReadAt: string | null }>;
   entries: ThreadEntry[];
   nextAppointment: { id: string; scheduledFor: string } | null;
 }
 
 type ComposerMode = 'REPLY' | 'REPLY_ALL' | 'FORWARD' | 'NOTE' | null;
+
+/** Un hilo se marcó leído — lo escucha el badge del top bar (InboxBell). */
+export const MESSAGES_READ_EVENT = 'pm:messages-read';
 
 interface Props {
   open: boolean;
@@ -102,6 +105,10 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
     new Date(iso).toLocaleString(locale === 'es' ? 'es-MX' : 'en-US', {
       dateStyle: 'short', timeStyle: 'short',
     });
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
 
   const load = useCallback(async (): Promise<void> => {
     if (!threadId) return;
@@ -111,8 +118,13 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
       if (!res.ok) throw new Error();
       const data = await res.json();
       setThread(data.thread);
-      // Marca leído MI fila — dispara después de pintar, no bloquea.
-      fetch(`/api/messages/${threadId}/read`, { method: 'POST' }).catch(() => undefined);
+      // Marca leído MI fila — dispara después de pintar, no bloquea. Al
+      // confirmar, avisa al badge del top bar: el rojo de un urgente tiene que
+      // apagarse en el momento en que lo atienden, no en el próximo sondeo.
+      // Evento global porque el hilo se abre desde 4 lugares distintos.
+      fetch(`/api/messages/${threadId}/read`, { method: 'POST' })
+        .then(() => window.dispatchEvent(new CustomEvent(MESSAGES_READ_EVENT)))
+        .catch(() => undefined);
     } catch {
       toast.error(t('loadError'));
       onClose();
@@ -289,6 +301,17 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                   {thread.patient && (
                     <span className="text-brand">
                       {thread.patient.lastName}, {thread.patient.firstName} · {thread.patient.patientCode}
+                    </span>
+                  )}
+                  {/* El caso es una elección deliberada del que escribe — se
+                      muestra para saber sobre qué se está consultando. */}
+                  {thread.case && (
+                    <span className="inline-flex items-center gap-1">
+                      <Briefcase className="w-3 h-3" />
+                      <span className="font-mono text-text-2">{thread.case.caseCode}</span>
+                      {thread.case.accidentDate && (
+                        <span>· {t('caseAccidentPrefix')} {fmtDate(thread.case.accidentDate)}</span>
+                      )}
                     </span>
                   )}
                   {thread.patient && (

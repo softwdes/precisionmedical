@@ -31,23 +31,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') ?? '').trim();
   const excludeId = searchParams.get('excludeId');
+  /**
+   * `allowEmpty=1` devuelve los pacientes más recientes cuando todavía no se
+   * escribió nada — así el campo muestra opciones al abrirse en vez de un
+   * vacío. Es OPT-IN a propósito: el selector de tutor legal usa este mismo
+   * endpoint y ahí sí conviene exigir búsqueda (nadie elige un apoderado de
+   * una lista arbitraria).
+   */
+  const allowEmpty = searchParams.get('allowEmpty') === '1';
 
-  if (q.length < 2) {
+  if (q.length < 2 && !allowEmpty) {
     return NextResponse.json({ results: [] });
   }
 
   const patients = await db.patient.findMany({
     where: {
       ...(excludeId ? { id: { not: excludeId } } : {}),
-      OR: [
-        ...fullNameOR(q),
-        { firstName:   { contains: q, mode: 'insensitive' } },
-        { lastName:    { contains: q, mode: 'insensitive' } },
-        { phone:       { contains: q } },
-        { phone2:      { contains: q } },
-        { email:       { contains: q, mode: 'insensitive' } },
-        { patientCode: { contains: q, mode: 'insensitive' } },
-      ],
+      // Sin término de búsqueda no hay filtro: son "los más recientes".
+      ...(q.length > 0
+        ? {
+            OR: [
+              ...fullNameOR(q),
+              { firstName:   { contains: q, mode: 'insensitive' as const } },
+              { lastName:    { contains: q, mode: 'insensitive' as const } },
+              { phone:       { contains: q } },
+              { phone2:      { contains: q } },
+              { email:       { contains: q, mode: 'insensitive' as const } },
+              { patientCode: { contains: q, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
     },
     take: 8,
     orderBy: { createdAt: 'desc' },
@@ -55,6 +68,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id: true, patientCode: true, firstName: true, lastName: true,
       phone: true, phone2: true, email: true, dateOfBirth: true,
       addressLine1: true, addressCity: true, addressState: true, addressZip: true,
+      // Mensajería interna: un mensaje siempre pertenece a un caso, así que un
+      // paciente sin casos no es elegible. Se muestra igual, pero bloqueado.
+      _count: { select: { cases: { where: { deletedAt: null } } } },
     },
   });
 
@@ -81,6 +97,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         age,
         // El UI usa esto para marcar en rose y bloquear la selección
         isMinor: age !== null && age < 18,
+        caseCount: p._count.cases,
       };
     }),
   });

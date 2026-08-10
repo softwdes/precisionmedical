@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Send, MessageSquarePlus, Paperclip, FileText, Trash2, Loader2,
   LayoutTemplate, FolderOpen, Save, Search as SearchIcon, X as XIcon,
@@ -23,14 +23,17 @@ import {
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { RichTextEditor } from '@/components/ui-phoenix';
+import { RichTextEditor, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
+import { CaseSelect, pickDefaultCase, type MessagingCase } from './case-select';
 
 export interface ComposePatientRef {
   id: string;
   name: string; // "APELLIDO, Nombre" para la cabecera
+  /** Caso preseleccionado (al abrir desde una fila de caso). Sin él, se elige
+   *  el caso vivo por defecto una vez cargada la lista. */
   caseId?: string | null;
 }
 
@@ -45,6 +48,7 @@ export interface ComposeDraftPayload {
   body: string;
   attachments: Array<{ path?: string; patientDocumentId?: string; fileName: string; description: string }>;
   patient: ComposePatientRef | null;
+  caseId?: string | null;
 }
 
 interface Props {
@@ -72,11 +76,18 @@ const labelCls = 'text-[10px] uppercase tracking-wider font-semibold text-text-m
 
 export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDraft, onDraftSaved }: Props) {
   const t = useTranslations('phoenix.messaging');
+  const locale = useLocale();
   const toast = useToast();
 
-  // El paciente puede venir de la prop (abierto desde el paciente) o del
-  // borrador reabierto — el borrador manda si existe.
-  const effectivePatient = initialDraft?.payload.patient ?? patient ?? null;
+  // Paciente elegido a mano — solo aplica cuando el compose se abre SIN
+  // contexto (el "Nuevo mensaje" del inbox). Desde un paciente o un caso el
+  // dato ya viene decidido y el campo es de lectura.
+  const [pickedPatient, setPickedPatient] = useState<AutoResult | null>(null);
+
+  const contextPatient = initialDraft?.payload.patient ?? patient ?? null;
+  const effectivePatient: ComposePatientRef | null =
+    contextPatient ??
+    (pickedPatient ? { id: pickedPatient.id, name: pickedPatient.label } : null);
 
   const [users, setUsers] = useState<MessagingUser[]>([]);
   const [to, setTo] = useState<MessagingUser[]>([]);
@@ -88,6 +99,19 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
 
+  // ─── Caso del paciente ──────────────────────────────────────────────────
+  // Todo mensaje con paciente va anclado a un caso (decisión de Erick
+  // 2026-08-08: sin caso no hay nada que consultar). Se preselecciona el caso
+  // vivo; si vino uno explícito (abierto desde la fila de un caso), manda ese.
+  const [cases, setCases] = useState<MessagingCase[]>([]);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [caseId, setCaseId] = useState<string | null>(null);
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+
   // ─── Adjuntos: se suben al elegirse (el hilo aún no existe) y el POST
   //     final referencia las keys. Cantidad libre, como el legacy. Los del
   //     expediente (Attach From Chart) llevan patientDocumentId en vez de path.
@@ -95,6 +119,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const uploadFiles = async (files: FileList | null): Promise<void> => {
     if (!files || files.length === 0) return;
@@ -125,11 +150,50 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     setSubject(d?.subject ?? ''); setBody(d?.body ?? '');
     setAttachments((d?.attachments ?? []).map((a) => ({ ...a, description: a.description ?? '' })));
     setConfirmDiscard(false);
+    // Caso explícito (fila de caso o borrador). Si no hay, lo elige el efecto
+    // de abajo cuando llegue la lista.
+    setCaseId(d?.caseId ?? patient?.caseId ?? null);
+    setCases([]);
+    setPickedPatient(null);
     fetch('/api/messages/users')
       .then((r) => (r.ok ? r.json() : { users: [] }))
       .then((d2) => setUsers(d2.users ?? []))
       .catch(() => setUsers([]));
-  }, [open, initialDraft]);
+  }, [open, initialDraft, patient]);
+
+  // Casos del paciente — misma fuente que la fila expandible de pacientes.
+  // Depende del ID y no del objeto: cuando el paciente sale del buscador, el
+  // objeto se recrea en cada render y el efecto se dispararía en bucle.
+  const effectivePatientId = effectivePatient?.id ?? null;
+  useEffect(() => {
+    if (!open || !effectivePatientId) { setCases([]); return; }
+    let cancelled = false;
+    setCasesLoading(true);
+    fetch(`/api/admin/patients/${effectivePatientId}/cases`)
+      .then((r) => (r.ok ? r.json() : { cases: [] }))
+      .then((data) => {
+        if (cancelled) return;
+        const list: MessagingCase[] = (data.cases ?? []).map((c: {
+          id: string; caseCode: string; caseType: string | null; status: string;
+          accidentDate: string | null; lastAppointment: { scheduledFor: string } | null;
+          firstAppointment: { scheduledFor: string } | null;
+        }) => ({
+          id: c.id,
+          caseCode: c.caseCode,
+          caseType: c.caseType,
+          status: c.status,
+          accidentDate: c.accidentDate,
+          lastAppointmentAt: c.lastAppointment?.scheduledFor ?? c.firstAppointment?.scheduledFor ?? null,
+        }));
+        setCases(list);
+        // Solo elige por defecto si nadie fijó un caso explícito, o si el que
+        // vino ya no existe en la lista.
+        setCaseId((prev) => (prev && list.some((c) => c.id === prev) ? prev : pickDefaultCase(list)?.id ?? null));
+      })
+      .catch(() => { if (!cancelled) setCases([]); })
+      .finally(() => { if (!cancelled) setCasesLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, effectivePatientId]);
 
   // ─── Plantillas (panel del legacy) ─────────────────────────────────────
   interface Template { id: string; title: string; body: string; createdByName: string }
@@ -203,7 +267,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     try {
       const payload: ComposeDraftPayload = {
         to, cc, type, category, priority, subject, body, attachments,
-        patient: effectivePatient,
+        patient: effectivePatient, caseId,
       };
       const res = await fetch('/api/messages/drafts', {
         method: 'POST',
@@ -222,14 +286,18 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
   };
 
   const plainBody = body.replace(/<[^>]*>/g, '').trim();
-  const canSend = to.length > 0 && subject.trim() !== '' && plainBody !== '' && !sending;
+  // Con paciente, el caso es OBLIGATORIO: el mensaje siempre consulta algo de
+  // un caso concreto. Sin paciente (mensaje suelto del inbox) no aplica.
+  const caseMissing = !!effectivePatient && !caseId;
+  const canSend = to.length > 0 && subject.trim() !== '' && plainBody !== '' && !caseMissing && !sending;
 
   // ─── Cierre protegido: un mensaje a medio escribir no se tira por un clic
   //     accidental. El clic AFUERA nunca cierra; Cancelar/X/Esc con contenido
   //     piden confirmación antes de descartar.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const isDirty =
-    to.length > 0 || cc.length > 0 || subject.trim() !== '' || plainBody !== '' || attachments.length > 0;
+    to.length > 0 || cc.length > 0 || subject.trim() !== '' || plainBody !== '' ||
+    attachments.length > 0 || pickedPatient !== null;
   const requestClose = (): void => {
     if (sending) return;
     if (isDirty) setConfirmDiscard(true);
@@ -250,7 +318,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
           to: to.map((u) => u.id),
           cc: cc.map((u) => u.id),
           patientId: effectivePatient?.id ?? null,
-          caseId: effectivePatient?.caseId ?? null,
+          caseId: effectivePatient ? caseId : null,
           attachments: attachments.map((a) => ({
             path: a.path,
             patientDocumentId: a.patientDocumentId,
@@ -278,10 +346,15 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) requestClose(); }}>
       <DialogContent
+        ref={contentRef}
         className="max-w-4xl p-0 max-h-[92vh] flex flex-col"
         // Clic afuera NUNCA cierra el compose — solo Cancelar/X/Esc (con
         // confirmación si hay contenido). Un mensaje no se pierde por un clic.
         onInteractOutside={(e) => e.preventDefault()}
+        // Sin autofoco en el primer campo: Radix enfocaría el buscador de
+        // paciente y su lista se abriría sola al montar el diálogo. El foco va
+        // al contenedor (tabIndex -1) para no romper la trampa de foco ni Esc.
+        onOpenAutoFocus={(e) => { e.preventDefault(); contentRef.current?.focus(); }}
       >
         <DialogHeader className="px-4 sm:px-6 pt-4 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
@@ -291,11 +364,57 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 space-y-3">
-          {effectivePatient && (
-            <div className="rounded-md border border-brand/30 bg-brand/10 px-3 py-1.5 text-[11px] text-brand">
-              {t('linkedToPatient', { name: effectivePatient.name })}
+          {/* Contexto del mensaje: paciente + caso. Todo mensaje con paciente
+              pertenece a un caso concreto. Abierto desde un paciente/caso el
+              primero es de lectura; desde el inbox se busca. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className={labelCls}>{t('fieldPatient')}</label>
+              {contextPatient ? (
+                <div className="rounded-md border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-brand truncate">
+                  {contextPatient.name}
+                </div>
+              ) : (
+                <Autocomplete
+                  endpoint="/api/admin/patients/autocomplete"
+                  // Al hacer clic ya muestra los pacientes más recientes;
+                  // escribir filtra. Evita el campo vacío que no dice nada.
+                  extraParams={{ allowEmpty: '1' }}
+                  placeholder={t('patientSearchPlaceholder')}
+                  selected={pickedPatient}
+                  onSelect={(r) => {
+                    setPickedPatient(r);
+                    // Paciente distinto ⇒ el caso anterior ya no aplica.
+                    setCaseId(null);
+                  }}
+                  // Sin casos no hay nada que consultar: visible pero vetado.
+                  isBlocked={(r) => (r.caseCount ?? 0) === 0}
+                  blockedBadge={t('patientNoCasesBadge')}
+                  emptyHint={t('patientSearchEmpty')}
+                />
+              )}
             </div>
-          )}
+            {effectivePatient && (
+              <div className="space-y-1.5">
+                <label className={labelCls}>{t('fieldCase')}</label>
+                <CaseSelect
+                  cases={cases}
+                  value={caseId}
+                  onChange={setCaseId}
+                  disabled={sending}
+                  loading={casesLoading}
+                  formatDate={fmtDate}
+                  labels={{
+                    placeholder: t('casePlaceholder'),
+                    searchPlaceholder: t('caseSearchPlaceholder'),
+                    pastCases: t('casePastGroup'),
+                    accidentPrefix: t('caseAccidentPrefix'),
+                    loading: t('loading'),
+                  }}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Para + CC lado a lado: ahorran una fila y el editor gana alto */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

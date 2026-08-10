@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl';
 import { Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { InboxClient } from './inbox-client';
+import { MESSAGES_READ_EVENT } from './thread-view-dialog';
 
 interface BadgeInfo {
   total: number;
@@ -47,8 +48,16 @@ export function InboxBell(): React.ReactElement | null {
     void refreshBadge();
     const id = setInterval(() => void refreshBadge(), POLL_MS);
     const onFocus = () => void refreshBadge();
+    // Alguien abrió un hilo (desde el inbox, el paciente, el caso o /messages):
+    // el contador —y el rojo del urgente— se actualizan al instante.
+    const onRead = () => void refreshBadge();
     window.addEventListener('focus', onFocus);
-    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+    window.addEventListener(MESSAGES_READ_EVENT, onRead);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(MESSAGES_READ_EVENT, onRead);
+    };
   }, [refreshBadge]);
 
   const unread = badge?.unread ?? 0;
@@ -70,17 +79,21 @@ export function InboxBell(): React.ReactElement | null {
           hasUrgent
             ? 'border-rose/50 bg-rose/15 text-rose animate-pulse'
             : unread > 0
-              ? 'border-brand/40 bg-brand/10 text-text-1 hover:bg-brand/20'
+              ? 'border-emerald/40 bg-emerald/10 text-text-1 hover:bg-emerald/20'
               : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
         }`}
       >
         <Mail className="w-4 h-4" aria-hidden="true" />
         <span className="hidden sm:inline">{t('bellTitle')}</span>
+        {/* Pastilla RELLENA: es la única mancha de color saturado de la barra
+            y por eso se lee de un vistazo sin necesidad de animarla. El
+            movimiento queda reservado para lo urgente — si todo parpadea,
+            nada parpadea. */}
         <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
           hasUrgent
             ? 'bg-rose text-white'
             : unread > 0
-              ? 'bg-brand text-white'
+              ? 'bg-emerald text-black'
               : 'bg-bg-1 text-text-muted border border-border'
         }`}>
           {unread}/{total}

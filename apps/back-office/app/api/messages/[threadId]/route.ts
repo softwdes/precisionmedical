@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       patient: {
         select: { id: true, firstName: true, lastName: true, patientCode: true },
       },
-      case: { select: { id: true, caseCode: true } },
+      case: { select: { id: true, caseCode: true, accidentDate: true } },
       recipients: {
         select: { userId: true, userName: true, kind: true, lastReadAt: true },
       },

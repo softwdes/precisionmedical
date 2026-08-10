@@ -325,8 +325,11 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
                   </td>
                   <td className={`px-3 !py-1.5 text-[12.5px] max-w-[280px] ${r.unread ? 'font-semibold text-text-1' : 'text-text-1'}`}>
                     <span className="flex items-center gap-1.5">
+                      {/* Mismo idioma que el badge del top bar: verde = sin
+                          leer normal, rojo = urgente. La negrita del asunto
+                          hace el resto — texto de color se leería como link. */}
                       {r.unread
-                        ? <Mail className={`w-3 h-3 shrink-0 ${r.priority === 'URGENT' ? 'text-rose' : 'text-brand'}`} />
+                        ? <Mail className={`w-3 h-3 shrink-0 ${r.priority === 'URGENT' ? 'text-rose' : 'text-emerald'}`} />
                         : <MailOpen className="w-3 h-3 shrink-0 text-text-muted opacity-60" />}
                       <span className="truncate">{r.subject}</span>
                     </span>

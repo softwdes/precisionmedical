@@ -4,6 +4,9 @@
  * hilos anclados al paciente sin importar quién los mire ni si salieron de
  * las bandejas (sellados y Delete From All incluidos): esta capa es el
  * registro permanente. Solo excluye los borrados del historial (deletedAt).
+ *
+ * `?caseId=` acota al historial de UN caso — es lo que abre el ícono de
+ * mensaje en la fila de un caso.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -17,8 +20,10 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (deny) return deny;
   const { patientId } = await ctx.params;
 
+  const caseId = req.nextUrl.searchParams.get('caseId');
+
   const rows = await db.messageThread.findMany({
-    where: { patientId, deletedAt: null },
+    where: { patientId, deletedAt: null, ...(caseId ? { caseId } : {}) },
     orderBy: { lastEntryAt: 'desc' },
     select: {
       id: true,
@@ -29,6 +34,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       createdByName: true,
       lastEntryAt: true,
       sealedAt: true,
+      case: { select: { id: true, caseCode: true, accidentDate: true } },
       recipients: {
         where: { userId: actor.actorUserId },
         select: { lastReadAt: true },
@@ -50,6 +56,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     createdByName: r.createdByName,
     lastEntryAt: r.lastEntryAt,
     sealedAt: r.sealedAt,
+    case: r.case,
     lastAuthorName: r.entries[0]?.authorName ?? null,
     // Bold solo aplica si YO soy destinatario; para terceros va sin negrita.
     unread:

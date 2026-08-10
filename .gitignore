@@ -15,6 +15,15 @@ dist/
 .env
 .env.local
 .env.*.local
+# Copias de seguridad de .env — traen SERVICE_ROLE_KEY y DATABASE_URL en claro
+.env*.bak*
+*.env.bak*
+
+# Artefactos del build de la PWA (next-pwa los regenera en cada build)
+apps/*/public/sw.js
+apps/*/public/sw.js.map
+apps/*/public/workbox-*.js
+apps/*/public/workbox-*.js.map
 
 # IDE
 .idea/

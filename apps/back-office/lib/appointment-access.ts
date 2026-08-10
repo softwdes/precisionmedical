@@ -90,11 +90,11 @@ export async function checkAppointmentAccess(
 }
 
 /** Igual que el anterior, pero partiendo del id de una orden de laboratorio. */
-export async function checkOrderAccess(orderId: string): Promise<Result> {
+export async function checkOrderAccess(orderId: string, opts: Options = {}): Promise<Result> {
   const order = await db.labOrder.findUnique({
     where: { id: orderId },
     select: { appointmentId: true },
   });
   if (!order) return { deny: NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 }) };
-  return checkAppointmentAccess(order.appointmentId);
+  return checkAppointmentAccess(order.appointmentId, opts);
 }

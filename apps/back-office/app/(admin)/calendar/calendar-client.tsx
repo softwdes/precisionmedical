@@ -14,7 +14,8 @@
  * Accent del módulo: cyan (Regla #5 tabla)
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
@@ -73,6 +74,13 @@ interface CalendarClientProps {
    * Oculta el filtro de doctor; el resto de la funcionalidad queda intacta.
    */
   lockedProviderId?: string;
+  /**
+   * Superficie que monta el calendario. Decide a qué ruta abre el detalle del
+   * caso — /front-office/[id] (clínica) o /doctor/case/[id] (portal médico, con
+   * Finanzas en solo lectura) — y cuál es la ruta base contra la que se detecta
+   * que el modal interceptado está abierto encima.
+   */
+  variant?: 'admin' | 'doctor';
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -460,8 +468,10 @@ function LegendStats({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function CalendarClient({ clinics, providers, lockedProviderId }: CalendarClientProps) {
+export function CalendarClient({ clinics, providers, lockedProviderId, variant = 'admin' }: CalendarClientProps) {
   const t = useTranslations('phoenix.calendar');
+  const router   = useRouter();
+  const pathname = usePathname();
 
   const WEEKDAYS     = Object.values(t.raw('weekdays') as Record<string, string>);
   const WEEKDAYS_ALL = Object.values(t.raw('weekdaysAll') as Record<string, string>);
@@ -526,6 +536,31 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     setSlotTime(time);
     setNewApptOpen(true);
   };
+
+  // ─── Detalle del caso como modal interceptado ────────────────────────────
+  // El panel de la cita manda al caso completo (labs, servicios, férulas y
+  // cobro). La navegación es una ruta de verdad — /front-office/[id] o
+  // /doctor/case/[id] — interceptada por el slot @modal de este segmento, así
+  // que el calendario NO se desmonta: al cerrar el caso vuelve tal cual estaba.
+  const calendarPath = variant === 'doctor' ? '/doctor/calendar' : '/calendar';
+  const caseBasePath = variant === 'doctor' ? '/doctor/case'     : '/front-office';
+  const caseModalOpen = pathname !== calendarPath;
+
+  // Abre en Laboratorios, no en el resumen del caso: desde el calendario se
+  // entra a ver qué se le va a cobrar al paciente, y los labs son el primer
+  // renglón de esa cuenta (decisión de Erick 2026-08-09).
+  const openCase = useCallback((caseId: string) => {
+    router.push(`${caseBasePath}/${caseId}?tab=labs`);
+  }, [router, caseBasePath]);
+
+  // Al volver del caso, la data del calendario puede haber cambiado (cobros,
+  // labs, estado de la cita). Se refresca en la transición abierto → cerrado,
+  // no en cada render: refrescar siempre dispararía un fetch por navegación.
+  const caseWasOpen = useRef(false);
+  useEffect(() => {
+    if (caseWasOpen.current && !caseModalOpen) setRefreshKey(k => k + 1);
+    caseWasOpen.current = caseModalOpen;
+  }, [caseModalOpen]);
 
   // ─── Drag & Drop reschedule ──────────────────────────────────────────────
   const [draggingId,  setDraggingId]  = useState<string | null>(null);
@@ -1581,6 +1616,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         <AppointmentDetailPanel
           appointment={selectedAppt}
           coverage={selectedAppt.case?.coverage}
+          onOpenCase={openCase}
+          suspended={caseModalOpen}
           onClose={() => setSelectedAppt(null)}
           onRefresh={() => setRefreshKey(k => k + 1)}
         />

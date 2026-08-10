@@ -18,7 +18,7 @@ import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
-import { PatientMessagesDialog } from '@/components/messaging/patient-messages-dialog';
+import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/messaging/patient-messages-dialog';
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
 import QRCode from 'qrcode';
@@ -1918,7 +1918,23 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
 
   // ─── Mensajería interna (M1) — historial del paciente + compose ──────────
+  // `msgCase` acota el historial a UN caso: es lo que abre el ícono de mensaje
+  // de una fila de caso. Null = historial completo del paciente.
   const [msgPatient, setMsgPatient] = useState<ComposePatientRef | null>(null);
+  const [msgCase, setMsgCase] = useState<MessagesCaseFilter | null>(null);
+
+  const openPatientMessages = useCallback((p: { id: string; firstName: string; lastName: string }) => {
+    setMsgCase(null);
+    setMsgPatient({ id: p.id, name: `${p.lastName}, ${p.firstName}` });
+  }, []);
+
+  const openCaseMessages = useCallback((
+    p: { id: string; firstName: string; lastName: string },
+    c: { id: string; caseCode: string; accidentDate: string | null },
+  ) => {
+    setMsgCase({ id: c.id, caseCode: c.caseCode, accidentDate: c.accidentDate });
+    setMsgPatient({ id: p.id, name: `${p.lastName}, ${p.firstName}`, caseId: c.id });
+  }, []);
 
   // ─── Llamar al paciente (Twilio real) ───────────────────────────────────
   const twilio = useTwilioDevice();
@@ -2438,20 +2454,25 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                       </span>
                     )}
                     {/* Mensajería interna — disponible también en el portal
-                        médico (mismo componente para ambos módulos). */}
+                        médico (mismo componente para ambos módulos).
+                        Sin casos no hay nada que consultar: el ícono queda
+                        deshabilitado, igual que teléfono/email cuando faltan.
+                        NO se pasa caseId: el compose elige el caso vivo. */}
                     {currentUserId && (
-                      <button
-                        onClick={() => setMsgPatient({
-                          id: p.id,
-                          name: `${p.lastName}, ${p.firstName}`,
-                          caseId: p.latestCase?.id ?? null,
-                        })}
-                        className="p-1.5 rounded hover:bg-brand/10 transition-colors group"
-                        title={tMsg('tooltipPatientMessages')}
-                        aria-label={`${tMsg('tooltipPatientMessages')} — ${p.firstName} ${p.lastName}`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-text-muted group-hover:text-brand transition-colors" />
-                      </button>
+                      p.caseCount > 0 ? (
+                        <button
+                          onClick={() => openPatientMessages(p)}
+                          className="p-1.5 rounded hover:bg-brand/10 transition-colors group"
+                          title={tMsg('tooltipPatientMessages')}
+                          aria-label={`${tMsg('tooltipPatientMessages')} — ${p.firstName} ${p.lastName}`}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-text-muted group-hover:text-brand transition-colors" />
+                        </button>
+                      ) : (
+                        <span title={tMsg('tooltipNoCaseForMessage')} className="p-1.5 inline-flex">
+                          <MessageSquare className="w-3.5 h-3.5 text-text-muted opacity-25" />
+                        </span>
+                      )
                     )}
                   </div>
                 </td>
@@ -2529,7 +2550,12 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                     } />
                                   </div>
                                   <div className="flex items-center gap-0.5">
-                                    {!doctorMode && <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>}
+                                    {/* El doctor también ve el caso — su ruta propia se
+                                        intercepta como modal desde Mis Pacientes */}
+                                    <button onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
+                                    {currentUserId && (
+                                      <button onClick={() => openCaseMessages(p, c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={tMsg('tooltipCaseMessages')} aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}><MessageSquare className="w-3 h-3" /></button>
+                                    )}
                                     <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
                                     <button onClick={() => setCaseApptTarget(c)} className="p-2 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')} aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}><CalendarDays className="w-3 h-3" /></button>
                                     <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
@@ -2654,14 +2680,26 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                     {/* Acciones */}
                                     <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2">
                                       <div className="flex items-center justify-end gap-0.5">
-                                        {!doctorMode && (
+                                        {/* Ver caso — para el doctor va a su ruta propia,
+                                            que Mis Pacientes intercepta como modal */}
+                                        <button
+                                          onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)}
+                                          className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                                          title={t('tooltipViewCase')}
+                                          aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </button>
+                                        {/* Mensajes DE ESTE CASO — historial
+                                            acotado + nuevo mensaje ya anclado */}
+                                        {currentUserId && (
                                           <button
-                                            onClick={() => router.push(`/front-office/${c.id}`)}
-                                            className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                                            title={t('tooltipViewCase')}
-                                            aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
+                                            onClick={() => openCaseMessages(p, c)}
+                                            className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                            title={tMsg('tooltipCaseMessages')}
+                                            aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}
                                           >
-                                            <Eye className="w-3 h-3" />
+                                            <MessageSquare className="w-3 h-3" />
                                           </button>
                                         )}
                                         <button
@@ -2926,8 +2964,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       {currentUserId && (
         <PatientMessagesDialog
           open={!!msgPatient}
-          onClose={() => setMsgPatient(null)}
+          onClose={() => { setMsgPatient(null); setMsgCase(null); }}
           patient={msgPatient}
+          caseFilter={msgCase}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
         />

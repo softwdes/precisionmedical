@@ -1,209 +1,31 @@
 import { notFound } from 'next/navigation';
-import { db } from '@precision-medical/database';
+import { getCaseDetailData } from '@/lib/case-detail-data';
 import { CaseDetailClient } from './case-detail-client';
+import { parseCaseTab } from '@/lib/case-tabs';
 
-// Front Office · Detalle del caso
-// Server component: carga case + relations + notes cronológicas + audit log
-// para construir el timeline.
+// Front Office · Detalle del caso (página completa)
+// La carga vive en lib/case-detail-data.ts — compartida con el modal
+// interceptado desde Pacientes y con la vista del doctor.
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  // `?tab=` abre directo en ese tab. Va también acá y no solo en el modal para
+  // que un refresh sobre la URL interceptada aterrice en el mismo lugar.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function CaseDetailPage({ params }: PageProps) {
+export default async function CaseDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { tab } = await searchParams;
 
-  const caseRecord = await db.case.findFirst({
-    where: { id, deletedAt: null },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          email: true,
-          dateOfBirth: true,
-          patientCode: true,
-          addressLine1: true,
-          addressCity: true,
-          addressState: true,
-          addressZip: true,
-          socialSecurityNumber: true,
-        },
-      },
-      lawFirm: {
-        select: {
-          id: true,
-          firmName: true,
-          email: true,
-          phone: true,
-          city: true,
-          state: true,
-          paymentSpeed: true,
-          caseflowFlags: true,
-        },
-      },
-      attorney: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          memberRole: true,
-        },
-      },
-      primaryInsurance: {
-        select: {
-          id: true,
-          name: true,
-          shortCode: true,
-          color: true,
-          type: true,
-          responseSpeed: true,
-          claimsPhone: true,
-          hcfaChannel: true,
-          preauthRequired: true,
-        },
-      },
-      secondaryInsurance: {
-        select: {
-          id: true,
-          name: true,
-          shortCode: true,
-          color: true,
-          type: true,
-        },
-      },
-      specialty: {
-        select: { id: true, name: true, color: true, workflowType: true },
-      },
-      notes: {
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          content: true,
-          isPrivate: true,
-          authorName: true,
-          authorUserId: true,
-          createdAt: true,
-        },
-      },
-      appointments: {
-        orderBy: { scheduledFor: 'asc' },
-        take: 20,
-        select: {
-          id: true,
-          scheduledFor: true,
-          durationMinutes: true,
-          status: true,
-          type: true,
-        },
-      },
-      lienSignatures: {
-        orderBy: { signedAt: 'asc' },
-        select: {
-          id: true,
-          signerType: true,
-          signerName: true,
-          signerEmail: true,
-          signatureSvg: true,
-          signedAt: true,
-        },
-      },
-    },
-  });
-
-  if (!caseRecord) {
-    notFound();
-  }
-
-  // Audit log eventos del caso para el timeline (created, portal sent, intake complete, confirmed, etc)
-  const auditEvents = await db.auditLog.findMany({
-    where: { entityType: 'cases', entityId: id },
-    orderBy: { createdAt: 'asc' },
-    take: 100,
-    select: {
-      id: true,
-      action: true,
-      actorType: true,
-      actorUserId: true,
-      createdAt: true,
-      metadata: true,
-    },
-  });
+  const data = await getCaseDetailData(id);
+  if (!data) notFound();
 
   return (
     <CaseDetailClient
-      caseInfo={{
-        id: caseRecord.id,
-        caseCode: caseRecord.caseCode,
-        status: caseRecord.status,
-        caseType: caseRecord.caseType,
-        source: caseRecord.source,
-        accidentDate: caseRecord.accidentDate,
-        accidentType: caseRecord.accidentType,
-        accidentLocation: caseRecord.accidentLocation,
-        accidentNotes: caseRecord.accidentNotes,
-        primaryPolicyNumber: caseRecord.primaryPolicyNumber,
-        secondaryPolicyNumber: caseRecord.secondaryPolicyNumber,
-        intakeFormSentAt: caseRecord.intakeFormSentAt,
-        intakeFormSentVia: caseRecord.intakeFormSentVia,
-        intakeFormCompletedAt: caseRecord.intakeFormCompletedAt,
-        pipVerifiedAt: caseRecord.pipVerifiedAt,
-        firstAppointmentConfirmedAt: caseRecord.firstAppointmentConfirmedAt,
-        createdAt: caseRecord.createdAt,
-        updatedAt: caseRecord.updatedAt,
-        patient: {
-          ...caseRecord.patient,
-          photoUrl: (() => {
-            const cd = caseRecord.consentsData as Record<string, unknown> | null;
-            const photos = cd?.photos as Record<string, string> | undefined;
-            return photos?.selfie ?? null;
-          })(),
-        },
-        lawFirm: caseRecord.lawFirm,
-        attorney: caseRecord.attorney,
-        primaryInsurance: caseRecord.primaryInsurance,
-        secondaryInsurance: caseRecord.secondaryInsurance,
-        specialty: caseRecord.specialty,
-        notes: caseRecord.notes,
-        appointments: caseRecord.appointments,
-        // La tabla es append-only por diseño (documento legal, nunca se
-        // actualiza ni borra — ver comentario en el schema). Re-firmar crea una
-        // fila nueva, así que un caso reabierto varias veces puede acumular
-        // varias firmas del mismo tipo. Acá se reduce a la ÚLTIMA por
-        // signerType para la vista — el historial completo sigue en la DB y en
-        // el audit log, no se pierde, solo se deja de mostrar por defecto.
-        lienSignatures: (() => {
-          const porTipo = new Map<string, typeof caseRecord.lienSignatures[number]>();
-          const conteoPorTipo = new Map<string, number>();
-          // El query ya viene ordenado por signedAt asc → la última iteración
-          // de cada tipo es la más reciente.
-          for (const s of caseRecord.lienSignatures) {
-            porTipo.set(s.signerType, s);
-            conteoPorTipo.set(s.signerType, (conteoPorTipo.get(s.signerType) ?? 0) + 1);
-          }
-          return [...porTipo.values()].map((s) => ({
-            id: s.id,
-            signerType: s.signerType,
-            signerName: s.signerName,
-            signerEmail: s.signerEmail,
-            signatureSvg: s.signatureSvg,
-            signedAt: s.signedAt,
-            previousCount: (conteoPorTipo.get(s.signerType) ?? 1) - 1,
-          }));
-        })(),
-      }}
-      auditEvents={auditEvents.map((e) => ({
-        id: e.id,
-        action: e.action,
-        actorType: e.actorType,
-        actorUserId: e.actorUserId,
-        createdAt: e.createdAt,
-        metadata: e.metadata as Record<string, unknown> | null,
-      }))}
+      caseInfo={data.caseInfo}
+      auditEvents={data.auditEvents}
+      initialTab={parseCaseTab(tab)}
     />
   );
 }

@@ -9,8 +9,13 @@ import {
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
   FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
+  FlaskConical, Briefcase, Bandage,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
+// Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
+// SIN tab Notes: las notas del doctor viven en el Historial Médico del paciente
+// (decisión de Erick 2026-08-08) — un tab aparte era redundante.
+import type { ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
@@ -20,7 +25,9 @@ import { DocumentsTab } from '@/components/cases/documents-tab';
 import { FinanzasTab } from '@/components/cases/finanzas-tab';
 import { CitasTab } from '@/components/cases/citas-tab';
 import { HistorialMedicoTab } from '@/components/cases/historial-medico-tab';
-import { PrescripcionesTab } from '@/components/cases/prescripciones-tab';
+import {
+  CaseLabsTab, CaseRxTab, CaseServicesTab, CaseBracesTab,
+} from '@/components/cases/case-clinical-tabs';
 
 // Front Office · Detalle del caso
 
@@ -142,14 +149,33 @@ interface AuditEvent {
 interface Props {
   caseInfo: CaseInfo;
   auditEvents: AuditEvent[];
+  /**
+   * 'admin'  — back-office completo (default).
+   * 'doctor' — portal médico: ve lo mismo que la clínica, pero de pagos SOLO
+   *            el summary (pagó/no pagó/saldo) — el cobro es del asistente,
+   *            misma regla que `hidePayments` en el panel de servicios.
+   */
+  variant?: 'admin' | 'doctor';
+  /** Renderizado dentro del modal interceptado — "volver" cierra en vez de navegar */
+  inModal?: boolean;
+  onClose?: () => void;
+  /**
+   * Tab con el que abre. Viene del `?tab=` de la URL, así que el mismo enlace
+   * aterriza igual sea modal interceptado o página completa tras un refresh.
+   * Lo usa el botón del calendario, que abre directo en Laboratorios: ahí
+   * empieza la conversación de cuánto se le va a cobrar al paciente.
+   */
+  initialTab?: ActiveTab;
 }
 
-type ActiveTab = 'caso' | 'citas' | 'historial' | 'prescripciones' | 'finanzas' | 'documentos';
-
-export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
+export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inModal = false, onClose, initialTab }: Props) {
+  const isDoctor = variant === 'doctor';
   const t = useTranslations('phoenix.caseDetail');
+  // Labels de los tabs clínicos — las MISMAS claves que usa la consulta del
+  // doctor, para que digan exactamente lo mismo en los dos lados.
+  const td = useTranslations('phoenix.doctor');
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('caso');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab ?? 'caso');
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
@@ -291,7 +317,13 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* Top nav: back to queue + status */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <button
-          onClick={() => router.push('/patients')}
+          onClick={() => {
+            // En el modal, "volver" cierra y la lista de Pacientes sigue tal
+            // cual quedó (búsqueda, filas expandidas, scroll) — es el motivo
+            // de que el detalle exista como modal.
+            if (inModal && onClose) { onClose(); return; }
+            router.push(isDoctor ? '/doctor/patients' : '/patients');
+          }}
           className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> {t('backToPatients')}
@@ -326,12 +358,16 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 <Mail className="w-3.5 h-3.5" /> {caseInfo.patient.email}
               </a>
             )}
-            <Link
-              href={`/patients/${caseInfo.patient.id}`}
-              className="inline-flex items-center gap-1 text-text-muted hover:text-brand text-xs transition-colors"
-            >
-              <Pencil className="w-3 h-3" /> {t('editPatient')}
-            </Link>
+            {/* Editar paciente vive en /patients (ruta de admin) — el doctor
+                edita desde su propio módulo, así que acá no ve el link */}
+            {!isDoctor && (
+              <Link
+                href={`/patients/${caseInfo.patient.id}`}
+                className="inline-flex items-center gap-1 text-text-muted hover:text-brand text-xs transition-colors"
+              >
+                <Pencil className="w-3 h-3" /> {t('editPatient')}
+              </Link>
+            )}
           </span>
         }
         action={<ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
@@ -347,7 +383,10 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             { id: 'caso',           label: t('tabPatient'),      labelShort: t('tabPatient'),      icon: FileText },
             { id: 'citas',          label: t('tabAppointments'), labelShort: t('tabAppointments'), icon: Calendar },
             { id: 'historial',      label: t('tabHistory'),      labelShort: t('tabHistoryShort'), icon: ClipboardList },
-            { id: 'prescripciones', label: t('tabLabs'),         labelShort: t('tabLabsShort'),    icon: Pill },
+            { id: 'labs',           label: td('tabLabs'),        labelShort: td('tabLabs'),        icon: FlaskConical },
+            { id: 'rx',             label: td('tabRx'),          labelShort: td('tabRx'),          icon: Pill },
+            { id: 'servicios',      label: td('tabServices'),    labelShort: td('tabServices'),    icon: Briefcase },
+            { id: 'braces',         label: td('tabBraces'),      labelShort: td('tabBraces'),      icon: Bandage },
             { id: 'finanzas',       label: t('tabFinance'),      labelShort: t('tabFinance'),      icon: DollarSign },
             { id: 'documentos',     label: t('tabDocuments'),    labelShort: t('tabDocumentsShort'), icon: FolderOpen },
           ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[]).map(tab => (
@@ -407,13 +446,15 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                     )}
                   </div>
                 </div>
-                <Link
-                  href={`/patients/${caseInfo.patient.id}`}
-                  className="text-text-muted hover:text-brand transition-colors shrink-0"
-                  title={t('editPatient')}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Link>
+                {!isDoctor && (
+                  <Link
+                    href={`/patients/${caseInfo.patient.id}`}
+                    className="text-text-muted hover:text-brand transition-colors shrink-0"
+                    title={t('editPatient')}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Link>
+                )}
               </div>
               <div className="space-y-0">
                 {caseInfo.patient.dateOfBirth && (
@@ -523,7 +564,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                     </div>
                   )}
                   {caseInfo.attorney && (
-                    <div className="mt-3 pt-3 border-t border-border/30">
+                    <div className="mt-3 pt-3 border-t border-row-sep">
                       <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">{t('assignedAttorney')}</div>
                       <div className="flex items-center gap-2">
                         <PersonAvatar firstName={caseInfo.attorney.firstName ?? '?'} lastName={caseInfo.attorney.lastName ?? ''} size={8} />
@@ -543,7 +584,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
               )}
 
               {/* Firmas del lien */}
-              <div className="mt-3 pt-3 border-t border-border/30">
+              <div className="mt-3 pt-3 border-t border-row-sep">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2 flex items-center gap-1.5">
                   <PenLine className="w-3 h-3" /> Firmas del lien
                 </div>
@@ -639,13 +680,20 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* Tab: Historial médico */}
       {activeTab === 'historial' && <HistorialMedicoTab patientId={caseInfo.patient.id} />}
 
-      {/* Tab: Prescripciones y laboratorios */}
-      {activeTab === 'prescripciones' && (
-        <PrescripcionesTab caseId={caseInfo.id} patientId={caseInfo.patient.id} />
+      {/* Tabs clínicos — espejo de la consulta del doctor, agrupados por
+          visita y leyendo las fuentes REALES (VisitNote, lab_orders,
+          prescriptions de ScriptSure, los dos catálogos de cargos y férulas).
+          "Repetir" receta solo en la variante doctor. */}
+      {activeTab === 'labs' && <CaseLabsTab caseId={caseInfo.id} patientId={caseInfo.patient.id} />}
+      {activeTab === 'rx' && (
+        <CaseRxTab caseId={caseInfo.id} canPrescribe={isDoctor} />
       )}
+      {activeTab === 'servicios' && <CaseServicesTab caseId={caseInfo.id} />}
+      {activeTab === 'braces' && <CaseBracesTab caseId={caseInfo.id} />}
 
       {/* Tab: Finanzas */}
-      {activeTab === 'finanzas' && <FinanzasTab caseId={caseInfo.id} />}
+      {/* Doctor: solo el summary (pagó/no pagó/saldo) — el cobro es del asistente */}
+      {activeTab === 'finanzas' && <FinanzasTab caseId={caseInfo.id} readOnly={isDoctor} />}
 
       {/* Tab: Documentos */}
       {activeTab === 'documentos' && <DocumentsTab caseId={caseInfo.id} />}
@@ -734,7 +782,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {insResults.length > 0 && (
-                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                  <div className="mt-1 rounded-md bg-bg-2 shadow-lg shadow-black/30 max-h-40 overflow-y-auto">
                     {insResults.map(ins => (
                       <button key={ins.id} onClick={() => { setInsSelected({ id: ins.id, name: ins.name }); setInsQuery(''); setInsResults([]); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1 flex items-center gap-2">
@@ -796,7 +844,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {firmResults.length > 0 && (
-                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                  <div className="mt-1 rounded-md bg-bg-2 shadow-lg shadow-black/30 max-h-40 overflow-y-auto">
                     {firmResults.map(f => (
                       <button key={f.id} onClick={() => { setFirmSelected({ id: f.id, firmName: f.firmName ?? '' }); setFirmQuery(''); setFirmResults([]); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1">
@@ -814,7 +862,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   {attResults.length === 0 ? (
                     <p className="text-text-muted text-xs italic">Sin abogados en este bufete.</p>
                   ) : (
-                    <div className="rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                    <div className="rounded-md bg-bg-2 shadow-lg shadow-black/30 max-h-40 overflow-y-auto">
                       <button onClick={() => setAttSelected(null)}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${!attSelected ? 'text-text-1 font-semibold' : 'text-text-muted'}`}>
                         — Sin asignar
@@ -1012,7 +1060,7 @@ function CaseProgressBar({ status }: { status: CaseStatus }) {
 
 function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon: React.ElementType; children: React.ReactNode; onEdit?: () => void }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{title}</h3>
@@ -1029,7 +1077,7 @@ function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3 items-start py-1.5 border-b border-border/20 last:border-0">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3 items-start py-1.5 border-b border-row-sep last:border-0">
       <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{label}</div>
       <div className="sm:col-span-2 text-sm text-text-1">{value}</div>
     </div>
@@ -1112,7 +1160,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Timeline</h3>
@@ -1217,7 +1265,7 @@ function NotesPanel({ notes, onAddNote }: {
 }) {
   const t = useTranslations('phoenix.caseDetail');
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquarePlus className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionInternalNotes')}</h3>
@@ -1231,7 +1279,7 @@ function NotesPanel({ notes, onAddNote }: {
       ) : (
         <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-thin pr-1">
           {notes.map((n) => (
-            <div key={n.id} className="rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
+            <div key={n.id} className="rounded-md bg-bg-2/40 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] text-text-muted mb-1">
                 <span className="font-semibold text-text-2">{n.authorName}</span>
                 <span>·</span>
@@ -1292,7 +1340,7 @@ function LienSignatureRow({
     : null;
 
   return (
-    <div className="rounded-md border border-border/40 bg-bg-2/40 overflow-hidden">
+    <div className="rounded-md bg-bg-2/40 overflow-hidden">
       <div className="flex items-center gap-3 px-3 py-2.5">
         <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
         <div className="flex-1 min-w-0">
@@ -1322,7 +1370,7 @@ function LienSignatureRow({
         )}
       </div>
       {imgSrc && (
-        <div className="border-t border-border/40 px-3 py-3 bg-slate-900/80">
+        <div className="px-3 py-3 bg-slate-900/80">
           <img
             src={imgSrc}
             alt={`Firma de ${sig.signerName}`}

@@ -30,6 +30,7 @@ export default async function DoctorCalendarPage(): Promise<React.ReactElement> 
         specialty: provider.specialty,
       }]}
       lockedProviderId={provider.id}
+      variant="doctor"
     />
   );
 }

@@ -22,13 +22,15 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import {
-  Lock, ShieldCheck, ExternalLink, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin, RotateCcw,
+  ShieldCheck, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin, RotateCcw,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
+import {
+  ScriptSureWidgetDialog, launchRefill, type WidgetKind, type WidgetStatus,
+} from './scriptsure-widget-dialog';
 
-type WidgetKind = 'drug-list' | 'pharmacy';
-type Status = 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill' | 'error';
+type Status = WidgetStatus;
 
 interface SentRx {
   id: string;
@@ -44,7 +46,21 @@ interface SentRx {
   createdAt: string;
   /** false en recetas anteriores a que guardáramos los ids del fármaco */
   canRefill: boolean;
+  /** solo en las de OTRAS citas — fecha de esa visita */
+  visitDate?: string;
 }
+
+/**
+ * Recetas que llegaron (o van en camino) a la farmacia.
+ *
+ * El mostrador solo debe ver estas: un borrador o una anulada no le sirven, y
+ * la que falló es peor que ruido — casi siempre está DUPLICADA por el reenvío
+ * que sí salió, así que el asistente ve dos veces el mismo remedio y no sabe
+ * cuál cuenta. Los errores los ve el doctor, que es el único que puede reenviar.
+ */
+export const RX_ENTREGADAS: ReadonlySet<string> = new Set(['SENT', 'PENDING_DAW']);
+export const soloEntregadas = <T extends { status: string }>(rows: T[]): T[] =>
+  rows.filter((r) => RX_ENTREGADAS.has(r.status));
 
 /** Estado de la receta → clave i18n y color. ERROR va en rose: no llegó a la farmacia.
  *  Exportados para que el Resumen pinte los estados igual y no haya dos verdades. */
@@ -84,6 +100,7 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
   const [url, setUrl] = React.useState<string | null>(null);
   const [showSent, setShowSent] = React.useState(false);
   const [sent, setSent] = React.useState<SentRx[]>([]);
+  const [previous, setPrevious] = React.useState<SentRx[]>([]);
   const [syncing, setSyncing] = React.useState(false);
   const [refillingId, setRefillingId] = React.useState<string | null>(null);
   const [errorDetail, setErrorDetail] = React.useState<string | null>(null);
@@ -92,8 +109,9 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
     try {
       const res = await fetch(`/api/admin/scriptsure/prescriptions/${appointmentId}`);
       if (!res.ok) return;
-      const data = (await res.json()) as { prescriptions: SentRx[] };
+      const data = (await res.json()) as { prescriptions: SentRx[]; previous?: SentRx[] };
       setSent(data.prescriptions);
+      setPrevious(data.previous ?? []);
     } catch { /* la lista es informativa — sin toast de error acá */ }
   }, [appointmentId]);
 
@@ -132,33 +150,13 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
     setStatus('loading');
     setUrl(null);
     setErrorDetail(null);
-    try {
-      const res = await fetch(`/api/admin/scriptsure/refill/${rx.id}`, { method: 'POST' });
-      if (res.status === 409) { setStatus('not_onboarded'); return; }
-      if (res.status === 422) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
-          : body?.error === 'MISSING_DRUG_IDS' ? 'no_refill'
-          : 'missing_address');
-        return;
-      }
-      if (!res.ok) {
-        // El detalle crudo de ScriptSure se muestra en pantalla: sin esto habría
-        // que ir a buscarlo al audit log cada vez que su formato no coincide.
-        const body = (await res.json().catch(() => null)) as { raw?: unknown; message?: string } | null;
-        const detail = typeof body?.raw === 'string' ? body.raw : body?.message ?? null;
-        setErrorDetail(detail ? detail.slice(0, 400) : null);
-        setStatus('error');
-        return;
-      }
-      const data = (await res.json()) as { url: string };
-      setUrl(data.url);
-      setStatus('ready');
-    } catch {
-      setStatus('error');
-    } finally {
-      setRefillingId(null);
-    }
+    // El POST y el mapeo de respuestas viven en el helper compartido — misma
+    // traducción de errores acá y en el tab de recetas del detalle de caso.
+    const result = await launchRefill(rx.id);
+    setStatus(result.status);
+    setUrl(result.url);
+    setErrorDetail(result.errorDetail);
+    setRefillingId(null);
   }
 
   function closeWidget(): void {
@@ -263,7 +261,7 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="overflow-y-auto p-5">
+            <div className="overflow-y-auto p-5 space-y-5">
               {sent.length === 0 ? (
                 <div className="py-8 text-center">
                   <Send className="w-8 h-8 text-text-muted/40 mx-auto mb-3" />
@@ -273,65 +271,36 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
               ) : (
                 <div className="space-y-2">
                   {sent.map((rx) => (
-                    <div key={rx.id} className="rounded-md bg-bg-2/40 p-3 flex items-start gap-3 flex-wrap">
-                      <div className="flex-1 min-w-[180px]">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[13px] font-semibold text-text-1">{rx.drugName}</span>
-                          {rx.deaSchedule && (
-                            <TagPill label={`DEA ${rx.deaSchedule}`} colorClass="bg-amber/15 text-amber border-amber/30" />
-                          )}
-                          <TagPill
-                            label={t(`rxStatus_${STATUS_KEY[rx.status]}`)}
-                            colorClass={STATUS_CLASS[rx.status]}
-                          />
-                        </div>
-                        {/* Con error la farmacia NUNCA la recibió — decirlo, no
-                            dejar que el doctor lo deduzca de un color */}
-                        {rx.status === 'ERROR' && (
-                          <p className="text-[11px] text-rose mt-1 flex items-start gap-1.5">
-                            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                            {t('rxErrorNotice')}
-                          </p>
-                        )}
-                        <div className="text-[11.5px] text-text-2 mt-1">
-                          {[rx.dose !== '—' ? rx.dose : null, rx.frequency !== '—' ? rx.frequency : null]
-                            .filter(Boolean).join(' · ') || null}
-                        </div>
-                        <div className="text-[11px] text-text-muted mt-0.5 flex items-center gap-3 flex-wrap">
-                          {rx.quantityTotal > 0 && <span>{t('rxQty')}: {rx.quantityTotal}</span>}
-                          <span>{t('rxRefills')}: {rx.refills}</span>
-                          {rx.pharmacyName && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="w-3 h-3" /> {rx.pharmacyName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className="text-[10.5px] text-text-muted">
-                          {new Date(rx.dawSentAt ?? rx.createdAt).toLocaleString(undefined, {
-                            day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
-                          })}
-                        </span>
-                        {/* Repetir: sirve para cualquier receta del historial, no
-                            solo las que fallaron. Repetir ES prescribir, así que
-                            en modo lectura no aparece. */}
-                        {rx.canRefill && !readOnly && (
-                          <button
-                            type="button"
-                            onClick={() => void refill(rx)}
-                            disabled={refillingId === rx.id}
-                            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline disabled:opacity-60"
-                          >
-                            {refillingId === rx.id
-                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : <RotateCcw className="w-3 h-3" />}
-                            {t('rxRefill')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    <SentRxRow
+                      key={rx.id}
+                      rx={rx}
+                      readOnly={readOnly}
+                      refilling={refillingId === rx.id}
+                      onRefill={() => void refill(rx)}
+                    />
                   ))}
+                </div>
+              )}
+
+              {/* Recetas de OTRAS citas. Sin esto, el paciente que vuelve porque
+                  la farmacia no tenía las pastillas obliga al doctor a irse al
+                  detalle del caso para repetir. */}
+              {previous.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
+                    {t('rxPreviousTitle')}
+                  </div>
+                  <div className="space-y-2">
+                    {previous.map((rx) => (
+                      <SentRxRow
+                        key={rx.id}
+                        rx={rx}
+                        readOnly={readOnly}
+                        refilling={refillingId === rx.id}
+                        onRefill={() => void refill(rx)}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -339,103 +308,85 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
         </Dialog>
       )}
 
-      {/* Modal — widget de ScriptSure (casi fullscreen: su preview necesita espacio) */}
-      {active && (
-        <Dialog open onOpenChange={(v) => { if (!v) closeWidget(); }}>
-          <DialogContent className="max-w-6xl w-[96vw] p-0 overflow-hidden flex flex-col h-[92vh]">
-            <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
-              <DialogTitle className="text-[14px] flex items-center gap-2 flex-wrap">
-                <ExternalLink className="w-4 h-4 text-violet shrink-0" />
-                <span>
-                  {active === 'drug-list' ? t('rxWidgetHeaderPre') : t('rxPharmacyHeaderPre')}{' '}
-                  <b className="text-text-1">ScriptSure</b>
-                </span>
-                {status === 'ready' && (
-                  <span className="inline-flex items-center gap-1.5 text-[10.5px] text-emerald font-normal">
-                    <ShieldCheck className="w-3 h-3" /> {t('rxWidgetSecure')}
-                  </span>
-                )}
-              </DialogTitle>
-            </DialogHeader>
+      {/* Modal del widget — compartido con el tab de recetas del detalle de caso */}
+      <ScriptSureWidgetDialog
+        open={!!active}
+        kind={active ?? 'drug-list'}
+        status={status}
+        url={url}
+        errorDetail={errorDetail}
+        onClose={closeWidget}
+      />
+    </div>
+  );
+}
 
-            {status === 'loading' && (
-              <div className="flex-1 flex items-center justify-center gap-2 text-[12.5px] text-text-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> {t('rxWidgetLoading')}
-              </div>
-            )}
-
-            {status === 'not_onboarded' && (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="flex items-start gap-3 max-w-md">
-                  <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
-                    <Lock className="w-4 h-4 text-amber" />
-                  </div>
-                  <div className="text-[12.5px] text-text-2 leading-relaxed">
-                    <p className="text-text-1 font-medium mb-1">{t('rxNotOnboardedTitle')}</p>
-                    <p>{t('rxNotOnboardedDesc')}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {status === 'no_refill' && (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="flex items-start gap-3 max-w-md">
-                  <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-4 h-4 text-amber" />
-                  </div>
-                  <div className="text-[12.5px] text-text-2 leading-relaxed">
-                    <p className="text-text-1 font-medium mb-1">{t('rxNoRefillTitle')}</p>
-                    <p>{t('rxNoRefillDesc')}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {(status === 'missing_address' || status === 'missing_dob') && (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="flex items-start gap-3 max-w-md">
-                  <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-4 h-4 text-amber" />
-                  </div>
-                  <div className="text-[12.5px] text-text-2 leading-relaxed">
-                    <p className="text-text-1 font-medium mb-1">
-                      {t(status === 'missing_dob' ? 'rxMissingDobTitle' : 'rxMissingAddressTitle')}
-                    </p>
-                    <p>{t(status === 'missing_dob' ? 'rxMissingDobDesc' : 'rxMissingAddressDesc')}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {status === 'error' && (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="flex items-start gap-3 max-w-md">
-                  <div className="w-8 h-8 rounded-md bg-rose/10 border border-rose/25 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-4 h-4 text-rose" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[12.5px] text-text-2 leading-relaxed">{t('rxWidgetError')}</p>
-                    {errorDetail && (
-                      <pre className="mt-2 text-[10.5px] text-text-muted bg-bg-2/40 rounded-md p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40">
-                        {errorDetail}
-                      </pre>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {status === 'ready' && url && (
-              <iframe
-                src={url}
-                title={active === 'drug-list' ? 'ScriptSure Drug List' : 'ScriptSure Pharmacy'}
-                className="w-full flex-1 border-0"
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      )}
+/** Una receta en el modal de enviadas — misma fila para las de esta consulta y
+ *  las de citas anteriores (esas además muestran de qué visita salieron). */
+function SentRxRow({ rx, readOnly, refilling, onRefill }: {
+  rx: SentRx; readOnly: boolean; refilling: boolean; onRefill: () => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.doctor');
+  return (
+    <div className="rounded-md bg-bg-2/40 p-3 flex items-start gap-3 flex-wrap">
+      <div className="flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[13px] font-semibold text-text-1">{rx.drugName}</span>
+          {rx.deaSchedule && (
+            <TagPill label={`DEA ${rx.deaSchedule}`} colorClass="bg-amber/15 text-amber border-amber/30" />
+          )}
+          <TagPill label={t(`rxStatus_${STATUS_KEY[rx.status]}`)} colorClass={STATUS_CLASS[rx.status]} />
+        </div>
+        {/* Con error la farmacia NUNCA la recibió — decirlo, no dejar que el
+            doctor lo deduzca de un color */}
+        {rx.status === 'ERROR' && (
+          <p className="text-[11px] text-rose mt-1 flex items-start gap-1.5">
+            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+            {t('rxErrorNotice')}
+          </p>
+        )}
+        <div className="text-[11.5px] text-text-2 mt-1">
+          {[rx.dose !== '—' ? rx.dose : null, rx.frequency !== '—' ? rx.frequency : null]
+            .filter(Boolean).join(' · ') || null}
+        </div>
+        <div className="text-[11px] text-text-muted mt-0.5 flex items-center gap-3 flex-wrap">
+          {rx.quantityTotal > 0 && <span>{t('rxQty')}: {rx.quantityTotal}</span>}
+          <span>{t('rxRefills')}: {rx.refills}</span>
+          {rx.pharmacyName && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> {rx.pharmacyName}
+            </span>
+          )}
+          {/* De qué consulta salió — solo en las de otras citas */}
+          {rx.visitDate && (
+            <span>
+              {t('rxFromVisit', {
+                date: new Date(rx.visitDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+              })}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <span className="text-[10.5px] text-text-muted">
+          {new Date(rx.dawSentAt ?? rx.createdAt).toLocaleString(undefined, {
+            day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+          })}
+        </span>
+        {/* Repetir: sirve para cualquier receta del historial, no solo las que
+            fallaron. Repetir ES prescribir, así que en modo lectura no aparece. */}
+        {rx.canRefill && !readOnly && (
+          <button
+            type="button"
+            onClick={onRefill}
+            disabled={refilling}
+            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline disabled:opacity-60"
+          >
+            {refilling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            {t('rxRefill')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

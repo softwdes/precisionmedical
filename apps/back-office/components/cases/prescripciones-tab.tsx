@@ -723,7 +723,7 @@ function LabModal({
 
 // ─── Prescription table ───────────────────────────────────────────────────────
 
-function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId: string }) {
+function PrescriptionsSection({ caseId, patientId, readOnly = false }: { caseId: string; patientId: string; readOnly?: boolean }) {
   const t  = useTranslations('phoenix.caseTabs.prescripciones');
   const tc = useTranslations('phoenix.common');
   const [items, setItems] = useState<Prescription[]>([]);
@@ -770,9 +770,11 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
           <Pill className="w-4 h-4 text-violet" /> {t('sectionTitleMeds')}
         </h3>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> {t('addMed')}
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => setModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t('addMed')}
+            </Button>
+          )}
           <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors" title={t('reload')}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -871,14 +873,14 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
         </div>
       </div>
 
-      {modalOpen && <PrescriptionModal onClose={() => setModalOpen(false)} onSave={handleSave} />}
+      {modalOpen && !readOnly && <PrescriptionModal onClose={() => setModalOpen(false)} onSave={handleSave} />}
     </div>
   );
 }
 
 // ─── Labs section ─────────────────────────────────────────────────────────────
 
-function LabsSection({ caseId }: { caseId: string }) {
+function LabsSection({ caseId, readOnly = false }: { caseId: string; readOnly?: boolean }) {
   const t  = useTranslations('phoenix.caseTabs.prescripciones');
   const tc = useTranslations('phoenix.common');
   const providers = useProviders();
@@ -932,9 +934,11 @@ function LabsSection({ caseId }: { caseId: string }) {
           <FlaskConical className="w-4 h-4 text-cyan" /> {t('sectionTitleLabs')}
         </h3>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> {t('addLab')}
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => setModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t('addLab')}
+            </Button>
+          )}
           <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors" title={t('reload')}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -1054,18 +1058,35 @@ function LabsSection({ caseId }: { caseId: string }) {
         </div>
       </div>
 
-      {modalOpen && <LabModal onClose={() => setModalOpen(false)} onSave={handleSave} />}
+      {modalOpen && !readOnly && <LabModal onClose={() => setModalOpen(false)} onSave={handleSave} />}
     </div>
   );
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function PrescripcionesTab({ caseId, patientId }: Props) {
+/**
+ * `readOnly` — 2026-08-08: la captura NUEVA va por las fuentes reales
+ * (ScriptSure, lab_orders, Medication History). Este componente quedó como
+ * "Registros manuales" de referencia dentro del detalle de caso: sin readOnly
+ * habría DOS caminos de captura conviviendo, que es como nacen dos verdades.
+ */
+export function PrescripcionesTab({ caseId, patientId, readOnly = false, sections = 'all' }: Props & {
+  readOnly?: boolean;
+  /**
+   * Qué mostrar. El detalle de caso pide 'labs': la tabla de prescripciones
+   * manuales aparecía dentro del tab de Laboratorios (confuso) y además
+   * DUPLICA el Medication History del tab Prescription — las dos leen
+   * `patient.medicalHistory.medications` (Erick 2026-08-08).
+   */
+  sections?: 'all' | 'labs' | 'prescriptions';
+}) {
   return (
     <div className="space-y-6">
-      <PrescriptionsSection caseId={caseId} patientId={patientId} />
-      <LabsSection caseId={caseId} />
+      {sections !== 'labs' && (
+        <PrescriptionsSection caseId={caseId} patientId={patientId} readOnly={readOnly} />
+      )}
+      {sections !== 'prescriptions' && <LabsSection caseId={caseId} readOnly={readOnly} />}
     </div>
   );
 }

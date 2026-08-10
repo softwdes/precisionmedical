@@ -25,7 +25,8 @@ import { TagPill } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
-import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS } from './rx-integration-status';
+import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS, soloEntregadas } from './rx-integration-status';
+import { LabOrderPrintDialog } from './lab-order-print-dialog';
 
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
 export interface SummaryTriage {
@@ -226,6 +227,7 @@ export function VisitSummary({
   const [error, setError] = React.useState<string | null>(null);
   const [doneAt, setDoneAt] = React.useState<string | null>(doctorDoneAt);
   const [upcoming, setUpcoming] = React.useState<UpcomingAppt[]>([]);
+  const [printGroup, setPrintGroup] = React.useState<string | null>(null);
   const [apptOpen, setApptOpen] = React.useState(false);
   const [apptDate, setApptDate] = React.useState<string | undefined>(undefined);
 
@@ -246,8 +248,11 @@ export function VisitSummary({
         fetch(`/api/admin/scriptsure/prescriptions/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
       ]);
       if (!alive) return;
-      // VOIDED fuera: una receta anulada no se le entregó al paciente.
-      setRx(((p as { prescriptions?: RxRow[] }).prescriptions ?? []).filter((r) => r.status !== 'VOIDED'));
+      // Solo las que llegaron a la farmacia: el checkout le dice al paciente
+      // dónde retirar. Una anulada no se le entregó, y una con error nunca
+      // llegó — mostrarla haría que el asistente lo mande a una farmacia que
+      // no tiene nada (y encima suele estar duplicada por el reenvío bueno).
+      setRx(soloEntregadas((p as { prescriptions?: RxRow[] }).prescriptions ?? []));
       setCash((c as { charges?: CashChargeRow[] }).charges ?? []);
       // Solo las entregadas: una devuelta o anulada no se cobra ni sale con el paciente.
       setBraces(((b as { braces?: BraceRow[] }).braces ?? []).filter((r) => r.status === 'DISPENSED'));
@@ -279,6 +284,13 @@ export function VisitSummary({
 
   const isSigned = note?.status === 'SIGNED';
   const dxCount = note?.diagnoses.length ?? 0;
+
+  // Órdenes imprimibles de la visita: una hoja por `groupId` (los estudios
+  // pedidos juntos se imprimen juntos). Las anuladas no se entregan.
+  const printGroups = React.useMemo(
+    () => [...new Set(labs.filter((l) => l.status !== 'VOIDED' && l.groupId).map((l) => l.groupId as string))],
+    [labs],
+  );
 
   // Totales por quién paga — mismo desglose que el tab de cargos, para que la
   // salida y el cobro digan el mismo número.
@@ -674,9 +686,26 @@ export function VisitSummary({
         icon={FlaskConical}
         title={t('tabLabs')}
         action={
-          <button type="button" onClick={() => onFix('labs')} className="text-[11px] font-semibold text-violet hover:underline">
-            {t('sumOpenLabs')}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Imprimir la orden ACÁ: el flujo real es cobrar y recién ahí
+                entregarle la hoja al paciente (Erick 2026-08-08). Sin esto el
+                asistente tenía que salir del Resumen a buscarla al tab Labs.
+                Solo del lado del asistente: el doctor no imprime. */}
+            {isAssistant && printGroups.map((g, i) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setPrintGroup(g)}
+                className="text-[11px] font-semibold text-violet hover:underline inline-flex items-center gap-1"
+              >
+                <Printer className="w-3 h-3" />
+                {printGroups.length > 1 ? `${t('labPrintOrder')} ${i + 1}` : t('labPrintOrder')}
+              </button>
+            ))}
+            <button type="button" onClick={() => onFix('labs')} className="text-[11px] font-semibold text-violet hover:underline">
+              {t('sumOpenLabs')}
+            </button>
+          </div>
         }
       >
         {loadingLabs ? (
@@ -912,6 +941,9 @@ export function VisitSummary({
           onSuccess={() => { void loadUpcoming(); router.refresh(); }}
         />
       )}
+
+      {/* Visor de impresión de la orden — compartido con el detalle de caso */}
+      <LabOrderPrintDialog groupId={printGroup} onClose={() => setPrintGroup(null)} />
 
       {/* Recordatorio de quién cierra la cita — solo al doctor */}
       {!isAssistant && (

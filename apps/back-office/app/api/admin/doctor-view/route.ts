@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog } from '@precision-medical/database';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
 import { DOCTOR_VIEW_COOKIE } from '@/lib/get-session-provider';
+import { resolveActor } from '@/lib/actor';
 
 /**
  * POST /api/admin/doctor-view   { providerId }  → fija el doctor a "ver como"
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   writeAuditLog(db, {
-    ...actorFromHeaders(req.headers),
+    ...(await resolveActor(req.headers)),
     action: 'DOCTOR_VIEW_AS',
     entityType: 'providers',
     entityId: provider.id,

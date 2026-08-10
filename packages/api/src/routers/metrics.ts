@@ -30,14 +30,27 @@ function nextDay(day: string): string {
   return new Date(new Date(`${day}T00:00:00Z`).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-/** Acción del audit log del back-office → columna del reporte. */
+/**
+ * Acción del audit log del back-office → columna del reporte.
+ *
+ * Lo que NO está acá igual viaja en `byAction` (el desglose del empleado nunca
+ * oculta nada). Las acciones de doctor (firmar nota, "Terminé") viven en el tab
+ * Doctores, que las mide con mucho más detalle; las de paciente
+ * (INTAKE_STEP_SAVE, PATIENT_SIGN_LIEN) y las de sistema (SCRIPTSURE_*) no
+ * tienen actor de staff y quedan fuera solas.
+ */
 const ACTION_TO_METRIC: Record<string, keyof EmployeeCounters> = {
   CREATE_PATIENT:             'patientsCreated',
   CREATE_CASE_FROM_CALL:      'casesCreated',
   CREATE_APPOINTMENT:         'appointmentsCreated',
   SCHEDULE_FIRST_APPOINTMENT: 'appointmentsCreated',
+  UPDATE_APPOINTMENT:         'appointmentEdits',
+  CONFIRM_APPOINTMENT:        'appointmentEdits',
+  CONFIRM_FIRST_APPOINTMENT:  'appointmentEdits',
   CHECK_IN:                   'checkIns',
   TRIAGE_VITALS_SAVED:        'triages',
+  TRIAGE_VITALS_CORRECTED:    'triages',
+  UPDATE_MEDICAL_HISTORY:     'medicalHistory',
   CREATE_LAB_ORDER:           'labs',
   ADD_LAB_ORDER:              'labs',
   UPLOAD_LAB_RESULT:          'labs',
@@ -45,15 +58,22 @@ const ACTION_TO_METRIC: Record<string, keyof EmployeeCounters> = {
   DISPENSE_BRACE:             'braces',
   REGISTER_BILLING_PAYMENT:   'payments',
   CHECKOUT_APPOINTMENT:       'checkouts',
-  DOCTOR_DONE_WITH_PATIENT:   'doctorDone',
-  SIGN_VISIT_NOTE:            'notesSigned',
+  MESSAGE_THREAD_CREATED:     'messages',
+  MESSAGE_ENTRY_REPLY:        'messages',
+  MESSAGE_ENTRY_NOTE:         'messages',
+  // Retrabajos: no son producción, son señal de errores a corregir.
+  VOID_CASH_SERVICE:          'voids',
+  VOID_BRACE:                 'voids',
+  VOID_LAB_ORDER:             'voids',
+  DELETE_LAB_ORDER:           'voids',
+  CANCEL_BILLING_PAYMENT:     'voids',
 };
 
 export interface EmployeeCounters {
   patientsCreated: number; casesCreated: number; appointmentsCreated: number;
-  checkIns: number; triages: number; labs: number; cashServices: number;
-  braces: number; payments: number; checkouts: number; doctorDone: number;
-  notesSigned: number;
+  appointmentEdits: number; checkIns: number; triages: number;
+  medicalHistory: number; labs: number; cashServices: number; braces: number;
+  payments: number; checkouts: number; messages: number; voids: number;
 }
 
 export interface EmployeeActivityRow extends EmployeeCounters {
@@ -68,9 +88,9 @@ export interface EmployeeActivityRow extends EmployeeCounters {
 }
 
 const emptyCounters = (): EmployeeCounters => ({
-  patientsCreated: 0, casesCreated: 0, appointmentsCreated: 0, checkIns: 0,
-  triages: 0, labs: 0, cashServices: 0, braces: 0, payments: 0, checkouts: 0,
-  doctorDone: 0, notesSigned: 0,
+  patientsCreated: 0, casesCreated: 0, appointmentsCreated: 0, appointmentEdits: 0,
+  checkIns: 0, triages: 0, medicalHistory: 0, labs: 0, cashServices: 0,
+  braces: 0, payments: 0, checkouts: 0, messages: 0, voids: 0,
 });
 
 export interface DoctorActivityRow {

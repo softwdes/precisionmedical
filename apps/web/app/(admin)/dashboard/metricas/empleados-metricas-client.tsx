@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@precision/ui';
 import {
   Activity, Clock, Download, Loader2, Phone, PhoneIncoming,
-  UserPlus, CalendarDays, DollarSign, X,
+  UserPlus, CalendarDays, DollarSign, Undo2, X,
 } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
 import {
@@ -37,15 +37,17 @@ interface EmployeeRow {
   patientsCreated: number;
   casesCreated: number;
   appointmentsCreated: number;
+  appointmentEdits: number;
   checkIns: number;
   triages: number;
+  medicalHistory: number;
   labs: number;
   cashServices: number;
   braces: number;
   payments: number;
   checkouts: number;
-  doctorDone: number;
-  notesSigned: number;
+  messages: number;
+  voids: number;
   byAction: Record<string, number>;
 }
 
@@ -92,6 +94,30 @@ const ACTION_LABELS: Record<string, string> = {
   INSERT_CASE_NOTE: 'Notas de caso',
   ANSWER_INBOUND_CALL: 'Entrantes reclamadas',
   LOGIN_SUCCESS: 'Inicios de sesión',
+  LOGIN_FAILED: 'Intentos de sesión fallidos',
+  UPDATE_MEDICAL_HISTORY: 'Historial médico actualizado',
+  UPDATE_APPOINTMENT: 'Citas editadas',
+  MESSAGE_THREAD_CREATED: 'Hilos de mensaje creados',
+  MESSAGE_ENTRY_REPLY: 'Respuestas enviadas',
+  MESSAGE_ENTRY_NOTE: 'Notas internas',
+  MESSAGE_THREAD_SEALED: 'Hilos sellados',
+  MESSAGE_THREAD_DELETED: 'Hilos eliminados',
+  MESSAGING_VIEWED_OTHER_INBOX: 'Bandejas ajenas consultadas',
+  MESSAGE_TEMPLATE_CREATED: 'Plantillas de mensaje creadas',
+  VIEW_MESSAGE_ATTACHMENT: 'Adjuntos abiertos',
+  VOID_CASH_SERVICE: 'Servicios anulados',
+  VOID_BRACE: 'Férulas anuladas',
+  VOID_LAB_ORDER: 'Órdenes de lab anuladas',
+  DELETE_LAB_ORDER: 'Órdenes de lab eliminadas',
+  SET_CASE_COVERAGE: 'Cobertura definida',
+  VERIFY_PIP: 'PIP verificado',
+  STAFF_PHOTO_UPLOAD: 'Fotos subidas',
+  DOCTOR_VIEW_AS: 'Portal de doctor consultado',
+  SEGUIMIENTO_CALL_LOGGED: 'Seguimientos por llamada',
+  SEGUIMIENTO_EMAIL_LOGGED: 'Seguimientos por email',
+  SEGUIMIENTO_NOTE_ADDED: 'Notas de seguimiento',
+  SEGUIMIENTO_PAYMENT_LOGGED: 'Pagos de seguimiento',
+  SEGUIMIENTO_ESCALATED: 'Seguimientos escalados',
 };
 
 const actionLabel = (a: string): string =>
@@ -99,21 +125,28 @@ const actionLabel = (a: string): string =>
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-const COLUMNS: Array<{ key: keyof EmployeeRow; label: string }> = [
+/**
+ * Columnas del reporte. Las de doctor (firmar nota, "Terminé") viven en el tab
+ * Doctores; acá solo trabajo de staff. `voids` va en ámbar al final: no es
+ * producción, es retrabajo — mide errores que alguien tuvo que deshacer.
+ */
+const COLUMNS: Array<{ key: keyof EmployeeRow; label: string; tone?: 'warn' }> = [
   { key: 'callsMade',           label: 'Llam.' },
   { key: 'callsAnswered',       label: 'Contest.' },
   { key: 'patientsCreated',     label: 'Pacientes' },
   { key: 'casesCreated',        label: 'Casos' },
   { key: 'appointmentsCreated', label: 'Citas' },
+  { key: 'appointmentEdits',    label: 'Edic. citas' },
   { key: 'checkIns',            label: 'Check-ins' },
   { key: 'triages',             label: 'Triajes' },
+  { key: 'medicalHistory',      label: 'Hist. médico' },
   { key: 'labs',                label: 'Labs' },
   { key: 'cashServices',        label: 'Servicios' },
   { key: 'braces',              label: 'Férulas' },
   { key: 'payments',            label: 'Pagos' },
   { key: 'checkouts',           label: 'Salidas' },
-  { key: 'doctorDone',          label: 'Dr. terminó' },
-  { key: 'notesSigned',         label: 'Notas firm.' },
+  { key: 'messages',            label: 'Mensajes' },
+  { key: 'voids',               label: 'Anulaciones', tone: 'warn' },
 ];
 
 export function EmpleadosMetricasClient() {
@@ -150,7 +183,7 @@ export function EmpleadosMetricasClient() {
   );
 
   const totals = useMemo(() => {
-    const base = { activeMinutes: 0, callsMade: 0, callsAnswered: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0 };
+    const base = { activeMinutes: 0, callsMade: 0, callsAnswered: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
     for (const r of rows ?? []) {
       base.activeMinutes += r.activeMinutes;
       base.callsMade += r.callsMade;
@@ -158,6 +191,7 @@ export function EmpleadosMetricasClient() {
       base.patientsCreated += r.patientsCreated;
       base.appointmentsCreated += r.appointmentsCreated;
       base.payments += r.payments;
+      base.voids += r.voids;
     }
     return base;
   }, [rows]);
@@ -184,13 +218,16 @@ export function EmpleadosMetricasClient() {
     <div className="p-6 space-y-6">
 
       {/* KPIs del período */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
         <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand" />
         <KpiCard icon={PhoneIncoming} label="Contestadas"    value={totals.callsAnswered}             color="bg-cyan/10 text-cyan" />
         <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet" />
         <KpiCard icon={CalendarDays} label="Citas creadas"   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
-        <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-amber/10 text-amber" />
+        <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-emerald/10 text-emerald" />
+        {/* Retrabajo: lo que alguien tuvo que deshacer. Ámbar = mirar, no celebrar. */}
+        <KpiCard icon={Undo2}        label="Anulaciones"     value={totals.voids}                     color="bg-amber/10 text-amber"
+          sub={totals.voids > 0 ? 'servicios, labs o pagos deshechos' : undefined} />
       </div>
 
       {/* Filtro de período */}
@@ -240,7 +277,7 @@ export function EmpleadosMetricasClient() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1200px]">
+            <table className="w-full text-sm min-w-[1340px]">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Empleado</th>
@@ -268,11 +305,16 @@ export function EmpleadosMetricasClient() {
                         {fmtMinutes(r.activeMinutes)}
                       </span>
                     </td>
-                    {COLUMNS.map((c) => (
-                      <td key={c.key} className="px-3 py-3 text-right text-[12px]">
-                        <Num value={r[c.key] as number} />
-                      </td>
-                    ))}
+                    {COLUMNS.map((c) => {
+                      const v = r[c.key] as number;
+                      return (
+                        <td key={c.key} className="px-3 py-3 text-right text-[12px]">
+                          {c.tone === 'warn' && v > 0
+                            ? <span className="font-mono tabular-nums text-amber">{v}</span>
+                            : <Num value={v} />}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

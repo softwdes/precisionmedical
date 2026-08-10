@@ -13,7 +13,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, Prisma } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { listCatalog, findCatalogItem, canEditCatalog } from '@/lib/catalog';
@@ -94,7 +95,7 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const auth = await requireEditor();
   if (auth instanceof NextResponse) return auth;
 
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const auth = await requireEditor();
   if (auth instanceof NextResponse) return auth;
 
@@ -226,7 +227,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  const actor = actorFromHeaders(req.headers);
+  const actor = await resolveActor(req.headers);
   const auth = await requireEditor();
   if (auth instanceof NextResponse) return auth;
 

@@ -16,9 +16,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, type Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { getSessionUser } from '@/lib/session';
+import { resolveActor } from '@/lib/actor';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,10 +53,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   if (claimed.count > 0) {
-    const actor = actorFromHeaders(req.headers);
+    const actor = await resolveActor(req.headers);
     await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
+      actorRole: actor.actorRole,
       action: 'ANSWER_INBOUND_CALL',
       entityType: 'call_logs',
       entityId: parsed.twilioCallSid,

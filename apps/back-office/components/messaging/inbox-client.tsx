@@ -290,11 +290,29 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
                 <tr><td colSpan={7}><EmptyState.Inline message={t('loading')} /></td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={7}><EmptyState.Inline message={t('bellEmpty')} /></td></tr>
-              ) : rows.map((r) => (
+              ) : /* No leído = tinte de fondo + raya de 3px en el borde: el ojo
+                     detecta el bloque de color antes de leer una palabra, y de
+                     un vistazo se ve cuántos pendientes hay. Sin animación a
+                     propósito — una tabla temblando no se puede leer, y el
+                     movimiento queda reservado al urgente del top bar. */
+                rows.map((r) => (
                 <tr key={r.id}
                   onClick={() => setOpenThreadId(r.id)}
-                  className="border-b border-border/30 last:border-b-0 hover:bg-white/[0.02] transition-colors cursor-pointer">
-                  <td className="px-3 !py-1.5" onClick={(e) => e.stopPropagation()}>
+                  className={`border-b border-border/30 last:border-b-0 transition-colors cursor-pointer ${
+                    !r.unread
+                      ? 'hover:bg-white/[0.02]'
+                      : r.priority === 'URGENT'
+                        ? 'bg-rose/[0.07] hover:bg-rose/[0.11]'
+                        : 'bg-emerald/[0.06] hover:bg-emerald/[0.1]'
+                  }`}>
+                  <td
+                    className={`px-3 !py-1.5 border-l-[3px] ${
+                      !r.unread
+                        ? 'border-l-transparent'
+                        : r.priority === 'URGENT' ? 'border-l-rose' : 'border-l-emerald'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {isOwnInbox && (
                       <input type="checkbox" className="accent-[#6366F1]"
                         checked={selected.has(r.id)}

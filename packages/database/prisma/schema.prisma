@@ -3212,6 +3212,14 @@ enum MessageRecipientKind {
   TO
   CC
 
+  /// El AUTOR del hilo. Es participante para que el mensaje que mandó le
+  /// aparezca en su propia bandeja —como en el EMR legacy, donde la lista son
+  /// "los hilos en los que participo", no solo los recibidos— pero con tipo
+  /// propio para que la cabecera del mensaje siga mostrando en "To:" solo a
+  /// quienes se les escribió. Se crea con `lastReadAt` puesto: nadie estrena su
+  /// propio mensaje en negrita.
+  SENDER
+
   @@map("message_recipient_kind")
 }
 

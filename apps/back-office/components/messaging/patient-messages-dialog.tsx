@@ -156,8 +156,16 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
               <ul className="divide-y divide-border/40">
                 {threads.map((th) => (
                   <li key={th.id}>
+                    {/* Raya + tinte para los no leídos — mismo idioma que el
+                        inbox (verde normal, rojo urgente), sin animación. */}
                     <button type="button" onClick={() => setOpenThreadId(th.id)}
-                      className="w-full flex items-center gap-3 px-4 sm:px-6 !py-1 min-h-[44px] text-left hover:bg-white/[0.02] transition-colors">
+                      className={`w-full flex items-center gap-3 px-4 sm:px-6 !py-1 min-h-[44px] text-left transition-colors border-l-[3px] ${
+                        !th.unread
+                          ? 'border-l-transparent hover:bg-white/[0.02]'
+                          : th.priority === 'URGENT'
+                            ? 'border-l-rose bg-rose/[0.07] hover:bg-rose/[0.11]'
+                            : 'border-l-emerald bg-emerald/[0.06] hover:bg-emerald/[0.1]'
+                      }`}>
                       {/* Verde = sin leer normal · rojo = urgente (mismo
                           código que el badge del top bar y el inbox) */}
                       {th.unread

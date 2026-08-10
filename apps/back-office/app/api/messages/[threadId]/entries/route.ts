@@ -71,17 +71,32 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: { id: true },
   });
 
-  if (newTo.length > 0 || newCc.length > 0) {
-    await db.messageRecipient.createMany({
-      data: [
-        ...newTo.map((u) => ({ threadId, userId: u.id, userName: u.name, kind: 'TO' as const })),
-        ...newCc.map((u) => ({ threadId, userId: u.id, userName: u.name, kind: 'CC' as const })),
-      ],
-      skipDuplicates: true,
-    });
-  }
+  // El que escribe también participa: responder desde un hilo ajeno (o desde la
+  // bandeja de otro) no puede dejarte sin rastro de lo que escribiste.
+  // skipDuplicates respeta su fila si ya era TO/CC/SENDER.
+  await db.messageRecipient.createMany({
+    data: [
+      ...newTo.map((u) => ({ threadId, userId: u.id, userName: u.name, kind: 'TO' as const })),
+      ...newCc.map((u) => ({ threadId, userId: u.id, userName: u.name, kind: 'CC' as const })),
+      {
+        threadId,
+        userId: actor.actorUserId,
+        userName: actor.actorName,
+        kind: 'SENDER' as const,
+        lastReadAt: now,
+      },
+    ],
+    skipDuplicates: true,
+  });
 
   await reviveThread(threadId, now);
+
+  // Escribir cuenta como leer: sin esto el hilo le vuelve en negrita al propio
+  // autor, porque reviveThread adelanta lastEntryAt para TODOS los participantes.
+  await db.messageRecipient.updateMany({
+    where: { threadId, userId: actor.actorUserId },
+    data: { lastReadAt: now },
+  });
 
   writeAuditLog(db, {
     ...(await resolveActor(req.headers)),

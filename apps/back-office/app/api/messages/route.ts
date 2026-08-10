@@ -185,6 +185,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         create: [
           ...toUsers.map((u) => ({ userId: u.id, userName: u.name, kind: 'TO' as const })),
           ...ccUsers.map((u) => ({ userId: u.id, userName: u.name, kind: 'CC' as const })),
+          // El autor participa para ver en su bandeja lo que mandó, con
+          // lastReadAt sellado (nadie estrena su propio mensaje en negrita).
+          // Si ya está en To/CC no se duplica: la PK es (threadId, userId).
+          ...(toUsers.some((u) => u.id === actor.actorUserId) ||
+              ccUsers.some((u) => u.id === actor.actorUserId)
+            ? []
+            : [{
+                userId: actor.actorUserId,
+                userName: actor.actorName,
+                kind: 'SENDER' as const,
+                lastReadAt: now,
+              }]),
         ],
       },
     },

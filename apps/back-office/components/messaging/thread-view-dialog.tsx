@@ -277,11 +277,17 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
 
   const actionBtn =
     'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium text-text-muted hover:text-text-1 hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+  /** Destructivo — rose siempre visible, no recién al pasar el mouse: borrar no
+   *  debería descubrirse por accidente. Mismo criterio que el ámbar del sello. */
+  const dangerBtn =
+    'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold text-rose hover:bg-rose/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
-        <DialogContent className="max-w-3xl p-0 max-h-[92vh] flex flex-col">
+        {/* Alto FIJO — ver la nota de escala en patient-messages-dialog: la
+            conversación siempre ocupa el mismo marco y crece por dentro. */}
+        <DialogContent className="max-w-3xl p-0 h-[80vh] flex flex-col">
           <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border space-y-2">
             <DialogTitle className="flex items-center gap-2 flex-wrap text-text-1 text-base font-semibold">
               {thread?.priority === 'URGENT' && (
@@ -342,8 +348,18 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
               <button type="button" className={actionBtn} disabled={busy} onClick={() => setMode('NOTE')}>
                 <StickyNote className="w-3.5 h-3.5" />{t('actNote')}
               </button>
+              {/* Ámbar SIEMPRE visible (no solo en hover): es la única acción
+                  de la barra con consecuencias —sella y saca de las bandejas— y
+                  el ámbar ya es el idioma del sello en todo el módulo (candado,
+                  banda del hilo, nota de cierre). Rojo queda para los Delete;
+                  archivar no destruye nada. */}
               {!thread.sealedAt && (
-                <button type="button" className={actionBtn} disabled={busy} onClick={() => setAskSealNote(true)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setAskSealNote(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold text-amber hover:bg-amber/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <FolderLock className="w-3.5 h-3.5" />{t('actSeal')}
                 </button>
               )}
@@ -351,14 +367,14 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                 <Printer className="w-3.5 h-3.5" />{t('actPrint')}
               </button>
               <span className="flex-1" />
-              <button type="button" className={`${actionBtn} hover:!text-rose`} disabled={busy} onClick={() => doDelete('MINE')}>
+              <button type="button" className={dangerBtn} disabled={busy} onClick={() => doDelete('MINE')}>
                 <Trash2 className="w-3.5 h-3.5" />{t('actDeleteMine')}
               </button>
-              <button type="button" className={`${actionBtn} hover:!text-rose`} disabled={busy} onClick={() => setConfirm('DELETE_ALL')}>
+              <button type="button" className={dangerBtn} disabled={busy} onClick={() => setConfirm('DELETE_ALL')}>
                 {t('actDeleteAll')}
               </button>
               {isAdmin && thread.patient && (
-                <button type="button" className={`${actionBtn} hover:!text-rose`} disabled={busy} onClick={() => setConfirm('DELETE_HISTORY')}>
+                <button type="button" className={dangerBtn} disabled={busy} onClick={() => setConfirm('DELETE_HISTORY')}>
                   {t('actDeleteHistory')}
                 </button>
               )}

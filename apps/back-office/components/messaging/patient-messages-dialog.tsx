@@ -105,7 +105,11 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-        <DialogContent className="max-w-2xl p-0 max-h-[92vh] flex flex-col">
+        {/* Alto FIJO (no max-h): con un solo hilo el diálogo quedaba como una
+            tira de 100px. Escala estándar de mensajería — listas angostas 70vh,
+            conversación 80vh, overlay del inbox 85vh. El contenido crece por
+            dentro con scroll, el marco no se mueve. */}
+        <DialogContent className="max-w-2xl p-0 h-[70vh] flex flex-col">
           {/* pr-12: deja libre la esquina donde Radix pinta la X — si no, el
               botón de nuevo mensaje queda pegado a ella. */}
           <DialogHeader className="px-4 sm:px-6 pr-12 sm:pr-14 pt-5 pb-3 border-b border-border">
@@ -138,10 +142,14 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
+            {/* Con marco alto, el vacío y el "cargando" van centrados — al ras
+                de arriba dejaban un hueco que parecía un error de render. */}
             {loading ? (
-              <div className="px-6 py-8 text-text-muted text-sm">{t('loading')}</div>
+              <div className="h-full flex items-center justify-center text-text-muted text-sm">
+                {t('loading')}
+              </div>
             ) : threads.length === 0 ? (
-              <div className="p-6">
+              <div className="h-full flex items-center justify-center p-6">
                 <EmptyState.Rich icon={MessagesSquare} title={t('emptyTitle')} subtitle={t('emptyDesc')} />
               </div>
             ) : (

@@ -114,3 +114,45 @@ export async function fetchDbRole(email: string): Promise<string> {
     return 'EMPLOYEE';
   }
 }
+
+export interface DirectoryUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  status: string;
+}
+
+/**
+ * Ficha completa de un usuario en el DIRECTORIO DE LOGINS (proyecto Admin), que
+ * es distinto de la base de la app (Phoenix, vía Prisma).
+ *
+ * Existe porque los dos directorios están desconectados: el middleware autentica
+ * contra Admin, pero las FK de la app (AuditLog.actorUserId, MessageRecipient,
+ * user_activity) apuntan a `users` de Phoenix. Un usuario que solo existe en
+ * Admin queda sin identidad para la app: mensajería devuelve 401 y las métricas
+ * de actividad ni lo registran. Con esto se lo puede provisionar al vuelo.
+ *
+ * Devuelve null si no está en el directorio o si la consulta falla — el caller
+ * decide qué hacer (nunca inventar un usuario).
+ */
+export async function fetchDirectoryUser(email: string): Promise<DirectoryUser | null> {
+  try {
+    const url =
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
+      `?select=email,firstName,lastName,role,status&email=eq.${encodeURIComponent(email)}&limit=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as DirectoryUser[];
+    return data[0] ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -17,6 +17,7 @@
 
 import { cache } from 'react';
 import { db, actorFromHeaders, type ActorType, type UserRole } from '@precision-medical/database';
+import { fetchDirectoryUser } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
 
 export interface ResolvedActor {
@@ -35,12 +36,58 @@ export interface ResolvedActor {
  * users.id/role/nombre por email, UNA vez por request (mismo criterio que
  * getSessionUser: cache() de React memoiza dentro del render/handler).
  */
-export const getDbUserByEmail = cache(async (email: string) =>
-  db.user.findFirst({
+export const getDbUserByEmail = cache(async (email: string) => {
+  const existing = await db.user.findFirst({
     where: { email: { equals: email, mode: 'insensitive' } },
     select: { id: true, role: true, firstName: true, lastName: true },
-  }),
-);
+  });
+  if (existing) return existing;
+  return provisionFromDirectory(email);
+});
+
+/** Roles del directorio que la app conoce — cualquier otro no se provisiona. */
+const KNOWN_ROLES: readonly UserRole[] = [
+  'SUPER_ADMIN', 'ADMIN', 'CONTADOR', 'EMPLOYEE', 'FRONT_DESK',
+  'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI',
+];
+
+/**
+ * Provisión al vuelo: el usuario autenticó (existe en el directorio Admin) pero
+ * no tenía fila en Phoenix, así que la app no lo reconocía — mensajería le
+ * devolvía 401 y su actividad no quedaba registrada en ninguna parte.
+ *
+ * Se crea con id cuid propio de Phoenix (NUNCA el UUID de Supabase Auth: es la
+ * trampa que ya nos costó `CallLog.agentUserId`) y sin passwordHash, porque la
+ * autenticación sigue viviendo en el directorio Admin.
+ *
+ * Sin esto, cada usuario nuevo que crea RRHH queda invisible para la app hasta
+ * que alguien recuerde correr un script de sincronización.
+ */
+async function provisionFromDirectory(email: string) {
+  const dir = await fetchDirectoryUser(email);
+  if (!dir || dir.status !== 'ACTIVE') return null;
+  if (!KNOWN_ROLES.includes(dir.role as UserRole)) return null;
+
+  try {
+    return await db.user.create({
+      data: {
+        email: dir.email,
+        firstName: dir.firstName || dir.email.split('@')[0]!,
+        lastName: dir.lastName || '',
+        role: dir.role as UserRole,
+        status: 'ACTIVE',
+      },
+      select: { id: true, role: true, firstName: true, lastName: true },
+    });
+  } catch {
+    // Carrera entre dos requests del mismo usuario (email es @unique): el otro
+    // ya la creó, así que se relee en vez de fallar.
+    return db.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: { id: true, role: true, firstName: true, lastName: true },
+    });
+  }
+}
 
 export async function resolveActor(headers: Headers): Promise<ResolvedActor> {
   const fromHeaders = actorFromHeaders(headers);

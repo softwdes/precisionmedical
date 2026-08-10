@@ -4276,6 +4276,7 @@
       "bellTitle": "Messages",
       "bellUrgentPill": "{count} urgent",
       "bellEmpty": "No messages in the inbox",
+      "bellUnlinked": "Your account is not linked to the app yet. Sign out and back in; if it persists, tell an administrator.",
       "bellViewAll": "View all messages",
       "inboxTitle": "Messages",
       "inboxSubtitle": "{count} thread(s) in inbox",

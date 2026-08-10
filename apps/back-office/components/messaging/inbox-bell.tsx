@@ -35,12 +35,17 @@ export function InboxBell(): React.ReactElement | null {
   const t = useTranslations('phoenix.messaging');
 
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
+  const [unlinked, setUnlinked] = useState(false);
   const [open, setOpen] = useState(false);
 
   const refreshBadge = useCallback(async (): Promise<void> => {
     try {
       const res = await fetch('/api/messages/badge');
-      if (res.ok) setBadge(await res.json());
+      if (res.ok) { setBadge(await res.json()); setUnlinked(false); return; }
+      // 401 = el usuario autenticó pero la app no lo reconoce (no tenía fila en
+      // `users`). Ya no debería pasar —resolveActor lo provisiona al vuelo— pero
+      // si vuelve a pasar, el botón lo DICE en vez de quedarse inerte.
+      if (res.status === 401) setUnlinked(true);
     } catch { /* informativo: si falla, el badge no cambia */ }
   }, []);
 
@@ -100,9 +105,11 @@ export function InboxBell(): React.ReactElement | null {
         </span>
       </button>
 
-      {/* El overlay grande del legacy: inbox completo dentro del modal */}
-      {badge && (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) void refreshBadge(); }}>
+      {/* El overlay grande del legacy: inbox completo dentro del modal.
+          Se monta SIEMPRE — antes dependía de que el badge hubiera cargado, y
+          un 401 dejaba el botón sin respuesta: parecía que "solo el admin podía
+          abrirlo". Si la identidad no se resuelve, el modal lo explica. */}
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) void refreshBadge(); }}>
           {/* h fijo (no max-h): el overlay del legacy es grande SIEMPRE, aunque
               la bandeja esté vacía — la tabla respira y no baila al filtrar. */}
           <DialogContent className="max-w-6xl p-0 h-[85vh] flex flex-col">
@@ -118,19 +125,23 @@ export function InboxBell(): React.ReactElement | null {
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-              {/* key: al reabrir, recarga con el estado fresco del badge */}
-              {open && (
+              {open && badge ? (
                 <InboxClient
                   embedded
                   currentUserId={badge.userId}
                   currentUserName=""
                   isAdmin={badge.isAdmin}
                 />
+              ) : open && unlinked ? (
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                  {t('bellUnlinked')}
+                </div>
+              ) : (
+                <div className="text-text-muted text-sm">{t('loading')}</div>
               )}
             </div>
           </DialogContent>
-        </Dialog>
-      )}
+      </Dialog>
     </>
   );
 }

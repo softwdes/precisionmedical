@@ -2961,6 +2961,13 @@ model AppointmentBilling {
   /// cobros. `serviceCode` guarda el código del ítem solo para mostrarlo.
   cashServiceId String? @unique
 
+  /// Ídem para los estudios de laboratorio (`LabOrder`). La clínica cobra el
+  /// lab al paciente al precio público del catálogo, así que cada estudio
+  /// pedido genera su fila; quitar el estudio retira el cobro.
+  /// Como férulas y cash: nace con `insuranceCovered = 0` — es plata del
+  /// paciente, no del seguro (los CPT son el otro circuito).
+  labOrderId String? @unique
+
   totalCost        Decimal @default(0) @db.Decimal(10, 2)
   discount         Decimal @default(0) @db.Decimal(10, 2)
   insuranceCovered Decimal @default(0) @db.Decimal(10, 2)

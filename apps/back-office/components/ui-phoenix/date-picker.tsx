@@ -15,6 +15,7 @@
  */
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale } from 'next-intl';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -32,8 +33,21 @@ export interface DatePickerProps {
   className?: string;
   /** Tamaño del trigger: sm (h-7, toolbars) · lg (h-10, táctil/iPad) */
   size?: 'sm' | 'lg';
-  /** Formato del label del trigger: short "28 jul 2026" · long "lunes, 28 de julio de 2026" */
-  labelFormat?: 'short' | 'long';
+  /**
+   * Formato del label del trigger:
+   *  · short   "28 jul 2026"
+   *  · long    "lunes, 28 de julio de 2026"
+   *  · numeric "28/07/2026" — el que usa la clínica en los formularios: leen
+   *    los números, no el nombre del mes (Erick 2026-08-08).
+   */
+  labelFormat?: 'short' | 'long' | 'numeric';
+  /**
+   * Por defecto, si el valor es HOY el botón dice "Hoy/Today" — sirve en las
+   * barras de navegación por día. En un FORMULARIO confunde: el usuario espera
+   * ver la fecha que va a quedar registrada. Con esto siempre se muestra la
+   * fecha.
+   */
+  alwaysShowDate?: boolean;
 }
 
 const ACCENTS: Record<NonNullable<DatePickerProps['accent']>, { solid: string; ring: string; text: string }> = {
@@ -52,10 +66,56 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short' }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const popRef = React.useRef<HTMLDivElement>(null);
+  /**
+   * El calendario se renderiza en un PORTAL con `position: fixed`.
+   *
+   * Dentro de un diálogo el cuerpo scrollea (`overflow-y-auto`) y un popover
+   * `absolute` queda RECORTADO — se veía medio calendario. Además el
+   * `transform` del DialogContent haría de bloque contenedor de cualquier
+   * `fixed` hijo (ver memoria: css-fixed-inside-dialog-trap), así que el
+   * portal a `body` es la única salida. Mismo patrón que ui-phoenix/autocomplete.
+   */
+  const [popStyle, setPopStyle] = React.useState<React.CSSProperties>({ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' });
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+
+  const POP_W = 248;
+  const POP_H = 300; // alto aproximado del popover (header + grid + pie)
+
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const compute = (): void => {
+      const el = rootRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      // Alineado a la derecha del trigger, sin salirse de la ventana
+      const left = Math.max(8, Math.min(r.right - POP_W, window.innerWidth - POP_W - 8));
+      // Abre hacia arriba si abajo no entra
+      const abreArriba = r.bottom + POP_H > window.innerHeight && r.top > POP_H;
+      setPopStyle(abreArriba
+        ? { position: 'fixed', bottom: window.innerHeight - r.top + 4, left, visibility: 'visible' }
+        : { position: 'fixed', top: r.bottom + 4, left, visibility: 'visible' });
+    };
+    compute();
+    // Seguir al contenedor scrolleable del diálogo
+    let scrollable: HTMLElement | null = rootRef.current?.parentElement ?? null;
+    while (scrollable) {
+      const oy = window.getComputedStyle(scrollable).overflowY;
+      if (oy === 'auto' || oy === 'scroll') break;
+      scrollable = scrollable.parentElement;
+    }
+    scrollable?.addEventListener('scroll', compute, { passive: true });
+    window.addEventListener('resize', compute, { passive: true });
+    return () => {
+      scrollable?.removeEventListener('scroll', compute);
+      window.removeEventListener('resize', compute);
+    };
+  }, [open]);
   const a = ACCENTS[accent];
   const today = todayKey ?? localTodayKey();
 
@@ -71,7 +131,10 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
   React.useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // El popover vive en un portal: hay que mirar los DOS árboles
+      if (rootRef.current?.contains(target) || popRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     window.addEventListener('mousedown', onDown);
@@ -94,16 +157,18 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
     return { key: keyOf(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === view.m };
   });
 
-  // Viendo el día actual → label "Hoy/Today" en el color del módulo (patrón Day Admission)
+  // Viendo el día actual → label "Hoy/Today" en el color del módulo (patrón Day
+  // Admission). En formularios se pide `alwaysShowDate` y siempre va la fecha.
   const isTodayValue = value === today;
-  const triggerLabel = isTodayValue
+  const dateOpts: Intl.DateTimeFormatOptions =
+    labelFormat === 'long'
+      ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+      : labelFormat === 'numeric'
+        ? { day: '2-digit', month: '2-digit', year: 'numeric' }
+        : { day: 'numeric', month: 'short', year: 'numeric' };
+  const triggerLabel = isTodayValue && !alwaysShowDate
     ? todayLabel
-    : new Intl.DateTimeFormat(
-        locale,
-        labelFormat === 'long'
-          ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
-          : { day: 'numeric', month: 'short', year: 'numeric' },
-      ).format(new Date(`${value}T12:00:00`));
+    : new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`));
 
   const pick = (k: string): void => { onChange(k); setOpen(false); };
 
@@ -122,8 +187,8 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         {triggerLabel}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-[248px] rounded-lg border border-border bg-bg-1 shadow-2xl p-3">
+      {open && mounted && createPortal(
+        <div ref={popRef} style={popStyle} className="z-[9999] w-[248px] rounded-lg border border-border bg-bg-1 shadow-2xl p-3">
           {/* Header: mes + navegación */}
           <div className="flex items-center justify-between mb-2">
             <button
@@ -183,7 +248,8 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
               {todayLabel}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

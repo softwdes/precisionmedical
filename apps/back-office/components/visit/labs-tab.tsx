@@ -13,11 +13,11 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   FlaskConical, Scan, HeartPulse, Plus, Printer, Loader2, Upload, FileText,
-  Ban, ChevronDown, ChevronRight, AlertTriangle, Building2, Home,
+  ChevronDown, ChevronRight, AlertTriangle, Building2, Home, Trash2,
 } from 'lucide-react';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { LabOrderDialog, type NoteDiagnosisSeed, type SelectedStudy } from './lab-order-dialog';
+import { LabOrderDialog, type SelectedStudy } from './lab-order-dialog';
 
 export interface LabOrderRow {
   id: string;
@@ -46,7 +46,8 @@ export interface LabOrderRow {
 interface Props {
   appointmentId: string;
   userId: string | null;
-  seedDiagnoses: NoteDiagnosisSeed[];
+  /** Doctor de la cita — sale preseleccionado como solicitante de la orden */
+  defaultProviderId?: string | null;
 }
 
 const CATEGORY_ICON: Record<string, React.ElementType> = {
@@ -75,7 +76,13 @@ function fmtDate(iso: string | null, withTime = false): string {
   });
 }
 
-export function LabsTab({ appointmentId, userId, seedDiagnoses }: Props): React.ReactElement {
+/**
+ * En la VISITA (consulta del doctor y Day Admission) el estudio se QUITA, no se
+ * anula: la hoja la imprime la clínica después de cobrar, así que hasta acá no
+ * salió ningún papel. Médico y asistente pueden. En el detalle del caso —días
+ * después, con la hoja ya entregada— la vía es anular.
+ */
+export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
   const [orders, setOrders] = React.useState<LabOrderRow[]>([]);
@@ -85,7 +92,7 @@ export function LabsTab({ appointmentId, userId, seedDiagnoses }: Props): React.
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [showHistory, setShowHistory] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [voidTarget, setVoidTarget] = React.useState<LabOrderRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<LabOrderRow | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -151,19 +158,16 @@ export function LabsTab({ appointmentId, userId, seedDiagnoses }: Props): React.
     }
   };
 
-  const voidOrder = async (id: string): Promise<void> => {
+  /** Quitar el estudio del pedido. En la visita nadie anula: no hay papel aún. */
+  const deleteOrder = async (id: string): Promise<void> => {
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/lab-orders/item/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'VOIDED' }),
-      });
-      if (!res.ok) setError(t('labErrVoid'));
+      const res = await fetch(`/api/admin/lab-orders/item/${id}`, { method: 'DELETE' });
+      if (!res.ok) setError(t('labErrDelete'));
       else await load();
     } finally {
       setBusyId(null);
-      setVoidTarget(null);
+      setDeleteTarget(null);
     }
   };
 
@@ -231,13 +235,11 @@ export function LabsTab({ appointmentId, userId, seedDiagnoses }: Props): React.
               </button>
               <button
                 type="button"
-                onClick={() => setVoidTarget(o)}
+                onClick={() => setDeleteTarget(o)}
                 disabled={busy}
-                title={t('labVoid')}
-                aria-label={t('labVoid')}
-                className="text-text-muted hover:text-rose"
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-muted hover:text-rose"
               >
-                <Ban className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" /> {t('labRemove')}
               </button>
             </>
           ) : null}
@@ -374,17 +376,17 @@ export function LabsTab({ appointmentId, userId, seedDiagnoses }: Props): React.
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         userId={userId}
-        seedDiagnoses={seedDiagnoses}
+        defaultProviderId={defaultProviderId}
         onCreate={handleCreate}
       />
 
       <ConfirmDialog
-        open={!!voidTarget}
-        onCancel={() => setVoidTarget(null)}
-        onConfirm={() => { if (voidTarget) void voidOrder(voidTarget.id); }}
-        title={t('labVoidTitle')}
-        description={t('labVoidConfirm', { study: voidTarget?.studyName ?? '' })}
-        confirmLabel={t('labVoid')}
+        open={!!deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) void deleteOrder(deleteTarget.id); }}
+        title={t('labRemoveTitle')}
+        description={t('labRemoveConfirm', { study: deleteTarget?.studyName ?? '' })}
+        confirmLabel={t('labRemove')}
         variant="danger"
       />
     </div>

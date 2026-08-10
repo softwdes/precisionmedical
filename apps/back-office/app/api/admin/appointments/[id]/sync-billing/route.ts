@@ -9,6 +9,7 @@
  * propio sincronizador:
  *   · férulas          → `braceId`       (lib/brace-billing.ts)
  *   · cargos efectivo  → `cashServiceId` (lib/cash-service-billing.ts)
+ *   · laboratorios     → `labOrderId`    (lib/lab-billing.ts)
  * Esas filas se excluyen explícitamente de la query. Sin ese filtro esta ruta las
  * borraba: las de férulas por tener `serviceCode` nulo (caían en el DELETE de
  * "agregados"), y las de efectivo por tener un código que no está en la lista de
@@ -52,6 +53,7 @@ export async function POST(
       WHERE ab."appointmentId" = ${id}
         AND ab."braceId" IS NULL
         AND ab."cashServiceId" IS NULL
+        AND ab."labOrderId" IS NULL
       GROUP BY ab.id, ab."serviceCode"
     `;
 

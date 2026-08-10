@@ -59,6 +59,9 @@ export type { RichTextEditorProps } from './rich-text-editor';
 export { Autocomplete } from './autocomplete';
 export type { AutocompleteProps, AutoResult } from './autocomplete';
 
+export { FloatingPanel } from './floating-panel';
+export type { FloatingPanelProps } from './floating-panel';
+
 export { CaseStageProgress } from './case-stage-progress';
 export type { CaseStageProgressProps, CaseStageProgressLabels } from './case-stage-progress';
 

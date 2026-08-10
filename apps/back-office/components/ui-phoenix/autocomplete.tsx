@@ -44,6 +44,8 @@ export interface AutoResult {
   age?: number | null;
   /** Un apoderado menor de edad no puede firmar — el UI lo marca y bloquea */
   isMinor?: boolean;
+  /** Casos vivos+cerrados del paciente — mensajería veta a los que no tienen */
+  caseCount?: number;
 }
 
 export interface AutocompleteProps {
@@ -57,6 +59,13 @@ export interface AutocompleteProps {
   showAge?: boolean;
   /** Impide seleccionar resultados menores de edad (no pueden firmar) */
   blockMinors?: boolean;
+  /**
+   * Veto genérico de resultados: se muestran (para que se vea que existen y la
+   * búsqueda no falló) pero no se pueden elegir. `blockedBadge` explica por qué
+   * — sin la razón visible, un resultado que no responde al clic parece un bug.
+   */
+  isBlocked?: (r: AutoResult) => boolean;
+  blockedBadge?: string;
   /** Mensaje cuando la búsqueda no trae nada (por defecto no se muestra nada) */
   emptyHint?: string;
   /**
@@ -69,7 +78,7 @@ export interface AutocompleteProps {
 
 export function Autocomplete({
   endpoint, extraParams, placeholder, selected, onSelect, renderAvatar,
-  showAge = false, blockMinors = false, emptyHint, renderEmpty,
+  showAge = false, blockMinors = false, isBlocked, blockedBadge, emptyHint, renderEmpty,
 }: AutocompleteProps) {
   const t = useTranslations('phoenix.common');
   const [query, setQuery] = useState('');
@@ -181,8 +190,9 @@ export function Autocomplete({
           ) : results.length === 0 && emptyHint ? (
             <div className="px-3 py-3 text-text-muted text-xs text-center">{emptyHint}</div>
           ) : results.map((r) => {
-            // Un menor no puede ser apoderado: se muestra pero no se puede elegir
-            const disabled = blockMinors && r.isMinor === true;
+            // Un menor no puede ser apoderado, un paciente sin casos no puede
+            // recibir mensajes: se muestran pero no se pueden elegir.
+            const disabled = (blockMinors && r.isMinor === true) || isBlocked?.(r) === true;
             return (
               <button key={r.id} type="button" disabled={disabled}
                 onMouseDown={(e) => { e.preventDefault(); if (disabled) return; onSelect(r); setOpen(false); }}
@@ -194,6 +204,11 @@ export function Autocomplete({
                   <div className="text-text-1 truncate">{r.label}</div>
                   {r.subtitle && <div className="text-text-muted text-xs truncate">{r.subtitle}</div>}
                 </div>
+                {disabled && blockedBadge && isBlocked?.(r) === true && (
+                  <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber/10 border border-amber/30 text-amber">
+                    {blockedBadge}
+                  </span>
+                )}
                 {showAge && r.age !== null && r.age !== undefined && (
                   <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                     r.isMinor

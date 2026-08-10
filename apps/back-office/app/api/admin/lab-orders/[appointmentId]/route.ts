@@ -18,6 +18,7 @@ import { randomUUID } from 'crypto';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
+import { syncLabBilling } from '@/lib/lab-billing';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -37,6 +38,14 @@ const OrderSchema = z.object({
   sampleDate: z.string().nullable().optional(),   // YYYY-MM-DD
   preferredCenter: z.string().max(200).nullable().optional(),
   icd10Codes: z.array(z.string().max(300)).max(20).default([]),
+  /**
+   * Médico solicitante. Por defecto es el de la cita, pero se puede elegir
+   * otro: si el paciente vuelve otro día a que le saquen la muestra y ese
+   * doctor no está, la orden la firma quien esté (Erick 2026-08-08).
+   * Se manda el ID y el nombre lo resuelve el server — nunca un texto libre
+   * del cliente en un documento que va al laboratorio.
+   */
+  providerId: z.string().nullable().optional(),
 });
 
 const ORDER_SELECT = {
@@ -107,8 +116,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   // La orden es del MÉDICO aunque la cargue el asistente desde admisión: ese es
   // el nombre que se imprime y va al laboratorio. Quién la tecleó queda en el
   // audit log, no en el documento.
-  const orderedByName = appt?.provider
-    ? `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`.trim()
+  //
+  // Si vino un `providerId`, manda ese (el usuario eligió otro solicitante);
+  // si no, el doctor de la cita.
+  const chosen = body.providerId
+    ? await db.provider.findFirst({
+        where: { id: body.providerId, deletedAt: null },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const signer = chosen ?? appt?.provider ?? null;
+  const orderedByName = signer
+    ? `Dr. ${signer.firstName} ${signer.lastName}`.trim()
     : actor.name;
 
   const groupId = randomUUID();
@@ -133,6 +152,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       orderedByName,
     })),
   });
+
+  // La clínica cobra el estudio: cada uno genera su cobro con el precio
+  // público del catálogo (ver lib/lab-billing.ts).
+  await syncLabBilling(appointmentId);
 
   const orders = await db.labOrder.findMany({
     where: { groupId },

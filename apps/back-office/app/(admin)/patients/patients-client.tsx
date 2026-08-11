@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useRef, useTransition, Fragment } fro
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { conCasoAbierto } from '@/lib/case-modal-url';
+import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
@@ -1856,6 +1856,13 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const abrirCaso = useCallback((caseId: string) => {
     router.push(conCasoAbierto(basePath, searchParamsHook, caseId), { scroll: false });
   }, [router, basePath, searchParamsHook]);
+
+  /**
+   * Con el caso encima, los diálogos de mensajería se repliegan sin desmontarse
+   * (ver `suspended` en PatientMessagesDialog): al cerrar el caso el hilo vuelve
+   * como estaba, en vez de desaparecer.
+   */
+  const caseModalOpen = !!searchParamsHook.get(CASE_PARAM);
   const [isSearching,   setIsSearching]   = useState(false);
   const [localPatients, setLocalPatients] = useState<PatientRow[]>(patients);
   const [localTotal,    setLocalTotal]    = useState(total);
@@ -2987,6 +2994,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           caseFilter={msgCase}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
+          onOpenCase={abrirCaso}
+          suspended={caseModalOpen}
         />
       )}
 

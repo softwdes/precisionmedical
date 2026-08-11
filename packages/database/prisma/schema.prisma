@@ -3288,6 +3288,14 @@ model MessageEntry {
 
   sentAt DateTime @default(now())
 
+  /// Corregido por su autor DESPUÉS de enviarlo. Solo se permite mientras
+  /// ningún otro participante lo haya leído (`lastReadAt` < `sentAt`): editar
+  /// algo que alguien ya leyó y pudo haber ejecutado no es corregir un typo, es
+  /// reescribir un registro clínico a espaldas de quien actuó sobre él. Para eso
+  /// está responder con la corrección, que deja los dos hechos en orden.
+  /// La marca es visible en el hilo; el texto anterior queda en el AuditLog.
+  editedAt DateTime?
+
   attachments MessageAttachment[]
 
   createdAt DateTime @default(now())

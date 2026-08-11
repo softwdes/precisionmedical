@@ -15,7 +15,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
+import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { Mail, MailOpen, Lock, Plus, Trash2, Eye, FileEdit } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/ui-phoenix';
 import { useToast } from '@/components/ui-phoenix/toast';
@@ -47,15 +49,44 @@ interface Props {
    * legacy): sin PageHeader ni padding de página — el contenedor los pone.
    */
   embedded?: boolean;
+  /**
+   * Abre el caso del hilo. Embebido en el top bar lo provee el contenedor (que
+   * sí sabe a qué pantalla navegar); como página, el client lo resuelve solo
+   * con `?case=` sobre su propia URL.
+   */
+  onOpenCase?: (caseId: string) => void;
+  /**
+   * Hilo abierto, CONTROLADO desde afuera. Lo usa el sobre del top bar: su
+   * Dialog desmonta el contenido al replegarse (mientras el caso está encima),
+   * así que el id no puede vivir acá o se pierde. El sobre vive en el layout y
+   * no se desmonta nunca, así que lo recuerda él y el hilo vuelve al cerrar el
+   * caso. Como página no hace falta: el estado local sobrevive al `?case=`.
+   */
+  openThreadId?: string | null;
+  onOpenThreadChange?: (threadId: string | null) => void;
 }
 
 const selectCls =
   'bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none [color-scheme:dark]';
 
-export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded = false }: Props) {
+export function InboxClient({
+  currentUserId, currentUserName, isAdmin, embedded = false, onOpenCase,
+  openThreadId: controlledThreadId, onOpenThreadChange,
+}: Props) {
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
   const toast = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // El caso abierto vive en `?case=` de la URL de esta pantalla. Se lee igual
+  // embebido que como página: quien navega es el contenedor, pero replegarse
+  // mientras el caso está encima es responsabilidad de los dos.
+  const caseModalOpen = !!searchParams.get(CASE_PARAM);
+  const openCaseFromThread = useCallback((caseId: string) => {
+    router.push(conCasoAbierto(pathname, searchParams, caseId), { scroll: false });
+  }, [router, pathname, searchParams]);
 
   const [users, setUsers] = useState<MessagingUser[]>([]);
   const [viewUserId, setViewUserId] = useState(currentUserId);
@@ -68,7 +99,10 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [composeOpen, setComposeOpen] = useState(false);
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  // Controlado si el contenedor lo maneja (sobre del top bar), local si no.
+  const [localThreadId, setLocalThreadId] = useState<string | null>(null);
+  const openThreadId = controlledThreadId !== undefined ? controlledThreadId : localThreadId;
+  const setOpenThreadId = onOpenThreadChange ?? setLocalThreadId;
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -142,7 +176,7 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
       await Promise.all(
         [...selected].map((id) => fetch(`/api/messages/${id}/inbox`, { method: 'DELETE' })),
       );
-      toast.success(t('deleteOk'));
+      toast.success(t('deleteMineOk'));
       await load();
     } catch {
       toast.error(t('deleteError'));
@@ -207,7 +241,8 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
         <span className="flex-1" />
         {isOwnInbox && selected.size > 0 && (
           <button type="button" disabled={busy} onClick={() => setConfirmBulk(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold text-rose border border-rose/30 bg-rose/10 hover:bg-rose/20 transition-colors disabled:opacity-40">
+            title={t('tipDeleteMine')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold text-text-2 border border-border bg-bg-2 hover:text-text-1 hover:bg-white/5 transition-colors disabled:opacity-40">
             <Trash2 className="w-3 h-3" />
             {t('bulkDelete', { count: selected.size })}
           </button>
@@ -405,6 +440,8 @@ export function InboxClient({ currentUserId, currentUserName, isAdmin, embedded 
         currentUserId={currentUserId}
         isAdmin={isAdmin}
         onChanged={() => void load()}
+        onOpenCase={onOpenCase ?? openCaseFromThread}
+        suspended={caseModalOpen}
       />
 
       <ConfirmDialog

@@ -48,9 +48,16 @@ interface Props {
   isAdmin?: boolean;
   /** Abierto desde un caso: acota el historial y precarga el caso al escribir */
   caseFilter?: MessagesCaseFilter | null;
+  /** Abre el detalle del caso del hilo — lo resuelve la pantalla que monta esto */
+  onOpenCase?: (caseId: string) => void;
+  /** Se repliega (sin desmontarse) mientras el caso está encima */
+  suspended?: boolean;
 }
 
-export function PatientMessagesDialog({ open, onClose, patient, currentUserId, isAdmin = false, caseFilter = null }: Props) {
+export function PatientMessagesDialog({
+  open, onClose, patient, currentUserId, isAdmin = false, caseFilter = null,
+  onOpenCase, suspended = false,
+}: Props) {
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
 
@@ -104,7 +111,8 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      {/* Se repliega junto con el hilo mientras el caso está encima */}
+      <Dialog open={open && !suspended} onOpenChange={(v) => { if (!v && !suspended) onClose(); }}>
         {/* Alto FIJO (no max-h): con un solo hilo el diálogo quedaba como una
             tira de 100px. Escala estándar de mensajería — listas angostas 70vh,
             conversación 80vh, overlay del inbox 85vh. El contenido crece por
@@ -216,6 +224,8 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
         currentUserId={currentUserId}
         isAdmin={isAdmin}
         onChanged={() => load()}
+        onOpenCase={onOpenCase}
+        suspended={suspended}
       />
     </>
   );

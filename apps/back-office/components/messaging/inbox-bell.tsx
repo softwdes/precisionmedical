@@ -15,11 +15,24 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
+import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { InboxClient } from './inbox-client';
 import { MESSAGES_READ_EVENT } from './thread-view-dialog';
+
+/**
+ * Pantallas que montan <CaseUrlModal> y por lo tanto pueden abrir un caso con
+ * `?case=`. El sobre vive en el layout —que no recibe los parámetros de la
+ * URL— así que no puede montarlo él mismo: navega a una pantalla que sí puede.
+ * Estando ya en una de estas, se queda donde está para no mover al usuario.
+ */
+const PANTALLAS_CON_CASO = [
+  '/patients', '/calendar', '/messages',
+  '/doctor/patients', '/doctor/calendar', '/doctor/messages',
+];
 
 interface BadgeInfo {
   total: number;
@@ -37,6 +50,30 @@ export function InboxBell(): React.ReactElement | null {
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
   const [unlinked, setUnlinked] = useState(false);
   const [open, setOpen] = useState(false);
+  /**
+   * El hilo abierto vive ACÁ y no dentro del inbox: el Dialog desmonta su
+   * contenido al replegarse (mientras el caso está encima) y el id se perdía —
+   * al cerrar el caso volvía el inbox pero sin el mensaje. Este componente vive
+   * en el layout y no se desmonta nunca, así que lo recuerda por los dos.
+   */
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // El sobre vive en el layout, así que sobrevive a la navegación: se puede
+  // navegar a una pantalla que monte el caso y el inbox sigue abierto encima.
+  const caseModalOpen = !!searchParams.get(CASE_PARAM);
+  const openCase = useCallback((caseId: string) => {
+    const soportada = PANTALLAS_CON_CASO.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    if (soportada) {
+      router.push(conCasoAbierto(pathname, searchParams, caseId), { scroll: false });
+      return;
+    }
+    const destino = pathname.startsWith('/doctor') ? '/doctor/messages' : '/messages';
+    router.push(`${destino}?${CASE_PARAM}=${caseId}`, { scroll: false });
+  }, [router, pathname, searchParams]);
 
   const refreshBadge = useCallback(async (): Promise<void> => {
     try {
@@ -109,7 +146,10 @@ export function InboxBell(): React.ReactElement | null {
           Se monta SIEMPRE — antes dependía de que el badge hubiera cargado, y
           un 401 dejaba el botón sin respuesta: parecía que "solo el admin podía
           abrirlo". Si la identidad no se resuelve, el modal lo explica. */}
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) void refreshBadge(); }}>
+      {/* Se repliega mientras el caso está encima, sin desmontarse: al cerrar
+          el caso el inbox y el hilo vuelven como estaban. */}
+      <Dialog open={open && !caseModalOpen}
+        onOpenChange={(v) => { if (caseModalOpen) return; setOpen(v); if (!v) void refreshBadge(); }}>
           {/* h fijo (no max-h): el overlay del legacy es grande SIEMPRE, aunque
               la bandeja esté vacía — la tabla respira y no baila al filtrar. */}
           <DialogContent className="max-w-6xl p-0 h-[85vh] flex flex-col">
@@ -131,6 +171,9 @@ export function InboxBell(): React.ReactElement | null {
                   currentUserId={badge.userId}
                   currentUserName=""
                   isAdmin={badge.isAdmin}
+                  onOpenCase={openCase}
+                  openThreadId={openThreadId}
+                  onOpenThreadChange={setOpenThreadId}
                 />
               ) : open && unlinked ? (
                 <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">

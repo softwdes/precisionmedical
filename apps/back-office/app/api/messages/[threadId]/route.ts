@@ -49,6 +49,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           authorName: true,
           body: true,
           sentAt: true,
+          editedAt: true,
           attachments: {
             select: {
               id: true,

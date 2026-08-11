@@ -23,7 +23,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase,
+  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -49,6 +49,7 @@ interface ThreadEntry {
   authorName: string;
   body: string;
   sentAt: string;
+  editedAt: string | null;
   attachments: EntryAttachment[];
 }
 
@@ -83,9 +84,26 @@ interface Props {
   isAdmin?: boolean;
   /** Callback tras cualquier mutación (refrescar la lista de origen) */
   onChanged?: () => void;
+  /**
+   * Abre el detalle del CASO del hilo. El diálogo no sabe cómo: la superficie
+   * que lo monta decide (hoy `?case=` sobre su propia URL). Sin este callback
+   * —o sin caso en el hilo— el botón no se muestra, igual que en el panel de
+   * la cita del calendario.
+   */
+  onOpenCase?: (caseId: string) => void;
+  /**
+   * Repliega el diálogo sin desmontarlo, mientras el caso está encima. Al
+   * volver reaparece con su estado intacto: el hilo cargado y el borrador de la
+   * respuesta a medio escribir. Es lo que evita apilar dos Dialog de Radix de
+   * árboles distintos (patrón de `AppointmentDetailPanel`).
+   */
+  suspended?: boolean;
 }
 
-export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdmin = false, onChanged }: Props) {
+export function ThreadViewDialog({
+  open, onClose, threadId, currentUserId, isAdmin = false, onChanged,
+  onOpenCase, suspended = false,
+}: Props) {
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
   const toast = useToast();
@@ -98,6 +116,59 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
   const [fwdTo, setFwdTo] = useState<MessagingUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<null | 'SEAL' | 'DELETE_ALL' | 'DELETE_HISTORY'>(null);
+
+  // ─── Corregir un mensaje propio ─────────────────────────────────────────
+  // Permitido mientras NADIE MÁS lo haya leído. El server manda; acá solo se
+  // decide si mostrar el lápiz, para no ofrecer algo que va a ser rechazado.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState('');
+  const [editSubject, setEditSubject] = useState('');
+
+  const canEditEntry = (e: ThreadEntry): boolean => {
+    if (!thread || e.authorUserId !== currentUserId) return false;
+    if (thread.sealedAt && new Date(e.sentAt) <= new Date(thread.sealedAt)) return false;
+    return !thread.recipients.some(
+      (r) => r.userId !== currentUserId && r.lastReadAt !== null &&
+             new Date(r.lastReadAt) >= new Date(e.sentAt),
+    );
+  };
+
+  const startEdit = (e: ThreadEntry, isFirst: boolean): void => {
+    setEditingId(e.id);
+    setEditBody(e.body);
+    setEditSubject(isFirst ? (thread?.subject ?? '') : '');
+  };
+
+  const saveEdit = async (isFirst: boolean): Promise<void> => {
+    if (!thread || !editingId) return;
+    const plain = editBody.replace(/<[^>]*>/g, '').trim();
+    if (plain === '') return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/messages/${thread.id}/entries/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: editBody, ...(isFirst ? { subject: editSubject } : {}) }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string; readerName?: string };
+        // El caso interesante: alguien lo leyó entre que se abrió el lápiz y se
+        // guardó. Se explica con nombre y se ofrece la salida correcta.
+        toast.error(err.error === 'YA_LEIDO'
+          ? t('editBlockedRead', { name: err.readerName ?? '' })
+          : err.error === 'SELLADO' ? t('editBlockedSealed') : t('editError'));
+        return;
+      }
+      setEditingId(null);
+      toast.success(t('editOk'));
+      onChanged?.();
+      await load();
+    } catch {
+      toast.error(t('editError'));
+    } finally {
+      setBusy(false);
+    }
+  };
   const [sealNote, setSealNote] = useState('');
   const [askSealNote, setAskSealNote] = useState(false);
 
@@ -206,7 +277,9 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
           : `/api/messages/${thread.id}/inbox${which === 'ALL' ? '?all=1' : ''}`;
       const res = await fetch(url, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      toast.success(t('deleteOk'));
+      // El aviso enseña la regla en el momento exacto en que importa: el que
+      // borra de su bandeja cree que borró para todos.
+      toast.success(which === 'MINE' ? t('deleteMineOk') : t('deleteOk'));
       onChanged?.();
       onClose();
     } catch {
@@ -306,7 +379,9 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      {/* `!suspended`: mientras el caso está encima el diálogo se repliega sin
+          desmontarse, y el onOpenChange no cuenta eso como un cierre. */}
+      <Dialog open={open && !suspended} onOpenChange={(v) => { if (!v && !suspended && !busy) onClose(); }}>
         {/* Alto FIJO — ver la nota de escala en patient-messages-dialog: la
             conversación siempre ocupa el mismo marco y crece por dentro. */}
         <DialogContent className="max-w-3xl p-0 h-[80vh] flex flex-col">
@@ -332,15 +407,44 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                     </span>
                   )}
                   {/* El caso es una elección deliberada del que escribe — se
-                      muestra para saber sobre qué se está consultando. */}
+                      muestra para saber sobre qué se está consultando. Si la
+                      pantalla puede abrirlo, el chip ES el botón: hacés clic en
+                      el caso para ver el caso. Con la etiqueta visible, porque
+                      un chip que parece texto no invita al clic. */}
                   {thread.case && (
-                    <span className="inline-flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" />
-                      <span className="font-mono text-text-2">{thread.case.caseCode}</span>
-                      {thread.case.accidentDate && (
-                        <span>· {t('caseAccidentPrefix')} {fmtDate(thread.case.accidentDate)}</span>
-                      )}
-                    </span>
+                    onOpenCase ? (
+                      /* Tres señales de "esto abre algo", porque una pastilla
+                         de color sola se lee como etiqueta informativa: la
+                         flecha diagonal (convención universal de abrir), el
+                         relleno más presente que un tinte decorativo, y el
+                         subrayado de la etiqueta al pasar el mouse. */
+                      <button
+                        type="button"
+                        onClick={() => onOpenCase(thread.case!.id)}
+                        title={t('openCaseTooltip')}
+                        className="group inline-flex items-center gap-1 px-2 py-0.5 -my-0.5 rounded-full bg-brand/15 border border-brand/40 text-brand-text hover:bg-brand/25 hover:border-brand/70 transition-colors"
+                      >
+                        <Briefcase className="w-3 h-3" />
+                        <span className="font-mono">{thread.case.caseCode}</span>
+                        {thread.case.accidentDate && (
+                          <span className="text-text-muted">
+                            · {t('caseAccidentPrefix')} {fmtDate(thread.case.accidentDate)}
+                          </span>
+                        )}
+                        <span className="font-semibold underline-offset-2 group-hover:underline">
+                          · {t('openCase')}
+                        </span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <Briefcase className="w-3 h-3" />
+                        <span className="font-mono text-text-2">{thread.case.caseCode}</span>
+                        {thread.case.accidentDate && (
+                          <span>· {t('caseAccidentPrefix')} {fmtDate(thread.case.accidentDate)}</span>
+                        )}
+                      </span>
+                    )
                   )}
                   {thread.patient && (
                     <span className="inline-flex items-center gap-1">
@@ -389,14 +493,22 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                 <Printer className="w-3.5 h-3.5" />{t('actPrint')}
               </button>
               <span className="flex-1" />
-              <button type="button" className={dangerBtn} disabled={busy} onClick={() => doDelete('MINE')}>
+              {/* Quitar de MI bandeja no es destructivo —el hilo sigue en el
+                  historial del paciente y vuelve si alguien responde— así que va
+                  en gris. El rojo se reserva para los dos que sí afectan a
+                  otros: si todo fuera rojo, el nombre nuevo no alcanzaría para
+                  sacarle el miedo. Cada uno declara su alcance en el tooltip. */}
+              <button type="button" className={actionBtn} disabled={busy}
+                title={t('tipDeleteMine')} onClick={() => doDelete('MINE')}>
                 <Trash2 className="w-3.5 h-3.5" />{t('actDeleteMine')}
               </button>
-              <button type="button" className={dangerBtn} disabled={busy} onClick={() => setConfirm('DELETE_ALL')}>
+              <button type="button" className={dangerBtn} disabled={busy}
+                title={t('tipDeleteAll')} onClick={() => setConfirm('DELETE_ALL')}>
                 {t('actDeleteAll')}
               </button>
               {isAdmin && thread.patient && (
-                <button type="button" className={dangerBtn} disabled={busy} onClick={() => setConfirm('DELETE_HISTORY')}>
+                <button type="button" className={dangerBtn} disabled={busy}
+                  title={t('tipDeleteHistory')} onClick={() => setConfirm('DELETE_HISTORY')}>
                   {t('actDeleteHistory')}
                 </button>
               )}
@@ -439,10 +551,52 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                       {e.kind === 'FORWARD' && (
                         <span className="text-[10px] uppercase tracking-wider text-text-muted">{t('kindForward')}</span>
                       )}
+                      {e.editedAt && (
+                        <span className="text-[10px] italic text-text-muted" title={fmtDt(e.editedAt)}>
+                          {t('editedMark')}
+                        </span>
+                      )}
                       <span className="ml-auto text-[11px] text-text-muted">{fmtDt(e.sentAt)}</span>
+                      {/* El lápiz solo aparece mientras la corrección es segura:
+                          es mío y nadie más lo leyó todavía. */}
+                      {editingId !== e.id && canEditEntry(e) && (
+                        <button type="button" disabled={busy}
+                          onClick={() => startEdit(e, i === 0)}
+                          className="p-1 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors disabled:opacity-40"
+                          title={t('editTooltip')} aria-label={t('editTooltip')}>
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
-                    <div className="text-[12.5px] text-text-1 leading-relaxed break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                      dangerouslySetInnerHTML={{ __html: e.body }} />
+                    {editingId === e.id ? (
+                      <div className="space-y-2">
+                        {i === 0 && (
+                          <input
+                            value={editSubject}
+                            onChange={(ev) => setEditSubject(ev.target.value)}
+                            maxLength={200}
+                            disabled={busy}
+                            placeholder={t('fieldSubject')}
+                            className="w-full bg-bg-2 border border-border rounded-md px-3 py-1.5 text-sm text-text-1 outline-none focus:border-brand transition-colors"
+                          />
+                        )}
+                        <RichTextEditor value={editBody} onChange={setEditBody} minHeight={90}
+                          placeholder={t('bodyPlaceholder')} disabled={busy} />
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" onClick={() => setEditingId(null)} disabled={busy}>
+                            {t('btnCancel')}
+                          </Button>
+                          <button type="button" onClick={() => void saveEdit(i === 0)}
+                            disabled={busy || editBody.replace(/<[^>]*>/g, '').trim() === ''}
+                            className="px-4 py-2 rounded-md text-sm font-semibold bg-brand hover:bg-brand/90 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                            {t('btnSaveEdit')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[12.5px] text-text-1 leading-relaxed break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                        dangerouslySetInnerHTML={{ __html: e.body }} />
+                    )}
                     {e.attachments.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t border-border/40">
                         {e.attachments.map((a) => (

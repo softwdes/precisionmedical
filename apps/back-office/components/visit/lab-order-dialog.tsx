@@ -75,6 +75,16 @@ interface Props {
  * Se sigue enviando para que la hoja impresa se lo diga al laboratorio.
  */
 const BILLING_TYPE = 'CLIENT' as const;
+
+/**
+ * Topes de texto, IGUALES a los del server (`/api/admin/lab-orders`).
+ *
+ * El formulario no tenia ninguno: entraba texto de cualquier largo y el usuario
+ * no sabia cuanto podia escribir. Y la indicacion clinica bajo de 4000 a 500
+ * porque se IMPRIME en la hoja que va al laboratorio (Erick 2026-08-11).
+ */
+const MAX_INDICACION = 500;
+const MAX_CENTRO = 200;
 const URGENCIES = ['ROUTINE', 'URGENT', 'STAT'] as const;
 
 const todayKey = (): string =>
@@ -264,7 +274,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
         <DialogContent className="max-w-2xl p-0 max-h-[92vh] flex flex-col">
           <DialogHeader className="px-4 sm:px-5 py-3 border-b border-border shrink-0">
             <DialogTitle className="text-sm font-semibold text-text-1 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-violet" /> {t('labNewTitle')}
+              <FlaskConical className="w-4 h-4 text-violet-text" /> {t('labNewTitle')}
             </DialogTitle>
           </DialogHeader>
 
@@ -396,7 +406,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                         <span className={`shrink-0 text-[11px] tabular-nums ${r.price != null ? 'text-emerald' : 'text-text-muted'}`}>
                           {r.price != null ? `$${r.price.toFixed(2)}` : (r.priceNote ?? t('labNoPrice'))}
                         </span>
-                        {!picked && <Plus className="w-3.5 h-3.5 text-violet shrink-0" />}
+                        {!picked && <Plus className="w-3.5 h-3.5 text-violet-text shrink-0" />}
                       </button>
                     );
                   })}
@@ -411,7 +421,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                 <div className="mt-2 rounded-md bg-bg-2/40 overflow-hidden">
                   {studies.map((s) => (
                     <div key={s.code} className="px-3 py-1.5 flex items-center gap-2 text-[12.5px]">
-                      <span className="font-mono text-[11px] text-violet shrink-0 w-[68px]">{s.code}</span>
+                      <span className="font-mono text-[11px] text-violet-text shrink-0 w-[68px]">{s.code}</span>
                       <span className="text-text-1 flex-1 min-w-0 truncate">{s.name}</span>
                       <span className={`shrink-0 text-[11.5px] tabular-nums ${s.price != null ? 'text-emerald' : 'text-text-muted'}`}>
                         {s.price != null ? `$${s.price.toFixed(2)}` : t('labNoPrice')}
@@ -489,7 +499,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                         >
                           <span className="font-mono text-[11px] text-cyan shrink-0 w-[68px]">{row.icd10Code}</span>
                           <span className="text-text-1 flex-1 min-w-0 truncate">{row.icd10Description}</span>
-                          {!picked && <Plus className="w-3.5 h-3.5 text-violet shrink-0" />}
+                          {!picked && <Plus className="w-3.5 h-3.5 text-violet-text shrink-0" />}
                         </button>
                       );
                     })}
@@ -540,7 +550,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                 <button
                   type="button"
                   onClick={() => setMoreOpen((o) => !o)}
-                  className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-text-2 hover:text-violet transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-text-2 hover:text-violet-text transition-colors"
                 >
                   {moreOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                   {t('labMoreOptions')}
@@ -572,7 +582,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                                   ? 'bg-rose/15 text-rose'
                                   : u === 'URGENT'
                                     ? 'bg-amber/15 text-amber'
-                                    : 'bg-violet/15 text-violet'
+                                    : 'bg-violet/15 text-violet-text'
                                 : 'text-text-muted hover:text-text-1'
                             }`}
                           >
@@ -591,7 +601,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                             onClick={() => setCollectionSite(c)}
                             className={`${segItem} ${
                               collectionSite === c
-                                ? 'bg-violet/15 text-violet'
+                                ? 'bg-violet/15 text-violet-text'
                                 : 'text-text-muted hover:text-text-1'
                             }`}
                           >
@@ -611,6 +621,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                       <input
                         value={center}
                         onChange={(e) => setCenter(e.target.value)}
+                        maxLength={MAX_CENTRO}
                         placeholder={t('labCenterPlaceholder')}
                         className={`w-full h-9 px-3 ${fieldBase}`}
                       />
@@ -624,10 +635,18 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                     <textarea
                       value={indication}
                       onChange={(e) => setIndication(e.target.value)}
+                      maxLength={MAX_INDICACION}
                       rows={3}
                       placeholder={t('labIndicationPlaceholder')}
                       className={`w-full px-3 py-2 resize-y ${fieldBase}`}
                     />
+                    {/* El tope, a la vista: un campo que corta en silencio hace
+                        dudar de si se guardo todo. Solo aparece al acercarse. */}
+                    {indication.length > MAX_INDICACION - 100 && (
+                      <div className="text-[10px] text-text-muted mt-1 text-right">
+                        {indication.length} / {MAX_INDICACION}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -642,7 +661,10 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
 
           <DialogFooter className="px-4 sm:px-5 py-3 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
             <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">{t('tplCancel')}</Button>
-            <Button onClick={() => void handleSave()} disabled={saving} className="w-full sm:w-auto gap-1.5">
+            {/* Deshabilitado con 0 labs: `handleSave` ya lo frenaba y mostraba el
+                error, pero el boton se veia habilitado — un clic que existe solo
+                para decir "no". Asi el (0) del rotulo tiene sentido. */}
+            <Button onClick={() => void handleSave()} disabled={saving || studies.length === 0} className="w-full sm:w-auto gap-1.5">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               {t('labCreate', { count: studies.length })}
             </Button>

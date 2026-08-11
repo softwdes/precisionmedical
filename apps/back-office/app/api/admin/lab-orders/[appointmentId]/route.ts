@@ -31,7 +31,12 @@ const StudySchema = z.object({
 
 const OrderSchema = z.object({
   studies: z.array(StudySchema).min(1).max(30),
-  clinicalIndication: z.string().max(4000).default(''),
+  /**
+   * 500, no 4000. Esto se IMPRIME en la hoja que va al laboratorio: 4000
+   * caracteres no los lee nadie y rompen la hoja. Verificado antes de bajarlo:
+   * el maximo real en las 26 ordenes existentes es 59 caracteres.
+   */
+  clinicalIndication: z.string().max(500).default(''),
   urgency: z.enum(['STAT', 'URGENT', 'ROUTINE']).default('ROUTINE'),
   billingType: z.enum(['CLIENT', 'PATIENT', 'PRIVATE', 'MEDICAID', 'MEDICARE', 'WORKERS_COMP']).nullable().optional(),
   collectionSite: z.enum(['IN_HOUSE', 'EXTERNAL']).default('EXTERNAL'),

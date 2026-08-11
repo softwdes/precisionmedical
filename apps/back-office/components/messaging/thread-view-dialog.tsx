@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
 import { AttachmentPicker, type PendingAttachment } from './attachment-picker';
+import { AttachmentViewerDialog } from './attachment-viewer-dialog';
 
 interface EntryAttachment {
   id: string;
@@ -365,17 +366,13 @@ export function ThreadViewDialog({
     }, 50);
   };
 
-  // Bucket privado: cada apertura pide su URL firmada (15 min) y queda auditada.
-  const openAttachment = async (attachmentId: string): Promise<void> => {
-    try {
-      const res = await fetch(`/api/messages/attachments/${attachmentId}`);
-      if (!res.ok) throw new Error();
-      const data = (await res.json()) as { url: string };
-      window.open(data.url, '_blank', 'noopener');
-    } catch {
-      toast.error(t('attachOpenError'));
-    }
-  };
+  /**
+   * Adjunto abierto en el visor embebido. Antes se hacía `window.open` con la
+   * URL firmada: sacaba al usuario del hilo y dejaba esa URL en la barra de
+   * direcciones y en el historial, que para PHI es mejor evitar. El pedido de
+   * la URL (y su registro en el audit log) lo hace el visor.
+   */
+  const [viewing, setViewing] = useState<{ id: string; fileName: string } | null>(null);
 
   const sealedAtMs = thread?.sealedAt ? new Date(thread.sealedAt).getTime() : null;
   const toNames = thread?.recipients.filter((r) => r.kind === 'TO').map((r) => r.userName) ?? [];
@@ -611,7 +608,8 @@ export function ThreadViewDialog({
                     {e.attachments.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t border-border/40">
                         {e.attachments.map((a) => (
-                          <button key={a.id} type="button" onClick={() => void openAttachment(a.id)}
+                          <button key={a.id} type="button"
+                            onClick={() => setViewing({ id: a.id, fileName: a.fileName })}
                             title={a.description ?? a.fileName}
                             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium bg-bg-2/60 border border-border/60 text-text-1 hover:border-brand/50 hover:text-brand-text transition-colors">
                             <Paperclip className="w-3 h-3" />
@@ -691,6 +689,15 @@ export function ThreadViewDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Visor del adjunto — diálogo anidado del MISMO árbol, así que Radix lo
+          apila sin el conflicto de foco que tienen dos diálogos de árboles
+          distintos (el problema que resolvimos con el caso). */}
+      <AttachmentViewerDialog
+        attachmentId={viewing?.id ?? null}
+        fileName={viewing?.fileName ?? ''}
+        onClose={() => setViewing(null)}
+      />
 
       <ConfirmDialog
         open={confirm === 'DELETE_ALL'}

@@ -18,7 +18,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Send, MessageSquarePlus,
-  LayoutTemplate, FolderOpen, Save, Search as SearchIcon, X as XIcon,
+  LayoutTemplate, Save, Search as SearchIcon, X as XIcon,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,

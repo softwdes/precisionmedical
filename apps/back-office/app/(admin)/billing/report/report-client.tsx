@@ -283,7 +283,7 @@ export function ReportClient() {
         {/* Provider billing breakdown */}
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-4 h-4 text-brand" />
+            <BarChart3 className="w-4 h-4 text-brand-text" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByProvider')}</span>
           </div>
 
@@ -319,7 +319,7 @@ export function ReportClient() {
         {/* Facility breakdown */}
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-4 h-4 text-brand" />
+            <Building2 className="w-4 h-4 text-brand-text" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByClinic')}</span>
           </div>
 
@@ -349,7 +349,7 @@ export function ReportClient() {
       {/* ── Lien aging ── */}
       <div className="rounded-xl border border-border bg-bg-1 p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Scale className="w-4 h-4 text-brand" />
+          <Scale className="w-4 h-4 text-brand-text" />
           <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionLienAging')}</span>
         </div>
 
@@ -404,7 +404,7 @@ export function ReportClient() {
         {/* Top 5 bufetes */}
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Users className="w-4 h-4 text-brand" />
+            <Users className="w-4 h-4 text-brand-text" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionTopFirms')}</span>
           </div>
 
@@ -515,7 +515,7 @@ export function ReportClient() {
         </div>
         <button
           type="button"
-          className="text-[11px] text-brand hover:underline"
+          className="text-[11px] text-brand-text hover:underline"
         >
           {t('btnConfigureSchedule')}
         </button>

@@ -636,7 +636,7 @@ function ExceptionModal({
                 {(['single','range'] as const).map(t => (
                   <button key={t} type="button" onClick={() => handleRangeToggle(t)}
                     className={cn('rounded-[5px] px-2.5 py-1 text-[11px] font-semibold transition-all',
-                      rangeType === t ? 'bg-brand/10 text-brand' : 'text-text-3 hover:text-text-2')}>
+                      rangeType === t ? 'bg-brand/10 text-brand-text' : 'text-text-3 hover:text-text-2')}>
                     {t === 'single' ? 'Un día' : 'Varios días'}
                   </button>
                 ))}
@@ -670,7 +670,7 @@ function ExceptionModal({
                   onClick={() => { setExcType(t); if (t !== 'partial') { setStartTime(''); setEndTime(''); } }}
                   className={cn('rounded-[8px] border py-2 text-[12px] font-semibold transition-all min-h-[44px]',
                     excType === t
-                      ? t === 'partial' ? 'border-orange-400/40 bg-orange-400/10 text-orange-400' : 'border-brand/40 bg-brand/10 text-brand'
+                      ? t === 'partial' ? 'border-orange-400/40 bg-orange-400/10 text-orange-400' : 'border-brand/40 bg-brand/10 text-brand-text'
                       : 'border-border bg-white/[0.03] text-text-3 hover:text-text-2')}>
                   {EXC_CONFIG[t]?.label}
                 </button>
@@ -1007,7 +1007,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                 onClick={() => setView(v)}
                 className={cn(
                   'rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-all',
-                  v === view ? 'bg-brand/10 text-brand' : 'text-text-3 hover:text-text-2',
+                  v === view ? 'bg-brand/10 text-brand-text' : 'text-text-3 hover:text-text-2',
                 )}>
                 {v}
               </button>
@@ -1078,7 +1078,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                     return (
                       <div key={i} className={cn('border-l border-white/[0.07] px-1.5 py-2 text-center', isWeekend && 'opacity-40')}>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted">{DAY_ABBR[i]}</div>
-                        <div className={cn('text-[13px] font-[500] mt-0.5', isToday ? 'text-brand' : 'text-text-2')}>{d.getDate()}</div>
+                        <div className={cn('text-[13px] font-[500] mt-0.5', isToday ? 'text-brand-text' : 'text-text-2')}>{d.getDate()}</div>
                       </div>
                     );
                   })}
@@ -1335,7 +1335,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                             <button
                               onClick={() => setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time })}
                               title="Registrar excepción"
-                              className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-brand transition-colors">
+                              className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-brand-text transition-colors">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald shrink-0" />
                               Activo
                             </button>
@@ -1455,7 +1455,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                       !isCurrentMonth && 'opacity-25 pointer-events-none',
                     )}
                     style={{ minHeight: 56 }}>
-                    <span className={cn('text-[12px] font-[500] leading-none', isToday ? 'text-brand' : 'text-text-2')}>
+                    <span className={cn('text-[12px] font-[500] leading-none', isToday ? 'text-brand-text' : 'text-text-2')}>
                       {day.getDate()}
                     </span>
                     <div className="mt-1 flex flex-col gap-0.5 w-full">

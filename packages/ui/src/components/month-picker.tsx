@@ -125,7 +125,7 @@ export function MonthPicker({
                 onChange(`${y}-${String(m).padStart(2, '0')}`);
                 setOpen(false);
               }}
-              className="text-brand hover:text-brand/80 transition-colors font-medium"
+              className="text-brand-text hover:text-brand-text/80 transition-colors font-medium"
             >
               {todayLabel}
             </button>

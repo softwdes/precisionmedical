@@ -79,7 +79,7 @@ export function pickDefaultCase(cases: MessagingCase[]): MessagingCase | null {
 function statusClass(status: string): string {
   if (status === 'CANCELLED') return 'bg-rose/10 text-rose border-rose/20';
   if (status === 'ACTIVE') return 'bg-emerald/10 text-emerald border-emerald/20';
-  return 'bg-brand/10 text-brand border-brand/20';
+  return 'bg-brand/10 text-brand-text border-brand/20';
 }
 
 interface Props {
@@ -235,7 +235,7 @@ export function CaseSelect({ cases, value, onChange, disabled = false, loading =
                   }
                 }}
                 placeholder={labels.searchPlaceholder}
-                className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted/50 pl-8 pr-3 py-2"
+                className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted pl-8 pr-3 py-2"
               />
             </div>
           )}

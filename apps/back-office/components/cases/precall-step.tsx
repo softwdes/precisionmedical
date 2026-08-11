@@ -328,7 +328,7 @@ export function PreCallStep({
               </div>
             )}
 
-            <div className="rounded-md border border-brand/20 bg-brand/5 px-3 py-2 text-[11px] text-brand">
+            <div className="rounded-md border border-brand/20 bg-brand/5 px-3 py-2 text-[11px] text-brand-text">
               {t('patientVerifyHint')}
             </div>
           </InfoCard>
@@ -463,7 +463,7 @@ export function PreCallStep({
         {/* Solo mientras está vacío: una vez que hay número, estorba. Sin la
             pista nadie descubre que se puede pegar — no parece un input. */}
         {!formatted && (
-          <div className="text-[9px] text-text-muted/70 leading-none pb-0.5">
+          <div className="text-[9px] text-text-muted leading-none pb-0.5">
             {t('pasteHint')}
           </div>
         )}
@@ -536,7 +536,7 @@ function ModeCard({
   disabledBadge?: string;
 }) {
   const toneClasses: Record<typeof tone, { border: string; bg: string; icon: string }> = {
-    brand:   { border: 'border-border hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand' },
+    brand:   { border: 'border-border hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand-text' },
     emerald: { border: 'border-border hover:border-emerald/40', bg: 'bg-bg-1',  icon: 'text-emerald' },
     cyan:    { border: 'border-border hover:border-cyan/40',    bg: 'bg-bg-1',  icon: 'text-cyan' },
     amber:   { border: 'border-border hover:border-amber/40',   bg: 'bg-bg-1',  icon: 'text-amber' },

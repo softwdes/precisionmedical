@@ -466,7 +466,7 @@ function EmpCombobox({
       >
         {selected ? (
           <span className="flex items-center gap-2 min-w-0">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand shrink-0">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand-text shrink-0">
               {selected.firstName.charAt(0)}{selected.lastName.charAt(0)}
             </span>
             <span className="truncate text-text-1">
@@ -508,11 +508,11 @@ function EmpCombobox({
                 onClick={() => select('')}
                 className={cn(
                   'flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-bg-1 transition-colors',
-                  !value ? 'text-brand font-medium' : 'text-text-2',
+                  !value ? 'text-brand-text font-medium' : 'text-text-2',
                 )}
               >
                 <span>Todos los empleados</span>
-                {!value && <Check className="h-3 w-3 text-brand" />}
+                {!value && <Check className="h-3 w-3 text-brand-text" />}
               </button>
             )}
 
@@ -534,16 +534,16 @@ function EmpCombobox({
                     value === e.id && 'bg-brand/5',
                   )}
                 >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand shrink-0">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand-text shrink-0">
                     {e.firstName.charAt(0)}{e.lastName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <p className={cn('truncate leading-tight', value === e.id ? 'font-semibold text-brand' : 'text-text-1')}>
+                    <p className={cn('truncate leading-tight', value === e.id ? 'font-semibold text-brand-text' : 'text-text-1')}>
                       {e.firstName} {e.lastName}
                     </p>
                     <p className="font-mono text-[10px] text-text-muted">{e.employeeCode}</p>
                   </div>
-                  {value === e.id && <Check className="h-3 w-3 text-brand shrink-0" />}
+                  {value === e.id && <Check className="h-3 w-3 text-brand-text shrink-0" />}
                 </button>
               ))
             )}
@@ -714,7 +714,7 @@ function EmployeeRow({
         {/* Employee */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/15 text-tiny font-bold text-brand shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/15 text-tiny font-bold text-brand-text shrink-0">
               {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
             </div>
             <div>
@@ -833,7 +833,7 @@ function EmployeeMobileCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/15 text-xs font-bold text-brand shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/15 text-xs font-bold text-brand-text shrink-0">
             {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
           </div>
           <div>
@@ -1300,7 +1300,7 @@ export function ReporteHorasClient({
             {/* Info pills */}
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">
-                <ShieldCheck className="h-3 w-3 text-brand" />
+                <ShieldCheck className="h-3 w-3 text-brand-text" />
                 Documento confidencial
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">

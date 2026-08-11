@@ -43,7 +43,7 @@ const VARIANT_CONFIG: Record<Variant, {
     confirmClass: 'bg-rose hover:bg-rose/90 text-white',
   },
   info: {
-    icon:         <Info className="w-5 h-5 text-brand" />,
+    icon:         <Info className="w-5 h-5 text-brand-text" />,
     iconBg:       'bg-brand/10 border border-brand/20',
     confirmClass: 'bg-brand hover:bg-brand/90 text-white',
   },

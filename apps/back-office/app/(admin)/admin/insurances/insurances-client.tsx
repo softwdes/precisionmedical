@@ -135,7 +135,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
         <KpiCard label={t('kpiTotal')}   value={stats.total}  sub={t('kpiTotalSub')}  color="text-text-1" />
         <KpiCard label={t('kpiActive')}  value={stats.active} sub={t('kpiActiveSub')} color="text-emerald" />
         <KpiCard label={t('kpiSlow')}    value={stats.slow}   sub={t('kpiSlowSub')}   color="text-amber" />
-        <KpiCard label={t('kpiFast')}    value={stats.fast}   sub={t('kpiFastSub')}   color="text-brand" />
+        <KpiCard label={t('kpiFast')}    value={stats.fast}   sub={t('kpiFastSub')}   color="text-brand-text" />
       </div>
 
       {/* Filters */}
@@ -286,7 +286,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
 function TypePill({ type }: { type: string }) {
   const colors: Record<string, string> = {
     PIP:     'bg-cyan/15 text-cyan border-cyan/30',
-    MED_PAY: 'bg-violet/15 text-violet border-violet/30',
+    MED_PAY: 'bg-violet/15 text-violet-text border-violet/30',
     HEALTH:  'bg-emerald/15 text-emerald border-emerald/30',
     WORKERS: 'bg-amber/15 text-amber border-amber/30',
     OTHER:   'bg-white/5 text-text-2 border-border',

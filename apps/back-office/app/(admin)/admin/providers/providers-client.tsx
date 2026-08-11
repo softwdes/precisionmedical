@@ -244,7 +244,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       {/* Vínculo con empleado HR */}
       <div className="space-y-1.5">
         <Label htmlFor="employeeId" className="flex items-center gap-1.5">
-          <Link2 className="w-3.5 h-3.5 text-brand" />
+          <Link2 className="w-3.5 h-3.5 text-brand-text" />
           Empleado vinculado (HR)
         </Label>
         <select
@@ -279,7 +279,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label="Total"      value={stats.total}    sub="registrados"    color="text-text-1" />
         <KpiCard label="Activos"    value={stats.active}   sub="en servicio"    color="text-emerald" />
-        <KpiCard label="Vinculados" value={stats.total - unlinkedCount} sub="con empleado HR" color="text-brand" />
+        <KpiCard label="Vinculados" value={stats.total - unlinkedCount} sub="con empleado HR" color="text-brand-text" />
         <KpiCard label="Sin vínculo" value={unlinkedCount} sub="pendientes"     color={unlinkedCount > 0 ? 'text-amber' : 'text-text-muted'} />
       </div>
 
@@ -354,7 +354,7 @@ export function ProvidersClient({ providers, stats }: Props) {
                   <DataTable.Td>
                     {p.employee ? (
                       <div className="flex items-center gap-1.5">
-                        <LinkIcon className="w-3 h-3 text-brand shrink-0" />
+                        <LinkIcon className="w-3 h-3 text-brand-text shrink-0" />
                         <span className="text-[11px] text-text-2">{p.employee.firstName} {p.employee.lastName}</span>
                       </div>
                     ) : (

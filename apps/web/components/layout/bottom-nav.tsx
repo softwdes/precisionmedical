@@ -110,7 +110,7 @@ export function BottomNav({ onMoreClick }: BottomNavProps): React.ReactElement {
                 className={cn(
                   'group relative flex w-full flex-col items-center justify-center gap-0.5 transition-all',
                   'active:scale-[0.92]',
-                  active ? 'text-brand' : 'text-text-3 hover:text-text-2',
+                  active ? 'text-brand-text' : 'text-text-3 hover:text-text-2',
                 )}
               >
                 {/* Indicador superior animado para el item activo */}
@@ -145,7 +145,7 @@ export function BottomNav({ onMoreClick }: BottomNavProps): React.ReactElement {
             className={cn(
               'group relative flex w-full flex-col items-center justify-center gap-0.5 transition-all',
               'active:scale-[0.92]',
-              moreActive ? 'text-brand' : 'text-text-3 hover:text-text-2',
+              moreActive ? 'text-brand-text' : 'text-text-3 hover:text-text-2',
             )}
           >
             <span

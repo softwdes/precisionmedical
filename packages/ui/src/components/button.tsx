@@ -18,7 +18,7 @@ const buttonVariants = cva(
           'bg-rose/10 text-rose border border-rose/20 hover:bg-rose/20 active:scale-[0.98]',
         outline:
           'border border-border-strong bg-transparent text-text-1 hover:bg-surface active:scale-[0.98]',
-        link: 'text-brand underline-offset-4 hover:underline p-0 h-auto',
+        link: 'text-brand-text underline-offset-4 hover:underline p-0 h-auto',
         icon: 'bg-surface border border-border text-text-2 hover:bg-surface-2 hover:text-text-1 hover:border-border-strong',
       },
       size: {

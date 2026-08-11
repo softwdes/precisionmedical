@@ -396,7 +396,7 @@ export function ChargePickerDialog({
       : coverage.type === 'SELF_PAY'
         ? { text: t('covSelfPay'), cls: 'border-emerald/30 bg-emerald/10 text-emerald', icon: Banknote }
         : coverage.type === 'LIEN'
-          ? { text: t('covLien'), cls: 'border-violet/30 bg-violet/10 text-violet', icon: Scale }
+          ? { text: t('covLien'), cls: 'border-violet/30 bg-violet/10 text-violet-text', icon: Scale }
           : { text: t('covUnknown'), cls: 'border-amber/30 bg-amber/10 text-amber', icon: ShieldQuestion };
   const CovIcon = covBanner.icon;
 
@@ -412,7 +412,7 @@ export function ChargePickerDialog({
       <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[88vh]">
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2">
-            <Plus className="w-4 h-4 text-violet shrink-0" />
+            <Plus className="w-4 h-4 text-violet-text shrink-0" />
             {t('pickerTitle')}
           </DialogTitle>
         </DialogHeader>
@@ -479,7 +479,7 @@ export function ChargePickerDialog({
               href={pathname.startsWith('/doctor') ? '/doctor/catalog' : '/admin/catalog'}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10.5px] text-text-muted hover:text-violet transition-colors inline-flex items-center gap-1 shrink-0"
+              className="text-[10.5px] text-text-muted hover:text-violet-text transition-colors inline-flex items-center gap-1 shrink-0"
             >
               {t('catalogFix')} <ExternalLink className="w-3 h-3" />
             </a>

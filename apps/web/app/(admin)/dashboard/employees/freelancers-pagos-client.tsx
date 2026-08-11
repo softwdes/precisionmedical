@@ -155,7 +155,7 @@ export function FreelancersPagosClient({
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-brand/10 flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-brand" />
+                <DollarSign className="h-4 w-4 text-brand-text" />
               </div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('freelancers.pagosTotal')}</p>
@@ -211,7 +211,7 @@ export function FreelancersPagosClient({
                     <TableRow key={p.id as string}>
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-brand/10 text-brand text-tiny font-bold flex items-center justify-center shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-brand/10 text-brand-text text-tiny font-bold flex items-center justify-center shrink-0">
                             {fl?.nombre?.slice(0, 2).toUpperCase() ?? '—'}
                           </div>
                           <div>
@@ -250,7 +250,7 @@ export function FreelancersPagosClient({
                             <>
                               <button
                                 onClick={() => setShowEdit(p.id as string)}
-                                className="p-1.5 text-text-muted hover:text-brand transition-colors rounded"
+                                className="p-1.5 text-text-muted hover:text-brand-text transition-colors rounded"
                                 title={t('freelancers.editPayment')}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -539,7 +539,7 @@ function SchedulePaymentDialog({
           {calculado > 0 && (
             <div className="rounded-lg bg-brand/5 border border-brand/20 px-4 py-3 flex justify-between">
               <span className="text-small text-text-3">{t('freelancers.totalCalculado')}</span>
-              <span className="text-base font-bold font-mono text-brand">
+              <span className="text-base font-bold font-mono text-brand-text">
                 {fmtAmount(calculado, form.moneda)} {form.moneda}
               </span>
             </div>

@@ -16,7 +16,7 @@ export interface KpiCardProps {
   label: string;
   value: number | string;
   sub?: React.ReactNode;
-  /** Clase Tailwind para color del número grande. Ej: "text-emerald", "text-rose", "text-brand". */
+  /** Clase Tailwind para color del número grande. Ej: "text-emerald", "text-rose", "text-brand-text". */
   color?: string;
   /** Número más pequeño + menos padding — para vistas con muchos KPIs. */
   compact?: boolean;

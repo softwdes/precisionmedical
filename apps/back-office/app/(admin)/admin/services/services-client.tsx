@@ -143,7 +143,7 @@ export function ServicesClient({ services, stats }: Props) {
         <KpiCard label={t('kpiTotal')}       value={stats.total}     sub={`${stats.cpt} CPT · ${stats.hcpcs} HCPCS · ${stats.custom} PM`} color="text-text-1" />
         <KpiCard label={t('kpiActive')}      value={stats.active}    sub="2026" color="text-emerald" />
         <KpiCard label={t('kpiFavorites')}   value={stats.favorites} sub="B.21 autocomplete" color="text-amber" />
-        <KpiCard label={t('kpiFiscalYear')}  value={2026}            sub="AMA update Jan" color="text-brand" />
+        <KpiCard label={t('kpiFiscalYear')}  value={2026}            sub="AMA update Jan" color="text-brand-text" />
       </div>
 
       <div className="space-y-2">
@@ -211,7 +211,7 @@ export function ServicesClient({ services, stats }: Props) {
                         className="hover:scale-125 transition-transform"
                         title={s.isFavorite ? t('removeFavorite') : t('addFavorite')}
                       >
-                        <Star className={`w-4 h-4 ${s.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
+                        <Star className={`w-4 h-4 ${s.isFavorite ? 'fill-amber text-amber' : 'text-text-muted'}`} />
                       </button>
                     </DataTable.Td>
                     <DataTable.Td>
@@ -293,7 +293,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function TypePill({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    CPT:       'bg-brand/15 text-brand border-brand/30',
+    CPT:       'bg-brand/15 text-brand-text border-brand/30',
     HCPCS:     'bg-emerald/15 text-emerald border-emerald/30',
     CUSTOM_PM: 'bg-pink/15 text-pink border-pink/30',
   };

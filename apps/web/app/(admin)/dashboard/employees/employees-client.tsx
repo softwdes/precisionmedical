@@ -236,7 +236,7 @@ export function EmployeesClient({
                   key={emp.id}
                   className="flex items-center gap-3 px-4 py-3.5"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/20 text-small font-bold text-brand shrink-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/20 text-small font-bold text-brand-text shrink-0">
                     {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -283,7 +283,7 @@ export function EmployeesClient({
                   <TableRow key={emp.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-tiny font-bold text-brand shrink-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-tiny font-bold text-brand-text shrink-0">
                           {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
                         </div>
                         <div>
@@ -487,7 +487,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
         {/* Header */}
         {emp && (
           <div className="flex items-start gap-3 pl-5 pr-12 pt-5 pb-4 border-b border-border">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/20 text-sm font-bold text-brand shrink-0 mt-0.5">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/20 text-sm font-bold text-brand-text shrink-0 mt-0.5">
               {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
@@ -511,7 +511,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
               className={cn(
                 'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0',
                 activeTab === tab
-                  ? 'border-brand text-brand'
+                  ? 'border-brand text-brand-text'
                   : 'border-transparent text-text-3 hover:text-text-1',
               )}
             >
@@ -667,7 +667,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
                               <p className="text-[10px] text-text-3">{fmt(doc.createdAt)}</p>
                             </div>
                           </div>
-                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-brand hover:underline">
+                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-brand-text hover:underline">
                             {t('common.view')}
                           </a>
                         </li>
@@ -695,7 +695,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
                         const actorName = actor ? `${actor.firstName} ${actor.lastName}` : t('employees.system');
                         return (
                           <li key={item.id} className="flex items-start gap-3 py-2.5">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-[9px] font-bold text-brand shrink-0 mt-0.5">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-[9px] font-bold text-brand-text shrink-0 mt-0.5">
                               {actorName.charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -921,7 +921,7 @@ function CreateEmployeeDialog({
 
             {form.position === 'DOCTOR' && (
               <div className="rounded-lg border border-brand/25 bg-brand/5 p-3 space-y-3">
-                <p className="text-[11px] font-semibold text-brand uppercase tracking-wider">Credenciales médicas</p>
+                <p className="text-[11px] font-semibold text-brand-text uppercase tracking-wider">Credenciales médicas</p>
                 <div className="space-y-1.5">
                   <Label>Especialidad *</Label>
                   <Select value={form.specialty} onValueChange={(v) => f('specialty', v)}>

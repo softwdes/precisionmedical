@@ -358,7 +358,7 @@ export function TemplatesClient({ templates, stats }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label="Total"       value={stats.total}                                    sub="plantillas"    color="text-text-1" />
         <KpiCard label="Activas"     value={stats.active}                                   sub="disponibles"   color="text-emerald" />
-        <KpiCard label="Compartidas" value={stats.shared}                                   sub="SHARED scope"  color="text-violet" />
+        <KpiCard label="Compartidas" value={stats.shared}                                   sub="SHARED scope"  color="text-violet-text" />
         <KpiCard label="F/U"         value={stats.byEncounter['FOLLOW_UP'] ?? 0}            sub="Seguimiento"   color="text-cyan" />
       </div>
 
@@ -414,7 +414,7 @@ export function TemplatesClient({ templates, stats }: Props) {
                     <span className="text-sm text-text-2">{ENCOUNTER_LABELS[t.encounterType] ?? t.encounterType}</span>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <TagPill colorClass="bg-violet/15 text-violet border-violet/30" label={CASE_TYPE_LABELS[t.caseType] ?? t.caseType} />
+                    <TagPill colorClass="bg-violet/15 text-violet-text border-violet/30" label={CASE_TYPE_LABELS[t.caseType] ?? t.caseType} />
                   </DataTable.Td>
                   <DataTable.Td>
                     <TagPill

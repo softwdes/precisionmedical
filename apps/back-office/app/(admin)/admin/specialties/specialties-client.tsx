@@ -103,7 +103,7 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
         <KpiCard label={t('kpiTotal')}    value={stats.total}        sub={t('kpiTotalSub')}    color="text-text-1" />
         <KpiCard label={t('kpiActive')}   value={stats.active}       sub={t('kpiActiveSub')}   color="text-emerald" />
         <KpiCard label={t('kpiInactive')} value={stats.inactive}     sub={t('kpiInactiveSub')} color="text-rose" />
-        <KpiCard label={t('kpiDoctors')}  value={stats.totalDoctors} sub={t('kpiDoctorsSub')}  color="text-brand" />
+        <KpiCard label={t('kpiDoctors')}  value={stats.totalDoctors} sub={t('kpiDoctorsSub')}  color="text-brand-text" />
       </div>
 
       {/* Filter row */}

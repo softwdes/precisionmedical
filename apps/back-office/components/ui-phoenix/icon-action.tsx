@@ -52,7 +52,7 @@ export function IconAction({
       aria-label={label}
       className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
         disabled
-          ? 'text-text-muted/40 cursor-not-allowed'
+          ? 'text-text-muted cursor-not-allowed'
           : variant === 'danger'
             ? 'text-text-muted hover:text-rose hover:bg-rose/10'
             : variant === 'success'

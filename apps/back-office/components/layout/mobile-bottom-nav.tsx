@@ -48,7 +48,7 @@ export function MobileBottomNav({ onMenuClick, variant = 'admin', allowedModules
               href={href}
               className={cn(
                 'relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors',
-                active ? (isDoctor ? 'text-violet' : 'text-brand') : 'text-text-muted hover:text-text-2',
+                active ? (isDoctor ? 'text-violet-text' : 'text-brand-text') : 'text-text-muted hover:text-text-2',
               )}
             >
               <Icon className="w-5 h-5" />

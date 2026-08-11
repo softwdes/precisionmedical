@@ -150,7 +150,7 @@ export function PatientsClient({
                       <TableCell><Badge variant={STATUS_VARIANTS[patient.status] ?? 'secondary'}>{STATUS_LABELS[patient.status] ?? patient.status}</Badge></TableCell>
                       <TableCell>
                         <Link href={`/dashboard/patients/${patient.id}`}>
-                          <ChevronRight className="h-4 w-4 text-text-muted hover:text-brand transition-colors" />
+                          <ChevronRight className="h-4 w-4 text-text-muted hover:text-brand-text transition-colors" />
                         </Link>
                       </TableCell>
                     </TableRow>

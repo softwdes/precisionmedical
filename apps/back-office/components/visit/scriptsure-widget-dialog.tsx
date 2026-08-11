@@ -77,7 +77,7 @@ export function ScriptSureWidgetDialog({
       <DialogContent className="max-w-6xl w-[96vw] p-0 overflow-hidden flex flex-col h-[92vh]">
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2 flex-wrap">
-            <ExternalLink className="w-4 h-4 text-violet shrink-0" />
+            <ExternalLink className="w-4 h-4 text-violet-text shrink-0" />
             <span>
               {kind === 'drug-list' ? t('rxWidgetHeaderPre') : t('rxPharmacyHeaderPre')}{' '}
               <b className="text-text-1">ScriptSure</b>

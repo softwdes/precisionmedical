@@ -175,7 +175,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                     href={portalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-1.5 rounded-md border border-border text-text-muted hover:text-brand hover:border-brand/40 transition-colors"
+                    className="p-1.5 rounded-md border border-border text-text-muted hover:text-brand-text hover:border-brand/40 transition-colors"
                     title="Open in new tab"
                   >
                     <ExternalLink className="w-3 h-3" />
@@ -212,7 +212,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   type="button"
                   disabled={!canSms}
                   onClick={() => setSendOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <MessageSquare className="w-3 h-3" /> SMS
                 </button>
@@ -220,7 +220,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   type="button"
                   disabled={!canEmail}
                   onClick={() => setSendOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Mail className="w-3 h-3" /> Email
                 </button>

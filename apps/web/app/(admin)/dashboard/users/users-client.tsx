@@ -234,14 +234,14 @@ export function UsersClient({
       <div className="flex items-center gap-1">
         <button
           onClick={(e) => { e.stopPropagation(); setViewingUserId(user.id); }}
-          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
           title="Ver usuario"
         >
           <Eye className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
-          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
           title="Editar usuario"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -291,7 +291,7 @@ export function UsersClient({
             className={cn(
               'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
               activeTab === tab
-                ? 'border-brand text-brand'
+                ? 'border-brand text-brand-text'
                 : 'border-transparent text-text-3 hover:text-text-2',
             )}
           >
@@ -1014,7 +1014,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0',
-                activeTab === tab.id ? 'border-brand text-brand' : 'border-transparent text-text-3 hover:text-text-1',
+                activeTab === tab.id ? 'border-brand text-brand-text' : 'border-transparent text-text-3 hover:text-text-1',
               )}
             >
               {tab.label}
@@ -1107,7 +1107,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
                       const actorName = actor ? `${actor.firstName} ${actor.lastName}` : t('users.system');
                       return (
                         <div key={entry.id} className="flex items-start gap-3 rounded-lg border border-border bg-surface/50 px-3 py-2.5">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-brand shrink-0 mt-0.5">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-brand-text shrink-0 mt-0.5">
                             <span className="text-[9px] font-bold">{actorName.charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">

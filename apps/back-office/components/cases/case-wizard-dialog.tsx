@@ -138,7 +138,7 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
             <div className={`
               flex items-center justify-center w-9 h-9 rounded-full border-2 transition-all
               ${done   ? 'bg-brand border-brand text-white' : ''}
-              ${active ? 'bg-bg-1 border-brand text-brand' : ''}
+              ${active ? 'bg-bg-1 border-brand text-brand-text' : ''}
               ${!done && !active ? 'bg-bg-2 border-border text-text-muted' : ''}
             `}>
               {done ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
@@ -170,7 +170,7 @@ function ConsentBlock({
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-brand shrink-0" />}
+        {Icon && <Icon className="w-4 h-4 text-brand-text shrink-0" />}
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{title}</h4>
       </div>
       <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
@@ -438,7 +438,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
-            <FileText className="w-4 h-4 text-brand" />
+            <FileText className="w-4 h-4 text-brand-text" />
             {isEdit ? 'Formulario de caso médico' : t('title')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
@@ -471,13 +471,13 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                       className={`
                         flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all
                         ${caseType === val
-                          ? 'border-brand bg-brand/10 text-brand font-medium'
+                          ? 'border-brand bg-brand/10 text-brand-text font-medium'
                           : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'}
                       `}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
                       {label}
-                      {caseType === val && <Check className="w-3.5 h-3.5 ml-auto text-brand" />}
+                      {caseType === val && <Check className="w-3.5 h-3.5 ml-auto text-brand-text" />}
                     </button>
                   ))}
                 </div>
@@ -568,7 +568,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                             value={p.name}
                             placeholder="Nombre del responsable"
                             onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
+                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors"
                           />
                         </div>
                         <div>
@@ -600,7 +600,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                   <button
                     type="button"
                     onClick={() => setResponsible(prev => [...prev, { id: `r-${Date.now()}-${prev.length}`, name: '', relation: '' }])}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/60 text-[12px] text-text-muted hover:border-brand/50 hover:text-brand transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/60 text-[12px] text-text-muted hover:border-brand/50 hover:text-brand-text transition-colors"
                   >
                     <span className="text-base leading-none">+</span>
                     {t('addResponsible')}
@@ -639,7 +639,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
               {/* 4. Política financiera + firma */}
               <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
+                  <Shield className="w-4 h-4 text-brand-text shrink-0" />
                   <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
                     {t('consents.financial.title')}
                   </h4>
@@ -677,7 +677,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                         className="max-h-full max-w-full object-contain"
                       />
                     ) : (
-                      <span className="text-[11px] text-text-muted/60 px-3 text-center">
+                      <span className="text-[11px] text-text-muted px-3 text-center">
                         {tc('signaturePendingFromPatient')}
                       </span>
                     )}
@@ -783,7 +783,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                         {t('reviewResponsiblePersons')}
                       </p>
                       {responsible.length === 0 ? (
-                        <p className="text-[12px] text-text-muted/60 italic">{t('reviewNoResponsible')}</p>
+                        <p className="text-[12px] text-text-muted italic">{t('reviewNoResponsible')}</p>
                       ) : (
                         <div className="space-y-1">
                           {responsible.map((p, i) => (

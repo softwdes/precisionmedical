@@ -31,8 +31,8 @@ const PAGE_SIZE = 25;
 /** Color por familia de servicio, para poder barrer la lista con la vista. */
 const CATEGORY_TONE: Record<string, string> = {
   LAB: 'text-cyan border-cyan/30 bg-cyan/10',
-  EM: 'text-brand border-brand/30 bg-brand/10',
-  IMAGING: 'text-violet border-violet/30 bg-violet/10',
+  EM: 'text-brand-text border-brand/30 bg-brand/10',
+  IMAGING: 'text-violet-text border-violet/30 bg-violet/10',
   SURGERY: 'text-rose border-rose/30 bg-rose/10',
   INJECTIONS: 'text-amber border-amber/30 bg-amber/10',
   DRUGS: 'text-amber border-amber/30 bg-amber/10',

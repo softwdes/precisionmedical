@@ -32,7 +32,7 @@ export function LabOrderPrintDialog({ groupId, onClose }: {
       <DialogContent className="max-w-4xl w-[96vw] p-0 overflow-hidden flex flex-col h-[92vh]">
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2">
-            <Printer className="w-4 h-4 text-violet" /> {t('labPrintOrder')}
+            <Printer className="w-4 h-4 text-violet-text" /> {t('labPrintOrder')}
           </DialogTitle>
         </DialogHeader>
         <iframe

@@ -164,7 +164,7 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
                   : 'border-border text-text-muted hover:bg-white/[0.02]'
               }`}
             >
-              <Icon className={`w-4 h-4 ${active ? 'text-violet' : ''}`} />
+              <Icon className={`w-4 h-4 ${active ? 'text-violet-text' : ''}`} />
               {t(`tab.${key}`)}
               <span className="text-[11px] text-text-muted">{n}</span>
             </button>
@@ -255,7 +255,7 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
                           {i.hasReflex && <TagPill label={t('badge.reflex')} colorClass="text-cyan border-cyan/30 bg-cyan/10" compact />}
                           {!i.isOrderable && <TagPill label={t('badge.notOrderable')} colorClass="text-rose border-rose/30 bg-rose/10" compact />}
                           {i.replacedByCode && <TagPill label={t('badge.replacedBy', { code: i.replacedByCode })} colorClass="text-amber border-amber/30 bg-amber/10" compact />}
-                          {i.alwaysFullPayment && <TagPill label={t('badge.fullPayment')} colorClass="text-violet border-violet/30 bg-violet/10" compact />}
+                          {i.alwaysFullPayment && <TagPill label={t('badge.fullPayment')} colorClass="text-violet-text border-violet/30 bg-violet/10" compact />}
                         </div>
                       </div>
                     </DataTable.Td>

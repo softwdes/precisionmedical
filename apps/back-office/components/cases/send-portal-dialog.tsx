@@ -221,10 +221,10 @@ function ChannelTab({
     ? 'bg-cyan/10 border-cyan/30'
     : 'bg-brand/10 border-brand/30';
   const iconColor = active
-    ? (color === 'cyan' ? 'text-cyan' : 'text-brand')
+    ? (color === 'cyan' ? 'text-cyan' : 'text-brand-text')
     : 'text-text-muted';
   const textColor = active
-    ? (color === 'cyan' ? 'text-cyan' : 'text-brand')
+    ? (color === 'cyan' ? 'text-cyan' : 'text-brand-text')
     : 'text-text-2';
 
   return (
@@ -388,7 +388,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
             {/* Magic link */}
             <div className="rounded-md border border-brand/25 bg-brand/5 p-3.5">
-              <div className="text-[10px] text-brand font-semibold uppercase tracking-wider mb-2">{L.magicLink}</div>
+              <div className="text-[10px] text-brand-text font-semibold uppercase tracking-wider mb-2">{L.magicLink}</div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-[10.5px] font-mono text-text-1 bg-bg-2 rounded px-2.5 py-1.5 break-all">
                   {result.portalUrl}
@@ -431,7 +431,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
             <DialogTitle className="flex items-center gap-2.5 text-sm">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg,rgba(99,102,241,.2),rgba(6,182,212,.1))', border: '1px solid rgba(99,102,241,.22)' }}>
-                <Send className="w-3.5 h-3.5 text-brand" />
+                <Send className="w-3.5 h-3.5 text-brand-text" />
               </div>
               {L.title}
             </DialogTitle>
@@ -454,7 +454,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               <div className="text-[12.5px] font-semibold text-text-1 flex items-center gap-2 flex-wrap">
                 {destName}
                 {dest.forGuardian && (
-                  <span className="text-[8.5px] font-bold uppercase tracking-wide px-1.5 py-px rounded bg-violet/15 text-violet border border-violet/25">
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide px-1.5 py-px rounded bg-violet/15 text-violet-text border border-violet/25">
                     {L.guardianBadge}
                   </span>
                 )}
@@ -626,7 +626,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                       <span key={i}>
                         {part}
                         {i < arr.length - 1 && (
-                          <code className="text-brand text-[10.5px] bg-brand/10 px-1 py-px rounded">
+                          <code className="text-brand-text text-[10.5px] bg-brand/10 px-1 py-px rounded">
                             [magic-link]
                           </code>
                         )}

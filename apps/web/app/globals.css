@@ -37,6 +37,10 @@
   --text-2: #A8B2CC;        /* Secondary text */
   --text-3: #6B7592;        /* Tertiary text */
   --text-muted: #4A5474;    /* Muted/disabled text */
+  /* Texto de marca accesible — ver el comentario largo en back-office/globals.css.
+     `brand` a 11px no llega a 4.5:1 y no hay un hex que sirva en los dos temas. */
+  --brand-text: #818CF8;
+  --violet-text: #A78BFA;
   
   /* === Shadows === */
   --shadow-soft: 
@@ -71,6 +75,8 @@
   --text-2: #475569;
   --text-3: #64748B;
   --text-muted: #94A3B8;
+  --brand-text: #4F46E5;
+  --violet-text: #7C3AED;
   
   /* === Shadows (lighter for light theme) === */
   --shadow-soft:

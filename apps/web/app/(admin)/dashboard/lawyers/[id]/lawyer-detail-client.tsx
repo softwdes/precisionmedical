@@ -62,7 +62,7 @@ export function LawyerDetailClient({ lawyer: initial }: { lawyer: Lawyer }): Rea
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10">
-          <Scale className="h-4 w-4 text-brand" />
+          <Scale className="h-4 w-4 text-brand-text" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-text-1 truncate">{name}</h1>

@@ -107,7 +107,7 @@ export function CaseStageProgress({ status, labels, className = '' }: CaseStageP
         })}
       </div>
       <div className="flex items-center justify-between mt-1">
-        <span className={`text-[10px] font-medium ${isComplete ? 'text-emerald' : 'text-brand'}`}>{label}</span>
+        <span className={`text-[10px] font-medium ${isComplete ? 'text-emerald' : 'text-brand-text'}`}>{label}</span>
         <span className="text-[10px] text-text-muted tabular-nums">{pct}%</span>
       </div>
     </div>

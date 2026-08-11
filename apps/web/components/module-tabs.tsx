@@ -19,7 +19,7 @@ export function ModuleTabs({ tabs, activeTab }: { tabs: Tab[]; activeTab: string
               href={tab.href}
               className={cn(
                 'relative px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
-                isActive ? 'text-brand' : 'text-text-3 hover:text-text-2',
+                isActive ? 'text-brand-text' : 'text-text-3 hover:text-text-2',
               )}
             >
               {tab.label}

@@ -120,7 +120,7 @@ export function UserSelect({
                 if (e.key === 'Escape') setOpen(false);
               }}
               placeholder={searchPlaceholder}
-              className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted/50 pl-8 pr-3 py-2"
+              className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted pl-8 pr-3 py-2"
             />
           </div>
           {/* Rueda: la maneja usePortalWheelScroll (listener nativo) — ver hook */}

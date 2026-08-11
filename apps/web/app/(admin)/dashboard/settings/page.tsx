@@ -46,7 +46,7 @@ export default function SettingsPage(): React.ReactElement {
             className={cn(
               'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
               activeTab === tab.id
-                ? 'border-brand text-brand'
+                ? 'border-brand text-brand-text'
                 : 'border-transparent text-text-3 hover:text-text-2',
             )}
           >

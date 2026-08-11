@@ -122,9 +122,9 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard icon={Phone}         label="Total llamadas" value={kpis.totalCalls}  color="bg-brand/10 text-brand" />
+        <KpiCard icon={Phone}         label="Total llamadas" value={kpis.totalCalls}  color="bg-brand/10 text-brand-text" />
         <KpiCard icon={PhoneIncoming} label="Entrantes"      value={kpis.inbound}     color="bg-cyan/10 text-cyan" />
-        <KpiCard icon={PhoneOutgoing} label="Salientes"      value={kpis.outbound}    color="bg-violet/10 text-violet" />
+        <KpiCard icon={PhoneOutgoing} label="Salientes"      value={kpis.outbound}    color="bg-violet/10 text-violet-text" />
         <KpiCard icon={Phone}         label="Contestadas"    value={kpis.answered}    sub={kpis.totalCalls > 0 ? `${Math.round(kpis.answered / kpis.totalCalls * 100)}%` : '—'} color="bg-emerald/10 text-emerald" />
         <KpiCard icon={PhoneMissed}   label="Sin respuesta"  value={kpis.noAnswer}    color="bg-amber/10 text-amber" />
         <KpiCard icon={Clock}         label="Duración prom." value={avgFmt}            color="bg-rose/10 text-rose" />
@@ -215,7 +215,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                     <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3">
                         {row.direction === 'OUTBOUND' ? (
-                          <span className="flex items-center gap-1.5 text-violet">
+                          <span className="flex items-center gap-1.5 text-violet-text">
                             <PhoneOutgoing className="w-3.5 h-3.5" />
                             <span className="text-[11px] font-medium">Saliente</span>
                           </span>
@@ -254,7 +254,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         {row.caseCode ? (
-                          <span className="font-mono text-[11px] text-brand">{row.caseCode}</span>
+                          <span className="font-mono text-[11px] text-brand-text">{row.caseCode}</span>
                         ) : (
                           <span className="text-text-3 text-[11px]">—</span>
                         )}

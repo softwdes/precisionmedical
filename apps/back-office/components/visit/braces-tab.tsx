@@ -128,7 +128,7 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
         key={r.id}
         className={`px-3 py-2 flex items-center gap-2.5 flex-wrap ${inactive ? 'opacity-50' : ''}`}
       >
-        <Bandage className="w-3.5 h-3.5 text-violet shrink-0" />
+        <Bandage className="w-3.5 h-3.5 text-violet-text shrink-0" />
         <span className="text-[12.5px] text-text-1 flex-1 min-w-[140px]">
           {r.name}
           {r.sizeLabel && <span className="text-text-muted"> · {r.sizeLabel}</span>}
@@ -211,7 +211,7 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
       ) : (
         <div className="rounded-lg border border-border bg-bg-1">
           <div className="px-3 py-2 border-b border-border/60 flex items-center gap-2">
-            <Bandage className="w-3.5 h-3.5 text-violet shrink-0" />
+            <Bandage className="w-3.5 h-3.5 text-violet-text shrink-0" />
             <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
               {t('braceTitle')}
             </span>

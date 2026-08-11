@@ -153,8 +153,8 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
         {/* empty state hint */}
         {!hasStrokes && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
-            <PenLine className="w-7 h-7 text-text-muted/25" />
-            <span className="text-[11px] text-text-muted/40 italic">{hintLabel}</span>
+            <PenLine className="w-7 h-7 text-text-muted" />
+            <span className="text-[11px] text-text-muted italic">{hintLabel}</span>
           </div>
         )}
         <canvas

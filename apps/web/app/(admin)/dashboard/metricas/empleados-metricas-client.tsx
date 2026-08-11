@@ -220,9 +220,9 @@ export function EmpleadosMetricasClient() {
       {/* KPIs del período */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
-        <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand" />
+        <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand-text" />
         <KpiCard icon={PhoneIncoming} label="Contestadas"    value={totals.callsAnswered}             color="bg-cyan/10 text-cyan" />
-        <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet" />
+        <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet-text" />
         <KpiCard icon={CalendarDays} label="Citas creadas"   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
         <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-emerald/10 text-emerald" />
         {/* Retrabajo: lo que alguien tuvo que deshacer. Ámbar = mirar, no celebrar. */}
@@ -301,7 +301,7 @@ export function EmpleadosMetricasClient() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className={cn('font-mono tabular-nums text-[12px]', r.activeMinutes > 0 ? 'text-emerald' : 'text-text-3/40')}>
+                      <span className={cn('font-mono tabular-nums text-[12px]', r.activeMinutes > 0 ? 'text-emerald' : 'text-text-3')}>
                         {fmtMinutes(r.activeMinutes)}
                       </span>
                     </td>
@@ -360,7 +360,7 @@ export function EmpleadosMetricasClient() {
               </div>
               <div className="rounded-lg bg-surface-2 border border-border p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3">Llam. hechas</div>
-                <div className="text-lg font-bold text-brand mt-0.5 tabular-nums">{detail.callsMade}</div>
+                <div className="text-lg font-bold text-brand-text mt-0.5 tabular-nums">{detail.callsMade}</div>
               </div>
               <div className="rounded-lg bg-surface-2 border border-border p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3">Contestadas</div>
@@ -370,7 +370,7 @@ export function EmpleadosMetricasClient() {
 
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-brand" />
+                <Activity className="w-3.5 h-3.5 text-brand-text" />
                 Desglose de acciones
               </div>
               {Object.keys(detail.byAction).length === 0 ? (

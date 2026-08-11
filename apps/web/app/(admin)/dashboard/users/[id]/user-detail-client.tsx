@@ -137,7 +137,7 @@ export function UserDetailClient({ user }: { user: User }): React.ReactElement {
             className={cn(
               'px-4 py-2 text-small font-medium transition-colors',
               tab === tabKey
-                ? 'border-b-2 border-brand text-brand -mb-px'
+                ? 'border-b-2 border-brand text-brand-text -mb-px'
                 : 'text-text-3 hover:text-text-2',
             )}
           >
@@ -254,7 +254,7 @@ function ActivityRow({ item, isLast, actionLabels, systemLabel, locale }: { item
 
   return (
     <li className={cn('flex items-start gap-3 py-3', !isLast && 'border-b border-border/50')}>
-      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand shrink-0 mt-0.5">
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand-text shrink-0 mt-0.5">
         {actor ? `${actor.firstName.charAt(0)}${actor.lastName.charAt(0)}` : '?'}
       </div>
       <div className="flex-1 min-w-0">

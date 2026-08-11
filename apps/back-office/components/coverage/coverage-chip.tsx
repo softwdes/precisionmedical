@@ -36,7 +36,7 @@ const TONE: Record<CoverageType, { cls: string; icon: React.ElementType }> = {
   UNKNOWN:   { cls: 'bg-amber/10 text-amber border-amber/30',       icon: ShieldQuestion },
   INSURANCE: { cls: 'bg-cyan/10 text-cyan border-cyan/30',          icon: Shield },
   SELF_PAY:  { cls: 'bg-emerald/10 text-emerald border-emerald/30', icon: Banknote },
-  LIEN:      { cls: 'bg-violet/10 text-violet border-violet/30',    icon: Scale },
+  LIEN:      { cls: 'bg-violet/10 text-violet-text border-violet/30',    icon: Scale },
 };
 
 /** Un seguro verificado por llamada es el único caso que se pinta en verde. */
@@ -123,7 +123,7 @@ const OPTIONS: Array<{
   { type: 'SELF_PAY',  labelKey: 'optSelfPay',   hintKey: 'optSelfPayHint',   icon: Banknote,
     activeCls: 'border-emerald/50 bg-emerald/10', activeIcon: 'text-emerald' },
   { type: 'LIEN',      labelKey: 'optLien',      hintKey: 'optLienHint',      icon: Scale,
-    activeCls: 'border-violet/50 bg-violet/10',   activeIcon: 'text-violet' },
+    activeCls: 'border-violet/50 bg-violet/10',   activeIcon: 'text-violet-text' },
 ];
 
 const SUGGESTION_KEY: Record<NonNullable<CoverageDTO['suggestionSource']>, string> = {
@@ -186,7 +186,7 @@ function CoverageDialog({ caseId, coverage, onClose, onSaved }: {
       <DialogContent className="max-w-lg p-0 overflow-hidden flex flex-col max-h-[90vh]">
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2">
-            <ShieldQuestion className="w-4 h-4 text-violet shrink-0" />
+            <ShieldQuestion className="w-4 h-4 text-violet-text shrink-0" />
             {t('dialogTitle')}
           </DialogTitle>
         </DialogHeader>

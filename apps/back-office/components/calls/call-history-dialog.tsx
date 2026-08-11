@@ -251,7 +251,7 @@ export function CallHistoryDialog({
       <DialogContent className="max-w-5xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 shrink-0">
           <DialogTitle className="text-text-1 flex items-center gap-2 text-base">
-            <PhoneIncoming className="w-4 h-4 text-brand" />
+            <PhoneIncoming className="w-4 h-4 text-brand-text" />
             {t('historyTitle')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
@@ -270,7 +270,7 @@ export function CallHistoryDialog({
                 onClick={() => switchScope(tab.key)}
                 aria-current={on ? 'page' : undefined}
                 className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors ${
-                  on ? 'border-brand text-brand' : 'border-transparent text-text-muted hover:text-text-1'
+                  on ? 'border-brand text-brand-text' : 'border-transparent text-text-muted hover:text-text-1'
                 }`}
               >
                 {tab.label}
@@ -278,7 +278,7 @@ export function CallHistoryDialog({
                   <span className={`text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-bold ${
                     tab.alert && tab.key === 'inbound'
                       ? 'bg-rose/15 text-rose'
-                      : on ? 'bg-brand/10 text-brand' : 'bg-bg-2 text-text-muted'
+                      : on ? 'bg-brand/10 text-brand-text' : 'bg-bg-2 text-text-muted'
                   }`}>
                     {tab.count}
                   </span>
@@ -457,7 +457,7 @@ export function CallHistoryDialog({
                       onClick={() => setPage(p => Math.max(0, p - 1))}
                       disabled={page === 0 || loading}
                       aria-label={t('prevPage')}
-                      className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -466,7 +466,7 @@ export function CallHistoryDialog({
                       onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={page >= totalPages - 1 || loading}
                       aria-label={t('nextPage')}
-                      className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <ChevronRight className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -566,7 +566,7 @@ function AgentCell({ row, meLabel }: { row: CallLogRow; meLabel: string }) {
 function DirectionPill({ direction, label }: { direction: CallLogRow['direction']; label: string }) {
   return direction === 'INBOUND'
     ? <TagPill label={label} colorClass="bg-cyan/12 text-cyan border-cyan/35"   icon={<PhoneIncoming className="w-3 h-3" />} />
-    : <TagPill label={label} colorClass="bg-brand/12 text-brand border-brand/35" icon={<PhoneOutgoing className="w-3 h-3" />} />;
+    : <TagPill label={label} colorClass="bg-brand/12 text-brand-text border-brand/35" icon={<PhoneOutgoing className="w-3 h-3" />} />;
 }
 
 function OutcomePill({ outcome, label }: { outcome: CallLogRow['outcome']; label: string }) {

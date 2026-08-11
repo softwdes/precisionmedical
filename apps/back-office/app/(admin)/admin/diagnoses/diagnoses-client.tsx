@@ -220,11 +220,11 @@ export function DiagnosesClient({ stats, userId = '' }: Props) {
                 <DataTable.Row key={d.id} muted={!d.isActive} highlight={d.isFavorite}>
                   <DataTable.Td align="center" className="px-2">
                     <button type="button" onClick={() => toggleFavorite(d)} className="hover:scale-125 transition-transform" title={d.isFavorite ? t('favRemove') : t('favAdd')}>
-                      <Star className={`w-4 h-4 ${d.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
+                      <Star className={`w-4 h-4 ${d.isFavorite ? 'fill-amber text-amber' : 'text-text-muted'}`} />
                     </button>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <code className="text-brand font-mono font-bold text-sm">{d.icd10Code}</code>
+                    <code className="text-brand-text font-mono font-bold text-sm">{d.icd10Code}</code>
                     <div className="text-text-1 text-[12.5px] mt-0.5 line-clamp-1" title={d.icd10Description}>{d.icd10Description}</div>
                   </DataTable.Td>
                   <DataTable.Td>
@@ -318,8 +318,8 @@ function CategoryPill({ cat }: { cat: string }) {
     S: 'bg-rose/15 text-rose border-rose/30',
     T: 'bg-rose/15 text-rose border-rose/30',
     M: 'bg-amber/15 text-amber border-amber/30',
-    R: 'bg-brand/15 text-brand border-brand/30',
-    G: 'bg-violet/15 text-violet border-violet/30',
+    R: 'bg-brand/15 text-brand-text border-brand/30',
+    G: 'bg-violet/15 text-violet-text border-violet/30',
     F: 'bg-pink/15 text-pink border-pink/30',
     V_W: 'bg-cyan/15 text-cyan border-cyan/30',
     Z: 'bg-emerald/15 text-emerald border-emerald/30',
@@ -405,7 +405,7 @@ function DiagnosisDialog({ open, onOpenChange, editing, onSaved, categoryOptions
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2 scroll-thin">
           <div className="bg-brand/5 border border-brand/20 rounded-md p-3">
-            <div className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">{t('sectionIcd10')}</div>
+            <div className="text-brand-text text-xs font-semibold uppercase tracking-wider mb-2">{t('sectionIcd10')}</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="icd10Code">{t('fieldIcd10Code')} <span className="text-rose">*</span></Label>
@@ -476,15 +476,15 @@ function ViewDialog({ diagnosis, onClose, onEdit }: { diagnosis: Diagnosis | nul
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 flex-wrap">
-            <code className="text-brand font-mono font-bold text-lg">{diagnosis.icd10Code}</code>
+            <code className="text-brand-text font-mono font-bold text-lg">{diagnosis.icd10Code}</code>
             <span className="text-text-1 text-base font-normal">{diagnosis.icd10Description}</span>
             {diagnosis.isFavorite && <Star className="w-5 h-5 fill-amber text-amber" />}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-4">
           <div className="bg-brand/5 border border-brand/20 rounded-md p-3">
-            <div className="text-brand text-xs font-semibold uppercase tracking-wider mb-1.5">ICD-10 (billing)</div>
-            <code className="text-brand font-mono font-bold text-base">{diagnosis.icd10Code}</code>
+            <div className="text-brand-text text-xs font-semibold uppercase tracking-wider mb-1.5">ICD-10 (billing)</div>
+            <code className="text-brand-text font-mono font-bold text-base">{diagnosis.icd10Code}</code>
             <div className="text-text-2 text-sm mt-1">{diagnosis.icd10Description}</div>
           </div>
           {diagnosis.snomedCode && (

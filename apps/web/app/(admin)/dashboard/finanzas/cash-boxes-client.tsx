@@ -207,7 +207,7 @@ export function CashBoxesClient(): React.ReactElement {
                   {/* QR — visible para todos */}
                   <button
                     onClick={() => setQrTarget(box)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-brand hover:bg-brand/10 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-brand-text hover:bg-brand/10 transition-colors"
                     title="Ver / subir QR de depósito"
                   >
                     <QrCode className="h-3 w-3" />
@@ -526,7 +526,7 @@ function QrDepositDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-brand" />
+            <QrCode className="h-4 w-4 text-brand-text" />
             QR de depósito — {box.name}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-3">
@@ -554,10 +554,10 @@ function QrDepositDialog({
                   onDrop={handleDrop}
                 >
                   {uploading
-                    ? <Loader2 className="h-3.5 w-3.5 text-brand animate-spin" />
-                    : <Upload className="h-3.5 w-3.5 text-brand" />
+                    ? <Loader2 className="h-3.5 w-3.5 text-brand-text animate-spin" />
+                    : <Upload className="h-3.5 w-3.5 text-brand-text" />
                   }
-                  <span className="text-xs font-medium text-brand">
+                  <span className="text-xs font-medium text-brand-text">
                     {uploading ? 'Subiendo...' : 'Reemplazar QR'}
                   </span>
                   <input type="file" accept="image/*" className="hidden" onChange={handleInput} disabled={uploading} />
@@ -579,11 +579,11 @@ function QrDepositDialog({
                 onDrop={handleDrop}
               >
                 {uploading
-                  ? <Loader2 className="h-8 w-8 text-brand animate-spin" />
-                  : <QrCode className="h-8 w-8 text-brand/50" />
+                  ? <Loader2 className="h-8 w-8 text-brand-text animate-spin" />
+                  : <QrCode className="h-8 w-8 text-brand-text/50" />
                 }
                 <div className="text-center">
-                  <p className="text-sm font-medium text-brand">
+                  <p className="text-sm font-medium text-brand-text">
                     {uploading ? 'Subiendo...' : 'Subir QR de depósito'}
                   </p>
                   <p className="text-xs text-text-3 mt-0.5">Arrastra o haz clic para elegir</p>

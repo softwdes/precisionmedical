@@ -25,10 +25,23 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+/**
+ * `closeLabel` — nombre accesible del botón de cerrar.
+ *
+ * El botón es solo el ícono X, y un `<svg>` sin título no aporta nombre: un
+ * lector de pantalla anunciaba "botón" y nada más, en las 154 instancias de
+ * DialogContent de la app. El default está en español como el resto de las
+ * etiquetas de este paquete (ver month-picker), y la app puede pasar la suya
+ * traducida cuando la tenga a mano.
+ */
+type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+  closeLabel?: string;
+};
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DialogContentProps
+>(({ className, children, closeLabel = 'Cerrar', ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -41,8 +54,11 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogClose className="absolute right-4 top-4 rounded opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-brand">
-        <X className="h-4 w-4 text-text-2" />
+      <DialogClose
+        aria-label={closeLabel}
+        className="absolute right-4 top-4 rounded opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-brand"
+      >
+        <X aria-hidden="true" className="h-4 w-4 text-text-2" />
       </DialogClose>
     </DialogPrimitive.Content>
   </DialogPortal>

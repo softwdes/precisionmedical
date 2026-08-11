@@ -69,7 +69,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MessageSquarePlus className="w-5 h-5 text-brand" />
+            <MessageSquarePlus className="w-5 h-5 text-brand-text" />
             {t('title')}
           </DialogTitle>
           <DialogDescription>
@@ -105,7 +105,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 onClick={() => setIsPrivate(true)}
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border transition-all text-sm ${
                   isPrivate
-                    ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
+                    ? 'bg-brand/15 border-brand/40 text-brand-text font-semibold'
                     : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >
@@ -117,7 +117,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 onClick={() => setIsPrivate(false)}
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border transition-all text-sm ${
                   !isPrivate
-                    ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
+                    ? 'bg-brand/15 border-brand/40 text-brand-text font-semibold'
                     : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >

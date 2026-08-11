@@ -119,7 +119,7 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
         }}
       >
         <div className="flex items-center gap-2 text-[13px] text-text-2">
-          <Wallet className="h-3.5 w-3.5 shrink-0 text-brand" />
+          <Wallet className="h-3.5 w-3.5 shrink-0 text-brand-text" />
           <span>{wallets.length} carteras activas</span>
         </div>
 

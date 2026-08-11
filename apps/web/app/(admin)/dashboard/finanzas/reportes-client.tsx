@@ -129,7 +129,7 @@ function FilterSidebar({
   const labelCls = 'text-[10px] font-bold uppercase tracking-[0.08em] text-text-3 mb-2 block';
   const presetCls = (active: boolean) =>
     `w-full text-left px-3 py-[7px] rounded-lg text-[12.5px] transition-all cursor-pointer border-none font-sans ${
-      active ? 'bg-brand/10 text-brand font-semibold' : 'bg-transparent text-text-2 hover:bg-bg-2 hover:text-text-1'
+      active ? 'bg-brand/10 text-brand-text font-semibold' : 'bg-transparent text-text-2 hover:bg-bg-2 hover:text-text-1'
     }`;
 
   return (
@@ -445,11 +445,11 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <button onClick={handleExportPDF}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand-text transition-colors">
                 <FileText size={13} /> <span className="hidden sm:inline">PDF</span>
               </button>
               <button onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand-text transition-colors">
                 <Download size={13} /> <span className="hidden sm:inline">Excel</span>
               </button>
             </div>

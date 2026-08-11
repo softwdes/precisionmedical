@@ -130,7 +130,7 @@ export function BracePickerDialog({ onClose, onAdd, added }: Props): React.React
                 type="button"
                 onClick={() => setBorrador({ ...b, side: s })}
                 className={`h-8 px-2.5 rounded-md text-[11.5px] font-semibold transition-colors ${
-                  b.side === s ? 'bg-violet/15 text-violet' : 'bg-bg-2 text-text-muted hover:text-text-1'
+                  b.side === s ? 'bg-violet/15 text-violet-text' : 'bg-bg-2 text-text-muted hover:text-text-1'
                 }`}
               >
                 {s === 'NA' ? t('braceSideNA') : s === 'LEFT' ? t('braceSideLeft') : t('braceSideRight')}
@@ -186,7 +186,7 @@ export function BracePickerDialog({ onClose, onAdd, added }: Props): React.React
             type="button"
             disabled={!precioOk || busy}
             onClick={() => void agregar(i, b)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold bg-violet/15 text-violet hover:bg-violet/25 disabled:opacity-40 transition-colors"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold bg-violet/15 text-violet-text hover:bg-violet/25 disabled:opacity-40 transition-colors"
           >
             {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
             {t('braceConfirmAdd')}
@@ -201,7 +201,7 @@ export function BracePickerDialog({ onClose, onAdd, added }: Props): React.React
       <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[88vh]">
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2">
-            <Bandage className="w-4 h-4 text-violet shrink-0" />
+            <Bandage className="w-4 h-4 text-violet-text shrink-0" />
             {t('braceAddTitle')}
           </DialogTitle>
         </DialogHeader>
@@ -257,7 +257,7 @@ export function BracePickerDialog({ onClose, onAdd, added }: Props): React.React
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold shrink-0 transition-colors ${
                             i.publicPrice === null
                               ? 'bg-amber/15 text-amber hover:bg-amber/25'
-                              : 'bg-violet/15 text-violet hover:bg-violet/25'
+                              : 'bg-violet/15 text-violet-text hover:bg-violet/25'
                           }`}
                         >
                           {i.publicPrice === null

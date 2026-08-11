@@ -70,7 +70,7 @@ const CATEGORIES = ['GENERAL', 'PHONE_MESSAGE', 'PATIENT_RELATED'] as const;
 // chrome nativo del <select> se ve blanco y el texto claro desaparece — mismo
 // patrón que el SELECT del quick-register-dialog.
 const inputCls =
-  'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors';
+  'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors';
 const selectCls = `${inputCls} appearance-none [color-scheme:dark]`;
 const labelCls = 'text-[10px] uppercase tracking-wider font-semibold text-text-muted';
 
@@ -358,7 +358,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
       >
         <DialogHeader className="px-4 sm:px-6 pt-4 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
-            <MessageSquarePlus className="w-4 h-4 text-brand" />
+            <MessageSquarePlus className="w-4 h-4 text-brand-text" />
             {t('composeTitle')}
           </DialogTitle>
         </DialogHeader>
@@ -371,7 +371,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
             <div className="space-y-1.5">
               <label className={labelCls}>{t('fieldPatient')}</label>
               {contextPatient ? (
-                <div className="rounded-md border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-brand truncate">
+                <div className="rounded-md border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-brand-text truncate">
                   {contextPatient.name}
                 </div>
               ) : (
@@ -473,7 +473,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
               <label className={labelCls}>{t('fieldMessage')}</label>
               <button type="button" disabled={sending}
                 onClick={() => { setTplOpen((v) => !v); if (!tplOpen) void loadTemplates(); }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand hover:bg-brand/10 transition-colors disabled:opacity-40">
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand-text hover:bg-brand/10 transition-colors disabled:opacity-40">
                 <LayoutTemplate className="w-3.5 h-3.5" />
                 {t('tplButton')}
               </button>
@@ -493,7 +493,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
                   <input
                     value={tplQuery} onChange={(e) => setTplQuery(e.target.value)}
                     placeholder={t('tplSearchPlaceholder')}
-                    className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted/50 pl-8 pr-8 py-2"
+                    className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted pl-8 pr-8 py-2"
                   />
                   <button type="button" onClick={() => setTplOpen(false)} aria-label={t('btnCancel')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1">
@@ -506,7 +506,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
                     .map((tp) => (
                       <button key={tp.id} type="button" onClick={() => applyTemplate(tp)}
                         className="w-full flex items-center justify-between gap-2 px-3 !py-1.5 text-left hover:bg-white/5 transition-colors">
-                        <span className="text-[12.5px] text-brand truncate">{tp.title}</span>
+                        <span className="text-[12.5px] text-brand-text truncate">{tp.title}</span>
                         <span className="shrink-0 text-[10px] text-text-muted">{tp.createdByName}</span>
                       </button>
                     ))}
@@ -532,7 +532,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
                 onChange={(e) => void uploadFiles(e.target.files)} />
               <button type="button" disabled={sending || uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand hover:bg-brand/10 transition-colors disabled:opacity-40">
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand-text hover:bg-brand/10 transition-colors disabled:opacity-40">
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
                 {uploading ? t('attachUploading') : attachments.length > 0 ? t('attachAnother') : t('attachFile')}
               </button>
@@ -574,10 +574,10 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
               <div key={a.path ?? a.patientDocumentId ?? i} className="flex items-center gap-2 rounded-md bg-bg-2/40 px-3 py-2">
                 {a.patientDocumentId
                   ? <FolderOpen className="w-3.5 h-3.5 text-cyan shrink-0" />
-                  : <FileText className="w-3.5 h-3.5 text-brand shrink-0" />}
+                  : <FileText className="w-3.5 h-3.5 text-brand-text shrink-0" />}
                 <span className="text-sm text-text-1 truncate max-w-[40%]" title={a.fileName}>{a.fileName}</span>
                 <input
-                  className="flex-1 min-w-[100px] bg-transparent outline-none text-[12.5px] text-text-1 placeholder:text-text-muted/50 px-1 py-0.5"
+                  className="flex-1 min-w-[100px] bg-transparent outline-none text-[12.5px] text-text-1 placeholder:text-text-muted px-1 py-0.5"
                   placeholder={t('attachDescPlaceholder')}
                   value={a.description}
                   disabled={sending}
@@ -616,7 +616,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
         <DialogContent className="max-w-md p-0">
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
-              <LayoutTemplate className="w-4 h-4 text-brand" />
+              <LayoutTemplate className="w-4 h-4 text-brand-text" />
               {t('tplSaveTitle')}
             </DialogTitle>
           </DialogHeader>

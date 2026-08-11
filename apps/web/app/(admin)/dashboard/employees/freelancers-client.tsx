@@ -252,7 +252,7 @@ export function FreelancersClient({
             <div className="divide-y divide-border">
               {(data?.items ?? []).map((emp) => (
                 <div key={emp.id} className="flex items-center gap-3 px-4 py-3.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/20 text-small font-bold text-brand shrink-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/20 text-small font-bold text-brand-text shrink-0">
                     {(emp.nombre as string).slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -313,7 +313,7 @@ export function FreelancersClient({
                     <TableRow key={emp.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-tiny font-bold text-brand shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-tiny font-bold text-brand-text shrink-0">
                             {(emp.nombre as string).slice(0, 2).toUpperCase()}
                           </div>
                           <div>
@@ -454,7 +454,7 @@ function KpiCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: string; color: 'brand' | 'emerald' | 'amber';
 }) {
   const colors = {
-    brand:   'bg-brand/10 text-brand',
+    brand:   'bg-brand/10 text-brand-text',
     emerald: 'bg-emerald-500/10 text-emerald-500',
     amber:   'bg-amber-400/10 text-amber-400',
   };
@@ -1054,7 +1054,7 @@ function NewPaymentDialog({
               {/* Real-time total */}
               <div className="flex items-center justify-between rounded-lg bg-brand/5 border border-brand/20 px-4 py-3">
                 <span className="text-small text-text-3">{t('freelancers.totalCalculado')}</span>
-                <span className="text-base font-bold font-mono text-brand">
+                <span className="text-base font-bold font-mono text-brand-text">
                   {calculado > 0 ? fmtAmount(calculado, form.moneda) : `$0.00 ${form.moneda}`}
                 </span>
               </div>

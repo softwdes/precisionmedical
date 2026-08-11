@@ -64,7 +64,7 @@ export function VisitFilter({ visits, value, onChange }: {
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="text-[11.5px] font-semibold text-brand hover:underline"
+          className="text-[11.5px] font-semibold text-brand-text hover:underline"
         >
           {t('visitFilterClear')}
         </button>

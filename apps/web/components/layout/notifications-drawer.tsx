@@ -123,7 +123,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                   {!n.readAt && (
                     <button
                       onClick={(e) => { e.stopPropagation(); markAsRead.mutate({ id: n.id }); }}
-                      className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full hover:bg-brand/20 text-brand"
+                      className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full hover:bg-brand/20 text-brand-text"
                     >
                       <Check className="h-3 w-3" />
                     </button>

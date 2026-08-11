@@ -235,7 +235,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   key={s.id}
                   value={`service-${s.id}`}
                   onSelect={() => go('/admin/services')}
-                  icon={<code className="text-brand font-mono text-xs font-bold w-16 truncate">{s.code}</code>}
+                  icon={<code className="text-brand-text font-mono text-xs font-bold w-16 truncate">{s.code}</code>}
                   title={s.shortDescription}
                   subtitle={`${s.type} · ${s.category} · $${s.currentFee.toFixed(2)}`}
                 />
@@ -251,7 +251,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   key={d.id}
                   value={`diagnosis-${d.id}`}
                   onSelect={() => go('/admin/diagnoses')}
-                  icon={<code className="text-brand font-mono text-xs font-bold w-16 truncate">{d.icd10Code}</code>}
+                  icon={<code className="text-brand-text font-mono text-xs font-bold w-16 truncate">{d.icd10Code}</code>}
                   title={d.icd10Description}
                   subtitle={d.snomedCode ? `ICD-10 + SNOMED ${d.snomedCode}${d.piRelevant ? ' · 🩸 PI' : ''}` : `Solo ICD-10${d.piRelevant ? ' · 🩸 PI' : ''}`}
                 />

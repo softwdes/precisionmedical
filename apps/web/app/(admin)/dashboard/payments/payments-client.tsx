@@ -221,7 +221,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10"><TrendingUp className="h-4 w-4 text-brand" /></div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10"><TrendingUp className="h-4 w-4 text-brand-text" /></div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('payments.totalPayments')}</p>
                 <p className="text-lg font-bold text-text-1">{liveSummary.count}</p>
@@ -236,9 +236,9 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
         <div className="rounded-xl border border-brand/20 bg-gradient-to-r from-brand/5 to-cyan/5 p-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/15">
-              <Wallet className="h-3.5 w-3.5 text-brand" />
+              <Wallet className="h-3.5 w-3.5 text-brand-text" />
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-brand">
+            <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-brand-text">
               Planilla Bolivia (BOB)
             </span>
             {planilla.lastFxRate && (
@@ -347,7 +347,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                     {/* Row 1: Avatar + Name + Status badge */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold text-brand">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold text-brand-text">
                           {emp ? `${emp.firstName.charAt(0)}${emp.lastName.charAt(0)}` : '?'}
                         </div>
                         <div className="min-w-0">
@@ -385,7 +385,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                             </button>
                             <button
                               onClick={() => setShowEdit(payment.id)}
-                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-brand/10 text-text-muted hover:text-brand transition-colors"
+                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-brand/10 text-text-muted hover:text-brand-text transition-colors"
                               title={t('payments.editPayment')}
                             >
                               <Pencil className="h-4 w-4" />
@@ -473,7 +473,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                       {/* Empleado */}
                       <TableCell style={{ minWidth: 180 }}>
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold text-brand">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold text-brand-text">
                             {emp ? `${emp.firstName.charAt(0)}${emp.lastName.charAt(0)}` : '?'}
                           </div>
                           <div>
@@ -554,7 +554,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                               </button>
                               <button
                                 onClick={() => setShowEdit(payment.id)}
-                                className="p-1.5 text-text-muted hover:text-brand transition-colors rounded"
+                                className="p-1.5 text-text-muted hover:text-brand-text transition-colors rounded"
                                 title={t('payments.editPayment')}
                               >
                                 <Pencil className="h-4 w-4" />

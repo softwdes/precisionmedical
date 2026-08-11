@@ -53,7 +53,7 @@ function FileIcon({ mimeType, size = 4 }: { mimeType: string | null; size?: numb
   if (!mimeType) return <File className={`${cls} text-text-muted`} />;
   if (mimeType.startsWith('image/')) return <FileImage className={`${cls} text-cyan`} />;
   if (mimeType === 'application/pdf') return <FileText className={`${cls} text-rose`} />;
-  if (mimeType.includes('word') || mimeType.includes('document')) return <FileText className={`${cls} text-brand`} />;
+  if (mimeType.includes('word') || mimeType.includes('document')) return <FileText className={`${cls} text-brand-text`} />;
   if (mimeType.includes('sheet') || mimeType.includes('excel')) return <FileText className={`${cls} text-emerald`} />;
   if (mimeType.includes('zip') || mimeType.includes('rar')) return <FileArchive className={`${cls} text-amber`} />;
   return <File className={`${cls} text-text-muted`} />;
@@ -126,9 +126,9 @@ function UploadModal({ onClose, onUpload, uploading }: {
               : 'border-border/60 hover:border-brand/40 hover:bg-bg-2/40'
           }`}
         >
-          <CloudUpload className={`w-10 h-10 ${dragOver ? 'text-brand' : 'text-text-muted'} transition-colors`} />
+          <CloudUpload className={`w-10 h-10 ${dragOver ? 'text-brand-text' : 'text-text-muted'} transition-colors`} />
           <div className="text-center">
-            <p className={`text-sm font-medium ${dragOver ? 'text-brand' : 'text-text-1'}`}>Subir archivos</p>
+            <p className={`text-sm font-medium ${dragOver ? 'text-brand-text' : 'text-text-1'}`}>Subir archivos</p>
             <p className="text-text-muted text-xs mt-0.5">Haz clic o arrastra y suelta archivos aquí para subirlos</p>
           </div>
           <input
@@ -413,12 +413,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                 {i > 0 && <ChevronRight className="w-3 h-3" />}
                 {i === breadcrumb.length - 1 ? (
                   <span className="text-text-1 font-medium flex items-center gap-1">
-                    {i === 0 && <FolderOpen className="w-3.5 h-3.5 text-brand" />}
+                    {i === 0 && <FolderOpen className="w-3.5 h-3.5 text-brand-text" />}
                     {i > 0 && <Folder className="w-3.5 h-3.5 text-amber" />}
                     {item.name}
                   </span>
                 ) : (
-                  <button onClick={() => navigateTo(item)} className="hover:text-brand transition-colors flex items-center gap-1">
+                  <button onClick={() => navigateTo(item)} className="hover:text-brand-text transition-colors flex items-center gap-1">
                     {i === 0 && <Home className="w-3 h-3" />}
                     {item.name}
                   </button>
@@ -446,10 +446,10 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
         {/* Bulk select bar */}
         {someSelected && (
           <div className="flex items-center gap-3 px-4 py-2 bg-brand/5 border-b border-brand/20 text-sm">
-            <span className="text-brand font-medium text-xs">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+            <span className="text-brand-text font-medium text-xs">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
             <button
               onClick={() => alert(t('alertBulkS3'))}
-              className="flex items-center gap-1.5 text-text-2 hover:text-brand transition-colors text-xs"
+              className="flex items-center gap-1.5 text-text-2 hover:text-brand-text transition-colors text-xs"
             >
               <Download className="w-3.5 h-3.5" /> Descarga masiva
             </button>
@@ -514,7 +514,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                         ? <Folder className="w-4 h-4 text-amber flex-shrink-0" />
                         : <FileIcon mimeType={item.mimeType} />
                       }
-                      <span className="truncate text-text-1 group-hover:text-brand transition-colors font-normal" title={item.name}>
+                      <span className="truncate text-text-1 group-hover:text-brand-text transition-colors font-normal" title={item.name}>
                         {item.name}
                       </span>
                       {item.isFolder && item._count.children > 0 && (
@@ -531,7 +531,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       {!item.isFolder && (
-                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand transition-colors" title="Descargar">
+                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title="Descargar">
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -557,7 +557,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }}>
           <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
-              <FolderPlus className="w-4 h-4 text-brand" />
+              <FolderPlus className="w-4 h-4 text-brand-text" />
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Nueva carpeta</h2>
             </div>
             <input

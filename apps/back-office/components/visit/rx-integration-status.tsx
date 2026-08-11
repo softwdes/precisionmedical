@@ -187,7 +187,7 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
     <div className="rounded-lg border border-border bg-bg-1">
       <div className="flex items-start gap-3 p-5">
         <div className="w-9 h-9 rounded-lg bg-violet/10 border border-violet/25 flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-4 h-4 text-violet" />
+          <ShieldCheck className="w-4 h-4 text-violet-text" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -230,14 +230,14 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
         >
           <div className="w-11 h-11 rounded-lg bg-violet/10 border border-violet/25 flex items-center justify-center shrink-0">
             {syncing
-              ? <Loader2 className="w-4.5 h-4.5 text-violet animate-spin" />
-              : <Send className="w-4.5 h-4.5 text-violet" />}
+              ? <Loader2 className="w-4.5 h-4.5 text-violet-text animate-spin" />
+              : <Send className="w-4.5 h-4.5 text-violet-text" />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[13.5px] font-semibold text-text-1">{t('rxSentTitle')}</span>
               {sent.length > 0 && (
-                <span className="text-[10px] font-bold text-violet bg-violet/15 border border-violet/30 rounded-full px-1.5 py-px">
+                <span className="text-[10px] font-bold text-violet-text bg-violet/15 border border-violet/30 rounded-full px-1.5 py-px">
                   {sent.length}
                 </span>
               )}
@@ -255,7 +255,7 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
           <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
             <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
               <DialogTitle className="text-[14px] flex items-center gap-2 flex-wrap">
-                <Send className="w-4 h-4 text-violet shrink-0" />
+                <Send className="w-4 h-4 text-violet-text shrink-0" />
                 <span>{t('rxSentTitle')}</span>
                 {sent.length > 0 && <span className="text-text-muted font-normal">· {sent.length}</span>}
               </DialogTitle>
@@ -264,7 +264,7 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
             <div className="overflow-y-auto p-5 space-y-5">
               {sent.length === 0 ? (
                 <div className="py-8 text-center">
-                  <Send className="w-8 h-8 text-text-muted/40 mx-auto mb-3" />
+                  <Send className="w-8 h-8 text-text-muted mx-auto mb-3" />
                   <p className="text-[13px] text-text-2">{t('rxSentEmptyTitle')}</p>
                   <p className="text-[11.5px] text-text-muted mt-1">{t('rxSentEmptyHint')}</p>
                 </div>
@@ -380,7 +380,7 @@ function SentRxRow({ rx, readOnly, refilling, onRefill }: {
             type="button"
             onClick={onRefill}
             disabled={refilling}
-            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline disabled:opacity-60"
+            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet-text hover:underline disabled:opacity-60"
           >
             {refilling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             {t('rxRefill')}

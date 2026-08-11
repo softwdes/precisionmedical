@@ -86,7 +86,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps): React.Re
                     key={item.id}
                     value={item.id}
                     onSelect={() => navigate(item.href)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer data-[selected=true]:bg-brand/10 data-[selected=true]:text-brand transition-colors outline-none"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer data-[selected=true]:bg-brand/10 data-[selected=true]:text-brand-text transition-colors outline-none"
                   >
                     <div className="flex h-7 w-7 items-center justify-center rounded bg-surface border border-border shrink-0">
                       <item.Icon className="h-3.5 w-3.5 text-text-2" />
@@ -114,7 +114,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps): React.Re
                     onSelect={() => navigate(emp.href)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer data-[selected=true]:bg-brand/10 transition-colors outline-none"
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand-text shrink-0">
                       {emp.label.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">

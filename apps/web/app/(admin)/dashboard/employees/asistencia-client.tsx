@@ -766,7 +766,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               />
               <span className="text-[11px] text-text-muted">En vivo</span>
               {lastUpdated && (
-                <span className="text-[10px] text-text-muted/60">
+                <span className="text-[10px] text-text-muted">
                   · hace {Math.floor((Date.now() - lastUpdated.getTime()) / 60000)}m
                 </span>
               )}

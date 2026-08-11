@@ -126,7 +126,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
-              <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet font-semibold' : 'text-text-muted')}>
+              <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet-text font-semibold' : 'text-text-muted')}>
                 {isDoctor ? t('doctorPortal') : 'LienMaster v3'}
               </span>
             </div>

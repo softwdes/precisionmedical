@@ -58,7 +58,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await getMessages();
 
   return (
-    <html lang="en-US" data-theme="dark" suppressHydrationWarning>
+    /* `lang` con el locale real: estaba clavado en "en-US" con la app en
+       español. No es cosmético — un lector de pantalla usa ese atributo para
+       elegir la pronunciación, y leía el español con fonética inglesa. */
+    <html lang={locale} data-theme="dark" suppressHydrationWarning>
       <head>
         {/* Manifest link explícito — @ducanh2912/next-pwa puede interferir con metadata.manifest */}
         <link rel="manifest" href="/manifest.json" />

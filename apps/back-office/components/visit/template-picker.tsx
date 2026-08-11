@@ -95,12 +95,12 @@ export function TemplatePicker({ open, onClose, templates, targetSection, onPick
               <div className="flex items-center gap-2">
                 {tpl.isFavorite
                   ? <Star className="w-3.5 h-3.5 fill-amber text-amber shrink-0" />
-                  : <FileText className="w-3.5 h-3.5 text-violet shrink-0" />}
+                  : <FileText className="w-3.5 h-3.5 text-violet-text shrink-0" />}
                 <span className="font-semibold text-text-1 text-[13px]">{tpl.title}</span>
                 {tpl.description && (
                   <span className="text-[11px] text-text-muted truncate">· {tpl.description}</span>
                 )}
-                <Check className="w-3.5 h-3.5 text-violet ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                <Check className="w-3.5 h-3.5 text-violet-text ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </div>
               <div className="text-[11px] text-text-2 mt-1 line-clamp-2">{preview(tpl)}</div>
             </button>

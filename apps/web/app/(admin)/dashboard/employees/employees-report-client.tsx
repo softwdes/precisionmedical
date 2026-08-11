@@ -155,7 +155,7 @@ export function EmployeesReportClient({
       <div className="hidden print:block border-b-2 border-brand pb-3 mb-2">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-tiny tracking-widest uppercase text-brand font-bold">Precision Medical</p>
+            <p className="text-tiny tracking-widest uppercase text-brand-text font-bold">Precision Medical</p>
             <h1 className="text-2xl font-bold text-text-1 mt-1">{t('employees.reportTitle')}</h1>
             <p className="text-small text-text-3">{t('employees.reportSubtitle')}</p>
           </div>
@@ -273,7 +273,7 @@ export function EmployeesReportClient({
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="h-7 w-7 rounded-lg bg-brand/15 text-brand flex items-center justify-center">
+                  <div className="h-7 w-7 rounded-lg bg-brand/15 text-brand-text flex items-center justify-center">
                     <TrendingUp className="h-3.5 w-3.5" />
                   </div>
                   <span className="text-tiny font-bold text-text-2">Total</span>
@@ -383,7 +383,7 @@ export function EmployeesReportClient({
                         <TableRow key={p.id}>
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="h-7 w-7 rounded-full bg-brand/10 text-brand text-tiny font-bold flex items-center justify-center shrink-0">
+                              <div className="h-7 w-7 rounded-full bg-brand/10 text-brand-text text-tiny font-bold flex items-center justify-center shrink-0">
                                 {p.employeeName.split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase()}
                               </div>
                               <div>

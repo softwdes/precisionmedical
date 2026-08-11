@@ -114,7 +114,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
                   onClick={() => select(opt)}
                   className={`
                     w-full text-left px-3 py-1.5 text-sm transition-colors
-                    ${opt === value ? 'bg-brand/10 text-brand font-medium' : 'text-text-1 hover:bg-white/[0.04]'}
+                    ${opt === value ? 'bg-brand/10 text-brand-text font-medium' : 'text-text-1 hover:bg-white/[0.04]'}
                   `}
                 >
                   {opt}

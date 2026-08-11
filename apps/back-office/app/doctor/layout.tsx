@@ -39,7 +39,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
         <div className="min-h-screen bg-bg-0 flex items-center justify-center p-6">
           <div className="w-full max-w-lg">
             <div className="text-center mb-5">
-              <Stethoscope className="w-12 h-12 text-violet mx-auto mb-3" />
+              <Stethoscope className="w-12 h-12 text-violet-text mx-auto mb-3" />
               <div className="text-text-1 font-semibold">{t('viewAsPickTitle')}</div>
               <div className="text-text-2 text-sm mt-1">{t('viewAsPickSubtitle')}</div>
             </div>
@@ -55,7 +55,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
     return (
       <div className="min-h-screen bg-bg-0 flex items-center justify-center p-6">
         <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-12 text-center max-w-md">
-          <Stethoscope className="w-12 h-12 text-violet mx-auto mb-3" />
+          <Stethoscope className="w-12 h-12 text-violet-text mx-auto mb-3" />
           <div className="text-text-1 font-semibold">{t('noProfileTitle')}</div>
           <div className="text-text-2 text-sm mt-1">{t('noProfileSubtitle')}</div>
         </div>

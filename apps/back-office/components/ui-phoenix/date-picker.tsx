@@ -51,10 +51,10 @@ export interface DatePickerProps {
 }
 
 const ACCENTS: Record<NonNullable<DatePickerProps['accent']>, { solid: string; ring: string; text: string }> = {
-  violet:  { solid: 'linear-gradient(135deg,#7C3AED,#A78BFA)', ring: 'ring-violet/50',  text: 'text-violet'  },
+  violet:  { solid: 'linear-gradient(135deg,#7C3AED,#A78BFA)', ring: 'ring-violet/50',  text: 'text-violet-text'  },
   emerald: { solid: 'linear-gradient(135deg,#059669,#34D399)', ring: 'ring-emerald/50', text: 'text-emerald' },
   cyan:    { solid: 'linear-gradient(135deg,#0891B2,#22D3EE)', ring: 'ring-cyan/50',    text: 'text-cyan'    },
-  brand:   { solid: 'linear-gradient(135deg,#4F46E5,#818CF8)', ring: 'ring-brand/50',   text: 'text-brand'   },
+  brand:   { solid: 'linear-gradient(135deg,#4F46E5,#818CF8)', ring: 'ring-brand/50',   text: 'text-brand-text'   },
   amber:   { solid: 'linear-gradient(135deg,#D97706,#FBBF24)', ring: 'ring-amber/50',   text: 'text-amber'   },
 };
 
@@ -227,7 +227,7 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
                   onClick={() => pick(c.key)}
                   className={[
                     'h-7 rounded text-[11px] tabular-nums transition-colors flex items-center justify-center',
-                    isSel ? 'text-white font-bold' : c.inMonth ? 'text-text-1 hover:bg-white/5' : 'text-text-muted/50 hover:bg-white/5',
+                    isSel ? 'text-white font-bold' : c.inMonth ? 'text-text-1 hover:bg-white/5' : 'text-text-muted hover:bg-white/5',
                     !isSel && isToday ? `ring-1 ${a.ring} ${a.text} font-semibold` : '',
                   ].join(' ')}
                   style={isSel ? { background: a.solid } : undefined}

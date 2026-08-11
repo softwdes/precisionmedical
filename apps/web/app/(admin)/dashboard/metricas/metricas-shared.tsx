@@ -103,7 +103,7 @@ export function KpiCard({ icon: Icon, label, value, sub, color }: {
 export function Num({ value }: { value: number }) {
   return value > 0
     ? <span className="font-mono tabular-nums text-text-1">{value}</span>
-    : <span className="font-mono tabular-nums text-text-3/40">0</span>;
+    : <span className="font-mono tabular-nums text-text-3">0</span>;
 }
 
 /** Selector de período (presets + rango libre) compartido por los tabs. */

@@ -206,7 +206,7 @@ export function TemplatesClient({
                   <DataTable.Row key={tpl.id} muted={!tpl.isActive}>
                     <DataTable.Td className="!py-1">
                       <div className="flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-violet shrink-0" />
+                        <FileText className="w-3.5 h-3.5 text-violet-text shrink-0" />
                         <span className="font-medium text-text-1 text-sm">{tpl.title}</span>
                       </div>
                     </DataTable.Td>
@@ -216,7 +216,7 @@ export function TemplatesClient({
                     <DataTable.Td className="!py-1">
                       <TagPill
                         label={t(`enc_${tpl.encounterType}`)}
-                        colorClass="bg-violet/15 text-violet border-violet/30"
+                        colorClass="bg-violet/15 text-violet-text border-violet/30"
                       />
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
@@ -512,7 +512,7 @@ function TemplateDialog({
                       ) : dx.map((d, i) => (
                         <tr key={`${d.icd10Code}-${i}`} className="border-t border-row-sep">
                           <td className="px-3 py-2">
-                            <span className="font-mono text-[11px] text-violet">{d.icd10Code}</span>
+                            <span className="font-mono text-[11px] text-violet-text">{d.icd10Code}</span>
                             <span className="text-text-2 ml-2">{d.icd10Description}</span>
                           </td>
                           <td className="px-3 py-2">

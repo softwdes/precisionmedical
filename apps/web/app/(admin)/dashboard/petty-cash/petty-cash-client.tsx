@@ -232,7 +232,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
             <Download className="h-3.5 w-3.5" /> Excel
           </Button>
-          <Button variant="outline" size="sm" asChild className="gap-1.5 border-brand/40 text-brand hover:bg-brand/10 hover:text-brand">
+          <Button variant="outline" size="sm" asChild className="gap-1.5 border-brand/40 text-brand-text hover:bg-brand/10 hover:text-brand-text">
             <Link href="/dashboard/finanzas?tab=reportes">
               <BarChart2 className="h-3.5 w-3.5" /> Reportes
             </Link>
@@ -249,7 +249,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-start justify-between">
             <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.totalBalance')}</p>
-            <Wallet className="h-4 w-4 text-brand opacity-70" />
+            <Wallet className="h-4 w-4 text-brand-text opacity-70" />
           </div>
           <p className="mt-2 text-2xl font-bold font-mono text-text-1">${fmt(kpis?.total ?? 0)}</p>
           <p className="mt-1 text-xs text-text-3">{totalBoxCount} {t('pettyCash.registeredBoxes')} · USD</p>
@@ -380,7 +380,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                         <div className="flex gap-2 mt-2">
                           <button
                             onClick={() => setEditTx(tx as TxItem)}
-                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-brand transition-colors"
+                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-brand-text transition-colors"
                           >
                             <Pencil className="h-3 w-3" /> Editar
                           </button>
@@ -466,7 +466,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                           <div className="flex items-center gap-1 justify-end">
                             <button
                               onClick={() => setEditTx(tx as TxItem)}
-                              className="p-1 rounded hover:bg-brand/10 text-text-3 hover:text-brand transition-colors"
+                              className="p-1 rounded hover:bg-brand/10 text-text-3 hover:text-brand-text transition-colors"
                               title="Editar"
                             >
                               <Pencil className="h-3.5 w-3.5" />

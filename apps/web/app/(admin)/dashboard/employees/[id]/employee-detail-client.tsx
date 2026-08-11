@@ -179,7 +179,7 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
             className={cn(
               'rounded-lg px-3 py-2 text-small font-medium text-center transition-colors border',
               tab === tabKey
-                ? 'bg-brand/10 text-brand border-brand/25'
+                ? 'bg-brand/10 text-brand-text border-brand/25'
                 : 'text-text-3 border-border hover:text-text-2 hover:bg-surface',
             )}
           >
@@ -195,7 +195,7 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
             className={cn(
               'px-4 py-2 text-small font-medium transition-colors whitespace-nowrap',
               tab === tabKey
-                ? 'border-b-2 border-brand text-brand -mb-px'
+                ? 'border-b-2 border-brand text-brand-text -mb-px'
                 : 'text-text-3 hover:text-text-2',
             )}
           >
@@ -358,7 +358,7 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
                         <p className="text-tiny text-text-3">{new Date(doc.createdAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES')}</p>
                       </div>
                     </div>
-                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-tiny text-brand hover:underline">
+                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-tiny text-brand-text hover:underline">
                       {t('common.view')}
                     </a>
                   </li>
@@ -415,7 +415,7 @@ function ActivityRow({ item, isLast, actionLabels, systemLabel, locale }: { item
 
   return (
     <li className={cn('flex items-start gap-3 py-3', !isLast && 'border-b border-border/50')}>
-      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand shrink-0 mt-0.5">
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-tiny font-bold text-brand-text shrink-0 mt-0.5">
         {actor ? `${actor.firstName.charAt(0)}${actor.lastName.charAt(0)}` : '?'}
       </div>
       <div className="flex-1 min-w-0">

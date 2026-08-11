@@ -161,7 +161,7 @@ function NavGroup({ items, pathname, role }: { items: NavItem[]; pathname: strin
               className={cn(
                 'relative flex items-center gap-3 rounded px-3 py-2 text-sm transition-all duration-250 ease-out-expo',
                 isActive
-                  ? 'bg-brand/10 text-brand font-semibold'
+                  ? 'bg-brand/10 text-brand-text font-semibold'
                   : 'text-text-2 hover:bg-surface hover:text-text-1',
               )}
             >

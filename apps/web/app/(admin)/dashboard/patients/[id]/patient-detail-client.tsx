@@ -99,7 +99,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
           <button
             key={tab_}
             onClick={() => setTab(tab_)}
-            className={`px-4 py-2 text-small transition-colors border-b-2 -mb-px ${tab === tab_ ? 'border-brand text-brand font-semibold' : 'border-transparent text-text-3 hover:text-text-2'}`}
+            className={`px-4 py-2 text-small transition-colors border-b-2 -mb-px ${tab === tab_ ? 'border-brand text-brand-text font-semibold' : 'border-transparent text-text-3 hover:text-text-2'}`}
           >
             {tab_ === 'info' ? t('common.view') : tab_ === 'appointments' ? t('nav.appointments') : t('nav.commissions')}
           </button>
@@ -136,7 +136,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('patients.lawyerReferrer')}</p>
               {lawyer ? (
-                <Link href={`/dashboard/lawyers/${lawyer.id}`} className="text-brand hover:underline text-small">
+                <Link href={`/dashboard/lawyers/${lawyer.id}`} className="text-brand-text hover:underline text-small">
                   {lawyer.firmName ?? `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim()}
                 </Link>
               ) : <p className="text-text-1">—</p>}
@@ -144,7 +144,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('patients.providerReferrer')}</p>
               {provider ? (
-                <Link href={`/dashboard/providers/${provider.id}`} className="text-brand hover:underline text-small">
+                <Link href={`/dashboard/providers/${provider.id}`} className="text-brand-text hover:underline text-small">
                   {provider.firstName} {provider.lastName}
                 </Link>
               ) : <p className="text-text-1">—</p>}

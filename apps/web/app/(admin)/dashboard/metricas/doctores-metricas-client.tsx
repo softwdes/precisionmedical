@@ -110,9 +110,9 @@ export function DoctoresMetricasClient() {
       {/* KPIs del período */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard icon={Clock}        label="Uso del sistema" value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
-        <KpiCard icon={Stethoscope}  label="Consultas"       value={totals.consultations}             color="bg-violet/10 text-violet" />
-        <KpiCard icon={Timer}        label="Duración prom."  value={fmtSeconds(totals.avgSeconds)}    color="bg-violet/10 text-violet" />
-        <KpiCard icon={Pill}         label="Recetas"         value={totals.rx}                        color="bg-brand/10 text-brand" />
+        <KpiCard icon={Stethoscope}  label="Consultas"       value={totals.consultations}             color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={Timer}        label="Duración prom."  value={fmtSeconds(totals.avgSeconds)}    color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={Pill}         label="Recetas"         value={totals.rx}                        color="bg-brand/10 text-brand-text" />
         <KpiCard icon={FlaskConical} label="Labs"            value={totals.labs}                      color="bg-cyan/10 text-cyan" />
         <KpiCard icon={DollarSign}   label="Férulas + serv." value={totals.braces + totals.services}  color="bg-amber/10 text-amber" />
       </div>
@@ -169,17 +169,17 @@ export function DoctoresMetricasClient() {
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <span className={cn('font-mono tabular-nums text-[12px]', r.activeMinutes > 0 ? 'text-emerald' : 'text-text-3/40')}>
+                      <span className={cn('font-mono tabular-nums text-[12px]', r.activeMinutes > 0 ? 'text-emerald' : 'text-text-3')}>
                         {fmtMinutes(r.activeMinutes)}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <span className={cn('font-mono tabular-nums text-[12px] font-semibold', r.consultations > 0 ? 'text-violet' : 'text-text-3/40')}>
+                      <span className={cn('font-mono tabular-nums text-[12px] font-semibold', r.consultations > 0 ? 'text-violet-text' : 'text-text-3')}>
                         {r.consultations}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <span className={cn('font-mono tabular-nums text-[12px]', r.measuredConsultations > 0 ? 'text-text-1' : 'text-text-3/40')}>
+                      <span className={cn('font-mono tabular-nums text-[12px]', r.measuredConsultations > 0 ? 'text-text-1' : 'text-text-3')}>
                         {r.measuredConsultations > 0 ? fmtSeconds(r.avgConsultSeconds) : '—'}
                       </span>
                     </td>
@@ -282,7 +282,7 @@ export function DoctoresMetricasClient() {
                               {c.braceCount > 0 && `${c.braceCount}fér `}{c.serviceCount > 0 && `${c.serviceCount}serv`}
                             </span>
                           )}
-                          <span className={cn('font-mono tabular-nums text-[12px] font-semibold', dur ? 'text-violet' : 'text-text-3/40')}>
+                          <span className={cn('font-mono tabular-nums text-[12px] font-semibold', dur ? 'text-violet-text' : 'text-text-3')}>
                             {dur ? fmtSeconds(dur) : '—'}
                           </span>
                         </div>
@@ -320,7 +320,7 @@ export function DoctoresMetricasClient() {
                     ].map((t) => (
                       <div key={t.label} className="rounded-lg bg-surface-2 border border-border p-2.5">
                         <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">{t.label}</div>
-                        <div className={cn('text-sm font-bold mt-0.5 tabular-nums', t.hl ? 'text-violet' : 'text-text-1')}>{t.v}</div>
+                        <div className={cn('text-sm font-bold mt-0.5 tabular-nums', t.hl ? 'text-violet-text' : 'text-text-1')}>{t.v}</div>
                       </div>
                     ))}
                   </div>
@@ -355,7 +355,7 @@ export function DoctoresMetricasClient() {
                         <div className="space-y-0.5">
                           {detail.note.diagnoses.map((d, i) => (
                             <div key={i} className="text-[12px] text-text-2">
-                              <span className="font-mono text-brand">{d.icd10Code}</span> {d.icd10Label}
+                              <span className="font-mono text-brand-text">{d.icd10Code}</span> {d.icd10Label}
                             </div>
                           ))}
                         </div>

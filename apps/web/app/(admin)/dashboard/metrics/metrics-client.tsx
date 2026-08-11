@@ -77,8 +77,8 @@ export function MetricsClient({
           <p className="text-small text-text-3">{t('metrics.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-brand/20 bg-brand/5 shrink-0">
-          <Activity className="h-4 w-4 text-brand shrink-0" />
-          <span className="text-small font-semibold text-brand whitespace-nowrap">{t('metrics.globalScore')}: {avg.toFixed(1)}</span>
+          <Activity className="h-4 w-4 text-brand-text shrink-0" />
+          <span className="text-small font-semibold text-brand-text whitespace-nowrap">{t('metrics.globalScore')}: {avg.toFixed(1)}</span>
         </div>
       </div>
 
@@ -173,7 +173,7 @@ export function MetricsClient({
                       <TableCell className="font-mono font-bold text-text-1">{Number(snap.globalScore).toFixed(1)}</TableCell>
                       <TableCell><Badge variant={GRADE_VARIANTS[snap.grade] ?? 'secondary'}>{GRADE_LABELS[snap.grade] ?? snap.grade}</Badge></TableCell>
                       <TableCell>
-                        <button onClick={() => setComputeTarget(snap)} className="p-1 text-text-muted hover:text-brand transition-colors" title={t('metrics.compute')}>
+                        <button onClick={() => setComputeTarget(snap)} className="p-1 text-text-muted hover:text-brand-text transition-colors" title={t('metrics.compute')}>
                           <Calculator className="h-3.5 w-3.5" />
                         </button>
                       </TableCell>

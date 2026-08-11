@@ -634,7 +634,7 @@ function RowActions({
 
   return (
     <div className="flex items-center gap-0.5 justify-end">
-      <button onClick={onDetail} className={`${btn} text-text-muted hover:text-brand hover:bg-surface-hover`} title={t('fx.viewDetail')}>
+      <button onClick={onDetail} className={`${btn} text-text-muted hover:text-brand-text hover:bg-surface-hover`} title={t('fx.viewDetail')}>
         <Eye className="h-3.5 w-3.5" />
       </button>
       <button onClick={onEdit} className={`${btn} text-text-muted hover:text-amber-500 hover:bg-amber-500/10`} title={t('fx.editOp')}>

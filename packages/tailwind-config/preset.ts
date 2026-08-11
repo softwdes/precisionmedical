@@ -48,6 +48,16 @@ const config: Omit<Config, 'content'> = {
         'text-2': alfa('--text-2'),
         'text-3': alfa('--text-3'),
         'text-muted': alfa('--text-muted'),
+        /**
+         * Azul y violeta PARA TEXTO, variables por tema.
+         *
+         * `brand`/`violet` son la identidad (mockups aprobados) y se quedan en
+         * fondos y bordes, donde el minimo de contraste es 3:1 y lo pasan. Pero
+         * como TEXTO chico no llegan a 4.5:1 en ningun tema, y no existe un hex
+         * unico que sirva en oscuro y en claro a la vez.
+         */
+        'brand-text': alfa('--brand-text'),
+        'violet-text': alfa('--violet-text'),
         brand: '#6366F1',
         'brand-2': '#8B5CF6',
         cyan: '#06B6D4',

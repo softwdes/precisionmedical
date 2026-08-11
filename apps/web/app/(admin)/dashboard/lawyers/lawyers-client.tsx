@@ -97,7 +97,7 @@ export function LawyersClient({ initial }: { initial: LawyerList }): React.React
             (data?.items ?? []).map((lawyer) => (
               <Link key={lawyer.id} href={`/dashboard/lawyers/${lawyer.id}`} className="flex items-center px-4 py-3.5 gap-3 hover:bg-surface/80">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 shrink-0">
-                  <Scale className="h-4 w-4 text-brand" />
+                  <Scale className="h-4 w-4 text-brand-text" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-small font-semibold text-text-1 truncate">{getName(lawyer)}</p>
@@ -141,7 +141,7 @@ export function LawyersClient({ initial }: { initial: LawyerList }): React.React
                     <TableCell><Badge variant={STATUS_VARIANTS[lawyer.status] ?? 'secondary'}>{STATUS_LABELS[lawyer.status] ?? lawyer.status}</Badge></TableCell>
                     <TableCell>
                       <Link href={`/dashboard/lawyers/${lawyer.id}`}>
-                        <ChevronRight className="h-4 w-4 text-text-muted hover:text-brand transition-colors" />
+                        <ChevronRight className="h-4 w-4 text-text-muted hover:text-brand-text transition-colors" />
                       </Link>
                     </TableCell>
                   </TableRow>

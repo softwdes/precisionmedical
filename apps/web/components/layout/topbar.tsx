@@ -249,7 +249,7 @@ export function Topbar({
                   className={cn(menuItemCls, 'text-text-2 hover:bg-surface hover:text-text-1')}
                   onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
                 >
-                  <User className="h-3.5 w-3.5 text-brand shrink-0" />
+                  <User className="h-3.5 w-3.5 text-brand-text shrink-0" />
                   Ver perfil
                 </button>
                 <button
@@ -286,7 +286,7 @@ export function Topbar({
             </div>
             <div className="text-center">
               <p className="text-lg font-bold text-text-1">{userName}</p>
-              <span className="mt-1 inline-block rounded-full bg-brand/10 px-3 py-0.5 text-xs font-semibold text-brand border border-brand/20">
+              <span className="mt-1 inline-block rounded-full bg-brand/10 px-3 py-0.5 text-xs font-semibold text-brand-text border border-brand/20">
                 {userRole}
               </span>
             </div>
@@ -317,7 +317,7 @@ export function Topbar({
             <button
               type="button"
               onClick={suggestPassword}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/[0.07] py-2.5 text-sm font-semibold text-brand hover:bg-brand/[0.12] transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/[0.07] py-2.5 text-sm font-semibold text-brand-text hover:bg-brand/[0.12] transition-colors"
             >
               <Zap className="h-3.5 w-3.5" />
               Sugerir contraseña segura

@@ -711,7 +711,7 @@ export function DashboardClient({
                       {t(l.typeKey as Parameters<typeof t>[0])}
                     </div>
                   </div>
-                  <span className="font-mono text-[13px] font-bold text-brand">{l.refs}</span>
+                  <span className="font-mono text-[13px] font-bold text-brand-text">{l.refs}</span>
                 </div>
               ))
             )}
@@ -748,7 +748,7 @@ export function DashboardClient({
                       {t(p.typeKey as Parameters<typeof t>[0])}
                     </div>
                   </div>
-                  <span className="font-mono text-[13px] font-bold text-brand">{p.refs}</span>
+                  <span className="font-mono text-[13px] font-bold text-brand-text">{p.refs}</span>
                 </div>
               ))
             )}

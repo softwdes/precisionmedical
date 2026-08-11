@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -150,13 +151,13 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
 
           {/* Script de llamada — context para Recepción */}
           <div className="rounded-lg border border-brand/20 bg-brand/5 p-4">
-            <div className="flex items-center gap-2 text-brand text-xs font-semibold uppercase tracking-wider mb-2">
+            <div className="flex items-center gap-2 text-brand-text text-xs font-semibold uppercase tracking-wider mb-2">
               <Info className="w-3.5 h-3.5" /> Datos del caso (para referencia durante la llamada)
             </div>
             <div className="space-y-1 text-xs text-text-2">
               <div><strong className="text-text-1">Caso:</strong> <code className="font-mono">{caseInfo.caseCode}</code></div>
               {caseInfo.accidentDate && (
-                <div><strong className="text-text-1">DOL (Date of Loss):</strong> {new Date(caseInfo.accidentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
+                <div><strong className="text-text-1">DOL (Date of Loss):</strong> {new Date(caseInfo.accidentDate).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
               )}
               {caseInfo.accidentLocation && (
                 <div><strong className="text-text-1">Lugar:</strong> {caseInfo.accidentLocation}</div>
@@ -173,7 +174,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           {/* Checklist */}
           <div className="rounded-lg border border-border bg-bg-2/30 p-4">
             <div className="flex items-center gap-2 text-text-1 font-semibold text-sm mb-3">
-              <ClipboardList className="w-4 h-4 text-brand" />
+              <ClipboardList className="w-4 h-4 text-brand-text" />
               Checklist de confirmación
               <span className="text-text-muted text-xs font-normal ml-auto">
                 {[dolConfirmed, docsBringing, timeConfirmed, infoUpToDate].filter(Boolean).length}/4

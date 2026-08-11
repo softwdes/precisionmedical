@@ -59,7 +59,7 @@ export default async function DoctorStatsPage({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard compact label={t('statsKpiConsultations')} value={m.completed} sub={t('statsKpiOfTotal', { total: m.totalAppointments })} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
+        <KpiCard compact label={t('statsKpiConsultations')} value={m.completed} sub={t('statsKpiOfTotal', { total: m.totalAppointments })} color="text-violet-text" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet-text" />
         <KpiCard compact label={t('statsKpiAvgDuration')} value={m.avgDurationMin > 0 ? `${m.avgDurationMin} min` : '—'} color="text-emerald" icon={Clock3} iconBg="bg-emerald/10" iconColor="text-emerald" />
         <KpiCard compact label={t('statsKpiUniquePatients')} value={m.uniquePatients} color="text-cyan" icon={Users} iconBg="bg-cyan/10" iconColor="text-cyan" />
         <KpiCard compact label={t('statsKpiNoShows')} value={m.noShows} sub={m.cancelled > 0 ? t('statsKpiCancelled', { count: m.cancelled }) : undefined} color={m.noShows > 0 ? 'text-amber' : 'text-text-1'} icon={UserX} iconBg="bg-amber/10" iconColor="text-amber" />
@@ -69,7 +69,7 @@ export default async function DoctorStatsPage({
         {/* Chart — consultas por bucket */}
         <div className="lg:col-span-2 rounded-lg border border-border bg-bg-1 p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-4 flex items-center gap-1.5">
-            <BarChart3 className="w-3.5 h-3.5 text-violet" />
+            <BarChart3 className="w-3.5 h-3.5 text-violet-text" />
             {t('statsChartTitle')}
           </div>
           {m.totalAppointments === 0 ? (
@@ -78,7 +78,7 @@ export default async function DoctorStatsPage({
             <div className="flex items-end gap-[3px] h-40 overflow-x-auto pb-1">
               {m.buckets.map((b, i) => (
                 <div key={i} className="flex-1 min-w-[10px] flex flex-col items-center gap-1 group" title={`${b.label}: ${b.completed}/${b.total}`}>
-                  <span className="text-[9px] text-violet font-bold tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[9px] text-violet-text font-bold tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">
                     {b.total > 0 ? b.total : ''}
                   </span>
                   <div className="w-full max-w-[26px] flex flex-col justify-end" style={{ height: '110px' }}>
@@ -118,7 +118,7 @@ export default async function DoctorStatsPage({
         {/* Panel calidad y cumplimiento */}
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-1.5">
-            <FileSignature className="w-3.5 h-3.5 text-violet" />
+            <FileSignature className="w-3.5 h-3.5 text-violet-text" />
             {t('statsQualityTitle')}
           </div>
           <div className="space-y-2.5 text-sm">

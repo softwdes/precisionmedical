@@ -299,7 +299,7 @@ export function SettingsClient({
           <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-brand" /> {title}
+                <Building2 className="w-4 h-4 text-brand-text" /> {title}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">

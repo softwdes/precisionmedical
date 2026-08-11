@@ -32,13 +32,13 @@ const TONE_BORDER: Record<Tone, string> = {
 };
 
 const TONE_ICON: Record<Tone, string> = {
-  default: 'text-brand',
-  brand:   'text-brand',
+  default: 'text-brand-text',
+  brand:   'text-brand-text',
   cyan:    'text-cyan',
   emerald: 'text-emerald',
   amber:   'text-amber',
   rose:    'text-rose',
-  violet:  'text-violet',
+  violet:  'text-violet-text',
 };
 
 // Background MUY sutil del tono · diferencia visual sin saturar
@@ -61,7 +61,7 @@ const TONE_TITLE: Record<Tone, string> = {
   emerald: 'text-emerald',
   amber:   'text-amber',
   rose:    'text-rose',
-  violet:  'text-violet',
+  violet:  'text-violet-text',
 };
 
 export interface InfoCardProps {

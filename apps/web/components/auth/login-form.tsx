@@ -108,7 +108,7 @@ export function LoginForm(): React.ReactElement {
       <div className="text-center">
         <button
           type="button"
-          className="text-small text-text-3 hover:text-brand transition-colors"
+          className="text-small text-text-3 hover:text-brand-text transition-colors"
         >
           {t('forgotPassword')}
         </button>

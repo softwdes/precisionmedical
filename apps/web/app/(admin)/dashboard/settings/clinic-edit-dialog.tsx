@@ -342,7 +342,7 @@ export function ClinicEditDialog({
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-2xl overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            {isCreate ? <Plus className="h-4 w-4 text-brand" /> : <MapPin className="h-4 w-4 text-brand" />}
+            {isCreate ? <Plus className="h-4 w-4 text-brand-text" /> : <MapPin className="h-4 w-4 text-brand-text" />}
             {isCreate ? t('newClinic') : t('editClinic', { name: clinic!.display_name })}
           </DialogTitle>
           <DialogDescription>

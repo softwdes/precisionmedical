@@ -299,7 +299,7 @@ export function AiAgentsClient({
             onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-small whitespace-nowrap transition-colors border-b-2 -mb-px shrink-0 ${
               tab === key
-                ? 'border-brand text-brand font-semibold'
+                ? 'border-brand text-brand-text font-semibold'
                 : 'border-transparent text-text-3 hover:text-text-2'
             }`}
           >
@@ -658,7 +658,7 @@ function DashboardTab({
 
           <button
             onClick={onOpenCifo}
-            className="w-full rounded-lg border px-3 py-2 text-small font-medium text-brand hover:bg-brand/10 transition-colors"
+            className="w-full rounded-lg border px-3 py-2 text-small font-medium text-brand-text hover:bg-brand/10 transition-colors"
             style={{ borderColor: 'rgba(99,102,241,0.4)' }}
           >
             {t('aiAgents.openCifo')}
@@ -739,7 +739,7 @@ function DashboardTab({
             </button>
             <button
               onClick={onRunNow}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-small font-medium text-brand hover:bg-brand/10 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-small font-medium text-brand-text hover:bg-brand/10 transition-colors"
               style={{ borderColor: 'rgba(99,102,241,0.4)' }}
             >
               <Play className="h-3.5 w-3.5" />
@@ -884,18 +884,18 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
       {/* Hint to use FAB */}
       <div className="rounded-xl border border-border bg-surface p-5 flex flex-col items-center gap-3 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-brand/30 bg-brand/10">
-          <MessageCircle className="h-5 w-5 text-brand" />
+          <MessageCircle className="h-5 w-5 text-brand-text" />
         </div>
         <div>
           <p className="text-small font-semibold text-text-1 mb-1">Iniciar conversación con CIFO</p>
           <p className="text-tiny text-text-3 max-w-sm">{t('aiAgents.openFabHint')}</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/25">
-          <span className="text-tiny text-brand font-medium">Busca el botón</span>
+          <span className="text-tiny text-brand-text font-medium">Busca el botón</span>
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand">
             <Sparkles className="h-2.5 w-2.5 text-white" />
           </div>
-          <span className="text-tiny text-brand font-medium">en la esquina inferior derecha</span>
+          <span className="text-tiny text-brand-text font-medium">en la esquina inferior derecha</span>
         </div>
       </div>
 
@@ -923,7 +923,7 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
                   className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0 mt-0.5"
                   style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.10))', border: '1px solid rgba(99,102,241,0.20)' }}
                 >
-                  <MessageCircle className="h-3.5 w-3.5 text-brand" />
+                  <MessageCircle className="h-3.5 w-3.5 text-brand-text" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-small text-text-1 truncate">{conv.first_message || '—'}</p>
@@ -1109,9 +1109,9 @@ function AuditAgentTab({
         {/* Toggle 2: Semi-autónomo */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Hand className={`h-4 w-4 shrink-0 ${local.modeSemiAutonomous ? 'text-brand' : 'text-text-muted'}`} />
+            <Hand className={`h-4 w-4 shrink-0 ${local.modeSemiAutonomous ? 'text-brand-text' : 'text-text-muted'}`} />
             <div className="min-w-0">
-              <p className={`text-small font-medium ${local.modeSemiAutonomous ? 'text-brand' : 'text-text-2'}`}>
+              <p className={`text-small font-medium ${local.modeSemiAutonomous ? 'text-brand-text' : 'text-text-2'}`}>
                 {t('aiAgents.semiAutonomous')}
               </p>
               <p className="text-tiny text-text-muted">{t('aiAgents.semiAutonomousDesc')}</p>
@@ -1234,7 +1234,7 @@ function AuditAgentTab({
               {scanPending ? (
                 <>
                   <span className="h-2 w-2 rounded-full bg-brand animate-pulse shrink-0" />
-                  <span className="text-small font-medium text-brand">Escaneo en progreso...</span>
+                  <span className="text-small font-medium text-brand-text">Escaneo en progreso...</span>
                 </>
               ) : (
                 <>
@@ -1261,13 +1261,13 @@ function AuditAgentTab({
                       isActive ? 'bg-brand/15' : revealed ? 'bg-emerald/15' : 'bg-border/50'
                     }`}>
                       {isActive
-                        ? <RefreshCw className="h-3 w-3 text-brand animate-spin" />
+                        ? <RefreshCw className="h-3 w-3 text-brand-text animate-spin" />
                         : <CheckCircle2 className="h-3 w-3 text-emerald" />
                       }
                     </div>
                     <div className="flex items-center gap-2 min-w-0">
-                      <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand' : 'text-text-muted'}`} />
-                      <span className={`text-small ${isActive ? 'text-brand font-medium' : 'text-text-2'}`}>
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand-text' : 'text-text-muted'}`} />
+                      <span className={`text-small ${isActive ? 'text-brand-text font-medium' : 'text-text-2'}`}>
                         {step.label}
                       </span>
                     </div>
@@ -1311,7 +1311,7 @@ function AuditAgentTab({
                 {scanResult.findings_count > 0 && (
                   <button
                     onClick={onViewFindings}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/8 px-3 py-2 text-small font-medium text-brand hover:bg-brand/15 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/8 px-3 py-2 text-small font-medium text-brand-text hover:bg-brand/15 transition-colors"
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Ver detalle de hallazgos
@@ -1368,7 +1368,7 @@ function AuditAgentTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {CHECKS.map(({ icon: Icon, label, desc }) => (
             <div key={label} className="flex items-start gap-3 rounded-lg border border-border/50 bg-surface/50 p-3">
-              <Icon className="h-4 w-4 text-brand shrink-0 mt-0.5" />
+              <Icon className="h-4 w-4 text-brand-text shrink-0 mt-0.5" />
               <div>
                 <p className="text-small font-medium text-text-2">{label}</p>
                 <p className="text-tiny text-text-muted mt-0.5">{desc}</p>
@@ -1487,7 +1487,7 @@ function HallazgosTab({
               key={key}
               onClick={() => setFilterSeverity(key)}
               className={`px-3 py-1.5 text-tiny border-r border-border last:border-r-0 transition-colors ${
-                filterSeverity === key ? 'bg-brand/15 text-brand font-semibold' : 'text-text-3 hover:text-text-2'
+                filterSeverity === key ? 'bg-brand/15 text-brand-text font-semibold' : 'text-text-3 hover:text-text-2'
               }`}
             >
               {label}
@@ -1522,7 +1522,7 @@ function HallazgosTab({
               key={key}
               onClick={() => setFilterStatus(key)}
               className={`px-3 py-1.5 text-tiny border-r border-border last:border-r-0 transition-colors ${
-                filterStatus === key ? 'bg-brand/15 text-brand font-semibold' : 'text-text-3 hover:text-text-2'
+                filterStatus === key ? 'bg-brand/15 text-brand-text font-semibold' : 'text-text-3 hover:text-text-2'
               }`}
             >
               {label}
@@ -1755,7 +1755,7 @@ function CostosTab({
         {/* CIFO */}
         <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'rgba(99,102,241,0.25)', background: 'rgba(99,102,241,0.04)' }}>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-brand" />
+            <Sparkles className="h-4 w-4 text-brand-text" />
             <p className="text-small font-semibold text-text-1">CIFO</p>
           </div>
           <div className="space-y-2">

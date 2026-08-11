@@ -125,7 +125,7 @@ export default function SecuritySettingsPage() {
       <div className="mt-6 rounded-lg border border-border bg-bg-1 p-5">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <QrCode className="w-5 h-5 text-brand" />
+          <QrCode className="w-5 h-5 text-brand-text" />
           <div>
             <p className="text-sm font-semibold text-text-1">Autenticación de dos factores (TOTP)</p>
             <p className="text-[11px] text-text-muted mt-0.5">
@@ -179,7 +179,7 @@ export default function SecuritySettingsPage() {
               {secret && (
                 <div>
                   <p className="text-[10px] text-text-muted mb-1 uppercase tracking-wider">Clave manual</p>
-                  <code className="text-xs font-mono bg-bg-2 border border-border rounded px-2 py-1 tracking-widest text-brand break-all">
+                  <code className="text-xs font-mono bg-bg-2 border border-border rounded px-2 py-1 tracking-widest text-brand-text break-all">
                     {secret}
                   </code>
                 </div>

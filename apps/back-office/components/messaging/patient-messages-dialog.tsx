@@ -114,7 +114,7 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
               botón de nuevo mensaje queda pegado a ella. */}
           <DialogHeader className="px-4 sm:px-6 pr-12 sm:pr-14 pt-5 pb-3 border-b border-border">
             <DialogTitle className="flex items-center gap-2 flex-wrap text-text-1 text-base font-semibold">
-              <MessagesSquare className="w-4 h-4 text-brand" />
+              <MessagesSquare className="w-4 h-4 text-brand-text" />
               {t('patientMessagesTitle')}
               {patient && <span className="text-text-muted font-normal text-sm">— {patient.name}</span>}
               <button type="button" onClick={() => setComposeOpen(true)}
@@ -128,7 +128,7 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
                 los dos modos acá difuminaba qué está mostrando el diálogo. */}
             {activeCase && (
               <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-brand">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-brand-text">
                   <Briefcase className="w-3 h-3" />
                   <span className="font-mono">{activeCase.caseCode}</span>
                   {activeCase.accidentDate && (
@@ -180,7 +180,7 @@ export function PatientMessagesDialog({ open, onClose, patient, currentUserId, i
                           {/* Con filtro activo el caso es obvio; sin filtro
                               distingue los hilos de cada caso del paciente. */}
                           {!activeCase && th.case && (
-                            <span className="font-mono text-brand"> · {th.case.caseCode}</span>
+                            <span className="font-mono text-brand-text"> · {th.case.caseCode}</span>
                           )}
                         </div>
                       </div>

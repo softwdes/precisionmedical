@@ -118,8 +118,8 @@ export function DoctorStepPanel({
       <div className="flex items-center gap-3 px-4 py-3 border-b border-bg-3">
         <div className="w-7 h-7 rounded-full bg-violet flex items-center justify-center text-white font-bold text-[11px] shrink-0">3</div>
         <div className="flex-1 min-w-0">
-          <div className="text-violet font-bold text-[13px]">{t('stepDoctor')}</div>
-          <div className="text-violet/60 text-[10px]">{t('stepDoctorAssistantDesc')}</div>
+          <div className="text-violet-text font-bold text-[13px]">{t('stepDoctor')}</div>
+          <div className="text-violet-text/60 text-[10px]">{t('stepDoctorAssistantDesc')}</div>
         </div>
         {/* Cobertura acá también: el asistente trabaja los cargos en este step y
             el chip vivía solo en el sidebar del step 2 — lo veía antes de entrar y
@@ -129,7 +129,7 @@ export function DoctorStepPanel({
           <CoverageChip caseId={servicesPanel.case?.id ?? null} coverage={coverage} />
         )}
         {providerName && (
-          <div className="text-[10px] font-semibold text-violet bg-violet/15 border border-violet/25 px-2 py-0.5 rounded-full shrink-0">
+          <div className="text-[10px] font-semibold text-violet-text bg-violet/15 border border-violet/25 px-2 py-0.5 rounded-full shrink-0">
             {providerName}
           </div>
         )}
@@ -143,7 +143,7 @@ export function DoctorStepPanel({
             type="button"
             onClick={() => { setGoToPayments(false); setTab(id); }}
             className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
+              tab === id ? 'text-violet-text border-violet' : 'text-text-muted border-transparent hover:text-text-1'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />

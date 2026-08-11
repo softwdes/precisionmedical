@@ -103,7 +103,7 @@ export function AgentDetailClient({
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="relative flex h-9 w-9 items-center justify-center rounded bg-brand/10 text-lg shrink-0">
-          <Bot className="h-4 w-4 text-brand" />
+          <Bot className="h-4 w-4 text-brand-text" />
           <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-1 ${STATUS_DOTS[agent.status]}`} />
         </div>
         <div className="flex-1 min-w-0">
@@ -150,7 +150,7 @@ export function AgentDetailClient({
             key={key}
             onClick={() => setTab(key)}
             className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-2 text-tiny sm:text-small transition-colors border-b-2 -mb-px ${
-              tab === key ? 'border-brand text-brand font-semibold' : 'border-transparent text-text-3 hover:text-text-2'
+              tab === key ? 'border-brand text-brand-text font-semibold' : 'border-transparent text-text-3 hover:text-text-2'
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

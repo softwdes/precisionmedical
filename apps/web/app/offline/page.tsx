@@ -49,7 +49,7 @@ export default function OfflinePage(): React.ReactElement {
       {/* Retry button */}
       <button
         onClick={() => window.location.reload()}
-        className="flex items-center gap-2 rounded-xl bg-brand/10 border border-brand/30 px-6 py-2.5 text-sm font-semibold text-brand hover:bg-brand/20 transition-colors"
+        className="flex items-center gap-2 rounded-xl bg-brand/10 border border-brand/30 px-6 py-2.5 text-sm font-semibold text-brand-text hover:bg-brand/20 transition-colors"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

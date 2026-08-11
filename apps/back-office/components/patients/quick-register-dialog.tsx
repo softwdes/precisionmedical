@@ -36,7 +36,7 @@ function Field({ label, required, error, children }: { label: string; required?:
   );
 }
 
-const INPUT  = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors';
+const INPUT  = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors';
 const SELECT = `${INPUT} appearance-none`;
 
 // ─── ReferredBy Select — lista de firmas cargada desde DB ────────────────────
@@ -157,7 +157,7 @@ function LawFirmAutocomplete({
             </button>
           ))}
           {!adding && (
-            <button type="button" className="w-full text-left px-3 py-2 text-[11px] text-brand hover:bg-bg-2 border-t border-border"
+            <button type="button" className="w-full text-left px-3 py-2 text-[11px] text-brand-text hover:bg-bg-2 border-t border-border"
               onClick={() => setAdding(true)}>
               {addLabel}
             </button>
@@ -356,7 +356,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
           type="button"
           onClick={downloadQr}
           disabled={!qrDataUrl}
-          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-40"
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand-text transition-colors disabled:opacity-40"
         >
           <QrCode className="w-3.5 h-3.5" />
           {t('qrDownload')}
@@ -371,7 +371,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
             <div>
               <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t('qrPatient')}</p>
               <p className="text-base font-bold text-text-1">{info.patientName}</p>
-              <p className="text-[11px] text-brand font-mono mt-0.5">{info.patientCode}</p>
+              <p className="text-[11px] text-brand-text font-mono mt-0.5">{info.patientCode}</p>
             </div>
             <div className="h-px bg-border" />
             <div>
@@ -388,7 +388,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
             <button
               type="button"
               onClick={copyLink}
-              className="text-text-muted hover:text-brand transition-colors shrink-0"
+              className="text-text-muted hover:text-brand-text transition-colors shrink-0"
               title={t('qrCopyLink')}
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
@@ -616,7 +616,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-brand" />
+            <UserPlus className="w-4 h-4 text-brand-text" />
             <DialogTitle className="text-base font-semibold text-text-1">
               {t('title')}
             </DialogTitle>
@@ -650,7 +650,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
               {/* ── Sección 1: Datos básicos ─────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-brand" />
+                  <UserPlus className="w-4 h-4 text-brand-text" />
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
                     {t('sectionPatient')}
                   </h3>
@@ -758,7 +758,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
               {/* ── Sección 2: Información del caso ──────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Stethoscope className="w-4 h-4 text-brand" />
+                  <Stethoscope className="w-4 h-4 text-brand-text" />
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
                     {t('sectionCase')}
                   </h3>
@@ -778,7 +778,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                           onClick={() => setCaseType(ct)}
                           className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium transition-all
                             ${active
-                              ? 'border-brand bg-brand/10 text-brand'
+                              ? 'border-brand bg-brand/10 text-brand-text'
                               : 'border-border bg-bg-2 text-text-muted hover:border-brand/40'
                             }`}
                         >

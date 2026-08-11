@@ -115,7 +115,7 @@ export function InboxBell(): React.ReactElement | null {
           <DialogContent className="max-w-6xl p-0 h-[85vh] flex flex-col">
             <DialogHeader className="px-4 sm:px-6 pt-4 pb-3 border-b border-border">
               <DialogTitle className="flex items-center gap-2 flex-wrap text-text-1 text-base font-semibold">
-                <Mail className="w-4 h-4 text-brand" />
+                <Mail className="w-4 h-4 text-brand-text" />
                 {t('bellTitle')}
                 {hasUrgent && (
                   <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-rose/10 border border-rose/30 text-rose">

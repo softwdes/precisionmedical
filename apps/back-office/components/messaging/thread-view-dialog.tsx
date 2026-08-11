@@ -327,7 +327,7 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                 <div className="flex items-center gap-3 flex-wrap">
                   <span>{t(`type${thread.type}`)} · {t(`category${thread.category}`)}</span>
                   {thread.patient && (
-                    <span className="text-brand">
+                    <span className="text-brand-text">
                       {thread.patient.lastName}, {thread.patient.firstName} · {thread.patient.patientCode}
                     </span>
                   )}
@@ -448,7 +448,7 @@ export function ThreadViewDialog({ open, onClose, threadId, currentUserId, isAdm
                         {e.attachments.map((a) => (
                           <button key={a.id} type="button" onClick={() => void openAttachment(a.id)}
                             title={a.description ?? a.fileName}
-                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium bg-bg-2/60 border border-border/60 text-text-1 hover:border-brand/50 hover:text-brand transition-colors">
+                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium bg-bg-2/60 border border-border/60 text-text-1 hover:border-brand/50 hover:text-brand-text transition-colors">
                             <Paperclip className="w-3 h-3" />
                             <span className="truncate max-w-[180px]">{a.fileName}</span>
                           </button>

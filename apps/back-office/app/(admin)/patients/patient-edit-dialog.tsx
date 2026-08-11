@@ -538,7 +538,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
         >
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
-              <Pencil className="w-4 h-4 text-brand" />
+              <Pencil className="w-4 h-4 text-brand-text" />
               {t('editDialogTitle')}
             </DialogTitle>
             <DialogDescription className="text-text-muted text-xs">
@@ -551,7 +551,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
             {/* ══ Personal info ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
-                <User className="w-4 h-4 text-brand" />
+                <User className="w-4 h-4 text-brand-text" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionPersonal')}</h3>
               </div>
 
@@ -637,7 +637,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
             {/* ══ Clinical info ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
-                <Stethoscope className="w-4 h-4 text-brand" />
+                <Stethoscope className="w-4 h-4 text-brand-text" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionClinical')}</h3>
               </div>
 
@@ -770,7 +770,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                               });
                               close();
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-brand transition-colors hover:bg-white/5 disabled:opacity-50"
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-brand-text transition-colors hover:bg-white/5 disabled:opacity-50"
                           >
                             <UserPlus className="w-3.5 h-3.5 shrink-0" />
                             <span className="min-w-0 flex-1">
@@ -799,7 +799,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
             {/* ══ Emergency contacts ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
-                <PhoneCall className="w-4 h-4 text-brand" />
+                <PhoneCall className="w-4 h-4 text-brand-text" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionEmergencyContacts')}</h3>
               </div>
 

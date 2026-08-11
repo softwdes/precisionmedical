@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.26 — HCFA / CMS-1500 Generación
@@ -200,7 +201,7 @@ function CmsPreview({ d }: { d: HcfaData }) {
         </div>
         <div>
           <span style={{ fontWeight: 700 }}>DATE: </span>
-          <span>{new Date().toLocaleDateString('en-US')}</span>
+          <span>{new Date().toLocaleDateString(localeApp())}</span>
         </div>
       </div>
     </div>
@@ -443,7 +444,7 @@ export function HcfaClient() {
                           <span className="text-text-muted font-normal ml-1.5">({d.insurerFax})</span>
                         )}
                         {!d.insurerFax && (
-                          <span className="text-text-muted/60 font-normal ml-1.5">— sin fax registrado</span>
+                          <span className="text-text-muted font-normal ml-1.5">— sin fax registrado</span>
                         )}
                       </span>
                     </label>
@@ -462,7 +463,7 @@ export function HcfaClient() {
                           <span className="text-text-muted font-normal ml-1.5">({d.insurerEmail})</span>
                         )}
                         {!d.insurerEmail && (
-                          <span className="text-text-muted/60 font-normal ml-1.5">— sin email registrado</span>
+                          <span className="text-text-muted font-normal ml-1.5">— sin email registrado</span>
                         )}
                       </span>
                     </label>

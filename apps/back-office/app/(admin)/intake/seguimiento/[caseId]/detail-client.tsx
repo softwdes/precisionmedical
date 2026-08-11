@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.24 — Detalle de seguimiento del caso (Edson)
@@ -98,7 +99,7 @@ type Tab          = 'timeline' | 'docs' | 'comms';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
+  return new Date(iso).toLocaleDateString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric',
     timeZone: 'America/Denver',
   });
@@ -112,9 +113,9 @@ function fmtDateTime(iso: string): string {
     today.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
   if (isToday) {
-    return `Hoy · ${d.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}`;
+    return `Hoy · ${d.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}`;
   }
-  return d.toLocaleDateString('es-US', {
+  return d.toLocaleDateString(localeApp(), {
     day: 'numeric', month: 'short', year: 'numeric',
     timeZone: 'America/Denver',
   });
@@ -123,12 +124,12 @@ function fmtDateTime(iso: string): string {
 // Timeline icon + colors by event type
 const EVENT_CONFIG: Record<TimelineEventType, { icon: string; bg: string; color: string }> = {
   visit:    { icon: '✓',  bg: 'bg-emerald/15', color: 'text-emerald' },
-  call:     { icon: '📞', bg: 'bg-brand/15',   color: 'text-brand' },
-  email:    { icon: '📧', bg: 'bg-brand/15',   color: 'text-brand' },
+  call:     { icon: '📞', bg: 'bg-brand/15',   color: 'text-brand-text' },
+  email:    { icon: '📧', bg: 'bg-brand/15',   color: 'text-brand-text' },
   payment:  { icon: '💰', bg: 'bg-emerald/15', color: 'text-emerald' },
   escalate: { icon: '🚨', bg: 'bg-rose/15',    color: 'text-rose' },
   lien:     { icon: '⚖',  bg: 'bg-emerald/15', color: 'text-emerald' },
-  hcfa:     { icon: '📄', bg: 'bg-brand/15',   color: 'text-brand' },
+  hcfa:     { icon: '📄', bg: 'bg-brand/15',   color: 'text-brand-text' },
   system:   { icon: '🤖', bg: 'bg-white/8',    color: 'text-text-muted' },
   note:     { icon: '📝', bg: 'bg-amber/15',   color: 'text-amber' },
   urgent:   { icon: '⚠',  bg: 'bg-rose/15',    color: 'text-rose' },
@@ -144,7 +145,7 @@ function FinancialCard({
   tone: 'brand' | 'emerald' | 'rose';
 }) {
   const tones = {
-    brand:   'bg-brand/5 border-brand/20 text-brand',
+    brand:   'bg-brand/5 border-brand/20 text-brand-text',
     emerald: 'bg-emerald/5 border-emerald/20 text-emerald',
     rose:    'bg-rose/5 border-rose/20 text-rose',
   };
@@ -174,7 +175,7 @@ function TimelineEvent({ e }: { e: TimelineEntry }) {
           <p className="text-[11px] text-text-muted mt-0.5 leading-relaxed">{e.subtitle}</p>
         )}
         {e.authorName && (
-          <span className="text-[10px] text-text-muted/60 mt-1 block">{e.authorName}</span>
+          <span className="text-[10px] text-text-muted mt-1 block">{e.authorName}</span>
         )}
       </div>
     </div>
@@ -524,7 +525,7 @@ export function SeguimientoDetailClient() {
             {(c.attorney?.phone || c.firmPhone) && (
               <a
                 href={`tel:${c.attorney?.phone ?? c.firmPhone}`}
-                className="flex items-center gap-1.5 text-brand hover:underline"
+                className="flex items-center gap-1.5 text-brand-text hover:underline"
               >
                 <Phone className="w-3.5 h-3.5" />
                 {c.attorney?.phone ?? c.firmPhone}
@@ -533,7 +534,7 @@ export function SeguimientoDetailClient() {
             {(c.attorney?.email || c.firmEmail) && (
               <a
                 href={`mailto:${c.attorney?.email ?? c.firmEmail}`}
-                className="flex items-center gap-1.5 text-brand hover:underline"
+                className="flex items-center gap-1.5 text-brand-text hover:underline"
               >
                 <Mail className="w-3.5 h-3.5" />
                 {c.attorney?.email ?? c.firmEmail}
@@ -615,14 +616,14 @@ export function SeguimientoDetailClient() {
             <button
               type="button"
               onClick={() => setActiveAction('call')}
-              className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand hover:bg-brand/20 transition-all"
+              className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand-text hover:bg-brand/20 transition-all"
             >
               <Phone className="w-3.5 h-3.5" /> Llamar bufete
             </button>
             <button
               type="button"
               onClick={() => setActiveAction('email')}
-              className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand hover:bg-brand/20 transition-all"
+              className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand-text hover:bg-brand/20 transition-all"
             >
               <Mail className="w-3.5 h-3.5" /> Enviar recordatorio
             </button>

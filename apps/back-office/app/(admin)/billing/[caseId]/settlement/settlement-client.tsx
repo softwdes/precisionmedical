@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.28 — Settlement Workflow (Brunella)
@@ -314,7 +315,7 @@ export function SettlementClient() {
           <div className="rounded-xl border border-emerald/25 bg-emerald/5 p-4 w-full max-w-md text-left">
             <div className="text-[11px] text-text-muted leading-relaxed">{s.existingSettlement.content}</div>
             <div className="mt-2 text-[10px] text-text-muted">
-              Procesado: {new Date(s.existingSettlement.processedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })}
+              Procesado: {new Date(s.existingSettlement.processedAt).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })}
             </div>
           </div>
           <button type="button" onClick={() => router.push(`/billing/${caseId}`)}
@@ -378,7 +379,7 @@ export function SettlementClient() {
               {/* 📋 Datos del caso */}
               <div className="rounded-xl border border-border bg-bg-1 p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <FileText className="w-4 h-4 text-brand" />
+                  <FileText className="w-4 h-4 text-brand-text" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                     Datos del caso
                   </span>
@@ -581,7 +582,7 @@ export function SettlementClient() {
               {/* 📤 Al confirmar Settlement — checklist */}
               <div className="rounded-xl border border-border bg-bg-1 p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Mail className="w-4 h-4 text-brand" />
+                  <Mail className="w-4 h-4 text-brand-text" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                     Al confirmar settlement
                   </span>

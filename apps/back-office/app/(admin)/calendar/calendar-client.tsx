@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.10 — CalendarClient · Grid semanal de citas
@@ -203,7 +204,7 @@ function localDateStr(d: Date): string {
 
 function slotOf(isoString: string): string {
   const d = new Date(isoString);
-  const t = d.toLocaleTimeString('en-US', {
+  const t = d.toLocaleTimeString(localeApp(), {
     timeZone: 'America/Denver',
     hour12:   false,
     hour:     '2-digit',
@@ -240,7 +241,7 @@ function minToSlot(min: number): string {
 
 /** Igual que slotOf() pero redondeando a bloques de 15 min. */
 function slotOf15(isoString: string): string {
-  const t = new Date(isoString).toLocaleTimeString('en-US', {
+  const t = new Date(isoString).toLocaleTimeString(localeApp(), {
     timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
   });
   const [rawH, m] = t.split(':').map(Number) as [number, number];
@@ -255,7 +256,7 @@ function denverSlotToISO(dayKey: string, slot: string): string {
   const [h, m] = slot.split(':').map(Number) as [number, number];
   for (const offsetH of [6, 7]) {
     const utc = new Date(Date.UTC(y, mo, d, h + offsetH, m));
-    const parts = utc.toLocaleString('en-US', {
+    const parts = utc.toLocaleString(localeApp(), {
       timeZone: 'America/Denver',
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false,
@@ -276,7 +277,7 @@ function slotIsPast(dayKey: string, slot: string): boolean {
   const nowDenverDate = denverDateStr(new Date());
   if (dayKey < nowDenverDate) return true;
   if (dayKey > nowDenverDate) return false;
-  const nowTime = new Date().toLocaleTimeString('en-US', {
+  const nowTime = new Date().toLocaleTimeString(localeApp(), {
     timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
   });
   return slot <= nowTime;
@@ -286,13 +287,13 @@ function slotIsPast(dayKey: string, slot: string): boolean {
 function apptTimeRange(iso: string, durationMinutes: number): string {
   const start = new Date(iso);
   const end   = new Date(start.getTime() + durationMinutes * 60_000);
-  const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  const fmt = (d: Date) => d.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
   return `${fmt(start)}–${fmt(end)}`;
 }
 
 /** Solo la hora de inicio ("9:30 AM") — versión compacta para los carriles angostos de la vista semanal */
 function apptTimeShort(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
@@ -541,8 +542,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   // Abre en Laboratorios, no en el resumen del caso: desde el calendario se
   // entra a ver qué se le va a cobrar al paciente, y los labs son el primer
   // renglón de esa cuenta (decisión de Erick 2026-08-09).
-  const openCase = useCallback((caseId: string) => {
-    router.push(conCasoAbierto(pathname, searchParams, caseId, 'labs'), { scroll: false });
+  const openCase = useCallback((caseId: string, appointmentId?: string) => {
+    router.push(conCasoAbierto(pathname, searchParams, caseId, 'labs', appointmentId), { scroll: false });
   }, [router, pathname, searchParams]);
 
   // Al volver del caso, la data del calendario puede haber cambiado (cobros,
@@ -1261,7 +1262,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     const dayNum = parseInt(dKey.slice(8), 10);
                     return (
                       <div key={i} className={`py-3 text-center border-r border-white/[0.07] last:border-r-0 ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
-                        <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS[i]}</div>
+                        <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted'}`}>{WEEKDAYS[i]}</div>
                         <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>{dayNum}</div>
                       </div>
                     );
@@ -1489,7 +1490,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               {/* Cabecera del día */}
               <div className={`rounded-xl border border-white/[0.07] overflow-hidden mb-3 max-w-[280px] ${isToday ? 'bg-cyan/[0.06]' : 'bg-bg-1'}`}>
                 <div className="py-2.5 text-center">
-                  <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
+                  <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted'}`}>
                     {WEEKDAYS_ALL[dowIdx]}
                   </div>
                   <div className={`text-[26px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
@@ -1508,10 +1509,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 {columns.map((slots, ci) => slots.length > 0 && (
                   <div key={ci} className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden">
                     <div className="grid grid-cols-[58px_1fr] border-b border-white/[0.07] bg-bg-2">
-                      <div className="border-r border-white/[0.07] py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted/60">
+                      <div className="border-r border-white/[0.07] py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted">
                         {t('colHour')}
                       </div>
-                      <div className="py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted/60">
+                      <div className="py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted">
                         {t('colAppts')}
                       </div>
                     </div>
@@ -1536,7 +1537,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 <div className="grid grid-cols-5 border-b border-white/[0.07]">
                   {WEEKDAYS.map(d => (
                     <div key={d} className="py-2.5 text-center border-r border-white/[0.07] last:border-r-0">
-                      <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted/60">{d}</span>
+                      <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted">{d}</span>
                     </div>
                   ))}
                 </div>

@@ -2,6 +2,13 @@
  * POST /api/admin/patients/[id]/restore
  *
  * Restaura un paciente INACTIVE: vuelve a ACTIVE y reactiva sus casos (deletedAt → null).
+ *
+ * ⚠️ Las citas NO se reviven (decisión de Erick 2026-08-09). Archivar cancela las
+ * citas futuras para liberar la agenda del doctor; mientras el paciente estuvo
+ * archivado ese horario pudo dárselo a otro, así que resucitar la cita crearía un
+ * doble turno silencioso. Restaurar devuelve al paciente y sus casos, y hay que
+ * reagendar a mano — la respuesta informa cuántas quedaron canceladas para que la
+ * pantalla lo pueda decir en vez de dejarlo como sorpresa.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -28,6 +35,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: 'NOT_INACTIVE', message: 'El paciente no está inactivo.' }, { status: 409 });
   }
 
+  // Citas futuras que quedaron canceladas y habrá que reagendar. Se cuenta ANTES
+  // de restaurar por claridad; da igual el orden porque no se tocan.
+  const porReagendar = await db.appointment.count({
+    where: {
+      patientId:    id,
+      scheduledFor: { gt: new Date() },
+      status:       'CANCELLED',
+    },
+  });
+
   await db.$transaction([
     db.patient.update({
       where: { id },
@@ -50,9 +67,15 @@ export async function POST(
     action:      'RESTORE_PATIENT',
     entityType:  'patients',
     entityId:    id,
-    metadata:    { patientCode: existing.patientCode, casesRestored: existing.cases.length },
+    metadata:    {
+      patientCode:   existing.patientCode,
+      casesRestored: existing.cases.length,
+      // Queda explícito que estas NO se revivieron: si alguien audita por qué el
+      // paciente volvió sin sus citas, la respuesta está acá.
+      appointmentsLeftCancelled: porReagendar,
+    },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, appointmentsToReschedule: porReagendar });
 }

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.23 — Bandeja de Edson · Post-visita · Seguimiento y Cobranzas
@@ -76,7 +77,7 @@ type FilterTab = 'all' | 'urgent' | 'waiting' | 'docs' | 'partial';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
+  return new Date(iso).toLocaleDateString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric',
     timeZone: 'America/Denver',
   });

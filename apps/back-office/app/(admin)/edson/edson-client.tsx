@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.12/B.13/B.23/B.24 — Bandeja de trabajo Edson
@@ -66,11 +67,11 @@ function daysUntil(d: Date | string): number {
 
 function fmtDate(d: Date | string | null): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', timeZone: 'America/Denver' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', timeZone: 'America/Denver' });
 }
 
 function fmtTime(d: Date | string): string {
-  return new Date(d).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(d).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
@@ -266,7 +267,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
             <button
               type="button"
               onClick={() => router.push(`/front-office/${c.id}`)}
-              className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] font-semibold text-brand hover:bg-brand/12 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] font-semibold text-brand-text hover:bg-brand/12 transition-colors"
             >
               <FileText className="w-3 h-3" /> {t('actionViewCase')}
             </button>
@@ -548,7 +549,7 @@ export function EdsonClient({
 
       {/* Note on B.12/B.13 */}
       <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-[11px] text-text-muted">
-        <span className="font-semibold text-brand">B.12/B.13/B.23/B.24</span> · {t('noteB')}
+        <span className="font-semibold text-brand-text">B.12/B.13/B.23/B.24</span> · {t('noteB')}
       </div>
     </div>
   );

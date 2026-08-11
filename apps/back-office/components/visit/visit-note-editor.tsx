@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * VisitNoteEditor — nota clínica del doctor (B.18 · N1).
@@ -258,7 +259,7 @@ export function VisitNoteEditor({
                 {t('noteSignedBy', {
                   name: note?.signedByName ?? '',
                   date: note?.signedAt
-                    ? new Date(note.signedAt).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })
+                    ? new Date(note.signedAt).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })
                     : '',
                 })}
               </span>
@@ -269,7 +270,7 @@ export function VisitNoteEditor({
               <span className="text-[11px] text-text-muted flex items-center gap-1">
                 {saving ? (<><Loader2 className="w-3 h-3 animate-spin" /> {t('noteSaving')}</>)
                   : dirty ? t('noteUnsaved')
-                  : savedAt ? (<><Check className="w-3 h-3 text-emerald" /> {t('noteSavedAt', { time: savedAt.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit' }) })}</>)
+                  : savedAt ? (<><Check className="w-3 h-3 text-emerald" /> {t('noteSavedAt', { time: savedAt.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit' }) })}</>)
                   : t('noteAutosaveHint')}
               </span>
             </>
@@ -282,7 +283,7 @@ export function VisitNoteEditor({
               <button
                 type="button"
                 onClick={() => setTplTarget(null)}
-                className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors flex items-center gap-1.5"
+                className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors flex items-center gap-1.5"
               >
                 <FileStack className="w-3.5 h-3.5" /> {t('noteLoadTemplate')}
               </button>
@@ -339,7 +340,7 @@ export function VisitNoteEditor({
               <button
                 type="button"
                 onClick={() => setTplTarget(key)}
-                className="text-[11px] font-semibold text-violet hover:underline flex items-center gap-1"
+                className="text-[11px] font-semibold text-violet-text hover:underline flex items-center gap-1"
               >
                 <FileStack className="w-3 h-3" /> {t('noteTemplatesBtn')}
               </button>
@@ -410,7 +411,7 @@ export function VisitNoteEditor({
                     <td className="px-3 py-2">
                       {d.icd10Code ? (
                         <>
-                          <span className="font-mono text-[11px] text-violet">{d.icd10Code}</span>
+                          <span className="font-mono text-[11px] text-violet-text">{d.icd10Code}</span>
                           <span className="text-text-2 ml-2">{d.icd10Label}</span>
                         </>
                       ) : <span className="text-text-muted">—</span>}

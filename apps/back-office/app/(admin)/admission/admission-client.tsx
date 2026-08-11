@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.14 — Admisión del día · Cola de check-in
@@ -50,7 +51,7 @@ interface Totals {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-US', {
+  return new Date(iso).toLocaleTimeString(localeApp(), {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -67,7 +68,7 @@ function KpiCard({
     emerald: 'text-emerald bg-emerald/[0.07]',
     amber:   'text-amber   bg-amber/[0.07]',
     cyan:    'text-cyan    bg-cyan/[0.07]',
-    violet:  'text-violet  bg-violet/[0.07] border border-border',
+    violet:  'text-violet-text  bg-violet/[0.07] border border-border',
   };
   return (
     <div className={`rounded-lg p-4 ${colors[tone]}`}>
@@ -228,7 +229,7 @@ function ApptCard({
             <button
               type="button"
               onClick={() => router.push(`/admission/${appt.id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet/10 border border-violet/40 text-violet text-xs font-semibold hover:bg-violet/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet/10 border border-violet/40 text-violet-text text-xs font-semibold hover:bg-violet/20 transition-colors"
             >
               {t('withDoctor')}
             </button>
@@ -489,8 +490,8 @@ export function AdmissionClient() {
             {filteredInRoom.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Stethoscope className="w-4 h-4 text-violet" />
-                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-violet">
+                  <Stethoscope className="w-4 h-4 text-violet-text" />
+                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-violet-text">
                     {t('sectionInRoom', { count: filteredInRoom.length })}
                   </h2>
                 </div>

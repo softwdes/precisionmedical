@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
@@ -215,11 +216,11 @@ interface AppointmentItem {
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' });
+  return d.toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
 const APPT_STATUS_COLOR: Record<string, string> = {
-  SCHEDULED:  'bg-brand/10 text-brand border-brand/20',
+  SCHEDULED:  'bg-brand/10 text-brand-text border-brand/20',
   CONFIRMED:  'bg-cyan/10 text-cyan border-cyan/20',
   CHECKED_IN: 'bg-emerald/10 text-emerald border-emerald/20',
   COMPLETED:  'bg-emerald/10 text-emerald border-emerald/20',
@@ -278,7 +279,7 @@ const CASE_STATUS_COLOR: Record<string, string> = {
   INTAKE_COMPLETED: 'bg-cyan/10 text-cyan border-cyan/20',
   CONFIRMED:        'bg-cyan/10 text-cyan border-cyan/20',
   ACTIVE:           'bg-emerald/10 text-emerald border-emerald/20',
-  MMI:              'bg-violet/10 text-violet border-violet/20',
+  MMI:              'bg-violet/10 text-violet-text border-violet/20',
   CLOSED:           'bg-text-muted/10 text-text-muted border-text-muted/20',
   SETTLED:          'bg-emerald/10 text-emerald border-emerald/20',
   ARCHIVED:         'bg-text-muted/10 text-text-muted border-text-muted/20',
@@ -319,7 +320,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-brand" />
+            <Briefcase className="w-4 h-4 text-brand-text" />
             {detail?.caseCode ?? 'Caso'}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
@@ -500,7 +501,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
-            <Pencil className="w-4 h-4 text-brand" />
+            <Pencil className="w-4 h-4 text-brand-text" />
             Editar caso {detail?.caseCode ?? ''}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
@@ -523,11 +524,11 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                 {([['MVA', tWiz('caseTypeMVA'), Car], ['GENERAL', tWiz('caseTypeGM'), Stethoscope]] as const).map(([val, label, Icon]) => (
                   <button key={val} type="button" onClick={() => setCaseType(val)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all ${
-                      caseType === val ? 'border-brand bg-brand/10 text-brand font-medium' : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'
+                      caseType === val ? 'border-brand bg-brand/10 text-brand-text font-medium' : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'
                     }`}>
                     <Icon className="w-4 h-4 shrink-0" />
                     {label}
-                    {caseType === val && <Check className="w-3.5 h-3.5 ml-auto text-brand" />}
+                    {caseType === val && <Check className="w-3.5 h-3.5 ml-auto text-brand-text" />}
                   </button>
                 ))}
               </div>
@@ -645,7 +646,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
-            <QrCode className="w-4 h-4 text-brand" />
+            <QrCode className="w-4 h-4 text-brand-text" />
             Patient Access
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs font-mono">
@@ -670,7 +671,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
               <span className="text-[11px] text-text-2 truncate flex-1 font-mono">{portalUrl}</span>
               <button
                 onClick={handleCopy}
-                className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                className="p-1 rounded text-text-muted hover:text-brand-text transition-colors shrink-0"
                 title="Copy link"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
@@ -704,13 +705,13 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
 
 // ── Appointments Dialog ────────────────────────────────────────────────────
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleTimeString(localeApp(), { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
 }
 function addMinutes(iso: string, mins: number): string {
-  return new Date(new Date(iso).getTime() + mins * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
+  return new Date(new Date(iso).getTime() + mins * 60000).toLocaleTimeString(localeApp(), { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
 }
 function fmtApptDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
@@ -736,7 +737,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
           <DialogTitle className="text-text-1 flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-brand" />
+            <CalendarDays className="w-4 h-4 text-brand-text" />
             {t('apptDialogTitle')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
@@ -801,7 +802,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                           </button>
                           <button
                             onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
-                            className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                            className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
                             title="Edit / Triage"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -841,7 +842,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
             <span>Page 1 of 1</span>
             <div className="flex gap-1 ml-2">
               {['«','‹','›','»'].map(s => (
-                <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand transition-colors text-xs">
+                <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand-text transition-colors text-xs">
                   {s}
                 </button>
               ))}
@@ -1033,7 +1034,7 @@ function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-brand" /> {isEditing ? t('segurosEditTitle') : t('segurosNewTitle')}
+            <Plus className="w-4 h-4 text-brand-text" /> {isEditing ? t('segurosEditTitle') : t('segurosNewTitle')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">{isEditing ? t('segurosEditDesc') : t('segurosNewDesc')}</DialogDescription>
         </DialogHeader>
@@ -1230,7 +1231,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
         <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-brand" />
+              <Shield className="w-4 h-4 text-brand-text" />
               {t('menuInsurance')} — {patient.firstName} {patient.lastName}
             </DialogTitle>
             <DialogDescription className="text-text-muted text-xs">
@@ -1276,7 +1277,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                     <button
                       onClick={() => setFormTarget(ins)}
                       disabled={saving}
-                      className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                      className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
                       title={t('segurosEditTooltip')}
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -1298,7 +1299,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                   {ins.insType === 'MEDICAL' && ins.holderRelation && <div className="flex justify-between"><span className="text-text-muted">{t('segurosRelationLabel')}</span><span className="text-text-1">{ins.holderRelation}</span></div>}
                   {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">{t('segurosCopay')}</span><span className="text-text-1 font-mono">${parseFloat(ins.copay).toFixed(2)}</span></div>}
                   {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">{t('segurosDeductible')}</span><span className="text-text-1 font-mono">${parseFloat(ins.deductible).toFixed(2)}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEffectiveDate')}</span><span className="text-text-1">{new Date(ins.effectiveDate + 'T00:00:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEffectiveDate')}</span><span className="text-text-1">{new Date(ins.effectiveDate + 'T00:00:00').toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' })}</span></div>}
                   {ins.insType === 'AUTO' && ins.claimNum && <div className="flex justify-between"><span className="text-text-muted">{t('segurosClaimLabel')}</span><span className="text-text-1 font-mono">{ins.claimNum}</span></div>}
                   {ins.insType === 'AUTO' && ins.adjusterName && <div className="flex justify-between"><span className="text-text-muted">{t('segurosAdjusterLabel')}</span><span className="text-text-1">{ins.adjusterName}</span></div>}
                   {ins.insType === 'AUTO' && ins.adjusterPhone && <div className="flex justify-between"><span className="text-text-muted">{t('segurosTelLabel')}</span><span className="text-text-1 font-mono">{ins.adjusterPhone}</span></div>}
@@ -1486,7 +1487,7 @@ function InAppCamera({
       <p className="text-[12px] text-text-muted leading-relaxed">{error}</p>
       <div className="flex gap-2">
         <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-[12px] text-text-muted hover:bg-bg-2 transition-colors">Cancelar</button>
-        <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand font-semibold hover:bg-brand/20 transition-colors">Usar archivo</button>
+        <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand-text font-semibold hover:bg-brand/20 transition-colors">Usar archivo</button>
       </div>
     </div>
   );
@@ -1497,7 +1498,7 @@ function InAppCamera({
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-black/70">
         <button onClick={onCancel} className="text-[12px] text-text-muted hover:text-text-2 transition-colors">← Cancelar</button>
-        <span className="text-[10px] font-bold tracking-widest text-brand">{isOval ? 'SELFIE' : 'DOCUMENTO'}</span>
+        <span className="text-[10px] font-bold tracking-widest text-brand-text">{isOval ? 'SELFIE' : 'DOCUMENTO'}</span>
         <div className="w-10" />
       </div>
       {/* Video */}
@@ -2142,7 +2143,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
           <div className="relative flex-1">
             {isSearching || isPending
-              ? <RefreshCw className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand animate-spin pointer-events-none" />
+              ? <RefreshCw className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-text animate-spin pointer-events-none" />
               : <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
             }
             <input
@@ -2156,7 +2157,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               autoComplete="off"
             />
             {false && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-brand font-medium animate-pulse">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-brand-text font-medium animate-pulse">
                 Buscando…
               </span>
             )}
@@ -2186,7 +2187,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           <button
             type="button"
             onClick={() => setCallHistoryOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand-text transition-colors whitespace-nowrap"
             title={tCalls('historyTitle')}
           >
             <History className="w-3.5 h-3.5" />
@@ -2205,7 +2206,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           <button
             type="button"
             onClick={() => setPriceListOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand-text transition-colors whitespace-nowrap"
             title={tPrices('title')}
           >
             <Tag className="w-3.5 h-3.5" />
@@ -2241,14 +2242,14 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           href={`${basePath}${q ? `?q=${q}` : ''}`}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             !inactiveOnly
-              ? 'border-brand text-brand'
+              ? 'border-brand text-brand-text'
               : 'border-transparent text-text-muted hover:text-text-1'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
           {t('btnActive')}
           <span className={`ml-1 text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-semibold ${
-            !inactiveOnly ? 'bg-brand/10 text-brand' : 'bg-bg-2 text-text-muted'
+            !inactiveOnly ? 'bg-brand/10 text-brand-text' : 'bg-bg-2 text-text-muted'
           }`}>
             {!inactiveOnly ? localTotal : (activeTotal ?? total)}
           </span>
@@ -2275,7 +2276,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         {(isSearching || isPending) && (
           <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-bg-1/60 backdrop-blur-[1px] rounded-lg pointer-events-none">
             <div className="flex items-center gap-2 bg-bg-2 border border-border rounded-full px-3 py-1.5 shadow-lg pointer-events-auto">
-              <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin" />
+              <RefreshCw className="w-3.5 h-3.5 text-brand-text animate-spin" />
               <span className="text-[11px] text-text-2 font-medium">{t('searching')}</span>
             </div>
           </div>
@@ -2314,7 +2315,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
-                      className="p-1.5 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                      className="p-1.5 rounded text-text-muted hover:text-brand-text transition-colors shrink-0"
                       title={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-label={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-expanded={expandedIds.has(p.id)}
@@ -2327,7 +2328,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                     <div className="min-w-0">
                       <button
                         onClick={() => router.push(`${basePath}/${p.id}`)}
-                        className="text-text-1 text-sm font-medium hover:text-brand transition-colors text-left truncate block w-full"
+                        className="text-text-1 text-sm font-medium hover:text-brand-text transition-colors text-left truncate block w-full"
                         title={`${p.firstName} ${p.lastName}`}
                         aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
                       >
@@ -2348,7 +2349,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   <div className="flex items-center gap-1.5 text-[13px] min-w-0">
                     {p.email ? (
                       <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} title={p.email}
-                        className="text-text-2 hover:text-brand transition-colors truncate">
+                        className="text-text-2 hover:text-brand-text transition-colors truncate">
                         {p.email}
                       </a>
                     ) : (
@@ -2366,7 +2367,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 <td className="px-3 py-2 hidden md:table-cell w-[100px] text-center">
                   <button
                     onClick={() => toggleExpand(p.id)}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand-text transition-colors tabular-nums"
                     title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                     aria-label={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
@@ -2462,7 +2463,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                         aria-label={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                       >
-                        <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand' : 'text-text-muted group-hover:text-brand'}`} />
+                        <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand-text' : 'text-text-muted group-hover:text-brand-text'}`} />
                       </button>
                     ) : (
                       <span title={!p.email ? t('tooltipNoEmail') : t('tooltipNoCase')}>
@@ -2482,7 +2483,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                           title={tMsg('tooltipPatientMessages')}
                           aria-label={`${tMsg('tooltipPatientMessages')} — ${p.firstName} ${p.lastName}`}
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-text-muted group-hover:text-brand transition-colors" />
+                          <MessageSquare className="w-3.5 h-3.5 text-text-muted group-hover:text-brand-text transition-colors" />
                         </button>
                       ) : (
                         <span title={tMsg('tooltipNoCaseForMessage')} className="p-1.5 inline-flex">
@@ -2525,7 +2526,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
                         <span className="text-[11px] uppercase tracking-wider font-bold text-text-2 flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-brand" /> {t('patientCases')}
+                          <Briefcase className="w-3.5 h-3.5 text-brand-text" /> {t('patientCases')}
                           <span className="font-mono text-[10px] font-normal text-text-muted ml-1">
                             {p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                           </span>
@@ -2562,7 +2563,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                     <TagPill label={c.status} colorClass={
                                       c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
                                       : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
-                                      : 'bg-brand/10 text-brand border-brand/20'
+                                      : 'bg-brand/10 text-brand-text border-brand/20'
                                     } />
                                   </div>
                                   <div className="flex items-center gap-0.5">
@@ -2570,11 +2571,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         intercepta como modal desde Mis Pacientes */}
                                     <button onClick={() => abrirCaso(c.id)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
                                     {currentUserId && (
-                                      <button onClick={() => openCaseMessages(p, c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={tMsg('tooltipCaseMessages')} aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}><MessageSquare className="w-3 h-3" /></button>
+                                      <button onClick={() => openCaseMessages(p, c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={tMsg('tooltipCaseMessages')} aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}><MessageSquare className="w-3 h-3" /></button>
                                     )}
-                                    <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
                                     <button onClick={() => setCaseApptTarget(c)} className="p-2 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')} aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}><CalendarDays className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -2637,7 +2638,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         colorClass={
                                           c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
                                           : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
-                                          : 'bg-brand/10 text-brand border-brand/20'
+                                          : 'bg-brand/10 text-brand-text border-brand/20'
                                         }
                                       />
                                     </td>
@@ -2711,7 +2712,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         {currentUserId && (
                                           <button
                                             onClick={() => openCaseMessages(p, c)}
-                                            className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                            className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
                                             title={tMsg('tooltipCaseMessages')}
                                             aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}
                                           >
@@ -2720,7 +2721,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         )}
                                         <button
                                           onClick={() => setCaseEditTarget(c)}
-                                          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
                                           title={t('tooltipEditCase')}
                                           aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}
                                         >
@@ -2744,7 +2745,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         </button>
                                         <button
                                           onClick={() => setCaseQrTarget(c)}
-                                          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
                                           title={t('tooltipPatientQr')}
                                           aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}
                                         >
@@ -2815,7 +2816,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               onClick={() => router.push(buildPageUrl(page - 1))}
               disabled={page === 0}
               aria-label={t('prevPage', { page: page, total: localPages })}
-              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -2823,7 +2824,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               onClick={() => router.push(buildPageUrl(page + 1))}
               disabled={page >= localPages - 1}
               aria-label={t('nextPage', { page: page + 2, total: localPages })}
-              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -3060,7 +3061,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   ? t('callFailedMicHint')
                   : t('callFailedHint')}
               </p>
-              <p className="text-text-muted/70 text-[10px] font-mono break-words pt-1">{twilio.error}</p>
+              <p className="text-text-muted text-[10px] font-mono break-words pt-1">{twilio.error}</p>
             </div>
 
             <div className="flex flex-col w-full gap-2 mt-2">
@@ -3313,9 +3314,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           </DialogHeader>
           {(deleteTarget?.caseCount ?? 0) > 0 && (
             <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber mt-2">
-              Este paciente tiene {deleteTarget!.caseCount} caso{deleteTarget!.caseCount !== 1 ? 's' : ''} asociado{deleteTarget!.caseCount !== 1 ? 's' : ''}. Al archivarlo, sus casos también quedarán ocultos. Los datos se conservan y se pueden restaurar.
+              {t('deletePatientCasesNote', { count: deleteTarget!.caseCount })}
             </div>
           )}
+          {/* La agenda es la consecuencia que no se ve en esta pantalla: archivar
+              libera el horario del doctor cancelando las citas futuras, y eso NO
+              se revierte al restaurar. Se avisa antes, no después. */}
+          <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber mt-2">
+            {t('deletePatientAppointmentsNote')}
+          </div>
           {deleteError && (
             <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mt-2">
               {deleteError}
@@ -3341,6 +3348,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               ¿Restaurar a <strong>{restoreTarget?.firstName} {restoreTarget?.lastName}</strong>? El paciente y todos sus casos archivados volverán a estar visibles.
             </DialogDescription>
           </DialogHeader>
+          <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber mt-2">
+            {t('restorePatientAppointmentsNote')}
+          </div>
           {restoreError && (
             <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mt-2">
               {restoreError}

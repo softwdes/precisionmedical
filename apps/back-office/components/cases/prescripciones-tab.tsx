@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
@@ -69,7 +70,7 @@ const BILLING_TYPE_OPTIONS = [
 
 function fmtDate(d: string | null) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -220,7 +221,7 @@ function MultiSelectSearch({
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {selected.map(s => (
-            <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-brand/10 border border-brand/30 px-2 py-0.5 text-[11px] text-brand">
+            <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-brand/10 border border-brand/30 px-2 py-0.5 text-[11px] text-brand-text">
               {s.label}
               <button onClick={() => onRemove(s.id)} className="hover:text-rose leading-none">×</button>
             </span>
@@ -347,7 +348,7 @@ function PrescriptionModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-            <Pill className="w-4 h-4 text-violet" /> {t('newRx')}
+            <Pill className="w-4 h-4 text-violet-text" /> {t('newRx')}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 p-1 rounded">
             <X className="w-4 h-4" />
@@ -407,7 +408,7 @@ function PrescriptionModal({
             )}
             {!drugSelected && drugQuery && (
               <p className="text-[10px] text-text-muted mt-1">O escribe el nombre directamente:
-                <button onClick={() => { setDrugSelected(drugQuery); setDrugQuery(''); }} className="ml-1 text-brand underline">usar "{drugQuery}"</button>
+                <button onClick={() => { setDrugSelected(drugQuery); setDrugQuery(''); }} className="ml-1 text-brand-text underline">usar "{drugQuery}"</button>
               </p>
             )}
           </div>
@@ -767,7 +768,7 @@ function PrescriptionsSection({ caseId, patientId, readOnly = false }: { caseId:
       {/* Section header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
         <h3 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-          <Pill className="w-4 h-4 text-violet" /> {t('sectionTitleMeds')}
+          <Pill className="w-4 h-4 text-violet-text" /> {t('sectionTitleMeds')}
         </h3>
         <div className="flex items-center gap-2">
           {!readOnly && (

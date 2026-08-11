@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * Portal Médico · Mi Día (B.17) — client
@@ -66,7 +67,7 @@ interface Props {
 const ACTIVE = ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'PENDING'];
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
+  return new Date(iso).toLocaleTimeString(localeApp(), {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
   });
 }
@@ -153,7 +154,7 @@ export function MyDayClient({
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
     // El doctor ya terminó — falta que el asistente cobre y cierre la cita
     if (a.doctorDoneAt) return <TagPill label={t('statusDoctorDone')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />;
-    if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />;
+    if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet-text border-violet/30" />;
     if (arrived(a)) {
       return a.hasTriage
         ? <TagPill label={t('triageDone')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
@@ -211,7 +212,7 @@ export function MyDayClient({
           {!isToday && (
             <Link
               href="/doctor"
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-xs font-semibold hover:bg-violet/10 transition-colors flex items-center"
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-xs font-semibold hover:bg-violet/10 transition-colors flex items-center"
             >
               {t('dayToday')}
             </Link>
@@ -221,7 +222,7 @@ export function MyDayClient({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard compact label={t(isToday ? 'kpiToday' : 'kpiDay')} value={active.length + completed.length} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
+        <KpiCard compact label={t(isToday ? 'kpiToday' : 'kpiDay')} value={active.length + completed.length} color="text-violet-text" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet-text" />
         <KpiCard compact label={t('kpiCompleted')} value={completed.length} color="text-emerald" icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
         <KpiCard compact label={t('kpiWaiting')} value={waiting.length} color="text-cyan" icon={Hourglass} iconBg="bg-cyan/10" iconColor="text-cyan" />
         <KpiCard compact label={t('kpiUnsigned')} value={unsignedTotal} color={unsignedTotal > 0 ? 'text-amber' : 'text-text-1'} icon={Clock3} iconBg="bg-amber/10" iconColor="text-amber" />
@@ -340,7 +341,7 @@ export function MyDayClient({
                   <CoverageChip caseId={a.caseId} coverage={a.coverage} editable={false} />
                 </span>
                 {statusPill(a)}
-                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet shrink-0 transition-colors" />
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet-text shrink-0 transition-colors" />
               </Link>
             ))}
           </div>
@@ -366,7 +367,7 @@ export function MyDayClient({
                   {a.patientFirstName} {a.patientLastName}
                 </span>
                 <TagPill label={t('statusDone')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet shrink-0 transition-colors" />
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet-text shrink-0 transition-colors" />
               </Link>
             ))}
           </div>
@@ -386,7 +387,7 @@ export function MyDayClient({
                 <span className="text-text-2 min-w-0 truncate">
                   {t('unsignedNoteRow', {
                     name: n.patientName,
-                    date: new Date(n.date).toLocaleDateString('es-US', { day: 'numeric', month: 'short', timeZone: 'America/Denver' }),
+                    date: new Date(n.date).toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', timeZone: 'America/Denver' }),
                   })}
                 </span>
                 <Link
@@ -408,7 +409,7 @@ export function MyDayClient({
 
       {/* Acceso rápido al calendario */}
       <div className="text-[12px] text-text-muted">
-        <Link href="/doctor/calendar" className="text-violet hover:underline font-semibold">
+        <Link href="/doctor/calendar" className="text-violet-text hover:underline font-semibold">
           {t('goToCalendar')} →
         </Link>
       </div>

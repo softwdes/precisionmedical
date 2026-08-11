@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * WeeklySlotPicker — selector de horarios en vista semanal Lun–Vie
@@ -110,8 +111,8 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           const d = new Date(s.startAt);
           return {
             iso: s.startAt,
-            label: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
-            dayLabel: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
+            label: d.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
+            dayLabel: d.toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
           };
         });
         setSlots(mapped);
@@ -134,7 +135,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     let minDiff = Infinity;
     for (const s of daySlots) {
       const d = new Date(s.iso);
-      const slotMs = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false, timeZone: 'America/Denver' })
+      const slotMs = d.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', hour12: false, timeZone: 'America/Denver' })
         .split(':').reduce((acc, v, i) => acc + (i === 0 ? Number(v) * 60 : Number(v)), 0);
       const diff = Math.abs(slotMs - targetMs);
       if (diff < minDiff) { minDiff = diff; closest = s; }
@@ -165,9 +166,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       iso,
       isPast:    iso < todayDenver,
       slots:     slotsByDay.get(iso) ?? [],
-      dayName:   d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Denver' }),
-      dayNum:    d.toLocaleDateString('en-US', { day: 'numeric',   timeZone: 'America/Denver' }),
-      monthShort: d.toLocaleDateString('en-US', { month: 'short',  timeZone: 'America/Denver' }),
+      dayName:   d.toLocaleDateString(localeApp(), { weekday: 'short', timeZone: 'America/Denver' }),
+      dayNum:    d.toLocaleDateString(localeApp(), { day: 'numeric',   timeZone: 'America/Denver' }),
+      monthShort: d.toLocaleDateString(localeApp(), { month: 'short',  timeZone: 'America/Denver' }),
     };
   }), [weekStart, slotsByDay, todayDenver]);
 
@@ -177,7 +178,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   );
 
   function slotHour(s: Slot): number {
-    return parseInt(new Date(s.iso).toLocaleTimeString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Denver' }), 10);
+    return parseInt(new Date(s.iso).toLocaleTimeString(localeApp(), { hour: 'numeric', hour12: false, timeZone: 'America/Denver' }), 10);
   }
 
   const amSlots      = useMemo(() => selectedDaySlots.filter(s => slotHour(s) < 12),             [selectedDaySlots]);
@@ -213,7 +214,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   // de inicio no dejaba claro cuánto durará realmente la cita (15/30/45min...).
   const selectedSlotEndLabel = selectedSlot
     ? new Date(new Date(selectedSlot.iso).getTime() + duration * 60_000)
-        .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })
+        .toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })
     : null;
 
   return (
@@ -224,7 +225,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isPrevDisabled}
           onClick={prevWeek}
-          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand-text hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" /> {t('prevWeek')}
         </button>
@@ -235,7 +236,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isNextDisabled}
           onClick={nextWeek}
-          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand-text hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           {t('nextWeek')} <ArrowRight className="w-3 h-3" />
         </button>
@@ -271,7 +272,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
                   {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
                 </span>
               ) : (
-                <span className="mt-1 text-[9px] text-text-muted/60">—</span>
+                <span className="mt-1 text-[9px] text-text-muted">—</span>
               )}
             </button>
           );

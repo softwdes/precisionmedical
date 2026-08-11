@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -72,11 +73,11 @@ const SPECIALTY_LABELS: Record<string, string> = {
 const SPECIALTY_COLORS: Record<string, string> = {
   CHIROPRACTIC: 'bg-rose/15 text-rose border-rose/30',
   PHYSICAL_THERAPY: 'bg-cyan/15 text-cyan border-cyan/30',
-  PAIN_MANAGEMENT: 'bg-violet/15 text-violet border-violet/30',
+  PAIN_MANAGEMENT: 'bg-violet/15 text-violet-text border-violet/30',
   ORTHOPEDICS: 'bg-amber/15 text-amber border-amber/30',
   NEUROLOGY: 'bg-pink/15 text-pink border-pink/30',
   RADIOLOGY: 'bg-emerald/15 text-emerald border-emerald/30',
-  PSYCHOLOGY: 'bg-brand/15 text-brand border-brand/30',
+  PSYCHOLOGY: 'bg-brand/15 text-brand-text border-brand/30',
   GENERAL: 'bg-bg-2 text-text-2 border-border',
   OTHER: 'bg-bg-2 text-text-2 border-border',
 };
@@ -142,7 +143,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   const scheduledForLocalLabel = useMemo(() => {
     if (!scheduledForIso) return null;
-    return new Date(scheduledForIso).toLocaleString('es-US', {
+    return new Date(scheduledForIso).toLocaleString(localeApp(), {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
       hour: 'numeric', minute: '2-digit',
     });
@@ -211,10 +212,10 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               <div><strong className="text-text-1">Paciente:</strong> {caseInfo.patient.firstName} {caseInfo.patient.lastName}</div>
               <div><strong className="text-text-1">Doctor:</strong> Dr. {success.providerName}</div>
               <div><strong className="text-text-1">Clínica:</strong> {success.clinicName}</div>
-              <div><strong className="text-text-1">Cuándo:</strong> {new Date(success.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div><strong className="text-text-1">Cuándo:</strong> {new Date(success.scheduledFor).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' })}</div>
             </div>
             <div className="text-xs text-text-muted mb-6">
-              Status del caso → <code className="text-brand">ACTIVE</code> · El paciente entra al flujo clínico.
+              Status del caso → <code className="text-brand-text">ACTIVE</code> · El paciente entra al flujo clínico.
             </div>
             <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
           </div>
@@ -234,7 +235,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           </DialogTitle>
           <DialogDescription>
             Paciente <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> · caso <code className="text-text-1 font-mono">{caseInfo.caseCode}</code>.
-            Al agendar, el status pasa a <code className="text-brand">ACTIVE</code> y el caso entra al flujo clínico.
+            Al agendar, el status pasa a <code className="text-brand-text">ACTIVE</code> y el caso entra al flujo clínico.
           </DialogDescription>
         </DialogHeader>
 
@@ -344,7 +345,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                   onClick={() => setDuration(d)}
                   className={`px-2 py-2 rounded-md border text-xs font-medium transition-colors ${
                     duration === d
-                      ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
+                      ? 'bg-brand/15 border-brand/40 text-brand-text font-semibold'
                       : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                   }`}
                 >
@@ -388,7 +389,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           {/* Summary */}
           {selectedClinic && selectedProvider && scheduledForIso && isFuture && (
             <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-xs">
-              <div className="text-brand font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
+              <div className="text-brand-text font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
                 <ChevronRight className="w-3 h-3" /> Resumen
               </div>
               <div className="space-y-0.5 text-text-2">

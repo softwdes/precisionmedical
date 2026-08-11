@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * VisitSummary — nodo 4 del flujo del doctor (B.18 · S1).
@@ -143,7 +144,7 @@ function dayKeyIn(days: number): string {
 }
 
 function fmtDayTime(iso: string): string {
-  return new Date(iso).toLocaleString('es-US', {
+  return new Date(iso).toLocaleString(localeApp(), {
     weekday: 'short', month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
@@ -151,7 +152,7 @@ function fmtDayTime(iso: string): string {
 
 function fmtTime(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('en-US', {
+  return new Date(iso).toLocaleTimeString(localeApp(), {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
   });
 }
@@ -190,7 +191,7 @@ function Card({
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-violet shrink-0" />
+        <Icon className="w-4 h-4 text-violet-text shrink-0" />
         <div className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">{title}</div>
         {action}
       </div>
@@ -414,7 +415,7 @@ export function VisitSummary({
           de saber si el doctor ya había terminado con el paciente. */}
       {isAssistant && (
         <div className={`rounded-md px-3 py-2 text-[12px] flex items-center gap-2 flex-wrap ${
-          doneAt ? 'border border-emerald/25 bg-emerald/[0.06] text-emerald' : 'border border-violet/25 bg-violet/[0.06] text-violet'
+          doneAt ? 'border border-emerald/25 bg-emerald/[0.06] text-emerald' : 'border border-violet/25 bg-violet/[0.06] text-violet-text'
         }`}>
           {doneAt ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Stethoscope className="w-3.5 h-3.5 shrink-0" />}
           {doneAt
@@ -505,9 +506,9 @@ export function VisitSummary({
         <div className={`rounded-lg border p-4 ${warnings.length === 0 ? 'border-violet/30 bg-violet/[0.06]' : 'border-amber/30 bg-amber/[0.07]'}`}>
           <div className="flex items-center gap-2 mb-3">
             {warnings.length === 0
-              ? <CheckCircle2 className="w-4 h-4 text-violet shrink-0" />
+              ? <CheckCircle2 className="w-4 h-4 text-violet-text shrink-0" />
               : <AlertTriangle className="w-4 h-4 text-amber shrink-0" />}
-            <div className={`font-semibold text-[12px] uppercase tracking-wider ${warnings.length === 0 ? 'text-violet' : 'text-amber'}`}>
+            <div className={`font-semibold text-[12px] uppercase tracking-wider ${warnings.length === 0 ? 'text-violet-text' : 'text-amber'}`}>
               {warnings.length === 0 ? t('sumReadyTitle') : t('sumNotReadyTitle')}
             </div>
           </div>
@@ -524,7 +525,7 @@ export function VisitSummary({
                   <button
                     type="button"
                     onClick={() => onFix(c.fix!)}
-                    className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-violet hover:underline"
+                    className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-violet-text hover:underline"
                   >
                     {t('sumFix')} <ChevronRight className="w-3 h-3" />
                   </button>
@@ -549,7 +550,7 @@ export function VisitSummary({
       {followUp && (
         <div className="rounded-lg border border-border bg-bg-1 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <CalendarPlus className="w-4 h-4 text-violet shrink-0" />
+            <CalendarPlus className="w-4 h-4 text-violet-text shrink-0" />
             <div className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">
               {t('fuTitle')}
             </div>
@@ -582,21 +583,21 @@ export function VisitSummary({
             <button
               type="button"
               onClick={() => openAppt(7)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
             >
               {t('fuIn1Week')}
             </button>
             <button
               type="button"
               onClick={() => openAppt(14)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
             >
               {t('fuIn2Weeks')}
             </button>
             <button
               type="button"
               onClick={() => openAppt(30)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
             >
               {t('fuIn1Month')}
             </button>
@@ -662,7 +663,7 @@ export function VisitSummary({
         icon={Stethoscope}
         title={t('sec_DIAGNOSTICOS')}
         action={
-          <button type="button" onClick={() => onFix('notes')} className="text-[11px] font-semibold text-violet hover:underline">
+          <button type="button" onClick={() => onFix('notes')} className="text-[11px] font-semibold text-violet-text hover:underline">
             {t('sumOpenNote')}
           </button>
         }
@@ -673,7 +674,7 @@ export function VisitSummary({
           <div className="space-y-1">
             {note?.diagnoses.map((d, i) => (
               <div key={`${d.icd10Code}-${i}`} className="flex items-start gap-2 text-[12.5px]">
-                <span className="font-mono text-[11px] text-violet shrink-0 w-[70px]">{d.icd10Code ?? '—'}</span>
+                <span className="font-mono text-[11px] text-violet-text shrink-0 w-[70px]">{d.icd10Code ?? '—'}</span>
                 <span className="text-text-2 flex-1 min-w-0">{d.icd10Label ?? d.snomedLabel ?? '—'}</span>
               </div>
             ))}
@@ -696,13 +697,13 @@ export function VisitSummary({
                 key={g}
                 type="button"
                 onClick={() => setPrintGroup(g)}
-                className="text-[11px] font-semibold text-violet hover:underline inline-flex items-center gap-1"
+                className="text-[11px] font-semibold text-violet-text hover:underline inline-flex items-center gap-1"
               >
                 <Printer className="w-3 h-3" />
                 {printGroups.length > 1 ? `${t('labPrintOrder')} ${i + 1}` : t('labPrintOrder')}
               </button>
             ))}
-            <button type="button" onClick={() => onFix('labs')} className="text-[11px] font-semibold text-violet hover:underline">
+            <button type="button" onClick={() => onFix('labs')} className="text-[11px] font-semibold text-violet-text hover:underline">
               {t('sumOpenLabs')}
             </button>
           </div>
@@ -739,7 +740,7 @@ export function VisitSummary({
         icon={Pill}
         title={t('tabRx')}
         action={
-          <button type="button" onClick={() => onFix('rx')} className="text-[11px] font-semibold text-violet hover:underline">
+          <button type="button" onClick={() => onFix('rx')} className="text-[11px] font-semibold text-violet-text hover:underline">
             {t('sumOpenRx')}
           </button>
         }
@@ -781,7 +782,7 @@ export function VisitSummary({
           icon={Bandage}
           title={t('braceTitle')}
           action={
-            <button type="button" onClick={() => onFix('braces')} className="text-[11px] font-semibold text-violet hover:underline">
+            <button type="button" onClick={() => onFix('braces')} className="text-[11px] font-semibold text-violet-text hover:underline">
               {t('sumOpenBraces')}
             </button>
           }
@@ -809,7 +810,7 @@ export function VisitSummary({
         icon={Briefcase}
         title={t('tabServices')}
         action={
-          <button type="button" onClick={() => onFix('services')} className="text-[11px] font-semibold text-violet hover:underline">
+          <button type="button" onClick={() => onFix('services')} className="text-[11px] font-semibold text-violet-text hover:underline">
             {t('sumOpenServices')}
           </button>
         }

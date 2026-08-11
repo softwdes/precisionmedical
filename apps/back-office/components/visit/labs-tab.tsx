@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * LabsTab — órdenes de laboratorio / imagen de la visita (B.20 · L3).
@@ -69,7 +70,7 @@ const URGENCY_CLASS: Record<string, string> = {
 
 function fmtDate(iso: string | null, withTime = false): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-US', {
+  return new Date(iso).toLocaleString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric',
     ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
     timeZone: 'America/Denver',
@@ -228,7 +229,7 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
                 type="button"
                 onClick={() => fileInputs.current[o.id]?.click()}
                 disabled={busy}
-                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline"
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet-text hover:underline"
               >
                 {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                 {t('labUploadResult')}
@@ -305,7 +306,7 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
                       href={`/doctor-print/lab-order/${head.groupId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-2 hover:text-violet"
+                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-2 hover:text-violet-text"
                     >
                       <Printer className="w-3.5 h-3.5" /> {t('labPrintOrder')}
                     </a>

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -41,10 +42,10 @@ interface Props {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('es-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 function fmtTime(d: string) {
-  return new Date(d).toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit' });
+  return new Date(d).toLocaleTimeString(localeApp(), { hour: '2-digit', minute: '2-digit' });
 }
 function getYearList(appointments: Appointment[]) {
   return [...new Set(appointments.map(a => new Date(a.scheduledFor).getFullYear()))].sort((a, b) => b - a);
@@ -76,7 +77,7 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
   }
   const grouped: Record<string, Appointment[]> = {};
   for (const a of appointments) {
-    const key = new Date(a.scheduledFor).toLocaleDateString('es-US', { month: 'long', year: 'numeric' });
+    const key = new Date(a.scheduledFor).toLocaleDateString(localeApp(), { month: 'long', year: 'numeric' });
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(a);
   }
@@ -97,7 +98,7 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
                 >
                   <div className="shrink-0 w-14 text-center">
                     <div className="text-[11px] text-text-muted uppercase font-semibold">
-                      {new Date(a.scheduledFor).toLocaleDateString('es-US', { weekday: 'short' })}
+                      {new Date(a.scheduledFor).toLocaleDateString(localeApp(), { weekday: 'short' })}
                     </div>
                     <div className="text-2xl font-bold text-text-1 leading-none">
                       {new Date(a.scheduledFor).getDate()}
@@ -128,7 +129,7 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
                     {a.notes && <div className="mt-1.5 text-[11px] text-text-2 italic line-clamp-2">{a.notes}</div>}
                     {a.checkedInAt && <div className="mt-1 text-[10px] text-emerald">✓ Check-in: {fmtTime(a.checkedInAt)}</div>}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-text-muted/50 shrink-0 self-center transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="w-4 h-4 text-text-muted shrink-0 self-center transition-transform group-hover:translate-x-0.5" />
                 </button>
               );
             })}
@@ -168,7 +169,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
               </span>
               <span className="flex items-center gap-1.5 shrink-0">
                 <StatusPill status={a.status} labels={statusLabels} />
-                <ChevronRight className="w-3.5 h-3.5 text-text-muted/50" />
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
               </span>
             </div>
             <span className="text-sm text-text-1">{typeLabels[a.type] ?? a.type}</span>
@@ -238,13 +239,13 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
   const tc = useTranslations('phoenix.common');
 
   const STATUS_CFG: Record<string, { label: string; colorClass: string; icon: React.ElementType }> = {
-    SCHEDULED:   { label: t('statusScheduled'),   colorClass: 'bg-brand/10 text-brand border-brand/30',       icon: Calendar },
+    SCHEDULED:   { label: t('statusScheduled'),   colorClass: 'bg-brand/10 text-brand-text border-brand/30',       icon: Calendar },
     CONFIRMED:   { label: t('statusConfirmed'),   colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: CheckCircle2 },
     CHECKED_IN:  { label: t('statusCheckedIn'),   colorClass: 'bg-cyan/10 text-cyan border-cyan/30',          icon: CheckCircle2 },
     COMPLETED:   { label: t('statusCompleted'),   colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: CheckCircle2 },
     CANCELLED:   { label: t('statusCancelled'),   colorClass: 'bg-rose/10 text-rose border-rose/30',           icon: XCircle },
     NO_SHOW:     { label: t('statusNoShow'),      colorClass: 'bg-amber/10 text-amber border-amber/30',       icon: AlertCircle },
-    RESCHEDULED: { label: t('statusRescheduled'), colorClass: 'bg-violet/10 text-violet border-violet/30',    icon: RefreshCw },
+    RESCHEDULED: { label: t('statusRescheduled'), colorClass: 'bg-violet/10 text-violet-text border-violet/30',    icon: RefreshCw },
   };
 
   const TYPE_LABELS: Record<string, string> = {
@@ -320,7 +321,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: t('statTotal'),     value: stats.total,     color: 'text-brand'   },
+          { label: t('statTotal'),     value: stats.total,     color: 'text-brand-text'   },
           { label: t('statCompleted'), value: stats.completed, color: 'text-emerald' },
           { label: t('statUpcoming'),  value: stats.upcoming,  color: 'text-cyan'    },
         ].map(k => (

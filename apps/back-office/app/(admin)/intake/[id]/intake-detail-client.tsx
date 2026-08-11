@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.13 — Detalle de verificación de caso (Edson)
@@ -63,12 +64,12 @@ interface CaseDetail {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | null) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 function fmtDateTime(iso: string | null) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-US', {
+  return new Date(iso).toLocaleString(localeApp(), {
     month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -519,7 +520,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                       n.type === 'email' ? 'bg-violet/10' : 'bg-bg-2'
                     }`}>
                       {n.type === 'call'  ? <Phone className="w-3 h-3 text-cyan" /> :
-                       n.type === 'email' ? <Mail  className="w-3 h-3 text-violet" /> :
+                       n.type === 'email' ? <Mail  className="w-3 h-3 text-violet-text" /> :
                        <MessageSquare className="w-3 h-3 text-text-muted" />}
                     </div>
                     <div className="flex-1 min-w-0">

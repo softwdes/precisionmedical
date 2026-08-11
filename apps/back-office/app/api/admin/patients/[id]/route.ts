@@ -224,6 +224,34 @@ export async function DELETE(
 
   // Soft-delete en cascada: marcar paciente INACTIVE + deletedAt en todos sus casos
   const now = new Date();
+
+  /**
+   * Archivar tiene que LIBERAR LA AGENDA (regla de Erick 2026-08-09). Sin esto la
+   * cita quedaba en SCHEDULED: seguía saliendo en el calendario y, peor, seguía
+   * ocupando el horario del doctor — los dos chequeos de disponibilidad
+   * (`findOverlappingAppointments` y `available-slots`) descartan solo CANCELLED,
+   * así que ese hueco no se le podía dar a nadie más. Y el aviso de cruce nombra
+   * al paciente, con lo que un archivado reaparecía por la puerta de atrás.
+   *
+   * Cancelar es el mecanismo completo: libera los dos chequeos Y desaparece del
+   * calendario, que ya excluye canceladas por defecto. Sin filtros nuevos.
+   *
+   * Dos cortes, a propósito:
+   *  · Solo FUTURAS — las pasadas ocurrieron de verdad y tienen notas, labs,
+   *    cargos y facturación colgando; cancelarlas mentiría sobre la historia.
+   *  · Sin `checkedInAt` — si el paciente está en la clínica AHORA, archivarlo no
+   *    le borra la visita del día.
+   */
+  const citasALiberar = await db.appointment.findMany({
+    where: {
+      patientId:    id,
+      scheduledFor: { gt: now },
+      checkedInAt:  null,
+      status:       { notIn: ['CANCELLED', 'COMPLETED'] },
+    },
+    select: { id: true, scheduledFor: true, providerId: true },
+  });
+
   await db.$transaction([
     db.patient.update({
       where: { id },
@@ -236,6 +264,12 @@ export async function DELETE(
           data: { deletedAt: now },
         })]
       : []),
+    ...(citasALiberar.length > 0
+      ? [db.appointment.updateMany({
+          where: { id: { in: citasALiberar.map(c => c.id) } },
+          data: { status: 'CANCELLED' },
+        })]
+      : []),
   ]);
 
   const actor = await resolveActor(req.headers);
@@ -246,11 +280,23 @@ export async function DELETE(
     action:      'DELETE_PATIENT',
     entityType:  'patients',
     entityId:    id,
-    metadata:    { patientCode: existing.patientCode, casesArchived: existing.cases.length },
+    metadata:    {
+      patientCode:   existing.patientCode,
+      casesArchived: existing.cases.length,
+      // Regla #3: cancelar citas es una mutación con consecuencia real (se libera
+      // el horario de un doctor y no se revierte al restaurar), así que queda
+      // cuál y de cuándo — no solo el conteo.
+      appointmentsCancelled: citasALiberar.length,
+      cancelledAppointments: citasALiberar.map(c => ({
+        id:           c.id,
+        scheduledFor: c.scheduledFor.toISOString(),
+        providerId:   c.providerId,
+      })),
+    },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, appointmentsCancelled: citasALiberar.length });
 }
 
 /**

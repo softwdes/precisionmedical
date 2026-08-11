@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -118,7 +119,7 @@ export function DashboardClient({
             label={t('casesCreated')}
             value={kpis.casesCreatedToday}
             sub={t('casesCreatedSub')}
-            color="text-brand"
+            color="text-brand-text"
           />
           <KpiCard
             label={t('portalsSent')}
@@ -219,7 +220,7 @@ export function DashboardClient({
         {/* Próximas citas */}
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4 text-brand" />
+            <Calendar className="w-4 h-4 text-brand-text" />
             <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('upcomingAppointments')}</h3>
             <span className="text-text-muted text-xs font-mono ml-auto">
               {apptsToday.length} {t('today')} · {apptsTomorrow.length} {t('tomorrow')}
@@ -259,7 +260,7 @@ export function DashboardClient({
         {/* Activity feed */}
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-brand" />
+            <Clock className="w-4 h-4 text-brand-text" />
             <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('recentActivity')}</h3>
             <span className="text-text-muted text-xs font-mono ml-auto">{recentActivity.length} {t('events')}</span>
           </div>
@@ -284,7 +285,7 @@ export function DashboardClient({
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <Icon className="w-4 h-4 text-brand" />
+      <Icon className="w-4 h-4 text-brand-text" />
       <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{label}</h3>
     </div>
   );
@@ -310,7 +311,7 @@ function StatusRow({
     brand:   'bg-brand/5 border-brand/20 hover:bg-brand/10',
   };
   const textColors: Record<typeof color, string> = {
-    rose: 'text-rose', amber: 'text-amber', cyan: 'text-cyan', emerald: 'text-emerald', brand: 'text-brand',
+    rose: 'text-rose', amber: 'text-amber', cyan: 'text-cyan', emerald: 'text-emerald', brand: 'text-brand-text',
   };
 
   return (
@@ -378,11 +379,11 @@ function AlertGroup({
 
 function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
   const t = useTranslations('phoenix.dashboard');
-  const time = new Date(appt.scheduledFor).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit' });
+  const time = new Date(appt.scheduledFor).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit' });
   const statusColors: Record<string, string> = {
     SCHEDULED:   'bg-cyan/15 text-cyan border-cyan/30',
     CONFIRMED:   'bg-emerald/15 text-emerald border-emerald/30',
-    IN_PROGRESS: 'bg-brand/15 text-brand border-brand/30',
+    IN_PROGRESS: 'bg-brand/15 text-brand-text border-brand/30',
     PENDING:     'bg-amber/15 text-amber border-amber/30',
   };
 
@@ -430,12 +431,12 @@ function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
 // ─── Activity row ─────────────────────────────────────────────────────────────
 
 const ACTION_META: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
-  CREATE_CASE_FROM_CALL:    { labelKey: 'actionCaseCreated',          icon: PhoneCall,          color: 'text-brand' },
+  CREATE_CASE_FROM_CALL:    { labelKey: 'actionCaseCreated',          icon: PhoneCall,          color: 'text-brand-text' },
   SEND_PORTAL_LINK:         { labelKey: 'actionPortalSent',           icon: Send,               color: 'text-cyan' },
   MARK_INTAKE_COMPLETE_DEV: { labelKey: 'actionIntakeCompletedDev',   icon: FileText,           color: 'text-amber' },
   CONFIRM_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentConfirmed', icon: FileCheck,          color: 'text-emerald' },
-  SCHEDULE_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentScheduled', icon: CalendarCheck,     color: 'text-brand' },
-  INSERT_CASE_NOTE:         { labelKey: 'actionNoteAdded',            icon: MessageSquarePlus,  color: 'text-violet' },
+  SCHEDULE_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentScheduled', icon: CalendarCheck,     color: 'text-brand-text' },
+  INSERT_CASE_NOTE:         { labelKey: 'actionNoteAdded',            icon: MessageSquarePlus,  color: 'text-violet-text' },
 };
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
@@ -472,7 +473,7 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString('es-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 function formatRelative(d: Date | string): string {
@@ -483,5 +484,5 @@ function formatRelative(d: Date | string): string {
   }
   if (h < 24) return `${Math.floor(h)}h`;
   if (h < 24 * 7) return `${Math.floor(h / 24)}d`;
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric' });
 }

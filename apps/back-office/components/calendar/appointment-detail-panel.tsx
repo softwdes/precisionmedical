@@ -125,8 +125,12 @@ interface Props {
    * /front-office/[id] (clínica) o /doctor/case/[id] (portal médico), y ambas
    * lo abren como modal interceptado sobre sí mismas. Sin este callback —o sin
    * caso en la cita— el botón no se muestra.
+   *
+   * Entrega también el id de la cita: la superficie la usa para abrir el caso
+   * FILTRADO a esta consulta. Sin eso se entraba desde la cita del martes y el
+   * cargo caía en la última visita.
    */
-  onOpenCase?: (caseId: string) => void;
+  onOpenCase?: (caseId: string, appointmentId?: string) => void;
   /**
    * Repliega el modal sin desmontar el componente: se usa mientras el detalle
    * del caso está encima. Al volver, el panel reaparece con su estado intacto
@@ -760,7 +764,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ caseId: appt.case?.id }),
                     }).catch(() => {});
-                    onOpenCase(appt.case!.id);
+                    onOpenCase(appt.case!.id, appt.id);
                   }}
                   className="w-full flex items-center gap-3 rounded-lg border border-emerald/30 bg-emerald/5 hover:bg-emerald/10 p-4 transition-colors text-left"
                 >
@@ -826,7 +830,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     {/* min-h-11 + margenes negativos: el hit area llega a 44px en
                         mobile (antes 35x15) sin alterar la altura de la fila */}
                     <button type="button" onClick={() => setEditOpen(true)}
-                      className="text-[10px] text-brand hover:underline flex items-center gap-1 min-h-11 px-2 -mx-2 -my-2 sm:min-h-0 sm:p-0 sm:m-0">
+                      className="text-[10px] text-brand-text hover:underline flex items-center gap-1 min-h-11 px-2 -mx-2 -my-2 sm:min-h-0 sm:p-0 sm:m-0">
                       <Edit2 className="w-3 h-3" /> {t('actionEdit')}
                     </button>
                   </div>

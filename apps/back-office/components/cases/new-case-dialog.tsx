@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
@@ -340,8 +341,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             const d = new Date(s.startAt);
             return {
               iso: s.startAt,
-              label: d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
-              dayLabel: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
+              label: d.toLocaleString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
+              dayLabel: d.toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
             };
           }),
         );
@@ -373,9 +374,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       iso,
       isPast:   iso < todayDenver,
       slots:    slotsByDayIso.get(iso) ?? [],
-      dayName:  d.toLocaleDateString('es-MX', { weekday: 'short', timeZone: 'America/Denver' }),
-      dayNum:   d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Denver' }),
-      monthShort: d.toLocaleDateString('es-MX', { month: 'short', timeZone: 'America/Denver' }),
+      dayName:  d.toLocaleDateString(localeApp(), { weekday: 'short', timeZone: 'America/Denver' }),
+      dayNum:   d.toLocaleDateString(localeApp(), { day: 'numeric', timeZone: 'America/Denver' }),
+      monthShort: d.toLocaleDateString(localeApp(), { month: 'short', timeZone: 'America/Denver' }),
     };
   }), [weekStart, slotsByDayIso, todayDenver]);
 
@@ -780,7 +781,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <div className="min-w-0 flex-1">
                 <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
                   {isManual || isSearch
-                    ? <ClipboardList className="w-4 h-4 text-brand shrink-0" />
+                    ? <ClipboardList className="w-4 h-4 text-brand-text shrink-0" />
                     : <PhoneCall className="w-4 h-4 text-emerald shrink-0" />}
                   <span className="truncate">
                     {isManual ? t('titleManual', { name: fullName }) : isSearch ? t('titleSearch', { name: fullName }) : t('titleCall', { name: fullName })}
@@ -795,7 +796,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 {isManual
                   ? <TagPill label={t('badgeNoCall')} colorClass="bg-amber/15 text-amber border-amber/30" mono />
                   : isSearch
-                  ? <TagPill label={t('badgeSearch')} colorClass="bg-brand/15 text-brand border-brand/30" mono />
+                  ? <TagPill label={t('badgeSearch')} colorClass="bg-brand/15 text-brand-text border-brand/30" mono />
                   : <TagPill
                       label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
                       colorClass="bg-emerald/15 text-emerald border-emerald/30"
@@ -820,7 +821,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 type="button"
                 onClick={handleChangePatient}
                 title={t('changePatientHint')}
-                className="shrink-0 flex items-center gap-1 text-[11px] text-text-muted hover:text-brand transition-colors border border-border/60 hover:border-brand/40 rounded-md px-2 py-1"
+                className="shrink-0 flex items-center gap-1 text-[11px] text-text-muted hover:text-brand-text transition-colors border border-border/60 hover:border-brand/40 rounded-md px-2 py-1"
               >
                 <ArrowLeft className="w-3 h-3" />
                 <span className="hidden sm:inline">{t('changePatient')}</span>
@@ -859,7 +860,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     disabled={!isReachable && !isActive}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
                       isActive
-                        ? 'bg-brand/15 text-brand border border-brand/30'
+                        ? 'bg-brand/15 text-brand-text border border-brand/30'
                         : isDone
                         ? 'text-emerald hover:bg-emerald/10 cursor-pointer'
                         : 'text-text-muted cursor-default'
@@ -1254,13 +1255,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <Label>Doctor</Label>
                       {hasFilteredProviders && filteredProviders.length < providers.length && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
-                          className="text-[10px] text-text-muted hover:text-brand">
+                          className="text-[10px] text-text-muted hover:text-brand-text">
                           {showAllProviders ? `Solo especialidad (${filteredProviders.length})` : `Ver todos (${providers.length})`}
                         </button>
                       )}
                       {!hasFilteredProviders && providers.length > 0 && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
-                          className="text-[10px] text-brand hover:underline">
+                          className="text-[10px] text-brand-text hover:underline">
                           {showAllProviders ? 'Ver solo especialidad' : 'Ver todos los doctores'}
                         </button>
                       )}
@@ -1347,7 +1348,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                                     {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
                                   </span>
                                 ) : (
-                                  <span className="mt-1 text-[8px] sm:text-[9px] text-text-muted/60">—</span>
+                                  <span className="mt-1 text-[8px] sm:text-[9px] text-text-muted">—</span>
                                 )}
                               </button>
                             );
@@ -1744,7 +1745,7 @@ function SelectableCard({ selected, onClick, icon, title, subtitle }: {
         <div className={`font-semibold text-sm ${selected ? 'text-text-1' : 'text-text-2'}`}>{title}</div>
         <div className="text-text-muted text-[11px] mt-0.5">{subtitle}</div>
       </div>
-      {selected && <Check className="w-4 h-4 text-brand shrink-0 mt-0.5" />}
+      {selected && <Check className="w-4 h-4 text-brand-text shrink-0 mt-0.5" />}
     </button>
   );
 }
@@ -1755,7 +1756,7 @@ function SegmentedOption({ selected, onClick, icon, label }: {
   return (
     <button type="button" onClick={onClick}
       className={`px-3 py-2 rounded-md border text-[11px] font-medium transition-colors ${
-        selected ? 'bg-brand/10 border-brand/40 text-brand font-semibold' : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+        selected ? 'bg-brand/10 border-brand/40 text-brand-text font-semibold' : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
       }`}
     >
       <span className="mr-1">{icon}</span> {label}

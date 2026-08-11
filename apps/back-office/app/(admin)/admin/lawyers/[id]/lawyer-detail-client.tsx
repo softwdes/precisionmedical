@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -123,7 +124,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
             {firm.caseflowFlags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {firm.caseflowFlags.map((flag) => (
-                  <span key={flag} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">
+                  <span key={flag} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20">
                     {flag}
                   </span>
                 ))}
@@ -206,7 +207,7 @@ function TabButton({
       disabled={disabled}
       className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
         disabled
-          ? 'text-text-muted/40 cursor-not-allowed'
+          ? 'text-text-muted cursor-not-allowed'
           : active
             ? 'text-white'
             : 'text-text-2 hover:text-white'
@@ -250,7 +251,7 @@ function SummaryTab({
             firm.caseflowFlags.length === 0 ? <Empty /> : (
               <div className="flex flex-wrap gap-1">
                 {firm.caseflowFlags.map((f) => (
-                  <span key={f} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">{f}</span>
+                  <span key={f} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20">{f}</span>
                 ))}
               </div>
             )
@@ -348,7 +349,7 @@ function MemberGroup({
   return (
     <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
       <div className="px-5 py-3 border-b border-border bg-bg-2/50 flex items-center gap-2">
-        <Icon className="w-4 h-4 text-brand" />
+        <Icon className="w-4 h-4 text-brand-text" />
         <span className="text-white font-semibold text-sm">{title}</span>
         <span className="text-text-muted text-xs font-mono">· {members.length}</span>
       </div>
@@ -399,12 +400,12 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
             </span>
           )}
           {isAttorney && member.barNumber && (
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20">
               Bar #{member.barNumber}
             </span>
           )}
           {isAttorney && member.recoveryRate != null && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet/10 text-violet border border-violet/20">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet/10 text-violet-text border border-violet/20">
               {member.recoveryRate.toFixed(1)}% honorarios
             </span>
           )}
@@ -514,10 +515,10 @@ interface CasesStats {
 }
 
 const CASE_TYPE_COLORS: Record<string, string> = {
-  MVA:          'bg-brand/15 text-brand border-brand/30',
+  MVA:          'bg-brand/15 text-brand-text border-brand/30',
   GENERAL:      'bg-cyan/15 text-cyan border-cyan/30',
   WORKERS_COMP: 'bg-amber/15 text-amber border-amber/30',
-  NURSING_HOME: 'bg-violet/15 text-violet border-violet/30',
+  NURSING_HOME: 'bg-violet/15 text-violet-text border-violet/30',
 };
 
 const CASE_STATUS_LABELS: Record<string, string> = {
@@ -613,7 +614,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
 
   const monthLabels = (stats?.byMonth ?? []).map((b) => {
     const [, m] = b.month.split('-');
-    return new Date(2024, parseInt(m, 10) - 1).toLocaleString('es', { month: 'short' });
+    return new Date(2024, parseInt(m, 10) - 1).toLocaleString(localeApp(), { month: 'short' });
   });
   const monthCounts = (stats?.byMonth ?? []).map((b) => b.count);
   const maxCount = Math.max(...monthCounts, 1);
@@ -626,8 +627,8 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
       {/* KPIs 2×2 + Sparkline — estándar aprobado */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <KpiCard label="Total casos" value={stats?.total ?? '—'} compact icon={FileText} iconBg="bg-brand/10" iconColor="text-brand" />
-          <KpiCard label="Abogados" value={attorneys.length} compact icon={Users} iconBg="bg-violet/10" iconColor="text-violet" />
+          <KpiCard label="Total casos" value={stats?.total ?? '—'} compact icon={FileText} iconBg="bg-brand/10" iconColor="text-brand-text" />
+          <KpiCard label="Abogados" value={attorneys.length} compact icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text" />
           <KpiCard label="Tasa de firma" value={stats ? `${stats.signatureRate}%` : '—'} compact icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
           <KpiCard label="Últimos 30 días" value={stats?.recentCount ?? '—'} compact icon={Clock} iconBg="bg-cyan/10" iconColor="text-cyan" />
         </div>
@@ -883,10 +884,10 @@ function AssignDropdown({
                   key={m.id}
                   onClick={() => { onChange({ id: m.id, firstName: m.firstName, lastName: m.lastName }); setOpen(false); }}
                   className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-white/5
-                    ${isSelected ? 'text-brand' : 'text-text-1'}`}
+                    ${isSelected ? 'text-brand-text' : 'text-text-1'}`}
                 >
                   <span className="flex items-center gap-1.5">
-                    {isSelected && <span className="text-brand">✓</span>}
+                    {isSelected && <span className="text-brand-text">✓</span>}
                     {name || '(sin nombre)'}
                   </span>
                   {roleLabel && <span className="text-[10px] text-text-muted shrink-0">{roleLabel}</span>}
@@ -926,7 +927,7 @@ function CaseTableRow({
 }) {
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
   const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
-  const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateStr = new Date(row.createdAt).toLocaleDateString(localeApp(), { year: 'numeric', month: 'short', day: 'numeric' });
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const attorneys     = members.filter((m) => m.memberRole === 'ATTORNEY');
@@ -999,7 +1000,7 @@ function CaseTableRow({
               href={`/front-office/${row.id}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-brand" />
+              <ExternalLink className="w-3.5 h-3.5 text-brand-text" />
               Ver caso
             </Link>
 
@@ -1110,7 +1111,7 @@ function SignAttorneyModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
-            <PenLine className="w-4 h-4 text-brand" /> Firmar lien — {caseRow.caseCode}
+            <PenLine className="w-4 h-4 text-brand-text" /> Firmar lien — {caseRow.caseCode}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 text-lg leading-none">×</button>
         </div>
@@ -1265,7 +1266,7 @@ function firmInitials(name: string): string {
 }
 
 function formatDate(d: Date): string {
-  return new Date(d).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ─── Member Dialog ──────────────────────────────────────────────────────────
@@ -1617,7 +1618,7 @@ function MemberDialog({
 
           {memberRole === 'ATTORNEY' && (
             <div className="rounded-md border border-brand/20 bg-brand/5 p-3 space-y-3">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-text">
                 Datos del abogado
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1738,7 +1739,7 @@ function ConfirmExemptModal({
       >
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExempting ? 'bg-amber/10' : 'bg-brand/10'}`}>
-            <Ban className={`w-5 h-5 ${isExempting ? 'text-amber' : 'text-brand'}`} />
+            <Ban className={`w-5 h-5 ${isExempting ? 'text-amber' : 'text-brand-text'}`} />
           </div>
           <div>
             <div className="text-text-1 font-semibold text-sm">
@@ -1792,7 +1793,7 @@ function ActionBadge({ action }: { action: string | null }) {
   const color =
     action === 'Asignado'    ? 'bg-emerald/15 text-emerald border-emerald/30' :
     action === 'Removido'    ? 'bg-rose/15 text-rose border-rose/30' :
-    'bg-brand/15 text-brand border-brand/30';
+    'bg-brand/15 text-brand-text border-brand/30';
   return (
     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${color}`}>{action}</span>
   );
@@ -1874,8 +1875,8 @@ function CaseHistoryDrawer({
                           {assignmentEvents.map((ev, idx) => (
                             <tr key={ev.id} className={`border-b border-border/30 hover:bg-white/[0.02] ${idx % 2 === 0 ? '' : 'bg-bg-2/10'}`}>
                               <td className="px-3 py-2 text-text-muted font-mono whitespace-nowrap">
-                                {new Date(ev.createdAt).toLocaleDateString('es-US', { day: 'numeric', month: 'short', year: 'numeric' })}{', '}
-                                {new Date(ev.createdAt).toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                {new Date(ev.createdAt).toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', year: 'numeric' })}{', '}
+                                {new Date(ev.createdAt).toLocaleTimeString(localeApp(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                               </td>
                               <td className="px-3 py-2">
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-bg-2 border-border/60 text-text-2 whitespace-nowrap">
@@ -1886,8 +1887,8 @@ function CaseHistoryDrawer({
                                 <ActionBadge action={ev.changeAction} />
                               </td>
                               <td className="px-3 py-2 text-text-2 whitespace-nowrap">{ev.changedByEmail ?? '—'}</td>
-                              <td className="px-3 py-2 text-text-muted">{ev.previousValue ?? <span className="text-text-muted/40 italic">Vacío</span>}</td>
-                              <td className="px-3 py-2 text-text-1 font-medium">{ev.newValue ?? <span className="text-text-muted/40 italic">Vacío</span>}</td>
+                              <td className="px-3 py-2 text-text-muted">{ev.previousValue ?? <span className="text-text-muted italic">Vacío</span>}</td>
+                              <td className="px-3 py-2 text-text-1 font-medium">{ev.newValue ?? <span className="text-text-muted italic">Vacío</span>}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1914,7 +1915,7 @@ function CaseHistoryDrawer({
                           <div className="flex-1 min-w-0 pb-1">
                             <div className="text-text-2 text-[11px] font-medium">{ev.action}</div>
                             <div className="text-text-muted text-[10px] mt-0.5 font-mono">
-                              {new Date(ev.createdAt).toLocaleDateString('es-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {new Date(ev.createdAt).toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
                         </div>
@@ -1930,7 +1931,7 @@ function CaseHistoryDrawer({
         <div className="px-5 py-3 border-t border-border/50">
           <Link
             href={`/front-office/${caseRow.id}`}
-            className="text-brand text-xs hover:underline flex items-center gap-1"
+            className="text-brand-text text-xs hover:underline flex items-center gap-1"
             onClick={onClose}
           >
             <ExternalLink className="w-3 h-3" /> Ver caso completo

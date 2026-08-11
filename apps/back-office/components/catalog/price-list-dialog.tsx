@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * Precios — visor de mostrador (solo lectura).
@@ -57,7 +58,7 @@ const TABS: Array<{ key: PriceListTab; icon: React.ElementType }> = [
 ];
 
 const money = (n: number): string =>
-  `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `$${n.toLocaleString(localeApp(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function PriceListDialog({ open, onOpenChange }: Props): React.ReactElement {
   const t = useTranslations('phoenix.catalog.priceList');
@@ -117,7 +118,7 @@ export function PriceListDialog({ open, onOpenChange }: Props): React.ReactEleme
       <DialogContent className="max-w-4xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Tag className="w-4 h-4 text-brand" />
+            <Tag className="w-4 h-4 text-brand-text" />
             {t('title')}
           </DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
@@ -157,7 +158,7 @@ export function PriceListDialog({ open, onOpenChange }: Props): React.ReactEleme
                 type="button"
                 onClick={() => setTab(key)}
                 className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors ${
-                  on ? 'border-brand text-brand' : 'border-transparent text-text-muted hover:text-text-1'
+                  on ? 'border-brand text-brand-text' : 'border-transparent text-text-muted hover:text-text-1'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />

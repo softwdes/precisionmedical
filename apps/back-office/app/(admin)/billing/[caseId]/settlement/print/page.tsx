@@ -1,3 +1,4 @@
+import { localeApp } from '@/lib/fechas';
 /**
  * B.28 — Comprobante de settlement: vista de impresión / PDF
  *
@@ -19,14 +20,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
+  return new Date(d).toLocaleDateString(localeApp(), {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
 
 function fmtDateTime(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
+  return new Date(d).toLocaleString(localeApp(), {
     month: 'long', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });

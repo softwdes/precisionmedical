@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.15 — Triage & Verification
@@ -100,11 +101,11 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 function fmtDate(iso: string | null) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 // ─── Small reusable pieces ────────────────────────────────────────────────────
@@ -1084,7 +1085,7 @@ function BillingHistoryList({ rows }: { rows: BillingRow[] }): React.ReactElemen
       <div className="divide-y divide-border/40">
         {rows.map(b => {
           const date = b.appointmentDate
-            ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            ? new Date(b.appointmentDate).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' })
             : '—';
           const isPaid    = b.balanceDue === 0;
           const isPartial = b.amountPaid > 0 && b.balanceDue > 0;

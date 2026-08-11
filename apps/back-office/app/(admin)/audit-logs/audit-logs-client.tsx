@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.44 — Visor de Audit Log
@@ -43,7 +44,7 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-US', {
+  return new Date(iso).toLocaleString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', second: '2-digit',
     timeZone: 'America/Denver',
@@ -51,7 +52,7 @@ function fmtDate(iso: string): string {
 }
 
 function fmtNum(n: number): string {
-  return n.toLocaleString('es-US');
+  return n.toLocaleString(localeApp());
 }
 
 const ACTOR_ICON: Record<string, React.ReactNode> = {
@@ -61,8 +62,8 @@ const ACTOR_ICON: Record<string, React.ReactNode> = {
 };
 
 const ACTOR_COLOR: Record<string, string> = {
-  HUMAN_USER: 'text-brand  bg-brand/10  border-brand/20',
-  AI_AGENT:   'text-violet bg-violet/10 border-violet/20',
+  HUMAN_USER: 'text-brand-text  bg-brand/10  border-brand/20',
+  AI_AGENT:   'text-violet-text bg-violet/10 border-violet/20',
   SYSTEM:     'text-text-muted bg-bg-2 border-border',
 };
 
@@ -72,7 +73,7 @@ const ACTION_COLOR: Record<string, string> = {
   SETTLEMENT: 'text-amber',
   DELETE:     'text-rose',
   VIEW:       'text-text-muted',
-  GENERATE:   'text-violet',
+  GENERATE:   'text-violet-text',
 };
 
 function actionColor(action: string): string {
@@ -156,7 +157,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
       <PageHeader
         title={
           <span className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand" />
+            <Shield className="w-5 h-5 text-brand-text" />
             Audit Log
           </span>
         }
@@ -174,10 +175,10 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiCard label="Total eventos"  value={fmtNum(kpis.total)}      color="text-brand"   />
+        <KpiCard label="Total eventos"  value={fmtNum(kpis.total)}      color="text-brand-text"   />
         <KpiCard label="Hoy"            value={fmtNum(kpis.todayCount)} color="text-cyan"    />
         <KpiCard label="Humanos"        value={fmtNum(kpis.humanCount)} color="text-emerald" />
-        <KpiCard label="Sistema / AI"   value={fmtNum(kpis.systemCount)} color="text-violet" />
+        <KpiCard label="Sistema / AI"   value={fmtNum(kpis.systemCount)} color="text-violet-text" />
       </div>
 
       {/* Filters */}

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,12 +68,12 @@ interface Props {
 }
 
 function fmtDate(d: Date): string {
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const ENTITY_TYPE_COLOR: Record<string, string> = {
-  FIRM:        'bg-brand/10 text-brand border-brand/20',
-  INDEPENDENT: 'bg-violet/10 text-violet border-violet/20',
+  FIRM:        'bg-brand/10 text-brand-text border-brand/20',
+  INDEPENDENT: 'bg-violet/10 text-violet-text border-violet/20',
 };
 
 export function LawyersClient({ firms, stats }: Props) {
@@ -123,10 +124,10 @@ export function LawyersClient({ firms, stats }: Props) {
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
           <KpiCard compact label={t('kpiTotal')}        value={stats.total}            sub={t('kpiTotalSub')}        color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
           <KpiCard compact label={t('kpiActive')}       value={stats.active}           sub={t('kpiActiveSub')}       color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
-          <KpiCard compact label={t('kpiIndependent')}  value={stats.independentCount} sub={t('kpiIndependentSub')}  color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
+          <KpiCard compact label={t('kpiIndependent')}  value={stats.independentCount} sub={t('kpiIndependentSub')}  color="text-violet-text"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet-text" />
           <KpiCard compact label={t('kpiNew30')}        value={stats.newLast30}        sub={t('kpiNew30Sub')}        color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
           <KpiCard compact label={t('kpiSlowPayers')}   value={stats.slowPayers}       sub={t('kpiSlowPayersSub')}   color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
-          <KpiCard compact label={t('kpiMembers')}      value={stats.totalMembers}     sub={t('kpiMembersSub')}      color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
+          <KpiCard compact label={t('kpiMembers')}      value={stats.totalMembers}     sub={t('kpiMembersSub')}      color="text-brand-text"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand-text" />
         </div>
 
         {/* Panel distribución por tipo */}
@@ -265,7 +266,7 @@ export function LawyersClient({ firms, stats }: Props) {
                             <span className="text-text-muted text-[10px] italic">—</span>
                           ) : (
                             f.caseflowFlags.map((flag) => (
-                              <TagPill key={flag} label={flag} colorClass="bg-brand/10 text-brand border-brand/20" mono compact />
+                              <TagPill key={flag} label={flag} colorClass="bg-brand/10 text-brand-text border-brand/20" mono compact />
                             ))
                           )}
                         </div>

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -502,7 +503,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       }
       setConflictSuggestion(
         best
-          ? { time: new Date(best).toLocaleTimeString('en-US', { timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit', hour12: true }), tried: durationRef.current }
+          ? { time: new Date(best).toLocaleTimeString(localeApp(), { timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit', hour12: true }), tried: durationRef.current }
           : null,
       );
       // Volvemos a la duracion que si entraba Y restauramos el horario elegido:
@@ -549,7 +550,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const scheduledLabel = useMemo(() => {
     if (!scheduledForIso) return null;
-    return new Date(scheduledForIso).toLocaleString('en-US', {
+    return new Date(scheduledForIso).toLocaleString(localeApp(), {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
     });
@@ -558,7 +559,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // Desired time label (from calendar click) — formatted for display
   const desiredDateLabel = useMemo(() => {
     if (!initialDate) return '';
-    return new Date(initialDate + 'T12:00:00Z').toLocaleDateString('en-US', {
+    return new Date(initialDate + 'T12:00:00Z').toLocaleDateString(localeApp(), {
       weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
     });
   }, [initialDate]);
@@ -766,7 +767,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   navegador y cada persona ve una hora distinta para la misma
                   cita (un tester en Eastern veía 10:00 AM donde se agendaron
                   las 8:00 AM). El resto del archivo ya fija Denver. */}
-              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })}</div>
+              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })}</div>
             </div>
             <Button onClick={() => onOpenChange(false)}>{t('actionClose')}</Button>
           </div>
@@ -796,7 +797,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <DialogDescription>
               {t('dialogDescPatient')} <strong className="text-text-1">{props.caseInfo.patient.firstName} {props.caseInfo.patient.lastName}</strong>
               {' '}· {t('dialogDescCase')} <code className="text-text-1 font-mono">{props.caseInfo.caseCode}</code>.
-              {t('dialogDescStatusChange')} <code className="text-brand">ACTIVE</code>.
+              {t('dialogDescStatusChange')} <code className="text-brand-text">ACTIVE</code>.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -945,7 +946,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                                   style={{ backgroundColor: `${c.specialty.color}20`, borderColor: `${c.specialty.color}50`, color: c.specialty.color }}
                                 >{c.specialty.name}</span>
                               )}
-                              {isSelected && <Check className="w-3.5 h-3.5 text-brand ml-auto shrink-0" />}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-text ml-auto shrink-0" />}
                             </div>
                           </button>
                         );
@@ -1018,7 +1019,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               {caseSpecialty && apptSpecialtyId && apptSpecialtyId !== caseSpecialty.id && (
-                <div className="text-[10px] text-brand mt-1">{t('specialtyOverrideHint')}</div>
+                <div className="text-[10px] text-brand-text mt-1">{t('specialtyOverrideHint')}</div>
               )}
               {!caseSpecialty && apptSpecialtyId && (
                 <div className="text-[10px] text-emerald mt-1">{t('specialtySavedToCase')}</div>
@@ -1089,7 +1090,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
                     : initialDate}
                   initialTime={isEditMode && editAppointment && !isReschedule
-                    ? new Date(editAppointment.scheduledFor).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })
+                    ? new Date(editAppointment.scheduledFor).toLocaleTimeString(localeApp(), { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })
                     : initialTime}
                 />
               </div>
@@ -1108,7 +1109,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               </div>
               <div className="space-y-1.5">
                 {duplicateAppts.map(a => {
-                  const time = new Date(a.scheduledFor).toLocaleTimeString('en-US', {
+                  const time = new Date(a.scheduledFor).toLocaleTimeString(localeApp(), {
                     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
                   });
                   return (
@@ -1211,7 +1212,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           {/* ── Resumen ── */}
           {selectedClinic && selectedProvider && scheduledForIso && isFuture && (
             <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-xs">
-              <div className="text-brand font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
+              <div className="text-brand-text font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
                 <ChevronRight className="w-3 h-3" /> {t('summaryTitle')}
               </div>
               <div className="space-y-0.5 text-text-2">

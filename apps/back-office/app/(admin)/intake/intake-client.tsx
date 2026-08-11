@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.12 — Bandeja de Edson (Intake Specialist)
@@ -67,12 +68,12 @@ type FilterTab = 'all' | 'urgent' | 'lawFirm' | 'pip';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 function fmtDateTime(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleString(localeApp(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

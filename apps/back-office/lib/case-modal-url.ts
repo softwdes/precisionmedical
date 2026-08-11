@@ -21,11 +21,20 @@ export function conCasoAbierto(
   params: URLSearchParams | ReadonlyURLSearchParamsLike,
   caseId: string,
   tab?: string,
+  /**
+   * Cita a la que se filtra el caso al abrirlo. La usa el calendario: si hiciste
+   * clic en la cita del martes, el caso abre mostrando ESA consulta — es lo que
+   * viniste a cobrar. Y como lo nuevo va a la visita filtrada, el cargo cae en
+   * el martes y no en la última visita.
+   */
+  visitId?: string,
 ): string {
   const next = new URLSearchParams(params.toString());
   next.set(CASE_PARAM, caseId);
   if (tab) next.set(TAB_PARAM, tab);
   else next.delete(TAB_PARAM);
+  if (visitId) next.set(VISIT_PARAM, visitId);
+  else next.delete(VISIT_PARAM);
   return `${pathname}?${next.toString()}`;
 }
 

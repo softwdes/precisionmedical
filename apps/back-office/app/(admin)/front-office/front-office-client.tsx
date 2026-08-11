@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -229,7 +230,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard label={t('kpiCasosHoy')}    value={kpis.casosHoy}              sub={t('kpiCasosHoySub')}    color="text-amber"   compact />
         <KpiCard label={t('kpiCitasHoy')}    value={kpis.citasHoy}              sub={t('kpiCitasHoySub')}    color="text-text-1"  compact />
-        <KpiCard label={t('kpiFormularios')} value={kpis.formulariosPendientes}  sub={t('kpiFormulariosSub')} color="text-brand"   compact />
+        <KpiCard label={t('kpiFormularios')} value={kpis.formulariosPendientes}  sub={t('kpiFormulariosSub')} color="text-brand-text"   compact />
         <KpiCard label={t('kpiNoShows')}     value={kpis.noShowsAyer}           sub={t('kpiNoShowsSub')}     color="text-rose"    compact />
       </div>
 
@@ -293,7 +294,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       {/* Section header */}
       <div className="flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
-          <FileText className="w-3.5 h-3.5 text-brand" />
+          <FileText className="w-3.5 h-3.5 text-brand-text" />
           {t('queueSectionTitle')}
           {(search || filter !== 'all') && (
             <span className="text-text-muted font-normal ml-1">— {filtered.length} {t(filtered.length !== 1 ? 'resultadosPlural' : 'resultadoSingular')}</span>
@@ -351,7 +352,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
               href={`/front-office?page=${pagination.page - 1}`}
               className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                 pagination.page <= 1
-                  ? 'border-border/40 text-text-muted/40 pointer-events-none'
+                  ? 'border-border/40 text-text-muted pointer-events-none'
                   : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
@@ -364,7 +365,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
               href={`/front-office?page=${pagination.page + 1}`}
               className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                 pagination.page >= Math.ceil(pagination.total / pagination.pageSize)
-                  ? 'border-border/40 text-text-muted/40 pointer-events-none'
+                  ? 'border-border/40 text-text-muted pointer-events-none'
                   : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
@@ -474,8 +475,8 @@ function CaseCard({
     INTAKE_PENDING:   { label: t('statusIntakePending'),  colorClass: 'bg-amber/10 text-amber border-amber/30' },
     INTAKE_COMPLETED: { label: t('statusToConfirm'),      colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
     CONFIRMED:        { label: t('statusConfirmed'),      colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
-    ACTIVE:           { label: t('statusActive'),         colorClass: 'bg-brand/10 text-brand border-brand/30' },
-    MMI:              { label: t('statusMMI'),            colorClass: 'bg-violet/10 text-violet border-violet/30' },
+    ACTIVE:           { label: t('statusActive'),         colorClass: 'bg-brand/10 text-brand-text border-brand/30' },
+    MMI:              { label: t('statusMMI'),            colorClass: 'bg-violet/10 text-violet-text border-violet/30' },
     CLOSED:           { label: t('statusClosed'),         colorClass: 'bg-text-muted/10 text-text-muted border-border' },
     SETTLED:          { label: t('statusSettled'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
     ARCHIVED:         { label: t('statusArchived'),       colorClass: 'bg-text-muted/10 text-text-muted border-border' },
@@ -571,6 +572,6 @@ function ageInHours(date: Date): number {
 }
 
 function formatDate(d: Date): string {
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 

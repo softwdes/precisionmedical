@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * PatientContextPanel — contexto clínico del paciente junto a la nota (N2).
@@ -66,7 +67,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }): React
   return (
     <div className="flex items-start justify-between gap-2 py-[3px]">
       <span className="text-[11px] text-text-muted shrink-0">{label}</span>
-      <span className={`text-[11.5px] text-right ${empty ? 'text-text-muted/60' : 'text-text-1 font-medium'}`}>
+      <span className={`text-[11.5px] text-right ${empty ? 'text-text-muted' : 'text-text-1 font-medium'}`}>
         {empty ? 'N/D' : value}
       </span>
     </div>
@@ -90,10 +91,10 @@ function Section({
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white/[0.02] transition-colors"
       >
-        <Icon className="w-3.5 h-3.5 text-violet shrink-0" />
+        <Icon className="w-3.5 h-3.5 text-violet-text shrink-0" />
         <span className="text-[12px] font-semibold text-text-1 flex-1 text-left">{title}</span>
         {count !== undefined && count > 0 && (
-          <span className="text-[10px] font-bold text-violet bg-violet/15 rounded px-1.5 py-0.5">{count}</span>
+          <span className="text-[10px] font-bold text-violet-text bg-violet/15 rounded px-1.5 py-0.5">{count}</span>
         )}
         <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
       </button>
@@ -116,7 +117,7 @@ function ageOf(dobIso: string | null): number | null {
 function fmtDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('es-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─── Panel ───────────────────────────────────────────────────────────────────

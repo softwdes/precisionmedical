@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.25 — Bandeja de Brunella (Billing & Finance)
@@ -56,13 +57,13 @@ type TabKey = 'pending' | 'hcfa' | 'ledger' | 'legal' | 'settlements';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
+  return new Date(iso).toLocaleDateString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
 function fmtTime(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('es-US', {
+  return new Date(iso).toLocaleTimeString(localeApp(), {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -95,7 +96,7 @@ function CaseRow({ item, onHcfa, t }: {
             <span className="font-mono text-[11px] font-bold text-amber">{item.caseCode}</span>
 
             {isNew ? (
-              <span className="border border-brand/30 rounded-full px-2 py-0.5 text-[9px] bg-brand/10 text-brand font-semibold uppercase tracking-wide">
+              <span className="border border-brand/30 rounded-full px-2 py-0.5 text-[9px] bg-brand/10 text-brand-text font-semibold uppercase tracking-wide">
                 {t('badgeNewNote')}
               </span>
             ) : (
@@ -258,7 +259,7 @@ export function BillingClient() {
         {/* KPI row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <KpiCard label={t('kpiNotesReady')}        value={kpis.notesReady}                  color="text-cyan"    sub={t('kpiNotesReadySub')}    compact />
-          <KpiCard label={t('kpiHcfaSent')}          value={kpis.hcfaSent}                    color="text-brand"   sub={t('kpiHcfaSentSub')}      compact />
+          <KpiCard label={t('kpiHcfaSent')}          value={kpis.hcfaSent}                    color="text-brand-text"   sub={t('kpiHcfaSentSub')}      compact />
           <KpiCard label={t('kpiCollected')}         value={fmtMoney(kpis.totalBilled)}       color="text-emerald" sub={t('kpiCollectedSub')}     compact />
           <KpiCard label={t('kpiPendingCollection')} value={fmtMoney(kpis.pendingCollection)} color="text-amber"   sub={t('kpiPendingCollectionSub')} compact />
         </div>

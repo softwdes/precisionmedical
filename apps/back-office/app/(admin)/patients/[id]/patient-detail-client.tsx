@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.4 mockup · PatientDetailClient
@@ -97,10 +98,10 @@ interface PatientData {
 // ─── Status meta ─────────────────────────────────────────────────────────────
 
 const PATIENT_STATUS_COLORS: Record<PatientStatus, { colorClass: string }> = {
-  NEW:        { colorClass: 'bg-brand/10 text-brand border-brand/30' },
+  NEW:        { colorClass: 'bg-brand/10 text-brand-text border-brand/30' },
   ACTIVE:     { colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
   COMPLETED:  { colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
-  DISCHARGED: { colorClass: 'bg-violet/10 text-violet border-violet/30' },
+  DISCHARGED: { colorClass: 'bg-violet/10 text-violet-text border-violet/30' },
   INACTIVE:   { colorClass: 'bg-bg-2 text-text-muted border-border' },
 };
 
@@ -109,7 +110,7 @@ const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = 
   INTAKE_PENDING:   { colorClass: 'bg-amber/10 text-amber border-amber/30',        dot: 'bg-amber' },
   INTAKE_COMPLETED: { colorClass: 'bg-cyan/10 text-cyan border-cyan/30',           dot: 'bg-cyan' },
   CONFIRMED:        { colorClass: 'bg-emerald/10 text-emerald border-emerald/30',  dot: 'bg-emerald' },
-  ACTIVE:           { colorClass: 'bg-brand/10 text-brand border-brand/30',        dot: 'bg-brand' },
+  ACTIVE:           { colorClass: 'bg-brand/10 text-brand-text border-brand/30',        dot: 'bg-brand' },
 };
 
 // ─── Component principal ──────────────────────────────────────────────────────
@@ -211,10 +212,10 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
 
       {/* KPIs strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard label={t('kpiTotalCases')}       value={totalCases}        sub={t('kpiTotalCasesSub')}        color="text-brand" />
+        <KpiCard label={t('kpiTotalCases')}       value={totalCases}        sub={t('kpiTotalCasesSub')}        color="text-brand-text" />
         <KpiCard label={t('kpiActiveCases')}      value={activeCases}       sub={t('kpiActiveCasesSub')}       color="text-emerald" />
         <KpiCard label={t('kpiTotalAppointments')} value={totalAppointments} sub={t('kpiTotalAppointmentsSub')} color="text-cyan" />
-        <KpiCard label={t('kpiInternalNotes')}    value={totalNotes}        sub={t('kpiInternalNotesSub')}     color="text-violet" />
+        <KpiCard label={t('kpiInternalNotes')}    value={totalNotes}        sub={t('kpiInternalNotesSub')}     color="text-violet-text" />
       </div>
 
       {/* Info grid */}
@@ -224,7 +225,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
         <InfoCard title={t('sectionPersonalData')} icon={User}>
           <InfoRow
             label={t('fieldCode')}
-            value={<code className="font-mono text-brand text-[11px]">{patient.patientCode}</code>}
+            value={<code className="font-mono text-brand-text text-[11px]">{patient.patientCode}</code>}
           />
           <InfoRow
             label={t('fieldDob')}
@@ -238,7 +239,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
             label={t('fieldPhone')}
             value={
               patient.phone
-                ? <a href={`tel:${patient.phone}`} className="text-brand hover:underline font-mono text-[12.5px]">{patient.phone}</a>
+                ? <a href={`tel:${patient.phone}`} className="text-brand-text hover:underline font-mono text-[12.5px]">{patient.phone}</a>
                 : <span className="text-text-muted italic">—</span>
             }
           />
@@ -246,7 +247,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
             label={t('fieldEmail')}
             value={
               patient.email
-                ? <a href={`mailto:${patient.email}`} className="text-brand hover:underline text-[12.5px] break-all">{patient.email}</a>
+                ? <a href={`mailto:${patient.email}`} className="text-brand-text hover:underline text-[12.5px] break-all">{patient.email}</a>
                 : <span className="text-text-muted italic">—</span>
             }
           />
@@ -281,7 +282,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
           <InfoRow
             label={t('fieldTotalCases')}
             value={
-              <span className="flex items-center gap-1 text-brand font-semibold">
+              <span className="flex items-center gap-1 text-brand-text font-semibold">
                 <Hash className="w-3 h-3" />{t('caseCount', { count: totalCases })}
               </span>
             }
@@ -296,7 +297,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
         rightSlot={
           <TagPill
             label={t('caseCount', { count: totalCases })}
-            colorClass="bg-brand/10 text-brand border-brand/30"
+            colorClass="bg-brand/10 text-brand-text border-brand/30"
             compact
           />
         }
@@ -419,7 +420,7 @@ function formatDate(d: Date | string): string {
   const iso = typeof d === 'string' ? d : d.toISOString();
   const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
   const local = new Date(y, mo - 1, day);
-  return local.toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return local.toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 type TFn = ReturnType<typeof useTranslations<'phoenix.patients'>>;

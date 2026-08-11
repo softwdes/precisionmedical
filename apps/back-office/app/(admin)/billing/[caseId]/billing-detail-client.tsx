@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.25 Pantalla 2 — Detalle de caso · Brunella
@@ -72,22 +73,22 @@ interface CaseDetail {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const TAG_CONFIG: Record<string, { emoji: string; label: string; color: string; border: string; bg: string }> = {
-  legal:    { emoji: '⚖️', label: 'Legal',       color: 'text-brand',   border: 'border-brand/30',   bg: 'bg-brand/10'   },
+  legal:    { emoji: '⚖️', label: 'Legal',       color: 'text-brand-text',   border: 'border-brand/30',   bg: 'bg-brand/10'   },
   insurer:  { emoji: '🏥', label: 'Aseguradora', color: 'text-emerald', border: 'border-emerald/30', bg: 'bg-emerald/10' },
   reminder: { emoji: '⏰', label: 'Recordatorio', color: 'text-amber',  border: 'border-amber/30',   bg: 'bg-amber/10'   },
   general:  { emoji: '📝', label: 'General',      color: 'text-text-2',  border: 'border-border',     bg: 'bg-bg-2/50'    },
-  system:   { emoji: '🤖', label: 'Sistema',      color: 'text-violet',  border: 'border-violet/30',  bg: 'bg-violet/10'  },
+  system:   { emoji: '🤖', label: 'Sistema',      color: 'text-violet-text',  border: 'border-violet/30',  bg: 'bg-violet/10'  },
 };
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
+  return new Date(iso).toLocaleDateString(localeApp(), {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
 function fmtDateTime(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-US', {
+  return new Date(iso).toLocaleString(localeApp(), {
     month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -252,7 +253,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             <button
               type="button"
               onClick={() => router.push(`/billing/${caseId}/ledger`)}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-brand/40 hover:text-brand transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-brand/40 hover:text-brand-text transition-all"
             >
               <BarChart3 className="w-3.5 h-3.5" />
               Ledger
@@ -333,15 +334,15 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             {/* Latest signed note snippet */}
             {latestVisit?.note && (
               <div className="rounded-lg border border-brand/20 bg-brand/5 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-brand/80 mb-2">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-text/80 mb-2">
                   📝 Nota SOAP — Visita {latestVisit.visitNum}
                 </div>
-                <div className="text-[9.5px] text-brand/80 font-bold uppercase tracking-wider mb-1">
+                <div className="text-[9.5px] text-brand-text/80 font-bold uppercase tracking-wider mb-1">
                   {latestVisit.provider ?? ''} · {fmtDate(latestVisit.note.signedAt)} · {fmtMoney(latestVisit.note.total)}
                 </div>
                 {latestVisit.note.assessment && (
                   <div className="text-[11px] text-text-2 leading-relaxed mb-2 line-clamp-3">
-                    <span className="text-brand font-bold">A: </span>{latestVisit.note.assessment}
+                    <span className="text-brand-text font-bold">A: </span>{latestVisit.note.assessment}
                   </div>
                 )}
                 {/* CPT list */}
@@ -349,7 +350,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                   <div className="space-y-1">
                     {latestVisit.note.cpts.map(cpt => (
                       <div key={cpt.cptCode} className="flex justify-between text-[10px]">
-                        <span className="font-mono text-brand/80">{cpt.cptCode}</span>
+                        <span className="font-mono text-brand-text/80">{cpt.cptCode}</span>
                         <span className="text-text-muted truncate mx-2 flex-1">{cpt.description}</span>
                         <span className="text-amber font-semibold shrink-0">{fmtMoney(cpt.fee)}</span>
                       </div>
@@ -391,7 +392,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 <button
                   type="button"
                   onClick={() => router.push(`/billing/${caseId}/ledger`)}
-                  className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-brand/30 bg-brand/5 text-brand text-xs font-semibold hover:bg-brand/10 transition-colors"
+                  className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-brand/30 bg-brand/5 text-brand-text text-xs font-semibold hover:bg-brand/10 transition-colors"
                 >
                   <BarChart3 className="w-3.5 h-3.5" />
                   Ver ledger completo →
@@ -429,7 +430,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 {d.primaryInsurance?.claimsEmail && (
                   <a
                     href={`mailto:${d.primaryInsurance.claimsEmail}`}
-                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-violet/30 hover:text-violet transition-colors"
+                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-violet/30 hover:text-violet-text transition-colors"
                   >
                     <Mail className="w-3.5 h-3.5" />
                     Email a aseguradora
@@ -445,7 +446,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
               <div className="text-sm font-bold text-text-1 uppercase tracking-wider">
                 📒 Notas internas · Brunella
               </div>
-              <span className="border border-brand/30 rounded-full px-2.5 py-0.5 text-[10px] bg-brand/8 text-brand font-semibold">
+              <span className="border border-brand/30 rounded-full px-2.5 py-0.5 text-[10px] bg-brand/8 text-brand-text font-semibold">
                 {d.notes.length} notas
               </span>
             </div>

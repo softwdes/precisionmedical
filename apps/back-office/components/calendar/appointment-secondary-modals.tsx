@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.11 — Modales secundarios del detalle de cita
@@ -68,7 +69,7 @@ function ageFromISO(iso: string | null): string {
 function formatDOB(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(localeApp(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -226,7 +227,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       <DataRow label={t('rowEmail')}    value={lawyer.email} />
       {appt.case?.accidentDate && (
         <DataRow label={t('rowDol')}
-          value={new Date(appt.case.accidentDate).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+          value={new Date(appt.case.accidentDate).toLocaleDateString(localeApp(), { dateStyle: 'medium' })}
           highlight />
       )}
       <div className="pt-1 flex items-center gap-1.5 text-[11px] text-emerald">

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * B.27 — Ledger del caso (Brunella / Billing)
@@ -87,7 +88,7 @@ const TX_BG = {
 function statusBadge(status: string) {
   const cfg: Record<string, string> = {
     ACTIVE:   'bg-emerald/15 text-emerald border-emerald/25',
-    SETTLED:  'bg-brand/15 text-brand border-brand/25',
+    SETTLED:  'bg-brand/15 text-brand-text border-brand/25',
     CLOSED:   'bg-text-muted/15 text-text-muted border-border',
     DEFAULT:  'bg-amber/15 text-amber border-amber/25',
   };
@@ -102,9 +103,9 @@ function AccountOverview({ d, financial, transactions }: {
   financial: Financial;
   transactions: Tx[];
 }) {
-  const now     = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const now     = new Date().toLocaleDateString(localeApp(), { month: 'long', day: 'numeric', year: 'numeric' });
   const accDate = d.accidentDate
-    ? new Date(d.accidentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' })
+    ? new Date(d.accidentDate).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' })
     : '—';
 
   // Summary rows for the PDF table
@@ -268,7 +269,7 @@ function AccountOverview({ d, financial, transactions }: {
             <div>Total charged: <b>{financial.totalChargeFmt}</b></div>
             <div>Collected: {financial.totalPaymentFmt}</div>
             <div>Balance (lien): <b style={{ color: '#dc2626' }}>{financial.totalBalanceFmt}</b></div>
-            <div>Signed: {d.lienSignedAt ? new Date(d.lienSignedAt).toLocaleDateString('en-US') : 'Pending'}</div>
+            <div>Signed: {d.lienSignedAt ? new Date(d.lienSignedAt).toLocaleDateString(localeApp()) : 'Pending'}</div>
           </div>
         </div>
       </div>
@@ -369,7 +370,7 @@ export function LedgerClient() {
   const { case: d, financial, transactions } = data;
 
   const accDate = d.accidentDate
-    ? new Date(d.accidentDate).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' })
+    ? new Date(d.accidentDate).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' })
     : '—';
 
   // Initials for avatar
@@ -406,14 +407,14 @@ export function LedgerClient() {
         {/* ── Patient Header ── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {/* Avatar */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/15 border border-brand/25 text-brand font-bold text-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/15 border border-brand/25 text-brand-text font-bold text-sm">
             {initials}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-text-1">{d.patientName}</h1>
-              <span className="font-mono text-[11px] text-violet bg-violet/10 border border-violet/25 rounded-full px-2 py-0.5">
+              <span className="font-mono text-[11px] text-violet-text bg-violet/10 border border-violet/25 rounded-full px-2 py-0.5">
                 MVA #{d.caseCode}
               </span>
               <span className={statusBadge(d.status)}>{d.status}</span>
@@ -436,7 +437,7 @@ export function LedgerClient() {
             <button
               type="button"
               onClick={() => router.push('/billing/report')}
-              className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] text-brand hover:bg-brand/15 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] text-brand-text hover:bg-brand/15 transition-colors"
             >
               <BarChart3 className="w-3.5 h-3.5" />
               {t('monthlyReport')}

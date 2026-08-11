@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * Portal Médico · Consulta — client (D3 shell)
@@ -90,7 +91,7 @@ type Tab = 'notes' | 'labs' | 'rx' | 'services' | 'braces';
 type StepView = 1 | 2 | 3 | 4;
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
+  return new Date(iso).toLocaleTimeString(localeApp(), {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
   });
 }
@@ -109,7 +110,7 @@ function F({ label, value, accent, align = 'center' }: { label: string; value: R
   return (
     <div className="min-w-0">
       <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
-      <div className={`w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-[13px] font-semibold tabular-nums truncate ${align === 'center' ? 'text-center' : 'text-left'} ${empty ? 'text-text-muted/60' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
+      <div className={`w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-[13px] font-semibold tabular-nums truncate ${align === 'center' ? 'text-center' : 'text-left'} ${empty ? 'text-text-muted' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
         {empty ? '—' : value}
       </div>
     </div>
@@ -200,7 +201,7 @@ export function ConsultationClient({
                   {a.patient.sex && <span>· {a.patient.sex}</span>}
                   <span>· {a.clinicName}</span>
                   {a.isOnline && <Video className="w-3.5 h-3.5 text-cyan" />}
-                  {isInRoom && <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />}
+                  {isInRoom && <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet-text border-violet/30" />}
                   {/* Quién paga, en la línea que el doctor ya lee. Editable: si
                       está sin definir, se resuelve acá sin salir de la consulta. */}
                   <CoverageChip caseId={a.caseId} coverage={a.coverage} />
@@ -246,7 +247,7 @@ export function ConsultationClient({
                   {s.done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                 </div>
                 <div className="min-w-0 w-full lg:w-auto">
-                  <div className={`text-[10px] lg:text-[12px] font-bold leading-tight truncate ${s.current ? 'text-violet' : s.done ? 'text-emerald' : 'text-text-muted'}`}>
+                  <div className={`text-[10px] lg:text-[12px] font-bold leading-tight truncate ${s.current ? 'text-violet-text' : s.done ? 'text-emerald' : 'text-text-muted'}`}>
                     <span className="lg:hidden">{s.short}</span>
                     <span className="hidden lg:inline">{s.label}</span>
                   </div>
@@ -421,7 +422,7 @@ export function ConsultationClient({
                 onClick={() => setTab(id)}
                 aria-current={tab === id ? 'page' : undefined}
                 className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1 sm:gap-1.5 min-h-11 sm:min-h-0 px-1 sm:px-3.5 py-2 text-[10px] sm:text-[13px] font-semibold border-b-2 -mb-px transition-colors text-center sm:whitespace-nowrap ${
-                  tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
+                  tab === id ? 'text-violet-text border-violet' : 'text-text-muted border-transparent hover:text-text-1'
                 }`}
               >
                 <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />

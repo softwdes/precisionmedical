@@ -1,3 +1,4 @@
+import { localeApp } from '@/lib/fechas';
 /**
  * Intake Print — /front-office/[id]/intake-print
  * Vista de impresión del formulario completado por el paciente.
@@ -14,7 +15,7 @@ function fmt(d: Date | string | null | undefined, opts?: Intl.DateTimeFormatOpti
   if (!d) return '—';
   const iso = typeof d === 'string' ? d : d.toISOString();
   const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
-  return new Date(y, mo - 1, day).toLocaleDateString('es-US', opts ?? { month: 'long', day: 'numeric', year: 'numeric' });
+  return new Date(y, mo - 1, day).toLocaleDateString(localeApp(), opts ?? { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 function age(dob: Date | null): string {
@@ -142,7 +143,7 @@ export default async function IntakePrintPage({ params }: Props) {
             Caso: <strong style={{ fontFamily: 'monospace', color: '#4f46e5' }}>{rec.caseCode}</strong>
             {rec.intakeFormCompletedAt && (
               <span style={{ marginLeft: 16 }}>
-                Completado: {new Date(rec.intakeFormCompletedAt).toLocaleString('es-US', {
+                Completado: {new Date(rec.intakeFormCompletedAt).toLocaleString(localeApp(), {
                   month: 'short', day: 'numeric', year: 'numeric',
                   hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
                 })}
@@ -223,7 +224,7 @@ export default async function IntakePrintPage({ params }: Props) {
 
       {/* Footer */}
       <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #e5e7eb', fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
-        Precision Medical Care · Documento generado el {new Date().toLocaleDateString('es-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' })} · Uso interno — contiene información médica confidencial (HIPAA Phase 1A mock data)
+        Precision Medical Care · Documento generado el {new Date().toLocaleDateString(localeApp(), { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' })} · Uso interno — contiene información médica confidencial (HIPAA Phase 1A mock data)
       </div>
 
     </div>

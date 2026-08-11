@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Pill, FlaskConical, Scan, HeartPulse, FileText, Printer, Loader2, Upload,
   AlertTriangle, MapPin, RotateCcw, Building2, Home,
@@ -40,6 +40,7 @@ import { BracePickerDialog, type CatalogBrace, type Side as BraceSide } from '@/
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import type { CoverageDTO } from '@/lib/coverage';
 import { codigosRepetidos, horaCobro } from '@/lib/repeated-charges';
+import { claveDia, fechaConDia } from '@/lib/fechas';
 
 /**
  * Lo que reciben los tabs clinicos: el payload ya cargado por el caso y la
@@ -177,10 +178,10 @@ function visitaDestino(visits: Visit[], visitId: string | null, latestAppointmen
   return visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
 }
 
-function fmtVisit(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
-  });
+/** La cabecera de visita. Recibe el locale porque es funcion de modulo: el hook
+ *  vive en el componente y el formato tiene que seguir al selector EN/ES. */
+function fmtVisit(iso: string, locale?: string): string {
+  return fechaConDia(iso, locale);
 }
 
 const LAB_STATUS_CLASS: Record<string, string> = {
@@ -204,12 +205,13 @@ const LAB_CATEGORY_ICON: Record<string, React.ElementType> = {
 function VisitHeader({ visit, action, dateIso, note }: {
   visit: Visit; action?: React.ReactNode; dateIso?: string; note?: string;
 }): React.ReactElement {
+  const locale = useLocale();
   return (
     // Sin border-b: el cambio de fondo ya separa la cabecera de las filas
     // (Erick: la línea se veía gruesa y no combinaba)
     <div className="px-3 py-2 flex items-center gap-2 flex-wrap bg-bg-2/40">
       <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
-        {fmtVisit(dateIso ?? visit.scheduledFor)}
+        {fmtVisit(dateIso ?? visit.scheduledFor, locale)}
       </span>
       {visit.providerName && (
         <span className="text-[11px] text-text-2">· Dr. {visit.providerName}</span>
@@ -223,8 +225,8 @@ function VisitHeader({ visit, action, dateIso, note }: {
 /** Mismo día calendario en la zona de la clínica (no comparar ISO crudo: los
  *  timestamps son UTC y a partir de las 18:00 locales cambian de día). */
 function mismoDia(a: string, b: string): boolean {
-  const dia = (iso: string): string =>
-    new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+  // `claveDia` mantiene el locale fijo a proposito: es una clave de comparacion.
+  const dia = (iso: string): string => claveDia(iso);
   return dia(a) === dia(b);
 }
 
@@ -234,7 +236,7 @@ function ManageButton({ label, onClick }: { label: string; onClick: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-violet bg-violet/10 border border-violet/30 hover:bg-violet/20 hover:border-violet/50 transition-colors"
+      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-violet-text bg-violet/10 border border-violet/30 hover:bg-violet/20 hover:border-violet/50 transition-colors"
     >
       <Plus className="w-3 h-3" /> {label}
     </button>
@@ -291,6 +293,7 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
 }): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
+  const locale = useLocale();
   const { visits, latestAppointmentId, loading, error, reload } = clinical;
 
   const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
@@ -420,12 +423,12 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
                 dateIso={head.orderedAt}
                 note={mismoDia(head.orderedAt, v.scheduledFor)
                   ? undefined
-                  : td('labFromVisit', { date: fmtVisit(v.scheduledFor) })}
+                  : td('labFromVisit', { date: fmtVisit(v.scheduledFor, locale) })}
                 action={head.groupId ? (
                   <button
                     type="button"
                     onClick={() => setPrintGroup(head.groupId!)}
-                    className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-text-2 border border-border hover:text-violet hover:border-violet/40 transition-colors"
+                    className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold text-text-2 border border-border hover:text-violet-text hover:border-violet/40 transition-colors"
                   >
                     <Printer className="w-3 h-3" /> {td('labPrintOrder')}
                   </button>
@@ -483,7 +486,7 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
                               type="button"
                               onClick={() => fileInputs.current[o.id]?.click()}
                               disabled={busy}
-                              className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline"
+                              className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet-text hover:underline"
                             >
                               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                               {td('labUploadResult')}
@@ -689,7 +692,7 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
       {/* Recetas electrónicas por visita */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Pill className="w-4 h-4 text-brand" />
+          <Pill className="w-4 h-4 text-brand-text" />
           <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{t('rxSection')}</h3>
           {!canPrescribe && rxVisits.length > 0 && (
             <span className="text-[10.5px] text-text-muted">{t('rxDoctorHint')}</span>
@@ -751,7 +754,7 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
                             type="button"
                             onClick={() => void startRefill(rx, v.appointmentId)}
                             disabled={refillingId === rx.id}
-                            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline disabled:opacity-60"
+                            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet-text hover:underline disabled:opacity-60"
                           >
                             {refillingId === rx.id
                               ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -1048,7 +1051,7 @@ function RemoveChargeButton({ label, disabled, onClick }: {
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="p-1 rounded shrink-0 text-text-muted/40 group-hover:text-text-muted hover:!text-rose hover:bg-rose/10 transition-colors disabled:opacity-40"
+      className="p-1 rounded shrink-0 text-text-muted group-hover:text-text-muted hover:!text-rose hover:bg-rose/10 transition-colors disabled:opacity-40"
     >
       <Trash2 className="w-3 h-3" />
     </button>
@@ -1158,7 +1161,7 @@ export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): 
             <div className="p-3 space-y-1">
               {v.braces.map((b) => (
                 <div key={b.id} className="flex items-center gap-2 text-[12.5px] group">
-                  <span className="font-mono text-[11px] text-brand shrink-0 w-[70px] truncate" title={b.code}>{b.code}</span>
+                  <span className="font-mono text-[11px] text-brand-text shrink-0 w-[70px] truncate" title={b.code}>{b.code}</span>
                   <span className="text-text-2 flex-1 min-w-0">
                     {b.name}
                     {b.sizeLabel && <span className="text-text-muted"> · {b.sizeLabel}</span>}

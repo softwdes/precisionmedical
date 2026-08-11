@@ -1,3 +1,4 @@
+import { localeApp } from '@/lib/fechas';
 /**
  * GET /api/admin/cases/[id]/pdf
  *
@@ -250,7 +251,7 @@ function v(val: string | null | undefined) {
 }
 function fmtDate(d: Date | string | null | undefined) {
   if (!d) return null;
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return new Date(d).toLocaleDateString(localeApp(), { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 function age(dob: Date | null | undefined): string | null {
   if (!dob) return null;

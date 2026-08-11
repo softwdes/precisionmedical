@@ -121,9 +121,51 @@ export async function GET(
   const paidByPatient   = suma('PATIENT');
   const paidByInsurance = suma('INSURANCE') + suma('LAWYER');
 
+  /**
+   * Lo del PACIENTE, que es lo único que se cobra en el mostrador.
+   *
+   * Los CPT no van en Finanzas del caso: se anotan y los cobra Cobranzas al
+   * seguro o al abogado meses (o años) después — regla de Erick 2026-08-10. El
+   * mostrador que ve ese total pendiente termina pidiéndoselo al paciente.
+   */
+  const delPaciente = serialized.filter(b => b.payer === 'PATIENT');
+  const patientCost = delPaciente.reduce((s, b) => s + b.totalCost, 0);
+  const patientPaid = delPaciente.reduce((s, b) => s + b.amountPaid, 0);
+
+  /**
+   * Historial de pagos, plano y sin los anulados.
+   *
+   * Antes solo se podía ver expandiendo servicio por servicio, así que "cuándo
+   * pagó y cuánto" obligaba a abrir doce filas y sumar a mano. Los anulados no
+   * aparecen: el mostrador ve lo que entró, y la anulación queda en el AuditLog
+   * (CANCEL_BILLING_PAYMENT) para quien tenga que auditar.
+   */
+  const payments = serialized.flatMap(b => b.payments
+    .filter(p => p.status !== 'CANCELLED')
+    .map(p => ({
+      id: p.id,
+      billingId: b.id,
+      amount: p.amount,
+      source: p.source,
+      method: p.method,
+      paymentType: p.paymentType,
+      insuranceCarrier: p.insuranceCarrier,
+      notes: p.notes,
+      paidAt: p.paidAt ?? p.createdAt,
+      appointmentId: b.appointmentId,
+      appointmentDate: b.appointmentDate,
+      serviceCode: b.serviceCode,
+      serviceDescription: b.serviceDescription,
+    })))
+    .sort((a, z) => new Date(z.paidAt).getTime() - new Date(a.paidAt).getTime());
+
   return NextResponse.json({
     billings: serialized,
-    kpis: { totalCost, totalPaid, totalBalance, patientBalance, insuranceBalance, paidByPatient, paidByInsurance },
+    kpis: {
+      totalCost, totalPaid, totalBalance, patientBalance, insuranceBalance,
+      paidByPatient, paidByInsurance, patientCost, patientPaid,
+    },
+    payments,
     insurances,
   });
 }

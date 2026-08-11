@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 /**
  * FinanzasTab — Resumen financiero del caso.
@@ -31,6 +32,8 @@ interface BillingPayment {
 
 interface BillingRecord {
   id: string;
+  /** PATIENT = se cobra en caja · INSURANCE = lo cobra Cobranzas después */
+  payer: 'PATIENT' | 'INSURANCE';
   appointmentId: string | null;
   appointmentDate: string | null;
   appointmentStatus: string | null;
@@ -42,6 +45,23 @@ interface BillingRecord {
   amountPaid: number;
   balanceDue: number;
   payments: BillingPayment[];
+}
+
+/** Un pago ya registrado, plano — el historial que ve el mostrador. */
+interface PaymentRow {
+  id: string;
+  billingId: string;
+  amount: number;
+  source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
+  method: 'CHECK' | 'CARD' | 'CASH' | 'TRANSFER' | 'NONE';
+  paymentType: string | null;
+  insuranceCarrier: { id: string; name: string } | null;
+  notes: string | null;
+  paidAt: string;
+  appointmentId: string | null;
+  appointmentDate: string | null;
+  serviceCode: string | null;
+  serviceDescription: string | null;
 }
 
 interface CaseInsurance { id: string; name: string; label: string }
@@ -64,33 +84,39 @@ const EMPTY_KPIS: Kpis = {
 
 // ─── Payment type options (igual a v2) ─────────────────────────────────────────
 
-const PAYMENT_TYPES: Record<string, { label: string; value: string }[]> = {
+/**
+ * Los rotulos salen de i18n, no de constantes de modulo.
+ *
+ * Estaban clavados en espanol: con la app en ingles, la pantalla donde se COBRA
+ * mostraba "Copago (Cp)" y "Cheque". Los CODIGOS entre parentesis se mantienen
+ * en las dos traducciones — son la nomenclatura de facturacion que usa el equipo
+ * (Cp, CO, TF, Red AG) y no se traducen.
+ */
+type Traducir = (clave: string) => string;
+
+const tiposDePago = (t: Traducir): Record<string, { label: string; value: string }[]> => ({
   INSURANCE: [
-    { label: 'Pago de seguro (Ins)',                value: 'direct_insurance' },
-    { label: 'Obligación contractual (CO)',          value: 'contractual_obligation' },
-    { label: 'Pérdida por presentación tardía (TF)', value: 'late_filing_penalty' },
+    { label: t('ptDirectInsurance'), value: 'direct_insurance' },
+    { label: t('ptContractual'),     value: 'contractual_obligation' },
+    { label: t('ptLateFiling'),      value: 'late_filing_penalty' },
   ],
   LAWYER: [
-    { label: 'Pago de abogado (Att)',         value: 'attorney_payment' },
-    { label: 'Acuerdo de reducción (Red AG)', value: 'reduction_agreement' },
+    { label: t('ptAttorney'),  value: 'attorney_payment' },
+    { label: t('ptReduction'), value: 'reduction_agreement' },
   ],
   PATIENT: [
-    { label: 'Copago (Cp)',                    value: 'copay' },
-    { label: 'Deducible (Ded)',                value: 'deductible' },
-    { label: 'Coaseguro (Coins)',              value: 'coinsurance' },
-    { label: 'Pago directo (Self-Pay)',        value: 'patient_direct' },
-    { label: 'Cortesía profesional (Pro Cur)', value: 'professional_courtesy' },
-    { label: 'Cobranzas externas (Coll)',      value: 'external_collections' },
+    { label: t('ptCopay'),       value: 'copay' },
+    { label: t('ptDeductible'),  value: 'deductible' },
+    { label: t('ptCoinsurance'), value: 'coinsurance' },
+    { label: t('ptSelfPay'),     value: 'patient_direct' },
+    { label: t('ptCourtesy'),    value: 'professional_courtesy' },
+    { label: t('ptCollections'), value: 'external_collections' },
   ],
-};
+});
 
-const METHOD_LABELS: Record<string, string> = {
-  CHECK: 'Cheque', CARD: 'Tarjeta', CASH: 'Efectivo', TRANSFER: 'Transferencia', NONE: '—',
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  INSURANCE: 'Seguro', PATIENT: 'Paciente', LAWYER: 'Abogado',
-};
+const metodos = (t: Traducir): Record<string, string> => ({
+  CHECK: t('mCheck'), CARD: t('mCard'), CASH: t('mCash'), TRANSFER: t('mTransfer'), NONE: '—',
+});
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,7 +126,7 @@ function fmt$(n: number): string {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 function billingStatus(b: BillingRecord): 'paid' | 'partial' | 'pending' {
@@ -142,7 +168,7 @@ function SelectUp({
         className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors"
       >
         <span className={selected ? 'text-text-1' : 'text-text-muted'}>
-          {selected?.label ?? placeholder ?? 'Seleccionar'}
+          {selected?.label ?? placeholder}
         </span>
         {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
       </button>
@@ -156,12 +182,12 @@ function SelectUp({
               onClick={() => { onChange(opt.value); setOpen(false); }}
               className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${
                 opt.value === value
-                  ? 'bg-brand/10 text-brand'
+                  ? 'bg-brand/10 text-brand-text'
                   : 'text-text-1 hover:bg-bg-2'
               }`}
             >
               {opt.label}
-              {opt.value === value && <span className="text-brand text-xs">✓</span>}
+              {opt.value === value && <span className="text-brand-text text-xs">✓</span>}
             </button>
           ))}
         </div>
@@ -202,6 +228,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const tDoc = useTranslations('phoenix.doctor');
   const [billings, setBillings]     = useState<BillingRecord[]>([]);
   const [kpis, setKpis]             = useState<Kpis>(EMPTY_KPIS);
+  const [payments, setPayments]     = useState<PaymentRow[]>([]);
+  /** Rotulos traducidos — memo para no rearmar las listas en cada render. */
+  const PAYMENT_TYPES  = React.useMemo(() => tiposDePago(t), [t]);
+  const METHOD_LABELS  = React.useMemo(() => metodos(t), [t]);
   const [insurances, setInsurances] = useState<CaseInsurance[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -217,14 +247,27 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const [payInsuranceId, setPayInsuranceId] = useState<string>('');
   const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
+  /** Visita con el detalle desplegado en el modal de cobro */
+  const [detalleVisita, setDetalleVisita] = useState<string | null>(null);
   const [noteDialogFor, setNoteDialogFor] = useState<string | null>(null); // billingId de la fila con "Nota de pago" abierta
   const [noteDraft, setNoteDraft]         = useState('');
   const openAfterLoad = useRef(false);
 
-  // Cuando se abre desde una cita puntual (calendario), el modal de pago
-  // solo debe mostrar los servicios de ESA cita, no todo el caso.
+  /**
+   * Lo que se puede cobrar en el mostrador.
+   *
+   * `payer === 'PATIENT'` NO es un detalle: sin ese filtro el modal listaba las
+   * líneas de CPT —lo que se le factura al seguro o al abogado meses después—
+   * junto a labs, férulas y efectivo, todas cobrables al paciente. En un caso de
+   * prueba eran $744 del seguro ofrecidos para cobrar en caja.
+   *
+   * Y si viene de una cita puntual (calendario), solo esa visita.
+   */
   const pendingOf = useCallback((list: BillingRecord[]) => (
-    list.filter(b => b.balanceDue > 0 && (!filterAppointmentId || b.appointmentId === filterAppointmentId))
+    list.filter(b =>
+      b.payer === 'PATIENT'
+      && b.balanceDue > 0
+      && (!filterAppointmentId || b.appointmentId === filterAppointmentId))
   ), [filterAppointmentId]);
 
   const load = useCallback(async () => {
@@ -238,6 +281,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       const freshInsurances: CaseInsurance[] = data.insurances ?? [];
       setBillings(freshBillings);
       setKpis({ ...EMPTY_KPIS, ...(data.kpis ?? {}) });
+      setPayments(data.payments ?? []);
       setInsurances(freshInsurances);
 
       // Open pay modal with fresh data if flagged
@@ -245,7 +289,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         openAfterLoad.current = false;
         const pending = pendingOf(freshBillings);
         const init: Record<string, string> = {};
-        pending.forEach(b => { init[b.id] = ''; });
+        // Claves por visita: el monto se escribe una vez por consulta
+        pending.forEach(b => { init[b.appointmentId ?? `sin-cita-${b.id}`] = ''; });
         setPayAmounts(init);
         setPayNotes({});
         setPaySource('PATIENT');
@@ -255,7 +300,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         setPayOpen(true);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar finanzas');
+      setError(e instanceof Error ? e.message : t('loadError'));
     } finally {
       setLoading(false);
     }
@@ -267,7 +312,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     if (readOnly) return; // el doctor no cobra — gate también acá porque el handle es imperativo
     const pending = pendingOf(billings);
     const init: Record<string, string> = {};
-    pending.forEach(b => { init[b.id] = ''; });
+    pending.forEach(b => { init[b.appointmentId ?? `sin-cita-${b.id}`] = ''; });
     setPayAmounts(init);
     setPayNotes({});
     setPaySource('PATIENT');
@@ -298,28 +343,43 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
   function autoDistribute(totalStr: string) {
     const raw = parseFloat(totalStr);
+    const claves = (lista: BillingRecord[]) =>
+      [...new Set(lista.map(b => b.appointmentId ?? `sin-cita-${b.id}`))];
+
     if (isNaN(raw) || raw <= 0) {
-      const pending = pendingOf(billings);
-      setPayAmounts(prev => { const n = { ...prev }; pending.forEach(b => { n[b.id] = ''; }); return n; });
+      const pend = pendingOf(billings);
+      setPayAmounts(prev => { const n = { ...prev }; claves(pend).forEach(k => { n[k] = ''; }); return n; });
       return;
     }
+    // Reparte el total entre las VISITAS, de la más reciente a la más vieja:
+    // lo que se cobra hoy suele ser lo de hoy.
     const total = Math.min(raw, totalPending);
-    const pending = pendingOf(billings);
     const newAmounts: Record<string, string> = {};
     let remaining = total;
-    for (const b of pending) {
-      if (remaining <= 0) { newAmounts[b.id] = ''; continue; }
-      const apply = Math.min(remaining, b.balanceDue);
-      newAmounts[b.id] = apply.toFixed(2);
+    for (const v of visitasPendientes) {
+      if (remaining <= 0) { newAmounts[v.key] = ''; continue; }
+      const apply = Math.min(remaining, v.saldo);
+      newAmounts[v.key] = apply.toFixed(2);
       remaining -= apply;
     }
     setPayAmounts(prev => ({ ...prev, ...newAmounts }));
   }
 
   async function submitPayment() {
-    const entries = Object.entries(payAmounts)
-      .filter(([, v]) => parseFloat(v) > 0)
-      .map(([billingId, v]) => ({ billingId, amount: parseFloat(v), notes: payNotes[billingId] || null }));
+    /**
+     * Se escribe un monto por VISITA y se guarda una fila por LÍNEA: la base
+     * mantiene la verdad por servicio (es lo que después se concilia con el
+     * seguro y lo que permite anular un pago puntual), y el mostrador escribe
+     * una sola cifra. La nota va en todas las líneas de esa visita: es un mismo
+     * cobro repartido, y cada parte tiene que poder explicarse sola.
+     */
+    const entries = visitasPendientes.flatMap(v => {
+      const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
+      if (monto <= 0) return [];
+      return Object.entries(repartir(v.lineas, monto)).map(([billingId, amount]) => ({
+        billingId, amount, notes: payNotes[v.key] || null,
+      }));
+    });
 
     if (!entries.length) { alert(t('alertMinAmount')); return; }
 
@@ -348,7 +408,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   }
 
   async function deletePayment(billingId: string, payId: string) {
-    if (!confirm('¿Cancelar este pago? El balance se revertirá.')) return;
+    if (!confirm(t('payConfirmCancel'))) return;
     setDeletingPay(payId);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
@@ -361,23 +421,83 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     }
   }
 
+  /**
+   * Los KPIs y el historial se derivan acá, no se toman de la API.
+   *
+   * Dos razones. Los de la API son de TODO el caso: con el selector de visita
+   * puesto, la tabla mostraba una cita y las cifras seguían siendo del caso
+   * entero — números que no cuadran con lo que se está viendo. Y son del caso
+   * completo incluyendo CPT, que en Finanzas no va: eso lo cobra Cobranzas al
+   * seguro o al abogado meses después.
+   */
+  const deLaVista   = billings.filter(b =>
+    b.payer === 'PATIENT' && (!filterAppointmentId || b.appointmentId === filterAppointmentId));
+  const vistaCosto  = deLaVista.reduce((s, b) => s + b.totalCost, 0);
+  const vistaPagado = deLaVista.reduce((s, b) => s + b.amountPaid, 0);
+  const vistaSaldo  = deLaVista.reduce((s, b) => s + b.balanceDue, 0);
+
+  /** Historial: pagos del paciente, del período visible. Sin anulados — los
+   *  filtra la API, y la anulación queda en el AuditLog. */
+  const historial = payments.filter(p =>
+    p.source === 'PATIENT' && (!filterAppointmentId || p.appointmentId === filterAppointmentId));
+
   const pending     = pendingOf(billings);
   const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
+
+  /**
+   * Lo pendiente agrupado POR VISITA. El paciente paga "lo del 5 de agosto":
+   * servicios, férulas y labs de esa consulta van juntos y el monto se escribe
+   * una sola vez (decisión de Erick 2026-08-10). Antes había un campo por línea
+   * y en una visita con 6 cargos eran 6 campos para un solo cobro.
+   */
+  const visitasPendientes = React.useMemo(() => {
+    const m = new Map<string, { key: string; fecha: string | null; lineas: BillingRecord[]; saldo: number }>();
+    for (const b of pending) {
+      const key = b.appointmentId ?? `sin-cita-${b.id}`;
+      const g = m.get(key) ?? { key, fecha: b.appointmentDate, lineas: [], saldo: 0 };
+      g.lineas.push(b);
+      g.saldo += b.balanceDue;
+      m.set(key, g);
+    }
+    return [...m.values()].sort((a, z) =>
+      new Date(z.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime());
+  }, [pending]);
+
+  /**
+   * Cómo se reparte el monto de una visita entre sus líneas: en ORDEN, llenando
+   * cada una hasta agotar la plata.
+   *
+   * Se descartó repartir en proporción porque nadie puede explicar en el
+   * mostrador por qué el lab quedó en $37.42. Así se lee de corrido: "el lab
+   * pagado, la férula a medias, el resto sin tocar". Y el reparto se muestra en
+   * el detalle mientras se escribe, así que no es una regla oculta.
+   */
+  const repartir = useCallback((lineas: BillingRecord[], monto: number): Record<string, number> => {
+    let resto = monto;
+    const out: Record<string, number> = {};
+    for (const l of lineas) {
+      if (resto <= 0) break;
+      const toma = Math.min(resto, l.balanceDue);
+      out[l.id] = Math.round(toma * 100) / 100;
+      resto -= toma;
+    }
+    return out;
+  }, []);
   const payTotal    = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  const hasOverpay  = pending.some(b => (parseFloat(payAmounts[b.id] ?? '0') || 0) > b.balanceDue);
+  const hasOverpay  = visitasPendientes.some(v => (parseFloat(payAmounts[v.key] ?? '0') || 0) > v.saldo);
 
   // Options for custom selects
   const sourceOptions: SelectOption[] = [
-    { label: 'Paciente', value: 'PATIENT' },
-    { label: 'Seguro',   value: 'INSURANCE' },
-    { label: 'Abogado',  value: 'LAWYER' },
+    { label: t('srcPatient'), value: 'PATIENT' },
+    { label: t('srcInsurance'), value: 'INSURANCE' },
+    { label: t('srcLawyer'), value: 'LAWYER' },
   ];
   const methodOptions: SelectOption[] = [
-    { label: 'Cheque',        value: 'CHECK' },
-    { label: 'Tarjeta',       value: 'CARD' },
-    { label: 'Efectivo',      value: 'CASH' },
-    { label: 'Transferencia', value: 'TRANSFER' },
-    { label: '— Sin especificar', value: 'NONE' },
+    { label: t('mCheck'),    value: 'CHECK' },
+    { label: t('mCard'),     value: 'CARD' },
+    { label: t('mCash'),     value: 'CASH' },
+    { label: t('mTransfer'), value: 'TRANSFER' },
+    { label: `— ${t('notSpecified')}`, value: 'NONE' },
   ];
   const typeOptions: SelectOption[] = PAYMENT_TYPES[paySource] ?? [];
   const insuranceOptions: SelectOption[] = insurances.map(i => ({ label: i.label, value: i.id }));
@@ -402,10 +522,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               New order). Dice el monto antes del clic. Verde sólido: la plata
               del paciente ya es verde en todo el sistema y el ámbar acá se
               leería como alerta. Oculto en readOnly (doctor). */}
-          {kpis.patientBalance > 0 && !readOnly && (
+          {vistaSaldo > 0 && !readOnly && (
             <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-emerald hover:bg-emerald/90 text-bg-0 border-transparent">
               <CreditCard className="w-3.5 h-3.5" />
-              {tDoc('sumCollect', { amount: fmt$(kpis.patientBalance) })}
+              {tDoc('sumCollect', { amount: fmt$(vistaSaldo) })}
             </Button>
           )}
         </div>
@@ -413,24 +533,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap">
-        <KpiCard label={t('kpiTotalCost')}  value={kpis.totalCost}    color="text-text-1" />
-        {/* El desglose importa: un copago es plata del PACIENTE sobre una línea
-            que se le factura al SEGURO. Con la cifra sola no había forma de
-            saber de dónde salió lo cobrado. */}
-        <KpiCard
-          label={t('kpiTotalPaid')}
-          value={kpis.totalPaid}
-          color="text-emerald"
-          hint={kpis.totalPaid > 0
-            ? `${t('paidByPatient')} ${fmt$(kpis.paidByPatient)} · ${t('paidByInsurance')} ${fmt$(kpis.paidByInsurance)}`
-            : undefined}
-        />
-        {/* El saldo, separado por quién paga y CUÁNDO: el paciente en el
-            momento; el seguro/abogado lo gestiona el encargado y puede tardar
-            meses. Antes un solo "Deuda total" mezclaba los dos y el mostrador
-            terminaba pidiéndole al paciente plata de la aseguradora. */}
-        <KpiCard label={t('kpiPatientDebt')}   value={kpis.patientBalance}   color={kpis.patientBalance > 0 ? 'text-rose' : 'text-text-1'} />
-        <KpiCard label={t('kpiInsuranceDebt')} value={kpis.insuranceBalance} color={kpis.insuranceBalance > 0 ? 'text-cyan' : 'text-text-1'} />
+        {/* Tres tarjetas, todas del PACIENTE. La de "A seguro / abogado" se fue:
+            ese circuito no se cobra acá — se anota y lo gestiona Cobranzas meses
+            después (regla de Erick 2026-08-10). Verlo en la pantalla de cobro
+            terminaba con el mostrador pidiéndole al paciente plata del seguro. */}
+        <KpiCard label={t('kpiTotalCost')} value={vistaCosto}  color="text-text-1" />
+        <KpiCard label={t('kpiTotalPaid')} value={vistaPagado} color="text-emerald" />
+        <KpiCard label={t('kpiPatientDebt')} value={vistaSaldo} color={vistaSaldo > 0 ? 'text-rose' : 'text-text-1'} />
       </div>
 
       {/* Tabla */}
@@ -440,148 +549,86 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         </div>
       ) : error ? (
         <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>
-      ) : billings.length === 0 ? (
+      ) : historial.length === 0 ? (
         <EmptyState.Rich
           icon={DollarSign}
-          title={t('emptyTitle')}
-          subtitle={t('emptySubtitle')}
+          title={t('historyEmptyTitle')}
+          subtitle={t('historyEmptySubtitle')}
         />
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por servicio</span>
+        /**
+         * HISTORIAL DE PAGOS — una fila por pago, no por servicio.
+         *
+         * Antes esto era "Detalle por servicio": repetía lo que ya vive en
+         * Servicios, Férulas y Labs, y el historial quedaba ESCONDIDO adentro de
+         * cada fila. Para saber "cuándo pagó y cuánto" había que expandir doce
+         * servicios y sumar a mano. Lo que se DEBE vive en el modal de cobro,
+         * agrupado por visita: el tab es el registro, el modal es la acción.
+         */
+        <div className="rounded-lg bg-bg-1 overflow-hidden">
+          <div className="px-4 py-2 bg-bg-2/60 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+              {t('historyTitle')}
+            </span>
+            <span className="text-[10px] text-text-muted">
+              {t('historyCount', { count: historial.length })}
+            </span>
+            <span className="ml-auto text-[11px] text-text-muted">
+              {t('historyTotal')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPagado)}</b>
+            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/60 bg-bg-2/40">
-                  <th className="sticky left-0 z-10 bg-bg-2 w-6 px-2" />
-                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-56">Servicio / Fecha</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc. %</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Monto desc.</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
-                  <th className="sticky right-0 z-10 bg-bg-2 w-16 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
+                <tr className="border-b border-row-sep bg-bg-2/40 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  <th className="text-left px-3 py-2.5">{t('colPaidAt')}</th>
+                  <th className="text-right px-3 py-2.5">{t('colAmount')}</th>
+                  <th className="text-left px-3 py-2.5">{t('colMethod')}</th>
+                  <th className="text-left px-3 py-2.5 hidden md:table-cell">{t('colType')}</th>
+                  <th className="text-left px-3 py-2.5">{t('colAppliedTo')}</th>
+                  <th className="w-12 px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody>
-                {billings.map(b => {
-                  const st = billingStatus(b);
-                  const isExpanded = expanded.has(b.id);
-                  return (
-                    <React.Fragment key={b.id}>
-                      <tr
-                        className={`border-b border-border/40 hover:bg-white/[0.02] cursor-pointer ${st === 'paid' ? 'opacity-75' : ''}`}
-                        onClick={() => toggleExpanded(b.id)}
-                      >
-                        <td className="sticky left-0 z-10 bg-bg-0 px-2 py-3 text-text-muted">
-                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        </td>
-                        <td className="px-3 py-3 text-xs max-w-56">
-                          {b.serviceCode ? (
-                            <div className="min-w-0">
-                              <div className="flex items-baseline gap-1.5 min-w-0">
-                                <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
-                                <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
-                              </div>
-                              <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
-                            </div>
-                          ) : (
-                            /* Ídem en el historial: sin código, la descripción. */
-                            <div className="min-w-0">
-                              <div className="text-[12px] text-text-1 truncate">
-                                {b.serviceDescription ?? fmtDate(b.appointmentDate)}
-                              </div>
-                              {b.serviceDescription && (
-                                <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
-                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">
-                          {b.discount > 0 ? `${((b.discount / b.totalCost) * 100).toFixed(2)}%` : '0.00%'}
-                        </td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap hidden lg:table-cell">{fmt$(b.discount)}</td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                          <span className={b.amountPaid > 0 ? 'text-emerald font-semibold' : 'text-text-muted'}>{fmt$(b.amountPaid)}</span>
-                        </td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                          {b.balanceDue > 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
-                          ) : (
-                            <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>
-                          )}
-                        </td>
-                        <td className="sticky right-0 z-10 bg-bg-0 px-3 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-end">
-                            <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Nota de cita">
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Sub-filas de pagos */}
-                      {isExpanded && (
-                        <tr key={`${b.id}-payments`} className="border-b border-border/40 bg-bg-2/30">
-                          <td colSpan={8} className="px-6 py-0">
-                            {b.payments.length === 0 ? (
-                              <div className="py-3 text-text-muted text-xs italic">Sin pagos registrados para esta cita.</div>
-                            ) : (
-                              <table className="w-full text-xs my-2">
-                                <thead>
-                                  <tr className="text-text-muted">
-                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Fecha pago</th>
-                                    <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Cantidad</th>
-                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Método</th>
-                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Pagado por</th>
-                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden md:table-cell">Estado</th>
-                                    <th className="w-8" />
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/20">
-                                  {b.payments.map(p => (
-                                    <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40' : ''}>
-                                      <td className="py-1.5 pr-4 font-mono text-text-2">{fmtDate(p.paidAt)}</td>
-                                      <td className="py-1.5 pr-4 text-right font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</td>
-                                      <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_LABELS[p.method] ?? p.method}</td>
-                                      <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">
-                                        {SOURCE_LABELS[p.source] ?? p.source}
-                                        {p.insuranceCarrier && <span className="text-text-muted"> · {p.insuranceCarrier.name}</span>}
-                                      </td>
-                                      <td className="py-1.5 pr-4 hidden md:table-cell">
-                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                          p.status === 'COMPLETED' ? 'bg-emerald/10 text-emerald' :
-                                          p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' : 'bg-amber/10 text-amber'
-                                        }`}>
-                                          {p.status === 'COMPLETED' ? 'Completado' : p.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
-                                        </span>
-                                      </td>
-                                      <td className="py-1.5">
-                                        {p.status !== 'CANCELLED' && !readOnly && (
-                                          <button
-                                            onClick={() => deletePayment(b.id, p.id)}
-                                            disabled={deletingPay === p.id}
-                                            className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
-                                            title={tc('cancelPayment')}
-                                          >
-                                            {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                          </button>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </td>
-                        </tr>
+                {historial.map(p => (
+                  <tr key={p.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
+                    <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs text-text-1">
+                      {fmtDate(p.paidAt)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap font-mono text-xs font-semibold text-emerald">
+                      {fmt$(p.amount)}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-text-2">
+                      {METHOD_LABELS[p.method] ?? p.method}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-text-muted hidden md:table-cell">
+                      {PAYMENT_TYPES[p.source]?.find(o => o.value === p.paymentType)?.label ?? '—'}
+                    </td>
+                    {/* A qué se aplicó: el servicio Y la visita. Un monto suelto
+                        con su fecha de cobro no dice qué se estaba pagando. */}
+                    <td className="px-3 py-2.5 text-xs min-w-[200px]">
+                      <div className="text-text-2 truncate">
+                        {p.serviceDescription ?? p.serviceCode ?? '—'}
+                      </div>
+                      <div className="text-[10px] text-text-muted">
+                        {t('historyVisitOf')} {fmtDate(p.appointmentDate)}
+                      </div>
+                      {p.notes && <div className="text-[10px] italic text-text-muted mt-0.5">{p.notes}</div>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {!readOnly && (
+                        <button
+                          onClick={() => deletePayment(p.billingId, p.id)}
+                          disabled={deletingPay === p.id}
+                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
+                          title={tc('cancelPayment')}
+                        >
+                          {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        </button>
                       )}
-                    </React.Fragment>
-                  );
-                })}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -603,9 +650,9 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             {/* Modal header */}
             <div className="px-5 py-4 border-b border-border shrink-0">
               <DialogTitle className="text-text-1 font-semibold text-base flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
+                <CreditCard className="w-4 h-4 text-amber" /> {t('payModalTitle')}
               </DialogTitle>
-              <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
+              <p className="text-text-muted text-xs mt-0.5">{t('payModalSubtitle')}</p>
             </div>
 
             {/* Zona scrolleable — si la ventana es baja, el contenido scrollea
@@ -616,19 +663,19 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             {/* Summary bar */}
             <div className="grid grid-cols-2 border-b border-border">
               <div className="px-5 py-3 border-r border-border">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Total pendiente</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payTotalPending')}</div>
                 <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
               </div>
               <div className="px-5 py-3">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagos pendientes</div>
-                <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{pending.length}</div>
+                {/* Visitas, no líneas: se cobra por visita, así que contar
+                    cargos sueltos daba un número que no se corresponde con
+                    cuántos montos hay que escribir. */}
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitsPending')}</div>
+                <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{visitasPendientes.length}</div>
               </div>
             </div>
 
-            {/* Distribution table — grid en vez de <table>: con fr las columnas
-                SIEMPRE suman exactamente el 100% del ancho disponible, sin la
-                ambiguedad de table-layout (fixed/auto) combinado con celdas
-                sticky, que nunca terminaba de encajar sin scroll. */}
+            {/* Lo pendiente, agrupado por visita */}
             {(() => {
               // Cada piso sale del ancho real de su header (10px uppercase +
               // tracking + px-3), con holgura. Ojo con la ultima columna: es la
@@ -638,100 +685,144 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               // alimentaba el area scrolleable del overflow-x-auto: de ahi la
               // barra horizontal que no se iba. Suman ~828px contra los 896px
               // del max-w-4xl, ~68px de holgura.
-              const GRID_COLS = 'grid-cols-[minmax(170px,1.5fr)_minmax(85px,0.6fr)_minmax(105px,0.7fr)_minmax(110px,0.75fr)_minmax(85px,0.6fr)_minmax(95px,0.7fr)_minmax(110px,0.8fr)_68px]';
               return (
-                <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                  <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>
-                    <div className="min-w-0 sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Servicio / Fecha</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Costo</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Descuento %</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Monto desc.</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Pagado</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Pendiente</div>
-                    <div className="min-w-0 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Pagar</div>
-                    <div className="min-w-0 sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Notas</div>
-                  </div>
-                  <div className="divide-y divide-row-sep">
-                    {pending.map(b => {
-                      const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
-                      return (
-                        <div key={b.id} className={`grid ${GRID_COLS} hover:bg-white/[0.02]`}>
-                          <div className="min-w-0 sticky left-0 z-10 bg-surface px-4 py-3 text-xs">
-                            {b.serviceCode ? (
-                              <div className="min-w-0">
-                                <div className="flex items-baseline gap-1.5 min-w-0">
-                                  <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
-                                  <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
-                                </div>
-                                <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
-                              </div>
-                            ) : (
-                              /* Sin código (férulas: el código vive en el registro
-                                 de la férula) igual se muestra la descripción. Antes
-                                 solo salía la fecha y quien cobraba veía dos líneas
-                                 anónimas de $50 y $75. */
-                              <div className="min-w-0">
-                                <div className="text-[12px] text-text-1 truncate">
-                                  {b.serviceDescription ?? fmtDate(b.appointmentDate)}
-                                </div>
-                                {b.serviceDescription && (
-                                  <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</div>
-                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{discPct}%</div>
-                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{fmt$(b.discount)}</div>
-                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</div>
-                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
-                              {fmt$(b.balanceDue)}
+                /**
+                 * UNA FILA POR VISITA, no por servicio.
+                 *
+                 * El paciente paga "lo del 5 de agosto": servicios, férulas y
+                 * labs de esa consulta se cobran juntos, así que el monto se
+                 * escribe una sola vez. Antes había un campo por línea y una
+                 * visita con seis cargos eran seis campos para un solo cobro.
+                 *
+                 * El detalle se despliega y muestra CUÁNTO toma cada línea con
+                 * el monto que se está escribiendo: el reparto va en orden hasta
+                 * agotar la plata, y verlo en vivo es lo que evita que sea una
+                 * regla oculta.
+                 */
+                <div className="max-h-72 overflow-y-auto divide-y divide-row-sep">
+                  {visitasPendientes.map(v => {
+                    const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
+                    const reparto = repartir(v.lineas, monto);
+                    const abierta = detalleVisita === v.key;
+                    return (
+                      <div key={v.key}>
+                        <div className="flex items-center gap-3 px-4 py-3 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setDetalleVisita(abierta ? null : v.key)}
+                            className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                          >
+                            {abierta
+                              ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                              : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />}
+                            <span className="text-[13px] font-semibold text-text-1 whitespace-nowrap">
+                              {fmtDate(v.fecha)}
                             </span>
-                          </div>
-                          <div className="min-w-0 flex items-center px-3 py-3">
-                            <input
-                              type="number"
-                              min="0"
-                              max={b.balanceDue}
-                              step="0.01"
-                              value={payAmounts[b.id] ?? ''}
-                              onChange={e => {
-                                const raw = e.target.value;
-                                setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
-                              }}
-                              onBlur={e => {
-                                const raw = parseFloat(e.target.value);
-                                if (!isNaN(raw)) {
-                                  const clamped = Math.min(Math.max(0, raw), b.balanceDue);
-                                  setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
-                                }
-                              }}
-                              className={`min-w-0 w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
-                                parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
-                                  ? 'border-rose text-rose focus:border-rose'
-                                  : 'border-border text-text-1 focus:border-brand'
-                              }`}
-                              placeholder="0.00"
-                            />
-                          </div>
-                          <div className="min-w-0 sticky right-0 z-10 bg-surface px-3 py-3 flex items-center justify-center">
-                            <button
-                              type="button"
-                              disabled={!(parseFloat(payAmounts[b.id] ?? '0') > 0)}
-                              onClick={() => { setNoteDraft(payNotes[b.id] ?? ''); setNoteDialogFor(b.id); }}
-                              className={`p-1 rounded transition-colors hover:text-cyan disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-text-muted ${
-                                payNotes[b.id] ? 'text-cyan' : 'text-text-muted'
-                              }`}
-                              title={payAmounts[b.id] ? 'Nota de pago' : 'Ingresa un monto a pagar para agregar una nota'}
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                            <span className="text-[11px] text-text-muted">
+                              {t('payVisitLines', { count: v.lineas.length })}
+                            </span>
+                            {/* Pago parcial, a la vista sin desplegar: "a veces no
+                                pagan todo" es el caso normal, y saber cuánto queda
+                                es lo que se le dice al paciente antes de que se
+                                vaya. El reparto por servicio está en el detalle. */}
+                            {monto > 0 && monto < v.saldo && (
+                              <span className="text-[11px] text-amber whitespace-nowrap">
+                                {t('payLeftOver', { amount: fmt$(v.saldo - monto) })}
+                              </span>
+                            )}
+                            {monto > 0 && monto >= v.saldo && (
+                              <span className="text-[11px] text-emerald whitespace-nowrap">
+                                {t('payFullVisit')}
+                              </span>
+                            )}
+                          </button>
+
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap shrink-0">
+                            {fmt$(v.saldo)}
+                          </span>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max={v.saldo}
+                            step="0.01"
+                            value={payAmounts[v.key] ?? ''}
+                            /**
+                             * Tope al ESCRIBIR, no al salir del campo: si tecleás
+                             * 500 sobre una visita de $125, el campo se queda en
+                             * 125. Es como funcionaba el "Distribuir hasta $X" de
+                             * siempre — dejarlo pasar y corregir al blur hacía
+                             * dudar de si el monto había entrado o no.
+                             */
+                            onChange={e => {
+                              const raw = parseFloat(e.target.value);
+                              const val = !isNaN(raw) && raw > v.saldo ? v.saldo.toFixed(2) : e.target.value;
+                              setPayAmounts(prev => ({ ...prev, [v.key]: val }));
+                            }}
+                            onBlur={e => {
+                              const raw = parseFloat(e.target.value);
+                              if (!isNaN(raw)) {
+                                const clamped = Math.min(Math.max(0, raw), v.saldo);
+                                setPayAmounts(prev => ({ ...prev, [v.key]: clamped.toFixed(2) }));
+                              }
+                            }}
+                            placeholder="0.00"
+                            aria-label={`${t('payColPay')} ${fmtDate(v.fecha)}`}
+                            className="w-[110px] shrink-0 rounded-md bg-bg-2 px-2 py-1 text-xs font-mono text-right text-text-1 outline-none focus:ring-1 focus:ring-brand/40 transition-colors"
+                          />
+
+                          {/* Atajo: cobrar toda la visita sin escribir el monto */}
+                          <button
+                            type="button"
+                            onClick={() => setPayAmounts(prev => ({ ...prev, [v.key]: v.saldo.toFixed(2) }))}
+                            className="text-[11px] font-semibold text-brand-text hover:underline shrink-0"
+                          >
+                            {t('payAllVisit')}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={monto <= 0}
+                            onClick={() => { setNoteDraft(payNotes[v.key] ?? ''); setNoteDialogFor(v.key); }}
+                            className={`p-1 rounded shrink-0 transition-colors hover:text-cyan disabled:opacity-30 ${
+                              payNotes[v.key] ? 'text-cyan' : 'text-text-muted'
+                            }`}
+                            title={t('payNoteTooltip')}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {abierta && (
+                          <div className="px-4 pb-3 pt-0 bg-bg-2/30">
+                            <table className="w-full text-[11.5px]">
+                              <thead>
+                                <tr className="text-[10px] uppercase tracking-wider text-text-muted">
+                                  <th className="text-left py-1.5">{t('payColService')}</th>
+                                  <th className="text-right py-1.5">{t('payColPending')}</th>
+                                  <th className="text-right py-1.5">{t('payColTakes')}</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {v.lineas.map(l => (
+                                  <tr key={l.id} className="text-text-2">
+                                    <td className="py-1 pr-2">
+                                      {l.serviceCode && <span className="font-mono text-cyan mr-1.5">{l.serviceCode}</span>}
+                                      {l.serviceDescription ?? '—'}
+                                    </td>
+                                    <td className="py-1 text-right font-mono tabular-nums">{fmt$(l.balanceDue)}</td>
+                                    <td className={`py-1 text-right font-mono tabular-nums ${reparto[l.id] ? 'text-emerald' : 'text-text-muted'}`}>
+                                      {reparto[l.id] ? fmt$(reparto[l.id]) : '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
@@ -740,7 +831,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
             {/* Registrar pago — footer */}
             <div className="shrink-0 px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payRegister')}</div>
 
               {/* Fila selects: Source | Método | Tipo  (para Seguro: Source | Método | Carrier) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -763,7 +854,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   <SelectUp
                     value={payInsuranceId}
                     onChange={setPayInsuranceId}
-                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros en el caso', value: '' }]}
+                    options={insuranceOptions.length ? insuranceOptions : [{ label: t('noInsurances'), value: '' }]}
                     placeholder={t('placeholderInsurance')}
                   />
                 ) : (
@@ -811,7 +902,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0 whitespace-nowrap"
                 >
                   {paying
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('payProcessing')}</>
                     : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
                   }
                 </Button>
@@ -822,8 +913,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 encima, para no repetir el problema de dos fondos oscuros
                 apilados que ya tuvimos con Servicios + Pagar deuda). */}
             {noteDialogFor && (() => {
-              const b = billings.find(x => x.id === noteDialogFor);
-              if (!b) return null;
+              // `noteDialogFor` es la clave de la VISITA (antes era un billingId):
+              // la nota describe el cobro completo, que ahora se hace por visita.
+              const v = visitasPendientes.find(x => x.key === noteDialogFor);
+              if (!v) return null;
               return (
                 <div
                   className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
@@ -835,8 +928,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   >
                     <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                       <div>
-                        <h3 className="text-text-1 font-semibold text-base">Nota de pago</h3>
-                        <p className="text-text-muted text-xs mt-0.5">Agrega una nota para el pago aplicado al DOS {fmtDate(b.appointmentDate)}</p>
+                        <h3 className="text-text-1 font-semibold text-base">{t('payNoteTitle')}</h3>
+                        <p className="text-text-muted text-xs mt-0.5">{t('payNoteHint', { date: fmtDate(v.fecha) })}</p>
                       </div>
                       <button onClick={() => setNoteDialogFor(null)} className="text-text-muted hover:text-text-1 transition-colors p-1">
                         <X className="w-4 h-4" />
@@ -844,7 +937,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     </div>
                     <div className="p-5 space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-text-1">Notas</label>
+                        <label className="text-xs font-semibold text-text-1">{t('payNotesLabel')}</label>
                         <span className="text-[10px] text-text-muted">{noteDraft.length} caracteres</span>
                       </div>
                       <textarea
@@ -863,7 +956,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                           setNoteDialogFor(null);
                         }}
                       >
-                        Guardar nota
+                        {t('payNoteSave')}
                       </Button>
                     </div>
                   </div>

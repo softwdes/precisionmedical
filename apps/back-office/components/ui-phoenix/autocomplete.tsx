@@ -13,20 +13,26 @@
  * (`firstName`, `email`, `age`, …) los usa el caller para pre-llenar un
  * formulario con lo que se eligió.
  *
- * El dropdown se renderiza en un PORTAL a `document.body`, no como hijo del
- * input. Dentro de un DialogContent el `transform` del diálogo crea un
- * contenedor de bloque nuevo y un dropdown `absolute` queda recortado por el
- * `overflow` del modal (mismo motivo documentado en la memoria del proyecto:
- * `fixed` dentro de un Dialog). Como el portal usa coordenadas de viewport, la
- * posición se recalcula al abrir, al cambiar los resultados, y en cada scroll
- * del contenedor scrollable más cercano y resize de la ventana.
+ * El dropdown va en `FloatingPanel`, no en un portal propio a `document.body`.
+ *
+ * Portalear a `body` resuelve el recorte —el `transform` del DialogContent crea
+ * un bloque contenedor nuevo y un dropdown `absolute` queda cortado por el
+ * `overflow` del modal— pero rompe la RUEDA: Radix bloquea el scroll fuera del
+ * subárbol del diálogo (react-remove-scroll), así que la lista se veía completa
+ * y no scrolleaba. Es lo que pasaba con el bufete al crear un caso: 30 firmas
+ * visibles y el mouse sin efecto.
+ *
+ * `FloatingPanel` ya resuelve las dos cosas: se monta DENTRO del `[role=dialog]`
+ * cuando hay uno (con coordenadas absolutas respecto de él) y en `body` cuando
+ * no, y sigue al ancla en cada scroll y resize. Este era el tercer lugar con el
+ * mismo bug, después del picker de labs y el de diagnósticos.
  */
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Search as SearchIcon } from 'lucide-react';
 import { Input } from '@precision/ui';
+import { FloatingPanel } from './floating-panel';
 
 export interface AutoResult {
   id: string;
@@ -86,9 +92,6 @@ export function Autocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>(
-    { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' }
-  );
   const wrapRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -113,38 +116,6 @@ export function Autocomplete({
     }, 200);
     return () => clearTimeout(handle);
   }, [query, endpoint, paramsKey, selected]);
-
-  // Recalculate position on open, results change, AND any scroll/resize
-  useLayoutEffect(() => {
-    const compute = () => {
-      if (!open || !wrapRef.current) {
-        setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' });
-        return;
-      }
-      const rect = wrapRef.current.getBoundingClientRect();
-      const dropH = Math.min(240, results.length * 44 + 8);
-      if (rect.top >= dropH) {
-        setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
-      } else {
-        setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
-      }
-    };
-    compute();
-    if (!open) return;
-    // Find the dialog's scrollable container and listen so dropdown tracks it
-    let scrollable: HTMLElement | null = wrapRef.current?.parentElement ?? null;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open, results.length]);
 
   // Close on outside click — check both input wrapper and portal dropdown
   useEffect(() => {
@@ -181,8 +152,12 @@ export function Autocomplete({
         <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
-      {mounted && open && (results.length > 0 || loading || (hasEmptyState && query.length >= 2)) && createPortal(
-        <div ref={dropRef} style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
+      <FloatingPanel
+        anchorRef={wrapRef}
+        open={mounted && open && (results.length > 0 || loading || (hasEmptyState && query.length >= 2))}
+        maxHeight={240}
+      >
+        <div ref={dropRef}>
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : results.length === 0 && renderEmpty ? (
@@ -221,9 +196,8 @@ export function Autocomplete({
               </button>
             );
           })}
-        </div>,
-        document.body
-      )}
+        </div>
+      </FloatingPanel>
     </div>
   );
 }

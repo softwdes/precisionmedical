@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useRef, useTransition, Fragment } fro
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
@@ -1940,10 +1940,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     setMsgPatient({ id: p.id, name: `${p.lastName}, ${p.firstName}` });
   }, []);
 
-  // Ver el caso desde un hilo reusa `abrirCaso` (el mismo `?case=` de la lista).
-  // Mientras el caso está encima, los diálogos de mensajería se repliegan sin
-  // desmontarse: al cerrarlo el hilo sigue abierto con su borrador intacto.
-  const caseModalOpen = !!searchParamsHook.get(CASE_PARAM);
+  // PENDIENTE: abrir el caso desde un hilo de mensajería y replegar el diálogo
+  // mientras el caso está encima. Requiere los props `onOpenCase`/`suspended` en
+  // PatientMessagesDialog, que son parte de la edición de mensajes que otra
+  // sesión tiene en curso. Se cableó antes de que existieran y rompió el build
+  // de Vercel; vuelve cuando esa rama entre.
 
   const openCaseMessages = useCallback((
     p: { id: string; firstName: string; lastName: string },
@@ -2986,8 +2987,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           caseFilter={msgCase}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
-          onOpenCase={abrirCaso}
-          suspended={caseModalOpen}
         />
       )}
 

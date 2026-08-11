@@ -32,6 +32,7 @@ import { RichTextEditor } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
+import { AttachmentPicker, type PendingAttachment } from './attachment-picker';
 
 interface EntryAttachment {
   id: string;
@@ -114,6 +115,8 @@ export function ThreadViewDialog({
   const [mode, setMode] = useState<ComposerMode>(null);
   const [draft, setDraft] = useState('');
   const [fwdTo, setFwdTo] = useState<MessagingUser[]>([]);
+  /** Adjuntos de la respuesta — la ruta de entradas ya los aceptaba. */
+  const [entryFiles, setEntryFiles] = useState<PendingAttachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<null | 'SEAL' | 'DELETE_ALL' | 'DELETE_HISTORY'>(null);
 
@@ -232,10 +235,18 @@ export function ThreadViewDialog({
       const res = await fetch(`/api/messages/${thread.id}/entries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: draft, kind, to }),
+        body: JSON.stringify({
+          body: draft, kind, to,
+          attachments: entryFiles.map((a) => ({
+            path: a.path,
+            patientDocumentId: a.patientDocumentId,
+            fileName: a.fileName,
+            description: a.description || null,
+          })),
+        }),
       });
       if (!res.ok) throw new Error();
-      setMode(null); setDraft(''); setFwdTo([]);
+      setMode(null); setDraft(''); setFwdTo([]); setEntryFiles([]);
       toast.success(t('entryOk'));
       onChanged?.();
       await load();
@@ -628,8 +639,17 @@ export function ThreadViewDialog({
               )}
               <RichTextEditor value={draft} onChange={setDraft} minHeight={100}
                 placeholder={t('bodyPlaceholder')} disabled={busy} />
+              {/* Adjuntar también al responder: mismo componente que el compose,
+                  en modo compacto (sin descripción, que acá sería ruido). */}
+              <AttachmentPicker
+                compact
+                attachments={entryFiles}
+                onChange={setEntryFiles}
+                patientId={thread.patient?.id ?? null}
+                disabled={busy}
+              />
               <div className="flex items-center justify-end gap-2">
-                <Button variant="outline" onClick={() => { setMode(null); setDraft(''); setFwdTo([]); }} disabled={busy}>
+                <Button variant="outline" onClick={() => { setMode(null); setDraft(''); setFwdTo([]); setEntryFiles([]); }} disabled={busy}>
                   {t('btnCancel')}
                 </Button>
                 <button type="button" onClick={submitEntry}

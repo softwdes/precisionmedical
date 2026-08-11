@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Send, MessageSquarePlus, Paperclip, FileText, Trash2, Loader2,
+  Send, MessageSquarePlus,
   LayoutTemplate, FolderOpen, Save, Search as SearchIcon, X as XIcon,
 } from 'lucide-react';
 import {
@@ -27,6 +27,7 @@ import { RichTextEditor, Autocomplete, type AutoResult } from '@/components/ui-p
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
+import { AttachmentPicker, type PendingAttachment } from './attachment-picker';
 import { CaseSelect, pickDefaultCase, type MessagingCase } from './case-select';
 
 export interface ComposePatientRef {
@@ -112,32 +113,11 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
       day: '2-digit', month: '2-digit', year: 'numeric',
     });
 
-  // ─── Adjuntos: se suben al elegirse (el hilo aún no existe) y el POST
-  //     final referencia las keys. Cantidad libre, como el legacy. Los del
-  //     expediente (Attach From Chart) llevan patientDocumentId en vez de path.
-  interface PendingAttachment { path?: string; patientDocumentId?: string; fileName: string; description: string }
+  // ─── Adjuntos: se suben al elegirse (el hilo aún no existe) y el POST final
+  //     referencia las keys. La UI vive en AttachmentPicker, compartida con el
+  //     composer del hilo.
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  const uploadFiles = async (files: FileList | null): Promise<void> => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const fd = new FormData();
-        fd.append('file', file);
-        const res = await fetch('/api/messages/attachments', { method: 'POST', body: fd });
-        if (!res.ok) { toast.error(t('attachError', { name: file.name })); continue; }
-        const data = (await res.json()) as { path: string; fileName: string };
-        setAttachments((prev) => [...prev, { path: data.path, fileName: data.fileName, description: '' }]);
-      }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   // Staff una sola vez por apertura; reset del form al abrir — o precarga
   // completa si se está reabriendo un borrador.
@@ -242,22 +222,7 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     }
   };
 
-  // ─── Attach From Chart (documentos existentes del paciente) ────────────
-  interface ChartDoc { id: string; name: string; mimeType: string | null; createdAt: string }
-  const [chartOpen, setChartOpen] = useState(false);
-  const [chartDocs, setChartDocs] = useState<ChartDoc[]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
-
-  const openChart = async (): Promise<void> => {
-    if (!effectivePatient) return;
-    setChartOpen(true);
-    setChartLoading(true);
-    try {
-      const res = await fetch(`/api/messages/chart-documents?patientId=${effectivePatient.id}`);
-      if (res.ok) setChartDocs(((await res.json()).documents ?? []) as ChartDoc[]);
-    } catch { setChartDocs([]); }
-    finally { setChartLoading(false); }
-  };
+  // Attach From Chart vive ahora en AttachmentPicker, junto con la subida.
 
   // ─── Borrador (Save as Draft) ───────────────────────────────────────────
   const [savingDraft, setSavingDraft] = useState(false);
@@ -521,77 +486,14 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
               placeholder={t('bodyPlaceholder')} disabled={sending} />
           </div>
 
-          {/* ─── Adjuntos (como el legacy: los que hagan falta) ───────────────
-              El botón va ARRIBA de la lista: deja claro que se pueden seguir
-              agregando archivos aunque ya haya varios abajo. */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <label className={labelCls}>{t('fieldAttachments')}</label>
-              <input ref={fileInputRef} type="file" multiple className="hidden"
-                accept="application/pdf,image/jpeg,image/png"
-                onChange={(e) => void uploadFiles(e.target.files)} />
-              <button type="button" disabled={sending || uploading}
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand-text hover:bg-brand/10 transition-colors disabled:opacity-40">
-                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
-                {uploading ? t('attachUploading') : attachments.length > 0 ? t('attachAnother') : t('attachFile')}
-              </button>
-              {effectivePatient && (
-                <button type="button" disabled={sending}
-                  onClick={() => (chartOpen ? setChartOpen(false) : void openChart())}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-cyan hover:bg-cyan/10 transition-colors disabled:opacity-40">
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  {t('attachFromChart')}
-                </button>
-              )}
-            </div>
-
-            {/* Attach From Chart: documentos existentes del expediente */}
-            {chartOpen && (
-              <div className="rounded-md bg-bg-2/40 max-h-44 overflow-y-auto">
-                {chartLoading ? (
-                  <div className="px-3 py-3 text-text-muted text-xs">{t('loading')}</div>
-                ) : chartDocs.length === 0 ? (
-                  <div className="px-3 py-3 text-text-muted text-xs text-center">{t('chartEmpty')}</div>
-                ) : chartDocs
-                    .filter((d) => !attachments.some((a) => a.patientDocumentId === d.id))
-                    .map((d) => (
-                      <button key={d.id} type="button"
-                        onClick={() => {
-                          setAttachments((prev) => [...prev, { patientDocumentId: d.id, fileName: d.name, description: '' }]);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 !py-1.5 text-left hover:bg-white/5 transition-colors">
-                        <FileText className="w-3.5 h-3.5 text-cyan shrink-0" />
-                        <span className="flex-1 text-[12.5px] text-text-1 truncate">{d.name}</span>
-                        <span className="shrink-0 text-[10px] text-text-muted">
-                          {new Date(d.createdAt).toLocaleDateString()}
-                        </span>
-                      </button>
-                    ))}
-              </div>
-            )}
-            {attachments.map((a, i) => (
-              <div key={a.path ?? a.patientDocumentId ?? i} className="flex items-center gap-2 rounded-md bg-bg-2/40 px-3 py-2">
-                {a.patientDocumentId
-                  ? <FolderOpen className="w-3.5 h-3.5 text-cyan shrink-0" />
-                  : <FileText className="w-3.5 h-3.5 text-brand-text shrink-0" />}
-                <span className="text-sm text-text-1 truncate max-w-[40%]" title={a.fileName}>{a.fileName}</span>
-                <input
-                  className="flex-1 min-w-[100px] bg-transparent outline-none text-[12.5px] text-text-1 placeholder:text-text-muted px-1 py-0.5"
-                  placeholder={t('attachDescPlaceholder')}
-                  value={a.description}
-                  disabled={sending}
-                  onChange={(e) => setAttachments((prev) => prev.map((x, xi) => xi === i ? { ...x, description: e.target.value } : x))}
-                />
-                <button type="button" disabled={sending}
-                  onClick={() => setAttachments((prev) => prev.filter((_, xi) => xi !== i))}
-                  className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
-                  aria-label={t('attachRemove')}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {/* Adjuntos (los que hagan falta, como el legacy) — el mismo
+              componente que usa el composer del hilo al responder. */}
+          <AttachmentPicker
+            attachments={attachments}
+            onChange={setAttachments}
+            patientId={effectivePatient?.id ?? null}
+            disabled={sending}
+          />
         </div>
 
         <DialogFooter className="px-4 sm:px-6 py-3 border-t border-border flex-col sm:flex-row gap-2">

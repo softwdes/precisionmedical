@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -223,6 +224,12 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   );
   const [insPolicy, setInsPolicy]       = useState(caseInfo.primaryPolicyNumber ?? '');
   const [insSaving, setInsSaving]       = useState(false);
+  /**
+   * Error del guardado. Antes no existía: `saveInsurance` no miraba `res.ok`,
+   * cerraba el modal y refrescaba igual — si el PATCH fallaba, el usuario veía
+   * la pantalla recargarse y se iba creyendo que había guardado.
+   */
+  const [insError, setInsError]         = useState<string | null>(null);
 
   // Legal edit modal
   const [legalOpen, setLegalOpen]       = useState(false);
@@ -236,6 +243,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
     caseInfo.attorney ? { id: caseInfo.attorney.id, firstName: caseInfo.attorney.firstName ?? '', lastName: caseInfo.attorney.lastName ?? '' } : null
   );
   const [legalSaving, setLegalSaving]   = useState(false);
+  const [legalError, setLegalError]     = useState<string | null>(null);
   const insTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -283,8 +291,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
 
   async function saveInsurance() {
     setInsSaving(true);
+    setInsError(null);
     try {
-      await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
+      const res = await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -292,15 +301,21 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           primaryPolicyNumber: insPolicy.trim() || null,
         }),
       });
+      // El modal NO se cierra si falló: cerrarlo es decirle al usuario que quedó
+      // guardado, y lo que escribió se perdería sin que se entere.
+      if (!res.ok) { setInsError(t('saveFailed')); return; }
       setInsOpen(false);
       router.refresh();
+    } catch {
+      setInsError(t('saveFailedNetwork'));
     } finally { setInsSaving(false); }
   }
 
   async function saveLegal() {
     setLegalSaving(true);
+    setLegalError(null);
     try {
-      await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
+      const res = await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -308,8 +323,11 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           attorneyId: attSelected?.id ?? null,
         }),
       });
+      if (!res.ok) { setLegalError(t('saveFailed')); return; }
       setLegalOpen(false);
       router.refresh();
+    } catch {
+      setLegalError(t('saveFailedNetwork'));
     } finally { setLegalSaving(false); }
   }
 
@@ -318,8 +336,8 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
     INTAKE_PENDING:   { label: t('statusIntakePending'),    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
     INTAKE_COMPLETED: { label: t('statusIntakeCompleted'),  colorClass: 'bg-cyan/10 text-cyan border-cyan/30',         icon: '🔵' },
     CONFIRMED:        { label: t('statusConfirmed'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
-    ACTIVE:           { label: t('statusActive'),           colorClass: 'bg-brand/10 text-brand border-brand/30',     icon: '⚕️' },
-    MMI:              { label: t('statusMmi'),              colorClass: 'bg-violet/10 text-violet border-violet/30',  icon: '🏁' },
+    ACTIVE:           { label: t('statusActive'),           colorClass: 'bg-brand/10 text-brand-text border-brand/30',     icon: '⚕️' },
+    MMI:              { label: t('statusMmi'),              colorClass: 'bg-violet/10 text-violet-text border-violet/30',  icon: '🏁' },
     CLOSED:           { label: t('statusClosed'),           colorClass: 'bg-bg-2 text-text-2 border-border',           icon: '✓' },
     SETTLED:          { label: t('statusSettled'),          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '💰' },
     ARCHIVED:         { label: t('statusArchived'),         colorClass: 'bg-bg-2 text-text-muted border-border',       icon: '📦' },
@@ -395,7 +413,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             {!isDoctor && (
               <Link
                 href={`/patients/${caseInfo.patient.id}`}
-                className="inline-flex items-center gap-1 text-text-muted hover:text-brand text-xs transition-colors"
+                className="inline-flex items-center gap-1 text-text-muted hover:text-brand-text text-xs transition-colors"
               >
                 <Pencil className="w-3 h-3" /> {t('editPatient')}
               </Link>
@@ -427,7 +445,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               onClick={() => cambiarTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id
-                  ? 'border-brand text-brand'
+                  ? 'border-brand text-brand-text'
                   : 'border-transparent text-text-2 hover:text-text-1 hover:border-border'
               }`}
             >
@@ -449,7 +467,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
             {/* Información personal */}
-            <InfoCard title="Información personal" icon={User}>
+            <InfoCard title={t('personalInfo')} icon={User}>
               <div className="flex items-start gap-4 mb-4">
                 <PersonAvatar
                   firstName={caseInfo.patient.firstName}
@@ -481,7 +499,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                 {!isDoctor && (
                   <Link
                     href={`/patients/${caseInfo.patient.id}`}
-                    className="text-text-muted hover:text-brand transition-colors shrink-0"
+                    className="text-text-muted hover:text-brand-text transition-colors shrink-0"
                     title={t('editPatient')}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -515,7 +533,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             </InfoCard>
 
             {/* Información del caso */}
-            <InfoCard title="Información del caso" icon={FileText} onEdit={undefined}>
+            <InfoCard title={t('caseInfo')} icon={FileText} onEdit={undefined}>
               {/* Barra de progreso */}
               <CaseProgressBar status={caseInfo.status} />
 
@@ -542,18 +560,18 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                 )}
                 <InfoRow label="Firma de abogados" value={
                   caseInfo.lawFirm ? (
-                    <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand text-sm">
+                    <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand-text text-sm">
                       {caseInfo.lawFirm.firmName}
                     </Link>
-                  ) : <span className="text-text-muted text-sm italic">Sin bufete</span>
+                  ) : <span className="text-text-muted text-sm italic">{t('noFirm')}</span>
                 } />
                 <InfoRow label="Abogado representante" value={
                   caseInfo.attorney
                     ? <span className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</span>
-                    : <span className="text-text-muted text-sm italic">No especificado</span>
+                    : <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
                 <InfoRow label="Quiropráctico tratante" value={
-                  <span className="text-text-muted text-sm italic">No especificado</span>
+                  <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
                 {caseInfo.intakeFormCompletedAt && (
                   <InfoRow label="Intake completado" value={formatDate(caseInfo.intakeFormCompletedAt)} />
@@ -572,7 +590,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   <div className="flex items-center gap-3 mb-3">
                     <EntityAvatar name={caseInfo.lawFirm.firmName ?? '?'} />
                     <div className="min-w-0 flex-1">
-                      <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand truncate block text-sm">
+                      <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand-text truncate block text-sm">
                         {caseInfo.lawFirm.firmName}
                       </Link>
                       {(caseInfo.lawFirm.city || caseInfo.lawFirm.state) && (
@@ -591,7 +609,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   {caseInfo.lawFirm.caseflowFlags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {caseInfo.lawFirm.caseflowFlags.map((f) => (
-                        <TagPill key={f} label={f} colorClass="bg-brand/10 text-brand border-brand/20" mono compact />
+                        <TagPill key={f} label={f} colorClass="bg-brand/10 text-brand-text border-brand/20" mono compact />
                       ))}
                     </div>
                   )}
@@ -618,7 +636,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               {/* Firmas del lien */}
               <div className="mt-3 pt-3 border-t border-row-sep">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2 flex items-center gap-1.5">
-                  <PenLine className="w-3 h-3" /> Firmas del lien
+                  <PenLine className="w-3 h-3" /> {t('lienSignatures')}
                 </div>
                 {caseInfo.lienSignatures.length > 0 ? (
                   <div className="space-y-2">
@@ -627,7 +645,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     ))}
                   </div>
                 ) : (
-                  <div className="text-text-muted text-[11px] italic">Sin firmas registradas</div>
+                  <div className="text-text-muted text-[11px] italic">{t('noSignatures')}</div>
                 )}
               </div>
             </InfoCard>
@@ -651,12 +669,12 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
                       {caseInfo.primaryPolicyNumber && (
-                        <div><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
+                        <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
                       )}
                       {caseInfo.primaryInsurance.claimsPhone && (
-                        <div><span className="text-text-muted">Claims:</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
+                        <div><span className="text-text-muted">{t('claimsLabel')}</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
                       )}
-                      <div><span className="text-text-muted">HCFA:</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
+                      <div><span className="text-text-muted">HCFA:{/* nombre del formulario, no se traduce */}</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
                       {caseInfo.primaryInsurance.preauthRequired && (
                         <div className="text-amber">⚠ {t('preauthRequired')}</div>
                       )}
@@ -679,7 +697,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                         </div>
                       </div>
                       {caseInfo.secondaryPolicyNumber && (
-                        <div className="mt-2 text-xs"><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
+                        <div className="mt-2 text-xs"><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
                       )}
                     </div>
                   )}
@@ -811,25 +829,25 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-4 h-4 text-cyan" /> Editar Seguro
+                <Shield className="w-4 h-4 text-cyan" /> {t('editInsurance')}
               </h2>
               <button onClick={() => setInsOpen(false)} className="text-text-muted hover:text-text-1 text-lg leading-none">✕</button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Aseguradora primaria</label>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('primaryInsurer')}</label>
                 {insSelected && (
                   <div className="flex items-center justify-between rounded-md bg-cyan/10 border border-cyan/30 px-3 py-2 mb-2">
                     <span className="text-sm text-text-1">{insSelected.name}</span>
-                    <button onClick={() => setInsSelected(null)} className="text-text-muted hover:text-rose text-xs">✕ quitar</button>
+                    <button onClick={() => setInsSelected(null)} className="text-text-muted hover:text-rose text-xs">✕ {t('removeSelected')}</button>
                   </div>
                 )}
                 <input
                   type="text"
                   value={insQuery}
                   onChange={e => setInsQuery(e.target.value)}
-                  placeholder="Buscar aseguradora..."
+                  placeholder={t('searchInsurer')}
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {insResults.length > 0 && (
@@ -847,20 +865,25 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               </div>
 
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Número de póliza</label>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('policyNumber')}</label>
                 <input
                   type="text"
                   value={insPolicy}
                   onChange={e => setInsPolicy(e.target.value)}
-                  placeholder="Ej. PIP-123456"
+                  placeholder={t('policyExample')}
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand font-mono"
                 />
               </div>
             </div>
 
+            {insError && (
+              <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" /> {insError}
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setInsOpen(false)} disabled={insSaving} className="flex-1">Cancelar</Button>
-              <Button size="sm" onClick={saveInsurance} disabled={insSaving} className="flex-1">{insSaving ? 'Guardando…' : 'Guardar'}</Button>
+              <Button variant="outline" size="sm" onClick={() => setInsOpen(false)} disabled={insSaving} className="flex-1">{t('cancel')}</Button>
+              <Button size="sm" onClick={saveInsurance} disabled={insSaving} className="flex-1">{insSaving ? t('saving') : t('save')}</Button>
             </div>
           </div>
         </div>
@@ -872,7 +895,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
-                <Scale className="w-4 h-4 text-brand" /> Editar Legal
+                <Scale className="w-4 h-4 text-brand-text" /> {t('editLegal')}
               </h2>
               <button onClick={() => setLegalOpen(false)} className="text-text-muted hover:text-text-1 text-lg leading-none">✕</button>
             </div>
@@ -880,18 +903,18 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             <div className="space-y-3">
               {/* Firma */}
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Bufete</label>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('lawFirm')}</label>
                 {firmSelected && (
                   <div className="flex items-center justify-between rounded-md bg-brand/10 border border-brand/30 px-3 py-2 mb-2">
                     <span className="text-sm text-text-1">{firmSelected.firmName}</span>
-                    <button onClick={() => { setFirmSelected(null); setAttSelected(null); }} className="text-text-muted hover:text-rose text-xs">✕ quitar</button>
+                    <button onClick={() => { setFirmSelected(null); setAttSelected(null); }} className="text-text-muted hover:text-rose text-xs">✕ {t('removeSelected')}</button>
                   </div>
                 )}
                 <input
                   type="text"
                   value={firmQuery}
                   onChange={e => setFirmQuery(e.target.value)}
-                  placeholder="Buscar bufete..."
+                  placeholder={t('searchFirm')}
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {firmResults.length > 0 && (
@@ -909,9 +932,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               {/* Abogado */}
               {firmSelected && (
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Abogado asignado</label>
+                  <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('assignedAttorney')}</label>
                   {attResults.length === 0 ? (
-                    <p className="text-text-muted text-xs italic">Sin abogados en este bufete.</p>
+                    <p className="text-text-muted text-xs italic">{t('noAttorneysInFirm')}</p>
                   ) : (
                     <div className="rounded-md bg-bg-2 shadow-lg shadow-black/30 max-h-40 overflow-y-auto">
                       <button onClick={() => setAttSelected(null)}
@@ -920,7 +943,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                       </button>
                       {attResults.map(a => (
                         <button key={a.id} onClick={() => setAttSelected({ id: a.id, firstName: a.firstName ?? '', lastName: a.lastName ?? '' })}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${attSelected?.id === a.id ? 'text-brand font-semibold' : 'text-text-1'}`}>
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${attSelected?.id === a.id ? 'text-brand-text font-semibold' : 'text-text-1'}`}>
                           {a.firstName} {a.lastName}
                         </button>
                       ))}
@@ -930,9 +953,14 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               )}
             </div>
 
+            {legalError && (
+              <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" /> {legalError}
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setLegalOpen(false)} disabled={legalSaving} className="flex-1">Cancelar</Button>
-              <Button size="sm" onClick={saveLegal} disabled={legalSaving} className="flex-1">{legalSaving ? 'Guardando…' : 'Guardar'}</Button>
+              <Button variant="outline" size="sm" onClick={() => setLegalOpen(false)} disabled={legalSaving} className="flex-1">{t('cancel')}</Button>
+              <Button size="sm" onClick={saveLegal} disabled={legalSaving} className="flex-1">{legalSaving ? t('saving') : t('save')}</Button>
             </div>
           </div>
         </div>
@@ -993,7 +1021,7 @@ function ActionButtons({
             variant="outline" size="sm"
             onClick={() => window.open(`/front-office/${caseId}/intake-print`, '_blank')}
           >
-            <FileText className="w-3.5 h-3.5 mr-1" /> Ver Intake
+            <FileText className="w-3.5 h-3.5 mr-1" /> {t('viewIntake')}
           </Button>
         </>
       )}
@@ -1039,7 +1067,7 @@ function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
     amber:   'bg-amber/5 border-amber/30 text-amber',
     cyan:    'bg-cyan/5 border-cyan/30 text-cyan',
     emerald: 'bg-emerald/5 border-emerald/30 text-emerald',
-    brand:   'bg-brand/5 border-brand/30 text-brand',
+    brand:   'bg-brand/5 border-brand/30 text-brand-text',
   };
 
   return (
@@ -1087,7 +1115,7 @@ function CaseProgressBar({ status }: { status: CaseStatus }) {
             lineColor = 'bg-emerald';
           } else if (isActive) {
             dotColor   = 'bg-brand';
-            labelColor = 'text-brand font-semibold';
+            labelColor = 'text-brand-text font-semibold';
           }
 
           return (
@@ -1110,13 +1138,14 @@ function CaseProgressBar({ status }: { status: CaseStatus }) {
 // ─── InfoCard + InfoRow ────────────────────────────────────────────────────────
 
 function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon: React.ElementType; children: React.ReactNode; onEdit?: () => void }) {
+  const t = useTranslations('phoenix.caseDetail');
   return (
     <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-brand" />
+        <Icon className="w-4 h-4 text-brand-text" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{title}</h3>
         {onEdit && (
-          <button onClick={onEdit} className="p-1 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title="Editar">
+          <button onClick={onEdit} className="p-1 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={t('edit')}>
             <Pencil className="w-3.5 h-3.5" />
           </button>
         )}
@@ -1187,7 +1216,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
     title: t('timelineCaseCreated'),
     detail: SOURCE_LABELS[caseInfo.source] ?? caseInfo.source,
     icon: PhoneCall,
-    iconColor: 'text-brand',
+    iconColor: 'text-brand-text',
     at: caseInfo.createdAt,
     actor: t('timelineActorFrontOffice'),
     actorType: 'HUMAN_USER',
@@ -1213,8 +1242,8 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   return (
     <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <Clock className="w-4 h-4 text-brand" />
-        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Timeline</h3>
+        <Clock className="w-4 h-4 text-brand-text" />
+        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('timeline')}</h3>
         <span className="text-text-muted text-xs font-mono ml-auto">{events.length} {t('timelineEvents')}</span>
       </div>
       {events.length === 0 ? (
@@ -1259,7 +1288,7 @@ const AUDIT_ACTION_CFG: Record<string, {
   CREATE_CASE_FROM_CALL: {
     title: 'Caso creado desde llamada',
     icon: PhoneCall,
-    iconColor: 'text-brand',
+    iconColor: 'text-brand-text',
   },
   SEND_PORTAL_LINK: {
     title: 'Portal enviado',
@@ -1294,17 +1323,17 @@ const AUDIT_ACTION_CFG: Record<string, {
       const parts: string[] = [];
       if (provider) parts.push(`Dr. ${provider}`);
       if (clinic) parts.push(clinic);
-      if (when) parts.push(new Date(when).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' }));
+      if (when) parts.push(new Date(when).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' }));
       return parts.length > 0 ? parts.join(' · ') : undefined;
     },
     icon: CalendarCheck,
-    iconColor: 'text-brand',
+    iconColor: 'text-brand-text',
   },
   INSERT_CASE_NOTE: {
     title: 'Nota interna agregada',
     detail: (m) => m?.contentPreview ? `"${String(m.contentPreview).slice(0, 50)}..."` : undefined,
     icon: MessageSquarePlus,
-    iconColor: 'text-violet',
+    iconColor: 'text-violet-text',
   },
 };
 
@@ -1318,7 +1347,7 @@ function NotesPanel({ notes, onAddNote }: {
   return (
     <div className="rounded-lg bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
-        <MessageSquarePlus className="w-4 h-4 text-brand" />
+        <MessageSquarePlus className="w-4 h-4 text-brand-text" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionInternalNotes')}</h3>
         <span className="text-text-muted text-xs font-mono ml-auto">{notes.length}</span>
       </div>
@@ -1349,7 +1378,7 @@ function NotesPanel({ notes, onAddNote }: {
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatRelative(d: Date | string): string {
@@ -1360,7 +1389,7 @@ function formatRelative(d: Date | string): string {
   }
   if (h < 24) return `hace ${Math.floor(h)}h`;
   if (h < 24 * 7) return `hace ${Math.floor(h / 24)}d`;
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric' });
 }
 
 // ─── LienSignatureRow ──────────────────────────────────────────────────────────
@@ -1373,8 +1402,8 @@ const SIGNER_LABELS: Record<string, string> = {
 
 const SIGNER_COLORS: Record<string, string> = {
   PATIENT:  'bg-cyan/10 border-cyan/30 text-cyan',
-  ATTORNEY: 'bg-brand/10 border-brand/30 text-brand',
-  DOCTOR:   'bg-violet/10 border-violet/30 text-violet',
+  ATTORNEY: 'bg-brand/10 border-brand/30 text-brand-text',
+  DOCTOR:   'bg-violet/10 border-violet/30 text-violet-text',
 };
 
 function LienSignatureRow({
@@ -1382,6 +1411,7 @@ function LienSignatureRow({
 }: {
   sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date; previousCount: number };
 }) {
+  const t = useTranslations('phoenix.caseDetail');
   const [expanded, setExpanded] = useState(false);
   const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
   const label = SIGNER_LABELS[sig.signerType] ?? sig.signerType;
@@ -1403,10 +1433,10 @@ function LienSignatureRow({
             )}
           </div>
           <div className="text-[10px] text-text-muted mt-0.5 font-mono flex items-center gap-1.5 flex-wrap">
-            <span>Firmado: {new Date(sig.signedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            <span>{t('signedAt')} {new Date(sig.signedAt).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
             {sig.previousCount > 0 && (
               <span className="font-sans px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber">
-                {sig.previousCount === 1 ? '1 firma anterior reemplazada' : `${sig.previousCount} firmas anteriores reemplazadas`}
+                {sig.previousCount === 1 ? t('signatureReplacedOne') : t('signatureReplacedMany', { count: sig.previousCount })}
               </span>
             )}
           </div>
@@ -1414,9 +1444,9 @@ function LienSignatureRow({
         {imgSrc && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-[10px] text-brand hover:text-text-1 transition-colors shrink-0 font-medium"
+            className="text-[10px] text-brand-text hover:text-text-1 transition-colors shrink-0 font-medium"
           >
-            {expanded ? 'Ocultar' : 'Ver firma'}
+            {expanded ? t('hideSignature') : t('viewSignature')}
           </button>
         )}
       </div>

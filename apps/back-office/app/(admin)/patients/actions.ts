@@ -6,6 +6,7 @@ import { db } from '@precision-medical/database';
 import { writeAuditLog } from '@precision-medical/database/audit';
 import { resolveActor } from '@/lib/actor';
 import type { MedicalHistoryData } from './medical-history-dialog';
+import { validarHistorial } from '@/lib/medical-history-schema';
 
 export async function searchDrugs(q: string): Promise<Array<{ id: number; name: string; generic: string; category: string }>> {
   const rows = await db.drug.findMany({
@@ -82,7 +83,23 @@ export async function updateMedicalHistory(
     });
 
     const current = (existing?.medicalHistory ?? {}) as MedicalHistoryData;
-    const updated  = { ...current, ...patch };
+
+    /**
+     * Validar contra lo YA guardado, no el patch suelto.
+     *
+     * Antes esto escribía `{ ...current, ...patch }` sin mirar nada. Y validar
+     * el patch completo tampoco servía: 5 filas ya guardadas no cumplen (un
+     * nombre de 179 caracteres, fechas `1212-12-12` y una futura), y como el
+     * cliente manda la sección ENTERA, una fila vieja hacía fallar el guardado
+     * completo — dejando al usuario sin poder corregirla.
+     */
+    const revisado = validarHistorial(
+      current as unknown as Record<string, unknown>,
+      patch as unknown as Record<string, unknown>,
+    );
+    if (!revisado.ok) return { ok: false, error: revisado.error };
+
+    const updated  = { ...current, ...revisado.data };
 
     await db.patient.update({
       where: { id: patientId },
@@ -97,7 +114,7 @@ export async function updateMedicalHistory(
       actorRole:   actor.actorRole,
       entityType:  'patients',
       entityId:    patientId,
-      metadata:    { fields: Object.keys(patch) },
+      metadata:    { fields: Object.keys(revisado.data) },
     });
 
     revalidatePath('/patients');

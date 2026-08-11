@@ -19,6 +19,14 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
 import { Pill, Plus, Loader2, Flag, AlertTriangle } from 'lucide-react';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
 
+/**
+ * Tope de los dos campos, IGUAL al de la ruta que escribe
+ * (`/api/admin/patients/medications/[appointmentId]`: name y prescribedBy en
+ * 300). El server ya validaba y el error ya se mostraba; lo que faltaba era no
+ * dejar teclear 5000 caracteres para enterarse recién al guardar.
+ */
+const MAX_MED = 300;
+
 export interface MedicationEntry {
   id?: string;
   name: string;
@@ -87,7 +95,7 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
       {/* El botón de agregar vive en el encabezado — abajo quedaba enterrado
           cuando la lista crecía (pedido de Erick 2026-08-03). */}
       <div className="px-4 py-3 border-b border-row-sep flex items-center gap-2 flex-wrap">
-        <Pill className="w-4 h-4 text-violet shrink-0" />
+        <Pill className="w-4 h-4 text-violet-text shrink-0" />
         <span className="text-text-1 font-semibold text-[12px] uppercase tracking-wider">
           {t('medHxTitle')}
         </span>
@@ -101,7 +109,7 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet bg-violet/10 hover:bg-violet/20 transition-colors"
+          className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet-text bg-violet/10 hover:bg-violet/20 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" /> {t('medHxAddShort')}
         </button>
@@ -116,8 +124,8 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
               key={m.id ?? i}
               className={`rounded-md px-3 py-2 ${m.externalPrescriber ? 'border border-dashed border-border' : 'bg-bg-2/40'}`}
             >
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[12.5px] text-text-1 font-medium">{m.name}</span>
+              <div className="flex items-start gap-1.5 flex-wrap">
+                <span className="text-[12.5px] text-text-1 font-medium min-w-0 break-words">{m.name}</span>
                 <TagPill
                   label={m.status === 'IN_USE' ? t('medHxActive') : t('medHxPrevious')}
                   colorClass={m.status === 'IN_USE'
@@ -132,12 +140,12 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                 )}
               </div>
               {(m.dose || m.instructions) && (
-                <div className="text-[11px] text-text-muted mt-1">
+                <div className="text-[11px] text-text-muted mt-1 break-words">
                   {[m.dose, m.instructions].filter(Boolean).join(' · ')}
                 </div>
               )}
               {m.externalPrescriber && m.prescribedBy && (
-                <div className="text-[11px] text-text-muted mt-1">{m.prescribedBy}</div>
+                <div className="text-[11px] text-text-muted mt-1 break-words">{m.prescribedBy}</div>
               )}
             </div>
           ))
@@ -170,6 +178,7 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) void handleSave(); }}
                   placeholder={t('medHxFieldNamePh')}
+                  maxLength={MAX_MED}
                   autoFocus
                   className="w-full h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 outline-none focus:ring-1 focus:ring-violet/40"
                 />
@@ -185,7 +194,7 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                       type="button"
                       onClick={() => setStatus(s)}
                       className={`h-9 px-3 rounded-md text-[12px] font-semibold transition-colors ${
-                        status === s ? 'bg-violet/15 text-violet' : 'bg-bg-2 text-text-muted hover:text-text-1'
+                        status === s ? 'bg-violet/15 text-violet-text' : 'bg-bg-2 text-text-muted hover:text-text-1'
                       }`}
                     >
                       {s === 'IN_USE' ? t('medHxActive') : t('medHxPrevious')}
@@ -202,6 +211,7 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
                   onChange={(e) => setNote(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) void handleSave(); }}
                   placeholder={t('medHxFieldNotePh')}
+                  maxLength={MAX_MED}
                   className="w-full h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 outline-none focus:ring-1 focus:ring-violet/40"
                 />
               </div>

@@ -1,4 +1,5 @@
 'use client';
+import { localeApp } from '@/lib/fechas';
 
 import { useState, useTransition, useEffect } from 'react';
 import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors, searchSpecialties } from './actions';
@@ -12,7 +13,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@precision/ui';
-import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
+import { PersonAvatar, TagPill, useToast } from '@/components/ui-phoenix';
+import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
+
+/** Hoy en YYYY-MM-DD — tope de los campos de fecha clínica (nada del futuro). */
+const HOY = new Date().toISOString().slice(0, 10);
 import type { PatientRow } from './patients-client';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -59,12 +64,33 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * Guardar una sección del historial.
+ *
+ * Los 16 lugares que guardaban hacían `await updateMedicalHistory(...)` y
+ * seguían de largo: llamaban `onSaved()` y cerraban el diálogo sin mirar el
+ * resultado. Con el esquema nuevo del servidor eso sería peor que antes —el dato
+ * inválido se descarta y la pantalla igual muestra el valor nuevo—, así que el
+ * resultado tiene que llegar a la cara del usuario.
+ *
+ * Devuelve `true` solo si guardó; el caller cierra únicamente en ese caso.
+ */
+async function guardarSeccion(
+  patientId: string,
+  patch: Partial<MedicalHistoryData>,
+  avisar: (msg: string) => void,
+): Promise<boolean> {
+  const r = await updateMedicalHistory(patientId, patch);
+  if (!r.ok) { avisar(r.error ?? 'No se pudo guardar'); return false; }
+  return true;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtDOB(dob: Date | string | null | undefined): string {
   if (!dob) return 'N/D';
   const d = typeof dob === 'string' ? new Date(dob) : dob;
-  return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 function calcAge(dob: Date | string | null | undefined): number | null {
@@ -94,13 +120,13 @@ function SideSection({
         onClick={() => setOpen(o => !o)}
       >
         <div className="flex items-center gap-2">
-          <span className="text-brand w-3.5 h-3.5 shrink-0">{icon}</span>
+          <span className="text-brand-text w-3.5 h-3.5 shrink-0">{icon}</span>
           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{title}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {editBtn && open && (
             <span
-              className="p-0.5 rounded text-text-muted hover:text-brand transition-colors"
+              className="p-0.5 rounded text-text-muted hover:text-brand-text transition-colors"
               onClick={e => { e.stopPropagation(); onEdit?.(); }}
             >
               <Edit2 className="w-3 h-3" />
@@ -154,7 +180,7 @@ function SectionCard({
           {onAdd && (
             <button
               onClick={onAdd}
-              className="flex items-center gap-1 text-[10px] text-text-muted hover:text-brand transition-colors"
+              className="flex items-center gap-1 text-[10px] text-text-muted hover:text-brand-text transition-colors"
             >
               <Plus className="w-3 h-3" /> {addLabel}
             </button>
@@ -162,7 +188,7 @@ function SectionCard({
           {editBtn && (
             <button
               onClick={onEdit}
-              className="text-text-muted hover:text-brand transition-colors"
+              className="text-text-muted hover:text-brand-text transition-colors"
             >
               <Edit2 className="w-3.5 h-3.5" />
             </button>
@@ -253,6 +279,7 @@ function VisitInfoEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     referredBy:          initial?.referredBy          ?? '',
@@ -269,7 +296,7 @@ function VisitInfoEditDialog({
 
   function handleSave() {
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { visitInfo: form });
+      if (!await guardarSeccion(patientId, { visitInfo: form }, toast.error)) return;
       onSaved?.({ visitInfo: form });
       onClose();
     });
@@ -294,7 +321,7 @@ function VisitInfoEditDialog({
 
             <div className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.referredBy')}</label>
-              <input
+              <input maxLength={LARGO_CORTO}
                 value={form.referredBy}
                 onChange={e => set('referredBy', e.target.value)}
                 placeholder={t('mh.sub.referredByPlaceholder')}
@@ -304,7 +331,7 @@ function VisitInfoEditDialog({
 
             <div className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.mainReasonLabel')}</label>
-              <input
+              <input maxLength={LARGO_CORTO}
                 value={form.mainReason}
                 onChange={e => set('mainReason', e.target.value)}
                 placeholder={t('mh.sub.mainReasonPlaceholder')}
@@ -314,7 +341,7 @@ function VisitInfoEditDialog({
 
             <div className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.otherConcernsLabel')}</label>
-              <input
+              <input maxLength={LARGO_CORTO}
                 value={form.otherConcerns}
                 onChange={e => set('otherConcerns', e.target.value)}
                 placeholder={t('mh.sub.otherConcernsPlaceholder')}
@@ -370,13 +397,14 @@ function HealthInfoEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [goals, setGoals]       = useState(initial?.goals ?? '');
   const [rating, setRating]     = useState<number | null>(initial?.selfRating ?? null);
 
   function handleSave() {
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { healthInfo: { goals, selfRating: rating } });
+      if (!await guardarSeccion(patientId, { healthInfo: { goals, selfRating: rating } }, toast.error)) return;
       onSaved?.({ healthInfo: { goals, selfRating: rating } });
       onClose();
     });
@@ -397,7 +425,7 @@ function HealthInfoEditDialog({
         <div className="px-6 py-5 space-y-5">
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.healthGoalsLabel')}</label>
-            <input
+            <input maxLength={LARGO_CORTO}
               value={goals}
               onChange={e => setGoals(e.target.value)}
               placeholder={t('mh.sub.healthGoalsPlaceholder')}
@@ -462,6 +490,7 @@ function AddProblemDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
   const [results,   setResults]      = useState<DiagnosisOption[]>([]);
@@ -498,7 +527,7 @@ function AddProblemDialog({
     };
     const updated = [...(existing ?? []), newProblem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { problems: updated });
+      if (!await guardarSeccion(patientId, { problems: updated }, toast.error)) return;
       onSaved?.({ problems: updated });
       onClose();
     });
@@ -538,7 +567,7 @@ function AddProblemDialog({
                   <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input
+                      <input maxLength={LARGO_CORTO}
                         autoFocus
                         value={query}
                         onChange={e => handleQuery(e.target.value)}
@@ -556,7 +585,7 @@ function AddProblemDialog({
                         type="button"
                         onClick={() => pick(opt)}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                          ${selected?.id === opt.id ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                          ${selected?.id === opt.id ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
                       >
                         {opt.label}
                       </button>
@@ -577,7 +606,7 @@ function AddProblemDialog({
             <div className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.diagnosedAt')}</label>
               <input
-                type="date"
+                type="date" min="1900-01-01" max={HOY}
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
@@ -588,7 +617,7 @@ function AddProblemDialog({
           {/* Comments */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               rows={3}
               value={comments}
               onChange={e => setComments(e.target.value)}
@@ -647,7 +676,7 @@ function SearchDropdown({
           <div className="p-2 border-b border-row-sep">
             <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-              <input
+              <input maxLength={LARGO_CORTO}
                 autoFocus
                 value={q}
                 onChange={e => handleQ(e.target.value)}
@@ -665,7 +694,7 @@ function SearchDropdown({
                     type="button"
                     onClick={() => pick(opt.id, opt.label)}
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors flex items-center justify-between
-                      ${value === opt.label ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                      ${value === opt.label ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
                   >
                     <span>{opt.label}</span>
                     {opt.badge && (
@@ -693,6 +722,7 @@ function AddMedicationDialog({
   onSaved?:           (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const DISPENSE_UNITS = [
     t('mh.sub.unit.tablets'), t('mh.sub.unit.capsules'), t('mh.sub.unit.ml'),
     t('mh.sub.unit.mg'), t('mh.sub.unit.grams'), t('mh.sub.unit.units'),
@@ -791,7 +821,7 @@ function AddMedicationDialog({
     };
     const updated = [...(existing ?? []), newMed];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { medications: updated });
+      if (!await guardarSeccion(patientId, { medications: updated }, toast.error)) return;
       onSaved?.({ medications: updated });
       onClose();
     });
@@ -845,7 +875,7 @@ function AddMedicationDialog({
           {/* Dose */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.doseLabel')}</label>
-            <input
+            <input maxLength={LARGO_CORTO}
               value={dose}
               onChange={e => setDose(e.target.value)}
               placeholder={t('mh.sub.dosePlaceholder')}
@@ -856,7 +886,7 @@ function AddMedicationDialog({
           {/* Instructions */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.instructionsLabel')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               rows={3}
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
@@ -905,7 +935,7 @@ function AddMedicationDialog({
             <div className="space-y-1.5">
               <label className="text-sm text-text-2">{t('mh.sub.startDateLabel')}</label>
               <input
-                type="date"
+                type="date" min="1900-01-01" max={HOY}
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
@@ -959,7 +989,7 @@ function AddMedicationDialog({
           {/* Pharmacy */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.pharmacyNameLabel')}</label>
-            <input
+            <input maxLength={LARGO_CORTO}
               value={pharmacy}
               onChange={e => setPharmacy(e.target.value)}
               placeholder={t('mh.sub.pharmacyNamePlaceholder')}
@@ -969,7 +999,7 @@ function AddMedicationDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.pharmacyNoteLabel')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               rows={3}
               value={pharmacyNote}
               onChange={e => setPharmacyNote(e.target.value)}
@@ -1005,6 +1035,7 @@ function AddSurgeryDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [procedure, setProcedure]    = useState('');
   const [year,      setYear]         = useState('');
@@ -1020,7 +1051,7 @@ function AddSurgeryDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { surgeries: updated });
+      if (!await guardarSeccion(patientId, { surgeries: updated }, toast.error)) return;
       onSaved?.({ surgeries: updated });
       onClose();
     });
@@ -1041,7 +1072,7 @@ function AddSurgeryDialog({
         <div className="px-6 py-5 space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.procedureNameLabel')}</label>
-            <input
+            <input maxLength={LARGO_CORTO}
               autoFocus
               value={procedure}
               onChange={e => setProcedure(e.target.value)}
@@ -1052,7 +1083,7 @@ function AddSurgeryDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.yearLabel')}</label>
-            <input
+            <input maxLength={LARGO_CORTO}
               value={year}
               onChange={e => setYear(e.target.value)}
               placeholder={t('mh.sub.yearPlaceholder')}
@@ -1062,7 +1093,7 @@ function AddSurgeryDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               rows={3}
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -1098,6 +1129,7 @@ function AddProviderDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
   const [doctorOptions,    setDoctorOptions]    = useState<Array<{ id: string; label: string }>>([]);
@@ -1124,7 +1156,7 @@ function AddProviderDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { providers: updated });
+      if (!await guardarSeccion(patientId, { providers: updated }, toast.error)) return;
       onSaved?.({ providers: updated });
       onClose();
     });
@@ -1176,7 +1208,7 @@ function AddProviderDialog({
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.lastVisitLabel')}</label>
             <input
-              type="date"
+              type="date" min="1900-01-01" max={HOY}
               value={lastVisit}
               onChange={e => setLastVisit(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
@@ -1210,12 +1242,13 @@ function AllergiesEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(initial ?? '');
 
   function handleSave() {
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { allergies: value.trim() || undefined });
+      if (!await guardarSeccion(patientId, { allergies: value.trim() || undefined }, toast.error)) return;
       onSaved?.({ allergies: value.trim() || undefined });
       onClose();
     });
@@ -1231,7 +1264,7 @@ function AllergiesEditDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="px-6 py-5">
-          <textarea
+          <textarea maxLength={LARGO_LARGO}
             value={value}
             onChange={e => setValue(e.target.value)}
             rows={4}
@@ -1267,6 +1300,7 @@ function VaccinesEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1277,7 +1311,7 @@ function VaccinesEditDialog({
   function handleSave() {
     const vaccines = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { vaccines });
+      if (!await guardarSeccion(patientId, { vaccines }, toast.error)) return;
       onSaved?.({ vaccines });
       onClose();
     });
@@ -1298,7 +1332,7 @@ function VaccinesEditDialog({
             <div key={i} className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.vaccineN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
-                <input
+                <input maxLength={LARGO_CORTO}
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   autoFocus={i === items.length - 1 && i > 0}
@@ -1318,7 +1352,7 @@ function VaccinesEditDialog({
           <button
             type="button"
             onClick={addRow}
-            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand-text transition-colors"
           >
             <Plus className="w-4 h-4" /> {t('mh.sub.addVaccine')}
           </button>
@@ -1352,6 +1386,7 @@ function CognitiveEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState<CognitiveEntry[]>(
     initial?.length ? [...initial] : [{ name: '', status: '' }]
@@ -1366,7 +1401,7 @@ function CognitiveEditDialog({
   function handleSave() {
     const cognitiveStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { cognitiveStatus });
+      if (!await guardarSeccion(patientId, { cognitiveStatus }, toast.error)) return;
       onSaved?.({ cognitiveStatus });
       onClose();
     });
@@ -1398,7 +1433,7 @@ function CognitiveEditDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs text-text-muted">{t('mh.sub.cognitiveNameLabel')}</label>
-                  <input
+                  <input maxLength={LARGO_CORTO}
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
                     placeholder={t('mh.sub.cognitiveNamePlaceholder')}
@@ -1407,7 +1442,7 @@ function CognitiveEditDialog({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-text-muted">{t('mh.sub.status')}</label>
-                  <input
+                  <input maxLength={LARGO_CORTO}
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
                     placeholder={t('mh.sub.cognitiveStatusPlaceholder')}
@@ -1421,7 +1456,7 @@ function CognitiveEditDialog({
           <button
             type="button"
             onClick={addEntry}
-            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand-text transition-colors"
           >
             <Plus className="w-4 h-4" /> {t('mh.sub.addCognitiveEntry')}
           </button>
@@ -1453,6 +1488,7 @@ function FunctionalEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState(
     initial?.length ? [...initial] : [{ name: '', status: '' }]
@@ -1467,7 +1503,7 @@ function FunctionalEditDialog({
   function handleSave() {
     const functionalStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { functionalStatus });
+      if (!await guardarSeccion(patientId, { functionalStatus }, toast.error)) return;
       onSaved?.({ functionalStatus });
       onClose();
     });
@@ -1495,7 +1531,7 @@ function FunctionalEditDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs text-text-muted">{t('mh.sub.functionalNameLabel')}</label>
-                  <input
+                  <input maxLength={LARGO_CORTO}
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
                     placeholder={t('mh.sub.functionalNamePlaceholder')}
@@ -1504,7 +1540,7 @@ function FunctionalEditDialog({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-text-muted">{t('mh.sub.status')}</label>
-                  <input
+                  <input maxLength={LARGO_CORTO}
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
                     placeholder={t('mh.sub.functionalStatusPlaceholder')}
@@ -1515,7 +1551,7 @@ function FunctionalEditDialog({
             </div>
           ))}
 
-          <button type="button" onClick={addEntry} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addEntry} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand-text transition-colors">
             <Plus className="w-4 h-4" /> {t('mh.sub.addFunctionalEntry')}
           </button>
         </div>
@@ -1542,6 +1578,7 @@ function DevicesEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1552,7 +1589,7 @@ function DevicesEditDialog({
   function handleSave() {
     const implantedDevices = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { implantedDevices });
+      if (!await guardarSeccion(patientId, { implantedDevices }, toast.error)) return;
       onSaved?.({ implantedDevices });
       onClose();
     });
@@ -1573,7 +1610,7 @@ function DevicesEditDialog({
             <div key={i} className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.deviceN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
-                <input
+                <input maxLength={LARGO_CORTO}
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   placeholder={t('mh.sub.devicePlaceholder')}
@@ -1586,7 +1623,7 @@ function DevicesEditDialog({
             </div>
           ))}
 
-          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand-text transition-colors">
             <Plus className="w-4 h-4" /> {t('mh.sub.addDevice')}
           </button>
         </div>
@@ -1613,6 +1650,7 @@ function SystemsReviewEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1623,7 +1661,7 @@ function SystemsReviewEditDialog({
   function handleSave() {
     const systemsReview = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { systemsReview });
+      if (!await guardarSeccion(patientId, { systemsReview }, toast.error)) return;
       onSaved?.({ systemsReview });
       onClose();
     });
@@ -1644,7 +1682,7 @@ function SystemsReviewEditDialog({
             <div key={i} className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.systemReviewN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
-                <input
+                <input maxLength={LARGO_CORTO}
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   placeholder={t('mh.sub.systemReviewPlaceholder')}
@@ -1657,7 +1695,7 @@ function SystemsReviewEditDialog({
             </div>
           ))}
 
-          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand-text transition-colors">
             <Plus className="w-4 h-4" /> {t('mh.sub.addSystemReview')}
           </button>
         </div>
@@ -1684,6 +1722,7 @@ function HealthExamsEditDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [bloodTestDate,   setBloodTestDate]   = useState(initial?.bloodTestDate   ?? '');
   const [normalResults,   setNormalResults]   = useState(initial?.normalResults   ?? false);
@@ -1692,9 +1731,9 @@ function HealthExamsEditDialog({
 
   function handleSave() {
     startTransition(async () => {
-      await updateMedicalHistory(patientId, {
+      if (!await guardarSeccion(patientId, {
         healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal },
-      });
+      }, toast.error)) return;
       onSaved?.({ healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal } });
       onClose();
     });
@@ -1719,7 +1758,7 @@ function HealthExamsEditDialog({
               <div className="space-y-1.5">
                 <label className="text-xs text-text-muted">{t('mh.sub.bloodTestDateLabel')}</label>
                 <input
-                  type="date"
+                  type="date" min="1900-01-01" max={HOY}
                   value={bloodTestDate}
                   onChange={e => setBloodTestDate(e.target.value)}
                   className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
@@ -1738,7 +1777,7 @@ function HealthExamsEditDialog({
               {/* Colonoscopy year */}
               <div className="space-y-1.5">
                 <label className="text-xs text-text-muted">{t('mh.sub.colonoscopyYearLabel')}</label>
-                <input
+                <input maxLength={LARGO_CORTO}
                   value={colonoscopyYear}
                   onChange={e => setColonoscopyYear(e.target.value)}
                   placeholder={t('mh.sub.colonoscopyYearPlaceholder')}
@@ -1780,17 +1819,18 @@ function AddCommentDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState('');
 
   function handleSave() {
     if (!text.trim()) return;
     const now = new Date();
-    const date = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    const date = now.toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' });
     const newComment = { id: crypto.randomUUID(), date, text: text.trim() };
     const newComments = [...(existing ?? []), newComment];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { comments: newComments });
+      if (!await guardarSeccion(patientId, { comments: newComments }, toast.error)) return;
       onSaved?.({ comments: newComments });
       onClose();
     });
@@ -1809,7 +1849,7 @@ function AddCommentDialog({
         <div className="px-6 py-5">
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.commentLabel')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               autoFocus
               rows={5}
               value={text}
@@ -1846,6 +1886,7 @@ function AddFamilyHistoryDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const FAMILY_MEMBERS = [
     t('mh.sub.family.father'), t('mh.sub.family.mother'), t('mh.sub.family.son'), t('mh.sub.family.daughter'),
     t('mh.sub.family.brother'), t('mh.sub.family.sister'),
@@ -1876,7 +1917,7 @@ function AddFamilyHistoryDialog({
     const newItem = { id: crypto.randomUUID(), relation, condition };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { familyHistory: updated });
+      if (!await guardarSeccion(patientId, { familyHistory: updated }, toast.error)) return;
       onSaved?.({ familyHistory: updated });
       onClose();
     });
@@ -1915,7 +1956,7 @@ function AddFamilyHistoryDialog({
                   <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input
+                      <input maxLength={LARGO_CORTO}
                         autoFocus
                         value={memberQuery}
                         onChange={e => setMemberQuery(e.target.value)}
@@ -1931,7 +1972,7 @@ function AddFamilyHistoryDialog({
                         type="button"
                         onClick={() => { setRelation(m); setMemberOpen(false); setMemberQuery(''); }}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                          ${relation === m ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                          ${relation === m ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
                       >
                         {m}
                       </button>
@@ -1983,6 +2024,7 @@ function AddHistoryDialog({
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
   const [results,   setResults]      = useState<DiagnosisOption[]>([]);
@@ -2018,7 +2060,7 @@ function AddHistoryDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { history: updated });
+      if (!await guardarSeccion(patientId, { history: updated }, toast.error)) return;
       onSaved?.({ history: updated });
       onClose();
     });
@@ -2055,7 +2097,7 @@ function AddHistoryDialog({
                   <div className="p-2 border-b border-row-sep">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input
+                      <input maxLength={LARGO_CORTO}
                         autoFocus
                         value={query}
                         onChange={e => handleQuery(e.target.value)}
@@ -2073,7 +2115,7 @@ function AddHistoryDialog({
                             type="button"
                             onClick={() => pick(opt)}
                             className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                              ${selected?.id === opt.id ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                              ${selected?.id === opt.id ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
                           >
                             {opt.label}
                           </button>
@@ -2093,7 +2135,7 @@ function AddHistoryDialog({
             <div className="space-y-1">
               <label className="text-xs text-text-muted">{t('mh.sub.diagnosedAt')}</label>
               <input
-                type="date"
+                type="date" min="1900-01-01" max={HOY}
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
@@ -2103,7 +2145,7 @@ function AddHistoryDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
-            <textarea
+            <textarea maxLength={LARGO_LARGO}
               rows={3}
               value={comments}
               onChange={e => setComments(e.target.value)}
@@ -2365,17 +2407,17 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 onEdit={() => setEditVisitInfo(true)}
               >
                 <div className="space-y-2 text-[12.5px]">
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">{t('mh.referredByLabel')}</span>
-                    <span className="text-text-1">{mh.visitInfo?.referredBy || t('mh.na')}</span>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-muted shrink-0">{t('mh.referredByLabel')}</span>
+                    <span className="text-text-1 text-right break-words min-w-0">{mh.visitInfo?.referredBy || t('mh.na')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">{t('mh.mainReason')}</span>
-                    <span className="text-text-1">{mh.visitInfo?.mainReason || t('mh.na')}</span>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-muted shrink-0">{t('mh.mainReason')}</span>
+                    <span className="text-text-1 text-right break-words min-w-0">{mh.visitInfo?.mainReason || t('mh.na')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">{t('mh.otherConcerns')}</span>
-                    <span className="text-text-1">{mh.visitInfo?.otherConcerns || t('mh.na')}</span>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-muted shrink-0">{t('mh.otherConcerns')}</span>
+                    <span className="text-text-1 text-right break-words min-w-0">{mh.visitInfo?.otherConcerns || t('mh.na')}</span>
                   </div>
                 </div>
               </SectionCard>
@@ -2390,7 +2432,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md bg-bg-2/40 p-3">
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.healthGoals')}</p>
-                    <p className="text-[11px] text-text-2">{mh.healthInfo?.goals || t('mh.noGoals')}</p>
+                    <p className="text-[11px] text-text-2 break-words">{mh.healthInfo?.goals || t('mh.noGoals')}</p>
                   </div>
                   <div className="rounded-md bg-bg-2/40 p-3">
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.selfRating')}</p>

@@ -330,18 +330,33 @@ export function InboxClient({
                      un vistazo se ve cuántos pendientes hay. Sin animación a
                      propósito — una tabla temblando no se puede leer, y el
                      movimiento queda reservado al urgente del top bar. */
-                rows.map((r) => (
+                rows.map((r) => {
+                /**
+                 * ESCALERA DE CONTRASTE. El reporte "el mensaje recién llegado
+                 * no se ve en modo oscuro" tenía una causa concreta: leídas y
+                 * no leídas usaban el MISMO color de texto (text-1), así que la
+                 * única diferencia era la negrita y un tinte del 6% — casi nada
+                 * sobre fondo negro.
+                 *
+                 * En oscuro no se puede sumar mucha luz sin que se vea chillón;
+                 * lo que crea diferencia es RESTARLE luz a lo ya leído. Es lo
+                 * que hace Gmail: lo pendiente en blanco y negrita, lo atendido
+                 * en gris. Así el ojo separa los dos grupos sin leer nada.
+                 */
+                const fuerte = r.unread ? 'text-text-1 font-semibold' : 'text-text-2';
+                const suave = r.unread ? 'text-text-2' : 'text-text-muted';
+                return (
                 <tr key={r.id}
                   onClick={() => setOpenThreadId(r.id)}
                   className={`border-b border-border/30 last:border-b-0 transition-colors cursor-pointer ${
                     !r.unread
                       ? 'hover:bg-white/[0.02]'
                       : r.priority === 'URGENT'
-                        ? 'bg-rose/[0.07] hover:bg-rose/[0.11]'
-                        : 'bg-emerald/[0.06] hover:bg-emerald/[0.1]'
+                        ? 'bg-rose/[0.12] hover:bg-rose/[0.16]'
+                        : 'bg-emerald/[0.10] hover:bg-emerald/[0.14]'
                   }`}>
                   <td
-                    className={`px-3 !py-1.5 border-l-[3px] ${
+                    className={`px-3 !py-1.5 border-l-4 ${
                       !r.unread
                         ? 'border-l-transparent'
                         : r.priority === 'URGENT' ? 'border-l-rose' : 'border-l-emerald'
@@ -359,30 +374,29 @@ export function InboxClient({
                         aria-label={r.subject} />
                     )}
                   </td>
-                  <td className="px-3 !py-1.5 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
+                  <td className={`px-3 !py-1.5 text-[11px] tabular-nums whitespace-nowrap ${suave}`}>
                     {fmtDt(r.lastEntryAt)}
                   </td>
-                  <td className={`px-3 !py-1.5 text-sm whitespace-nowrap ${r.unread ? 'font-semibold text-text-1' : 'text-text-1'}`}>
+                  <td className={`px-3 !py-1.5 text-sm whitespace-nowrap ${fuerte}`}>
                     {r.lastAuthorName ?? '—'}
                   </td>
-                  <td className="px-3 !py-1.5 text-[12.5px] text-text-2 whitespace-nowrap">
+                  <td className={`px-3 !py-1.5 text-[12.5px] whitespace-nowrap ${suave}`}>
                     {r.patient?.name ?? '—'}
                   </td>
                   <td className="px-3 !py-1.5 whitespace-nowrap">
-                    <span className="text-[12.5px] text-text-2">{t(`type${r.type}`)}</span>
+                    <span className={`text-[12.5px] ${suave}`}>{t(`type${r.type}`)}</span>
                     {r.priority === 'URGENT' && (
                       <span className="ml-1.5 text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full bg-rose/10 border border-rose/30 text-rose">
                         {t('priorityURGENT')}
                       </span>
                     )}
                   </td>
-                  <td className={`px-3 !py-1.5 text-[12.5px] max-w-[280px] ${r.unread ? 'font-semibold text-text-1' : 'text-text-1'}`}>
+                  <td className={`px-3 !py-1.5 text-[12.5px] max-w-[280px] ${fuerte}`}>
                     <span className="flex items-center gap-1.5">
                       {/* Mismo idioma que el badge del top bar: verde = sin
-                          leer normal, rojo = urgente. La negrita del asunto
-                          hace el resto — texto de color se leería como link. */}
+                          leer normal, rojo = urgente. */}
                       {r.unread
-                        ? <Mail className={`w-3 h-3 shrink-0 ${r.priority === 'URGENT' ? 'text-rose' : 'text-emerald'}`} />
+                        ? <Mail className={`w-3.5 h-3.5 shrink-0 ${r.priority === 'URGENT' ? 'text-rose' : 'text-emerald'}`} />
                         : <MailOpen className="w-3 h-3 shrink-0 text-text-muted opacity-60" />}
                       <span className="truncate">{r.subject}</span>
                     </span>
@@ -391,7 +405,8 @@ export function InboxClient({
                     {r.sealedAt && <Lock className="w-3 h-3 text-amber" />}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

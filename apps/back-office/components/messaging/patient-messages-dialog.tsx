@@ -167,12 +167,12 @@ export function PatientMessagesDialog({
                     {/* Raya + tinte para los no leídos — mismo idioma que el
                         inbox (verde normal, rojo urgente), sin animación. */}
                     <button type="button" onClick={() => setOpenThreadId(th.id)}
-                      className={`w-full flex items-center gap-3 px-4 sm:px-6 !py-1 min-h-[44px] text-left transition-colors border-l-[3px] ${
+                      className={`w-full flex items-center gap-3 px-4 sm:px-6 !py-1 min-h-[44px] text-left transition-colors border-l-4 ${
                         !th.unread
                           ? 'border-l-transparent hover:bg-white/[0.02]'
                           : th.priority === 'URGENT'
-                            ? 'border-l-rose bg-rose/[0.07] hover:bg-rose/[0.11]'
-                            : 'border-l-emerald bg-emerald/[0.06] hover:bg-emerald/[0.1]'
+                            ? 'border-l-rose bg-rose/[0.12] hover:bg-rose/[0.16]'
+                            : 'border-l-emerald bg-emerald/[0.10] hover:bg-emerald/[0.14]'
                       }`}>
                       {/* Verde = sin leer normal · rojo = urgente (mismo
                           código que el badge del top bar y el inbox) */}
@@ -180,10 +180,13 @@ export function PatientMessagesDialog({
                         ? <Mail className={`w-3.5 h-3.5 shrink-0 ${th.priority === 'URGENT' ? 'text-rose' : 'text-emerald'}`} />
                         : <MailOpen className="w-3.5 h-3.5 text-text-muted opacity-60 shrink-0" />}
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm truncate ${th.unread ? 'font-semibold text-text-1' : 'text-text-1'}`}>
+                        {/* Escalera de contraste: lo pendiente en blanco y
+                            negrita, lo atendido en gris. En oscuro es lo que
+                            crea la diferencia — sumar luz no alcanza. */}
+                        <div className={`text-sm truncate ${th.unread ? 'font-semibold text-text-1' : 'text-text-2'}`}>
                           {th.subject}
                         </div>
-                        <div className="text-[11px] text-text-muted truncate">
+                        <div className={`text-[11px] truncate ${th.unread ? 'text-text-2' : 'text-text-muted'}`}>
                           {th.lastAuthorName ?? th.createdByName} · {t(`type${th.type}`)}
                           {/* Con filtro activo el caso es obvio; sin filtro
                               distingue los hilos de cada caso del paciente. */}

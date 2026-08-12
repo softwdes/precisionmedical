@@ -14,12 +14,14 @@
  * Compartido por el módulo Clínica y el portal Doctor vía el Topbar común.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Mail } from 'lucide-react';
+import { Mail, Volume2, VolumeX } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
+import { useToast } from '@/components/ui-phoenix/toast';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
+import { playInboxChime, inboxSoundMuted, setInboxSoundMuted } from './notification-sound';
 import { InboxClient } from './inbox-client';
 import { MESSAGES_READ_EVENT } from './thread-view-dialog';
 
@@ -38,11 +40,24 @@ interface BadgeInfo {
   total: number;
   unread: number;
   urgentUnread: number;
+  latestAuthor: string | null;
   userId: string;
   isAdmin: boolean;
 }
 
-const POLL_MS = 45_000;
+/**
+ * 20s y no 45s: el reporte de los usuarios ("la llegada no es notoria") era en
+ * buena parte un problema de RETARDO — el mensaje llegaba y el contador tardaba
+ * hasta 45 segundos en enterarse, así que el cambio ocurría cuando nadie
+ * miraba. Es una sola consulta agregada, sin filas.
+ *
+ * El paso natural cuando haga falta es tiempo real (Realtime/SSE) y sacar el
+ * sondeo; con 20s el aviso ya se siente inmediato.
+ */
+const POLL_MS = 20_000;
+
+/** Cuánto dura el parpadeo de llegada antes de quedarse quieto. */
+const BLINK_MS = 9_000;
 
 export function InboxBell(): React.ReactElement | null {
   const t = useTranslations('phoenix.messaging');
@@ -57,6 +72,18 @@ export function InboxBell(): React.ReactElement | null {
    * en el layout y no se desmonta nunca, así que lo recuerda por los dos.
    */
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+
+  // ─── Llegada de mensajes ────────────────────────────────────────────────
+  const toast = useToast();
+  /** Conteo del sondeo anterior — null hasta la primera respuesta. */
+  const prevUnread = useRef<number | null>(null);
+  const [justArrived, setJustArrived] = useState(false);
+  const blinkTimer = useRef<number | undefined>(undefined);
+  const [muted, setMuted] = useState(false);
+
+  // localStorage se lee en el cliente, después del montaje (SSR no lo tiene).
+  useEffect(() => { setMuted(inboxSoundMuted()); }, []);
+  useEffect(() => () => window.clearTimeout(blinkTimer.current), []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -78,13 +105,39 @@ export function InboxBell(): React.ReactElement | null {
   const refreshBadge = useCallback(async (): Promise<void> => {
     try {
       const res = await fetch('/api/messages/badge');
-      if (res.ok) { setBadge(await res.json()); setUnlinked(false); return; }
+      if (res.ok) {
+        const data = (await res.json()) as BadgeInfo;
+        /**
+         * ¿Llegó algo? Se compara contra el conteo ANTERIOR. La primera carga
+         * no avisa (prevUnread arranca en null): si no, sonaría un "ding" en
+         * cada navegación y cada F5, que es la forma más rápida de que pidan
+         * apagar el sonido para siempre.
+         */
+        const anterior = prevUnread.current;
+        if (anterior !== null && data.unread > anterior) {
+          const urgente = data.urgentUnread > 0;
+          playInboxChime(urgente);
+          setJustArrived(true);
+          window.clearTimeout(blinkTimer.current);
+          blinkTimer.current = window.setTimeout(() => setJustArrived(false), BLINK_MS);
+          toast.info(
+            data.latestAuthor
+              ? t('arrivedFrom', { name: data.latestAuthor })
+              : t('arrivedGeneric'),
+            { onClick: () => setOpen(true), durationMs: 8000 },
+          );
+        }
+        prevUnread.current = data.unread;
+        setBadge(data);
+        setUnlinked(false);
+        return;
+      }
       // 401 = el usuario autenticó pero la app no lo reconoce (no tenía fila en
       // `users`). Ya no debería pasar —resolveActor lo provisiona al vuelo— pero
       // si vuelve a pasar, el botón lo DICE en vez de quedarse inerte.
       if (res.status === 401) setUnlinked(true);
     } catch { /* informativo: si falla, el badge no cambia */ }
-  }, []);
+  }, [toast, t]);
 
   useEffect(() => {
     void refreshBadge();
@@ -123,6 +176,12 @@ export function InboxBell(): React.ReactElement | null {
             : unread > 0
               ? 'border-emerald/40 bg-emerald/10 text-text-1 hover:bg-emerald/20'
               : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
+        } ${
+          /* Parpadeo TRANSITORIO de llegada: 9 segundos y se queda quieto. Un
+             número que cambia de 0/13 a 1/13 no lo nota nadie; una animación
+             permanente cansa y le roba el significado al rojo del urgente.
+             Esto avisa en el momento y después desaparece. */
+          justArrived && !hasUrgent ? 'animate-pulse ring-2 ring-emerald/50' : ''
         }`}
       >
         <Mail className="w-4 h-4" aria-hidden="true" />
@@ -162,6 +221,18 @@ export function InboxBell(): React.ReactElement | null {
                     {t('bellUrgentPill', { count: urgent })}
                   </span>
                 )}
+                {/* Silenciar el aviso sonoro. Vive acá porque es donde el
+                    usuario va cuando el sonido le molesta; se recuerda por
+                    navegador (localStorage), no es una preferencia de cuenta. */}
+                <button
+                  type="button"
+                  onClick={() => { const v = !muted; setMuted(v); setInboxSoundMuted(v); if (!v) playInboxChime(); }}
+                  title={muted ? t('soundOff') : t('soundOn')}
+                  aria-label={muted ? t('soundOff') : t('soundOn')}
+                  className="ml-auto p-1.5 rounded text-text-muted hover:text-text-1 hover:bg-white/5 transition-colors"
+                >
+                  {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">

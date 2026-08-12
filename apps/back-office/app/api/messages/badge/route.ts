@@ -32,10 +32,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        AND t."removedFromInboxesAt" IS NULL
   `;
 
+  const unread = Number(rows[0]?.unread ?? 0);
+
+  /**
+   * Quién mandó el último sin leer — para el aviso de llegada ("Nuevo mensaje
+   * de X"). Solo el NOMBRE: el asunto y el paciente no viajan a propósito,
+   * porque ese aviso aparece flotando en pantalla y en la clínica hay pacientes
+   * y acompañantes mirando. Con el remitente alcanza para saber que llegó algo.
+   */
+  let latestAuthor: string | null = null;
+  if (unread > 0) {
+    const latest = await db.$queryRaw<Array<{ authorName: string }>>`
+      SELECT e."authorName"
+        FROM "message_recipients" r
+        JOIN "message_threads"    t ON t."id" = r."threadId"
+        JOIN "message_entries"    e ON e."threadId" = t."id"
+       WHERE r."userId" = ${actor.actorUserId}
+         AND r."deletedAt" IS NULL
+         AND t."deletedAt" IS NULL
+         AND t."removedFromInboxesAt" IS NULL
+         AND (r."lastReadAt" IS NULL OR t."lastEntryAt" > r."lastReadAt")
+       ORDER BY e."sentAt" DESC
+       LIMIT 1
+    `;
+    latestAuthor = latest[0]?.authorName ?? null;
+  }
+
   return NextResponse.json({
     total: Number(rows[0]?.total ?? 0),
-    unread: Number(rows[0]?.unread ?? 0),
+    unread,
     urgentUnread: Number(rows[0]?.urgentUnread ?? 0),
+    latestAuthor,
     // Identidad para los diálogos del sobre (evita prop-drilling por layouts)
     userId: actor.actorUserId,
     isAdmin: actor.actorRole === 'SUPER_ADMIN' || actor.actorRole === 'ADMIN',

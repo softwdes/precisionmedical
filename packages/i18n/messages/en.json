@@ -4302,6 +4302,7 @@
       "attachRemove": "Remove attachment",
       "attachError": "Could not upload {name}",
       "attachOpenError": "Could not open the attachment",
+      "attachCountTooltip": "{count} attachments — open the message to see them",
       "viewerOpenTab": "Open in tab",
       "viewerDownload": "Download",
       "viewerNoPreview": "This file type can't be previewed. Open it in a tab or download it.",

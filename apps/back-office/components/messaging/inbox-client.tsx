@@ -18,13 +18,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
-import { Mail, MailOpen, Lock, Plus, Trash2, Eye, FileEdit } from 'lucide-react';
+import { Mail, MailOpen, Lock, Plus, Trash2, Eye, FileEdit, Paperclip } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/ui-phoenix';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { ComposeMessageDialog, type ComposeDraftPayload } from './compose-message-dialog';
 import { ThreadViewDialog } from './thread-view-dialog';
 import { UserSelect } from './user-select';
+import { AttachmentViewerDialog } from './attachment-viewer-dialog';
 import { type MessagingUser } from './user-multi-select';
 
 interface InboxRow {
@@ -38,6 +39,8 @@ interface InboxRow {
   lastEntryAt: string;
   sealedAt: string | null;
   unread: boolean;
+  attachmentCount: number;
+  firstAttachment: { id: string; fileName: string } | null;
 }
 
 interface Props {
@@ -105,6 +108,8 @@ export function InboxClient({
   const setOpenThreadId = onOpenThreadChange ?? setLocalThreadId;
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Adjunto abierto desde la columna del clip, sin pasar por el hilo. */
+  const [viewing, setViewing] = useState<{ id: string; fileName: string } | null>(null);
 
   // ─── Borradores (Save as Draft) — privados del usuario ──────────────────
   interface DraftRow { id: string; subject: string | null; patientName: string | null; updatedAt: string; payload: ComposeDraftPayload }
@@ -317,14 +322,16 @@ export function InboxClient({
                     {h}
                   </th>
                 ))}
+                {/* sello + adjuntos: dos columnas de icono, sin encabezado */}
                 <th className="px-3 py-2 w-8" />
+                <th className="px-3 py-2 w-10" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7}><EmptyState.Inline message={t('loading')} /></td></tr>
+                <tr><td colSpan={8}><EmptyState.Inline message={t('loading')} /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7}><EmptyState.Inline message={t('bellEmpty')} /></td></tr>
+                <tr><td colSpan={8}><EmptyState.Inline message={t('bellEmpty')} /></td></tr>
               ) : /* No leído = tinte de fondo + raya de 3px en el borde: el ojo
                      detecta el bloque de color antes de leer una palabra, y de
                      un vistazo se ve cuántos pendientes hay. Sin animación a
@@ -404,6 +411,31 @@ export function InboxClient({
                   <td className="px-3 !py-1.5">
                     {r.sealedAt && <Lock className="w-3 h-3 text-amber" />}
                   </td>
+                  {/* Adjuntos: con UNO abre el visor directo (el caso común, un
+                      clic); con VARIOS abre el hilo, donde cada archivo ya es un
+                      chip — no hace falta inventar un menú flotante para algo
+                      que el hilo muestra mejor. */}
+                  <td className="px-3 !py-1.5" onClick={(e) => e.stopPropagation()}>
+                    {r.attachmentCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (r.attachmentCount === 1 && r.firstAttachment) {
+                            setViewing(r.firstAttachment);
+                          } else {
+                            setOpenThreadId(r.id);
+                          }
+                        }}
+                        title={r.attachmentCount === 1 && r.firstAttachment
+                          ? r.firstAttachment.fileName
+                          : t('attachCountTooltip', { count: r.attachmentCount })}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+                      >
+                        <Paperclip className="w-3.5 h-3.5" />
+                        {r.attachmentCount > 1 && r.attachmentCount}
+                      </button>
+                    )}
+                  </td>
                 </tr>
                 );
               })}
@@ -457,6 +489,14 @@ export function InboxClient({
         onChanged={() => void load()}
         onOpenCase={onOpenCase ?? openCaseFromThread}
         suspended={caseModalOpen}
+      />
+
+      {/* Visor del adjunto abierto desde la lista — el mismo que usa el hilo,
+          así que la apertura queda igualmente registrada en el audit log. */}
+      <AttachmentViewerDialog
+        attachmentId={viewing?.id ?? null}
+        fileName={viewing?.fileName ?? ''}
+        onClose={() => setViewing(null)}
       />
 
       <ConfirmDialog

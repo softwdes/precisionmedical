@@ -86,6 +86,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }),
   ]);
 
+  /**
+   * Adjuntos de los hilos de ESTA página, para la columna del clip. Consulta
+   * aparte y no un `select` anidado: el adjunto cuelga de la entrada, no del
+   * hilo, y agrupar acá sale más barato que pedir las entradas con sus archivos
+   * de cada hilo. Solo se usan la CANTIDAD y el PRIMERO — con uno se abre el
+   * visor directo, con varios se abre el hilo, donde ya son chips.
+   */
+  const threadIds = rows.map((r) => r.thread.id);
+  const attRows = threadIds.length
+    ? await db.messageAttachment.findMany({
+        where: { entry: { threadId: { in: threadIds } } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, fileName: true, entry: { select: { threadId: true } } },
+      })
+    : [];
+
+  const attByThread = new Map<string, { count: number; first: { id: string; fileName: string } }>();
+  for (const a of attRows) {
+    const key = a.entry.threadId;
+    const prev = attByThread.get(key);
+    if (prev) prev.count += 1;
+    else attByThread.set(key, { count: 1, first: { id: a.id, fileName: a.fileName } });
+  }
+
   const threads = rows.map((r) => ({
     id: r.thread.id,
     subject: r.thread.subject,
@@ -103,6 +127,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     lastAuthorName: r.thread.entries[0]?.authorName ?? null,
     lastEntryKind: r.thread.entries[0]?.kind ?? null,
     unread: !r.lastReadAt || r.thread.lastEntryAt > r.lastReadAt,
+    attachmentCount: attByThread.get(r.thread.id)?.count ?? 0,
+    firstAttachment: attByThread.get(r.thread.id)?.first ?? null,
   }));
 
   return NextResponse.json({ threads, total, page, pageSize: PAGE_SIZE });

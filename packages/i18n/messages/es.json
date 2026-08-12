@@ -4302,6 +4302,7 @@
       "attachRemove": "Quitar adjunto",
       "attachError": "No se pudo subir {name}",
       "attachOpenError": "No se pudo abrir el adjunto",
+      "attachCountTooltip": "{count} adjuntos — abre el mensaje para verlos",
       "viewerOpenTab": "Abrir en pestaña",
       "viewerDownload": "Descargar",
       "viewerNoPreview": "Este tipo de archivo no se puede previsualizar. Abrilo en una pestaña o descargalo.",

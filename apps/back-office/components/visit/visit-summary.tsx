@@ -240,26 +240,45 @@ export function VisitSummary({
       .finally(() => setLoadingLabs(false));
   }, [appointmentId]);
 
-  React.useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const [c, b, p] = await Promise.all([
-        fetch(`/api/admin/cash-services/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
-        fetch(`/api/admin/braces/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
-        fetch(`/api/admin/scriptsure/prescriptions/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
-      ]);
-      if (!alive) return;
-      // Solo las que llegaron a la farmacia: el checkout le dice al paciente
-      // dónde retirar. Una anulada no se le entregó, y una con error nunca
-      // llegó — mostrarla haría que el asistente lo mande a una farmacia que
-      // no tiene nada (y encima suele estar duplicada por el reenvío bueno).
-      setRx(soloEntregadas((p as { prescriptions?: RxRow[] }).prescriptions ?? []));
-      setCash((c as { charges?: CashChargeRow[] }).charges ?? []);
-      // Solo las entregadas: una devuelta o anulada no se cobra ni sale con el paciente.
-      setBraces(((b as { braces?: BraceRow[] }).braces ?? []).filter((r) => r.status === 'DISPENSED'));
-    })();
-    return () => { alive = false; };
+  /** Lo que el Resumen pide por su cuenta. Se reusa en el refresco en vivo. */
+  const loadVisitExtras = React.useCallback(async (): Promise<void> => {
+    const [c, b, p] = await Promise.all([
+      fetch(`/api/admin/cash-services/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/admin/braces/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/admin/scriptsure/prescriptions/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+    ]);
+    // Solo las que llegaron a la farmacia: el checkout le dice al paciente
+    // dónde retirar. Una anulada no se le entregó, y una con error nunca
+    // llegó — mostrarla haría que el asistente lo mande a una farmacia que
+    // no tiene nada (y encima suele estar duplicada por el reenvío bueno).
+    setRx(soloEntregadas((p as { prescriptions?: RxRow[] }).prescriptions ?? []));
+    setCash((c as { charges?: CashChargeRow[] }).charges ?? []);
+    // Solo las entregadas: una devuelta o anulada no se cobra ni sale con el paciente.
+    setBraces(((b as { braces?: BraceRow[] }).braces ?? []).filter((r) => r.status === 'DISPENSED'));
   }, [appointmentId]);
+
+  React.useEffect(() => { void loadVisitExtras(); }, [loadVisitExtras]);
+
+  // Refresco en vivo. Los dos lados trabajan la MISMA visita a la vez (el doctor
+  // pide labs y receta, el asistente cobra), así que la foto del momento en que
+  // se abrió la pantalla envejece en minutos. Day Admission no tenía refresco de
+  // ningún tipo: el asistente veía la nota vacía y "sin firmar" cuando el doctor
+  // ya había firmado, y tenía que recargar a mano.
+  // Se detiene con la cita cerrada — ahí ya no cambia nada.
+  React.useEffect(() => {
+    if (appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED') return;
+    const tick = (): void => {
+      void loadVisitExtras();
+      fetch(`/api/admin/lab-orders/${appointmentId}`)
+        .then((r) => r.json())
+        .then((d: { orders?: LabOrderRow[] }) => setLabs(d.orders ?? []))
+        .catch(() => undefined);
+    };
+    const id = setInterval(tick, 20_000);
+    const onFocus = (): void => tick();
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [appointmentStatus, appointmentId, loadVisitExtras]);
 
   // Próximas citas del caso: si ya hay recita agendada hay que mostrarla, o el
   // doctor y el asistente la agendan dos veces sin saberlo.

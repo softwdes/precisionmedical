@@ -2839,6 +2839,7 @@
       "kpiPending": "Pendientes",
       "emptyTitle": "Sin citas para hoy",
       "emptySubtitle": "No hay citas programadas para hoy. Revisá el calendario para otros días.",
+      "statusDoctorDone": "Listo para cobrar",
       "statusInRoom": "En sala",
       "statusCheckedIn": "Check-in ✓",
       "statusCompleted": "Completado",

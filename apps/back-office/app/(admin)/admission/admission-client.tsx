@@ -32,6 +32,8 @@ interface AdmissionAppt {
   type:            string;
   status:          string;
   checkedInAt:     string | null;
+  /** El doctor terminó con el paciente — la cita ya se puede cobrar y cerrar. */
+  doctorDoneAt:    string | null;
   notes:           string | null;
   patient: { id: string; firstName: string; lastName: string; phone: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
@@ -102,8 +104,12 @@ function ApptCard({
   const isCheckedIn = appt.status === 'CHECKED_IN';
   const isInRoom    = appt.status === 'IN_PROGRESS';
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
+  /** El doctor terminó y la cita sigue abierta: hay que cobrar y cerrar. */
+  const isReadyForCheckout = !isDone && !!appt.doctorDoneAt;
 
-  const borderClass = isCheckedIn
+  const borderClass = isReadyForCheckout
+    ? 'border border-emerald/50 bg-emerald/[0.05] ring-1 ring-emerald/20'
+    : isCheckedIn
     ? 'border border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
     : isInRoom
       ? 'border border-border bg-violet/[0.05]'
@@ -131,8 +137,11 @@ function ApptCard({
                 {appt.case.caseCode}
               </span>
             )}
-            {/* Status badge */}
-            {isInRoom && (
+            {/* Status badge — "listo para cobrar" va PRIMERO: es el estado que
+                le dice al asistente que tiene algo que hacer con esta fila. */}
+            {isReadyForCheckout ? (
+              <StatusPill label={t('statusDoctorDone')} state="success" />
+            ) : isInRoom && (
               <StatusPill label={t('statusInRoom')} state="info" />
             )}
             {isCheckedIn && (
@@ -259,8 +268,10 @@ export function AdmissionClient() {
     return now.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD
   });
 
-  const load = useCallback(async (date?: string) => {
-    setLoading(true);
+  // `silent` para el refresco automático: sin esto cada poll prendía el skeleton
+  // y la cola parpadeaba cada 20 s en la cara de recepción.
+  const load = useCallback(async (date?: string, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const d = date ?? selectedDate;
       const res  = await fetch(`/api/admin/admission?date=${d}`);
@@ -273,11 +284,25 @@ export function AdmissionClient() {
         setDisplayDate(data.displayDate);
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { void load(selectedDate); }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincronización en vivo — el MISMO patrón que Mi Día del doctor, que ya lo
+  // tenía. Esta pantalla es la que ESPERA (que el doctor firme, que termine con
+  // el paciente) y era la única sin refresco: había que recargar a mano para ver
+  // que una cita ya se podía cobrar.
+  // Solo el día de hoy: en días pasados no cambia nada y sería tráfico al vacío.
+  const isTodayForPoll = selectedDate === new Date().toLocaleDateString('en-CA');
+  useEffect(() => {
+    if (!isTodayForPoll) return;
+    const id = setInterval(() => { void load(selectedDate, true); }, 20_000);
+    const onFocus = (): void => { void load(selectedDate, true); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [isTodayForPoll, selectedDate, load]);
 
   function shiftDate(days: number) {
     const d = new Date(selectedDate + 'T12:00:00');

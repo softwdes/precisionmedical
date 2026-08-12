@@ -2839,6 +2839,7 @@
       "kpiPending": "Pending",
       "emptyTitle": "No appointments today",
       "emptySubtitle": "No appointments scheduled for today. Check the calendar for other days.",
+      "statusDoctorDone": "Ready to collect",
       "statusInRoom": "In room",
       "statusCheckedIn": "Checked in ✓",
       "statusCompleted": "Completed",

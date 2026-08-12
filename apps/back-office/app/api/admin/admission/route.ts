@@ -84,6 +84,10 @@ function mapAppt(a: ApptWithIncludes) {
     type:        a.type,
     status:      a.status,
     checkedInAt: (a as { checkedInAt?: Date | null }).checkedInAt?.toISOString() ?? null,
+    // El doctor sello que termino con el paciente. La cola lo necesita para
+    // mostrar "Listo para cobrar": sin esto el asistente tenia que entrar cita
+    // por cita para saber si ya podia cerrarla.
+    doctorDoneAt: (a as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
     notes:       a.notes,
     patient: {
       id:        a.patient.id,

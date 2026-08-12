@@ -63,6 +63,12 @@ interface Props {
   canSign?: boolean;
   /** Aviso al padre tras guardar, para que recargue la nota */
   onSaved?: () => void;
+  /**
+   * Avisa cuando hay cambios sin guardar. Lo usa Day Admission para NO recargar
+   * la nota mientras el asistente escribe: el refresco en vivo le pisaría el
+   * texto a mitad de una frase.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /** Campo de la nota ↔ sectionKey de la plantilla */
@@ -99,7 +105,7 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function VisitNoteEditor({
-  appointmentId, note, templates, userId, canSign = true, onSaved,
+  appointmentId, note, templates, userId, canSign = true, onSaved, onDirtyChange,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -118,6 +124,7 @@ export function VisitNoteEditor({
   const [templateId, setTemplateId] = React.useState<string | null>(note?.templateId ?? null);
 
   const [dirty, setDirty] = React.useState(false);
+  React.useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<Date | null>(null);
   const [error, setError] = React.useState('');

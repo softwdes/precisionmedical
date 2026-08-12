@@ -59,6 +59,8 @@ export function DoctorStepPanel({
   /** El Resumen pidió cobrar: se salta al tab de Servicios y el panel abre el
    *  modal de "Pago del caso" al montarse. Se limpia al cambiar de tab a mano. */
   const [goToPayments, setGoToPayments] = React.useState(false);
+  /** El editor tiene cambios sin guardar: no se recarga la nota por encima. */
+  const noteDirty = React.useRef(false);
   const [note, setNote] = React.useState<VisitNoteData | null>(null);
   const [templates, setTemplates] = React.useState<PickableTemplate[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -102,6 +104,31 @@ export function DoctorStepPanel({
       setLoading(false);
     })();
   }, [loadNote]);
+
+  // Sincronización en vivo con el portal del doctor.
+  //
+  // El doctor escribe y firma la nota en su pantalla; acá se cargaba UNA vez al
+  // montar y quedaba congelada. El asistente veía la nota vacía y el checklist
+  // diciendo "sin firmar / sin diagnósticos" cuando el doctor ya había firmado —
+  // y no había forma de saberlo sin recargar a mano.
+  //
+  // Dos guardas:
+  //  · Solo mientras la cita está abierta (cerrada no cambia más).
+  //  · NUNCA si el editor tiene cambios sin guardar: recargar por encima le
+  //    borraría al asistente lo que está tipeando.
+  const visitOpen = appointmentStatus !== 'COMPLETED' && appointmentStatus !== 'CANCELLED';
+  React.useEffect(() => {
+    if (!visitOpen) return;
+    const tick = (): void => {
+      if (noteDirty.current) return;
+      void loadNote();
+      onRefresh();
+    };
+    const id = setInterval(tick, 20_000);
+    const onFocus = (): void => tick();
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [visitOpen, loadNote, onRefresh]);
 
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
@@ -196,6 +223,7 @@ export function DoctorStepPanel({
                 userId={null}
                 canSign={false}
                 onSaved={() => { void loadNote(); }}
+                onDirtyChange={(d) => { noteDirty.current = d; }}
               />
             )}
 

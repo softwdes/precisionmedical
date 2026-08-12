@@ -12,6 +12,7 @@ import {
   resolveGuardian, GuardianIsSelfError, type GuardianResolution,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { isCipher } from '@/lib/decrypt';
 import { Prisma } from '@precision-medical/database';
 
 const empty = z.literal('').transform(() => null);
@@ -78,8 +79,30 @@ export async function PATCH(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const existing = await db.patient.findUnique({ where: { id }, select: { id: true, email: true } });
+  const existing = await db.patient.findUnique({
+    where: { id },
+    select: {
+      id: true, email: true,
+      // Sin descifrar: hace falta saber cuáles siguen cifrados de la migración
+      // del v2 para no pisarlos con vacío — ver `protegido()` más abajo.
+      employer: true, preferredPharmacy: true,
+      addressCity: true, addressState: true, addressZip: true,
+      emergencyContactName: true, emergencyContactPhone: true,
+      emergencyContactRelation: true, emergency2Relation: true,
+      guardianRelation: true,
+    },
+  });
   if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
+
+  /**
+   * Un campo vacío no se guarda si lo que hay en la DB sigue cifrado (`e:…`).
+   * Sin `AES_GCM_KEY_B64` en el entorno, `decryptFieldOrOriginal()` devuelve
+   * null y el diálogo de edición pinta el campo en blanco — guardar ese blanco
+   * borraría el cifrado sin que nadie haya visto ni decidido nada. Con la clave
+   * puesta el valor llega descifrado y esto no se activa nunca.
+   */
+  const protegido = (campo: keyof typeof existing, valor: string | null | undefined): boolean =>
+    !valor && isCipher(existing[campo] as string | null);
 
   const body   = await req.json().catch(() => null);
   const parsed = PatchSchema.safeParse(body);
@@ -136,8 +159,8 @@ export async function PATCH(
           ...(d.preferredLanguage        !== undefined && { preferredLanguage:        d.preferredLanguage }),
           ...(d.sex                      !== undefined && { sex:                      d.sex }),
           ...(d.maritalStatus            !== undefined && { maritalStatus:            d.maritalStatus }),
-          ...(d.employer                 !== undefined && { employer:                 d.employer }),
-          ...(d.preferredPharmacy        !== undefined && { preferredPharmacy:        d.preferredPharmacy }),
+          ...(d.employer                 !== undefined && !protegido('employer', d.employer)                 && { employer:                 d.employer }),
+          ...(d.preferredPharmacy        !== undefined && !protegido('preferredPharmacy', d.preferredPharmacy) && { preferredPharmacy:        d.preferredPharmacy }),
           ...(d.communicationPreference  !== undefined && { communicationPreference:  d.communicationPreference }),
           ...(d.referralSource           !== undefined && { referralSource:           d.referralSource }),
           ...(d.referralSourceOther      !== undefined && { referralSourceOther:      d.referralSourceOther }),
@@ -145,18 +168,18 @@ export async function PATCH(
           ...(d.ethnicity                !== undefined && { ethnicity:                d.ethnicity }),
           ...(d.socialSecurityNumber     !== undefined && { socialSecurityNumber:     d.socialSecurityNumber }),
           ...(d.addressLine1             !== undefined && { addressLine1:             d.addressLine1 }),
-          ...(d.addressCity              !== undefined && { addressCity:              d.addressCity }),
-          ...(d.addressState             !== undefined && { addressState:             d.addressState }),
-          ...(d.addressZip               !== undefined && { addressZip:               d.addressZip }),
-          ...(d.emergencyContactName     !== undefined && { emergencyContactName:     d.emergencyContactName }),
-          ...(d.emergencyContactPhone    !== undefined && { emergencyContactPhone:    d.emergencyContactPhone }),
-          ...(d.emergencyContactRelation !== undefined && { emergencyContactRelation: d.emergencyContactRelation }),
+          ...(d.addressCity              !== undefined && !protegido('addressCity', d.addressCity)   && { addressCity:              d.addressCity }),
+          ...(d.addressState             !== undefined && !protegido('addressState', d.addressState) && { addressState:             d.addressState }),
+          ...(d.addressZip               !== undefined && !protegido('addressZip', d.addressZip)     && { addressZip:               d.addressZip }),
+          ...(d.emergencyContactName     !== undefined && !protegido('emergencyContactName', d.emergencyContactName)         && { emergencyContactName:     d.emergencyContactName }),
+          ...(d.emergencyContactPhone    !== undefined && !protegido('emergencyContactPhone', d.emergencyContactPhone)       && { emergencyContactPhone:    d.emergencyContactPhone }),
+          ...(d.emergencyContactRelation !== undefined && !protegido('emergencyContactRelation', d.emergencyContactRelation) && { emergencyContactRelation: d.emergencyContactRelation }),
           ...(d.emergency2Name           !== undefined && { emergency2Name:           d.emergency2Name }),
           ...(d.emergency2Phone          !== undefined && { emergency2Phone:          d.emergency2Phone }),
-          ...(d.emergency2Relation       !== undefined && { emergency2Relation:       d.emergency2Relation }),
+          ...(d.emergency2Relation       !== undefined && !protegido('emergency2Relation', d.emergency2Relation) && { emergency2Relation:       d.emergency2Relation }),
           ...(d.guardianName             !== undefined && { guardianName:             d.guardianName }),
           ...(d.guardianPhone            !== undefined && { guardianPhone:            d.guardianPhone }),
-          ...(d.guardianRelation         !== undefined && { guardianRelation:         d.guardianRelation }),
+          ...(d.guardianRelation         !== undefined && !protegido('guardianRelation', d.guardianRelation) && { guardianRelation:         d.guardianRelation }),
           ...(d.dateOfBirth !== undefined ? { dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null } : {}),
           // Después del spread legado a propósito: si llegan los dos, la relación
           // del vínculo real manda sobre el campo de texto.

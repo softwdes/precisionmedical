@@ -10,9 +10,37 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
-import { decryptFieldOrOriginal } from '@/lib/decrypt';
+import { decryptFieldOrOriginal, isCipher } from '@/lib/decrypt';
 
 type Ctx = { params: Promise<{ token: string }> };
+
+// Campos de la data migrada del v2 que pueden seguir cifrados (`e:…`). Sin la
+// clave `AES_GCM_KEY_B64` en el entorno, el GET los manda como null y el wizard
+// los pinta vacíos — si el paciente guarda ese vacío, el cifrado se iría a NULL
+// y no habría cómo recuperarlo ni configurando la clave después.
+const MAYBE_CIPHER = [
+  'employer', 'preferredPharmacy',
+  'addressCity', 'addressState', 'addressZip',
+  'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelation',
+  'emergency2Relation', 'guardianRelation',
+] as const;
+
+/**
+ * Descarta del update los campos que llegan vacíos cuando lo guardado sigue
+ * cifrado. Un vacío ahí significa "no pude mostrarte esto", no "borralo": el
+ * paciente nunca vio el valor, así que no puede estar decidiendo eliminarlo.
+ * Si escribe algo de verdad, ese valor sí gana y reemplaza el cifrado.
+ */
+function protegerCifrados(
+  data: Record<string, unknown>,
+  guardado: Record<string, string | null>,
+): void {
+  for (const campo of MAYBE_CIPHER) {
+    if (campo in data && !data[campo] && isCipher(guardado[campo])) {
+      delete data[campo];
+    }
+  }
+}
 
 // Parsea "YYYY-MM-DD" como fecha local (noon) para evitar el off-by-one de UTC midnight
 function parseDateLocal(s: string): Date {
@@ -171,13 +199,26 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     where: { portalToken: token },
     select: {
       id: true, caseCode: true,
-      patient: { select: { id: true, email: true } },
+      patient: {
+        select: {
+          id: true, email: true,
+          // Valores tal como están en la DB (sin descifrar) para saber cuáles
+          // siguen cifrados y no pisarlos con vacío — ver protegerCifrados().
+          employer: true, preferredPharmacy: true,
+          addressCity: true, addressState: true, addressZip: true,
+          emergencyContactName: true, emergencyContactPhone: true,
+          emergencyContactRelation: true, emergency2Relation: true,
+          guardianRelation: true,
+        },
+      },
     },
   });
 
   if (!rec) {
     return NextResponse.json({ error: 'TOKEN_NOT_FOUND' }, { status: 404 });
   }
+
+  const guardado = rec.patient as unknown as Record<string, string | null>;
 
   const body = await req.json() as {
     step: number;
@@ -247,6 +288,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     else if (p.referralSource)   patientData.referralSourceOther        = null;
     if (p.communicationPreference) patientData.communicationPreference   = p.communicationPreference;
 
+    protegerCifrados(patientData, guardado);
+
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({
         where: { id: rec.patient.id },
@@ -270,6 +313,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (a.ethnicity) patientData.ethnicity = a.ethnicity;
     if (a.sex) patientData.sex = a.sex;
     if (a.maritalStatus) patientData.maritalStatus = a.maritalStatus;
+
+    protegerCifrados(patientData, guardado);
+
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({ where: { id: rec.patient.id }, data: patientData });
     }
@@ -286,6 +332,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (g.guardianName !== undefined) patientData.guardianName = g.guardianName || null;
     if (g.guardianPhone !== undefined) patientData.guardianPhone = g.guardianPhone || null;
     if (g.guardianRelation !== undefined) patientData.guardianRelation = g.guardianRelation || null;
+
+    protegerCifrados(patientData, guardado);
+
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({ where: { id: rec.patient.id }, data: patientData });
     }

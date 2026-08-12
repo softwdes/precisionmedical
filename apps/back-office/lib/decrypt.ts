@@ -55,9 +55,47 @@ export function decryptField(value: string | null | undefined): string | null {
   }
 }
 
-/** Decrypt a field and fall back to the original value if decryption fails. */
+/** True si el valor sigue en formato cifrado (`e:…` o `…|e:…`). */
+export function isCipher(value: string | null | undefined): boolean {
+  return !!value && (value.startsWith('e:') || value.includes('|e:'));
+}
+
+/**
+ * Descifra un campo. Texto plano pasa intacto.
+ *
+ * Si el descifrado falla (típicamente porque `AES_GCM_KEY_B64` no está en el
+ * entorno) devuelve **null**, NO el cifrado crudo — antes el staff veía
+ * `e:bC43szK6BQNR7fphLRXO2rS6HGe+nZ…` en pantalla, que no dice nada.
+ *
+ * ⚠️ Devolver null hace que el valor NO viaje al cliente, así que un PATCH que
+ * escriba el campo tal como vino borraría el cifrado de la DB de forma
+ * irreversible. Por eso `PATCH /api/admin/patients/[id]` usa `isCipher()`
+ * contra el valor guardado para no pisar un cifrado con vacío.
+ */
 export function decryptFieldOrOriginal(value: string | null | undefined): string | null {
   if (!value) return value ?? null;
-  if (!value.startsWith('e:') && !value.includes('|e:')) return value;
-  return decryptField(value) ?? value;
+  if (!isCipher(value)) return value;
+  return decryptField(value);
+}
+
+/**
+ * Descifra TODOS los campos de texto de un registro de una sola pasada.
+ *
+ * Existe porque el patrón "envolver campo por campo con `dec()`" ya falló: de
+ * los archivos que leen `employer`/`emergencyContact*`, la mitad se lo olvidaba,
+ * y el PDF del caso llegó a producción imprimiendo `e:bC43szK6BQNR7fphLRXO…`.
+ * Usar esto en el borde donde el registro sale de Prisma hacia una vista o un
+ * documento: así una columna nueva del schema queda cubierta sola.
+ *
+ * Los no-string (fechas, números, relaciones) no se tocan, y el texto plano pasa
+ * intacto — `decryptFieldOrOriginal` solo actúa sobre lo que empieza con `e:`.
+ */
+export function decryptScalars<T extends Record<string, unknown>>(rec: T): T {
+  const out = { ...rec };
+  for (const clave of Object.keys(out) as (keyof T)[]) {
+    if (typeof out[clave] === 'string') {
+      out[clave] = decryptFieldOrOriginal(out[clave] as string) as T[keyof T];
+    }
+  }
+  return out;
 }

@@ -13,6 +13,10 @@ import {
 } from '@react-pdf/renderer';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+// La data migrada del v2 trae columnas cifradas (`employer` en 2.674 de 5.957
+// pacientes) y este PDF las imprimía crudas — un documento que sale de la
+// clínica con `e:bC43szK6BQNR7fphLRXO…` en el campo Employer.
+import { decryptScalars } from '@/lib/decrypt';
 
 // Logo leído una vez al arrancar el módulo
 const LOGO_B64 = (() => {
@@ -650,7 +654,7 @@ export async function GET(
   }
 
   const buffer = await buildPDF({
-    patient:  caseRecord.patient,
+    patient:  decryptScalars(caseRecord.patient),
     caseData: {
       caseCode:              caseRecord.caseCode,
       caseType:              caseRecord.caseType,

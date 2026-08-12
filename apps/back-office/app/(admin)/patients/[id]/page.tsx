@@ -12,6 +12,11 @@
 
 import { notFound } from 'next/navigation';
 import { db as prisma } from '@precision-medical/database';
+// El `include` de abajo trae TODOS los escalares y varios llegan cifrados de la
+// migración del v2 — se veían como `e:bC43szK6BQNR7fphLRXO…` en la ficha y, peor,
+// en el diálogo de edición que escribe sobre ellos. `decryptScalars` cubre el
+// objeto entero, así que una columna nueva del schema queda cubierta sola.
+import { decryptScalars } from '@/lib/decrypt';
 import { PatientDetailClient } from './patient-detail-client';
 
 export default async function PatientDetailPage({
@@ -65,5 +70,5 @@ export default async function PatientDetailPage({
   // directamente assignables a las string unions del client. Mismo pattern que
   // front-office/page.tsx — deuda técnica conocida, safe en runtime.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <PatientDetailClient patient={patient as any} />;
+  return <PatientDetailClient patient={decryptScalars(patient) as any} />;
 }

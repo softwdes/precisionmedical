@@ -55,9 +55,28 @@ export function decryptField(value: string | null | undefined): string | null {
   }
 }
 
-/** Decrypt a field and fall back to the original value if decryption fails. */
+/** True si el valor sigue en formato cifrado (`e:…` o `…|e:…`). */
+export function isCipher(value: string | null | undefined): boolean {
+  return !!value && (value.startsWith('e:') || value.includes('|e:'));
+}
+
+/**
+ * Descifra un campo. Texto plano pasa intacto.
+ *
+ * Si el descifrado falla (típicamente porque `AES_GCM_KEY_B64` no está en el
+ * entorno) devuelve **null**, NO el cifrado crudo. Antes caía al original y el
+ * paciente veía `e:bC43szK6BQNR7fphLRXO2rS6HGe+nZ…` dentro del input de
+ * "Employer" en el wizard — 2.674 de 5.957 pacientes migrados tienen ese campo
+ * cifrado. Un campo vacío que el paciente puede llenar es mejor que basura que
+ * no entiende.
+ *
+ * ⚠️ Devolver null hace que el valor NO viaje al cliente, así que un PATCH que
+ * escriba `campo || null` borraría el cifrado de la DB de forma irreversible.
+ * Por eso los handlers de escritura usan `isCipher()` contra el valor guardado
+ * para no pisar un cifrado con vacío — ver `api/intake/[token]/route.ts`.
+ */
 export function decryptFieldOrOriginal(value: string | null | undefined): string | null {
   if (!value) return value ?? null;
-  if (!value.startsWith('e:') && !value.includes('|e:')) return value;
-  return decryptField(value) ?? value;
+  if (!isCipher(value)) return value;
+  return decryptField(value);
 }

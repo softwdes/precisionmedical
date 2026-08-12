@@ -302,6 +302,14 @@ export interface MedCartDrug {
   daysSupply: number | null;
   /** Presentación del fármaco ("600 mg tablet") — `line1` en el modelo de ScriptSure */
   line1: string | null;
+  /** Tipo del código RxNorm: SCD (genérico), SBD (marca), GPK, UN… */
+  rxNormQualifier: string | null;
+  /**
+   * El objeto del fármaco tal como lo devolvió ScriptSure. Cuando está, se usa
+   * como base del ítem del carrito — trae metadatos que su envío exige y que no
+   * tienen columna propia.
+   */
+  raw?: Record<string, unknown> | null;
 }
 
 export interface MedCartResult {
@@ -440,11 +448,25 @@ export async function addToMedCart(
     return Number.isNaN(n) ? null : n;
   };
 
+  // El objeto original que nos dio ScriptSure, si lo tenemos, es la mejor base:
+  // trae los metadatos del fármaco (MED_NAME_TYPE_CD, MED_REF_*) y la indicación
+  // estructurada que su mensaje a la farmacia exige y que no vale la pena
+  // reconstruir a mano. Solo se normaliza el casing (su historial devuelve
+  // `Ndc`/`RxNorm`, su carrito espera `ndc`/`rxnorm`) y se descarta lo que
+  // pertenece al envío anterior.
+  const raw = drug.raw ?? {};
+  const { Ndc: _n, RxNorm: _r, prescriptionId: _pid, reconcileStatus: _rs, drugId: _did, ...rawRest } = raw;
+
   const prescriptionDrug = {
+    ...rawRest,
     drugOrder: 1,
     drugName: drug.drugName,
     ndc: drug.ndc,
     rxnorm: drug.rxNorm,
+    // Sin el calificador el mensaje NCPDP a la farmacia se rechaza: valida
+    // contra un conjunto cerrado y el vacío no está en él. Si el historial no
+    // lo trajo, se deduce del tipo de nombre (2 = genérico → SCD, 1 = marca).
+    rxnormQualifier: drug.rxNormQualifier ?? 'SCD',
     ROUTED_MED_ID: num(drug.routedMedId),
     GCN_SEQNO: num(drug.gcnSeqno),
     quantity: drug.quantity,

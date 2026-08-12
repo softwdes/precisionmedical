@@ -52,12 +52,22 @@ export interface MappedRx {
   /** Identificadores del fármaco — necesarios para repetir la receta */
   ndc: string | null;
   rxNorm: string | null;
+  /** Tipo del código RxNorm (SCD, SBD…) — el mensaje a la farmacia lo exige */
+  rxNormQualifier: string | null;
   routedMedId: string | null;
   gcnSeqno: string | null;
   scriptsureDrugId: string | null;
   /** Código NCPDP — ScriptSure resuelve la farmacia por acá, no por el nombre */
   pharmacyId: string | null;
   quantityQualifier: string | null;
+  /**
+   * El objeto del fármaco tal como vino, sin la receta anidada.
+   *
+   * Se guarda entero a propósito: su mensaje a la farmacia exige metadatos
+   * (MED_NAME_TYPE_CD, MED_REF_*, la indicación estructurada) que no vale la
+   * pena mapear uno por uno — al repetir se reenvía este objeto y listo.
+   */
+  drugPayload: Record<string, unknown> | null;
 }
 
 /**
@@ -128,11 +138,18 @@ export function mapRawRx(raw: Record<string, unknown>, outerStatus?: string): Ma
     // `Prescription`). Verificado con el payload real del 2026-08-05.
     ndc: asStr(pick(rx, 'Ndc', 'ndc')) ?? null,
     rxNorm: asStr(pick(rx, 'RxNorm', 'rxNorm', 'rxcui')) ?? null,
+    rxNormQualifier: asStr(pick(rx, 'rxnormQualifier', 'rxNormQualifier')) ?? null,
     routedMedId: asStr(pick(rx, 'ROUTED_MED_ID', 'routedMedId')) ?? null,
     gcnSeqno: asStr(pick(rx, 'GCN_SEQNO', 'gcnSeqno')) ?? null,
     scriptsureDrugId: asStr(pick(rx, 'drugId')) ?? null,
     pharmacyId: asStr(pick(nested, 'pharmacyId')) ?? asStr(pick(rx, 'pharmacyId')) ?? null,
     quantityQualifier: asStr(pick(rx, 'quantityQualifier')) ?? null,
+    // Todo el objeto menos la receta anidada: esa describe el envío anterior
+    // (farmacia, fechas, estado), no el fármaco, y al repetir se arma de nuevo.
+    drugPayload: (() => {
+      const { Prescription: _p, prescription: _p2, ...drug } = rx;
+      return Object.keys(drug).length > 0 ? drug : null;
+    })(),
   };
 }
 
@@ -225,11 +242,13 @@ export async function persistPrescription(params: {
     dawSentAt: mapped.writtenAt ?? new Date(),
     ndc: mapped.ndc,
     rxNorm: mapped.rxNorm,
+    rxNormQualifier: mapped.rxNormQualifier,
     routedMedId: mapped.routedMedId,
     gcnSeqno: mapped.gcnSeqno,
     scriptsureDrugId: mapped.scriptsureDrugId,
     pharmacyId: mapped.pharmacyId,
     quantityQualifier: mapped.quantityQualifier,
+    drugPayload: (mapped.drugPayload ?? undefined) as never,
   };
 
   const saved = existing

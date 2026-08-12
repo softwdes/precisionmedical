@@ -35,8 +35,9 @@ export async function POST(
     select: {
       id: true, appointmentId: true, drugName: true, dose: true, frequency: true,
       quantityTotal: true, refills: true, durationStr: true,
-      ndc: true, rxNorm: true, routedMedId: true, gcnSeqno: true, scriptsureDrugId: true,
-      pharmacyId: true, quantityQualifier: true,
+      ndc: true, rxNorm: true, rxNormQualifier: true, routedMedId: true,
+      gcnSeqno: true, scriptsureDrugId: true,
+      pharmacyId: true, quantityQualifier: true, drugPayload: true,
     },
   });
   if (!rx) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
@@ -114,6 +115,8 @@ export async function POST(
       daysSupply: Number.isNaN(days) ? null : days,
       // `dose` guarda la presentación tal como vino del historial ("25 mg tablet")
       line1: rx.dose !== '—' ? rx.dose : null,
+      rxNormQualifier: rx.rxNormQualifier,
+      raw: (rx.drugPayload ?? null) as Record<string, unknown> | null,
     }, { practiceId, doctorId: prescriberId });
 
     writeAuditLog(db, {

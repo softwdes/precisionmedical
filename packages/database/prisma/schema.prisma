@@ -1361,6 +1361,10 @@ model Prescription {
   /// doctor a buscar el medicamento de nuevo a mano.
   ndc              String?
   rxNorm           String?
+  /// Tipo de código RxNorm ("SCD" genérico, "SBD" de marca…). El mensaje NCPDP
+  /// hacia la farmacia lo exige de un conjunto cerrado; sin él, ScriptSure
+  /// rechaza el envío ("The value '' is not an element of the set {…}").
+  rxNormQualifier  String?
   routedMedId      String?
   gcnSeqno         String?
   scriptsureDrugId String?
@@ -1369,6 +1373,11 @@ model Prescription {
   pharmacyId       String?
   /// Unidad de la cantidad (tableta, mL…). Su carrito la exige junto al número.
   quantityQualifier String?
+  /// El objeto del fármaco TAL COMO lo devuelve ScriptSure, guardado entero.
+  /// Su mensaje a la farmacia exige metadatos que no tienen columna propia
+  /// (MED_NAME_TYPE_CD, MED_REF_*, la indicación estructurada). Reconstruirlos
+  /// campo por campo llevó a un ciclo de rechazos; reenviar el original no.
+  drugPayload      Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

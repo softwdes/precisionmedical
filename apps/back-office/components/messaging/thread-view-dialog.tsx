@@ -23,7 +23,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight,
+  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -374,6 +374,9 @@ export function ThreadViewDialog({
    */
   const [viewing, setViewing] = useState<{ id: string; fileName: string } | null>(null);
 
+  /** Entrada cuyo detalle de acuses está desplegado (una a la vez). */
+  const [receiptsOpen, setReceiptsOpen] = useState<string | null>(null);
+
   const sealedAtMs = thread?.sealedAt ? new Date(thread.sealedAt).getTime() : null;
   const toNames = thread?.recipients.filter((r) => r.kind === 'TO').map((r) => r.userName) ?? [];
   const ccNames = thread?.recipients.filter((r) => r.kind === 'CC').map((r) => r.userName) ?? [];
@@ -618,6 +621,58 @@ export function ThreadViewDialog({
                         ))}
                       </div>
                     )}
+
+                    {/* Acuses de lectura — solo en MIS mensajes, como en
+                        WhatsApp: los checks de lo que escribieron otros serían
+                        ruido. El dato ya existía (lastReadAt por destinatario);
+                        acá solo se muestra. */}
+                    {e.authorUserId === currentUserId && (() => {
+                      const otros = thread.recipients.filter((r) => r.userId !== currentUserId);
+                      if (otros.length === 0) return null;
+                      const leyeron = otros.filter(
+                        (r) => r.lastReadAt !== null && new Date(r.lastReadAt) >= new Date(e.sentAt),
+                      );
+                      const todos = leyeron.length === otros.length;
+                      const abierto = receiptsOpen === e.id;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-border/40">
+                          <button
+                            type="button"
+                            onClick={() => setReceiptsOpen(abierto ? null : e.id)}
+                            className="inline-flex items-center gap-1.5 text-[10.5px] text-text-muted hover:text-text-2 transition-colors"
+                          >
+                            {leyeron.length === 0 ? (
+                              <Check className="w-3.5 h-3.5" />
+                            ) : (
+                              <CheckCheck className={`w-3.5 h-3.5 ${todos ? 'text-cyan' : ''}`} />
+                            )}
+                            {leyeron.length === 0
+                              ? t('receiptNone')
+                              : todos
+                                ? t('receiptAll')
+                                : t('receiptSome', { read: leyeron.length, total: otros.length })}
+                          </button>
+                          {abierto && (
+                            <ul className="mt-1.5 space-y-0.5">
+                              {otros.map((r) => {
+                                const leyo = r.lastReadAt !== null && new Date(r.lastReadAt) >= new Date(e.sentAt);
+                                return (
+                                  <li key={r.userId} className="flex items-center gap-1.5 text-[10.5px]">
+                                    {leyo
+                                      ? <CheckCheck className="w-3 h-3 text-cyan shrink-0" />
+                                      : <Check className="w-3 h-3 text-text-muted shrink-0" />}
+                                    <span className="text-text-2">{r.userName}</span>
+                                    <span className="text-text-muted">
+                                      · {leyo ? fmtDt(r.lastReadAt!) : t('receiptUnread')}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

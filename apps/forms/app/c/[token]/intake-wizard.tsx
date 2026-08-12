@@ -24,6 +24,9 @@ import * as React from 'react';
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
+// Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
+// component. Mismo criterio que `@precision-medical/database/age`.
+import { normalizeRelation } from '@precision-medical/database/relations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -811,7 +814,11 @@ const RELATION_OPTIONS_EN = [
   { value: 'NEIGHBOR', label: 'Neighbor' },
   { value: 'OTHER', label: 'Other' },
 ];
-const RELATION_VALUES = ['', 'SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'FRIEND', 'EMPLOYER', 'NEIGHBOR', 'OTHER'];
+// El reconocimiento de un valor guardado ya NO se hace con un `includes` contra
+// esta lista: la data del v2 trae la relación como texto libre (167 valores
+// distintos: "Mother", "Esposa", "Spuse", "Btother"…) y ninguno matcheaba, así
+// que TODOS caían en "Otro". Lo resuelve `normalizeRelation` — ver
+// packages/database/src/relations.ts.
 
 const COMM_OPTIONS_ES = [
   { value: '', label: '—' },
@@ -1119,10 +1126,10 @@ export function IntakeWizard({
   const rawReferral = patient.referralSource ?? '';
   const referralIsKnown = knownReferralValues.includes(rawReferral);
 
-  const rawRel1 = patient.emergencyContactRelation ?? '';
-  const rel1IsKnown = RELATION_VALUES.includes(rawRel1);
-  const rawRel2 = patient.emergency2Relation ?? '';
-  const rel2IsKnown = RELATION_VALUES.includes(rawRel2);
+  // "Mother" → PARENT, "Esposa" → SPOUSE, "Btother" → SIBLING. Lo que no
+  // reconoce vuelve como OTHER conservando el texto, igual que antes.
+  const rel1 = normalizeRelation(patient.emergencyContactRelation);
+  const rel2 = normalizeRelation(patient.emergency2Relation);
 
   const [personal, setPersonal] = useState({
     firstName:                patient.firstName,
@@ -1154,12 +1161,14 @@ export function IntakeWizard({
     maritalStatus:            patient.maritalStatus ?? '',
     emergencyContactName:     patient.emergencyContactName ?? '',
     emergencyContactPhone:    phoneFromDb(patient.emergencyContactPhone),
-    emergencyContactRelation:      rel1IsKnown ? rawRel1 : (rawRel1 ? 'OTHER' : ''),
-    emergencyContactRelationOther: rel1IsKnown ? '' : rawRel1,
+    // `as string`: el union de códigos estrecharía el tipo del estado y el
+    // onChange del <select> entrega un string cualquiera.
+    emergencyContactRelation:      rel1.code as string,
+    emergencyContactRelationOther: rel1.other,
     emergency2Name:                patient.emergency2Name ?? '',
     emergency2Phone:               phoneFromDb(patient.emergency2Phone),
-    emergency2Relation:            rel2IsKnown ? rawRel2 : (rawRel2 ? 'OTHER' : ''),
-    emergency2RelationOther:       rel2IsKnown ? '' : rawRel2,
+    emergency2Relation:            rel2.code as string,
+    emergency2RelationOther:       rel2.other,
     guardianName:             patient.guardianName ?? '',
     guardianLastName:         savedExtra.guardianLastName ?? '',
     guardianEmail:            savedExtra.guardianEmail ?? '',

@@ -7,6 +7,9 @@ import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall, UserPlus } from 'luc
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
+// Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
+// component. Mismo criterio que `@precision-medical/database/age`.
+import { normalizeRelation as normalizeRelationShared } from '@precision-medical/database/relations';
 import {
   Button,
   Dialog,
@@ -119,11 +122,21 @@ function formatSSN(raw: string): string {
   return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
 }
 
-const KNOWN_RELATIONS = ['SPOUSE', 'PARENT', 'SIBLING', 'CHILD', 'FRIEND', 'OTHER'];
+/**
+ * Los 6 códigos que ofrece el desplegable de abajo — no hay claves de i18n para
+ * EMPLOYER/NEIGHBOR, así que esos caen en "Otro" con su texto.
+ */
+const KNOWN_RELATIONS = ['SPOUSE', 'PARENT', 'SIBLING', 'CHILD', 'FRIEND', 'OTHER'] as const;
+
+/**
+ * Antes esto era un `includes` contra la lista: la relación migrada del v2 es
+ * texto libre (167 valores: "Mother", "Esposa", "Spuse"…) y ninguno matcheaba,
+ * así que todos caían en "Otro". El mapeo real vive en el paquete compartido
+ * porque forms tenía su propia copia divergente.
+ */
 function normalizeRelation(stored: string): { selectVal: string; otherVal: string } {
-  if (!stored) return { selectVal: '', otherVal: '' };
-  if (KNOWN_RELATIONS.includes(stored)) return { selectVal: stored, otherVal: '' };
-  return { selectVal: 'OTHER', otherVal: stored };
+  const { code, other } = normalizeRelationShared(stored, KNOWN_RELATIONS);
+  return { selectVal: code, otherVal: other };
 }
 
 export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {

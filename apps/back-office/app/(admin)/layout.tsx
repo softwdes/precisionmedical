@@ -5,7 +5,6 @@ import { createAdminClient } from '@precision-medical/auth/admin';
 import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
-import { IncomingCallListener } from '@/components/calls/incoming-call-listener';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
@@ -64,10 +63,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <>
       <UpdateBanner />
-      {/* Montado en el shell y no en una pantalla: para recibir una llamada el
-          Device tiene que estar registrado siempre, no solo cuando alguien
-          abre la lista de pacientes. */}
-      <IncomingCallListener />
+      {/* `IncomingCallListener` DESMONTADO el 2026-08-05: Twilio desvía las
+          entrantes a otro número, así que la clínica no recibe ninguna. Montado
+          le pedía el micrófono a todos al cargar la app y latía contra el
+          servidor cada 60s para poder atender llamadas que nunca llegan.
+          El componente y el webhook siguen en el repo, listos y probados, para
+          cuando se decida traer las entrantes de vuelta. */}
       <AdminShell
         userName={userName}
         userRole={userRole}

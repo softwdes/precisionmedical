@@ -1997,28 +1997,16 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   }, [twilio.callSid]);
 
   // ─── Historial de llamadas ──────────────────────────────────────────────
+  // Sin contador de "perdidas sin devolver": esas son entrantes perdidas, y
+  // desde el 2026-08-05 Twilio desvía las entrantes a otro número, así que el
+  // contador era un cero permanente y su fetch un viaje al servidor por cada
+  // carga de la lista de pacientes.
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
-  const [missedPending,   setMissedPending]   = useState(0);
 
   // ─── Precios (visor de mostrador, solo lectura) ─────────────────────────
   // Vive acá y no en el catálogo completo porque el uso es cotizar en el
   // momento, con el paciente enfrente. Visible también en el portal médico.
   const [priceListOpen, setPriceListOpen] = useState(false);
-
-  // El contador del botón se refresca al cargar y al cerrar el historial (ahí
-  // pudo devolverse una llamada). `size=1` porque solo interesa `counts`.
-  const refreshMissedPending = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/call-logs?scope=inbound&size=1');
-      if (!res.ok) return;
-      const json = await res.json() as { counts?: { missedPending?: number } };
-      setMissedPending(json.counts?.missedPending ?? 0);
-    } catch { /* el contador es informativo: si falla, no se muestra */ }
-  }, []);
-
-  useEffect(() => {
-    void refreshMissedPending();
-  }, [refreshMissedPending]);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
@@ -2201,11 +2189,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <History className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{tCalls('historyTitle')}</span>
             <span className="sm:hidden">{tCalls('historyShort')}</span>
-            {missedPending > 0 && (
-              <span className="ml-0.5 rounded-full bg-rose/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-rose">
-                {missedPending}
-              </span>
-            )}
           </button>
 
           {/* Precios — visor de mostrador. Solo lectura y sin costo real: se
@@ -2999,17 +2982,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         />
       )}
 
-      {/* ─── Historial de llamadas ───────────────────────────────────────────
-          "Devolver" no abre un flujo propio: entrega el destino acá y cae en
-          el mismo ConfirmDialog → llamando → resultado de siempre. */}
-      <CallHistoryDialog
-        open={callHistoryOpen}
-        onOpenChange={(o) => {
-          setCallHistoryOpen(o);
-          if (!o) void refreshMissedPending();
-        }}
-        onCallBack={(target) => setCallTarget(target)}
-      />
+      {/* ─── Historial de llamadas ─────────────────────────────────────────── */}
+      <CallHistoryDialog open={callHistoryOpen} onOpenChange={setCallHistoryOpen} />
 
       {/* ─── Precios ─────────────────────────────────────────────────────────
           Los datos se piden la primera vez que se abre, no con la lista. */}

@@ -65,7 +65,6 @@ export default async function MetricasPage({
     const answered  = calls.filter(c => c.outcome === 'ANSWERED').length;
     const noAnswer  = calls.filter(c => c.outcome === 'NO_ANSWER' || c.outcome === 'BUSY').length;
     const outbound  = calls.filter(c => c.direction === 'OUTBOUND').length;
-    const inbound   = calls.filter(c => c.direction === 'INBOUND').length;
     const durations = calls.filter(c => c.durationSeconds).map(c => Number(c.durationSeconds));
     const avgDurationSec = durations.length
       ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length
@@ -89,7 +88,7 @@ export default async function MetricasPage({
     content = (
       <ComunicacionesClient
         calls={rows}
-        kpis={{ totalCalls: calls.length, answered, noAnswer, outbound, inbound, avgDurationSec }}
+        kpis={{ totalCalls: calls.length, answered, noAnswer, outbound, avgDurationSec }}
       />
     );
   } else if (activeTab === 'empleados') {

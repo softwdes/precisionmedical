@@ -3,18 +3,20 @@
 /**
  * Historial de llamadas (fase 2 del plan de Twilio).
  *
- * Tres pestañas que son LA MISMA tabla con distinto `scope` contra
- * `GET /api/admin/call-logs` — no son tres vistas que mantener:
+ * Las llamadas del usuario logueado (`scope=mine`) contra
+ * `GET /api/admin/call-logs`, con filtros de resultado y período.
  *
- *   Recibidas y perdidas → scope=inbound         (visible a todos, con "Devolver")
- *   Mis llamadas         → scope=mine            (entrantes y salientes)
- *   Que yo contesté      → scope=answered-by-me
+ * Nació con tres pestañas y el 2026-08-05 quedó con una sola vista. Twilio
+ * desvía las entrantes a otro número, así que la clínica no recibe ninguna, y
+ * las otras dos pestañas dependían de eso:
+ *   - "Recibidas y perdidas" (`scope=inbound`) → cero permanente
+ *   - "Que yo contesté" (`scope=answered-by-me`) → filtra por `INBOUND`, igual
  *
- * "Devolver" no reimplementa la llamada: cierra este diálogo y delega en el
- * flujo de llamada que ya funciona en la lista de pacientes (confirmación →
- * llamando → resultado). Cerrar antes de delegar es a propósito — un
- * ConfirmDialog encima de este Dialog se monta en otro portal, fuera del DOM
- * del padre, y dispara el `onInteractOutside` del de abajo.
+ * Con ellas se fueron el botón "Devolver" y el contador de perdidas sin
+ * devolver, que solo aplicaban a entrantes perdidas.
+ *
+ * Los scopes siguen vivos en la API: los necesita la vista de supervisión del
+ * Admin, y si mañana vuelven las entrantes, alcanza con volver a ofrecerlos.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -32,7 +34,6 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
-  Undo2,
   RefreshCw,
   PhoneOff,
   SlidersHorizontal,
@@ -50,8 +51,6 @@ import { formatUsPhone } from '@/lib/phone';
 
 const CLINIC_TZ = 'America/Denver';
 const PAGE_SIZE = 10;
-
-export type CallScope = 'inbound' | 'mine' | 'answered-by-me';
 
 export interface CallLogRow {
   id: string;
@@ -74,7 +73,6 @@ export interface CallLogRow {
   case: { id: string; caseCode: string } | null;
   agentName: string | null;
   agentIsMe: boolean;
-  pendingCallback: boolean;
 }
 
 /** Filtro de resultado. `MISSED` agrupa NO_ANSWER + BUSY + FAILED en la API. */
@@ -87,15 +85,6 @@ interface CallLogsResponse {
   page: number;
   total: number;
   totalPages: number;
-  counts: { inbound: number; mine: number; answeredByMe: number; missedPending: number };
-}
-
-/** A quién devolverle la llamada. `patientId` null = número sin registrar. */
-export interface CallBackTarget {
-  name: string;
-  phone: string;
-  patientId: string | null;
-  caseId: string | null;
 }
 
 // ─── Helpers de presentación ─────────────────────────────────────────────────
@@ -130,16 +119,13 @@ function initialsOf(name: string): { first: string; last: string } {
 export function CallHistoryDialog({
   open,
   onOpenChange,
-  onCallBack,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCallBack: (target: CallBackTarget) => void;
 }) {
   const t      = useTranslations('phoenix.calls');
   const locale = useLocale();
 
-  const [scope, setScope]     = useState<CallScope>('inbound');
   const [outcome, setOutcome] = useState<OutcomeFilter>('all');
   const [period, setPeriod]   = useState<PeriodFilter>(0);
   const [page, setPage]       = useState(0);
@@ -150,14 +136,13 @@ export function CallHistoryDialog({
   const filtered = outcome !== 'all' || period !== 0;
 
   const load = useCallback(async (
-    nextScope: CallScope, nextPage: number,
-    nextOutcome: OutcomeFilter, nextPeriod: PeriodFilter,
+    nextPage: number, nextOutcome: OutcomeFilter, nextPeriod: PeriodFilter,
   ) => {
     setLoading(true);
     setError(false);
     try {
       const params = new URLSearchParams({
-        scope: nextScope,
+        scope: 'mine',
         page:  String(nextPage),
         size:  String(PAGE_SIZE),
       });
@@ -180,17 +165,10 @@ export function CallHistoryDialog({
 
   useEffect(() => {
     if (!open) return;
-    void load(scope, page, outcome, period);
-  }, [open, scope, page, outcome, period, load]);
-
-  const switchScope = (next: CallScope) => {
-    if (next === scope) return;
-    setScope(next);
-    setPage(0);
-  };
+    void load(page, outcome, period);
+  }, [open, page, outcome, period, load]);
 
   const calls      = data?.calls ?? [];
-  const counts     = data?.counts;
   const totalPages = data?.totalPages ?? 1;
 
   const whenLabel = (iso: string): string => {
@@ -216,77 +194,18 @@ export function CallHistoryDialog({
     }
   };
 
-  const emptySubtitle = () => {
-    switch (scope) {
-      case 'mine':           return t('emptyMine');
-      case 'answered-by-me': return t('emptyAnsweredByMe');
-      case 'inbound':        return t('emptyInbound');
-    }
-  };
-
-  const callBackTargetFor = (row: CallLogRow): CallBackTarget => ({
-    name: row.patient
-      ? `${row.patient.firstName} ${row.patient.lastName}`.trim()
-      : formatUsPhone(row.counterpartNumber),
-    // Se devuelve al número que llamó, no al primario del paciente — es el que
-    // la persona está usando ahora mismo.
-    phone: row.counterpartNumber || row.patient?.phone || '',
-    patientId: row.patient?.id ?? null,
-    caseId: row.case?.id ?? null,
-  });
-
-  const handleCallBack = (row: CallLogRow) => {
-    onOpenChange(false);
-    onCallBack(callBackTargetFor(row));
-  };
-
-  const TABS: { key: CallScope; label: string; count?: number; alert?: boolean }[] = [
-    { key: 'inbound',        label: t('tabInbound'),      count: counts?.inbound,      alert: (counts?.missedPending ?? 0) > 0 },
-    { key: 'mine',           label: t('tabMine'),         count: counts?.mine },
-    { key: 'answered-by-me', label: t('tabAnsweredByMe'), count: counts?.answeredByMe },
-  ];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 shrink-0">
           <DialogTitle className="text-text-1 flex items-center gap-2 text-base">
-            <PhoneIncoming className="w-4 h-4 text-brand-text" />
+            <PhoneOutgoing className="w-4 h-4 text-brand-text" />
             {t('historyTitle')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
             {t('historySubtitle')}
           </DialogDescription>
         </DialogHeader>
-
-        {/* Pestañas — mismo filtro, misma tabla */}
-        <div className="flex items-center gap-1 border-b border-border px-2 sm:px-4 overflow-x-auto shrink-0">
-          {TABS.map(tab => {
-            const on = tab.key === scope;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => switchScope(tab.key)}
-                aria-current={on ? 'page' : undefined}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors ${
-                  on ? 'border-brand text-brand-text' : 'border-transparent text-text-muted hover:text-text-1'
-                }`}
-              >
-                {tab.label}
-                {tab.count != null && (
-                  <span className={`text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-bold ${
-                    tab.alert && tab.key === 'inbound'
-                      ? 'bg-rose/15 text-rose'
-                      : on ? 'bg-brand/10 text-brand-text' : 'bg-bg-2 text-text-muted'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
 
         {/* Filtros — aplican a la pestaña activa. Pills, no un formulario:
             son 2 decisiones rápidas, no una búsqueda avanzada. */}
@@ -337,7 +256,7 @@ export function CallHistoryDialog({
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(scope, page, outcome, period)}
+                onClick={() => void load(page, outcome, period)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -353,7 +272,7 @@ export function CallHistoryDialog({
                   title={t('emptyFilteredTitle')}
                   subtitle={t('emptyFilteredHint')}
                 />
-              : <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={emptySubtitle()} />
+              : <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={t('emptyMine')} />
           ) : (
             <>
               {/* Desktop / tablet — tabla con la 1ra y la última columna fijas.
@@ -371,9 +290,6 @@ export function CallHistoryDialog({
                           <th className="text-left px-4 py-2.5 font-semibold w-[160px]">{t('colAgent')}</th>
                           <th className="text-right px-4 py-2.5 font-semibold w-[85px]">{t('colDuration')}</th>
                           <th className="text-left px-4 py-2.5 font-semibold w-[130px]">{t('colWhen')}</th>
-                          <th className="sticky right-0 z-10 bg-bg-2 text-right px-4 py-2.5 font-semibold w-[120px]">
-                            <span className="sr-only">{t('colActions')}</span>
-                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -389,29 +305,12 @@ export function CallHistoryDialog({
                               {formatDuration(row.durationSeconds) ?? <span className="text-text-muted">—</span>}
                             </td>
                             <td className="px-4 py-2 text-[11px] text-text-muted whitespace-nowrap">{whenLabel(row.createdAt)}</td>
-                            <td className="sticky right-0 z-10 bg-bg-0 px-4 py-2 text-right">
-                              {row.pendingCallback && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCallBack(row)}
-                                  className="inline-flex items-center gap-1.5 rounded-md border border-emerald/40 bg-emerald/10 px-2 py-1 text-[11px] font-semibold text-emerald hover:bg-emerald/20 transition-colors whitespace-nowrap"
-                                >
-                                  <Undo2 className="w-3 h-3" />
-                                  {t('callBack')}
-                                </button>
-                              )}
-                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                 </div>
-                <TableFooter
-                  left={t('footerCount', { shown: calls.length, total: data?.total ?? 0 })}
-                  right={counts && counts.missedPending > 0
-                    ? <span className="text-rose font-semibold">{t('footerPending', { count: counts.missedPending })}</span>
-                    : undefined}
-                />
+                <TableFooter left={t('footerCount', { shown: calls.length, total: data?.total ?? 0 })} />
               </div>
 
               {/* Mobile — cards: la tabla de 7 columnas no entra en 375px */}
@@ -429,19 +328,7 @@ export function CallHistoryDialog({
                       )}
                       <span className="text-[11px] text-text-muted ml-auto">{whenLabel(row.createdAt)}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <AgentCell row={row} meLabel={t('me')} />
-                      {row.pendingCallback && (
-                        <button
-                          type="button"
-                          onClick={() => handleCallBack(row)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-emerald/40 bg-emerald/10 px-2 py-1 text-[11px] font-semibold text-emerald hover:bg-emerald/20 transition-colors"
-                        >
-                          <Undo2 className="w-3 h-3" />
-                          {t('callBack')}
-                        </button>
-                      )}
-                    </div>
+                    <AgentCell row={row} meLabel={t('me')} />
                   </li>
                 ))}
               </ul>

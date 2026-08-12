@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@precision/ui';
 import {
-  Activity, Clock, Download, Loader2, Phone, PhoneIncoming,
+  Activity, Clock, Download, Loader2, Phone,
   UserPlus, CalendarDays, DollarSign, Undo2, X,
 } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
@@ -132,7 +132,6 @@ const actionLabel = (a: string): string =>
  */
 const COLUMNS: Array<{ key: keyof EmployeeRow; label: string; tone?: 'warn' }> = [
   { key: 'callsMade',           label: 'Llam.' },
-  { key: 'callsAnswered',       label: 'Contest.' },
   { key: 'patientsCreated',     label: 'Pacientes' },
   { key: 'casesCreated',        label: 'Casos' },
   { key: 'appointmentsCreated', label: 'Citas' },
@@ -183,11 +182,10 @@ export function EmpleadosMetricasClient() {
   );
 
   const totals = useMemo(() => {
-    const base = { activeMinutes: 0, callsMade: 0, callsAnswered: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
+    const base = { activeMinutes: 0, callsMade: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
     for (const r of rows ?? []) {
       base.activeMinutes += r.activeMinutes;
       base.callsMade += r.callsMade;
-      base.callsAnswered += r.callsAnswered;
       base.patientsCreated += r.patientsCreated;
       base.appointmentsCreated += r.appointmentsCreated;
       base.payments += r.payments;
@@ -198,7 +196,10 @@ export function EmpleadosMetricasClient() {
 
   const exportCsv = useCallback(() => {
     if (!visible.length) return;
-    const cols = ['name', 'role', 'activeMinutes', 'callsMade', 'callsAnswered', ...COLUMNS.slice(2).map(c => c.key)] as Array<keyof EmployeeRow>;
+    // `slice(1)` y no `slice(2)`: 'callsMade' es la ÚNICA columna que ya va
+    // listada a mano arriba. Era slice(2) cuando 'callsAnswered' la seguía en
+    // COLUMNS; al quitarla, un slice(2) se comía 'patientsCreated' del CSV.
+    const cols = ['name', 'role', 'activeMinutes', 'callsMade', ...COLUMNS.slice(1).map(c => c.key)] as Array<keyof EmployeeRow>;
     const header = cols.join(',');
     const lines = visible.map((r) =>
       cols.map((c) => {
@@ -217,11 +218,12 @@ export function EmpleadosMetricasClient() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* KPIs del período */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      {/* KPIs del período. Sin "Contestadas": ese conteo son las ENTRANTES
+          atendidas, y desde el 2026-08-05 Twilio las desvía a otro número, así
+          que la tarjeta era un cero permanente para todos. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
         <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand-text" />
-        <KpiCard icon={PhoneIncoming} label="Contestadas"    value={totals.callsAnswered}             color="bg-cyan/10 text-cyan" />
         <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet-text" />
         <KpiCard icon={CalendarDays} label="Citas creadas"   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
         <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-emerald/10 text-emerald" />
@@ -361,10 +363,6 @@ export function EmpleadosMetricasClient() {
               <div className="rounded-lg bg-surface-2 border border-border p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3">Llam. hechas</div>
                 <div className="text-lg font-bold text-brand-text mt-0.5 tabular-nums">{detail.callsMade}</div>
-              </div>
-              <div className="rounded-lg bg-surface-2 border border-border p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3">Contestadas</div>
-                <div className="text-lg font-bold text-cyan mt-0.5 tabular-nums">{detail.callsAnswered}</div>
               </div>
             </div>
 

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { cn } from '@precision/ui';
 import {
-  Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed,
+  Phone, PhoneOutgoing, PhoneMissed,
   MessageSquare, Clock, User, Search, Calendar,
 } from 'lucide-react';
 
@@ -28,7 +28,6 @@ interface KPIs {
   noAnswer:      number;
   avgDurationSec: number;
   outbound:      number;
-  inbound:       number;
 }
 
 interface Props {
@@ -88,7 +87,6 @@ function KpiCard({ icon: Icon, label, value, sub, color }: {
 
 export function ComunicacionesClient({ calls, kpis }: Props) {
   const [search,      setSearch]      = useState('');
-  const [filterDir,   setFilterDir]   = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
   const [filterOut,   setFilterOut]   = useState<string>('ALL');
   const [filterAgent, setFilterAgent] = useState<string>('ALL');
 
@@ -99,7 +97,6 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
 
   const filtered = useMemo(() => {
     let rows = calls;
-    if (filterDir   !== 'ALL') rows = rows.filter(r => r.direction === filterDir);
     if (filterOut   !== 'ALL') rows = rows.filter(r => r.outcome === filterOut);
     if (filterAgent !== 'ALL') rows = rows.filter(r => r.agentName === filterAgent);
     if (search.trim()) {
@@ -113,17 +110,19 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
       );
     }
     return rows;
-  }, [calls, search, filterDir, filterOut, filterAgent]);
+  }, [calls, search, filterOut, filterAgent]);
 
   const avgFmt = kpis.avgDurationSec > 0 ? fmtDuration(Math.round(kpis.avgDurationSec)) : '—';
 
   return (
     <div className="p-6 space-y-6">
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs. Sin "Entrantes": Twilio desvía las llamadas entrantes a otro
+          número desde el 2026-08-05, así que la clínica no recibe ninguna y esa
+          tarjeta era un cero permanente. "Sin respuesta" SÍ queda — una
+          saliente que no contestan es un resultado real y frecuente. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard icon={Phone}         label="Total llamadas" value={kpis.totalCalls}  color="bg-brand/10 text-brand-text" />
-        <KpiCard icon={PhoneIncoming} label="Entrantes"      value={kpis.inbound}     color="bg-cyan/10 text-cyan" />
         <KpiCard icon={PhoneOutgoing} label="Salientes"      value={kpis.outbound}    color="bg-violet/10 text-violet-text" />
         <KpiCard icon={Phone}         label="Contestadas"    value={kpis.answered}    sub={kpis.totalCalls > 0 ? `${Math.round(kpis.answered / kpis.totalCalls * 100)}%` : '—'} color="bg-emerald/10 text-emerald" />
         <KpiCard icon={PhoneMissed}   label="Sin respuesta"  value={kpis.noAnswer}    color="bg-amber/10 text-amber" />
@@ -142,22 +141,8 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
           />
         </div>
 
-        <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-          {(['ALL', 'INBOUND', 'OUTBOUND'] as const).map(d => (
-            <button
-              key={d}
-              onClick={() => setFilterDir(d)}
-              className={cn(
-                'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                filterDir === d
-                  ? 'bg-brand text-white'
-                  : 'text-text-3 hover:text-text-1',
-              )}
-            >
-              {d === 'ALL' ? 'Todos' : d === 'INBOUND' ? 'Entrantes' : 'Salientes'}
-            </button>
-          ))}
-        </div>
+        {/* El filtro Todos/Entrantes/Salientes se quitó junto con el KPI: sin
+            entrantes, elegir dirección era elegir entre "todo" y "nada". */}
 
         <select
           value={filterOut}
@@ -199,7 +184,8 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
             <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Dirección</th>
+                  {/* Sin columna "Dirección": todas las llamadas son salientes
+                      desde que Twilio desvía las entrantes a otro número. */}
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Paciente / Número</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Agente</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Resultado</th>
@@ -213,19 +199,6 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                   const outcome = OUTCOME_CONFIG[row.outcome] ?? OUTCOME_CONFIG.FAILED;
                   return (
                     <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-4 py-3">
-                        {row.direction === 'OUTBOUND' ? (
-                          <span className="flex items-center gap-1.5 text-violet-text">
-                            <PhoneOutgoing className="w-3.5 h-3.5" />
-                            <span className="text-[11px] font-medium">Saliente</span>
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-cyan">
-                            <PhoneIncoming className="w-3.5 h-3.5" />
-                            <span className="text-[11px] font-medium">Entrante</span>
-                          </span>
-                        )}
-                      </td>
                       <td className="px-4 py-3">
                         {row.patientName ? (
                           <div>

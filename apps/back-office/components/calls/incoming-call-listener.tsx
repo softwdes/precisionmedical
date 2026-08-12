@@ -3,9 +3,17 @@
 /**
  * Escucha llamadas entrantes y las muestra para atender (fase 3 del plan).
  *
- * Se monta una sola vez en el shell del back-office. Es lo que hace que este
- * navegador quede REGISTRADO en Twilio y con presencia viva — sin un montaje
- * permanente no hay a quién enrutar una entrante.
+ * ⛔ HOY NO ESTÁ MONTADO EN NINGÚN LADO. Se desmontó del shell el 2026-08-05
+ * cuando se decidió que Twilio desvíe las entrantes a otro número: montado le
+ * pedía el micrófono a todos al cargar la app y latía cada 60s para atender
+ * llamadas que ya no llegan.
+ *
+ * Se conserva entero y funcionando junto con `/api/twilio/incoming` y la
+ * presencia. Para volver a recibir alcanza con montarlo en `(admin)/layout.tsx`
+ * y apuntar "A call comes in" del número al webhook.
+ *
+ * Cuando se monta, es lo que hace que este navegador quede REGISTRADO en Twilio
+ * y con presencia viva — sin un montaje permanente no hay a quién enrutar.
  *
  * ⚠️ Cambio de comportamiento: el permiso de micrófono pasa a pedirse al
  * cargar la app y no al marcar. Es inevitable para poder recibir.

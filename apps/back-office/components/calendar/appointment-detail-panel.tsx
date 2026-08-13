@@ -105,6 +105,15 @@ interface Props {
    */
   hidePayments?: boolean;
   /**
+   * Oculta "Agregar cargo" y deja el tab en modo COBRO.
+   *
+   * Es el inverso de `hidePayments`, y los dos juntos parten la pantalla en dos
+   * momentos de la visita (Erick, 2026-08-13): en Servicios se agrega y se quita,
+   * en Pagar solo se cobra lo que ya se definió. Sin esto, el tab de Pagar
+   * invitaba a seguir cargando cosas justo cuando el paciente está pagando.
+   */
+  hideAddCharge?: boolean;
+  /**
    * Cobertura del caso. ORDENA qué catálogo abre primero el picker y se muestra
    * ahí como referencia; las dos listas se ven siempre. Sin valor arranca en
    * efectivo — el default más seguro, porque cobrar de más es peor que facturar
@@ -213,7 +222,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false, onOpenCase, suspended = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false, onOpenCase, suspended = false, hideAddCharge = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -543,9 +552,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           )}
           {/* Acción primaria del tab, sólida y arriba a la derecha — igual que
               "Dispense brace" en Férulas. */}
-          <Button onClick={() => setCatalogOpen(true)} className="h-9 gap-1.5">
-            <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
-          </Button>
+          {!hideAddCharge && (
+            <Button onClick={() => setCatalogOpen(true)} className="h-9 gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -558,7 +569,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
         </div>
       ) : chargeCount === 0 ? (
-        <EmptyState.Rich icon={Stethoscope} title={tc('emptyTitle')} subtitle={tc('emptyHint')} />
+        <EmptyState.Rich
+          icon={Stethoscope}
+          title={tc('emptyTitle')}
+          /* Sin el botón de agregar, "agregá servicios" es una instrucción que no
+             se puede seguir desde acá. En modo cobro se dice lo que corresponde:
+             no hay nada que cobrar. */
+          subtitle={hideAddCharge ? tc('emptyNothingToCollect') : tc('emptyHint')}
+        />
       ) : (
         <div className="rounded-lg border border-border bg-bg-1">
 

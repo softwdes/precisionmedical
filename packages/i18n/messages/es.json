@@ -4798,7 +4798,8 @@
       "voidBody": "Sale del total y del cobro. Queda registrado quién lo anuló.",
       "chargesTitle": "Cargos de la visita",
       "emptyTitle": "Sin cargos todavía",
-      "emptyHint": "Agregá servicios de seguro o de efectivo — las dos listas están en el mismo buscador."
+      "emptyHint": "Agregá servicios de seguro o de efectivo — las dos listas están en el mismo buscador.",
+      "emptyNothingToCollect": "No hay nada que cobrar en esta visita"
     },
     "pendingNotes": {
       "title": "Notas sin cerrar",

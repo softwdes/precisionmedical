@@ -335,6 +335,7 @@ export function DoctorStepPanel({
               <AppointmentDetailPanel
                 inline
                 noBorder
+                hideAddCharge
                 initialTab="services"
                 appointment={servicesPanel}
                 coverage={coverage}

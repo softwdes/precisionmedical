@@ -4798,7 +4798,8 @@
       "voidBody": "It leaves the total and the bill. Who voided it stays on record.",
       "chargesTitle": "Visit charges",
       "emptyTitle": "No charges yet",
-      "emptyHint": "Add insurance or cash services — both lists live in the same search."
+      "emptyHint": "Add insurance or cash services — both lists live in the same search.",
+      "emptyNothingToCollect": "Nothing to collect on this visit"
     },
     "pendingNotes": {
       "title": "Notes not closed",

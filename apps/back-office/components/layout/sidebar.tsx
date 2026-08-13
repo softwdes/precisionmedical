@@ -19,6 +19,7 @@ import {
   FileText,
   FlaskConical,
   Pill,
+  Stethoscope,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -58,6 +59,15 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+/**
+ * Puerta al portal médico desde el menú administrativo. No lleva `moduleKey`:
+ * no se filtra con el resto de los menús (que se ven salvo `false`) sino con la
+ * capacidad `canViewAsDoctor`, que exige un sí explícito.
+ */
+const DOCTOR_PORTAL_ITEM: NavItem = {
+  href: '/doctor', icon: Stethoscope, labelKey: 'doctorPortal', mockup: 'B.17–B.18', exact: true,
+};
+
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
 const DOCTOR_SECTIONS: NavSection[] = [
   {
@@ -84,21 +94,31 @@ interface SidebarProps {
   variant?: ShellVariant;
   /** Checks por menú del rol. null = ve todo. */
   allowedModules?: Record<string, boolean> | null;
+  /** Capacidad "ver como doctor" — agrega el Portal Médico al menú administrativo. */
+  canViewAsDoctor?: boolean;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
 
   const isDoctor = variant === 'doctor';
   const baseSections = isDoctor ? DOCTOR_SECTIONS : SECTIONS;
   // Checks por menú del rol: sin mapa → todo visible; con mapa → solo los marcados
-  const sections = allowedModules
+  const visibleSections = allowedModules
     ? baseSections.map((s) => ({
         ...s,
         items: s.items.filter((i) => !i.moduleKey || allowedModules[i.moduleKey] !== false),
       }))
     : baseSections;
+  // El Portal Médico cierra el menú administrativo. Se agrega a la última sección
+  // en vez de abrir una nueva: la lista se renderiza con `titleKey` como key de
+  // React y todas las secciones de acá comparten el título vacío.
+  const sections = !isDoctor && canViewAsDoctor
+    ? visibleSections.map((s, i) =>
+        i === visibleSections.length - 1 ? { ...s, items: [...s.items, DOCTOR_PORTAL_ITEM] } : s,
+      )
+    : visibleSections;
   const homeHref = isDoctor ? '/doctor' : '/dashboard';
   const logoGradient = isDoctor
     ? 'linear-gradient(135deg,#7C3AED 0%,#8B5CF6 50%,#A78BFA 100%)'

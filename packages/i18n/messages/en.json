@@ -1560,7 +1560,7 @@
       "viewAsPlaceholder": "Pick a doctor…",
       "viewAsHint": "You see their portal exactly as they do. Nothing in their account is changed.",
       "viewAsPickTitle": "Which doctor do you want to view?",
-      "viewAsPickSubtitle": "Your account isn't a doctor account, but as an administrator you can open any physician's portal for support or testing.",
+      "viewAsPickSubtitle": "Your account isn't a doctor account. Pick the physician whose portal you want to open for support or testing.",
       "noProfileTitle": "No doctor profile linked",
       "noProfileSubtitle": "Your account is not linked to a doctor profile. Contact your administrator.",
       "calendarTitle": "My Calendar",
@@ -1984,7 +1984,8 @@
       "rxInboxTab": "Inbox",
       "rxQueueTab": "Queue",
       "rxAuditTab": "Audit",
-      "rxRefresh": "Refresh"
+      "rxRefresh": "Refresh",
+      "backToAdmin": "Back to Back-Office"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

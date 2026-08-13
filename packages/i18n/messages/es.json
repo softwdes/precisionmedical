@@ -1560,7 +1560,7 @@
       "viewAsPlaceholder": "Elegí un doctor…",
       "viewAsHint": "Ves su portal tal como lo ve él. No se modifica nada de su cuenta.",
       "viewAsPickTitle": "¿Qué doctor querés ver?",
-      "viewAsPickSubtitle": "Tu cuenta no es de doctor, pero como administrador podés abrir el portal de cualquier médico para dar soporte o hacer pruebas.",
+      "viewAsPickSubtitle": "Tu cuenta no es de doctor. Elegí el médico cuyo portal querés abrir para dar soporte o hacer pruebas.",
       "noProfileTitle": "Cuenta sin perfil de doctor",
       "noProfileSubtitle": "Tu usuario no está vinculado a un perfil de doctor. Contacta al administrador.",
       "calendarTitle": "Mi Calendario",
@@ -1984,7 +1984,8 @@
       "rxInboxTab": "Bandeja",
       "rxQueueTab": "Cola",
       "rxAuditTab": "Auditoría",
-      "rxRefresh": "Actualizar"
+      "rxRefresh": "Actualizar",
+      "backToAdmin": "Volver al Back-Office"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

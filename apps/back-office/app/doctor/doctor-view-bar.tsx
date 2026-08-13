@@ -3,8 +3,9 @@
 /**
  * DoctorViewBar — barra "viendo como" del portal médico.
  *
- * Solo aparece para SUPER_ADMIN / ADMIN, que entran al portal sin perfil de
- * doctor propio (soporte, demos, QA). Al elegir un doctor, todo el portal
+ * Aparece para quien entra al portal sin perfil de doctor propio: admins
+ * (soporte, demos) y las cuentas con "Portal Médico" marcado en su ficha
+ * (QA, pruebas). Al elegir un doctor, todo el portal
  * —Mi Día, Mis Pacientes, Estadísticas, Consulta— se muestra tal como lo ve
  * ese médico: la elección vive en una cookie que lee `getSessionProvider`.
  *
@@ -13,9 +14,11 @@
  */
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
+import { Button } from '@precision/ui';
 import { DoctorCombobox, type DoctorComboboxProvider } from '@/components/ui-phoenix/doctor-combobox';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 
@@ -65,6 +68,16 @@ export function DoctorViewBar({ providers, currentId }: Props): React.ReactEleme
         />
       </div>
       <span className="text-[11px] text-text-muted">{t('viewAsHint')}</span>
+      {/* Única salida del portal: el sidebar violet apunta todo a /doctor y no
+          tiene link al back-office. Vive acá y no en el shell del portal porque
+          esta barra ya sale solo en modo "ver como" — un doctor real no tiene
+          back-office al que volver, y no debe ver el botón. */}
+      <Button asChild variant="outline" size="sm" className="shrink-0">
+        <Link href="/dashboard">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {t('backToAdmin')}
+        </Link>
+      </Button>
     </div>
   );
 }

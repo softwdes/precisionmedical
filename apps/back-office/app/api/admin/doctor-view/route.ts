@@ -1,33 +1,30 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { db, writeAuditLog } from '@precision-medical/database';
-import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
-import { DOCTOR_VIEW_COOKIE } from '@/lib/get-session-provider';
+import { DOCTOR_VIEW_COOKIE, canViewAsDoctor } from '@/lib/get-session-provider';
 import { resolveActor } from '@/lib/actor';
 
 /**
  * POST /api/admin/doctor-view   { providerId }  → fija el doctor a "ver como"
  * DELETE /api/admin/doctor-view                 → limpia la selección
  *
- * Solo SUPER_ADMIN / ADMIN. Un doctor real no necesita esto (su portal se
- * resuelve por su propio email) y `getSessionProvider` ignora la cookie cuando
- * el usuario tiene perfil propio — pero igual se valida acá: el acceso al
- * portal de otro médico queda auditado, no es una preferencia de UI cualquiera.
+ * Requiere la capacidad "ver como doctor" (`canViewAsDoctor`): admins por rol,
+ * el resto por la marca "Portal Médico" de su ficha. Un doctor real no necesita
+ * esto (su portal se resuelve por su propio email) y `getSessionProvider` ignora
+ * la cookie cuando el usuario tiene perfil propio — pero igual se valida acá: el
+ * middleware no cubre `/api/*`, así que esta ruta es su propia puerta.
  */
 
-const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
-
-async function requireAdmin(): Promise<{ email: string } | null> {
+async function requireDoctorView(): Promise<{ email: string } | null> {
   const user = await getSessionUser();
   if (!user?.email) return null;
-  const role = await fetchDbRole(user.email);
-  return ADMIN_ROLES.has(role) ? { email: user.email } : null;
+  return (await canViewAsDoctor(user.email)) ? { email: user.email } : null;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  const actor = await requireDoctorView();
+  if (!actor) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
 
   let providerId: unknown;
   try {
@@ -58,15 +55,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     action: 'DOCTOR_VIEW_AS',
     entityType: 'providers',
     entityId: provider.id,
-    metadata: { admin: admin.email, doctor: provider.email },
+    metadata: { viewer: actor.email, doctor: provider.email },
   }).catch(() => undefined);
 
   return NextResponse.json({ ok: true, provider: { id: provider.id, firstName: provider.firstName, lastName: provider.lastName } });
 }
 
 export async function DELETE(): Promise<NextResponse> {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  const actor = await requireDoctorView();
+  if (!actor) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
 
   (await cookies()).delete(DOCTOR_VIEW_COOKIE);
   return NextResponse.json({ ok: true });

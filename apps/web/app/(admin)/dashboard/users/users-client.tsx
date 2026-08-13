@@ -739,6 +739,15 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
   { key: 'settings',  label: 'Settings',       emoji: '⚙️' },
 ];
 
+/**
+ * Capacidad "ver como doctor", guardada en el mismo JSON que los menús pero con
+ * la regla invertida: un menú se ve salvo que esté en `false`, así que "Visión
+ * completa" (mapa nulo) los concede todos. Entrar al portal de un médico no puede
+ * caer de esa regla — solo cuenta un `true` explícito, y por eso su switch vive
+ * fuera del bloque de menús. Espejo de `apps/back-office/lib/doctor-view-module.ts`.
+ */
+const DOCTOR_VIEW_MODULE = 'doctor';
+
 function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
@@ -750,11 +759,16 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   });
 
   // Menús del Back-Office visibles para ESTE usuario. null = visión completa.
+  // La llave `doctor` viaja en el mismo mapa pero no es un menú: se edita aparte
+  // y no debe contar para decidir si el usuario tiene visión completa.
   const savedModules = (user as { clinicModules?: Record<string, boolean> | null }).clinicModules ?? null;
-  const [fullVision, setFullVision] = useState(savedModules === null);
+  const [fullVision, setFullVision] = useState(
+    savedModules === null || CLINIC_MODULES.every(m => savedModules[m.key] === undefined),
+  );
   const [clinicModules, setClinicModules] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(CLINIC_MODULES.map(m => [m.key, savedModules ? savedModules[m.key] !== false : true])),
   );
+  const [doctorView, setDoctorView] = useState(savedModules?.[DOCTOR_VIEW_MODULE] === true);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
@@ -788,10 +802,19 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
+    // Los menús y la capacidad comparten columna. `null` = visión completa sin
+    // portal médico; con visión completa y portal, se guarda solo la llave
+    // `doctor` — el resto queda sin definir, que es "visible" para el middleware.
+    const menus = fullVision ? null : clinicModules;
+    const clinicModulesPayload =
+      menus === null && !doctorView
+        ? null
+        : { ...(menus ?? {}), ...(doctorView ? { [DOCTOR_VIEW_MODULE]: true } : {}) };
+
     update.mutate({
       id: user.id,
       ...form,
-      clinicModules: fullVision ? null : clinicModules,
+      clinicModules: clinicModulesPayload,
     });
   };
 
@@ -883,6 +906,39 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                       </label>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Portal Médico: capacidad de "ver como doctor" ── */}
+            {/* Fuera del bloque de menús a propósito: no se rige por la regla
+                "se ve salvo que esté apagado" sino por un sí explícito. */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Portal Médico — Ver como doctor</p>
+                  <p className="text-[11px] text-text-muted">
+                    {doctorView
+                      ? 'Puede abrir el portal y elegir el médico que quiere ver.'
+                      : 'Sin acceso al portal médico.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDoctorView(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${doctorView ? 'bg-violet-500' : 'bg-border'}`}
+                  title={doctorView ? 'Con acceso al portal médico' : 'Sin acceso al portal médico'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${doctorView ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {doctorView && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <p className="text-[11px] text-amber-400 leading-relaxed">
+                    Todo lo que registre en el portal queda a nombre del médico elegido.
+                    Para pruebas, usar un doctor de QA — no uno que esté atendiendo.
+                  </p>
                 </div>
               )}
             </div>

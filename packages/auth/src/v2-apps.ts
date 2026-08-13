@@ -32,10 +32,30 @@ export function canAccessV2App(dbRole: string, app: V2App): boolean {
 }
 
 /**
+ * `users.role` (MAYÚSCULAS) → `roles_config.role` (forma interna, minúsculas).
+ *
+ * Casi siempre es un `toLowerCase()`, pero **`AUDITOR_AI` se llama `ia_auditor`**
+ * en la tabla — invertido. Con el lowercase a secas esa fila no se encuentra y su
+ * configuración se ignora en silencio. Espejo de `dbRoleToRole()` en
+ * `apps/web/lib/permissions.ts`, que hace el mismo mapeo del otro lado.
+ */
+const ROLE_CONFIG_KEY: Record<string, string> = { AUDITOR_AI: 'ia_auditor' };
+
+function roleConfigKey(dbRole: string): string {
+  const upper = dbRole.toUpperCase();
+  return ROLE_CONFIG_KEY[upper] ?? upper.toLowerCase();
+}
+
+/**
  * Verifica acceso al back-office usando la configuración dinámica en roles_config.
  * Para roles que ya tienen acceso por la matriz estática (SUPER_ADMIN, ADMIN, CONTADOR),
  * devuelve true directamente. Para el resto, consulta roles_config.permissions.pm_clinic.
  * Usar junto con caché en cookie (1h) para evitar llamadas repetidas por request.
+ *
+ * OJO CON EL CASE: `users.role` viene en MAYÚSCULAS (`EMPLOYEE`) y `roles_config.role`
+ * guarda la forma interna en minúsculas (`employee`). Sin normalizar con
+ * `roleConfigKey()` la consulta no matcheaba NUNCA y el toggle "Clinic Back-Office"
+ * del panel de roles era decorativo: siempre devolvía false.
  */
 export async function fetchRoleClinicAccess(dbRole: string): Promise<boolean> {
   // Roles con acceso garantizado por la matriz estática
@@ -44,7 +64,7 @@ export async function fetchRoleClinicAccess(dbRole: string): Promise<boolean> {
   try {
     const url =
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/roles_config` +
-      `?select=permissions&role=eq.${encodeURIComponent(dbRole)}&limit=1`;
+      `?select=permissions&role=eq.${encodeURIComponent(roleConfigKey(dbRole))}&limit=1`;
 
     const res = await fetch(url, {
       headers: {

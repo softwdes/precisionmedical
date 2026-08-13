@@ -26,6 +26,9 @@ interface AdminShellProps {
   variant?:      'admin' | 'doctor';
   /** Checks por menú del rol (roles_config.pm_clinic_modules). null = ve todo. */
   allowedModules?: Record<string, boolean> | null;
+  /** Capacidad "ver como doctor": agrega el Portal Médico al menú. Va aparte de
+   *  `allowedModules` porque ahí null significa "ve todo" y esta es opt-in. */
+  canViewAsDoctor?: boolean;
 }
 
 export function AdminShell({
@@ -36,6 +39,7 @@ export function AdminShell({
   userEmail    = '',
   variant      = 'admin',
   allowedModules = null,
+  canViewAsDoctor = false,
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -65,6 +69,7 @@ export function AdminShell({
             onCollapsedChange={handleCollapsedChange}
             variant={variant}
             allowedModules={allowedModules}
+            canViewAsDoctor={canViewAsDoctor}
           />
 
           {/* Backdrop mobile */}

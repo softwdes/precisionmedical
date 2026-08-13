@@ -1,8 +1,11 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { db } from '@precision-medical/database';
-import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { fetchDbRole, fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
+import { DOCTOR_VIEW_MODULE } from './doctor-view-module';
+
+export { DOCTOR_VIEW_MODULE };
 
 /**
  * Resuelve el Provider (doctor) de la sesión actual.
@@ -11,11 +14,10 @@ import { getSessionUser } from './session';
  * mientras el Provider vive en la base Phoenix — el email corporativo (sincronizado
  * desde HR) es la llave común. Devuelve null si no hay sesión o no hay perfil.
  *
- * Modo "ver como" para admins: SUPER_ADMIN/ADMIN no tienen perfil de doctor, pero
- * el middleware los deja entrar al portal (soporte, demos, QA). Para ellos el
- * doctor se elige con un selector en el encabezado y la elección vive en la
- * cookie `pm_doctor_view`. Así el portal se ve tal como lo ve ese doctor, sin
- * inventar citas ni tocar su cuenta.
+ * Modo "ver como": quien no tiene perfil de doctor propio pero sí la capacidad
+ * (ver `canViewAsDoctor`) elige un médico con el selector del encabezado, y la
+ * elección vive en la cookie `pm_doctor_view`. Así el portal se ve tal como lo ve
+ * ese doctor, sin inventar citas ni tocar su cuenta.
  */
 export interface SessionProvider {
   id: string;
@@ -44,6 +46,24 @@ const PROVIDER_FIELDS = {
 
 const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 
+/**
+ * ¿Puede este usuario abrir el portal de OTRO médico ("ver como")?
+ *
+ * SUPER_ADMIN y ADMIN la tienen por rol (soporte, demos). Cualquier otra cuenta
+ * la recibe por persona, marcando "Portal Médico" en su ficha del admin, que la
+ * guarda en `users.clinicModules.doctor`. Es opt-in — ver `DOCTOR_VIEW_MODULE`.
+ *
+ * Memorizado por request: el layout, el selector y cada página del portal la
+ * consultan, y detrás hay dos fetch al proyecto Admin.
+ */
+export const canViewAsDoctor = cache(async (email: string): Promise<boolean> => {
+  const role = await fetchDbRole(email);
+  if (ADMIN_ROLES.has(role)) return true;
+
+  const modules = await fetchUserClinicModules(email);
+  return modules?.[DOCTOR_VIEW_MODULE] === true;
+});
+
 /** Perfil propio del usuario logueado (null si no es doctor). */
 const getOwnProvider = cache(async (email: string): Promise<SessionProvider | null> =>
   db.provider.findFirst({
@@ -64,9 +84,8 @@ export const getSessionProvider = cache(async (): Promise<SessionProvider | null
   const own = await getOwnProvider(user.email);
   if (own) return own;
 
-  // 2. Admin en modo "ver como": el doctor elegido en la cookie
-  const role = await fetchDbRole(user.email);
-  if (!ADMIN_ROLES.has(role)) return null;
+  // 2. Modo "ver como": el doctor elegido en la cookie
+  if (!(await canViewAsDoctor(user.email))) return null;
 
   const selectedId = (await cookies()).get(DOCTOR_VIEW_COOKIE)?.value;
   if (!selectedId) return null;
@@ -78,9 +97,9 @@ export const getSessionProvider = cache(async (): Promise<SessionProvider | null
 });
 
 export interface DoctorViewInfo {
-  /** true si quien mira es admin sin perfil propio (modo "ver como") */
-  isAdminView: boolean;
-  /** Doctores entre los que puede elegir (solo se llena en modo admin) */
+  /** true si quien mira no tiene perfil propio y entra en modo "ver como" */
+  isViewAs: boolean;
+  /** Doctores entre los que puede elegir (solo se llena en modo "ver como") */
   options: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
 }
 
@@ -90,13 +109,12 @@ export interface DoctorViewInfo {
  */
 export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
   const user = await getSessionUser();
-  if (!user?.email) return { isAdminView: false, options: [] };
+  if (!user?.email) return { isViewAs: false, options: [] };
 
   const own = await getOwnProvider(user.email);
-  if (own) return { isAdminView: false, options: [] };
+  if (own) return { isViewAs: false, options: [] };
 
-  const role = await fetchDbRole(user.email);
-  if (!ADMIN_ROLES.has(role)) return { isAdminView: false, options: [] };
+  if (!(await canViewAsDoctor(user.email))) return { isViewAs: false, options: [] };
 
   const options = await db.provider.findMany({
     where: { deletedAt: null },
@@ -104,5 +122,5 @@ export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
     select: { id: true, firstName: true, lastName: true, specialty: true },
   });
 
-  return { isAdminView: true, options };
+  return { isViewAs: true, options };
 });

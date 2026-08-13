@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
+import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 
@@ -38,6 +39,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let userRole    = '';
   let userInits   = (emailLocal[0] ?? 'U').toUpperCase();
   let allowedModules: Record<string, boolean> | null = null;
+  // Portal médico en el menú. Va aparte de `allowedModules` a propósito: ese mapa
+  // es "se ve salvo false" y un mapa nulo significa "ve todo", regla que no puede
+  // regalar la suplantación de un médico. Acá solo cuenta el sí explícito.
+  let canViewAsDoctor = false;
 
   try {
     const admin = createAdminClient();
@@ -52,9 +57,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       userRole  = ROLE_LABELS[data.role as string] ?? data.role;
       userInits = initials(data.firstName ?? '', data.lastName ?? '');
       // Checks por menú POR USUARIO (null = "Visión completa"); admins nunca se restringen
-      if (data.role !== 'SUPER_ADMIN' && data.role !== 'ADMIN' && user.email) {
+      const isAdminRole = data.role === 'SUPER_ADMIN' || data.role === 'ADMIN';
+      if (!isAdminRole && user.email) {
         allowedModules = await fetchUserClinicModules(user.email);
       }
+      canViewAsDoctor = isAdminRole || allowedModules?.[DOCTOR_VIEW_MODULE] === true;
     }
   } catch {
     // fallback: inicial del email
@@ -75,6 +82,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userInitials={userInits}
         userEmail={user.email ?? ''}
         allowedModules={allowedModules}
+        canViewAsDoctor={canViewAsDoctor}
       >
         {children}
       </AdminShell>

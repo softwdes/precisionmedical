@@ -13,7 +13,8 @@ import { DoctorViewBar } from './doctor-view-bar';
  * Portal Médico · Layout (B.17–B.18 · identidad violet, Regla #5)
  *
  * Server Component: resuelve la sesión y el Provider vinculado.
- * El middleware ya garantiza que solo PROVIDER / SUPER_ADMIN / ADMIN llegan aquí.
+ * El middleware ya garantiza que aquí solo llegan los doctores (perfil propio) y
+ * quien tiene la capacidad "ver como doctor".
  */
 
 export default async function DoctorLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
@@ -27,9 +28,9 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
   ]);
   if (!user) redirect('/login');
 
-  // Admin sin doctor elegido todavía: en vez del cartel de "sin perfil", el
-  // selector — puede entrar al portal de cualquier médico para soporte o demo.
-  if (!provider && viewInfo.isAdminView) {
+  // Sin doctor elegido todavía: en vez del cartel de "sin perfil", el selector
+  // — puede entrar al portal de cualquier médico para soporte, demo o pruebas.
+  if (!provider && viewInfo.isViewAs) {
     // NavigationProgressProvider es obligatorio: DoctorViewBar usa
     // useTransitionProgress (Regla #1) y ese hook lanza si no encuentra el
     // provider. Acá no hay AdminShell —todavía no sabemos qué doctor mostrar—
@@ -71,11 +72,11 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
       <AdminShell
         variant="doctor"
         userName={`${provider.firstName} ${provider.lastName}`}
-        userRole={viewInfo.isAdminView ? t('viewAsRole') : 'Doctor'}
+        userRole={viewInfo.isViewAs ? t('viewAsRole') : 'Doctor'}
         userInitials={initials}
         userEmail={provider.email}
       >
-        {viewInfo.isAdminView && (
+        {viewInfo.isViewAs && (
           <DoctorViewBar providers={viewInfo.options} currentId={provider.id} />
         )}
         {children}

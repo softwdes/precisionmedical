@@ -76,7 +76,8 @@ export function DoctorStepPanel({
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
-  const [tab, setTab] = React.useState<Tab>('summary');
+  /** Abre en la nota, igual que la consulta del doctor. */
+  const [tab, setTab] = React.useState<Tab>('notes');
   /** El Resumen pidió cobrar: se salta al tab de Servicios y el panel abre el
    *  modal de "Pago del caso" al montarse. Se limpia al cambiar de tab a mano. */
   const [goToPayments, setGoToPayments] = React.useState(false);
@@ -149,9 +150,18 @@ export function DoctorStepPanel({
     },
   });
 
+  /**
+   * El orden sigue el flujo real de la visita (Erick, 2026-08-13): la nota
+   * primero —es lo que el asistente lee y transcribe mientras el paciente está
+   * ahí, igual que abre la consulta del doctor—, después el resumen de lo que
+   * pasó, y los cargos y pagos AL FINAL, porque cobrar es lo último.
+   *
+   * Antes abría en Summary. Ese orden venía de pensar la pantalla como un
+   * tablero de control y no como una secuencia.
+   */
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
-    { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
     { id: 'notes', label: t('tabNotes'), icon: FileText },
+    { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
     { id: 'labs', label: t('tabLabs'), icon: FlaskConical },
     { id: 'rx', label: t('tabRx'), icon: Pill },
     { id: 'braces', label: t('tabBraces'), icon: Bandage },

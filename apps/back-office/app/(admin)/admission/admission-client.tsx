@@ -298,7 +298,11 @@ export function AdmissionClient() {
   const isTodayForPoll = selectedDate === new Date().toLocaleDateString('en-CA');
   useEffect(() => {
     if (!isTodayForPoll) return;
-    const id = setInterval(() => { void load(selectedDate, true); }, 20_000);
+    const id = setInterval(() => {
+      // Nada de pedir datos con la pestaña oculta; el `focus` los trae al volver.
+      if (document.visibilityState === 'hidden') return;
+      void load(selectedDate, true);
+    }, 20_000);
     const onFocus = (): void => { void load(selectedDate, true); };
     window.addEventListener('focus', onFocus);
     return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };

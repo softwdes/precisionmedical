@@ -46,12 +46,18 @@ interface Props {
   servicesExtra?: React.ReactNode;
   /** Cobertura del caso — ordena el picker de cargos y se muestra ahí de referencia */
   coverage?: CoverageDTO;
+  /** Recarga completa — para después de una acción del usuario (guardar, admitir). */
   onRefresh: () => void;
+  /**
+   * Refetch SILENCIOSO para el refresco en vivo. `onRefresh` no sirve: prende el
+   * skeleton de pantalla completa y limpia el formulario de vitales de la MA.
+   */
+  onSync?: () => void;
 }
 
 export function DoctorStepPanel({
   appointmentId, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
-  triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh,
+  triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
@@ -120,15 +126,19 @@ export function DoctorStepPanel({
   React.useEffect(() => {
     if (!visitOpen) return;
     const tick = (): void => {
+      // Pestaña en segundo plano: no tiene sentido pedir datos que nadie ve. Al
+      // volver, el listener de `focus` trae todo al instante.
+      if (document.visibilityState === 'hidden') return;
       if (noteDirty.current) return;
       void loadNote();
-      onRefresh();
+      // Silencioso: `onRefresh` prendía el skeleton y borraba los vitales.
+      (onSync ?? onRefresh)();
     };
     const id = setInterval(tick, 20_000);
     const onFocus = (): void => tick();
     window.addEventListener('focus', onFocus);
     return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
-  }, [visitOpen, loadNote, onRefresh]);
+  }, [visitOpen, loadNote, onSync, onRefresh]);
 
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'summary', label: t('tabSummary'), icon: ClipboardList },

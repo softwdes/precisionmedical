@@ -349,6 +349,27 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [vitalsSaved,  setVitalsSaved]  = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Refetch SILENCIOSO para la sincronización en vivo.
+   *
+   * `load()` no sirve para esto y usarlo fue un error: prende el skeleton de
+   * pantalla completa (la MA veía "Loading…" cada 20 s) y además LIMPIA el
+   * formulario de vitales, el flag de cambios sin guardar y las confirmaciones —
+   * está escrito para cuando cambia de paciente, no para un refresco de fondo.
+   * Con el polling encima, le borraba a la MA lo que estaba tipeando.
+   *
+   * Esto solo trae los datos de la cita (estado, doctorDoneAt, cobertura, saldo).
+   * El formulario de vitales es de la MA mientras está en esta pantalla: no se
+   * toca sin que ella lo pida.
+   */
+  const syncDetail = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/admission/${appointmentId}`);
+      const data = await res.json();
+      if (data.ok) setDetail(data.appointment);
+    } catch { /* la pantalla se queda con lo último bueno */ }
+  }, [appointmentId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setVitals(EMPTY_VITALS);   // clear immediately so old patient's values never bleed through
@@ -732,6 +753,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             servicesExtra={<BillingHistoryList rows={billingHistory} />}
             coverage={d.coverage}
             onRefresh={load}
+            onSync={syncDetail}
           />
         )}
 

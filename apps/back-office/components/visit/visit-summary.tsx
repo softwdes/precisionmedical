@@ -268,6 +268,7 @@ export function VisitSummary({
   React.useEffect(() => {
     if (appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED') return;
     const tick = (): void => {
+      if (document.visibilityState === 'hidden') return;
       void loadVisitExtras();
       fetch(`/api/admin/lab-orders/${appointmentId}`)
         .then((r) => r.json())

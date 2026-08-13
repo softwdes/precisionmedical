@@ -296,7 +296,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     if (!openPaymentsOnMount || hidePayments || !appt.case) return;
     const id = setTimeout(() => finanzasRef.current?.reloadAndOpen(), 0);
     return () => clearTimeout(id);
-  }, [openPaymentsOnMount, hidePayments, appt.case]);
+    // Depende del ID del caso, NO del objeto: con el refresco en vivo el padre
+    // reconstruye `appt` cada 20 s y una dependencia por identidad reabría el
+    // modal de pago solo, en la cara del asistente.
+  }, [openPaymentsOnMount, hidePayments, appt.case?.id]);
 
   const loadCashCharges = useCallback(async () => {
     try {

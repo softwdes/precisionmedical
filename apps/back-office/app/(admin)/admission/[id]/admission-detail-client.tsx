@@ -187,18 +187,43 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
   useEffect(() => { void load(); }, [load]);
 
-  // Load billing history once case is known
-  useEffect(() => {
+  /**
+   * Facturación del caso — de acá sale el total a cobrar de ESTA cita.
+   *
+   * Es una función y no un efecto de una sola vez: cuando el asistente agrega un
+   * cargo hay que volver a pedirla o el total sigue mostrando el de antes. Vivía
+   * en un `useEffect` con un guard `billingLoaded` que la corría UNA vez, así que
+   * agregar una inyección no movía el total hasta recargar la página entera.
+   */
+  const loadBilling = useCallback(async (): Promise<void> => {
     const caseId = detail?.case?.id;
-    if (!caseId || billingLoaded) return;
+    if (!caseId) return;
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/billing`);
+      const data = await res.json() as { billings?: typeof billingHistory };
+      setBillingHistory(data.billings ?? []);
+    } catch { /* se queda con lo último bueno */ }
+  }, [detail?.case?.id]);
+
+  useEffect(() => {
+    if (!detail?.case?.id || billingLoaded) return;
     setBillingLoaded(true);
-    fetch(`/api/admin/cases/${caseId}/billing`)
-      .then(r => r.json())
-      .then((data: { billings?: typeof billingHistory }) => {
-        setBillingHistory(data.billings ?? []);
-      })
-      .catch(() => {});
-  }, [detail?.case?.id, billingLoaded]);
+    void loadBilling();
+  }, [detail?.case?.id, billingLoaded, loadBilling]);
+
+  /**
+   * Refresco después de una ACCIÓN del usuario (agregó un cargo, entregó una
+   * férula). Silencioso a propósito.
+   *
+   * Antes esto era `load()`, que prende el skeleton de pantalla completa: el
+   * asistente agregaba un cargo y la pantalla entera se iba a gris hasta que
+   * volviera la respuesta —los ~10 s que se ven en local contra la base remota, y
+   * el "Loading… Admission" que reportó Erick—. `load()` está escrito para
+   * cambiar de paciente, no para refrescar después de tocar un botón.
+   */
+  const refreshAfterAction = useCallback(async (): Promise<void> => {
+    await Promise.all([syncDetail(), loadBilling()]);
+  }, [syncDetail, loadBilling]);
 
   async function admit() {
     setAdmitting(true);
@@ -470,7 +495,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                plegable: son cargos de OTRAS fechas y en Servicios competía con
                los de la visita. */
             coverage={d.coverage}
-            onRefresh={load}
+            onRefresh={() => { void refreshAfterAction(); }}
             onSync={syncDetail}
           />
         )}

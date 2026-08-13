@@ -3014,7 +3014,13 @@
       "step4AvailableAfter": "Available once status changes to Completed",
       "flowStep3AssistantDesc": "Note, labs, services and appointment checkout",
       "vitalsCorrectedAt": "vitals corrected at {time}",
-      "vitalsCorrectedByAt": "vitals corrected at {time} · {name}"
+      "vitalsCorrectedByAt": "vitals corrected at {time} · {name}",
+      "searchPatientPlaceholder": "Search patient, code or phone…",
+      "searchClear": "Clear search",
+      "searchShowing": "{shown} of {total}",
+      "searchNoMatchTitle": "No one matching “{q}” in today’s list",
+      "searchNoMatchSubtitle": "Their appointment may be on another day, or not scheduled yet.",
+      "searchAllPatients": "Search all patients"
     },
     "dashboard": {
       "title": "Reception Dashboard",

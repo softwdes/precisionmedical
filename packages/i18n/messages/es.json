@@ -3014,7 +3014,13 @@
       "step4AvailableAfter": "Disponible cuando el estado cambia a Completado",
       "flowStep3AssistantDesc": "Nota, laboratorios, servicios y cierre de la cita",
       "vitalsCorrectedAt": "vitales corregidos {time}",
-      "vitalsCorrectedByAt": "vitales corregidos {time} · {name}"
+      "vitalsCorrectedByAt": "vitales corregidos {time} · {name}",
+      "searchPatientPlaceholder": "Buscar paciente, código o teléfono…",
+      "searchClear": "Limpiar búsqueda",
+      "searchShowing": "{shown} de {total}",
+      "searchNoMatchTitle": "Nadie con «{q}» en la lista de hoy",
+      "searchNoMatchSubtitle": "Puede que su cita sea otro día, o que todavía no esté agendada.",
+      "searchAllPatients": "Buscar en todos los pacientes"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

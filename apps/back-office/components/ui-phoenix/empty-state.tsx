@@ -30,10 +30,19 @@ function Rich({
   icon: Icon,
   title,
   subtitle,
+  action,
 }: {
   icon: React.ElementType;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  /**
+   * La salida del vacío: el botón o link que resuelve por qué no hay nada.
+   *
+   * Un vacío sin salida deja al usuario sin qué hacer — pasó con la búsqueda de
+   * Day Admission (el paciente puede tener la cita otro día) y con el triaje de la
+   * consulta, que decía "no hay triaje" y ahí se terminaba el camino.
+   */
+  action?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-12 text-center">
@@ -42,6 +51,7 @@ function Rich({
       {subtitle && (
         <div className="text-text-2 text-sm mt-1">{subtitle}</div>
       )}
+      {action && <div className="mt-4 flex items-center justify-center">{action}</div>}
     </div>
   );
 }

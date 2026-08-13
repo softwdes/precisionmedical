@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2, ChevronLeft, Tv2,
+  Stethoscope, Building2, ChevronLeft, Tv2, Search, X,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -28,6 +28,19 @@ import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * Texto comparable: sin mayúsculas y sin acentos.
+ *
+ * `NFD` separa la letra de su tilde y el rango de marcas las borra, así "josé"
+ * y "jose" son lo mismo. En una clínica donde la mitad de los nombres llevan
+ * acento, buscar "jose" y no encontrar a José es una búsqueda que no sirve.
+ */
+function normalizar(s: string): string {
+  // Propiedad Unicode y no un rango de caracteres: el rango son marcas invisibles
+  // en el fuente y cualquier herramienta que toque el archivo las rompe.
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
 interface AdmissionAppt {
   id:              string;
   scheduledFor:    string;
@@ -264,6 +277,8 @@ export function AdmissionClient() {
   const [loading,      setLoading]      = useState(true);
   const [checkingIn,   setCheckingIn]   = useState<string | null>(null);
   const [clinicFilter, setClinicFilter] = useState<string>('all');
+  /** Búsqueda de paciente dentro de la lista del día. */
+  const [patientQuery, setPatientQuery] = useState('');
   const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
@@ -331,9 +346,34 @@ export function AdmissionClient() {
 
   const allAppts = [...pending, ...active, ...done];
 
-  // Filtro por clínica
-  const filterAppts = <T extends AdmissionAppt>(list: T[]) =>
-    clinicFilter === 'all' ? list : list.filter(a => a.clinic.id === clinicFilter);
+  /**
+   * Filtro por clínica + por paciente.
+   *
+   * El de paciente busca **dentro de la lista del día**, en el cliente: la data ya
+   * está en memoria, así que filtra en la misma tecla y no hay consulta, ni
+   * debounce, ni el riesgo de que la caché deje el listado congelado mientras se
+   * escribe (lo que nos pasó con las listas de `apps/web`).
+   *
+   * Busca en nombre, apellido, **código de caso** —que es lo que el mostrador
+   * canta: "el GM-3175"— y teléfono. El teléfono se compara solo por dígitos, así
+   * que `8017878778` encuentra a `(801) 787-8778`.
+   */
+  const filterAppts = <T extends AdmissionAppt>(list: T[]) => {
+    const porClinica = clinicFilter === 'all' ? list : list.filter(a => a.clinic.id === clinicFilter);
+    const q = normalizar(patientQuery);
+    if (!q) return porClinica;
+    const digitos = patientQuery.replace(/\D/g, '');
+    return porClinica.filter((a) => {
+      const nombre = normalizar(`${a.patient.firstName} ${a.patient.lastName}`);
+      const alReves = normalizar(`${a.patient.lastName} ${a.patient.firstName}`);
+      const codigo = normalizar(a.case?.caseCode ?? '');
+      const tel = (a.patient.phone ?? '').replace(/\D/g, '');
+      return nombre.includes(q)
+        || alReves.includes(q)
+        || codigo.includes(q)
+        || (digitos.length >= 3 && tel.includes(digitos));
+    });
+  };
 
   const awaitingAdmission = active.filter(a => a.status === 'CHECKED_IN');
   const inRoom            = active.filter(a => a.status === 'IN_PROGRESS');
@@ -342,6 +382,11 @@ export function AdmissionClient() {
   const filteredAwaiting = filterAppts(awaitingAdmission);
   const filteredInRoom   = filterAppts(inRoom);
   const filteredDone     = filterAppts(done);
+
+  const visibleCount =
+    filteredPending.length + filteredAwaiting.length + filteredInRoom.length + filteredDone.length;
+  /** Se buscó y no hay nada: hay que decirlo, no dejar la pantalla vacía. */
+  const sinResultados = patientQuery.trim() !== '' && visibleCount === 0;
 
   return (
     <div className="flex flex-col">
@@ -415,6 +460,41 @@ export function AdmissionClient() {
         }
       />
 
+      {/* Buscar paciente — antes de los chips de clínica: es el filtro que se usa
+          con el paciente delante ("¿estoy en la lista?"), la clínica se elige una
+          vez al empezar el turno. */}
+      <div className="px-4 sm:px-6 pt-1 pb-2 flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="search"
+            value={patientQuery}
+            onChange={(e) => setPatientQuery(e.target.value)}
+            placeholder={t('searchPatientPlaceholder')}
+            aria-label={t('searchPatientPlaceholder')}
+            className="w-full h-8 pl-8 pr-8 rounded-md bg-bg-2 border border-border text-[12.5px] text-text-1 placeholder:text-text-muted outline-none focus:border-emerald/50 focus:ring-1 focus:ring-emerald/20 transition-all"
+          />
+          {patientQuery && (
+            <button
+              type="button"
+              onClick={() => setPatientQuery('')}
+              aria-label={t('searchClear')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded text-text-muted hover:text-text-1 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        {/* Cuántas filas quedan de cuántas: los KPI de arriba siguen contando el
+            día completo a propósito (son la realidad del día, no de la vista), así
+            que sin esto una lista de 1 fila bajo un "5 citas" se lee como un bug. */}
+        {patientQuery.trim() !== '' && (
+          <span className="text-[11px] text-text-muted tabular-nums">
+            {t('searchShowing', { shown: visibleCount, total: allAppts.length })}
+          </span>
+        )}
+      </div>
+
       {/* Filtro de clínica */}
       {allClinics.length > 0 && (
         <div className="px-4 sm:px-6 pt-1 pb-2 flex items-center gap-2 flex-wrap">
@@ -469,6 +549,24 @@ export function AdmissionClient() {
             icon={CalendarDays}
             title={t('emptyTitle')}
             subtitle={t('emptySubtitle')}
+          />
+        ) : sinResultados ? (
+          /* Buscó y no hay nadie con ese nombre en el día. El paciente puede
+             existir y tener la cita otro día, así que se ofrece la salida en vez
+             de dejar la pantalla en blanco. */
+          <EmptyState.Rich
+            icon={Search}
+            title={t('searchNoMatchTitle', { q: patientQuery.trim() })}
+            subtitle={t('searchNoMatchSubtitle')}
+            action={
+              <a
+                href={`/patients?q=${encodeURIComponent(patientQuery.trim())}`}
+                className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors inline-flex items-center gap-1.5"
+              >
+                <Search className="w-3.5 h-3.5" />
+                {t('searchAllPatients')}
+              </a>
+            }
           />
         ) : (
           <>

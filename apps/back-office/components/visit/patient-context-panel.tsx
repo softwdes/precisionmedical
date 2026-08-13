@@ -8,8 +8,15 @@ import { localeApp } from '@/lib/fechas';
  * seguros y el historial clínico (alergias, problemas, medicamentos activos,
  * cirugías, antecedentes familiares e historia social).
  *
- * Solo lectura en esta fase — la edición vive en el módulo de pacientes.
- * Tarjetas colapsables; en mobile/iPad el panel completo se puede plegar.
+ * Lo ven los DOS portales: la consulta del doctor y el paso 3 de Day Admission
+ * (Erick, 2026-08-13: "el asistente debe ver lo mismo que el doctor"). Vivía
+ * dentro de la carpeta de la consulta y por eso el asistente no lo tenía.
+ *
+ * Solo lectura acá — para editar está el botón "Historial médico" de la barra de
+ * la nota, que abre la ficha completa. Este panel es para consultar de un vistazo
+ * sin salir de lo que se está escribiendo.
+ *
+ * El payload lo arma `lib/patient-context.ts`, compartido por las dos pantallas.
  */
 
 import * as React from 'react';
@@ -19,46 +26,9 @@ import {
   Users, MessageSquare,
 } from 'lucide-react';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
+import type { PatientContext } from '@/lib/patient-context';
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-export interface PatientContext {
-  id: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string | null;
-  sex: string | null;
-  maritalStatus: string | null;
-  preferredLanguage: string | null;
-  phone: string | null;
-  phone2: string | null;
-  email: string | null;
-  guardianName: string | null;
-  emergencyContactName: string | null;
-  emergencyContactPhone: string | null;
-  referredBy: string | null;
-  preferredPharmacy: string | null;
-  employer: string | null;
-  providerName: string | null;
-  insurance: {
-    primaryName: string | null;
-    primaryPolicy: string | null;
-    primaryType: string | null;
-    secondaryName: string | null;
-    secondaryPolicy: string | null;
-  };
-  history: {
-    allergies: string | null;
-    problems: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
-    medications: Array<{
-      id?: string; name: string; dose?: string; instructions?: string; status: string;
-      prescribedBy?: string; externalPrescriber?: boolean;
-    }>;
-    surgeries: Array<{ procedure: string; date?: string }>;
-    familyHistory: Array<{ relation: string; condition: string }>;
-    socialHistory: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string } | null;
-  };
-}
+export type { PatientContext };
 
 // ─── Átomos ──────────────────────────────────────────────────────────────────
 

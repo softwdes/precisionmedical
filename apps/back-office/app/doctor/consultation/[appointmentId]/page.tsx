@@ -12,6 +12,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { ConsultationClient } from './consultation-client';
 
 export const metadata = { title: 'Consulta · Portal Médico' };
@@ -44,17 +45,9 @@ export default async function DoctorConsultationPage({
       attendanceSignedAt: true,
       notes: true,
       plannedServiceCodes: true,
-      patient: {
-        select: {
-          id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true,
-          phone: true, phone2: true, email: true,
-          maritalStatus: true, preferredLanguage: true,
-          guardianName: true, emergencyContactName: true, emergencyContactPhone: true,
-          preferredPharmacy: true, employer: true, referralSource: true,
-          medicalHistory: true,
-          providerReferrer: { select: { firstName: true, lastName: true } },
-        },
-      },
+      // Los campos del panel de contexto salen del fragmento compartido, el mismo
+      // que usa la API de Day Admission.
+      patient: { select: PATIENT_CONTEXT_SELECT },
       case: {
         select: {
           id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
@@ -108,57 +101,11 @@ export default async function DoctorConsultationPage({
     sections: tpl.sections.map((s) => ({ sectionKey: s.sectionKey, content: s.content })),
   }));
 
-  // ── Contexto clínico del paciente (N2) — historial en Patient.medicalHistory ──
-  type MH = {
-    allergies?: string;
-    problems?: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
-    medications?: Array<{
-      id?: string; name: string; dose?: string; instructions?: string; status: string;
-      prescribedBy?: string; externalPrescriber?: boolean;
-    }>;
-    surgeries?: Array<{ procedure: string; date?: string }>;
-    familyHistory?: Array<{ relation: string; condition: string }>;
-    socialHistory?: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
-    visitInfo?: { referredBy?: string };
-  };
-  const mh = (a.patient.medicalHistory ?? {}) as MH;
-
-  const patientContext = {
-    id: a.patient.id,
-    firstName: dec(a.patient.firstName) ?? '',
-    lastName: dec(a.patient.lastName) ?? '',
-    dateOfBirth: a.patient.dateOfBirth?.toISOString() ?? null,
-    sex: a.patient.sex ?? null,
-    maritalStatus: a.patient.maritalStatus ?? null,
-    preferredLanguage: a.patient.preferredLanguage ?? null,
-    phone: dec(a.patient.phone) ?? null,
-    phone2: dec(a.patient.phone2) ?? null,
-    email: a.patient.email ?? null,
-    guardianName: a.patient.guardianName ?? null,
-    emergencyContactName: a.patient.emergencyContactName ?? null,
-    emergencyContactPhone: a.patient.emergencyContactPhone ?? null,
-    referredBy: mh.visitInfo?.referredBy ?? a.patient.referralSource ?? null,
-    preferredPharmacy: a.patient.preferredPharmacy ?? null,
-    employer: a.patient.employer ?? null,
-    providerName: a.patient.providerReferrer
-      ? `Dr. ${a.patient.providerReferrer.firstName} ${a.patient.providerReferrer.lastName}`
-      : null,
-    insurance: {
-      primaryName: a.case?.primaryInsurance?.name ?? null,
-      primaryPolicy: a.case?.primaryPolicyNumber ?? null,
-      primaryType: a.case?.primaryInsurance?.type ?? null,
-      secondaryName: a.case?.secondaryInsurance?.name ?? null,
-      secondaryPolicy: a.case?.secondaryPolicyNumber ?? null,
-    },
-    history: {
-      allergies: mh.allergies ?? null,
-      problems: mh.problems ?? [],
-      medications: mh.medications ?? [],
-      surgeries: mh.surgeries ?? [],
-      familyHistory: mh.familyHistory ?? [],
-      socialHistory: mh.socialHistory ?? null,
-    },
-  };
+  // ── Contexto clínico del paciente (N2) ──
+  // El armado vive en lib/patient-context.ts porque Day Admission muestra el
+  // MISMO panel: dos copias de estas 40 líneas divergirían en la primera columna
+  // que alguien agregue.
+  const patientContext = buildPatientContext(a.patient, a.case);
 
   const n = a.visitNote;
   const note = n

@@ -23,6 +23,8 @@ import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-no
 import { LabsTab } from '@/components/visit/labs-tab';
 import { BracesTab } from '@/components/visit/braces-tab';
 import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
+import { PatientContextPanel } from '@/components/visit/patient-context-panel';
+import type { PatientContext } from '@/lib/patient-context';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -40,6 +42,11 @@ interface Props {
    * menciona en el mostrador) y en Pacientes ya la edita hoy.
    */
   patientId: string;
+  /**
+   * Contexto clínico para el panel izquierdo — el MISMO que ve el doctor.
+   * `null` mientras la pantalla todavía no cargó el detalle de la cita.
+   */
+  patientContext: PatientContext | null;
   appointmentStatus: string;
   checkedInAt: string | null;
   doctorDoneAt: string | null;
@@ -64,7 +71,7 @@ interface Props {
 }
 
 export function DoctorStepPanel({
-  appointmentId, patientId, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
+  appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
   triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -194,7 +201,22 @@ export function DoctorStepPanel({
         ))}
       </div>
 
-      <div className="px-3 py-4">
+      {/* Contexto clínico del paciente a la izquierda + trabajo a la derecha.
+          Las MISMAS medidas que la consulta del doctor (columna fija de 290px,
+          pegada al scroll) porque tiene que verse igual de los dos lados
+          (Erick, 2026-08-13). En mobile/iPad vertical el contexto se apila
+          arriba, igual que allá.
+
+          La barra de tabs queda arriba a lo ancho y no dentro de la columna
+          derecha: el encabezado violeta del paso también cruza toda la tarjeta, y
+          empezar los tabs recién a los 290px los dejaría desalineados de él. */}
+      <div className="px-3 py-4 grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
+        {patientContext && (
+          <div className="lg:sticky lg:top-4">
+            <PatientContextPanel patient={patientContext} />
+          </div>
+        )}
+        <div className="min-w-0">
         {loading ? (
           <div className="py-8 flex items-center justify-center gap-2 text-text-muted text-[12px]">
             <Loader2 className="w-4 h-4 animate-spin" /> {t('sumLoading')}
@@ -280,6 +302,7 @@ export function DoctorStepPanel({
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );

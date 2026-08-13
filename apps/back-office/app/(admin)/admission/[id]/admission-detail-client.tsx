@@ -28,6 +28,7 @@ import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
+import type { PatientContext } from '@/lib/patient-context';
 import {
   TriageVitalsForm, EMPTY_VITALS,
   type TriageRecord, type VitalsState, type TriageVitalsFormHandle,
@@ -61,6 +62,8 @@ interface ApptDetail {
     id: string; firstName: string; lastName: string;
     phone: string | null; email: string | null; dateOfBirth: string | null;
   };
+  /** Contexto clínico para el panel del paso 3 — el mismo que ve el doctor. */
+  patientContext: PatientContext | null;
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
   clinic: { id: string; name: string };
   case: {
@@ -412,6 +415,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           <DoctorStepPanel
             appointmentId={d.id}
             patientId={d.patient.id}
+            patientContext={d.patientContext ?? null}
             appointmentStatus={d.status}
             checkedInAt={d.checkedInAt}
             doctorDoneAt={d.doctorDoneAt ?? null}

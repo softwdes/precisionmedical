@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 
 export async function GET(
   _req: NextRequest,
@@ -19,12 +20,10 @@ export async function GET(
     const appt = await db.appointment.findUnique({
       where: { id },
       include: {
-        patient: {
-          select: {
-            id: true, firstName: true, lastName: true,
-            phone: true, email: true, dateOfBirth: true,
-          },
-        },
+        // El fragmento compartido primero: trae lo que necesita el panel de
+        // contexto clínico (el mismo que ve el doctor en su consulta). Los cuatro
+        // campos que ya se usaban están adentro.
+        patient: { select: PATIENT_CONTEXT_SELECT },
         provider: {
           select: { id: true, firstName: true, lastName: true, specialty: true },
         },
@@ -58,9 +57,11 @@ export async function GET(
             attorney: {
               select: { id: true, firstName: true, lastName: true, email: true },
             },
+            // `type` lo pide el panel de contexto (muestra el tipo de póliza);
+            // el resto es de las vistas propias de Day Admission.
             primaryInsurance: {
               select: {
-                id: true, name: true, shortCode: true, color: true,
+                id: true, name: true, type: true, shortCode: true, color: true,
                 claimsPhone: true, claimsEmail: true,
               },
             },
@@ -140,6 +141,10 @@ export async function GET(
           email:       appt.patient.email,
           dateOfBirth: appt.patient.dateOfBirth?.toISOString() ?? null,
         },
+        // Panel de contexto clínico del paso 3 — el MISMO que ve el doctor en su
+        // consulta, armado por el helper compartido (Erick, 2026-08-13: "el
+        // asistente debe ver lo mismo que el doctor").
+        patientContext: buildPatientContext(appt.patient, c ?? null),
         provider: appt.provider ? {
           id:        appt.provider.id,
           firstName: appt.provider.firstName,

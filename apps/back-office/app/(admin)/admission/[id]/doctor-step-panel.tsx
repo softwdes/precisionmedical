@@ -17,7 +17,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, FileText, FlaskConical, Briefcase, Bandage, Pill, Loader2 } from 'lucide-react';
+import { ClipboardList, FileText, FlaskConical, Stethoscope, Bandage, Pill, CreditCard, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import { LabsTab } from '@/components/visit/labs-tab';
@@ -32,7 +32,7 @@ import type { CoverageDTO } from '@/lib/coverage';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 
-type Tab = 'summary' | 'notes' | 'labs' | 'rx' | 'braces' | 'services';
+type Tab = 'notes' | 'labs' | 'rx' | 'services' | 'braces' | 'summary' | 'pay';
 
 interface Props {
   appointmentId: string;
@@ -57,8 +57,8 @@ interface Props {
   servicesPanel: React.ComponentProps<typeof AppointmentDetailPanel>['appointment'];
   /** Saldo pendiente, para el panel de pagos */
   billingTotal?: number;
-  /** Bloque extra bajo Servicios (historial de facturacion migrado) */
-  servicesExtra?: React.ReactNode;
+  /** Historial de facturación del CASO — referencia dentro del tab de Pagar. */
+  payExtra?: React.ReactNode;
   /** Cobertura del caso — ordena el picker de cargos y se muestra ahí de referencia */
   coverage?: CoverageDTO;
   /** Recarga completa — para después de una acción del usuario (guardar, admitir). */
@@ -72,14 +72,14 @@ interface Props {
 
 export function DoctorStepPanel({
   appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
-  triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh, onSync,
+  triage, servicesPanel, billingTotal, payExtra, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
   /** Abre en la nota, igual que la consulta del doctor. */
   const [tab, setTab] = React.useState<Tab>('notes');
-  /** El Resumen pidió cobrar: se salta al tab de Servicios y el panel abre el
-   *  modal de "Pago del caso" al montarse. Se limpia al cambiar de tab a mano. */
+  /** El Resumen pidió cobrar: salta al tab de Pagar y abre el modal de cobro al
+   *  montarse. Se limpia al cambiar de tab a mano. */
   const [goToPayments, setGoToPayments] = React.useState(false);
   /** El editor tiene cambios sin guardar: no se recarga la nota por encima. */
   const noteDirty = React.useRef(false);
@@ -151,22 +151,28 @@ export function DoctorStepPanel({
   });
 
   /**
-   * El orden sigue el flujo real de la visita (Erick, 2026-08-13): la nota
-   * primero —es lo que el asistente lee y transcribe mientras el paciente está
-   * ahí, igual que abre la consulta del doctor—, después el resumen de lo que
-   * pasó, y los cargos y pagos AL FINAL, porque cobrar es lo último.
+   * El orden sigue el flujo real de la visita (Erick, 2026-08-13):
    *
-   * Antes abría en Summary. Ese orden venía de pensar la pantalla como un
-   * tablero de control y no como una secuencia.
+   *   Nota → Labs → Recetas → Servicios → Férulas → Resumen → Pagar
+   *
+   * La nota primero, que es lo que el asistente lee y transcribe con el paciente
+   * ahí; en el medio lo que se le hace y se le da; y al final el resumen —revisar
+   * antes de cerrar— y el cobro, que es lo último que pasa en la visita. Deja al
+   * asistente con la misma secuencia que el doctor, cuyo resumen es su paso 4.
+   *
+   * Antes abría en Summary y tenía "Servicios y pagos" en un solo tab. Ese orden
+   * venía de pensar la pantalla como un tablero y no como una secuencia.
    */
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'notes', label: t('tabNotes'), icon: FileText },
-    { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
     { id: 'labs', label: t('tabLabs'), icon: FlaskConical },
     { id: 'rx', label: t('tabRx'), icon: Pill },
+    { id: 'services', label: t('tabServices'), icon: Stethoscope },
     { id: 'braces', label: t('tabBraces'), icon: Bandage },
-    { id: 'services', label: t('tabServicesPayments'), icon: Briefcase },
+    { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
+    { id: 'pay', label: t('tabPay'), icon: CreditCard },
   ];
+
 
   return (
     <div className="rounded-lg bg-bg-2/40 overflow-hidden">
@@ -249,7 +255,7 @@ export function DoctorStepPanel({
                 checkedOutAt={checkedOutAt}
                 // El saldo de facturación es la autoridad del monto a cobrar.
                 balanceDue={billingTotal}
-                onCollect={() => { setGoToPayments(true); setTab('services'); }}
+                onCollect={() => { setGoToPayments(true); setTab('pay'); }}
                 onFix={(target) => setTab(target)}
                 onStatusChange={onRefresh}
                 followUp={servicesPanel.case ? {
@@ -296,8 +302,36 @@ export function DoctorStepPanel({
             {tab === 'braces' && <BracesTab appointmentId={appointmentId} />}
 
             {/* Servicios y pagos — el panel del viejo step 4, con cobro habilitado */}
+            {/* SERVICIOS — los cargos de ESTA visita. Sin nada de pagos:
+                `hidePayments` deja solo la lista y el picker, que es lo que el
+                asistente toca acá (agregar lo que ordenó el doctor, quitar lo que
+                no se hizo). El cobro vive en su propio tab.
+
+                Sigue siendo el panel de detalle de cita del calendario, que es el
+                que ya tiene la lista de cargos de las tres fuentes. Que Day
+                Admission tenga su propia composición en vez de embutir un panel
+                pensado para modal queda como el paso que falta — ese panel lo
+                comparten 6 pantallas y tocarlo de apuro rompe el calendario. */}
             {tab === 'services' && (
-              <>
+              <AppointmentDetailPanel
+                inline
+                noBorder
+                hidePayments
+                initialTab="services"
+                appointment={servicesPanel}
+                coverage={coverage}
+                onClose={() => {}}
+                onRefresh={onRefresh}
+              />
+            )}
+
+            {/* PAGAR — la plata de ESTA cita.
+                `billingTotal` ya viene recortado a esta cita y sin los CPT (esos
+                los paga el seguro o el abogado). El historial del caso va debajo
+                como referencia: son cargos de otras fechas y el saldo del caso se
+                trabaja en Pacientes. */}
+            {tab === 'pay' && (
+              <div className="space-y-4">
                 <AppointmentDetailPanel
                   inline
                   noBorder
@@ -309,8 +343,8 @@ export function DoctorStepPanel({
                   onRefresh={onRefresh}
                   billingTotal={billingTotal}
                 />
-                {servicesExtra}
-              </>
+                {payExtra}
+              </div>
             )}
           </>
         )}

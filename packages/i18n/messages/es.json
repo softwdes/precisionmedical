@@ -1996,7 +1996,8 @@
       "rxAllergies": "Alergias",
       "rxMedDownload": "Historial de farmacia",
       "rxDrugHistory": "Recetado en ScriptSure",
-      "rxApproveQueue": "Por aprobar"
+      "rxApproveQueue": "Por aprobar",
+      "tabPay": "Pagar"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

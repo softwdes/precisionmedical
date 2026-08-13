@@ -128,6 +128,8 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [billingHistory, setBillingHistory] = useState<Array<{
     id: string; serviceCode: string | null; serviceDescription: string | null;
     totalCost: number; balanceDue: number; amountPaid: number;
+    /** La cita que generó el cargo — con esto se recorta el cobro a ESTA visita. */
+    appointmentId: string | null;
     appointmentDate: string | null;
     /** PATIENT = se cobra al salir · INSURANCE = lo gestiona el encargado después */
     payer?: 'PATIENT' | 'INSURANCE';
@@ -452,13 +454,22 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 primaryInsurance: d.case.primaryInsurance ?? null,
               } : null,
             }}
-            /* Solo lo que paga el PACIENTE al salir. Los CPT se le cobran al
-               seguro o al abogado meses después — pedírselos en el mostrador
-               era cobrarle plata que no le toca (Erick 2026-08-08). */
+            /* Lo que se cobra en el mostrador HOY: solo lo de ESTA cita y solo lo
+               que paga el PACIENTE.
+               · Por cita (Erick 2026-08-13): antes sumaba el saldo de todo el
+                 caso, así que en una visita sin cargos igual aparecía "Total
+                 balance $357.20" arrastrado de otras fechas — al lado de un "sin
+                 cargos en esta visita". El saldo del caso se ve en Pacientes.
+               · Sin los CPT: se le cobran al seguro o al abogado meses después;
+                 pedírselos en el mostrador era cobrarle plata que no le toca
+                 (Erick 2026-08-08). */
             billingTotal={billingHistory
-              .filter(b => b.payer !== 'INSURANCE')
+              .filter(b => b.appointmentId === d.id && b.payer !== 'INSURANCE')
               .reduce((s, b) => s + b.balanceDue, 0) || undefined}
-            servicesExtra={<BillingHistoryList rows={billingHistory} />}
+            /* El historial del caso baja al tab de Pagar como referencia
+               plegable: son cargos de OTRAS fechas y en Servicios competía con
+               los de la visita. */
+            payExtra={<BillingHistoryList rows={billingHistory} />}
             coverage={d.coverage}
             onRefresh={load}
             onSync={syncDetail}

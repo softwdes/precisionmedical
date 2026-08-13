@@ -1996,7 +1996,8 @@
       "rxAllergies": "Allergies",
       "rxMedDownload": "Pharmacy history",
       "rxDrugHistory": "Prescribed in ScriptSure",
-      "rxApproveQueue": "Pending approval"
+      "rxApproveQueue": "Pending approval",
+      "tabPay": "Pay"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

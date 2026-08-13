@@ -3,8 +3,7 @@
 import * as React from 'react';
 import { useRole } from '@/contexts/role-context';
 import { Lock, ArrowLeft, Clock } from 'lucide-react';
-
-const TIMECLOCK_URL = process.env.NEXT_PUBLIC_TIMECLOCK_URL ?? 'https://clock.precisionmedical.com';
+import { TIMECLOCK_URL } from '@/lib/app-urls';
 
 export default function NoAccessPage(): React.ReactElement {
   const role = useRole();

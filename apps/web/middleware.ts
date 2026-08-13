@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
 import { dbRoleToRole } from './lib/permissions';
+import { TIMECLOCK_URL } from './lib/app-urls';
 
 const ROLE_COOKIE = 'pm_role';
-const TIMECLOCK_URL = process.env.NEXT_PUBLIC_TIMECLOCK_URL ?? 'https://pmtc.lienmaster.net';
 
 function detectLocaleFromHeader(request: NextRequest): 'es' | 'en' {
   const acceptLanguage = request.headers.get('accept-language') ?? '';

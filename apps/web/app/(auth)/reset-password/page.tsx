@@ -4,8 +4,57 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
-import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
+import { BACK_OFFICE_URL, DOCTOR_PORTAL_URL, TIMECLOCK_URL } from '@/lib/app-urls';
+
+/**
+ * A dónde va a trabajar esta persona, según su rol.
+ *
+ * Existe porque el correo de activación no lo dice en ningún lado y el Admin es
+ * solo la puerta de entrada: recepción y asistentes trabajan en el Back-Office,
+ * los médicos en el Portal Médico, y varios además fichan en el Time Clock.
+ * Sin esta pantalla, quien activaba su cuenta caía en la app equivocada —el
+ * Admin rebota a los EMPLOYEE al Time Clock— y no tenía forma de enterarse de
+ * cuál era la suya.
+ *
+ * Solo se listan roles que trabajan FUERA del Admin. Admin, Super Admin y
+ * Contador ya aterrizan donde corresponde, así que para ellos no cambia nada.
+ *
+ * Los dominios viven en `lib/app-urls.ts`, no acá — ver el porqué en ese archivo.
+ */
+interface Destino {
+  href:  string;
+  title: string;
+  desc:  string;
+  color: string;
+}
+
+// "Clinic", no "Back-Office": es lo que la persona va a ver al llegar
+// (clinic.lienmaster.net). Ojo que la app se titula a sí misma "PM Clinical" —
+// si algún día se unifica el nombre, este rótulo tiene que seguirlo.
+const BACK_OFFICE: Destino = {
+  href: BACK_OFFICE_URL, title: 'Clinic',
+  desc: 'Pacientes, citas, admisión y facturación', color: '#6366F1',
+};
+const PORTAL_MEDICO: Destino = {
+  href: DOCTOR_PORTAL_URL, title: 'Portal Médico',
+  desc: 'Tu día, tus pacientes y tus consultas', color: '#8B5CF6',
+};
+const TIME_CLOCK: Destino = {
+  href: TIMECLOCK_URL, title: 'PM Time Clock',
+  desc: 'Marcar entrada y salida', color: '#10B981',
+};
+
+const DESTINOS_POR_ROL: Record<string, Destino[]> = {
+  EMPLOYEE: [BACK_OFFICE, TIME_CLOCK],
+  DOCTOR:   [PORTAL_MEDICO, TIME_CLOCK],
+  PROVIDER: [PORTAL_MEDICO, TIME_CLOCK],
+};
+
+function destinosPara(role: string | null): Destino[] {
+  return DESTINOS_POR_ROL[role ?? ''] ?? [];
+}
 
 export default function ResetPasswordPage(): React.ReactElement {
   const router = useRouter();
@@ -16,6 +65,9 @@ export default function ResetPasswordPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  // Solo se llena cuando ESTA fue una activación de cuenta nueva (no un cambio
+  // de contraseña) y el rol trabaja fuera del Admin.
+  const [destinos, setDestinos] = useState<Destino[]>([]);
   const activateSelf = api.users.activateSelf.useMutation();
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -41,11 +93,18 @@ export default function ResetPasswordPage(): React.ReactElement {
         return;
       }
 
-      await activateSelf.mutateAsync().catch(() => { /* non-critical */ });
+      // El rol se pide ANTES del signOut: después la sesión ya no existe.
+      const activacion = await activateSelf.mutateAsync().catch(() => null);
       await supabase.auth.signOut();
 
       setDone(true);
-      setTimeout(() => router.push('/login'), 2500);
+
+      // Se cierra sesión a propósito (cambiar la clave debe obligar a entrar con
+      // la nueva), así que estas tarjetas son un cartel indicador, no un acceso:
+      // llevan al login de la app que le toca a esta persona.
+      const suyos = activacion?.activated ? destinosPara(activacion.role) : [];
+      if (suyos.length > 0) setDestinos(suyos);
+      else setTimeout(() => router.push('/login'), 2500);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -150,9 +209,41 @@ export default function ResetPasswordPage(): React.ReactElement {
                   <CheckCircle size={22} color="#10B981" />
                 </div>
                 <p style={{ color: '#F5F7FB', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Contraseña creada</p>
-                <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-                  Tu contraseña fue creada exitosamente. Redirigiendo al login...
-                </p>
+
+                {destinos.length === 0 ? (
+                  <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
+                    Tu contraseña fue creada exitosamente. Redirigiendo al login...
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+                      Ya podés entrar. Estos son tus accesos — iniciá sesión con tu nueva contraseña.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+                      {destinos.map((d) => (
+                        <a
+                          key={d.href}
+                          href={d.href}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: '12px 14px', borderRadius: 12,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: `1px solid ${d.color}33`,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: 'block', color: '#F5F7FB', fontWeight: 600, fontSize: 13 }}>{d.title}</span>
+                            <span style={{ display: 'block', color: '#4A5474', fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>{d.desc}</span>
+                          </span>
+                          <ArrowRight size={14} color={d.color} style={{ flexShrink: 0 }} />
+                        </a>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               /* ── Form ── */

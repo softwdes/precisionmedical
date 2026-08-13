@@ -417,16 +417,31 @@ export const usersRouter = router({
       return { success: true };
     }),
 
+  /**
+   * Marca ACTIVE la cuenta recién activada. La llama /reset-password.
+   *
+   * Devuelve `activated` porque esa página sirve a DOS flujos: la activación de
+   * una cuenta nueva y el cambio de contraseña de alguien que ya trabaja acá.
+   * El `.eq('status','PENDING_VERIFICATION')` hace que solo la primera actualice
+   * una fila, así que las filas afectadas son la señal exacta de "esto fue una
+   * activación" — sin ese dato la página no puede distinguir los dos casos y le
+   * mostraría el cartel de bienvenida a quien solo cambió su clave.
+   *
+   * `role` viaja de vuelta para armar los destinos sin una consulta extra.
+   */
   activateSelf: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const { error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from('users')
         .update({ status: 'ACTIVE', updatedAt: new Date().toISOString() })
         .eq('id', ctx.user.id)
-        .eq('status', 'PENDING_VERIFICATION');
+        .eq('status', 'PENDING_VERIFICATION')
+        .select('role');
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
-      return { success: true };
+
+      const row = data?.[0];
+      return { success: true, activated: !!row, role: (row?.role as string | undefined) ?? null };
     }),
 
   suspend: superAdminProcedure

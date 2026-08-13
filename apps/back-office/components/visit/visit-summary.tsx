@@ -22,7 +22,7 @@ import {
   HeartPulse, Stethoscope, Loader2, LogOut, RotateCcw, Printer, ChevronRight,
   CalendarPlus, CalendarCheck2, Bandage, DollarSign, Pill, MapPin, CreditCard,
 } from 'lucide-react';
-import { TagPill } from '@/components/ui-phoenix';
+import { TagPill, Section } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
@@ -180,7 +180,18 @@ const rxStatusOf = (s: string): RxStatus => (s in RX_STATUS_KEY ? (s as RxStatus
 /** Mismo formato que el tab de férulas y el de cargos. */
 const money = (n: number): string => `$${n.toFixed(2)}`;
 
-/** Tarjeta de sección del resumen */
+/**
+ * Tarjeta de sección del resumen — ahora es el primitivo `Section`.
+ *
+ * Este wrapper ya tenía la anatomía correcta (icono + título + acción), pero con
+ * su propio cuerpo: `border border-border` sobre `bg-1`, título sin barra, y las
+ * cajas de adentro con SU borde. Eran dos y tres líneas apiladas en 40 píxeles —
+ * los 19 bordes que medí en este archivo al compararlo con v2. El primitivo pone
+ * una sola frontera (la del encabezado) y separa lo de adentro por fondo.
+ *
+ * Se mantiene el wrapper local en vez de cambiar las ~8 llamadas: acá el tono es
+ * violeta (módulo del doctor, Regla #5) y así no hay que repetirlo en cada una.
+ */
 function Card({
   icon: Icon, title, action, children,
 }: {
@@ -190,14 +201,9 @@ function Card({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-violet-text shrink-0" />
-        <div className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">{title}</div>
-        {action}
-      </div>
+    <Section icon={Icon} title={title} tone="violet" action={action}>
       {children}
-    </div>
+    </Section>
   );
 }
 
@@ -451,7 +457,7 @@ export function VisitSummary({
               type="button"
               onClick={() => void handleUndoCheckout()}
               disabled={saving}
-              className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
+              className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
               {t('sumUndoCheckout')}
@@ -510,7 +516,7 @@ export function VisitSummary({
             type="button"
             onClick={() => void handleReopen()}
             disabled={saving}
-            className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
+            className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
             {t('sumReopen')}
@@ -561,15 +567,14 @@ export function VisitSummary({
       {/* ── Recita ── Bajo el botón de salida: la próxima cita se agenda con el
           paciente delante, no después. Aparece igual para el doctor y para el
           asistente porque cualquiera de los dos la puede agendar. */}
+      {/* Este bloque repetía la anatomía de `Card` a mano solo para poner el
+          código de caso a la derecha. Es justo lo que hace el hueco de acción. */}
       {followUp && (
-        <div className="rounded-lg border border-border bg-bg-1 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CalendarPlus className="w-4 h-4 text-violet-text shrink-0" />
-            <div className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">
-              {t('fuTitle')}
-            </div>
-            <span className="font-mono text-[10.5px] text-cyan">{followUp.caseCode}</span>
-          </div>
+        <Card
+          icon={CalendarPlus}
+          title={t('fuTitle')}
+          action={<span className="font-mono text-[10.5px] text-cyan">{followUp.caseCode}</span>}
+        >
 
           {/* Ya hay recita agendada */}
           {upcoming.length > 0 && (
@@ -597,21 +602,21 @@ export function VisitSummary({
             <button
               type="button"
               onClick={() => openAppt(7)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
             >
               {t('fuIn1Week')}
             </button>
             <button
               type="button"
               onClick={() => openAppt(14)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
             >
               {t('fuIn2Weeks')}
             </button>
             <button
               type="button"
               onClick={() => openAppt(30)}
-              className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+              className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
             >
               {t('fuIn1Month')}
             </button>
@@ -620,7 +625,7 @@ export function VisitSummary({
               {upcoming.length > 0 ? t('fuScheduleAnother') : t('fuSchedule')}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {error && (
@@ -631,11 +636,11 @@ export function VisitSummary({
 
       {/* Tiempos */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3">
+        <div className="rounded-lg bg-bg-1 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sumArrived')}</div>
           <div className="text-text-1 font-semibold text-sm mt-0.5">{fmtTime(checkedInAt)}</div>
         </div>
-        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3">
+        <div className="rounded-lg bg-bg-1 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sumTimeInClinic')}</div>
           {staleOpenVisit ? (
             <div className="text-amber font-semibold text-[12.5px] mt-0.5 flex items-center gap-1.5">
@@ -650,7 +655,7 @@ export function VisitSummary({
             <div className="text-text-1 font-semibold text-sm mt-0.5">{timeInRoom ?? '—'}</div>
           )}
         </div>
-        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3">
+        <div className="rounded-lg bg-bg-1 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sumNoteState')}</div>
           <div className="mt-1">
             {isSigned
@@ -931,7 +936,7 @@ export function VisitSummary({
             href={`/doctor-print/visit-note/${appointmentId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors inline-flex items-center gap-1.5"
+            className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors inline-flex items-center gap-1.5"
           >
             <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
           </a>

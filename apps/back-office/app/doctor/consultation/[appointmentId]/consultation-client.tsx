@@ -24,6 +24,7 @@ import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import type { PickableTemplate } from '@/components/visit/template-picker';
+import { TriageVitalsForm } from '@/components/visit/triage-vitals-form';
 import { PatientContextPanel, type PatientContext } from './patient-context-panel';
 import { LabsTab } from '@/components/visit/labs-tab';
 import { VisitSummary } from '@/components/visit/visit-summary';
@@ -149,6 +150,8 @@ export function ConsultationClient({
   patientContext: PatientContext;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  /** El vocabulario del triaje vive en `phoenix.admission` — una sola copia. */
+  const ta = useTranslations('phoenix.admission');
   const router = useRouter();
 
   const hasTriage = !!a.triage;
@@ -274,7 +277,14 @@ export function ConsultationClient({
       {/* Banner al ver un paso distinto al actual — igual que Day Admission */}
       {view !== currentStep && (
         <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-[11px] text-amber">{t('viewingStep', { n: view })}</span>
+          {/* El paso 2 sin triaje NO es solo lectura: ahí el doctor lo carga.
+              Dejar el "solo lectura" del cartel contradiciendo un formulario
+              editable justo debajo es peor que no poner nada. */}
+          <span className="text-[11px] text-amber">
+            {view === 2 && !hasTriage
+              ? t('viewingStepEditable', { n: view })
+              : t('viewingStep', { n: view })}
+          </span>
           <button
             type="button"
             onClick={() => setView(currentStep)}
@@ -333,7 +343,30 @@ export function ConsultationClient({
           </div>
 
           {!hasTriage || !tr ? (
-            <EmptyState.Rich icon={ClipboardList} title={t('triageEmptyTitle')} subtitle={t('triageEmptySubtitle')} />
+            /**
+             * Sin triaje, el doctor lo carga él.
+             *
+             * Antes acá había un `EmptyState` y el camino se terminaba: la
+             * pantalla le decía que el asistente no había cargado nada y no le
+             * ofrecía nada (Erick, 2026-08-13 — "actualmente no ve nada y se
+             * frustra"). En la clínica pasa que el asistente no llegó y el
+             * médico ya tiene al paciente delante.
+             *
+             * Es el MISMO formulario de Day Admission, así que lo que cargue el
+             * doctor es el mismo registro que ve el asistente — no una copia.
+             */
+            <div className="space-y-3">
+              <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber flex items-start gap-1.5">
+                <ClipboardList className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <span>{ta('triageDoctorCapture')}</span>
+              </div>
+              <TriageVitalsForm
+                key={a.id}
+                appointmentId={a.id}
+                initial={null}
+                onSaved={() => router.refresh()}
+              />
+            </div>
           ) : (
           <div className="rounded-lg bg-bg-2/30 p-4 space-y-5">
             {/* Espejo del formulario TRIAGE VITALS de Day Admission (read-only) */}

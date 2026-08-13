@@ -25,11 +25,23 @@ export async function PUT(
     });
     if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-    // Corrección después de que el paciente ya pasó a sala. El UI la bloquea
-    // detrás de un botón explícito, pero igual se registra distinto en el audit
-    // log: alterar signos vitales de un triaje ya cerrado tiene que quedar
-    // trazado, no verse igual que la carga original.
-    const esCorreccionPostAdmision = appt.status === 'IN_PROGRESS' || appt.status === 'COMPLETED';
+    /**
+     * Corrección = se ALTERAN vitales que ya existían, con el paciente ya en
+     * sala. Las dos condiciones, no solo el estado de la cita.
+     *
+     * Antes bastaba con que la cita estuviera IN_PROGRESS/COMPLETED, y eso dejó
+     * de alcanzar cuando el doctor pasó a poder cargar el triaje desde la
+     * consulta (2026-08-13): su carga ORIGINAL —no había ninguna fila— habría
+     * quedado auditada como `TRIAGE_VITALS_CORRECTED`, diciendo que alteró
+     * números que nadie había tomado. El sentido de distinguir las dos acciones
+     * es la trazabilidad clínica, así que la etiqueta tiene que ser cierta.
+     */
+    const yaExistia = await db.triageRecord.findUnique({
+      where:  { appointmentId: id },
+      select: { id: true },
+    });
+    const esCorreccionPostAdmision =
+      !!yaExistia && (appt.status === 'IN_PROGRESS' || appt.status === 'COMPLETED');
 
     // Auto-convert F→C and lbs+oz→kg when primary value provided
     const tempF = typeof body.tempFahrenheit === 'number' ? body.tempFahrenheit : null;

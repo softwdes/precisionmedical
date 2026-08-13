@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -49,6 +50,12 @@ export function AppointmentsClient({
   const [clinicFilter, setClinicFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
+  // `initial` solo sirve de initialData si el input calza EXACTO con lo que
+  // renderizó el servidor: pasarlo siempre siembra cada clave nueva como si ya
+  // fuera fresca y, con el staleTime global de 60s, los filtros y la paginación
+  // quedan mudos. Mismo arreglo que en users-client y payments-client.
+  const isDefaultQuery = page === 1 && !statusFilter && !typeFilter && !clinicFilter;
+
   const { data, refetch } = trpc.appointments.list.useQuery(
     {
       page,
@@ -56,7 +63,10 @@ export function AppointmentsClient({
       type: typeFilter as typeof APPT_TYPES[number] | undefined,
       clinicId: clinicFilter || undefined,
     },
-    { initialData: initial },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      placeholderData: keepPreviousData,
+    },
   );
 
   const updateStatus = trpc.appointments.updateStatus.useMutation({

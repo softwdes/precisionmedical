@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
@@ -99,6 +100,9 @@ export function FreelancersClient({
 
   const [page,             setPage]             = useState(1);
   const [search,           setSearch]           = useState('');
+  // Lo tecleado vs. lo que viaja en la query: sin el desfase, cada letra es una
+  // clave nueva con su propio request y las respuestas pueden llegar desordenadas.
+  const [debouncedSearch,  setDebouncedSearch]  = useState('');
   const [modalidadFilter,  setModalidadFilter]  = useState('');
   const [openMenuId,       setOpenMenuId]       = useState<string | null>(null);
   const [showCreate,       setShowCreate]       = useState(false);
@@ -106,6 +110,11 @@ export function FreelancersClient({
   const [newPaymentFor,    setNewPaymentFor]    = useState<FreelancerItem | null>(null);
   const [deleteFreelancer, setDeleteFreelancer] = useState<FreelancerItem | null>(null);
   const [viewPaymentsFor,  setViewPaymentsFor]  = useState<FreelancerItem | null>(null);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   // For report/pagos sub-tabs — fetch ALL freelancers (not paginated) for selectors
   const { data: allFreelancersData } = trpc.freelancers.list.useQuery(
@@ -119,9 +128,19 @@ export function FreelancersClient({
     CONTRATISTA:  t('freelancers.modalidades.CONTRATISTA'),
   };
 
+  // `initial` solo sirve de initialData si el input calza EXACTO con lo que
+  // renderizó el servidor (page 1, pageSize 15, sin filtros): pasarlo siempre
+  // siembra cada clave nueva como si ya fuera fresca y, con el staleTime global
+  // de 60s, el buscador y la paginación quedan mudos. Mismo arreglo que en
+  // users-client y payments-client.
+  const isDefaultQuery = page === 1 && !debouncedSearch && !modalidadFilter;
+
   const { data, refetch } = trpc.freelancers.list.useQuery(
-    { page, pageSize: 15, search: search || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA' | undefined) || undefined },
-    { initialData: initial },
+    { page, pageSize: 15, search: debouncedSearch || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA' | undefined) || undefined },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      placeholderData: keepPreviousData,
+    },
   );
 
   const { data: summary, refetch: refetchSummary } = trpc.freelancers.getSummary.useQuery(

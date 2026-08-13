@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -66,6 +67,13 @@ export function TasksClient({
     URGENT: t('tasks.priorities.URGENT'),
   };
 
+  // `initial` solo sirve de initialData si el input calza EXACTO con lo que
+  // renderizó el servidor: pasarlo siempre siembra cada clave nueva como si ya
+  // fuera fresca y, con el staleTime global de 60s, los filtros y la paginación
+  // quedan mudos. Mismo arreglo que en users-client y payments-client.
+  // (El pageSize de page.tsx se alineó a 15 para que la clave por defecto calce.)
+  const isDefaultQuery = page === 1 && !statusFilter && !priorityFilter && !assigneeFilter;
+
   const { data, refetch } = trpc.tasks.list.useQuery(
     {
       page, pageSize: 15,
@@ -73,7 +81,10 @@ export function TasksClient({
       priority: (priorityFilter as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | undefined) || undefined,
       assigneeId: assigneeFilter || undefined,
     },
-    { initialData: initial },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      placeholderData: keepPreviousData,
+    },
   );
 
   const updateStatus = trpc.tasks.updateStatus.useMutation({

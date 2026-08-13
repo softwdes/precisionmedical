@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Badge, Input, cn,
@@ -164,6 +165,66 @@ function InlineRoleSelect({
   );
 }
 
+/**
+ * Acciones de una fila.
+ *
+ * Vive a nivel de módulo y NO dentro de `UsersClient` — ahí estaba antes, y era
+ * la causa de que la tabla se moviera sola. Definir un componente dentro de otro
+ * le da una identidad nueva en cada render, así que React desmontaba y volvía a
+ * montar los botones de las 10 filas ante cualquier cambio de estado (una tecla
+ * en el buscador, abrir un diálogo). Con `table-layout: auto`, vaciar y rellenar
+ * la última columna obliga al navegador a recalcular el ancho de TODAS las
+ * columnas: de ahí el salto visible en cada acción.
+ *
+ * Recibe los setters de estado tal cual: React garantiza su identidad estable,
+ * así que las props no cambian entre renders.
+ */
+function ActionButtons({
+  user, onView, onEdit, onSendAccess, onDelete,
+}: {
+  user: UserRow;
+  onView: (id: string) => void;
+  onEdit: (u: UserRow) => void;
+  onSendAccess: (u: UserRow) => void;
+  onDelete: (u: UserRow) => void;
+}): React.ReactElement {
+  const isProtected = user.email === PROTECTED_EMAIL;
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={(e) => { e.stopPropagation(); onView(user.id); }}
+        className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+        title="Ver usuario"
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onEdit(user); }}
+        className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+        title="Editar usuario"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onSendAccess(user); }}
+        className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+        title="Enviar acceso"
+      >
+        <KeyRound className="h-3.5 w-3.5" />
+      </button>
+      {!isProtected && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(user); }}
+          className="p-1.5 rounded text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+          title="Eliminar usuario"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function UsersClient({
   initial,
@@ -179,6 +240,10 @@ export function UsersClient({
   const [activeTab, setActiveTab] = useState<ActiveTab>('usuarios');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  // Lo que se teclea vs. lo que viaja en la query. Sin este desfase, cada tecla
+  // creaba una clave nueva y disparaba su propio request: escribir un nombre
+  // lanzaba una consulta por letra y las respuestas podían llegar desordenadas.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
@@ -194,6 +259,11 @@ export function UsersClient({
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
@@ -211,13 +281,30 @@ export function UsersClient({
     PENDING_VERIFICATION: t('users.statuses.PENDING_VERIFICATION'),
   };
 
+  // `initial` es el render de servidor de page=1 SIN filtros. Solo puede usarse
+  // como initialData cuando el input calza EXACTO con eso.
+  //
+  // Pasarlo siempre era el bug del buscador: initialData se aplica a CADA clave
+  // nueva de la query, y sin `initialDataUpdatedAt` React Query la considera
+  // recién traída. Con el staleTime global de 60s (trpc-provider), escribir en el
+  // buscador creaba una clave nueva que nacía sembrada con la lista completa y
+  // marcada como fresca → nunca pedía nada al servidor y la tabla no filtraba.
+  // Mismo problema y mismo arreglo que en dashboard/payments/payments-client.tsx.
+  const isDefaultQuery = page === 1 && !debouncedSearch && !roleFilter && !statusFilter;
+
   const { data, refetch } = trpc.users.list.useQuery(
     {
-      page, pageSize: 10, search: search || undefined,
+      page, pageSize: 10, search: debouncedSearch || undefined,
       role: (roleFilter as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'DOCTOR' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI' | undefined) || undefined,
       status: (statusFilter as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION' | undefined) || undefined,
     },
-    { initialData: initial },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      // Mantener las filas anteriores mientras llega la respuesta. Sin esto la
+      // tabla se vacía entre tecla y tecla, y con `table-layout: auto` cada
+      // vaciado recalcula el ancho de las columnas: la tabla salta sola.
+      placeholderData: keepPreviousData,
+    },
   );
 
   const deleteUser = trpc.users.delete.useMutation({
@@ -227,44 +314,6 @@ export function UsersClient({
 
   // Whether "Roles y Permisos" tab is visible
   const showRolesTab = can(currentUserRole, 'usuarios') && currentUserRole === 'super_admin';
-
-  function ActionButtons({ user }: { user: UserRow }) {
-    const isProtected = user.email === PROTECTED_EMAIL;
-    return (
-      <div className="flex items-center gap-1">
-        <button
-          onClick={(e) => { e.stopPropagation(); setViewingUserId(user.id); }}
-          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-          title="Ver usuario"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
-          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-          title="Editar usuario"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setSendingAccessUser(user); }}
-          className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
-          title="Enviar acceso"
-        >
-          <KeyRound className="h-3.5 w-3.5" />
-        </button>
-        {!isProtected && (
-          <button
-            onClick={(e) => { e.stopPropagation(); setDeletingUser(user); }}
-            className="p-1.5 rounded text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-            title="Eliminar usuario"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="px-3 py-4 sm:p-6 space-y-4">
@@ -366,7 +415,13 @@ export function UsersClient({
                           {ROLE_META[dbRoleToRole(user.role as string)].accesos}
                         </p>
                       </div>
-                      <ActionButtons user={user} />
+                      <ActionButtons
+                        user={user}
+                        onView={setViewingUserId}
+                        onEdit={setEditingUser}
+                        onSendAccess={setSendingAccessUser}
+                        onDelete={setDeletingUser}
+                      />
                     </div>
                   ))}
                 </div>
@@ -424,7 +479,13 @@ export function UsersClient({
                           {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES') : '—'}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <ActionButtons user={user} />
+                          <ActionButtons
+                        user={user}
+                        onView={setViewingUserId}
+                        onEdit={setEditingUser}
+                        onSendAccess={setSendingAccessUser}
+                        onDelete={setDeletingUser}
+                      />
                         </TableCell>
                       </TableRow>
                     ))

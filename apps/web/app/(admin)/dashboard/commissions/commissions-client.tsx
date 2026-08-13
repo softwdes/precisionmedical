@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -46,9 +47,18 @@ export function CommissionsClient({
   const [showCreate, setShowCreate] = useState(false);
   const [payTarget, setPayTarget] = useState<string | null>(null);
 
+  // `initial` solo sirve de initialData si el input calza EXACTO con lo que
+  // renderizó el servidor: pasarlo siempre siembra cada clave nueva como si ya
+  // fuera fresca y, con el staleTime global de 60s, el filtro y la paginación
+  // quedan mudos. Mismo arreglo que en users-client y payments-client.
+  const isDefaultQuery = page === 1 && !statusFilter;
+
   const { data, refetch } = trpc.commissions.list.useQuery(
     { page, status: statusFilter as typeof STATUSES[number] | undefined },
-    { initialData: initial },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      placeholderData: keepPreviousData,
+    },
   );
 
   const approve = trpc.commissions.approve.useMutation({

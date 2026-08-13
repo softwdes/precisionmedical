@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
@@ -31,19 +32,36 @@ const SPECIALTIES = ['RADIOLOGY', 'NEUROLOGY', 'ORTHOPEDICS', 'PHYSICAL_THERAPY'
 export function ProvidersClient({ initial }: { initial: ProviderList }): React.ReactElement {
   const t = useTranslations();
   const [search, setSearch] = useState('');
+  // Lo tecleado vs. lo que viaja en la query: sin el desfase, cada letra es una
+  // clave nueva con su propio request y las respuestas pueden llegar desordenadas.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
 
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // `initial` solo sirve de initialData si el input calza EXACTO con lo que
+  // renderizó el servidor: pasarlo siempre siembra cada clave nueva como si ya
+  // fuera fresca y, con el staleTime global de 60s, el buscador y la paginación
+  // quedan mudos. Mismo arreglo que en users-client y payments-client.
+  const isDefaultQuery = page === 1 && !debouncedSearch && !statusFilter && !specialtyFilter;
+
   const { data, refetch } = trpc.providers.list.useQuery(
     {
       page,
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       status: statusFilter as 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL' | 'TERMINATED' | undefined,
       specialty: specialtyFilter as typeof SPECIALTIES[number] | undefined,
     },
-    { initialData: initial },
+    {
+      initialData: isDefaultQuery ? initial : undefined,
+      placeholderData: keepPreviousData,
+    },
   );
 
   const STATUS_LABELS: Record<string, string> = {

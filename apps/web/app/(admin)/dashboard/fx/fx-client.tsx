@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
@@ -172,9 +173,20 @@ export function FxClient({
   const periodFilter = period === 'ALL' ? undefined : period;
 
   // ── Queries
+  // Acá NO hay initialData, y es a propósito. `page.tsx` pide
+  // `fx.list({ page: 1, pageSize: 25 })` —25 filas de TODOS los períodos— mientras
+  // esta vista pide 15 del mes actual: `initial` nunca correspondió a la primera
+  // clave de la query. Sembrarlo igual mostraba esas 25 filas sin filtrar y, con
+  // el staleTime global de 60s, la lista no volvía a pedir nada (los filtros y la
+  // paginación quedaban mudos).
+  //
+  // Tampoco se alinea el llamado del servidor: habría que calcular ahí el mes
+  // actual, y el servidor corre en UTC mientras el mes lo decide el navegador.
+  // La madrugada del día 1 los dos no coinciden y el bug volvería una vez por
+  // mes, en silencio. Se paga un parpadeo de carga en la primera pintada.
   const { data, refetch } = trpc.fx.list.useQuery(
     { page, pageSize: 15, period: periodFilter, exchangeHouse: houseFilter || undefined },
-    { initialData: initial },
+    { placeholderData: keepPreviousData },
   );
 
   const { data: summary, refetch: refetchSummary } = trpc.fx.getSummary.useQuery(

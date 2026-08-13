@@ -27,6 +27,8 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import type { CoverageDTO } from '@/lib/coverage';
+import { useLiveSync } from '@/lib/use-live-sync';
+import { LiveStatus } from '@/components/ui-phoenix/live-status';
 
 type Tab = 'summary' | 'notes' | 'labs' | 'rx' | 'braces' | 'services';
 
@@ -111,34 +113,28 @@ export function DoctorStepPanel({
     })();
   }, [loadNote]);
 
-  // Sincronización en vivo con el portal del doctor.
+  // Sincronización en vivo con el portal del doctor, por PULSO.
   //
-  // El doctor escribe y firma la nota en su pantalla; acá se cargaba UNA vez al
-  // montar y quedaba congelada. El asistente veía la nota vacía y el checklist
-  // diciendo "sin firmar / sin diagnósticos" cuando el doctor ya había firmado —
-  // y no había forma de saberlo sin recargar a mano.
+  // El doctor escribe y firma en su pantalla; acá se cargaba UNA vez al montar y
+  // quedaba congelado: el asistente veía la nota vacía y el checklist diciendo
+  // "sin firmar / sin diagnósticos" cuando el doctor ya había firmado.
   //
-  // Dos guardas:
-  //  · Solo mientras la cita está abierta (cerrada no cambia más).
-  //  · NUNCA si el editor tiene cambios sin guardar: recargar por encima le
+  // El pulso pesa ~60 bytes, así que se consulta cada 5 s en vez de traer todo
+  // cada 20. Dos guardas que siguen valiendo:
+  //  · Solo con la cita abierta (cerrada no cambia más).
+  //  · NUNCA si el editor tiene cambios sin guardar — recargar por encima le
   //    borraría al asistente lo que está tipeando.
   const visitOpen = appointmentStatus !== 'COMPLETED' && appointmentStatus !== 'CANCELLED';
-  React.useEffect(() => {
-    if (!visitOpen) return;
-    const tick = (): void => {
-      // Pestaña en segundo plano: no tiene sentido pedir datos que nadie ve. Al
-      // volver, el listener de `focus` trae todo al instante.
-      if (document.visibilityState === 'hidden') return;
+  const { lastSyncedAt, failing, syncNow } = useLiveSync({
+    url: `/api/admin/pulse?appointmentId=${appointmentId}`,
+    enabled: visitOpen,
+    onChange: () => {
       if (noteDirty.current) return;
       void loadNote();
-      // Silencioso: `onRefresh` prendía el skeleton y borraba los vitales.
+      // Silencioso: `onRefresh` prende el skeleton y borra los vitales.
       (onSync ?? onRefresh)();
-    };
-    const id = setInterval(tick, 20_000);
-    const onFocus = (): void => tick();
-    window.addEventListener('focus', onFocus);
-    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
-  }, [visitOpen, loadNote, onSync, onRefresh]);
+    },
+  });
 
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
@@ -162,6 +158,9 @@ export function DoctorStepPanel({
             el chip vivía solo en el sidebar del step 2 — lo veía antes de entrar y
             después tenía que acordarse. En la consulta del doctor está siempre en
             el encabezado; esto lo iguala. */}
+        {visitOpen && (
+          <LiveStatus lastSyncedAt={lastSyncedAt} failing={failing} onRetry={syncNow} className="shrink-0" />
+        )}
         {coverage && (
           <CoverageChip caseId={servicesPanel.case?.id ?? null} coverage={coverage} />
         )}

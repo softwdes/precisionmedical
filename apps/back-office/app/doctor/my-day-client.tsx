@@ -19,6 +19,8 @@ import {
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { useLiveSync } from '@/lib/use-live-sync';
+import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import type { CoverageDTO } from '@/lib/coverage';
 
 export interface MyDayAppointment {
@@ -87,15 +89,15 @@ export function MyDayClient({
     return () => clearInterval(id);
   }, []);
 
-  // Sincronización en vivo con Day Admission: el check-in/triaje del asistente
-  // aparece solo — polling 30s (solo viendo HOY) + refresh al recuperar el foco.
-  React.useEffect(() => {
-    if (!isToday) return;
-    const id = setInterval(() => router.refresh(), 30_000);
-    const onFocus = (): void => router.refresh();
-    window.addEventListener('focus', onFocus);
-    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
-  }, [isToday, router]);
+  // Sincronización en vivo con Day Admission por pulso: el check-in y el triaje
+  // del asistente aparecen solos. Antes era un `router.refresh()` cada 30 s — un
+  // re-render del server component completo, cambiara algo o no. Ahora el pulso
+  // (~60 bytes) decide si vale la pena.
+  const { lastSyncedAt, failing, syncNow } = useLiveSync({
+    url: `/api/admin/pulse?date=${dateKey}`,
+    enabled: isToday,
+    onChange: () => router.refresh(),
+  });
 
   const sorted = [...appointments].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
   const completed = sorted.filter(a => a.status === 'COMPLETED');
@@ -168,6 +170,11 @@ export function MyDayClient({
         />
         {/* Date navigator — mismo patrón que Day Admission, identidad violet */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Frescura: hace cuánto se sabe que está al día, y aviso ámbar si dejó
+              de sincronizar. Solo hoy — en otros días no hay nada que sincronizar. */}
+          {isToday && (
+            <LiveStatus lastSyncedAt={lastSyncedAt} failing={failing} onRetry={syncNow} />
+          )}
           <button
             type="button"
             onClick={() => startRefresh(() => router.refresh())}

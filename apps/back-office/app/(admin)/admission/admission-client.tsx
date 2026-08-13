@@ -22,6 +22,8 @@ import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { useLiveSync } from '@/lib/use-live-sync';
+import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 
@@ -291,31 +293,25 @@ export function AdmissionClient() {
 
   useEffect(() => { void load(selectedDate); }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sincronización en vivo — el MISMO patrón que Mi Día del doctor, que ya lo
-  // tenía. Esta pantalla es la que ESPERA (que el doctor firme, que termine con
-  // el paciente) y era la única sin refresco: había que recargar a mano para ver
-  // que una cita ya se podía cobrar.
-  // Solo el día de hoy: en días pasados no cambia nada y sería tráfico al vacío.
-  const isTodayForPoll = selectedDate === new Date().toLocaleDateString('en-CA');
-  useEffect(() => {
-    if (!isTodayForPoll) return;
-    const id = setInterval(() => {
-      // Nada de pedir datos con la pestaña oculta; el `focus` los trae al volver.
-      if (document.visibilityState === 'hidden') return;
-      void load(selectedDate, true);
-    }, 20_000);
-    const onFocus = (): void => { void load(selectedDate, true); };
-    window.addEventListener('focus', onFocus);
-    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
-  }, [isTodayForPoll, selectedDate, load]);
+  // Sincronización en vivo por PULSO (ver lib/use-live-sync).
+  //
+  // Antes traía el payload completo de la cola cada 20 s. Ahora consulta una huella
+  // de ~60 bytes cada 5 s y solo recarga cuando algo cambió de verdad: baja la
+  // latencia a un tercio Y el tráfico en reposo a casi nada. Esta pantalla queda
+  // abierta toda la jornada en recepción.
+  const isToday = selectedDate === new Date().toLocaleDateString('en-CA');
+  const { lastSyncedAt, failing, syncNow } = useLiveSync({
+    url: `/api/admin/pulse?date=${selectedDate}`,
+    // Silencioso: el skeleton en un refresco de fondo hacía parpadear la lista.
+    onChange: () => { void load(selectedDate, true); },
+    enabled: isToday,
+  });
 
   function shiftDate(days: number) {
     const d = new Date(selectedDate + 'T12:00:00');
     d.setDate(d.getDate() + days);
     setSelectedDate(d.toLocaleDateString('en-CA'));
   }
-
-  const isToday = selectedDate === new Date().toLocaleDateString('en-CA');
 
   useEffect(() => {
     fetch('/api/admin/clinics')
@@ -354,6 +350,13 @@ export function AdmissionClient() {
         subtitle={displayDate || t('pageSubtitle')}
         action={
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Frescura: dice hace cuánto se sabe que esto está al día, y avisa en
+                ámbar si dejó de sincronizar. Es lo que evita el peor escenario —
+                una pantalla congelada con cara de viva. Solo con el día de hoy:
+                en días pasados no hay nada que sincronizar. */}
+            {isToday && (
+              <LiveStatus lastSyncedAt={lastSyncedAt} failing={failing} onRetry={syncNow} />
+            )}
             {/* Date navigator */}
             <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-9 px-1">
               <button

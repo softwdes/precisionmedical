@@ -26,6 +26,7 @@ import { TagPill } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
+import { useLiveSync } from '@/lib/use-live-sync';
 import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS, soloEntregadas } from './rx-integration-status';
 import { LabOrderPrintDialog } from './lab-order-print-dialog';
 
@@ -259,27 +260,20 @@ export function VisitSummary({
 
   React.useEffect(() => { void loadVisitExtras(); }, [loadVisitExtras]);
 
-  // Refresco en vivo. Los dos lados trabajan la MISMA visita a la vez (el doctor
-  // pide labs y receta, el asistente cobra), así que la foto del momento en que
-  // se abrió la pantalla envejece en minutos. Day Admission no tenía refresco de
-  // ningún tipo: el asistente veía la nota vacía y "sin firmar" cuando el doctor
-  // ya había firmado, y tenía que recargar a mano.
-  // Se detiene con la cita cerrada — ahí ya no cambia nada.
-  React.useEffect(() => {
-    if (appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED') return;
-    const tick = (): void => {
-      if (document.visibilityState === 'hidden') return;
+  // Refresco en vivo por pulso: los dos lados trabajan la MISMA visita a la vez
+  // (el doctor pide labs y receta, el asistente cobra), así que la foto del momento
+  // en que se abrió la pantalla envejece en minutos. Se detiene con la cita cerrada.
+  useLiveSync({
+    url: `/api/admin/pulse?appointmentId=${appointmentId}`,
+    enabled: appointmentStatus !== 'COMPLETED' && appointmentStatus !== 'CANCELLED',
+    onChange: () => {
       void loadVisitExtras();
       fetch(`/api/admin/lab-orders/${appointmentId}`)
         .then((r) => r.json())
         .then((d: { orders?: LabOrderRow[] }) => setLabs(d.orders ?? []))
         .catch(() => undefined);
-    };
-    const id = setInterval(tick, 20_000);
-    const onFocus = (): void => tick();
-    window.addEventListener('focus', onFocus);
-    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
-  }, [appointmentStatus, appointmentId, loadVisitExtras]);
+    },
+  });
 
   // Próximas citas del caso: si ya hay recita agendada hay que mostrarla, o el
   // doctor y el asistente la agendan dos veces sin saberlo.

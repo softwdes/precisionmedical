@@ -52,13 +52,30 @@ export async function PUT(
     const tempC2 = tempF2 !== null ? Math.round(((tempF2 - 32) * 5) / 9 * 10) / 10
                  : (typeof body.tempCelsius2 === 'number' ? body.tempCelsius2 : null);
 
+    /**
+     * Altura y peso: los cm y los kg MANDAN si vienen.
+     *
+     * Antes se recalculaban siempre desde el par (`(ft·12+in)·2.54`) y se
+     * ignoraba lo que mandaba el cliente. Eso pisaba el valor exacto: quien
+     * escribía 170 cm terminaba con 170.2 guardado, porque el par redondeado a
+     * 5 ft 7 in vuelve a convertirse en 170.18.
+     *
+     * La derivación desde el par se queda como respaldo para los clientes que
+     * solo mandan pies/pulgadas — `apps/clinical` (el v2) sigue haciéndolo.
+     */
+    const dec2 = (n: number): number => Math.round(n * 100) / 100;
+
     const lbs = typeof body.weightLbs === 'number' ? body.weightLbs : 0;
     const oz  = typeof body.weightOz  === 'number' ? body.weightOz  : 0;
-    const kg  = lbs > 0 || oz > 0 ? Math.round(((lbs * 16 + oz) * 28.3495) / 1000 * 10) / 10 : null;
+    const kg  = typeof body.weightKg === 'number' && body.weightKg > 0
+      ? dec2(body.weightKg)
+      : (lbs > 0 || oz > 0 ? dec2(((lbs * 16 + oz) * 28.3495) / 1000) : null);
 
     const ft = typeof body.heightFt === 'number' ? body.heightFt : 0;
     const inches = typeof body.heightIn === 'number' ? body.heightIn : 0;
-    const cm = ft > 0 || inches > 0 ? Math.round(((ft * 12 + inches) * 2.54) * 10) / 10 : null;
+    const cm = typeof body.heightCm === 'number' && body.heightCm > 0
+      ? dec2(body.heightCm)
+      : (ft > 0 || inches > 0 ? dec2((ft * 12 + inches) * 2.54) : null);
 
     const data = {
       // Height

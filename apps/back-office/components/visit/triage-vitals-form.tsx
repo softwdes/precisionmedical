@@ -89,28 +89,40 @@ export const EMPTY_VITALS: VitalsState = {
 
 // ─── Conversión de unidades ───────────────────────────────────────────────────
 
-function ftInToCm(ft: string, inches: string): string {
-  const f = parseFloat(ft) || 0, i = parseFloat(inches) || 0;
-  if (!f && !i) return '';
-  return String(Math.round((f * 12 + i) * 2.54 * 10) / 10);
+/**
+ * Cada casilla es la MISMA medida en su unidad, no una pareja.
+ *
+ * Regla de Erick (2026-08-13): «170.00 cm = 5.58 feet = 66.93 inches» y
+ * «60.00 kg = 132.28 lbs = 2116.44 oz». Antes FEET+INCHES se leían como un par
+ * —5 pies con 7 pulgadas, la forma de la ficha clínica gringa— y por eso al
+ * escribir 170 cm salían 5 y 7.
+ *
+ * ⚠️ **Consecuencia para quien carga los datos**: escribir 5 en FEET y después 7
+ * en INCHES ya NO significa 5'7". Son dos medidas distintas y la última gana:
+ * quedaría 7 pulgadas = 17.78 cm. Para 5'7" hay que escribir 67 en INCHES (o
+ * 170 en CM).
+ *
+ * `cm` y `kg` son el pivote: son los que la base guarda como número real
+ * (`Float`), y las otras casillas se derivan de ellos. Los factores son los
+ * exactos, no aproximados, para que los cuatro números cierren entre sí.
+ */
+const CM_POR_PIE      = 30.48;
+const CM_POR_PULGADA  = 2.54;
+const LBS_POR_KG      = 2.2046226218;
+const OZ_POR_KG       = 35.27396195;
+
+/** Redondeo a 2 decimales, sin arrastrar el `.00` cuando es redondo. */
+function dec2(n: number): string {
+  if (!isFinite(n)) return '';
+  return String(Math.round(n * 100) / 100);
 }
-function cmToFtIn(cm: string): { ft: string; inches: string } {
-  const c = parseFloat(cm);
-  if (!c || c <= 0) return { ft: '', inches: '' };
-  const totalIn = c / 2.54;
-  return { ft: String(Math.floor(totalIn / 12)), inches: String(Math.round(totalIn % 12)) };
+
+/** Valor numérico de un campo, o null si está vacío / no es número. */
+function val(s: string): number | null {
+  const n = parseFloat(s);
+  return isNaN(n) || n <= 0 ? null : n;
 }
-function lbsOzToKg(lbs: string, oz: string): string {
-  const l = parseFloat(lbs) || 0, o = parseFloat(oz) || 0;
-  if (!l && !o) return '';
-  return String(Math.round((l * 16 + o) * 28.3495 / 1000 * 10) / 10);
-}
-function kgToLbs(kg: string): { lbs: string; oz: string } {
-  const k = parseFloat(kg);
-  if (!k || k <= 0) return { lbs: '', oz: '0' };
-  const totalOz = k * 1000 / 28.3495;
-  return { lbs: String(Math.floor(totalOz / 16)), oz: '0' };
-}
+
 function fToC(f: string): string {
   const v = parseFloat(f);
   if (isNaN(v)) return '';
@@ -122,19 +134,48 @@ function cToF(c: string): string {
   return String(Math.round((v * 9 / 5 + 32) * 10) / 10);
 }
 
+/**
+ * El par `pies + pulgadas` que se sigue guardando además de los cm.
+ *
+ * No es redundancia por las dudas: esas dos columnas las leen la **nota impresa**,
+ * el triaje de **apps/clinical** (el v2, que sigue en uso) y el SQL de métricas de
+ * doctores, y las tres esperan la lectura de par (5 ft 7 in). Cambiarles el
+ * significado habría sido una migración de tres consumidores para un cambio de
+ * pantalla. Los cm son el valor real, así que el par sale derivado de ellos y
+ * ninguno de los dos miente.
+ */
+function cmToPar(cm: number): { ft: number; inches: number } {
+  const totalIn = cm / CM_POR_PULGADA;
+  return { ft: Math.floor(totalIn / 12), inches: Math.round(totalIn % 12) };
+}
+function kgToPar(kg: number): { lbs: number; oz: number } {
+  const totalOz = kg * OZ_POR_KG;
+  return { lbs: Math.floor(totalOz / 16), oz: Math.round(totalOz % 16) };
+}
+
 export function triageToState(tr: TriageRecord | null): VitalsState {
   if (!tr) return EMPTY_VITALS;
-  const heightCm = ftInToCm(tr.heightFt?.toString() ?? '', tr.heightIn?.toString() ?? '');
-  const weightKg = lbsOzToKg(tr.weightLbs?.toString() ?? '', tr.weightOz?.toString() ?? '');
-  const tempC    = fToC(tr.tempFahrenheit?.toString() ?? '');
-  const tempC2   = fToC(tr.tempFahrenheit2?.toString() ?? '');
+
+  /**
+   * Los cm y los kg son el valor real; el resto se deriva de ellos al mostrar.
+   *
+   * Si una fila vieja no los tiene (se guardó solo el par), se reconstruyen
+   * leyendo ese par como lo que era: 5 ft 7 in = 5·12+7 pulgadas.
+   */
+  const cm = tr.heightCm
+    ?? (((tr.heightFt ?? 0) * 12 + (tr.heightIn ?? 0)) * CM_POR_PULGADA || null);
+  const kg = tr.weightKg
+    ?? ((((tr.weightLbs ?? 0) * 16 + (tr.weightOz ?? 0)) / OZ_POR_KG) || null);
+
+  const tempC  = fToC(tr.tempFahrenheit?.toString() ?? '');
+  const tempC2 = fToC(tr.tempFahrenheit2?.toString() ?? '');
   return {
-    heightFt:         tr.heightFt?.toString()         ?? '',
-    heightIn:         tr.heightIn?.toString()         ?? '',
-    heightCm:         tr.heightCm?.toString()         ?? heightCm,
-    weightLbs:        tr.weightLbs?.toString()        ?? '',
-    weightOz:         tr.weightOz?.toString()         ?? '',
-    weightKg:         tr.weightKg?.toString()         ?? weightKg,
+    heightFt:         cm ? dec2(cm / CM_POR_PIE)     : '',
+    heightIn:         cm ? dec2(cm / CM_POR_PULGADA) : '',
+    heightCm:         cm ? dec2(cm)                  : '',
+    weightLbs:        kg ? dec2(kg * LBS_POR_KG)     : '',
+    weightOz:         kg ? dec2(kg * OZ_POR_KG)      : '',
+    weightKg:         kg ? dec2(kg)                  : '',
     systolicMmhg:     tr.systolicMmhg?.toString()     ?? '',
     diastolicMmhg:    tr.diastolicMmhg?.toString()    ?? '',
     pulseBpm:         tr.pulseBpm?.toString()         ?? '',
@@ -162,11 +203,25 @@ export function triageToState(tr: TriageRecord | null): VitalsState {
 function stateToPayload(v: VitalsState): Record<string, unknown> {
   const num = (s: string) => s.trim() ? parseFloat(s) : undefined;
   const int = (s: string) => s.trim() ? parseInt(s, 10) : undefined;
+
+  /**
+   * Se manda el valor real (cm/kg) Y el par entero que esperan los otros
+   * consumidores. El par se calcula del pivote, no de lo que muestra la casilla:
+   * `heightFt` en pantalla es "5.58 pies en total", que como columna `Int` se
+   * truncaría a 5 y perdería 7 pulgadas.
+   */
+  const cm = val(v.heightCm);
+  const kg = val(v.weightKg);
+  const parAltura = cm ? cmToPar(cm) : null;
+  const parPeso   = kg ? kgToPar(kg) : null;
+
   return {
-    heightFt:         int(v.heightFt),
-    heightIn:         int(v.heightIn),
-    weightLbs:        int(v.weightLbs),
-    weightOz:         int(v.weightOz),
+    heightCm:         cm ?? undefined,
+    heightFt:         parAltura?.ft,
+    heightIn:         parAltura?.inches,
+    weightKg:         kg ?? undefined,
+    weightLbs:        parPeso?.lbs,
+    weightOz:         parPeso?.oz,
     systolicMmhg:     int(v.systolicMmhg),
     diastolicMmhg:    int(v.diastolicMmhg),
     pulseBpm:         int(v.pulseBpm),
@@ -308,31 +363,40 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
       dirty();
     }
 
-    // ── Setters bidireccionales ────────────────────────────────────────────────
-    function setHeightFt(val: string): void {
-      setVitals(prev => ({ ...prev, heightFt: val, heightCm: ftInToCm(val, prev.heightIn) }));
+    /**
+     * Un setter por casilla: se conserva EXACTO lo que se tipeó y se recalculan
+     * las otras dos desde el pivote (cm / kg).
+     *
+     * Nunca se reescribe la casilla que el usuario está usando: redondearle el
+     * texto mientras escribe hace saltar el cursor y pelea con el teclado.
+     */
+    function setAltura(campo: 'heightFt' | 'heightIn' | 'heightCm', texto: string): void {
+      const n = val(texto);
+      const cm = n === null ? null
+        : campo === 'heightCm' ? n
+        : campo === 'heightFt' ? n * CM_POR_PIE
+        : n * CM_POR_PULGADA;
+      setVitals(prev => ({
+        ...prev,
+        heightFt: campo === 'heightFt' ? texto : cm ? dec2(cm / CM_POR_PIE)     : '',
+        heightIn: campo === 'heightIn' ? texto : cm ? dec2(cm / CM_POR_PULGADA) : '',
+        heightCm: campo === 'heightCm' ? texto : cm ? dec2(cm)                  : '',
+      }));
       dirty();
     }
-    function setHeightIn(val: string): void {
-      setVitals(prev => ({ ...prev, heightIn: val, heightCm: ftInToCm(prev.heightFt, val) }));
-      dirty();
-    }
-    function setHeightCm(val: string): void {
-      const { ft, inches } = cmToFtIn(val);
-      setVitals(prev => ({ ...prev, heightCm: val, heightFt: ft, heightIn: inches }));
-      dirty();
-    }
-    function setWeightLbs(val: string): void {
-      setVitals(prev => ({ ...prev, weightLbs: val, weightKg: lbsOzToKg(val, prev.weightOz) }));
-      dirty();
-    }
-    function setWeightOz(val: string): void {
-      setVitals(prev => ({ ...prev, weightOz: val, weightKg: lbsOzToKg(prev.weightLbs, val) }));
-      dirty();
-    }
-    function setWeightKg(val: string): void {
-      const { lbs, oz } = kgToLbs(val);
-      setVitals(prev => ({ ...prev, weightKg: val, weightLbs: lbs, weightOz: oz }));
+
+    function setPeso(campo: 'weightLbs' | 'weightOz' | 'weightKg', texto: string): void {
+      const n = val(texto);
+      const kg = n === null ? null
+        : campo === 'weightKg'  ? n
+        : campo === 'weightLbs' ? n / LBS_POR_KG
+        : n / OZ_POR_KG;
+      setVitals(prev => ({
+        ...prev,
+        weightLbs: campo === 'weightLbs' ? texto : kg ? dec2(kg * LBS_POR_KG) : '',
+        weightOz:  campo === 'weightOz'  ? texto : kg ? dec2(kg * OZ_POR_KG)  : '',
+        weightKg:  campo === 'weightKg'  ? texto : kg ? dec2(kg)              : '',
+      }));
       dirty();
     }
     function setTempF(val: string): void {
@@ -423,16 +487,16 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <VitalGroup icon={<span>📏</span>} title={t('vitHeight')}>
             <div className="grid grid-cols-3 gap-2">
-              <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={setHeightFt} /></VField>
-              <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={setHeightIn} /></VField>
-              <VField label={t('vitCms')}><VInput value={vitals.heightCm} onChange={setHeightCm} placeholder="—" /></VField>
+              <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={v => setAltura('heightFt', v)} step="0.01" /></VField>
+              <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={v => setAltura('heightIn', v)} step="0.01" /></VField>
+              <VField label={t('vitCms')}><VInput value={vitals.heightCm} onChange={v => setAltura('heightCm', v)} placeholder="—" step="0.01" /></VField>
             </div>
           </VitalGroup>
           <VitalGroup icon={<span>⚖️</span>} title={t('vitWeight')}>
             <div className="grid grid-cols-3 gap-2">
-              <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={setWeightLbs} /></VField>
-              <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={setWeightOz} /></VField>
-              <VField label="kg"><VInput value={vitals.weightKg} onChange={setWeightKg} placeholder="—" step="0.1" /></VField>
+              <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={v => setPeso('weightLbs', v)} step="0.01" /></VField>
+              <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={v => setPeso('weightOz', v)} step="0.01" /></VField>
+              <VField label="kg"><VInput value={vitals.weightKg} onChange={v => setPeso('weightKg', v)} placeholder="—" step="0.01" /></VField>
             </div>
           </VitalGroup>
           <VitalGroup icon={<span>💓</span>} title={t('vitBloodPressure')}>

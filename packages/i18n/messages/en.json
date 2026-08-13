@@ -4666,7 +4666,11 @@
         "paidByInsurance": "insurance/attorney",
         "kpiPatientDebt": "Patient pays",
         "kpiInsuranceDebt": "To insurance / attorney",
-        "loading": "Loading…"
+        "loading": "Loading…",
+        "originLab": "Lab",
+        "originCash": "Service",
+        "originBrace": "Brace",
+        "originCpt": "CPT"
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",

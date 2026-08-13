@@ -80,6 +80,18 @@ export async function GET(
     payer: (b.braceId || b.cashServiceId || b.labOrderId)
       ? 'PATIENT' as const
       : 'INSURANCE' as const,
+    /**
+     * De dónde nació el cargo. El `payer` dice QUIÉN paga; esto dice QUÉ es.
+     *
+     * En el modal de cobro las líneas salían todas bajo "SERVICE": dos
+     * laboratorios y una inyección se veían idénticas, y el que cobra no sabía
+     * qué estaba cobrando (Erick, 2026-08-13). Además explica por qué el total
+     * del cobro es mayor que el del tab de Servicios — ahí los labs no están.
+     */
+    origin: b.labOrderId ? 'LAB' as const
+          : b.cashServiceId ? 'CASH' as const
+          : b.braceId ? 'BRACE' as const
+          : 'CPT' as const,
     totalCost: Number(b.totalCost),
     discount: Number(b.discount),
     insuranceCovered: Number(b.insuranceCovered),

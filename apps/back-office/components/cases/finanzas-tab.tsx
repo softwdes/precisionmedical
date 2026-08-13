@@ -34,6 +34,8 @@ interface BillingRecord {
   id: string;
   /** PATIENT = se cobra en caja · INSURANCE = lo cobra Cobranzas después */
   payer: 'PATIENT' | 'INSURANCE';
+  /** Qué es el cargo: laboratorio, efectivo, férula o CPT. */
+  origin?: 'LAB' | 'CASH' | 'BRACE' | 'CPT';
   appointmentId: string | null;
   appointmentDate: string | null;
   appointmentStatus: string | null;
@@ -213,6 +215,30 @@ function KpiCard({ label, value, color, hint }: {
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
+
+/**
+ * Etiqueta de origen de cada línea de cobro.
+ *
+ * En el modal las líneas salían todas bajo "SERVICE": dos laboratorios y una
+ * inyección se veían idénticas y el que cobra no sabía qué estaba cobrando
+ * (Erick, 2026-08-13). También explica por qué el total del cobro es mayor que el
+ * del tab de Servicios — ahí los labs no aparecen.
+ *
+ * Clases COMPLETAS y no interpoladas: Tailwind no genera `bg-${x}/15` y la
+ * etiqueta se quedaría sin color sin ningún error.
+ *
+ * Los CPT no llevan etiqueta porque no llegan acá: los paga el seguro y el modal
+ * solo lista lo que se cobra en el mostrador.
+ */
+const ORIGEN_CLASE: Record<string, string> = {
+  LAB:   'bg-cyan/15 text-cyan',
+  CASH:  'bg-emerald/15 text-emerald',
+  BRACE: 'bg-violet/15 text-violet',
+  CPT:   'bg-bg-2 text-text-muted',
+};
+const ORIGEN_CLAVE: Record<string, string> = {
+  LAB: 'originLab', CASH: 'originCash', BRACE: 'originBrace', CPT: 'originCpt',
+};
 
 export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void; reloadAndOpen: () => void }
 
@@ -823,6 +849,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                     <td className="py-1 pr-2">
                                       {l.serviceCode && <span className="font-mono text-cyan mr-1.5">{l.serviceCode}</span>}
                                       {l.serviceDescription ?? '—'}
+                                      {/* Qué es cada línea. Sin esto, dos labs y una
+                                          inyección se veían idénticas bajo "SERVICE" y
+                                          el que cobra no sabía qué estaba cobrando. */}
+                                      {l.origin && l.origin !== 'CPT' && (
+                                        <span className={`ml-2 text-[9px] uppercase tracking-wider font-semibold px-1.5 py-px rounded-full ${ORIGEN_CLASE[l.origin]}`}>
+                                          {t(ORIGEN_CLAVE[l.origin])}
+                                        </span>
+                                      )}
                                     </td>
                                     <td className="py-1 text-right font-mono tabular-nums">{fmt$(l.balanceDue)}</td>
                                     <td className={`py-1 text-right font-mono tabular-nums ${reparto[l.id] ? 'text-emerald' : 'text-text-muted'}`}>

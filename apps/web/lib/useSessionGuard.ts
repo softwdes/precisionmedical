@@ -63,7 +63,11 @@ export function useSessionGuard(maxAgeHours = 12): void {
       if (age < maxAgeMs) return;
       clearSessionGuard();
       try { await supabase.auth.signOut(); } catch { /* still redirect */ }
-      window.location.href = '/login?expired=true';
+      // Se sale POR el endpoint, no directo al login: `pm_role` es httpOnly, así
+      // que desde el navegador no hay forma de borrarla. Si esta salida fuera
+      // directa, la sesión moría pero el rol cacheado sobrevivía hasta una hora.
+      // El endpoint cierra sesión, limpia las cookies y redirige al login.
+      window.location.href = '/api/auth/signout?expired=true';
     }
 
     void check();

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 import { sendLowBalanceEmail } from '../email';
 
@@ -16,7 +16,7 @@ function inferCountry(name: string): 'EEUU' | 'Bolivia' {
 }
 
 export const pettyCashRouter = router({
-  listBoxes: protectedProcedure
+  listBoxes: adminProcedure
     .input(
       z
         .object({
@@ -55,7 +55,7 @@ export const pettyCashRouter = router({
       });
     }),
 
-  getBox: protectedProcedure
+  getBox: adminProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -68,7 +68,7 @@ export const pettyCashRouter = router({
       return data;
     }),
 
-  listTransactions: protectedProcedure
+  listTransactions: adminProcedure
     .input(z.object({
       cashBoxId: z.string(),
       page: z.number().int().positive().default(1),
@@ -228,7 +228,7 @@ export const pettyCashRouter = router({
       return tx;
     }),
 
-  kpis: protectedProcedure.query(async () => {
+  kpis: adminProcedure.query(async () => {
     // Solo cajas activas. Las desactivadas no cuentan para KPIs ni
     // para alertas de saldo bajo.
     const { data: boxes } = await supabaseAdmin
@@ -277,7 +277,7 @@ export const pettyCashRouter = router({
     return { total, eeuu, bolivia, monthlyExpenses, monthlyCount, lowBoxes, eeuuBoxCount: eeuuBoxes.length, boliviaBoxCount: boliviaBoxes.length };
   }),
 
-  listMovements: protectedProcedure
+  listMovements: adminProcedure
     .input(z.object({
       country: z.enum(['all', 'EEUU', 'Bolivia']).default('all'),
       clinicName: z.string().optional(),
@@ -547,7 +547,7 @@ export const pettyCashRouter = router({
   // ─── Reporte analítico ────────────────────────────────────────────────────
   // Usado por el tab "Reportes" en /dashboard/finanzas?tab=reportes.
   // Retorna KPIs, serie diaria, desglose por categoría y por clínica.
-  report: protectedProcedure
+  report: adminProcedure
     .input(z.object({
       dateFrom: z.string(),    // ISO date "YYYY-MM-DD"
       dateTo:   z.string(),    // ISO date "YYYY-MM-DD"

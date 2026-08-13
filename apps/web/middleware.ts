@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
 import { dbRoleToRole } from './lib/permissions';
-import { TIMECLOCK_URL } from './lib/app-urls';
-
-const ROLE_COOKIE = 'pm_role';
+import { TIMECLOCK_URL, DOCTOR_PORTAL_URL } from './lib/app-urls';
+import { ROLE_COOKIE, ROLE_EMAIL_COOKIE, ROLE_COOKIE_OPTIONS } from './lib/session-cookies';
 
 function detectLocaleFromHeader(request: NextRequest): 'es' | 'en' {
   const acceptLanguage = request.headers.get('accept-language') ?? '';
@@ -65,17 +64,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const isNoAccess = pathname === '/no-access';
 
   if (user && isDashboard && !isNoAccess) {
-    // Get role from cookie (fast path) or DB (slow path, then cache)
-    let dbRoleStr = request.cookies.get(ROLE_COOKIE)?.value;
+    // Rol: cookie rápida primero, DB si no hay.
+    // La cookie SOLO vale si pertenece al usuario actual — ver el porqué en
+    // `lib/session-cookies.ts`. Cuando no le pertenece se ignora y se vuelve a
+    // consultar, así que el usuario nuevo nunca hereda el rol del anterior.
+    const cookieOwner = request.cookies.get(ROLE_EMAIL_COOKIE)?.value;
+    const cookieFresh = !!user.email && cookieOwner === user.email;
+
+    let dbRoleStr = cookieFresh ? request.cookies.get(ROLE_COOKIE)?.value : undefined;
 
     if (!dbRoleStr && user.email) {
       dbRoleStr = await getDbRole(user.email);
-      response.cookies.set(ROLE_COOKIE, dbRoleStr, {
-        httpOnly: true,
-        path: '/',
-        maxAge: 3600,
-        sameSite: 'lax',
-      });
+      response.cookies.set(ROLE_COOKIE, dbRoleStr, ROLE_COOKIE_OPTIONS);
+      response.cookies.set(ROLE_EMAIL_COOKIE, user.email, ROLE_COOKIE_OPTIONS);
     }
 
     const role = dbRoleToRole(dbRoleStr ?? 'EMPLOYEE');
@@ -83,6 +84,31 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // Employee → redirect to PM Time Clock immediately
     if (role === 'employee') {
       return NextResponse.redirect(TIMECLOCK_URL);
+    }
+
+    // ── Roles que NO trabajan en el Admin ──────────────────────────────────
+    // Hasta acá nada los frenaba: el layout no bloquea (solo esconde items del
+    // menú) y casi ninguna pagina chequea permiso, así que llegaban al dashboard
+    // y —peor— los datos cargaban, porque medio router estaba en
+    // `protectedProcedure`. Cerrar la puerta apaga esa superficie entera de una,
+    // en vez de blindar endpoint por endpoint.
+    //
+    // Se puede cerrar sin romper nada porque el acceso que la matriz de
+    // lib/permissions les promete (`metricas: own_data` / `own_cases`) NUNCA se
+    // implementó: en metricas no hay filtrado por usuario. No hay pantalla suya
+    // que dependa de esto.
+    //
+    // AUDITOR_AI queda AFUERA de este bloqueo a propósito: es el único con una
+    // pantalla real y bien gateada acá (`ai-agents` sí chequea permiso).
+    if (role === 'doctor' || role === 'provider') {
+      return NextResponse.redirect(DOCTOR_PORTAL_URL);
+    }
+
+    if (role === 'lawyer') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/no-access';
+      url.search = '';
+      return NextResponse.redirect(url);
     }
 
     // Contador → only /dashboard/employees/* allowed

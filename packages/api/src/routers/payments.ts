@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const createPaymentSchema = z.object({
@@ -17,7 +17,7 @@ const createPaymentSchema = z.object({
 });
 
 export const paymentsRouter = router({
-  list: protectedProcedure
+  list: payrollProcedure
     .input(z.object({
       page: z.number().int().positive().default(1),
       pageSize: z.number().int().positive().max(100).default(25),
@@ -162,7 +162,7 @@ export const paymentsRouter = router({
       return data;
     }),
 
-  planillaStats: protectedProcedure
+  planillaStats: adminProcedure
     .input(z.object({
       currency: z.enum(['BOB', 'PEN']).default('BOB'),
       period: z.string().optional(),
@@ -465,7 +465,7 @@ export const paymentsRouter = router({
       return reversal;
     }),
 
-  getSummary: protectedProcedure
+  getSummary: payrollProcedure
     .input(z.object({ period: z.string().optional() }))
     .query(async ({ input }) => {
       const now = new Date();

@@ -1,10 +1,23 @@
+import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
 import { DashboardClient } from './dashboard-client';
 import { SalaryAlertModal } from '@/components/SalaryAlertModal';
+import { getCurrentUserRole } from '@/lib/auth/get-role';
+import { can } from '@/lib/permissions';
 
 export const metadata = { title: 'Dashboard — Precision Medical' };
 
 export default async function DashboardPage(): Promise<React.ReactElement> {
+  // El middleware solo desvía a `employee` y `contador`; doctores, abogados,
+  // proveedores y el auditor llegaban hasta acá. El router ya no les devuelve
+  // datos, pero sin este chequeo igual verían el cascarón del dashboard con
+  // todo vacío, que parece una falla del sistema en vez de una puerta cerrada.
+  // Mismo patrón que usuarios y empleados.
+  const role = await getCurrentUserRole();
+  if (!can(role, 'dashboard')) {
+    redirect('/no-access');
+  }
+
   const [
     kpis,
     activity,

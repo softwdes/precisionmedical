@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const FX_SELECT =
@@ -14,7 +14,7 @@ type OpRow = { id: string; rate: unknown; performedAt: string; fromWallet: Walle
 function rows(data: unknown[]): OpRow[] { return data as OpRow[]; }
 
 export const fxRouter = router({
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       page:          z.number().int().positive().default(1),
       pageSize:      z.number().int().positive().max(100).default(25),
@@ -52,7 +52,7 @@ export const fxRouter = router({
       };
     }),
 
-  getSummary: protectedProcedure
+  getSummary: adminProcedure
     .input(z.object({ period: z.string().optional() }))
     .query(async ({ input }) => {
       const now    = new Date();
@@ -94,7 +94,7 @@ export const fxRouter = router({
       };
     }),
 
-  getLastRate: protectedProcedure
+  getLastRate: adminProcedure
     .input(z.object({ from: z.string(), to: z.string() }))
     .query(async ({ input }) => {
       const ago30 = new Date();
@@ -121,7 +121,7 @@ export const fxRouter = router({
       return { rate: Number(last.rate), daysAgo, avg30d, sampleCount: r30.length };
     }),
 
-  getExchangeHouses: protectedProcedure.query(async () => {
+  getExchangeHouses: adminProcedure.query(async () => {
     const { data } = await supabaseAdmin
       .from('fx_operations')
       .select('exchangeHouse')

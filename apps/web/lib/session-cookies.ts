@@ -1,0 +1,32 @@
+/**
+ * Cookies de sesión propias de la app (las de Supabase las maneja su SDK).
+ *
+ * Viven acá y no en cada archivo porque las escribe el middleware y las tiene
+ * que borrar el signout: si los nombres se escriben sueltos en los dos lados,
+ * alcanza con una letra distinta para que el borrado deje de funcionar en
+ * silencio. Es el mismo problema que tuvimos con las URLs (ver `app-urls.ts`).
+ *
+ * Sin imports a propósito: las usa el middleware, que corre en el Edge.
+ */
+
+/** Rol del usuario, cacheado 1h para no consultar la DB en cada request. */
+export const ROLE_COOKIE = 'pm_role';
+
+/**
+ * A quién pertenece `pm_role`.
+ *
+ * El rol cacheado NO se puede usar sin comprobar de quién es. Sin esto, un
+ * segundo login en el mismo navegador hereda el rol del usuario anterior por
+ * hasta una hora — y como el ruteo por rol decide a qué app entra cada uno, eso
+ * puede meter a alguien donde no le corresponde. Mismo patrón que
+ * `apps/back-office/middleware.ts`, donde ya estaba resuelto.
+ */
+export const ROLE_EMAIL_COOKIE = 'pm_role_email';
+
+/** Opciones comunes: 1h de vida, solo servidor. */
+export const ROLE_COOKIE_OPTIONS = {
+  httpOnly: true,
+  path:     '/',
+  maxAge:   3600,
+  sameSite: 'lax',
+} as const;

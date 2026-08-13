@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 export const walletsRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: adminProcedure.query(async () => {
     const { data, error } = await supabaseAdmin
       .from('wallets')
       .select('id, name, currency, balance, lastReconciledAt, countryId, country:countries(code, name)')
@@ -13,7 +13,7 @@ export const walletsRouter = router({
     return data ?? [];
   }),
 
-  getById: protectedProcedure
+  getById: adminProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -66,7 +66,7 @@ export const walletsRouter = router({
    * `salariesPending` es informativo (comprometido): pagos PENDING/SCHEDULED de
    * esta wallet, de cualquier período. NO afecta el saldo.
    */
-  getBreakdown: protectedProcedure.query(async () => {
+  getBreakdown: adminProcedure.query(async () => {
     const [walletsRes, fxRes, payRes, cashRes] = await Promise.all([
       supabaseAdmin.from('wallets').select('id, currency, balance, lastReconciledAt'),
       supabaseAdmin.from('fx_operations').select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt'),

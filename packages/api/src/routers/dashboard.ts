@@ -1,6 +1,23 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+
+/**
+ * Dashboard corporativo del LM Super Admin.
+ *
+ * TODO va con `adminProcedure` (ADMIN + SUPER_ADMIN). Antes estaba con
+ * `protectedProcedure`, o sea abierto a cualquier usuario autenticado, y eso no
+ * era teórico: `apps/web/middleware.ts` solo desvía a `employee` y `contador`,
+ * el layout no bloquea —solo esconde items del menú— y la página no chequeaba
+ * permiso, así que un doctor o un abogado entrando a admin.lienmaster.net con su
+ * propia cuenta aterrizaba acá y **los datos cargaban**: KPIs, cajas, comisiones,
+ * top de referidores y alertas de sueldos.
+ *
+ * Coincide con la matriz de `apps/web/lib/permissions.ts`, que ya decía
+ * dashboard = 'write' para super_admin, 'read' para admin y 'none' para el resto.
+ * Los consumidores son solo `dashboard/page.tsx`, `dashboard-client.tsx` y
+ * `SalaryAlertModal` — ninguna pantalla de otro rol depende de esto.
+ */
 
 // ─── date helpers ────────────────────────────────────────────────────────────
 
@@ -52,7 +69,7 @@ function spark7(
 export const dashboardRouter = router({
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  kpis: protectedProcedure.query(async () => {
+  kpis: adminProcedure.query(async () => {
     const now = new Date();
     const ms  = mStart(now);
     const ds  = dStart(now);
@@ -130,7 +147,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Activity Feed (merged from multiple tables) ──────────────────────────
-  activityFeed: protectedProcedure.query(async () => {
+  activityFeed: adminProcedure.query(async () => {
     const [paymentsRes, agentActionsRes, fxRes, empRes] = await Promise.all([
       supabaseAdmin
         .from('payments')
@@ -208,7 +225,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Cash Boxes ───────────────────────────────────────────────────────────
-  cashBoxes: protectedProcedure.query(async () => {
+  cashBoxes: adminProcedure.query(async () => {
     // Solo cajas activas — las desactivadas no se muestran en
     // dashboard. Y para cada caja, calculamos hasTransactions porque
     // el cliente solo dispara alerta de saldo bajo cuando la caja
@@ -244,7 +261,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Today's Appointments ─────────────────────────────────────────────────
-  appointmentsToday: protectedProcedure.query(async () => {
+  appointmentsToday: adminProcedure.query(async () => {
     const now = new Date();
     const { data } = await supabaseAdmin
       .from('appointments')
@@ -275,7 +292,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Patient Distribution (donut) ─────────────────────────────────────────
-  patientDistribution: protectedProcedure.query(async () => {
+  patientDistribution: adminProcedure.query(async () => {
     const now = new Date();
     const { data } = await supabaseAdmin
       .from('appointments')
@@ -312,7 +329,7 @@ export const dashboardRouter = router({
   }),
 
   // ── System Status ────────────────────────────────────────────────────────
-  systemStatus: protectedProcedure.query(async () => {
+  systemStatus: adminProcedure.query(async () => {
     const now = new Date();
 
     const [dbProbe, cifoRow, auditPending, lastSync] = await Promise.all([
@@ -363,7 +380,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Agent Status ─────────────────────────────────────────────────────────
-  agentStatus: protectedProcedure.query(async () => {
+  agentStatus: adminProcedure.query(async () => {
     const now = new Date();
 
     const [cifoConvs, auditPending] = await Promise.all([
@@ -386,7 +403,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Commissions Summary ──────────────────────────────────────────────────
-  commissionsSummary: protectedProcedure.query(async () => {
+  commissionsSummary: adminProcedure.query(async () => {
     const now = new Date();
     const { data } = await supabaseAdmin
       .from('commissions')
@@ -406,7 +423,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Top Referrers ────────────────────────────────────────────────────────
-  topReferrers: protectedProcedure.query(async () => {
+  topReferrers: adminProcedure.query(async () => {
     const now = new Date();
     const ms  = mStart(now);
 
@@ -463,7 +480,7 @@ export const dashboardRouter = router({
   }),
 
   // ── Performance Chart (tab-driven) ───────────────────────────────────────
-  performanceData: protectedProcedure
+  performanceData: adminProcedure
     .input(z.object({ range: z.enum(['30d', '90d', 'ytd']) }))
     .query(async ({ input }) => {
       const now = new Date();
@@ -508,7 +525,7 @@ export const dashboardRouter = router({
    * "how many". Capped at 10 per bucket to keep the modal scannable;
    * if there are more, the UI shows a "+ X más" hint.
    */
-  salaryAlerts: protectedProcedure.query(async () => {
+  salaryAlerts: adminProcedure.query(async () => {
     // Compute today / +3 days as YYYY-MM-DD in America/Denver. The
     // payments cron writes the same way so this filter matches.
     const utahDate = (offset: number): string => {

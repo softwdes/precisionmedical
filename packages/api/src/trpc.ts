@@ -65,6 +65,21 @@ export const superAdminProcedure = t.procedure
   .use(authMiddleware)
   .use(requireRole(['SUPER_ADMIN'] as UserRole[]));
 
+/**
+ * Nómina: ADMIN, SUPER_ADMIN y **CONTADOR**.
+ *
+ * Existe porque el Contador entra legítimamente al Admin —el middleware lo
+ * manda a /dashboard/employees y esa pantalla tiene su modo `payroll_only`— y
+ * ahí consume `payments.list` y `payments.getSummary`. Subirlos a
+ * `adminProcedure` le rompería la pantalla; dejarlos en `protectedProcedure` los
+ * deja abiertos a cualquiera que esté logueado. Este es el punto medio, y es el
+ * mínimo: no incluye a EMPLOYEE, DOCTOR ni LAWYER.
+ */
+export const payrollProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware)
+  .use(requireRole(['ADMIN', 'SUPER_ADMIN', 'CONTADOR'] as UserRole[]));
+
 export const lawyerProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)

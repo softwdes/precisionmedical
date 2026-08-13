@@ -450,11 +450,24 @@ export function ConsultationClient({
           izquierda (solo lectura) + tabs de trabajo a la derecha.
           En mobile/iPad vertical el contexto se apila arriba. */}
       {view === 3 && (
-        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
-          <div className="lg:sticky lg:top-4">
-            <PatientContextPanel patient={patientContext} />
-          </div>
-          <div className="space-y-4 min-w-0">
+        /**
+         * El contexto del paciente acompaña SOLO a la nota (Erick, 2026-08-13).
+         *
+         * En los otros cuatro tabs el contenido son tablas —labs con precio y
+         * total, cargos con dos columnas de precio y badges, los totales del
+         * resumen— y ahí el ancho es el recurso escaso: quitarles 290 px fijos
+         * para un panel de referencia que en ese momento no se está usando es un
+         * mal cambio. En la nota es al revés: se está redactando, y las alergias,
+         * los problemas y los medicamentos son el material de consulta.
+         *
+         * Lo que se pierde en Recetas lo cubre ScriptSure con sus propios widgets
+         * de paciente; y para todo lo demás está el botón "Historial médico" de
+         * la barra de la nota, que abre la ficha completa.
+         */
+        <div className="space-y-4">
+          {/* La barra de tabs va FUERA de la grilla y a lo ancho: si viviera en la
+              columna derecha, al pasar a un tab sin panel se correría 290 px a la
+              izquierda y el tab recién tocado se movería de abajo del dedo. */}
           {/* Tabs del doctor — mobile: grid de 4 (icono arriba, etiqueta abajo),
               mismo patrón que el bottom nav. Antes era una fila de 402px dentro
               de 343px y "Servicios" quedaba cortada. Desde sm: fila normal. */}
@@ -474,6 +487,14 @@ export function ConsultationClient({
               </button>
             ))}
           </div>
+
+          <div className={`grid grid-cols-1 gap-4 items-start ${tab === 'notes' ? 'lg:grid-cols-[290px_1fr]' : ''}`}>
+          {tab === 'notes' && (
+            <div className="lg:sticky lg:top-4">
+              <PatientContextPanel patient={patientContext} />
+            </div>
+          )}
+          <div className="space-y-4 min-w-0">
           {tab === 'notes' && (
             <VisitNoteEditor
               appointmentId={a.id}
@@ -512,6 +533,7 @@ export function ConsultationClient({
           )}
           {/* Férulas / DME — mismo componente que usa el asistente en Day Admission */}
           {tab === 'braces' && <BracesTab appointmentId={a.id} />}
+          </div>
           </div>
         </div>
       )}

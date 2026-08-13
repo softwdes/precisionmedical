@@ -210,8 +210,10 @@ export function DoctorStepPanel({
           La barra de tabs queda arriba a lo ancho y no dentro de la columna
           derecha: el encabezado violeta del paso también cruza toda la tarjeta, y
           empezar los tabs recién a los 290px los dejaría desalineados de él. */}
-      <div className="px-3 py-4 grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
-        {patientContext && (
+      <div className={`px-3 py-4 grid grid-cols-1 gap-4 items-start ${patientContext && tab === 'notes' ? 'lg:grid-cols-[290px_1fr]' : ''}`}>
+        {/* Solo en la nota, igual que la consulta del doctor: en los otros tabs el
+            contenido son tablas y el ancho es el recurso escaso. */}
+        {patientContext && tab === 'notes' && (
           <div className="lg:sticky lg:top-4">
             <PatientContextPanel patient={patientContext} />
           </div>

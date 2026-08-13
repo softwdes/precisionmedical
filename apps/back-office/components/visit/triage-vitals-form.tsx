@@ -32,7 +32,9 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Activity, AlertTriangle, Clock, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, RefreshCw, Save } from 'lucide-react';
+import { Button } from '@precision/ui';
+import { Section, SectionDivider } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -252,11 +254,19 @@ function fmtTime(iso: string): string {
 
 // ─── Átomos del formulario ────────────────────────────────────────────────────
 
+/**
+ * Tarjeta de un grupo de vitales.
+ *
+ * El título va en una BARRA con su línea, no flotando sobre los campos: era una
+ * de las tres cosas que hacían ver más ordenado a v2 (comparación con Erick,
+ * 2026-08-13). `h-full` para que las dos columnas queden del mismo alto y la
+ * grilla tenga un ritmo parejo — la otra.
+ */
 function VitalGroup({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md bg-bg-2/40 p-3">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-cyan">{icon}</span>
+    <div className="rounded-md bg-bg-2/40 p-3 h-full flex flex-col gap-2.5">
+      <div className="flex items-center gap-2 pb-2 border-b border-row-sep">
+        <span className="text-cyan text-[12px] leading-none">{icon}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-cyan">{title}</span>
       </div>
       {children}
@@ -454,37 +464,59 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
       saveIfDirty: async () => (dirtyFlag ? saveVitals() : true),
     }), [dirtyFlag, saveVitals]);
 
-    return (
-      <div className="rounded-lg bg-bg-2/30 p-4">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <Activity className="w-4 h-4 text-cyan" />
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionVitals')}</span>
-          {correction && (
-            <span className="text-[9px] text-amber bg-amber/10 border border-amber/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5" />
-              {correction.by
-                ? t('vitalsCorrectedByAt', { name: correction.by, time: fmtTime(correction.at) })
-                : t('vitalsCorrectedAt', { time: fmtTime(correction.at) })}
-            </span>
-          )}
-          {dirtyFlag && !savedOk && (
-            <span className="ml-auto text-[9px] text-amber bg-amber/10 border border-amber/20 px-2 py-0.5 rounded-full">{t('vitalsUnsaved')}</span>
-          )}
-          {savedOk && (
-            <span className="ml-auto text-[9px] text-emerald bg-emerald/10 border border-emerald/20 px-2 py-0.5 rounded-full">{t('vitalsSavedFlag')}</span>
-          )}
-        </div>
+    /**
+     * Lo que va a la derecha del encabezado: el estado de guardado y el botón.
+     *
+     * Antes el aviso "Sin guardar" colgaba de un `ml-auto` en la misma fila del
+     * título y el botón vivía en una barra propia al pie. Ahora el bloque tiene
+     * UN solo lugar de acción, que es la regla de la barra de Férulas y Labs.
+     */
+    const accion = (
+      <>
+        {correction && (
+          <span className="hidden sm:flex text-[9px] text-amber bg-amber/10 border border-amber/30 px-2 py-0.5 rounded-full items-center gap-1">
+            <Clock className="w-2.5 h-2.5" />
+            {correction.by
+              ? t('vitalsCorrectedByAt', { name: correction.by, time: fmtTime(correction.at) })
+              : t('vitalsCorrectedAt', { time: fmtTime(correction.at) })}
+          </span>
+        )}
+        {dirtyFlag && !savedOk && (
+          <span className="text-[9px] text-amber bg-amber/10 border border-amber/20 px-2 py-0.5 rounded-full">{t('vitalsUnsaved')}</span>
+        )}
+        {savedOk && (
+          <span className="text-[9px] text-emerald bg-emerald/10 border border-emerald/20 px-2 py-0.5 rounded-full">{t('vitalsSavedFlag')}</span>
+        )}
+        <Button
+          variant="outline"
+          onClick={() => void saveVitals()}
+          disabled={saving || !dirtyFlag}
+          className="h-7 px-2.5 text-[11px] gap-1.5"
+        >
+          {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+          {saving ? t('processing') : t('vitalsSaveBtn')}
+        </Button>
+      </>
+    );
 
+    return (
+      <Section
+        icon={Activity}
+        title={t('sectionVitals')}
+        tone="cyan"
+        action={accion}
+        collapsible
+        storageKey="triage-vitals"
+      >
         {/* fieldset disabled propaga a TODOS los controles internos, así
             no hay que pasarle un prop a cada uno de los ~30 VInput. Los
             inputs matchean :disabled y toman los estilos disabled: */}
         <fieldset className="contents">
 
-        {/* 1ª toma */}
-        <div className="text-[9px] uppercase tracking-wider font-bold text-cyan mb-2 flex items-center gap-2 after:flex-1 after:h-px after:bg-cyan/20">
-          {t('firstReading')}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+        {/* La 1ª toma no lleva rótulo: es lo que se ve al abrir el bloque, y un
+            título ahí competía con el de la sección. El corte aparece solo cuando
+            empieza la segunda tanda. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-stretch">
           <VitalGroup icon={<span>📏</span>} title={t('vitHeight')}>
             <div className="grid grid-cols-3 gap-2">
               <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={v => setAltura('heightFt', v)} step="0.01" /></VField>
@@ -527,11 +559,9 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
           </VitalGroup>
         </div>
 
-        {/* 2ª toma */}
-        <div className="text-[9px] uppercase tracking-wider font-bold text-cyan mb-2 mt-4 flex items-center gap-2 after:flex-1 after:h-px after:bg-cyan/20">
-          {t('secondReading')}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <SectionDivider label={t('secondReading')} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-stretch">
           <VitalGroup icon={<span>💓</span>} title={`${t('vitBloodPressure')} (2)`}>
             <div className="grid grid-cols-2 gap-2">
               <VField label={t('vitSystolic')}><VInput value={vitals.systolicMmhg2} onChange={v => setV('systolicMmhg2', v)} /></VField>
@@ -569,21 +599,13 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
           </div>
         )}
 
-        {/* Barra de guardado — siempre visible: el triaje se puede corregir en
-            cualquier momento y el cambio queda auditado */}
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border gap-2 flex-wrap">
-          <span className="text-[10px] text-text-muted">{t('vitalsNote')}</span>
-          <button
-            type="button"
-            onClick={() => void saveVitals()}
-            disabled={saving || !dirtyFlag}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/10 border border-cyan/25 text-cyan text-[11px] font-semibold hover:bg-cyan/18 disabled:opacity-40 transition-colors"
-          >
-            {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : '💾'}
-            {saving ? t('processing') : t('vitalsSaveBtn')}
-          </button>
-        </div>
-      </div>
+        {/* La nota de las conversiones se queda al pie, sin la barra que la
+            acompañaba: el botón de guardar subió al encabezado de la sección y
+            dejar una línea horizontal para una sola frase era una frontera de
+            más. Sigue visible porque explica por qué se mueven tres casillas
+            cuando se escribe en una. */}
+        <p className="text-[10px] text-text-muted mt-3.5 mb-0">{t('vitalsNote')}</p>
+      </Section>
     );
   },
 );

@@ -15,7 +15,25 @@ import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { Lock, ShieldCheck, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
 
-export type WidgetKind = 'drug-list' | 'pharmacy';
+export type WidgetKind =
+  | 'drug-list'
+  | 'pharmacy'
+  | 'medcart'
+  | 'allergy'
+  | 'drug-history'
+  | 'medicationdownload'
+  | 'approve-queue';
+
+/** Título del iframe — accesible y útil al depurar con varias ventanas abiertas. */
+const WIDGET_TITLE: Record<WidgetKind, string> = {
+  'drug-list': 'ScriptSure Drug List',
+  pharmacy: 'ScriptSure Pharmacy',
+  medcart: 'ScriptSure Med Cart',
+  allergy: 'ScriptSure Allergies',
+  'drug-history': 'ScriptSure Drug History',
+  medicationdownload: 'ScriptSure Medication History Download',
+  'approve-queue': 'ScriptSure Approval Queue',
+};
 export type WidgetStatus =
   | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill' | 'error';
 
@@ -161,7 +179,7 @@ export function ScriptSureWidgetDialog({
         {status === 'ready' && url && (
           <iframe
             src={url}
-            title={kind === 'drug-list' ? 'ScriptSure Drug List' : 'ScriptSure Pharmacy'}
+            title={WIDGET_TITLE[kind]}
             className="w-full flex-1 border-0"
           />
         )}

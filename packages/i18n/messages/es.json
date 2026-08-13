@@ -1985,7 +1985,11 @@
       "rxQueueTab": "Cola",
       "rxAuditTab": "Auditoría",
       "rxRefresh": "Actualizar",
-      "backToAdmin": "Volver al Back-Office"
+      "backToAdmin": "Volver al Back-Office",
+      "rxAllergies": "Alergias",
+      "rxMedDownload": "Historial de farmacia",
+      "rxDrugHistory": "Recetado en ScriptSure",
+      "rxApproveQueue": "Por aprobar"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -2063,6 +2067,11 @@
       "more": "+{n} más…",
       "resetFilters": "Resetear filtros",
       "newAppointment": "Nueva cita",
+      "syncedNow": "al día",
+      "syncedSeconds": "hace {seconds} s",
+      "syncedMinutes": "hace {minutes} min",
+      "syncFailing": "No está sincronizando",
+      "syncFailingHint": "No se pudo confirmar si hay cambios nuevos. Tocá para reintentar.",
       "cancelPayment": "Cancelar pago",
       "selectAll": "Seleccionar todo",
       "autocompleteChange": "Cambiar",

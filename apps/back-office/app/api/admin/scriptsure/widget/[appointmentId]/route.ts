@@ -9,7 +9,14 @@ import {
   type ScriptSurePatientWidget,
 } from '@/lib/scriptsure-client';
 
-const VALID_WIDGETS: ScriptSurePatientWidget[] = ['drug-list', 'pharmacy'];
+const VALID_WIDGETS: ScriptSurePatientWidget[] = [
+  'drug-list',
+  'pharmacy',
+  'allergy',
+  'drug-history',
+  'medicationdownload',
+  'approve-queue',
+];
 
 /**
  * GET /api/admin/scriptsure/widget/[appointmentId]?widget=drug-list|pharmacy

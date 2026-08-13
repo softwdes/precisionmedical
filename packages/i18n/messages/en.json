@@ -1985,7 +1985,11 @@
       "rxQueueTab": "Queue",
       "rxAuditTab": "Audit",
       "rxRefresh": "Refresh",
-      "backToAdmin": "Back to Back-Office"
+      "backToAdmin": "Back to Back-Office",
+      "rxAllergies": "Allergies",
+      "rxMedDownload": "Pharmacy history",
+      "rxDrugHistory": "Prescribed in ScriptSure",
+      "rxApproveQueue": "Pending approval"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -2063,6 +2067,11 @@
       "more": "+{n} more…",
       "resetFilters": "Reset filters",
       "newAppointment": "New appointment",
+      "syncedNow": "up to date",
+      "syncedSeconds": "{seconds}s ago",
+      "syncedMinutes": "{minutes}m ago",
+      "syncFailing": "Not syncing",
+      "syncFailingHint": "Couldn't check for new changes. Tap to retry.",
       "cancelPayment": "Cancel payment",
       "selectAll": "Select all",
       "autocompleteChange": "Change",

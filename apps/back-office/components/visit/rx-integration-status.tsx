@@ -23,6 +23,7 @@ import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import {
   ShieldCheck, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin, RotateCcw,
+  TriangleAlert, History, Download, ClipboardCheck,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
@@ -31,6 +32,26 @@ import {
 } from './scriptsure-widget-dialog';
 
 type Status = WidgetStatus;
+
+/**
+ * Los otros widgets de ScriptSure que cuelgan del paciente.
+ *
+ * `medicationdownload` trae 12 meses de lo que el paciente retiró en CUALQUIER
+ * farmacia (vía Surescripts) — no solo lo recetado acá. Requiere consentimiento
+ * del paciente y el NPI del prescriptor, así que puede pedirlos al abrirse.
+ */
+const WIDGETS_PACIENTE: {
+  kind: WidgetKind;
+  icon: typeof Pill;
+  labelKey: string;
+  /** Escribe en la historia del paciente o decide sobre una receta */
+  muta: boolean;
+}[] = [
+  { kind: 'allergy', icon: TriangleAlert, labelKey: 'rxAllergies', muta: true },
+  { kind: 'medicationdownload', icon: Download, labelKey: 'rxMedDownload', muta: false },
+  { kind: 'drug-history', icon: History, labelKey: 'rxDrugHistory', muta: false },
+  { kind: 'approve-queue', icon: ClipboardCheck, labelKey: 'rxApproveQueue', muta: true },
+];
 
 interface SentRx {
   id: string;
@@ -247,6 +268,24 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
             </div>
           </div>
         </button>
+      </div>
+
+      {/* Accesos a los demás widgets del paciente.
+          Alergias va primero por peso clínico: ScriptSure chequea interacciones
+          contra SU lista, no contra la nuestra, así que una alergia cargada solo
+          de este lado no protege al paciente cuando se manda la receta. */}
+      <div className="px-5 pb-5 -mt-1 flex items-center gap-1.5 flex-wrap">
+        {WIDGETS_PACIENTE.filter((w) => !(readOnly && w.muta)).map(({ kind, icon: Icon, labelKey }) => (
+          <button
+            key={kind}
+            type="button"
+            onClick={() => void openWidget(kind)}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-[11.5px] font-semibold text-text-muted hover:text-text-1 bg-bg-2/40 hover:bg-bg-2 transition-colors"
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {t(labelKey)}
+          </button>
+        ))}
       </div>
 
       {/* Modal — recetas enviadas en esta consulta */}

@@ -165,6 +165,17 @@ export function ConsultationClient({
   const [tab, setTab] = React.useState<Tab>('notes');
   const isCurrent = (n: StepView): boolean => n === currentStep;
 
+  // El Resumen (nodo 4) lee la nota del payload del SERVER, así que hay que
+  // refrescarlo al entrar: si no, el doctor escribe diagnósticos y el checklist
+  // le dice que faltan.
+  //
+  // Va acá y NO en el `onSaved` del editor: con el autoguardado por debounce
+  // (2,5 s) eso disparaba un `router.refresh()` cada dos teclas — un re-render
+  // del server component entero mientras el doctor escribe.
+  React.useEffect(() => {
+    if (view === 4) router.refresh();
+  }, [view, router]);
+
   // Nodos del flujo del doctor — 4 pasos (el cobro sigue siendo del asistente).
   // `short` es la etiqueta de mobile: los 4 pasos tienen que entrar en 375px
   // sin scroll horizontal (antes el riel medía 712px y el paso 4 quedaba fuera).
@@ -436,11 +447,6 @@ export function ConsultationClient({
               note={note}
               templates={templates}
               userId={userId}
-              /* El nodo 4 lee `note` del payload del SERVER. Sin avisar, el
-                 doctor escribía diagnósticos, iba al Resumen y el checklist le
-                 decía que faltaban. Day Admission ya recargaba con onSaved; esto
-                 iguala el lado del doctor. */
-              onSaved={() => router.refresh()}
             />
           )}
           {tab === 'labs' && (

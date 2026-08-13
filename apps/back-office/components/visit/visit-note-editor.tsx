@@ -83,7 +83,17 @@ const SECTIONS = [
 
 type SectionField = typeof SECTIONS[number]['field'];
 
-const AUTOSAVE_MS = 30_000;
+/**
+ * Debounce del autoguardado: se guarda 2,5 s después de la ÚLTIMA tecla.
+ *
+ * Antes eran 30_000 y no era un debounce sino un plazo: el temporizador se
+ * armaba cuando `dirty` pasaba a true y no se reiniciaba al seguir escribiendo,
+ * así que la nota viajaba a la base 30 s después del primer caracter. Y el
+ * editor se DESMONTA al cambiar de tab (`{tab === 'notes' && ...}`), lo que
+ * cancelaba ese temporizador sin guardar: el doctor escribía, tocaba
+ * "Laboratorios" antes de los 30 s y perdía el texto.
+ */
+const AUTOSAVE_MS = 2_500;
 
 function parseDx(content: string): NoteDx[] {
   try {
@@ -138,6 +148,28 @@ export function VisitNoteEditor({
   const latest = React.useRef({ content, dx, templateId });
   React.useEffect(() => { latest.current = { content, dx, templateId }; }, [content, dx, templateId]);
 
+  /**
+   * Guardado de salida: dispara el PUT sin tocar estado de React.
+   *
+   * Se usa cuando el componente se va (cambio de tab, pestaña oculta): ahí un
+   * `save()` normal no sirve porque sus `setState` caen en un componente que ya
+   * no existe, y `keepalive` es lo que hace que el request sobreviva a la
+   * navegación.
+   */
+  const flush = React.useCallback((): void => {
+    if (isSigned) return;
+    void fetch(`/api/admin/visit-notes/${appointmentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        templateId: latest.current.templateId,
+        ...latest.current.content,
+        diagnoses: latest.current.dx,
+      }),
+    }).catch(() => undefined);
+  }, [appointmentId, isSigned]);
+
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isSigned) return false;
     setSaving(true);
@@ -170,12 +202,26 @@ export function VisitNoteEditor({
     }
   }, [appointmentId, isSigned, t, onSaved]);
 
-  // Autoguardado periódico mientras haya cambios pendientes
+  // Autoguardado con debounce: cada tecla reinicia el reloj (las deps incluyen
+  // `content`/`dx`/`templateId`, no solo `dirty`).
   React.useEffect(() => {
     if (isSigned || !dirty) return;
     const id = setTimeout(() => { void save(); }, AUTOSAVE_MS);
     return () => clearTimeout(id);
-  }, [dirty, isSigned, save]);
+  }, [dirty, isSigned, save, content, dx, templateId]);
+
+  // Salidas: cambio de tab (desmontaje) y pestaña que se oculta. Las dos perdían
+  // el texto porque el temporizador del autoguardado se cancelaba sin guardar.
+  const dirtyRef = React.useRef(dirty);
+  React.useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  React.useEffect(() => {
+    const onHide = (): void => { if (document.visibilityState === 'hidden' && dirtyRef.current) flush(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      if (dirtyRef.current) flush();
+    };
+  }, [flush]);
 
   // Aviso al cerrar la pestaña con cambios sin guardar
   React.useEffect(() => {

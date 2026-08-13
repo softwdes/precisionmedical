@@ -10,7 +10,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
-import { MyDayClient, type MyDayAppointment, type UnsignedNote } from './my-day-client';
+import { MyDayClient, type MyDayAppointment } from './my-day-client';
 
 export const metadata = { title: 'Mi Día · Portal Médico' };
 
@@ -54,7 +54,7 @@ export default async function DoctorMyDayPage({
 
   // Las tres en paralelo: cada round-trip a la base cuesta ~150 ms, no vale
   // encadenarlas (`doctorDoneAt` va en SQL directo, ver nota más abajo).
-  const [appts, drafts, draftCount, doneRows] = await Promise.all([
+  const [appts, pendingNotesTotal, doneRows] = await Promise.all([
     db.appointment.findMany({
       where: {
         providerId: provider.id,
@@ -83,23 +83,20 @@ export default async function DoctorMyDayPage({
         visitNote: { select: { status: true } },
       },
     }),
-    db.visitNote.findMany({
-      where: { status: 'DRAFT', appointment: { providerId: provider.id } },
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-      select: {
-        appointmentId: true,
-        appointment: {
-          select: {
-            scheduledFor: true,
-            patient: { select: { firstName: true, lastName: true } },
-          },
-        },
+    // Notas SIN CERRAR del doctor — el MISMO criterio que /api/admin/pending-notes,
+    // para que el KPI y la cola de abajo no muestren números distintos.
+    // Incluye las visitas atendidas sin ninguna nota: la fila se crea al primer
+    // guardado, así que un doctor que no escribió nada no deja borrador (medido en
+    // la base: 38 de 53 pendientes eran de este tipo).
+    db.appointment.count({
+      where: {
+        providerId: provider.id,
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+        AND: [
+          { OR: [{ checkedInAt: { not: null } }, { status: { in: ['IN_PROGRESS', 'COMPLETED'] } }] },
+          { OR: [{ visitNote: { is: null } }, { visitNote: { status: 'DRAFT' } }] },
+        ],
       },
-    }),
-    // Conteo real (la lista de arriba está topeada para no llenar la pantalla)
-    db.visitNote.count({
-      where: { status: 'DRAFT', appointment: { providerId: provider.id } },
     }),
     // `doctorDoneAt` con SQL directo (ver nota en la página de consulta: el
     // cliente de Prisma quedó sin regenerar por un lock de Windows).
@@ -142,18 +139,11 @@ export default async function DoctorMyDayPage({
     clinicName: a.clinic.name,
   }));
 
-  const unsignedNotes: UnsignedNote[] = drafts.map((n) => ({
-    appointmentId: n.appointmentId,
-    patientName: `${decryptFieldOrOriginal(n.appointment.patient.firstName) ?? ''} ${decryptFieldOrOriginal(n.appointment.patient.lastName) ?? ''}`.trim(),
-    date: n.appointment.scheduledFor.toISOString(),
-  }));
-
   return (
     <MyDayClient
       doctorName={`${provider.firstName} ${provider.lastName}`}
       appointments={appointments}
-      unsignedNotes={unsignedNotes}
-      unsignedTotal={draftCount}
+      unsignedTotal={pendingNotesTotal}
       dateKey={dateKey}
       isToday={dateKey === todayKey}
       prevDate={prevDate}

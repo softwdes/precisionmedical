@@ -14,10 +14,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video, FileSignature,
+  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
+import { PendingNotes } from '@/components/visit/pending-notes';
 import type { CoverageDTO } from '@/lib/coverage';
 
 export interface MyDayAppointment {
@@ -45,17 +46,10 @@ export interface MyDayAppointment {
   clinicName: string;
 }
 
-export interface UnsignedNote {
-  appointmentId: string;
-  patientName: string;
-  date: string; // ISO
-}
-
 interface Props {
   doctorName: string;
   appointments: MyDayAppointment[];
-  unsignedNotes: UnsignedNote[];
-  /** Total real de notas sin firmar (la lista viene topeada) */
+  /** Notas sin cerrar del doctor — mismo criterio que la cola de abajo */
   unsignedTotal: number;
   /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
   dateKey: string;
@@ -80,7 +74,7 @@ function todayKeyClient(): string {
 }
 
 export function MyDayClient({
-  doctorName, appointments, unsignedNotes, unsignedTotal, dateKey, isToday, prevDate, nextDate,
+  doctorName, appointments, unsignedTotal, dateKey, isToday, prevDate, nextDate,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -374,38 +368,16 @@ export function MyDayClient({
         </div>
       )}
 
-      {/* Acción requerida — notas sin firmar */}
-      {unsignedNotes.length > 0 && (
-        <div className="rounded-xl border border-amber/30 bg-amber/[0.08] p-4">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-amber mb-2 flex items-center gap-1.5">
-            <FileSignature className="w-3.5 h-3.5" />
-            {t('actionRequired')}
-          </div>
-          <div className="space-y-1">
-            {unsignedNotes.map(n => (
-              <div key={n.appointmentId} className="flex items-center justify-between gap-3 py-1.5 border-t border-amber/15 text-sm">
-                <span className="text-text-2 min-w-0 truncate">
-                  {t('unsignedNoteRow', {
-                    name: n.patientName,
-                    date: new Date(n.date).toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', timeZone: 'America/Denver' }),
-                  })}
-                </span>
-                <Link
-                  href={consultHref(n.appointmentId)}
-                  className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-amber hover:underline"
-                >
-                  {t('signNow')} <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-            ))}
-            {unsignedTotal > unsignedNotes.length && (
-              <div className="pt-1.5 border-t border-amber/15 text-[11px] text-amber/80">
-                {t('unsignedMore', { count: unsignedTotal - unsignedNotes.length })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Notas sin cerrar — cola completa, no un tope de 8.
+          La nota puede quedar abierta MESES (solo el doctor la cierra), así que
+          esto tiene que mostrar todo el pendiente y su antigüedad, no las últimas
+          ocho. Incluye las visitas atendidas sin ninguna nota escrita, que antes
+          no aparecían en ningún lado porque la fila ni se creaba. */}
+      <PendingNotes
+        scope="mine"
+        canClose
+        hrefFor={(id) => `/doctor/consultation/${id}`}
+      />
 
       {/* Acceso rápido al calendario */}
       <div className="text-[12px] text-text-muted">

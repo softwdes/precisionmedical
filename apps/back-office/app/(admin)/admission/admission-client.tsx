@@ -21,6 +21,7 @@ import {
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
+import { PendingNotes } from '@/components/visit/pending-notes';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 
@@ -558,6 +559,15 @@ export function AdmissionClient() {
                 </div>
               </section>
             )}
+
+            {/* Notas sin cerrar — abajo de la cola, de toda la clínica.
+                El asistente no firma (eso es del médico), pero es quien persigue:
+                cada fila lleva el recordatorio URGENTE por mensajería interna con
+                el paciente y la fecha. */}
+            <PendingNotes
+              scope="clinic"
+              hrefFor={(id) => `/admission/${id}`}
+            />
           </>
         )}
       </div>

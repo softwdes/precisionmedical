@@ -57,8 +57,6 @@ interface Props {
   servicesPanel: React.ComponentProps<typeof AppointmentDetailPanel>['appointment'];
   /** Saldo pendiente, para el panel de pagos */
   billingTotal?: number;
-  /** Historial de facturación del CASO — referencia dentro del tab de Pagar. */
-  payExtra?: React.ReactNode;
   /** Cobertura del caso — ordena el picker de cargos y se muestra ahí de referencia */
   coverage?: CoverageDTO;
   /** Recarga completa — para después de una acción del usuario (guardar, admitir). */
@@ -72,7 +70,7 @@ interface Props {
 
 export function DoctorStepPanel({
   appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
-  triage, servicesPanel, billingTotal, payExtra, coverage, onRefresh, onSync,
+  triage, servicesPanel, billingTotal, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
@@ -326,25 +324,25 @@ export function DoctorStepPanel({
             )}
 
             {/* PAGAR — la plata de ESTA cita.
-                `billingTotal` ya viene recortado a esta cita y sin los CPT (esos
-                los paga el seguro o el abogado). El historial del caso va debajo
-                como referencia: son cargos de otras fechas y el saldo del caso se
-                trabaja en Pacientes. */}
+                `billingTotal` viene recortado a esta cita y sin los CPT (esos los
+                paga el seguro o el abogado meses después).
+
+                NO va el historial de facturación del caso (Erick, 2026-08-13): en
+                la cita se ve solo lo que hay que pagar. El historial del paciente
+                se ve en Pacientes, que es donde está por fecha de cita — acá eran
+                cargos de otras fechas compitiendo con los de hoy. */}
             {tab === 'pay' && (
-              <div className="space-y-4">
-                <AppointmentDetailPanel
-                  inline
-                  noBorder
-                  initialTab="services"
-                  appointment={servicesPanel}
-                  coverage={coverage}
-                  openPaymentsOnMount={goToPayments}
-                  onClose={() => {}}
-                  onRefresh={onRefresh}
-                  billingTotal={billingTotal}
-                />
-                {payExtra}
-              </div>
+              <AppointmentDetailPanel
+                inline
+                noBorder
+                initialTab="services"
+                appointment={servicesPanel}
+                coverage={coverage}
+                openPaymentsOnMount={goToPayments}
+                onClose={() => {}}
+                onRefresh={onRefresh}
+                billingTotal={billingTotal}
+              />
             )}
           </>
         )}

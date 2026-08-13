@@ -469,7 +469,6 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             /* El historial del caso baja al tab de Pagar como referencia
                plegable: son cargos de OTRAS fechas y en Servicios competía con
                los de la visita. */
-            payExtra={<BillingHistoryList rows={billingHistory} />}
             coverage={d.coverage}
             onRefresh={load}
             onSync={syncDetail}
@@ -688,54 +687,3 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
 // ─── Historial de facturación (registros migrados del v2) ─────────────────────
 // Vivía dentro del viejo step 4; ahora se inyecta en el tab Servicios del step 3.
-interface BillingRow {
-  id: string;
-  serviceCode: string | null;
-  serviceDescription: string | null;
-  totalCost: number;
-  balanceDue: number;
-  amountPaid: number;
-  appointmentDate: string | null;
-}
-
-function BillingHistoryList({ rows }: { rows: BillingRow[] }): React.ReactElement | null {
-  if (rows.length === 0) return null;
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 mt-3">
-      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-        <FileText className="w-3.5 h-3.5 text-amber" />
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Billing History</span>
-        <span className="ml-auto text-[10px] text-text-muted">{rows.length} records</span>
-      </div>
-      <div className="divide-y divide-border/40">
-        {rows.map(b => {
-          const date = b.appointmentDate
-            ? new Date(b.appointmentDate).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' })
-            : '—';
-          const isPaid    = b.balanceDue === 0;
-          const isPartial = b.amountPaid > 0 && b.balanceDue > 0;
-          return (
-            <div key={b.id} className="px-4 py-2.5 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <span className="text-[12px] text-text-1 font-medium">{b.serviceDescription ?? b.serviceCode ?? 'Service'}</span>
-                {b.serviceCode && (
-                  <span className="ml-2 text-[10px] text-text-muted font-mono">{b.serviceCode}</span>
-                )}
-                <span className="ml-2 text-[10px] text-text-muted">{date}</span>
-              </div>
-              <div className="text-right shrink-0 space-y-0.5">
-                <div className="text-[12px] font-semibold text-text-1">${b.totalCost.toFixed(2)}</div>
-                {isPaid
-                  ? <div className="text-[10px] text-emerald font-medium">Paid</div>
-                  : isPartial
-                    ? <div className="text-[10px] text-amber font-medium">Partial · ${b.balanceDue.toFixed(2)} due</div>
-                    : <div className="text-[10px] text-rose font-medium">${b.balanceDue.toFixed(2)} due</div>
-                }
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}

@@ -271,20 +271,62 @@ export async function getOrCreateScriptSurePatientId(
   return patientId;
 }
 
-/** `medcart` abre el carrito ya cargado — es el widget del "repetir receta". */
-export type ScriptSureWidget = 'drug-list' | 'pharmacy' | 'medcart';
+/**
+ * Widgets atados a UN paciente — la URL lleva su id de ScriptSure.
+ *
+ * `medcart` abre el carrito ya cargado: es el widget del "repetir receta".
+ */
+export type ScriptSurePatientWidget =
+  | 'drug-list'
+  | 'pharmacy'
+  | 'medcart'
+  | 'allergy'
+  | 'drug-history'
+  | 'medicationdownload'
+  | 'approve-queue';
 
 /**
- * URL para embeber un widget de ScriptSure (iframe). Requiere que ya se haya
+ * Widgets de la practice entera, sin paciente en la URL.
+ *
+ * `message` es la bandeja completa de recetas (renovaciones que pide la
+ * farmacia, cola de aprobación, cambios, anulaciones y errores de envío) con
+ * sus propias acciones — Represcribe, Approve, Deny, Edit. Es la pieza que del
+ * lado nuestro no existía: sin ella, un rechazo de farmacia no se entera nadie.
+ */
+export type ScriptSurePracticeWidget = 'message' | 'prescription-queue' | 'auditlog';
+
+export type ScriptSureWidget = ScriptSurePatientWidget | ScriptSurePracticeWidget;
+
+/** El tema oscuro de ScriptSure es el que empata con el portal médico. */
+const WIDGET_PARAMS = 'darkmode=on';
+
+/**
+ * URL para embeber un widget de paciente (iframe). Requiere que ya se haya
  * hecho login + Set Practice/Prescriber para `loginEmail` en esta sesión.
  */
 export async function getScriptSureWidgetUrl(
   loginEmail: string,
-  widget: ScriptSureWidget,
+  widget: ScriptSurePatientWidget,
   patientId: number,
 ): Promise<string> {
   const sessionToken = await getSessionToken(loginEmail);
-  return `${hosts().frontend}/widgets/${widget}/${patientId}?sessiontoken=${sessionToken}&darkmode=on`;
+  return `${hosts().frontend}/widgets/${widget}/${patientId}?sessiontoken=${sessionToken}&${WIDGET_PARAMS}`;
+}
+
+/**
+ * URL de un widget de la practice — no lleva paciente.
+ *
+ * `providers=all` hace que la bandeja muestre lo de todos los prescriptores de
+ * la practice, no solo el de la sesión: una renovación puede llegar mientras el
+ * doctor que la firmó está de vacaciones, y alguien tiene que verla.
+ */
+export async function getScriptSurePracticeWidgetUrl(
+  loginEmail: string,
+  widget: ScriptSurePracticeWidget,
+): Promise<string> {
+  const sessionToken = await getSessionToken(loginEmail);
+  const providers = widget === 'message' ? '&providers=all' : '';
+  return `${hosts().frontend}/widgets/${widget}?sessiontoken=${sessionToken}&${WIDGET_PARAMS}${providers}`;
 }
 
 export interface MedCartDrug {

@@ -6,10 +6,10 @@ import {
   getOrCreateScriptSurePatientId,
   getScriptSureWidgetUrl,
   ScriptSurePatientDataError,
-  type ScriptSureWidget,
+  type ScriptSurePatientWidget,
 } from '@/lib/scriptsure-client';
 
-const VALID_WIDGETS: ScriptSureWidget[] = ['drug-list', 'pharmacy'];
+const VALID_WIDGETS: ScriptSurePatientWidget[] = ['drug-list', 'pharmacy'];
 
 /**
  * GET /api/admin/scriptsure/widget/[appointmentId]?widget=drug-list|pharmacy
@@ -28,7 +28,7 @@ export async function GET(
   const access = await checkAppointmentAccess(appointmentId, { requireProvider: true });
   if (access.deny) return access.deny;
 
-  const widget = req.nextUrl.searchParams.get('widget') as ScriptSureWidget | null;
+  const widget = req.nextUrl.searchParams.get('widget') as ScriptSurePatientWidget | null;
   if (!widget || !VALID_WIDGETS.includes(widget)) {
     return NextResponse.json({ error: 'INVALID_WIDGET' }, { status: 400 });
   }

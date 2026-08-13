@@ -464,6 +464,20 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   }, [pending]);
 
   /**
+   * Con UNA sola visita pendiente, el detalle se abre solo.
+   *
+   * La fila por visita existe para el caso, donde hay muchas fechas y se elige
+   * cuál cobrar. Abierto desde una cita hay una sola, así que esa fila colapsada
+   * no agrupa nada: solo esconde lo único que se vino a ver, y obliga a un clic
+   * para llegar a los cargos (Erick, 2026-08-13: "aquí necesita mostrar de frente
+   * la lista de pagos").
+   */
+  React.useEffect(() => {
+    if (!payOpen) return;
+    if (visitasPendientes.length === 1) setDetalleVisita(visitasPendientes[0]!.key);
+  }, [payOpen, visitasPendientes]);
+
+  /**
    * Cómo se reparte el monto de una visita entre sus líneas: en ORDEN, llenando
    * cada una hasta agotar la plata.
    *

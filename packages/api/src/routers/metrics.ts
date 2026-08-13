@@ -100,9 +100,15 @@ export interface DoctorActivityRow {
   activeMinutes: number;
   /** Consultas cerradas (doctorDoneAt o checkout) en el rango. */
   consultations: number;
-  /** Cuántas de esas tienen admittedAt → entran al promedio de duración. */
+  /** Cuántas entran al promedio: con inicio sellado y duración creíble (≤4 h). */
   measuredConsultations: number;
   avgConsultSeconds: number;
+  /**
+   * Consultas de más de 4 h: nadie atiende tanto, es un cierre olvidado. Fuera
+   * del promedio (una sola inflaba 7 min a 70) pero visibles, porque no cerrar
+   * las visitas también es algo que hay que corregir.
+   */
+  openEndedConsultations: number;
   uniquePatients: number;
   rx: number;
   labs: number;
@@ -285,7 +291,7 @@ export const metricsRouter = router({
       const m = data as unknown as {
         doctors: Array<{ providerId: string; userId: string | null; name: string; specialty: string | null }>;
         activity: Array<{ providerId: string; minutes: number }>;
-        consultations: Array<{ providerId: string; done: number; measured: number; avgSeconds: number; uniquePatients: number }>;
+        consultations: Array<{ providerId: string; done: number; measured: number; avgSeconds: number; openEnded: number; uniquePatients: number }>;
         rx: Array<{ providerId: string; n: number }>;
         labs: Array<{ providerId: string; n: number }>;
         braces: Array<{ providerId: string; n: number }>;
@@ -300,6 +306,7 @@ export const metricsRouter = router({
         consultations: 0,
         avgConsultSeconds: 0,
         measuredConsultations: 0,
+        openEndedConsultations: 0,
         uniquePatients: 0,
         rx: 0, labs: 0, braces: 0, services: 0,
       }]));
@@ -311,6 +318,7 @@ export const metricsRouter = router({
         r.consultations = g.done;
         r.measuredConsultations = g.measured;
         r.avgConsultSeconds = g.avgSeconds;
+        r.openEndedConsultations = g.openEnded;
         r.uniquePatients = g.uniquePatients;
       }
       for (const g of m.rx)       { const r = rows.get(g.providerId); if (r) r.rx = g.n; }

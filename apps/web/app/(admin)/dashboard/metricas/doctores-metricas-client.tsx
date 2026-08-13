@@ -37,6 +37,7 @@ interface DoctorRow {
   consultations: number;
   measuredConsultations: number;
   avgConsultSeconds: number;
+  openEndedConsultations: number;
   uniquePatients: number;
   rx: number;
   labs: number;
@@ -182,6 +183,24 @@ export function DoctoresMetricasClient() {
                       <span className={cn('font-mono tabular-nums text-[12px]', r.measuredConsultations > 0 ? 'text-text-1' : 'text-text-3')}>
                         {r.measuredConsultations > 0 ? fmtSeconds(r.avgConsultSeconds) : '—'}
                       </span>
+                      {/* Lo que el promedio NO incluye, dicho en la misma celda:
+                          un promedio con asterisco invisible no es un promedio. */}
+                      {r.openEndedConsultations > 0 && (
+                        <div
+                          className="text-[9px] text-amber mt-0.5"
+                          title="Consultas de más de 4 h: el doctor no marcó “Terminé” y se cerraron con el checkout. Quedan fuera del promedio."
+                        >
+                          {r.openEndedConsultations} sin cerrar
+                        </div>
+                      )}
+                      {r.consultations - r.measuredConsultations - r.openEndedConsultations > 0 && (
+                        <div
+                          className="text-[9px] text-text-3 mt-0.5"
+                          title="Consultas sin hora de entrada a sala: no se puede medir su duración."
+                        >
+                          {r.consultations - r.measuredConsultations - r.openEndedConsultations} sin medir
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-3 text-right text-[12px]"><Num value={r.uniquePatients} /></td>
                     <td className="px-3 py-3 text-right text-[12px]"><Num value={r.rx} /></td>

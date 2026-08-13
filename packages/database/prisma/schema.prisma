@@ -914,14 +914,12 @@ model CallAgentPresence {
   @@map("call_agent_presence")
 }
 
-/// Fase 2 métricas por empleado — tiempo de uso ACTIVO en el back-office.
+/// Métricas por empleado y por doctor — tiempo de uso ACTIVO del sistema.
 ///
-/// Una fila por usuario y por HORA (bucketStart truncado a la hora, UTC):
-/// `activeMinutes` cuenta cuántos de esos 60 minutos hubo interacción real
-/// (mouse/teclado/touch con la pestaña visible). Lo alimenta el heartbeat de
-/// `/api/activity/heartbeat` (1 ping/minuto solo si hubo interacción); el
-/// upsert es atómico y descarta pings a <50s del anterior, así que varias
-/// pestañas del mismo usuario no inflan el conteo. Máximo 24 filas/usuario/día.
+/// Una fila por usuario y por HORA (bucketStart truncado a la hora, UTC), con
+/// un bitmap de los minutos en que hubo actividad. Lo alimenta el heartbeat de
+/// `/api/activity/heartbeat` cada 20s mientras la pestaña está visible y hubo
+/// interacción reciente. Máximo 24 filas/usuario/día.
 /// "Tiempo activo del día" = SUM(activeMinutes) del rango.
 model UserActivityBucket {
   userId String
@@ -931,6 +929,13 @@ model UserActivityBucket {
   /// que re-bucketear a días locales en la UI es exacto.
   bucketStart DateTime
 
+  /// Bitmap de los 60 minutos de la hora con actividad (bit N = minuto N).
+  /// El ping hace OR, así que marcar el mismo minuto dos veces no suma: es lo
+  /// que vuelve el conteo inmune a pings repetidos, perdidos o de otra pestaña.
+  minutesMask BigInt @default(0)
+
+  /// Derivada del bitmap (popcount). Las filas anteriores al 2026-08-12
+  /// conservan el conteo del modelo viejo, que subestimaba.
   activeMinutes Int      @default(0)
   lastPingAt    DateTime
 

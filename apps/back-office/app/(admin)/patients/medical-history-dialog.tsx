@@ -8,13 +8,12 @@ import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
   ChevronDown, ChevronUp, Edit2, Plus, Calendar, X, Search,
-  Cigarette, Wine, FlaskConical, Briefcase, FileText,
+  Cigarette, Wine, FlaskConical, Briefcase,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@precision/ui';
 import { PersonAvatar, TagPill, useToast } from '@/components/ui-phoenix';
-import { PatientVisitNotes } from '@/components/visit/patient-visit-notes';
 import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
 
 /** Hoy en YYYY-MM-DD — tope de los campos de fecha clínica (nada del futuro). */
@@ -63,6 +62,8 @@ interface Props {
   patient: PatientRow;
   open:    boolean;
   onClose: () => void;
+  /** Ver `MedicalHistoryContentProps.onChanged`. */
+  onChanged?: () => void;
 }
 
 /**
@@ -2172,9 +2173,20 @@ function AddHistoryDialog({
 
 // ── Main content (reusable inline or inside dialog) ────────────────────────
 
-export interface MedicalHistoryContentProps { patient: PatientRow }
+export interface MedicalHistoryContentProps {
+  patient: PatientRow;
+  /**
+   * Se llama cuando alguna sección se guardó de verdad.
+   *
+   * Adentro la vista se actualiza sola (el patch se mezcla en `mh`), pero lo que
+   * quedó ATRÁS no: `updateMedicalHistory` revalida `/patients`, así que quien
+   * abra esto desde otra ruta —la consulta del doctor, el tab del caso— necesita
+   * enterarse para refrescar su propia pantalla.
+   */
+  onChanged?: () => void;
+}
 
-export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
+export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryContentProps) {
   const t = useTranslations('phoenix.patients');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
@@ -2195,7 +2207,10 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
   const [addComment,       setAddComment]       = useState(false);
 
   const [mh, setMh] = useState<MedicalHistoryData>(() => (patient.medicalHistory ?? {}) as MedicalHistoryData);
-  const onSaved = (patch: Partial<MedicalHistoryData>) => setMh(prev => ({ ...prev, ...patch }));
+  const onSaved = (patch: Partial<MedicalHistoryData>) => {
+    setMh(prev => ({ ...prev, ...patch }));
+    onChanged?.();
+  };
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
 
   const age    = calcAge(patient.dateOfBirth);
@@ -2445,17 +2460,13 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
               </SectionCard>
             </div>
 
-            {/* Notas por visita — el acumulado de las notas del doctor.
-                Va PRIMERO de las secciones de fondo: es el registro clínico de lo
-                que pasó en cada visita, y hasta hoy no se veía en ninguna parte
-                salvo entrando a la cita puntual (la decisión de que vivieran acá
-                es del 2026-08-08 y había quedado sin implementar). */}
-            <SectionCard
-              icon={<FileText className="w-4 h-4" />}
-              title={t('mh.visitNotes')}
-            >
-              <PatientVisitNotes patientId={patient.id} />
-            </SectionCard>
+            {/* NO va acá el acumulado de notas del doctor.
+                Estuvo una tarde y se sacó (Erick, 2026-08-13): el Historial
+                Médico es la FICHA CLÍNICA del paciente —alergias, problemas,
+                medicamentos, antecedentes—, permanente y editable. La nota es el
+                documento de UNA cita. Son dos cosas distintas y mezclarlas fue
+                un error de premisa: las notas de visitas pasadas viven en el tab
+                Citas del caso, junto a la cita que las produjo. */}
 
             {/* Problem list */}
             <SectionCard
@@ -2808,7 +2819,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
 
 // ── Main dialog (thin wrapper around MedicalHistoryContent) ─────────────────
 
-export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
+export function MedicalHistoryDialog({ patient, open, onClose, onChanged }: Props) {
   const t = useTranslations('phoenix.patients');
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
@@ -2825,7 +2836,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
             </div>
           </div>
         </DialogHeader>
-        <MedicalHistoryContent patient={patient} />
+        <MedicalHistoryContent patient={patient} onChanged={onChanged} />
       </DialogContent>
     </Dialog>
   );

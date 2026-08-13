@@ -34,6 +34,12 @@ type Tab = 'summary' | 'notes' | 'labs' | 'rx' | 'braces' | 'services';
 
 interface Props {
   appointmentId: string;
+  /**
+   * Para el botón de Historial Médico dentro de la nota. Va también del lado del
+   * asistente: es quien más corrige la ficha (una alergia que el paciente
+   * menciona en el mostrador) y en Pacientes ya la edita hoy.
+   */
+  patientId: string;
   appointmentStatus: string;
   checkedInAt: string | null;
   doctorDoneAt: string | null;
@@ -58,7 +64,7 @@ interface Props {
 }
 
 export function DoctorStepPanel({
-  appointmentId, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
+  appointmentId, patientId, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
   triage, servicesPanel, billingTotal, servicesExtra, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -227,6 +233,7 @@ export function DoctorStepPanel({
             {tab === 'notes' && (
               <VisitNoteEditor
                 appointmentId={appointmentId}
+                patientId={patientId}
                 note={note}
                 templates={templates}
                 userId={null}

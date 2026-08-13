@@ -5,13 +5,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Clock, MapPin, User, RefreshCw, Plus,
   LayoutList, Table2, CheckCircle2, XCircle, AlertCircle,
-  Loader2, ChevronRight,
+  Loader2, ChevronRight, FileText,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
+import { CaseVisitNotes } from '@/components/visit/case-visit-notes';
 import type { CoverageDTO } from '@/lib/coverage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -237,6 +238,8 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
 export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false }: Props) {
   const t  = useTranslations('phoenix.caseTabs.citas');
   const tc = useTranslations('phoenix.common');
+  /** El vocabulario de la nota clínica vive en `phoenix.doctor`, no acá. */
+  const td = useTranslations('phoenix.doctor');
 
   const STATUS_CFG: Record<string, { label: string; colorClass: string; icon: React.ElementType }> = {
     SCHEDULED:   { label: t('statusScheduled'),   colorClass: 'bg-brand/10 text-brand-text border-brand/30',       icon: Calendar },
@@ -419,6 +422,20 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
           onOpen={setDetalle}
         />
       )}
+
+      {/* Notas de las visitas — el archivo de lo que escribió el doctor.
+          Va DESPUÉS de la lista y no dentro de cada fila: la fila entera ya abre
+          el panel de la cita, y meterle un segundo blanco de clic adentro hace
+          que una de las dos acciones se pierda. */}
+      <div className="rounded-lg bg-bg-1 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <FileText className="w-4 h-4 text-violet" />
+          <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">
+            {td('visitNotes')}
+          </h3>
+        </div>
+        <CaseVisitNotes caseId={caseId} />
+      </div>
 
       <AppointmentDialog
         mode="case"

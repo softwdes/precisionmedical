@@ -1,19 +1,27 @@
 /**
- * GET  /api/admin/patients/[id]/medical-history
- *   Retorna el JSON medicalHistory del paciente + datos básicos para el dialog.
+ * GET /api/admin/patients/[id]/medical-history
+ *   La ficha del paciente para el Historial Médico: sus datos + el JSON
+ *   `medicalHistory`. Lo consumen el tab del caso y el botón de la nota clínica.
  *
- * PATCH /api/admin/patients/[id]/medical-history
- *   Alias de update — delega a la acción updateMedicalHistory.
+ * (No hay PATCH: se escribe con la server action `updateMedicalHistory`. El
+ * encabezado anunciaba uno que nunca existió.)
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { getSessionUser } from '@/lib/session';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  // La respuesta trae la ficha entera —incluido el SSN— y esta ruta no estaba
+  // pidiendo sesión. El middleware deja pasar `/api/*` sin chequear módulos, así
+  // que el único cerco era que nadie supiera la URL.
+  const user = await getSessionUser();
+  if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
   const { id } = await params;
 
   const patient = await db.patient.findUnique({

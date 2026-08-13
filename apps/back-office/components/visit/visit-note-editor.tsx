@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { RichTextEditor, TagPill } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { MedicalHistoryButton } from '@/components/patients/medical-history-button';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 
@@ -52,6 +53,15 @@ export interface VisitNoteData {
 
 interface Props {
   appointmentId: string;
+  /**
+   * Habilita el botón que abre el Historial Médico completo del paciente.
+   *
+   * La nota es el documento de ESTA cita; el historial es la ficha permanente
+   * del paciente. El doctor necesita las dos a la vez —leer la alergia mientras
+   * escribe el plan, corregir un medicamento mal cargado— y hasta ahora tenía
+   * que salir de la nota a medio escribir.
+   */
+  patientId?: string;
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
@@ -115,7 +125,7 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function VisitNoteEditor({
-  appointmentId, note, templates, userId, canSign = true, onSaved, onDirtyChange,
+  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -331,6 +341,9 @@ export function VisitNoteEditor({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Va PRIMERO y fuera del `isSigned`: consultar la ficha del paciente
+              no depende de si la nota está abierta o ya firmada. */}
+          {patientId && <MedicalHistoryButton patientId={patientId} />}
           {!isSigned && (
             <>
               <button

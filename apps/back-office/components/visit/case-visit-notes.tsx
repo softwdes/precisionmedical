@@ -1,16 +1,21 @@
 'use client';
 
 /**
- * Notas por visita del paciente — el acumulado del Historial Médico.
+ * Notas de las visitas de un caso — el archivo de lo que escribió el doctor.
  *
- * Cierra el ciclo que armamos: la nota nace abierta, solo el doctor la cierra, y
- * al cerrarse queda como documento definitivo. Este es el lugar donde se van
- * juntando, una por visita (decisión de Erick 2026-08-08, que estaba escrita en el
- * código pero nunca implementada).
+ * Cierra el ciclo de la nota: nace abierta, solo el doctor la cierra con su
+ * botón, y al cerrarse queda como documento inmutable. Hasta ahora, una vez
+ * terminada la cita la nota no se veía en ninguna parte.
  *
- * Cerrada arriba de todo lo demás, la más reciente primero. Los borradores se
- * muestran también, marcados: un borrador es parte del registro de esa visita, y
- * verlo en el contexto del paciente le recuerda al doctor lo que dejó sin cerrar.
+ * Vive en el tab Citas del caso, al lado de las citas que las produjeron
+ * (decisión de Erick, 2026-08-13). Estuvo una tarde dentro del Historial Médico
+ * y era un error de premisa: el Historial Médico es la FICHA del paciente
+ * —alergias, problemas, medicamentos—, permanente y editable; la nota es el
+ * documento de UNA cita, y una cita pertenece a un caso.
+ *
+ * La más reciente primero. Los borradores se muestran también, marcados: un
+ * borrador es parte del registro de esa visita, y verlo le recuerda al doctor lo
+ * que dejó sin cerrar.
  *
  * Solo lectura para todos. Una nota cerrada es inmutable (solo un Super Admin la
  * anula) y una abierta se edita donde se escribe, en la consulta.
@@ -18,34 +23,17 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { FileText, ChevronDown, ChevronRight, Loader2, Printer, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Printer, Lock } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { safeHtml, hasText } from '@/lib/safe-html';
-
-export interface PatientVisitNote {
-  appointmentId: string;
-  scheduledFor: string;
-  status: 'DRAFT' | 'SIGNED';
-  signedAt: string | null;
-  signedByName: string | null;
-  providerName: string | null;
-  caseCode: string | null;
-  clinicName: string | null;
-  chiefComplaint: string | null;
-  hpi: string | null;
-  ros: string | null;
-  physicalExam: string | null;
-  assessment: string | null;
-  plan: string | null;
-  diagnoses: Array<{ icd10Code: string | null; icd10Label: string | null }>;
-}
+import type { CaseVisitNote } from '@/app/api/admin/cases/[id]/visit-notes/route';
 
 /**
  * Las 6 secciones, en el orden de la nota SOAP. Los títulos salen de las MISMAS
  * claves `sec_*` que usa el editor — si mañana se renombra una sección, cambia en
  * los dos lados sola.
  */
-const SECTIONS: Array<{ key: keyof PatientVisitNote; labelKey: string }> = [
+const SECTIONS: Array<{ key: keyof CaseVisitNote; labelKey: string }> = [
   { key: 'chiefComplaint', labelKey: 'sec_QUEJA_PRINCIPAL' },
   { key: 'hpi', labelKey: 'sec_HPI' },
   { key: 'ros', labelKey: 'sec_ROS' },
@@ -54,26 +42,25 @@ const SECTIONS: Array<{ key: keyof PatientVisitNote; labelKey: string }> = [
   { key: 'plan', labelKey: 'sec_PLAN' },
 ];
 
-export function PatientVisitNotes({ patientId }: { patientId: string }): React.ReactElement {
+export function CaseVisitNotes({ caseId }: { caseId: string }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
-  const tp = useTranslations('phoenix.patients');
 
-  const [notes, setNotes] = React.useState<PatientVisitNote[] | null>(null);
+  const [notes, setNotes] = React.useState<CaseVisitNote[] | null>(null);
   const [openId, setOpenId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const res = await fetch(`/api/admin/patients/${patientId}/visit-notes`);
-        const d = (await res.json()) as { notes?: PatientVisitNote[] };
+        const res = await fetch(`/api/admin/cases/${caseId}/visit-notes`);
+        const d = (await res.json()) as { notes?: CaseVisitNote[] };
         if (alive) setNotes(d.notes ?? []);
       } catch {
         if (alive) setNotes([]);
       }
     })();
     return () => { alive = false; };
-  }, [patientId]);
+  }, [caseId]);
 
   if (notes === null) {
     return (
@@ -84,7 +71,7 @@ export function PatientVisitNotes({ patientId }: { patientId: string }): React.R
   }
 
   if (notes.length === 0) {
-    return <div className="text-[12px] text-text-muted py-2">{tp('mh.visitNotesEmpty')}</div>;
+    return <div className="text-[12px] text-text-muted py-2">{t('visitNotesEmpty')}</div>;
   }
 
   return (
@@ -110,16 +97,13 @@ export function PatientVisitNotes({ patientId }: { patientId: string }): React.R
               {n.providerName && (
                 <span className="text-[11.5px] text-text-2 truncate">{n.providerName}</span>
               )}
-              {n.caseCode && (
-                <span className="font-mono text-[10.5px] text-cyan shrink-0 hidden sm:inline">{n.caseCode}</span>
-              )}
               <span className="ml-auto shrink-0 flex items-center gap-1.5">
                 {/* Cuántas secciones tienen texto — se ve de un vistazo si la nota
                     quedó a medias sin tener que abrirla. */}
                 <span className="text-[10.5px] text-text-muted tabular-nums">{filled.length}/6</span>
                 {n.status === 'SIGNED'
                   ? <TagPill label={t('noteSigned')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-                  : <TagPill label={tp('mh.visitNoteOpen')} colorClass="bg-amber/15 text-amber border-amber/30" />}
+                  : <TagPill label={t('visitNoteOpen')} colorClass="bg-amber/15 text-amber border-amber/30" />}
               </span>
             </button>
 
@@ -150,7 +134,7 @@ export function PatientVisitNotes({ patientId }: { patientId: string }): React.R
                 )}
 
                 {filled.length === 0 ? (
-                  <div className="text-[11.5px] text-text-muted italic">{tp('mh.visitNoteBlank')}</div>
+                  <div className="text-[11.5px] text-text-muted italic">{t('visitNoteBlank')}</div>
                 ) : (
                   <div className="space-y-2.5">
                     {filled.map((s) => (
@@ -187,5 +171,3 @@ export function PatientVisitNotes({ patientId }: { patientId: string }): React.R
     </div>
   );
 }
-
-export { FileText as VisitNotesIcon };

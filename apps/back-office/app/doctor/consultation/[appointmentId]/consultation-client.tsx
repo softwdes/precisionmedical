@@ -444,6 +444,7 @@ export function ConsultationClient({
           {tab === 'notes' && (
             <VisitNoteEditor
               appointmentId={a.id}
+              patientId={patientContext.id}
               note={note}
               templates={templates}
               userId={userId}

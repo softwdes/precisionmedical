@@ -708,6 +708,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         {(isAlreadyInRoom || d.status === 'COMPLETED' || viewStep === 3) && viewStep !== 2 && (
           <DoctorStepPanel
             appointmentId={d.id}
+            patientId={d.patient.id}
             appointmentStatus={d.status}
             checkedInAt={d.checkedInAt}
             doctorDoneAt={d.doctorDoneAt ?? null}

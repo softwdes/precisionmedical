@@ -3909,6 +3909,11 @@
       "apptColActions": "Acciones",
       "apptNoResults": "No hay citas registradas para este caso",
       "mh": {
+        "visitNotes": "Notas por visita",
+        "visitNotesEmpty": "Sin notas registradas",
+        "visitNoteOpen": "Sin cerrar",
+        "visitNoteBlank": "La nota está en blanco",
+        "visitNotesCount": "{signed} cerradas · {open} sin cerrar",
         "personalInfo": "Información personal",
         "contactInfo": "Información de contacto",
         "emergencyAdditional": "Emergencia y adicional",

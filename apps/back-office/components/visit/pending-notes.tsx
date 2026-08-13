@@ -351,8 +351,14 @@ function PendingNotesDialog({
                                 : [];
                               if (parts.length === 0) {
                                 return (
-                                  <div className="text-[11.5px] text-rose flex items-center gap-1.5">
-                                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {t('previewEmpty')}
+                                  /* Las 319 notas migradas del v2 son cascarones
+                                     vacíos: tienen fila pero ni una sección escrita.
+                                     Acá no alcanza con decir "está vacía", hay que
+                                     decir qué hacer — cerrarla es imposible (el
+                                     endpoint de firma rechaza notas vacías). */
+                                  <div className="text-[11.5px] text-rose flex items-start gap-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                                    <span>{t('previewEmpty')} — {t('cantCloseEmpty')}</span>
                                   </div>
                                 );
                               }

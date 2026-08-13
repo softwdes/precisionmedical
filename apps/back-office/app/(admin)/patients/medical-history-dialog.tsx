@@ -8,12 +8,13 @@ import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
   ChevronDown, ChevronUp, Edit2, Plus, Calendar, X, Search,
-  Cigarette, Wine, FlaskConical, Briefcase,
+  Cigarette, Wine, FlaskConical, Briefcase, FileText,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@precision/ui';
 import { PersonAvatar, TagPill, useToast } from '@/components/ui-phoenix';
+import { PatientVisitNotes } from '@/components/visit/patient-visit-notes';
 import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
 
 /** Hoy en YYYY-MM-DD — tope de los campos de fecha clínica (nada del futuro). */
@@ -2443,6 +2444,18 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 </div>
               </SectionCard>
             </div>
+
+            {/* Notas por visita — el acumulado de las notas del doctor.
+                Va PRIMERO de las secciones de fondo: es el registro clínico de lo
+                que pasó en cada visita, y hasta hoy no se veía en ninguna parte
+                salvo entrando a la cita puntual (la decisión de que vivieran acá
+                es del 2026-08-08 y había quedado sin implementar). */}
+            <SectionCard
+              icon={<FileText className="w-4 h-4" />}
+              title={t('mh.visitNotes')}
+            >
+              <PatientVisitNotes patientId={patient.id} />
+            </SectionCard>
 
             {/* Problem list */}
             <SectionCard

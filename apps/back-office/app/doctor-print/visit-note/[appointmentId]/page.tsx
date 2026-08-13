@@ -15,6 +15,7 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { safeHtml, hasText } from '@/lib/safe-html';
 import { getSessionProvider } from '@/lib/get-session-provider';
 
 type Props = { params: Promise<{ appointmentId: string }> };
@@ -57,30 +58,6 @@ function age(dob: Date | null): number | null {
   return Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000));
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/**
- * Las secciones vienen del editor rich text (HTML) o de notas antiguas en texto
- * plano. Se limpia lo ejecutable antes de renderizar — el contenido lo escriben
- * los doctores, pero también llega de plantillas migradas del v2.
- */
-function safeHtml(raw: string | null | undefined): string {
-  if (!raw) return '';
-  const looksHtml = /<\/?(p|div|br|ul|ol|li|h[1-6]|strong|b|em|i|u|blockquote|a|span)\b/i.test(raw);
-  if (!looksHtml) return `<p>${escapeHtml(raw).replace(/\n/g, '<br/>')}</p>`;
-  return raw
-    .replace(/<\s*(script|style|iframe|object|embed|link|meta|form|input)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
-    .replace(/<\s*\/?\s*(script|style|iframe|object|embed|link|meta|form|input)[^>]*>/gi, '')
-    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(href|src)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*')/gi, '');
-}
-
-function hasText(raw: string | null | undefined): boolean {
-  if (!raw) return false;
-  return raw.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
-}
 
 interface PlannedService {
   id?: string;

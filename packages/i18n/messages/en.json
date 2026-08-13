@@ -3909,6 +3909,11 @@
       "apptColActions": "Actions",
       "apptNoResults": "No appointments found for this case",
       "mh": {
+        "visitNotes": "Visit notes",
+        "visitNotesEmpty": "No notes on record",
+        "visitNoteOpen": "Not closed",
+        "visitNoteBlank": "The note is blank",
+        "visitNotesCount": "{signed} closed / {open} not closed",
         "personalInfo": "Personal information",
         "contactInfo": "Contact information",
         "emergencyAdditional": "Emergency & additional",

@@ -26,7 +26,8 @@ import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, Loader2 } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
+import { Button } from '@precision/ui';
 import { useToast } from '@/components/ui-phoenix';
 import type { PatientRow } from '@/app/(admin)/patients/patients-client';
 
@@ -92,19 +93,19 @@ export function MedicalHistoryButton({
 
   return (
     <>
-      <button
-        type="button"
+      {/* Mismo primitivo que sus vecinos de la barra de la nota: un botón con
+          forma propia ahí se lee como otra cosa (Erick, 2026-08-04). `ghost`
+          porque es una acción secundaria y el borde no le agrega significado;
+          `loading` ya trae su spinner y se deshabilita solo. */}
+      <Button
+        variant="ghost"
         onClick={() => void abrir()}
-        disabled={loading}
-        // Misma caja que "Imprimir" y "Cargar plantilla": en esta barra un botón
-        // con forma propia se lee como otra cosa (Erick, 2026-08-04).
-        className={`h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 disabled:opacity-60 transition-colors flex items-center gap-1.5 ${className}`}
+        loading={loading}
+        className={`h-9 gap-1.5 ${className}`}
       >
-        {loading
-          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          : <ClipboardList className="w-3.5 h-3.5" />}
+        <ClipboardList className="w-3.5 h-3.5" />
         {t('mhOpen')}
-      </button>
+      </Button>
 
       {patient && (
         <MedicalHistoryDialog

@@ -346,13 +346,12 @@ export function VisitNoteEditor({
           {patientId && <MedicalHistoryButton patientId={patientId} />}
           {!isSigned && (
             <>
-              <button
-                type="button"
-                onClick={() => setTplTarget(null)}
-                className="h-9 px-3 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors flex items-center gap-1.5"
-              >
+              {/* `ghost`, no un borde violeta a mano: un borde de color se lee
+                  como aviso, y en el sistema el borde queda solo donde ES el
+                  significado o donde no hay fondo que defina al control. */}
+              <Button variant="ghost" onClick={() => setTplTarget(null)} className="h-9 gap-1.5">
                 <FileStack className="w-3.5 h-3.5" /> {t('noteLoadTemplate')}
-              </button>
+              </Button>
               <Button variant="outline" onClick={() => void save()} disabled={saving || !dirty} className="h-9 gap-1.5">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('noteSave')}
@@ -371,14 +370,15 @@ export function VisitNoteEditor({
             </>
           )}
           {isSigned && (
-            <a
-              href={`/doctor-print/visit-note/${appointmentId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
-            </a>
+            <Button variant="ghost" asChild className="h-9 gap-1.5">
+              <a
+                href={`/doctor-print/visit-note/${appointmentId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
+              </a>
+            </Button>
           )}
         </div>
       </div>

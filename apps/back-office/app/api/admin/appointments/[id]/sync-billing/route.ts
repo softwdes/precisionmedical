@@ -83,11 +83,38 @@ export async function POST(
         existingByCode.delete(svc.code);
       } else {
         const newId = randomUUID();
+        /**
+         * `ON CONFLICT` y no un INSERT pelado.
+         *
+         * El front dispara esta ruta DOS veces casi a la vez al agregar un cargo.
+         * Las dos leen la tabla antes de que cualquiera inserte, las dos concluyen
+         * que el código no existe, y las dos insertaban: 2 filas de 99000 para la
+         * misma cita, $140 facturados donde la pantalla mostraba $70. Encontrado
+         * el 2026-08-13 con la plata mal sumada en la mano.
+         *
+         * El candado real es el índice único parcial de
+         * `prisma/sql/20260813-billing-cpt-unique.sql` — parcial porque férulas,
+         * efectivo y labs SÍ pueden repetir código (dos aplicaciones del mismo
+         * inyectable son dos cobros legítimos). Con el índice, el segundo INSERT
+         * de la carrera fallaría; esto lo convierte en el UPDATE que correspondía.
+         *
+         * El saldo se recalcula contra lo ya pagado y no se copia del INSERT: si
+         * la fila que gano la carrera ya tenia un pago, poner `balanceDue = fee`
+         * le borraria ese pago del saldo.
+         */
         await db.$executeRaw`
           INSERT INTO appointment_billing
             (id, "appointmentId", "caseId", "serviceCode", "serviceDescription", "totalCost", discount, "insuranceCovered", "amountPaid", "balanceDue", "createdAt", "updatedAt")
           VALUES
             (${newId}, ${id}, ${caseId}, ${svc.code}, ${svc.description}, ${fee}, 0, 0, 0, ${fee}, NOW(), NOW())
+          ON CONFLICT ("appointmentId", "serviceCode")
+            WHERE "braceId" IS NULL AND "cashServiceId" IS NULL
+              AND "labOrderId" IS NULL AND "serviceCode" IS NOT NULL
+          DO UPDATE SET
+            "totalCost"          = EXCLUDED."totalCost",
+            "serviceDescription" = EXCLUDED."serviceDescription",
+            "balanceDue"         = GREATEST(0, EXCLUDED."totalCost" - appointment_billing."amountPaid"),
+            "updatedAt"          = NOW()
         `;
       }
     }

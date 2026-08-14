@@ -48,31 +48,41 @@ async function seed(): Promise<void> {
 
   // Clinics
   await Promise.all([
-    // Nombres con sufijo " Clinic" para matchear clinics.name en prod
-    // (migration 20260528130000_clinics_table.sql). Sin esto, el form de
-    // horarios genera schedules con clinic_name que no matchea y el
-    // timeclock cae en la primera opcion alfabetica por default.
+    // Los nombres van SIN el sufijo " Clinic" y con la dirección real, porque
+    // esta tabla es la de Phoenix y ahí las clínicas se llaman "Provo" y
+    // "Pleasant Grove" a secas.
+    //
+    // El comentario anterior justificaba el sufijo para "matchear clinics.name
+    // en prod (migration 20260528130000_clinics_table.sql)", pero esa migración
+    // corre contra el OTRO proyecto Supabase — el de Admin, donde vive el
+    // timeclock con su geocerca (display_name/lat/lng/radius_m). En esta base
+    // esas columnas no existen y work_schedules/attendance_records tampoco.
+    //
+    // Esa confusión entre las dos bases es la que creó "Provo Clinic" y
+    // "Pleasant Grove Clinic" como clínicas duplicadas en el desplegable de
+    // agendar, con direcciones inventadas. Al ser upsert por nombre, cada
+    // corrida del seed las traía de vuelta.
     db.clinic.upsert({
-      where: { name: 'Pleasant Grove Clinic' },
+      where: { name: 'Pleasant Grove' },
       update: {},
       create: {
-        name: 'Pleasant Grove Clinic',
-        address: '1234 State St, Pleasant Grove, UT 84062',
-        phone: '+1-801-555-0100',
+        name: 'Pleasant Grove',
+        address: '348 East State Road, Pleasant Grove, UT 84062',
+        phone: '(801) 375-2207',
       },
     }),
     db.clinic.upsert({
-      where: { name: 'Provo Clinic' },
+      where: { name: 'Provo' },
       update: {},
       create: {
-        name: 'Provo Clinic',
-        address: '5678 University Ave, Provo, UT 84601',
-        phone: '+1-801-555-0200',
+        name: 'Provo',
+        address: '75 S 200 E Suite 202, Provo, UT 84606',
+        phone: '(801) 375-2207',
       },
     }),
   ]);
 
-  console.warn('✅ Clinics: Pleasant Grove Clinic, Provo Clinic');
+  console.warn('✅ Clinics: Pleasant Grove, Provo');
 
   // Cash Boxes
   await Promise.all([

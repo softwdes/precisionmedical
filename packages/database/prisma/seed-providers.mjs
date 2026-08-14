@@ -32,27 +32,32 @@ async function main() {
   console.log('🌱 Seeding providers, clinics & appointment slots...\n');
 
   // ── 1. Clinics ─────────────────────────────────────────────────────────────
+  // Nombres reales de Phoenix, sin el sufijo " Clinic" (esa es la convención
+  // del timeclock, que vive en el OTRO proyecto Supabase). Con el sufijo, cada
+  // corrida creaba clínicas duplicadas en el desplegable de agendar.
   const clinicProvo = await db.clinic.upsert({
-    where: { name: 'Provo Clinic' },
+    where: { name: 'Provo' },
     update: {},
     create: {
-      name:    'Provo Clinic',
-      address: '1234 N University Ave, Provo, UT 84604',
+      name:    'Provo',
+      address: '75 S 200 E Suite 202, Provo, UT 84606',
       phone:   '(801) 375-2207',
     },
   });
 
-  const clinicOrem = await db.clinic.upsert({
-    where: { name: 'Orem Clinic' },
+  // Segunda clínica: Pleasant Grove, que existe de verdad. Antes era
+  // "Orem Clinic" — inventada, la clínica no tiene sede en Orem.
+  const clinicPG = await db.clinic.upsert({
+    where: { name: 'Pleasant Grove' },
     update: {},
     create: {
-      name:    'Orem Clinic',
-      address: '567 S State St, Orem, UT 84058',
-      phone:   '(801) 224-1100',
+      name:    'Pleasant Grove',
+      address: '348 East State Road, Pleasant Grove, UT 84062',
+      phone:   '(801) 375-2207',
     },
   });
 
-  console.log(`  ✓ Clinics: ${clinicProvo.name} (${clinicProvo.id}), ${clinicOrem.name} (${clinicOrem.id})`);
+  console.log(`  ✓ Clinics: ${clinicProvo.name} (${clinicProvo.id}), ${clinicPG.name} (${clinicPG.id})`);
 
   // ── 2. Providers ──────────────────────────────────────────────────────────
   const providers = [
@@ -155,11 +160,11 @@ async function main() {
         duration:   30,
         type:       'AUTO_ACCIDENT',
       },
-      // Dra. Flores — Orem — pasado mañana 10:00 AM
+      // Dra. Flores — Pleasant Grove — pasado mañana 10:00 AM
       {
         patient:    patient,
         caseId:     qaCase?.id ?? null,
-        clinic:     clinicOrem,
+        clinic:     clinicPG,
         provider:   createdProviders[1],
         scheduledFor: slotAt(dayAfter, 10, 0),
         duration:   45,

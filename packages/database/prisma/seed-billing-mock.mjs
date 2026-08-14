@@ -13,15 +13,19 @@ async function main() {
   await db.country.upsert({ where: { code: 'US' }, update: {}, create: { code: 'US', name: 'United States', currency: 'USD' } });
 
   // ── Clinics ────────────────────────────────────────────────────────────────
+  // Nombres reales de Phoenix, sin el sufijo " Clinic": ese sufijo es la
+  // convención del timeclock, que vive en el OTRO proyecto Supabase. Sembrarlo
+  // acá creaba "Provo Clinic"/"Pleasant Grove Clinic" duplicadas en el
+  // desplegable de agendar, con direcciones inventadas.
   const pgClinic = await db.clinic.upsert({
-    where: { name: 'Pleasant Grove Clinic' },
+    where: { name: 'Pleasant Grove' },
     update: {},
-    create: { name: 'Pleasant Grove Clinic', address: '1234 State St, Pleasant Grove, UT 84062', phone: '+1-801-555-0100' },
+    create: { name: 'Pleasant Grove', address: '348 East State Road, Pleasant Grove, UT 84062', phone: '(801) 375-2207' },
   });
   const pvClinic = await db.clinic.upsert({
-    where: { name: 'Provo Clinic' },
+    where: { name: 'Provo' },
     update: {},
-    create: { name: 'Provo Clinic', address: '5678 University Ave, Provo, UT 84601', phone: '+1-801-555-0200' },
+    create: { name: 'Provo', address: '75 S 200 E Suite 202, Provo, UT 84606', phone: '(801) 375-2207' },
   });
 
   // ── Departments ────────────────────────────────────────────────────────────

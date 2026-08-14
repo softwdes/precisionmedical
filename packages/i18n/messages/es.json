@@ -2549,7 +2549,12 @@
         "accidentLocationPlaceholder": "",
         "accidentNotes": "Notas breves",
         "accidentNotesPlaceholder": "",
-        "accidentHint": "\"¿Cuándo ocurrió el accidente? ¿Cómo sucedió?\"",
+        "selectSlotToContinue": "Selecciona un horario disponible para continuar.",
+        "accidentQuestionsTitle": "Preguntarle al paciente:",
+        "accidentQuestions": {
+          "er": "¿Fue a la sala de emergencias después del accidente?",
+          "imaging": "¿Le ordenaron algún estudio de imagen?"
+        },
         "sectionLawyer": "Abogado representante",
         "lawyerRequired": "OBLIGATORIO MVA",
         "lawyerHint": "\"¿El paciente tiene abogado o bufete que lo represente?\"",

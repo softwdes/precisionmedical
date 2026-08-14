@@ -2549,7 +2549,12 @@
         "accidentLocationPlaceholder": "",
         "accidentNotes": "Brief notes",
         "accidentNotesPlaceholder": "",
-        "accidentHint": "\"When did the accident happen? How did it occur?\"",
+        "selectSlotToContinue": "Select an available time slot to continue.",
+        "accidentQuestionsTitle": "Ask the patient:",
+        "accidentQuestions": {
+          "er": "Did the patient go to the ER after the accident?",
+          "imaging": "Has any imaging been ordered?"
+        },
         "sectionLawyer": "Representing attorney",
         "lawyerRequired": "REQUIRED MVA",
         "lawyerHint": "\"Does the patient have an attorney or law firm representing them?\"",

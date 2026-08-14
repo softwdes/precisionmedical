@@ -92,6 +92,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
   const tc = useTranslations('caseWizard');
+  // Navegación de semana del selector de horarios. Las claves ya existían en
+  // `phoenix.calendar` (prevWeek/nextWeek) pero acá estaban escritas a mano en
+  // español, así que "Sem. ant." / "Sem. sig." salían igual con la UI en inglés.
+  const tcal = useTranslations('phoenix.calendar');
 
   // ─── Twilio Voice ──────────────────────────────────────────────────────
   const twilio = useTwilioDevice();
@@ -188,7 +192,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [providerId, setProviderId]   = useState('');
   const [slotIso, setSlotIso]         = useState<string | null>(null);
   const [duration, setDuration]       = useState(45);
-  const [appointmentNotes, setAppointmentNotes] = useState('');
   const [showAllProviders, setShowAllProviders] = useState(false);
   const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -229,7 +232,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
-    setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
+    setProviderId(''); setSlotIso(null); setDuration(45); setShowAllProviders(false);
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
     setFormDelivery({ email: true, sms: true, tablet: false });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
@@ -511,7 +514,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             scheduledFor: slotIso,
             durationMinutes: duration,
             type: caseType === 'MVA' ? 'AUTO_ACCIDENT' : 'FAMILY_PRACTICE',
-            notes: appointmentNotes.trim() || null,
+            // El alta ya no pide notas de la cita — se escriben una sola vez en
+            // las notas del caso. `Appointment.notes` se completa después desde
+            // el panel de detalle de la cita, si hace falta.
+            notes: null,
           } : null,
           formDelivery: action === 'finalize'
             ? { sendEmail: emailOn, sendSms: smsOn }
@@ -1146,8 +1152,35 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <InfoCard title={t('sectionAccident')} icon={Car} number={2}>
                   <FormField.Input label={t('accidentDate')} value={accidentDate} onChange={setAccidentDate} type="date" />
                   <FormField.Input label={t('accidentLocation')} value={accidentLocation} onChange={setAccidentLocation} />
+                  {/*
+                    El hint no describe el campo: es la lista de preguntas que
+                    recepción tiene que hacerle al paciente mientras agenda la
+                    cita. Antes decía "¿Cuándo ocurrió el accidente? ¿Cómo
+                    sucedió?" — el "cuándo" ya lo pide el campo de arriba, así
+                    que la mitad del texto no servía de nada.
+                    Van apiladas y no en una línea porque a 10px cuatro
+                    preguntas seguidas no se leen; así se recorren como lista
+                    mientras se está al teléfono.
+                  */}
                   <FormField.Textarea label={t('accidentNotes')} value={accidentNotes} onChange={setAccidentNotes}
-                    placeholder={t('accidentNotesPlaceholder')} hint={t('accidentHint')} />
+                    placeholder={t('accidentNotesPlaceholder')}
+                    hint={
+                      <>
+                        <div className="font-semibold">{t('accidentQuestionsTitle')}</div>
+                        {/*
+                          Objeto y no array: next-intl tipa los mensajes como
+                          `AbstractIntlMessages`, que solo admite strings u
+                          objetos anidados — un array no compila. Las claves
+                          (how/er/imaging/provider) dan además un lugar estable
+                          donde agregar o sacar una pregunta sin renumerar.
+                        */}
+                        <ul className="mt-0.5 space-y-0.5">
+                          {Object.values(t.raw('accidentQuestions') as Record<string, string>).map(q => (
+                            <li key={q}>· {q}</li>
+                          ))}
+                        </ul>
+                      </>
+                    } />
                 </InfoCard>
               )}
 
@@ -1300,7 +1333,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
                             <ArrowLeft className="w-3 h-3" />
-                            <span className="hidden sm:inline">Sem. ant.</span>
+                            <span className="hidden sm:inline">{tcal('prevWeek')}</span>
                           </button>
                           <span className="text-[11px] text-text-muted font-medium text-center">
                             {weekDays[0]
@@ -1313,7 +1346,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             onClick={() => { setWeekStart(addDays(weekStart, 7)); setSelectedDay(null); }}
                             className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
-                            <span className="hidden sm:inline">Sem. sig.</span>
+                            <span className="hidden sm:inline">{tcal('nextWeek')}</span>
                             <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
@@ -1407,17 +1440,21 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     </Note>
                   )}
 
-                  {/* Notas para el doctor */}
-                  <FormField.Textarea
-                    label="Notes for the doctor"
-                    value={appointmentNotes}
-                    onChange={setAppointmentNotes}
-                    placeholder="E.g. patient reports lower back pain since accident…"
-                    hint="Optional · visible only to the assigned doctor"
-                  />
+                  {/*
+                    Acá había una segunda caja "Notes for the doctor". Se quitó
+                    por pedido de Erick: al dar de alta el caso ya se escriben
+                    las notas del accidente un paso antes, y llenar dos cajas de
+                    texto en el mismo alta es trabajo duplicado.
 
+                    El campo `Appointment.notes` NO desapareció: se sigue viendo
+                    y editando desde el panel de detalle de la cita
+                    (`appointment-detail-panel.tsx`, sección 📝 con su botón de
+                    editar), que es el mismo panel que usan el calendario, la
+                    consulta del doctor y Day Admission. O sea que se saca del
+                    formulario de alta, no del sistema.
+                  */}
                   {scheduleNow && !slotIso && (
-                    <Note tone="amber">Select an available time slot to continue.</Note>
+                    <Note tone="amber">{t('selectSlotToContinue')}</Note>
                   )}
                 </>
               ) : (

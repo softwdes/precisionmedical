@@ -1882,7 +1882,7 @@
       "sumNoteState": "Note status",
       "sumOpenNote": "Open the note",
       "sumOpenLabs": "Open labs",
-      "sumCollectHint": "Case balance / line detail, discounts and method",
+      "sumCollectHint": "Visit balance · line detail, discounts and method",
       "sumCollect": "Collect {amount}",
       "sumOpenRx": "Open prescription",
       "sumNoRx": "No prescriptions on this visit",
@@ -1997,7 +1997,13 @@
       "rxMedDownload": "Pharmacy history",
       "rxDrugHistory": "Prescribed in ScriptSure",
       "rxApproveQueue": "Pending approval",
-      "tabPay": "Pay"
+      "tabPay": "Pay",
+      "payNoCaseTitle": "This appointment has no case",
+      "payNoCaseHint": "Payments are recorded against the patient's case. Assign one from the appointment detail to collect.",
+      "sumIncludesLabs": "includes {count} lab(s)",
+      "rxPharmacies": "Pharmacies",
+      "rxReportsTab": "Reports",
+      "rxSettingsTab": "Settings"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -4612,7 +4618,7 @@
         "sectionTitle": "Financial Summary",
         "refresh": "Refresh",
         "payDebt": "Pay debt",
-        "historyTitle": "Medical history · {code}",
+        "historyTitle": "Payment history",
         "colAmount": "Amount",
         "colType": "Type",
         "kpiTotalCost": "Total Cost",
@@ -4675,7 +4681,18 @@
         "originLab": "Lab",
         "originCash": "Service",
         "originBrace": "Brace",
-        "originCpt": "CPT"
+        "originCpt": "CPT",
+        "visitChargesTitle": "Charges on this visit",
+        "visitChargesEmpty": "No charges on this visit",
+        "visitToCollect": "To collect",
+        "visitInsuranceNote": "Plus {amount} in CPT billed to insurance — not collected at the counter.",
+        "stPaid": "Paid",
+        "stPartial": "Partial",
+        "stPending": "Pending",
+        "linePaidOf": "paid {paid} of {total}",
+        "payModalTitleVisit": "Visit payment",
+        "payModalSubtitleVisit": "Only this visit is collected here. The case balance lives on the patient.",
+        "payVisitDate": "Visit of"
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",
@@ -4801,14 +4818,15 @@
       "badgeInsurance": "To insurance",
       "badgeCash": "Pays directly",
       "totalToInsurance": "To insurance",
-      "totalCashToday": "Collect today",
+      "totalCash": "Pays directly",
       "colSource": "Who pays",
       "voidTitle": "Void this charge?",
       "voidBody": "It leaves the total and the bill. Who voided it stays on record.",
       "chargesTitle": "Visit charges",
       "emptyTitle": "No charges yet",
       "emptyHint": "Add insurance or cash services — both lists live in the same search.",
-      "emptyNothingToCollect": "Nothing to collect on this visit"
+      "errAlreadyPaid": "Can't remove it: {amount} was already collected. Cancel the payment under Pay → history and try again.",
+      "errRemoveFailed": "The charge could not be removed. Try again."
     },
     "pendingNotes": {
       "title": "Notes not closed",

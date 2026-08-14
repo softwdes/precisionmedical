@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
+import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionUser } from '@/lib/session';
 import {
   setPracticePrescriber,
   getScriptSurePracticeWidgetUrl,
@@ -21,7 +23,22 @@ import {
  * de quien haya logueado último.
  */
 
-const VALID_WIDGETS: ScriptSurePracticeWidget[] = ['message', 'prescription-queue', 'auditlog'];
+const VALID_WIDGETS: ScriptSurePracticeWidget[] = [
+  'message',
+  'prescription-queue',
+  'auditlog',
+  'report',
+  'setting',
+];
+
+/**
+ * La configuración de la practice cambia el comportamiento de TODOS los
+ * prescriptores (chequeos de interacción, límites de opioides, alertas). No es
+ * una pantalla de consulta: se restringe a administradores, y se valida acá —
+ * esconder la pestaña en el cliente no es un permiso.
+ */
+const ADMIN_ONLY: ScriptSurePracticeWidget[] = ['setting'];
+const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const provider = await getSessionProvider();
@@ -32,6 +49,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const widget = req.nextUrl.searchParams.get('widget') as ScriptSurePracticeWidget | null;
   if (!widget || !VALID_WIDGETS.includes(widget)) {
     return NextResponse.json({ error: 'INVALID_WIDGET' }, { status: 400 });
+  }
+
+  if (ADMIN_ONLY.includes(widget)) {
+    const user = await getSessionUser();
+    const role = user?.email ? await fetchDbRole(user.email) : null;
+    if (!role || !ADMIN_ROLES.has(role)) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+    }
   }
 
   const [row, clinic] = await Promise.all([
@@ -59,7 +84,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       Number(clinic.scriptsurePracticeId),
       Number(row.scriptsureUserId),
     );
-    const url = await getScriptSurePracticeWidgetUrl(loginEmail, widget);
+    const url = await getScriptSurePracticeWidgetUrl(
+      loginEmail,
+      widget,
+      Number(clinic.scriptsurePracticeId),
+    );
     return NextResponse.json({ url });
   } catch (err) {
     return NextResponse.json(

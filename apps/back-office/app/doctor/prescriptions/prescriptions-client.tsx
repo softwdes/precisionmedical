@@ -15,20 +15,29 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Inbox, ListChecks, ShieldCheck, Loader2, AlertTriangle, Lock, RefreshCw } from 'lucide-react';
+import {
+  Inbox, ListChecks, ShieldCheck, BarChart3, Settings,
+  Loader2, AlertTriangle, Lock, RefreshCw,
+} from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix';
 
-type Vista = 'message' | 'prescription-queue' | 'auditlog';
+type Vista = 'message' | 'prescription-queue' | 'auditlog' | 'report' | 'setting';
 type Estado = 'loading' | 'ready' | 'not_onboarded' | 'error';
 
-const VISTAS: { key: Vista; icon: typeof Inbox; labelKey: string }[] = [
+const VISTAS: { key: Vista; icon: typeof Inbox; labelKey: string; soloAdmin?: boolean }[] = [
   { key: 'message', icon: Inbox, labelKey: 'rxInboxTab' },
   { key: 'prescription-queue', icon: ListChecks, labelKey: 'rxQueueTab' },
+  { key: 'report', icon: BarChart3, labelKey: 'rxReportsTab' },
   { key: 'auditlog', icon: ShieldCheck, labelKey: 'rxAuditTab' },
+  // La configuración cambia el comportamiento de TODOS los prescriptores, así
+  // que no es del doctor. Esconderla acá es comodidad; el permiso lo valida el
+  // server (la ruta responde 403 a quien no sea admin).
+  { key: 'setting', icon: Settings, labelKey: 'rxSettingsTab', soloAdmin: true },
 ];
 
-export function PrescriptionsClient(): React.ReactElement {
+export function PrescriptionsClient({ isAdmin = false }: { isAdmin?: boolean }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const vistas = React.useMemo(() => VISTAS.filter((v) => !v.soloAdmin || isAdmin), [isAdmin]);
 
   const [vista, setVista] = React.useState<Vista>('message');
   const [estado, setEstado] = React.useState<Estado>('loading');
@@ -72,7 +81,7 @@ export function PrescriptionsClient(): React.ReactElement {
       <PageHeader title={t('prescriptionsTitle')} subtitle={t('prescriptionsSubtitle')} />
 
       <div className="flex items-center gap-2 flex-wrap">
-        {VISTAS.map(({ key, icon: Icon, labelKey }) => (
+        {vistas.map(({ key, icon: Icon, labelKey }) => (
           <button
             key={key}
             type="button"

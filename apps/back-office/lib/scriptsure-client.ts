@@ -293,7 +293,12 @@ export type ScriptSurePatientWidget =
  * sus propias acciones — Represcribe, Approve, Deny, Edit. Es la pieza que del
  * lado nuestro no existía: sin ella, un rechazo de farmacia no se entera nadie.
  */
-export type ScriptSurePracticeWidget = 'message' | 'prescription-queue' | 'auditlog';
+export type ScriptSurePracticeWidget =
+  | 'message'
+  | 'prescription-queue'
+  | 'auditlog'
+  | 'report'
+  | 'setting';
 
 export type ScriptSureWidget = ScriptSurePatientWidget | ScriptSurePracticeWidget;
 
@@ -323,10 +328,16 @@ export async function getScriptSureWidgetUrl(
 export async function getScriptSurePracticeWidgetUrl(
   loginEmail: string,
   widget: ScriptSurePracticeWidget,
+  practiceId: number,
 ): Promise<string> {
   const sessionToken = await getSessionToken(loginEmail);
+
+  // La configuración es el único que rompe el patrón: su ruta es
+  // `/widgets/setting/1/:practiceId` — el `1` es la pestaña inicial de su UI.
+  const path = widget === 'setting' ? `setting/1/${practiceId}` : widget;
+
   const providers = widget === 'message' ? '&providers=all' : '';
-  return `${hosts().frontend}/widgets/${widget}?sessiontoken=${sessionToken}&${WIDGET_PARAMS}${providers}`;
+  return `${hosts().frontend}/widgets/${path}?sessiontoken=${sessionToken}&${WIDGET_PARAMS}${providers}`;
 }
 
 export interface MedCartDrug {

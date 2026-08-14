@@ -1882,7 +1882,7 @@
       "sumNoteState": "Estado de la nota",
       "sumOpenNote": "Abrir la nota",
       "sumOpenLabs": "Abrir laboratorios",
-      "sumCollectHint": "Saldo del caso · detalle por servicio, descuentos y método",
+      "sumCollectHint": "Saldo de la visita · detalle por servicio, descuentos y método",
       "sumCollect": "Cobrar {amount}",
       "sumOpenRx": "Ver prescripción",
       "sumNoRx": "Sin recetas en esta visita",
@@ -1997,7 +1997,13 @@
       "rxMedDownload": "Historial de farmacia",
       "rxDrugHistory": "Recetado en ScriptSure",
       "rxApproveQueue": "Por aprobar",
-      "tabPay": "Pagar"
+      "tabPay": "Pagar",
+      "payNoCaseTitle": "Esta cita no tiene caso",
+      "payNoCaseHint": "El cobro se registra contra el caso del paciente. Asigná uno desde el detalle de la cita para poder cobrar.",
+      "sumIncludesLabs": "incluye {count} laboratorio(s)",
+      "rxPharmacies": "Farmacias",
+      "rxReportsTab": "Reportes",
+      "rxSettingsTab": "Configuración"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -4612,7 +4618,7 @@
         "sectionTitle": "Resumen financiero",
         "refresh": "Actualizar",
         "payDebt": "Pagar deuda",
-        "historyTitle": "Historial médico · {code}",
+        "historyTitle": "Historial de pagos",
         "colAmount": "Monto",
         "colType": "Tipo",
         "kpiTotalCost": "Costo Total",
@@ -4675,7 +4681,18 @@
         "originLab": "Laboratorio",
         "originCash": "Servicio",
         "originBrace": "Férula",
-        "originCpt": "CPT"
+        "originCpt": "CPT",
+        "visitChargesTitle": "Cargos de esta visita",
+        "visitChargesEmpty": "No hay cargos en esta visita",
+        "visitToCollect": "A cobrar",
+        "visitInsuranceNote": "Además {amount} en CPT se le facturan al seguro — no se cobran en el mostrador.",
+        "stPaid": "Pagado",
+        "stPartial": "Parcial",
+        "stPending": "Pendiente",
+        "linePaidOf": "pagó {paid} de {total}",
+        "payModalTitleVisit": "Cobro de la visita",
+        "payModalSubtitleVisit": "Se cobra solo lo de esta consulta. El saldo del caso se ve en el paciente.",
+        "payVisitDate": "Visita del"
       },
       "prescripciones": {
         "placeholderMed": "Selecciona un medicamento",
@@ -4801,14 +4818,15 @@
       "badgeInsurance": "A seguro",
       "badgeCash": "Paga directo",
       "totalToInsurance": "A seguro",
-      "totalCashToday": "Cobra hoy",
+      "totalCash": "Paga directo",
       "colSource": "Quién paga",
       "voidTitle": "¿Anular este cargo?",
       "voidBody": "Sale del total y del cobro. Queda registrado quién lo anuló.",
       "chargesTitle": "Cargos de la visita",
       "emptyTitle": "Sin cargos todavía",
       "emptyHint": "Agregá servicios de seguro o de efectivo — las dos listas están en el mismo buscador.",
-      "emptyNothingToCollect": "No hay nada que cobrar en esta visita"
+      "errAlreadyPaid": "No se puede quitar: ya se cobraron {amount}. Anulá el pago en Pagar → historial y volvé a intentar.",
+      "errRemoveFailed": "No se pudo quitar el cargo. Intentá de nuevo."
     },
     "pendingNotes": {
       "title": "Notas sin cerrar",

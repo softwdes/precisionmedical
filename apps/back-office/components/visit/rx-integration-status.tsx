@@ -48,6 +48,9 @@ const WIDGETS_PACIENTE: {
   muta: boolean;
 }[] = [
   { kind: 'allergy', icon: TriangleAlert, labelKey: 'rxAllergies', muta: true },
+  // Farmacias preferidas del paciente. Dejarla guardada evita que el doctor la
+  // busque de nuevo en cada consulta: el widget de prescribir la trae puesta.
+  { kind: 'pharmacy', icon: MapPin, labelKey: 'rxPharmacies', muta: true },
   { kind: 'medicationdownload', icon: Download, labelKey: 'rxMedDownload', muta: false },
   { kind: 'drug-history', icon: History, labelKey: 'rxDrugHistory', muta: false },
   { kind: 'approve-queue', icon: ClipboardCheck, labelKey: 'rxApproveQueue', muta: true },

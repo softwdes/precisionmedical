@@ -10,10 +10,11 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
-  Trash2, CreditCard, FileText, X, ChevronUp,
+  Trash2, CreditCard, FileText, X, ChevronUp, Shield,
 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogTitle } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
+import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -131,11 +132,27 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
+/**
+ * Estado de cobro de UNA línea.
+ *
+ * Hace falta por línea y no solo por visita porque el cobro parcial reparte el
+ * monto entre las líneas en orden (ver `repartir`): después de pagar $200 de
+ * $381.26, una línea queda pagada, otra a medias y otra sin tocar. Un solo
+ * "saldo $181.26" no dice cuál es cuál.
+ */
 function billingStatus(b: BillingRecord): 'paid' | 'partial' | 'pending' {
   if (b.balanceDue <= 0) return 'paid';
   if (b.amountPaid > 0) return 'partial';
   return 'pending';
 }
+
+/** Cómo se ve cada estado. `pending` es neutro a propósito: un cargo sin pagar
+ *  es lo normal al empezar la visita, no una alerta. */
+const ESTADO_PILL: Record<'paid' | 'partial' | 'pending', { state: StatusState; clave: string }> = {
+  paid:    { state: 'success', clave: 'stPaid'    },
+  partial: { state: 'warning', clave: 'stPartial' },
+  pending: { state: 'neutral', clave: 'stPending' },
+};
 
 // ─── Custom Select (abre hacia arriba) ─────────────────────────────────────────
 
@@ -246,8 +263,14 @@ export interface FinanzasTabHandle { openPayModal: () => void; reload: () => voi
  * `readOnly` — vista del doctor: ve el summary completo (costos, pagado, saldo,
  * detalle por línea) pero SIN acciones de cobro. El cobro es del asistente —
  * misma regla que `hidePayments` en el panel de servicios.
+ *
+ * `onChanged` — avisa que la plata del caso cambió (se registró o se anuló un
+ * pago). El componente ya se recarga solo; esto es para la pantalla que lo
+ * monta: en Day Admission el saldo también vive en la píldora del tab de
+ * Servicios y en el Resumen, y sin el aviso seguían mostrando el saldo de antes
+ * de cobrar.
  */
-export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string; readOnly?: boolean }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false }, ref) {
+export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string; readOnly?: boolean; onChanged?: () => void }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false, onChanged }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
   // Claves del CTA "Cobrar $X" — las mismas del Resumen (una sola voz)
@@ -426,6 +449,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? `HTTP ${res.status}`); }
       setPayOpen(false);
       load();
+      onChanged?.();
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertErrorRegister'));
     } finally {
@@ -440,6 +464,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       const res = await fetch(`/api/admin/cases/${caseId}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       load();
+      onChanged?.();
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertErrorCancel'));
     } finally {
@@ -461,6 +486,20 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const vistaCosto  = deLaVista.reduce((s, b) => s + b.totalCost, 0);
   const vistaPagado = deLaVista.reduce((s, b) => s + b.amountPaid, 0);
   const vistaSaldo  = deLaVista.reduce((s, b) => s + b.balanceDue, 0);
+
+  /**
+   * Lo que se le factura al SEGURO en esta visita — se nombra, no se cobra.
+   *
+   * No entra en ningún total de esta pantalla (regla de Erick: una línea que
+   * paga el seguro nunca puede sumar al total del mostrador). Existe como una
+   * sola frase al pie porque si no, el asistente ve "$381.26 a cobrar" acá y
+   * "$70 a seguro" en Servicios y no sabe si son plata distinta o la misma
+   * contada dos veces.
+   */
+  const seguroDeLaVista = filterAppointmentId
+    ? billings.filter(b => b.payer === 'INSURANCE' && b.appointmentId === filterAppointmentId)
+    : [];
+  const seguroSaldo = seguroDeLaVista.reduce((s, b) => s + b.balanceDue, 0);
 
   /** Historial: pagos del paciente, del período visible. Sin anulados — los
    *  filtra la API, y la anulación queda en el AuditLog. */
@@ -582,6 +621,87 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         <KpiCard label={t('kpiPatientDebt')} value={vistaSaldo} color={vistaSaldo > 0 ? 'text-rose' : 'text-text-1'} />
       </div>
 
+      {/* ── QUÉ se está cobrando (solo con una cita puesta) ──────────────────
+          Lo que el paciente debe HOY, línea por línea: efectivo, laboratorios y
+          férulas juntos, que es como se paga.
+
+          Existe porque el tab de cobro mostraba el total correcto ($381.26) y
+          ninguna línea que lo explicara: el desglose vivía adentro del modal, o
+          sea DESPUÉS de decidir cobrar. Y la lista del tab de Servicios no
+          sirve para esto — ahí los laboratorios y las férulas no están, cada
+          uno tiene su propio tab, así que sus totales se quedaban $181.26 cortos.
+
+          Sin cita (el caso completo) NO se muestra: serían todas las líneas de
+          todas las fechas, que es justo lo que el historial de pagos y el modal
+          ya ordenan por visita. */}
+      {filterAppointmentId && !loading && !error && (
+        <div className="rounded-lg bg-bg-1 overflow-hidden">
+          <div className="px-4 py-2 bg-bg-2/60 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+              {t('visitChargesTitle')}
+            </span>
+            <span className="ml-auto text-[11px] text-text-muted">
+              {vistaSaldo > 0 ? (
+                <>{t('visitToCollect')} <b className="text-rose text-[12.5px] ml-0.5 tabular-nums font-mono">{fmt$(vistaSaldo)}</b></>
+              ) : vistaPagado > 0 ? (
+                /* La confirmación que faltaba: cuando se cobraba, lo único que
+                   pasaba en pantalla era que DESAPARECÍA el saldo. Una ausencia
+                   no le dice a quien cobró que quedó registrado. */
+                <StatusPill state="success" label={`${t('stPaid')} · ${fmt$(vistaPagado)}`} />
+              ) : null}
+            </span>
+          </div>
+
+          {deLaVista.length === 0 ? (
+            <div className="px-4 py-6 text-center text-[12px] text-text-muted">{t('visitChargesEmpty')}</div>
+          ) : (
+            <div className="divide-y divide-row-sep">
+              {deLaVista.map(l => {
+                const est = ESTADO_PILL[billingStatus(l)];
+                return (
+                  <div key={l.id} className="px-4 py-2.5 flex items-center gap-3 flex-wrap">
+                    {/* QUÉ es la línea. Sin esto dos labs y una inyección se ven
+                        idénticos y el que cobra no sabe qué está cobrando. */}
+                    {l.origin && (
+                      <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-px rounded-full shrink-0 ${ORIGEN_CLASE[l.origin]}`}>
+                        {t(ORIGEN_CLAVE[l.origin])}
+                      </span>
+                    )}
+                    <span className="text-[12.5px] text-text-1 flex-1 min-w-[140px]">
+                      {l.serviceCode && <span className="font-mono text-[11.5px] text-text-muted mr-1.5">{l.serviceCode}</span>}
+                      {l.serviceDescription ?? '—'}
+                    </span>
+                    <div className="text-right shrink-0">
+                      <div className={`font-mono tabular-nums text-[12.5px] font-semibold ${l.balanceDue > 0 ? 'text-text-1' : 'text-text-muted'}`}>
+                        {fmt$(l.balanceDue > 0 ? l.balanceDue : l.totalCost)}
+                      </div>
+                      {/* Solo en el pago parcial: "queda $150 de $200" es la
+                          frase que se le dice al paciente antes de que se vaya. */}
+                      {l.balanceDue > 0 && l.amountPaid > 0 && (
+                        <div className="text-[10px] text-emerald">
+                          {t('linePaidOf', { paid: fmt$(l.amountPaid), total: fmt$(l.totalCost) })}
+                        </div>
+                      )}
+                    </div>
+                    <StatusPill state={est.state} label={t(est.clave)} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Lo del seguro: se nombra y queda FUERA del total. Mostrarlo como
+              una línea cobrable más era ofrecerle al mostrador plata que no le
+              toca pedir al paciente. */}
+          {seguroSaldo > 0 && (
+            <div className="px-4 py-2 bg-bg-2/40 flex items-center gap-1.5 text-[11px] text-text-muted">
+              <Shield className="w-3 h-3 text-cyan shrink-0" />
+              {t('visitInsuranceNote', { amount: fmt$(seguroSaldo) })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tabla */}
       {loading ? (
         <div className="flex items-center justify-center py-12 gap-2 text-text-muted text-sm">
@@ -590,11 +710,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       ) : error ? (
         <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>
       ) : historial.length === 0 ? (
-        <EmptyState.Rich
-          icon={DollarSign}
-          title={t('historyEmptyTitle')}
-          subtitle={t('historyEmptySubtitle')}
-        />
+        /* En una visita sin cargos el estado vacío grande sobra: arriba ya dice
+           que no hay nada que cobrar, y dos carteles vacíos uno debajo del otro
+           se leen como una pantalla rota. */
+        filterAppointmentId && deLaVista.length === 0 ? null : (
+          <EmptyState.Rich
+            icon={DollarSign}
+            title={t('historyEmptyTitle')}
+            subtitle={t('historyEmptySubtitle')}
+          />
+        )
       ) : (
         /**
          * HISTORIAL DE PAGOS — una fila por pago, no por servicio.
@@ -687,12 +812,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       <Dialog open={payOpen && !readOnly} onOpenChange={setPayOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
-            {/* Modal header */}
+            {/* Modal header — el título dice el ALCANCE real del cobro.
+                Abierto desde una cita se cobra ESA visita y nada más, así que
+                "Pago del caso" nombraba algo que no está pasando: el caso puede
+                tener seis fechas más y ninguna entra en este cobro. */}
             <div className="px-5 py-4 border-b border-border shrink-0">
               <DialogTitle className="text-text-1 font-semibold text-base flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-amber" /> {t('payModalTitle')}
+                <CreditCard className="w-4 h-4 text-amber" />
+                {filterAppointmentId ? t('payModalTitleVisit') : t('payModalTitle')}
               </DialogTitle>
-              <p className="text-text-muted text-xs mt-0.5">{t('payModalSubtitle')}</p>
+              <p className="text-text-muted text-xs mt-0.5">
+                {filterAppointmentId ? t('payModalSubtitleVisit') : t('payModalSubtitle')}
+              </p>
             </div>
 
             {/* Zona scrolleable — si la ventana es baja, el contenido scrollea
@@ -709,9 +840,23 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               <div className="px-5 py-3">
                 {/* Visitas, no líneas: se cobra por visita, así que contar
                     cargos sueltos daba un número que no se corresponde con
-                    cuántos montos hay que escribir. */}
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitsPending')}</div>
-                <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{visitasPendientes.length}</div>
+                    cuántos montos hay que escribir.
+
+                    Con una cita puesta ese número es siempre 1 y no informa
+                    nada; ahí el dato útil es CUÁL visita se está cobrando. */}
+                {filterAppointmentId ? (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitDate')}</div>
+                    <div className="text-xl font-bold font-mono text-text-1 mt-0.5">
+                      {fmtDate(visitasPendientes[0]?.fecha ?? deLaVista[0]?.appointmentDate ?? null)}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitsPending')}</div>
+                    <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{visitasPendientes.length}</div>
+                  </>
+                )}
               </div>
             </div>
 

@@ -49,6 +49,8 @@ const money = (n: number): string => `$${n.toFixed(2)}`;
 
 export function BracesTab({ appointmentId }: { appointmentId: string }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  /** Los avisos de cargos son los MISMOS en los tres tabs que cobran. */
+  const tc = useTranslations('phoenix.charges');
 
   const [rows, setRows] = React.useState<BraceRow[]>([]);
   const [history, setHistory] = React.useState<BraceRow[]>([]);
@@ -105,8 +107,15 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'RETURNED' }),
       });
-      if (!res.ok) setError(t('braceErrVoid'));
-      else await load();
+      if (!res.ok) {
+        // Una férula ya cobrada no sale de entregada: primero se anula el pago
+        // (ver lib/charge-payments.ts). Decirlo con el monto, que es el dato
+        // que decide si hay que ir a anular el cobro o dejarla como está.
+        const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+        setError(d.error === 'ALREADY_PAID'
+          ? tc('errAlreadyPaid', { amount: money(Number(d.paid ?? 0)) })
+          : t('braceErrVoid'));
+      } else await load();
     } finally {
       setBusyId(null);
       setVoidTarget(null);

@@ -72,7 +72,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
   if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  const [orders, history] = await Promise.all([
+  const [orders, history, billed] = await Promise.all([
     db.labOrder.findMany({
       where: { appointmentId },
       orderBy: [{ orderedAt: 'desc' }, { studyName: 'asc' }],
@@ -89,9 +89,38 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       take: 40,
       select: { ...ORDER_SELECT, appointment: { select: { id: true, scheduledFor: true } } },
     }),
+    /**
+     * Cuánto cuesta cada estudio DE ESTA VISITA.
+     *
+     * Sale de la facturación y no del catálogo a propósito: la fila de
+     * `appointment_billing` es lo que el paciente va a pagar de verdad (y un
+     * estudio sin precio cargado no genera fila, así que tampoco muestra monto
+     * — ver lib/lab-billing.ts). Volver a leer `catalog_items` acá sería una
+     * segunda fuente que puede decir otro número que la caja.
+     *
+     * El historial no lo lleva: son estudios de otras visitas y su cobro se ve
+     * en el caso, no acá.
+     */
+    db.appointmentBilling.findMany({
+      where: { appointmentId, labOrderId: { not: null } },
+      select: { labOrderId: true, totalCost: true, balanceDue: true },
+    }),
   ]);
 
-  return NextResponse.json({ orders, history });
+  const cobroPorEstudio = new Map(billed.map(b => [b.labOrderId!, b]));
+
+  return NextResponse.json({
+    orders: orders.map(o => {
+      const cobro = cobroPorEstudio.get(o.id);
+      return {
+        ...o,
+        // `null` = sin precio en el catálogo, que NO es lo mismo que $0.
+        price:   cobro ? Number(cobro.totalCost)  : null,
+        balance: cobro ? Number(cobro.balanceDue) : null,
+      };
+    }),
+    history,
+  });
 }
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {

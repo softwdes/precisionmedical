@@ -42,6 +42,15 @@ export interface LabOrderRow {
   resultUploadedByName: string | null;
   resultNotes: string | null;
   appointment?: { id: string; scheduledFor: string } | null;
+  /**
+   * Lo que se le cobra al paciente por el estudio, según la FACTURACIÓN.
+   * `null` = el estudio no tiene precio en el catálogo y no genera cobro — que
+   * no es lo mismo que $0. Solo viene en las órdenes de la visita, no en el
+   * historial.
+   */
+  price?: number | null;
+  /** Lo que falta pagar de ese estudio. Misma fuente que `price`. */
+  balance?: number | null;
 }
 
 interface Props {
@@ -68,6 +77,9 @@ const URGENCY_CLASS: Record<string, string> = {
   ROUTINE: '',
 };
 
+const money = (n: number): string =>
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
 function fmtDate(iso: string | null, withTime = false): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString(localeApp(), {
@@ -85,6 +97,8 @@ function fmtDate(iso: string | null, withTime = false): string {
  */
 export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  /** Los avisos de cargos son los MISMOS en los tres tabs que cobran. */
+  const tc = useTranslations('phoenix.charges');
 
   const [orders, setOrders] = React.useState<LabOrderRow[]>([]);
   const [history, setHistory] = React.useState<LabOrderRow[]>([]);
@@ -164,8 +178,15 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/lab-orders/item/${id}`, { method: 'DELETE' });
-      if (!res.ok) setError(t('labErrDelete'));
-      else await load();
+      if (!res.ok) {
+        // Un estudio ya cobrado no se quita: primero se anula el pago (ver
+        // lib/charge-payments.ts). Con el monto adentro, que es lo que decide
+        // si vale la pena ir a anular el cobro.
+        const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+        setError(d.error === 'ALREADY_PAID'
+          ? tc('errAlreadyPaid', { amount: money(Number(d.paid ?? 0)) })
+          : t('labErrDelete'));
+      } else await load();
     } finally {
       setBusyId(null);
       setDeleteTarget(null);
@@ -197,6 +218,14 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
         <span className="text-[12.5px] text-text-1 flex-1 min-w-[140px]">{o.studyName}</span>
         {showDate && (
           <span className="text-[11px] text-text-muted shrink-0">{fmtDate(o.orderedAt)}</span>
+        )}
+        {/* Lo que cuesta el estudio. El paciente lo paga al salir, junto con lo
+            demás, y hasta ahora el monto solo existía en el cobro: el que pedía
+            el estudio no sabía que le estaba sumando $130.50 a la salida. Un
+            estudio sin precio en el catálogo no muestra nada — no genera cobro,
+            y "$0.00" diría que es gratis. */}
+        {o.price != null && !voided && (
+          <span className="text-[11.5px] font-semibold text-text-1 tabular-nums shrink-0">{money(o.price)}</span>
         )}
         <TagPill label={t(`labStatus_${o.status}`)} colorClass={STATUS_CLASS[o.status] ?? ''} />
 

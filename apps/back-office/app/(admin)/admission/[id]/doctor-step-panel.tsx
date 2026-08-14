@@ -28,6 +28,8 @@ import type { PatientContext } from '@/lib/patient-context';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
+import { EmptyState } from '@/components/ui-phoenix';
 import type { CoverageDTO } from '@/lib/coverage';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
@@ -79,6 +81,9 @@ export function DoctorStepPanel({
   /** El Resumen pidió cobrar: salta al tab de Pagar y abre el modal de cobro al
    *  montarse. Se limpia al cambiar de tab a mano. */
   const [goToPayments, setGoToPayments] = React.useState(false);
+  /** Handle del tab de cobro — es la única forma de abrirle el modal desde
+   *  afuera, y duplicar la pantalla de cobro no es una opción. */
+  const finanzasRef = React.useRef<FinanzasTabHandle>(null);
   /** El editor tiene cambios sin guardar: no se recarga la nota por encima. */
   const noteDirty = React.useRef(false);
   const [note, setNote] = React.useState<VisitNoteData | null>(null);
@@ -147,6 +152,23 @@ export function DoctorStepPanel({
       (onSync ?? onRefresh)();
     },
   });
+
+  /**
+   * "Cobrar $X" del Resumen: cambia al tab de Pagar y el modal aparece solo, en
+   * vez de dejar al asistente buscando dónde se paga.
+   *
+   * El `setTimeout` espera a que el hijo se monte y publique su handle — el ref
+   * está vacío en el mismo tick en que cambia el tab. Y se apaga la bandera para
+   * que el modal no vuelva a abrirse cada vez que se pase por este tab.
+   */
+  React.useEffect(() => {
+    if (tab !== 'pay' || !goToPayments) return;
+    const id = setTimeout(() => {
+      finanzasRef.current?.reloadAndOpen();
+      setGoToPayments(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [tab, goToPayments]);
 
   /**
    * El orden sigue el flujo real de la visita (Erick, 2026-08-13):
@@ -278,6 +300,16 @@ export function DoctorStepPanel({
                 canSign={false}
                 onSaved={() => { void loadNote(); }}
                 onDirtyChange={(d) => { noteDirty.current = d; }}
+                /* EL TURNO. Mientras el doctor está adentro con el paciente, el
+                   asistente ve la nota en vivo pero no la escribe: los dos
+                   tecleando a la vez no es colaboración, es la lotería de quién
+                   guarda último. Cuando el doctor cierra la consulta el turno pasa
+                   solo — y si se fue sin cerrarla, "Tomar la nota" desbloquea y
+                   queda en la auditoría. El servidor aplica la misma regla. */
+                turno={{
+                  enConsulta: appointmentStatus === 'IN_PROGRESS' && !doctorDoneAt,
+                  doctorName: providerName,
+                }}
               />
             )}
 
@@ -323,27 +355,31 @@ export function DoctorStepPanel({
               />
             )}
 
-            {/* PAGAR — la plata de ESTA cita.
-                `billingTotal` viene recortado a esta cita y sin los CPT (esos los
-                paga el seguro o el abogado meses después).
+            {/* PAGAR — la plata de ESTA cita, leída de la FACTURACIÓN.
+                `filterAppointmentId` la recorta a esta visita: el saldo del caso
+                y su historial por fechas se ven en Pacientes (Erick, 2026-08-13).
 
-                NO va el historial de facturación del caso (Erick, 2026-08-13): en
-                la cita se ve solo lo que hay que pagar. El historial del paciente
-                se ve en Pacientes, que es donde está por fecha de cita — acá eran
-                cargos de otras fechas compitiendo con los de hoy. */}
+                Antes acá vivía el panel de servicios en modo cobro, y esa era la
+                lista equivocada: solo tiene CPT y efectivo, así que en una visita
+                con laboratorios el tab mostraba $200 de cargos debajo de un total
+                de $381.26. Los labs y las férulas no están en esa lista —cada uno
+                tiene su tab— pero SÍ están en la facturación, que es de donde
+                sale el monto que se cobra. Servicios sigue siendo donde se agrega
+                y se quita; acá solo se cobra lo que ya quedó definido. */}
             {tab === 'pay' && (
-              <AppointmentDetailPanel
-                inline
-                noBorder
-                hideAddCharge
-                initialTab="services"
-                appointment={servicesPanel}
-                coverage={coverage}
-                openPaymentsOnMount={goToPayments}
-                onClose={() => {}}
-                onRefresh={onRefresh}
-                billingTotal={billingTotal}
-              />
+              servicesPanel.case ? (
+                <FinanzasTab
+                  ref={finanzasRef}
+                  caseId={servicesPanel.case.id}
+                  filterAppointmentId={appointmentId}
+                  /* Cobrar cambia el saldo que también muestran la píldora de
+                     Servicios y el Resumen: sin este aviso seguían con el número
+                     de antes del pago. */
+                  onChanged={onRefresh}
+                />
+              ) : (
+                <EmptyState.Rich icon={CreditCard} title={t('payNoCaseTitle')} subtitle={t('payNoCaseHint')} />
+              )
             )}
           </>
         )}

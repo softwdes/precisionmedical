@@ -127,6 +127,10 @@ export default async function DoctorConsultationPage({
           snomedLabel: d.snomedLabel,
           diagnosisId: d.diagnosisId,
         })),
+        // La versión con la que abrió esta pantalla. Sin ella el editor guarda a
+        // ciegas y podría pisar lo que el asistente escribió mientras el doctor
+        // tenía la nota abierta (ver el PUT de visit-notes).
+        updatedAt: n.updatedAt.toISOString(),
       }
     : null;
 

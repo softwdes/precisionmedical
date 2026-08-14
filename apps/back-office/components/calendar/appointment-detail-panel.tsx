@@ -98,21 +98,11 @@ interface Props {
   initialTab?: Tab;
   inline?: boolean;
   noBorder?: boolean;
-  billingTotal?: number;
   /**
    * Portal médico: el doctor ordena servicios pero NO cobra — oculta el botón
    * "Pagar deuda" y su modal. El cobro lo hace el asistente en Day Admission.
    */
   hidePayments?: boolean;
-  /**
-   * Oculta "Agregar cargo" y deja el tab en modo COBRO.
-   *
-   * Es el inverso de `hidePayments`, y los dos juntos parten la pantalla en dos
-   * momentos de la visita (Erick, 2026-08-13): en Servicios se agrega y se quita,
-   * en Pagar solo se cobra lo que ya se definió. Sin esto, el tab de Pagar
-   * invitaba a seguir cargando cosas justo cuando el paciente está pagando.
-   */
-  hideAddCharge?: boolean;
   /**
    * Cobertura del caso. ORDENA qué catálogo abre primero el picker y se muestra
    * ahí como referencia; las dos listas se ven siempre. Sin valor arranca en
@@ -120,14 +110,6 @@ interface Props {
    * de menos.
    */
   coverage?: CoverageDTO;
-  /**
-   * Abre el modal de "Pago del caso" al montarse. Lo usa el botón de cobro del
-   * Resumen: cambia al tab de Servicios y el modal aparece solo, en vez de
-   * dejar al asistente buscando dónde se paga. El modal vive acá adentro, así
-   * que no se puede abrir desde afuera de otra forma — y duplicarlo sería tener
-   * dos pantallas de cobro.
-   */
-  openPaymentsOnMount?: boolean;
   /**
    * Abre el detalle del CASO (labs, servicios, férulas y cobro, todo junto).
    * El panel no sabe a qué URL va: la superficie que lo monta decide si es
@@ -222,7 +204,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET, openPaymentsOnMount = false, onOpenCase, suspended = false, hideAddCharge = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, hidePayments = false, coverage = COVERAGE_UNSET, onOpenCase, suspended = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -279,6 +261,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [svcLoaded,      setSvcLoaded]      = useState(false);
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
+  /** Por qué NO se pudo quitar un cargo. Hoy solo hay un motivo: ya se cobró. */
+  const [svcError,       setSvcError]       = useState<string | null>(null);
   const [confirmDeleteSvc, setConfirmDeleteSvc] = useState<string | null>(null);
   const [confirmVoidCash,  setConfirmVoidCash]  = useState<string | null>(null);
 
@@ -298,17 +282,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // Solo inline: en el modal del calendario los cargos ya no se editan acá,
   // se ven y se cobran en el detalle del caso.
   const servicesVisible = inline && activeTab === 'services';
-
-  // Apertura automática del modal de pago cuando se entra desde el Resumen.
-  // `finanzasRef` se puebla al montar el hijo, así que se espera un tick.
-  useEffect(() => {
-    if (!openPaymentsOnMount || hidePayments || !appt.case) return;
-    const id = setTimeout(() => finanzasRef.current?.reloadAndOpen(), 0);
-    return () => clearTimeout(id);
-    // Depende del ID del caso, NO del objeto: con el refresco en vivo el padre
-    // reconstruye `appt` cada 20 s y una dependencia por identidad reabría el
-    // modal de pago solo, en la cara del asistente.
-  }, [openPaymentsOnMount, hidePayments, appt.case?.id]);
 
   const loadCashCharges = useCallback(async () => {
     try {
@@ -340,51 +313,73 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes, loadCashCharges]);
 
   // ── Service helpers ───────────────────────────────────────────────────────
-  const patchServices = useCallback(async (list: PlannedService[]) => {
+
+  /**
+   * Traduce el rechazo de la API a una frase para el mostrador.
+   *
+   * Un cargo ya cobrado no se quita (ver lib/charge-payments.ts). Sin esto la
+   * pantalla se quedaba muda: el cargo volvía a aparecer solo, como si el clic
+   * no hubiera pasado, y nadie sabía por qué.
+   */
+  const explicarRechazo = useCallback(async (res: Response): Promise<string> => {
+    const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+    if (d.error === 'ALREADY_PAID') {
+      return tc('errAlreadyPaid', { amount: fmt$(Number(d.paid ?? 0)) });
+    }
+    return tc('errRemoveFailed');
+  }, [tc]);
+
+  const patchServices = useCallback(async (list: PlannedService[], previo: PlannedService[]) => {
     setSavingSvc(true);
     setSavedOk(false);
+    setSvcError(null);
     try {
       const res = await fetch(`/api/admin/appointments/${appt.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plannedServiceCodes: list }),
       });
-      if (res.ok) {
-        setSavedOk(true);
-        setTimeout(() => setSavedOk(false), 2000);
-        // Sync billing records (one per CPT service)
-        await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ caseId: appt.case?.id }),
-        }).catch(() => {});
-        // El Resumen (nodo 4) lee los CPT del payload del SERVER, no de este
-        // estado. Sin avisar al padre, el doctor agregaba un servicio y en la
-        // salida no aparecía hasta el próximo refresh.
-        onRefresh();
+      if (!res.ok) {
+        // La lista se había cambiado antes de saber la respuesta; se vuelve
+        // atrás, o la pantalla muestra un cargo quitado que sigue facturado.
+        setServices(previo);
+        setSvcError(await explicarRechazo(res));
+        return;
       }
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 2000);
+      // Sync billing records (one per CPT service)
+      await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: appt.case?.id }),
+      }).catch(() => {});
+      // El Resumen (nodo 4) lee los CPT del payload del SERVER, no de este
+      // estado. Sin avisar al padre, el doctor agregaba un servicio y en la
+      // salida no aparecía hasta el próximo refresh.
+      onRefresh();
     } finally {
       setSavingSvc(false);
     }
-  }, [appt.id, appt.case?.id, onRefresh]);
+  }, [appt.id, appt.case?.id, onRefresh, explicarRechazo]);
 
   const addService = useCallback((svc: PlannedService) => {
     if (services.find(s => s.id === svc.id)) return;
     const next = [...services, { id: svc.id, code: svc.code, description: svc.description, fee: svc.fee, category: svc.category }];
     setServices(next);
-    patchServices(next);
+    patchServices(next, services);
   }, [services, patchServices]);
 
   const removeService = useCallback((id: string) => {
     const next = services.filter(s => s.id !== id);
     setServices(next);
-    patchServices(next);
+    patchServices(next, services);
   }, [services, patchServices]);
 
   const updateServiceFee = useCallback((id: string, fee: number) => {
     const next = services.map(s => s.id === id ? { ...s, fee } : s);
     setServices(next);
-    patchServices(next);
+    patchServices(next, services);
   }, [services, patchServices]);
 
   /**
@@ -436,6 +431,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   /** Anular, no borrar: el cargo pasó y queda en la auditoría. */
   const voidCashCharge = useCallback(async (id: string) => {
     setSavingSvc(true);
+    setSvcError(null);
     try {
       const res = await fetch(`/api/admin/cash-services/item/${id}`, {
         method: 'PATCH',
@@ -445,11 +441,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       if (res.ok) {
         setCashCharges(prev => prev.filter(c => c.id !== id));
         onRefresh();
+      } else {
+        setSvcError(await explicarRechazo(res));
       }
     } finally {
       setSavingSvc(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, explicarRechazo]);
 
   // Dos totales, no uno. El "$107" de antes sumaba plata de la aseguradora con
   // plata del mostrador y el asistente tenía que separarla de cabeza.
@@ -517,18 +515,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               : chargeCount === 1 ? tc('chargeOnVisit') : tc('chargesOnVisit', { count: chargeCount })}
           </span>
           {/* Los dos totales viven ACÁ, siempre a la vista: al fondo de la tabla
-              obligaban a scrollear para saber cuánto cobrar en el mostrador. */}
+              obligaban a scrollear para saber qué se está cargando.
+
+              Cada pill suma SOLO las líneas de esta lista. Por eso el de efectivo
+              dice "Paga directo" y no "Cobra hoy": los laboratorios y las férulas
+              se piden en sus propios tabs y no aparecen acá, así que prometer un
+              "cobra hoy $200" cuando el paciente debe $381.26 escondía $181.26.
+              Lo que hay que cobrar se lee en el tab de Pagar, que lo saca de la
+              facturación —donde sí están las tres fuentes. */}
           {insuranceTotal > 0 && (
             <TagPill label={`${tc('totalToInsurance')} ${fmt$(insuranceTotal)}`} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
           )}
           {cashTotal > 0 && (
-            <TagPill label={`${tc('totalCashToday')} ${fmt$(cashTotal)}`} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-          )}
-          {/* Saldo pendiente del CASO (no de esta visita). Vivía como el número
-              grande del header; al pasar los totales de la visita a pills se
-              habría perdido, y es el dato que el asistente mira antes de cobrar. */}
-          {billingTotal !== undefined && billingTotal > 0 && (
-            <TagPill label={`${t('kpiTotalBalance')} ${fmt$(billingTotal)}`} colorClass="bg-amber/15 text-amber border-amber/30" />
+            <TagPill label={`${tc('totalCash')} ${fmt$(cashTotal)}`} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
           )}
           {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
           {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
@@ -552,13 +551,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           )}
           {/* Acción primaria del tab, sólida y arriba a la derecha — igual que
               "Dispense brace" en Férulas. */}
-          {!hideAddCharge && (
-            <Button onClick={() => setCatalogOpen(true)} className="h-9 gap-1.5">
-              <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
-            </Button>
-          )}
+          <Button onClick={() => setCatalogOpen(true)} className="h-9 gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
+          </Button>
         </div>
       </div>
+
+      {/* Por qué NO se pudo quitar el cargo. Va como aviso de color y no como un
+          texto más entre los totales: es la respuesta a un clic que acaba de
+          fallar, y el cargo sigue en la lista como si no hubiera pasado nada. */}
+      {svcError && (
+        <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span className="flex-1">{svcError}</span>
+          <button type="button" onClick={() => setSvcError(null)} className="shrink-0 hover:opacity-70" aria-label={t('actionClose')}>
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* UNA tarjeta con los cargos de la visita, salgan del catálogo que
           salgan, agrupados por quién paga. Antes cada fila llevaba su propio
@@ -572,10 +582,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         <EmptyState.Rich
           icon={Stethoscope}
           title={tc('emptyTitle')}
-          /* Sin el botón de agregar, "agregá servicios" es una instrucción que no
-             se puede seguir desde acá. En modo cobro se dice lo que corresponde:
-             no hay nada que cobrar. */
-          subtitle={hideAddCharge ? tc('emptyNothingToCollect') : tc('emptyHint')}
+          subtitle={tc('emptyHint')}
         />
       ) : (
         <div className="rounded-lg border border-border bg-bg-1">

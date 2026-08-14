@@ -24,6 +24,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkOrderAccess } from '@/lib/appointment-access';
 import { syncLabBilling } from '@/lib/lab-billing';
+import { montoYaPagado, respuestaYaPagado } from '@/lib/charge-payments';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -54,6 +55,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   if (body.status === 'VOIDED' && current.resultFileUrl) {
     return NextResponse.json({ error: 'HAS_RESULT' }, { status: 409 });
+  }
+
+  // Estudio ya cobrado: se anula el pago primero (lib/charge-payments.ts).
+  if (body.status === 'VOIDED') {
+    const pagado = await montoYaPagado({ labOrderId: id });
+    if (pagado > 0) return respuestaYaPagado(pagado);
   }
 
   const order = await db.labOrder.update({
@@ -105,6 +112,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   if (current.resultFileUrl) {
     return NextResponse.json({ error: 'HAS_RESULT' }, { status: 409 });
   }
+
+  // Y tampoco si ya se cobró. Borrar acá es más grave que anular: la fila del
+  // estudio desaparece, así que el cobro que quedaría vivo en facturación no
+  // tendría ni de dónde sacar el nombre de lo que se pagó.
+  const pagado = await montoYaPagado({ labOrderId: id });
+  if (pagado > 0) return respuestaYaPagado(pagado);
 
   // El audit log va ANTES del delete y con los datos completos: la fila
   // desaparece, así que este registro es la única traza de que existió.

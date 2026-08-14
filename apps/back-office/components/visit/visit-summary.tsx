@@ -318,11 +318,21 @@ export function VisitSummary({
   const insuranceTotal = services.reduce((s, c) => s + (Number(c.fee) || 0), 0);
   const cashTotal = cash.reduce((s, c) => s + Number(c.unitPrice) * c.quantity, 0);
   const bracesTotal = braces.reduce((s, r) => s + Number(r.unitPrice) * r.quantity, 0);
+  /**
+   * Los LABORATORIOS también los paga el paciente, y faltaban.
+   *
+   * Con dos labs de $50.76 y $130.50, el desglose decía "paga directo $200"
+   * tres centímetros arriba de un botón que decía "Cobrar $381.26": dos números
+   * que no cierran, en la pantalla que se lee antes de dejar salir al paciente.
+   * Un estudio sin precio en el catálogo no genera cobro y por eso no suma.
+   */
+  const labsPagados = labs.filter((l) => l.status !== 'VOIDED' && l.price != null);
+  const labsTotal = labsPagados.reduce((s, l) => s + Number(l.price), 0);
   // Composición de lo CARGADO en la visita, por quién paga. NO es lo que hay que
   // cobrar: los CPT también generan saldo (copago, o el total si el seguro no
   // paga). El monto a cobrar es `balanceDue`, que sale de la facturación.
-  const chargedDirect = cashTotal + bracesTotal;
-  const chargeCount = services.length + cash.length + braces.length;
+  const chargedDirect = cashTotal + bracesTotal + labsTotal;
+  const chargeCount = services.length + cash.length + braces.length + labsPagados.length;
   // Tiempo en clínica, con el reloj CERRADO.
   //
   // Antes era `elapsed(checkedInAt, doneAt ?? ahora)`: si nadie sellaba
@@ -886,11 +896,14 @@ export function VisitSummary({
               {chargedDirect > 0 && (
                 <span className="text-[11px] text-text-muted">
                   {tc('badgeCash')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{money(chargedDirect)}</b>
-                  {/* Las férulas se listan en su propia tarjeta pero suman acá:
-                      sin la nota, este total incluiría plata que no está
-                      itemizada en esta tarjeta. */}
+                  {/* Las férulas y los laboratorios se listan en su propia
+                      tarjeta pero suman acá: sin la nota, este total incluiría
+                      plata que no está itemizada en esta tarjeta. */}
                   {bracesTotal > 0 && (
                     <span className="text-text-muted"> · {t('sumIncludesBraces', { count: braces.length })}</span>
+                  )}
+                  {labsTotal > 0 && (
+                    <span className="text-text-muted"> · {t('sumIncludesLabs', { count: labsPagados.length })}</span>
                   )}
                 </span>
               )}

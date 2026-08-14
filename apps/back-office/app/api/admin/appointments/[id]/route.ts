@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
+import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
 
 export async function GET(
   _req: NextRequest,
@@ -82,6 +83,25 @@ export async function PATCH(
     const onlyServices = keys.length === 1 && keys[0] === 'plannedServiceCodes';
     if (!onlyServices) {
       return NextResponse.json({ error: 'IMMUTABLE', message: 'No se puede modificar una cita completada' }, { status: 422 });
+    }
+  }
+
+  /**
+   * Un CPT ya cobrado no se saca de la lista.
+   *
+   * Los CPT los paga el seguro, pero pueden tener plata del PACIENTE encima —un
+   * copago es exactamente eso—, y quitarlos de `plannedServiceCodes` dejaba el
+   * cobro huérfano: `sync-billing` no borra una fila con pagos, así que el
+   * código desaparecía del tab de Servicios y su monto seguía vivo en el de
+   * Pagar sin nada que lo explicara. Misma regla que férulas, labs y efectivo
+   * (ver lib/charge-payments.ts): primero se anula el pago.
+   */
+  if (parsed.plannedServiceCodes !== undefined) {
+    const pagados = await pagadoPorCodigoCpt(id);
+    if (pagados.size > 0) {
+      const quedan = new Set(parsed.plannedServiceCodes.map((s) => s.code));
+      const quitado = [...pagados.entries()].find(([code]) => !quedan.has(code));
+      if (quitado) return respuestaYaPagado(quitado[1]);
     }
   }
 

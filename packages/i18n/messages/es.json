@@ -2003,7 +2003,19 @@
       "sumIncludesLabs": "incluye {count} laboratorio(s)",
       "rxPharmacies": "Farmacias",
       "rxReportsTab": "Reportes",
-      "rxSettingsTab": "Configuración"
+      "rxSettingsTab": "Configuración",
+      "noteTurnDoctor": "{name} está en la consulta — la nota es suya",
+      "noteTurnHint": "La ves en vivo mientras escribe. Cuando cierre la consulta vas a poder editarla.",
+      "noteTheDoctor": "El doctor",
+      "noteTakeOver": "Tomar la nota",
+      "noteTakenOverHint": "Tomaste la nota con la consulta abierta. Queda registrado quién escribió.",
+      "noteInConsultBlocked": "No se guardó: {name} está en la consulta y la nota es suya. Tu texto sigue acá — «Tomar la nota» lo guarda.",
+      "noteConflictTitle": "Otra persona guardó cambios en: {sections}",
+      "noteConflictHint": "Tu texto NO se perdió: sigue en pantalla, sin guardar. Elegí con qué versión sigue la nota.",
+      "noteConflictKeepMine": "Conservar lo mío",
+      "noteConflictTakeTheirs": "Traer lo guardado",
+      "noteConflictShowSaved": "Ver lo que guardó",
+      "noteConflictHideSaved": "Ocultar"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

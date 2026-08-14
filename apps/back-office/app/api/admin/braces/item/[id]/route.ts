@@ -4,6 +4,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { syncBraceBilling } from '@/lib/brace-billing';
+import { montoYaPagado, respuestaYaPagado } from '@/lib/charge-payments';
 
 /**
  * PATCH /api/admin/braces/item/[id]
@@ -55,6 +56,18 @@ export async function PATCH(
   }
 
   const leavingDispensed = body.status && body.status !== 'DISPENSED';
+
+  /**
+   * Una férula PAGADA no se anula ni se marca devuelta por esta puerta.
+   *
+   * La devolución con plata de por medio es un reembolso: se anula el pago —
+   * queda con su fecha y su motivo en la auditoría— y recién ahí la férula sale
+   * de entregada. Al revés, el paciente queda sin férula y con el cobro puesto.
+   */
+  if (leavingDispensed) {
+    const pagado = await montoYaPagado({ braceId: id });
+    if (pagado > 0) return respuestaYaPagado(pagado);
+  }
 
   const updated = await db.appointmentBrace.update({
     where: { id },

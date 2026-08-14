@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
+  Stethoscope, Unlock,
 } from 'lucide-react';
 import { RichTextEditor, TagPill } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -49,6 +50,13 @@ export interface VisitNoteData {
   assessment: string | null;
   plan: string | null;
   diagnoses: NoteDx[];
+  /**
+   * Versión de la nota. Viaja en cada guardado para que el servidor pueda
+   * rechazar el PUT si alguien guardó en el medio (ver la ruta del PUT).
+   * Opcional: si la pantalla que monta el editor no la trae, el control de
+   * versión simplemente no actúa — no rompe nada.
+   */
+  updatedAt?: string | null;
 }
 
 interface Props {
@@ -79,6 +87,19 @@ interface Props {
    * texto a mitad de una frase.
    */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * EL TURNO de la nota, cuando quien mira no es el doctor de la cita.
+   *
+   * `enConsulta` = el doctor está adentro con el paciente y todavía no cerró la
+   * consulta: la nota es suya y acá se ve en solo lectura, en vivo. Cuando la
+   * cierra, el turno pasa solo — que es el flujo real (el doctor la llena, sale,
+   * y el asistente la termina en el checkout).
+   *
+   * Sin este prop el editor se comporta como siempre (portal del médico): es el
+   * doctor, es su turno. El servidor aplica la misma regla por su cuenta, así que
+   * esto es la CARA de la regla, no la regla.
+   */
+  turno?: { enConsulta: boolean; doctorName: string | null };
 }
 
 /** Campo de la nota ↔ sectionKey de la plantilla */
@@ -125,7 +146,7 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function VisitNoteEditor({
-  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange,
+  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange, turno,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -158,6 +179,82 @@ export function VisitNoteEditor({
   const latest = React.useRef({ content, dx, templateId });
   React.useEffect(() => { latest.current = { content, dx, templateId }; }, [content, dx, templateId]);
 
+  // ── Guardado parcial y control de versión ─────────────────────────────────
+  //
+  // Antes cada autoguardado mandaba la nota ENTERA: las 6 secciones y los
+  // diagnósticos. Con dos personas en la misma nota eso es una bomba — el que
+  // guardaba último pisaba todo lo del otro sin que nadie se enterara. Ahora
+  // viaja solo lo que esta persona tocó, así que el doctor escribiendo el examen
+  // físico y el asistente transcribiendo la queja principal ya no se cruzan.
+
+  /** La versión que tiene esta pantalla. El servidor la compara con la de la base. */
+  const version = React.useRef<string | null>(note?.updatedAt ?? null);
+  /** Qué secciones tocó ESTA persona desde el último guardado. */
+  const tocadas = React.useRef<Set<SectionField>>(new Set());
+  const dxTocado = React.useRef(false);
+  const tplTocado = React.useRef(false);
+  /** "Tomé la nota" con la consulta abierta — en ref porque `flush()` no ve el estado. */
+  const tomada = React.useRef(false);
+  const [tomadaUi, setTomadaUi] = React.useState(false);
+
+  /**
+   * Conflicto pendiente: otra persona guardó las MISMAS secciones que esta está
+   * escribiendo. No se resuelve solo — decide una persona, mirando los dos textos.
+   */
+  const [conflicto, setConflicto] = React.useState<{
+    servidor: VisitNoteData;
+    secciones: SectionField[];
+  } | null>(null);
+  /** Muestra el texto guardado por el otro, para poder copiar lo que falte. */
+  const [verGuardado, setVerGuardado] = React.useState(false);
+
+  /** Solo lo tocado + la versión. Es el cuerpo de todos los guardados. */
+  const cuerpo = React.useCallback((): Record<string, unknown> => {
+    const body: Record<string, unknown> = {};
+    for (const f of tocadas.current) body[f] = latest.current.content[f];
+    if (tplTocado.current) body.templateId = latest.current.templateId;
+    if (dxTocado.current)  body.diagnoses  = latest.current.dx;
+    if (version.current)   body.baseUpdatedAt = version.current;
+    if (tomada.current)    body.takeover = true;
+    return body;
+  }, []);
+
+  /** El turno: solo lectura mientras el doctor está en la consulta. */
+  const sinTurno = !!turno?.enConsulta && !tomadaUi;
+  const soloLectura = isSigned || sinTurno;
+
+  /**
+   * En SOLO LECTURA la nota sí se actualiza con lo que trae el refresco en vivo.
+   *
+   * El editor ignora a propósito los cambios del prop mientras se escribe —si no,
+   * el pulso le borraría el texto a quien está tecleando— pero cuando no es tu
+   * turno no hay nada propio que perder, y ahí sí hace falta: el cartel promete
+   * "la ves en vivo mientras el doctor escribe" y sin esto el texto se quedaba
+   * congelado en la foto del momento en que se abrió el tab.
+   */
+  React.useEffect(() => {
+    if (!soloLectura || dirty || !note) return;
+    const igual = SECTIONS.every(({ field }) => (note[field] ?? '') === latest.current.content[field])
+      && JSON.stringify(note.diagnoses ?? []) === JSON.stringify(latest.current.dx);
+    if (igual) return;
+    setContent({
+      chiefComplaint: note.chiefComplaint ?? '',
+      hpi:            note.hpi ?? '',
+      ros:            note.ros ?? '',
+      physicalExam:   note.physicalExam ?? '',
+      assessment:     note.assessment ?? '',
+      plan:           note.plan ?? '',
+    });
+    setDx(note.diagnoses ?? []);
+    setTemplateId(note.templateId ?? null);
+    if (note.updatedAt) version.current = note.updatedAt;
+  }, [note, soloLectura, dirty]);
+
+  const tomarLaNota = (): void => {
+    tomada.current = true;
+    setTomadaUi(true);
+  };
+
   /**
    * Guardado de salida: dispara el PUT sin tocar estado de React.
    *
@@ -167,40 +264,55 @@ export function VisitNoteEditor({
    * navegación.
    */
   const flush = React.useCallback((): void => {
-    if (isSigned) return;
+    if (isSigned || !tocadas.current.size && !dxTocado.current && !tplTocado.current) return;
     void fetch(`/api/admin/visit-notes/${appointmentId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       keepalive: true,
-      body: JSON.stringify({
-        templateId: latest.current.templateId,
-        ...latest.current.content,
-        diagnoses: latest.current.dx,
-      }),
+      body: JSON.stringify(cuerpo()),
     }).catch(() => undefined);
-  }, [appointmentId, isSigned]);
+  }, [appointmentId, isSigned, cuerpo]);
 
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isSigned) return false;
     setSaving(true);
     setError('');
+    // Lo que se manda en ESTE guardado. Se recuerda porque mientras el request
+    // viaja la persona sigue escribiendo: al volver solo se puede dar por
+    // guardado lo que no cambió desde acá.
+    const enviado = { ...latest.current.content };
+    const enviadas = new Set(tocadas.current);
+    const dxEnviado = dxTocado.current ? JSON.stringify(latest.current.dx) : null;
+    const tplEnviado = tplTocado.current ? latest.current.templateId : undefined;
     try {
       const res = await fetch(`/api/admin/visit-notes/${appointmentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: latest.current.templateId,
-          ...latest.current.content,
-          diagnoses: latest.current.dx,
-        }),
+        body: JSON.stringify(cuerpo()),
       });
       if (!res.ok) {
-        const d = await res.json() as { error?: string };
-        setError(d.error === 'NOTE_ALREADY_SIGNED' ? t('noteAlreadySigned') : t('noteSaveError'));
+        const d = await res.json() as { error?: string; note?: VisitNoteData; doctorName?: string };
         setSaving(false);
+        if (d.error === 'STALE_NOTE' && d.note) { resolverVersionNueva(d.note, enviadas); return false; }
+        if (d.error === 'NOTE_IN_CONSULT') {
+          // El doctor entró a la consulta mientras esta persona escribía. El
+          // texto NO se perdió: sigue en pantalla, y "Tomar la nota" lo guarda.
+          setError(t('noteInConsultBlocked', { name: d.doctorName ?? t('noteTheDoctor') }));
+          return false;
+        }
+        setError(d.error === 'NOTE_ALREADY_SIGNED' ? t('noteAlreadySigned') : t('noteSaveError'));
         return false;
       }
-      setDirty(false);
+      const d = await res.json() as { note?: VisitNoteData };
+      if (d.note?.updatedAt) version.current = d.note.updatedAt;
+      // Se da por guardado SOLO lo que no volvió a cambiar mientras viajaba.
+      for (const f of enviadas) {
+        if (latest.current.content[f] === enviado[f]) tocadas.current.delete(f);
+      }
+      if (dxEnviado !== null && JSON.stringify(latest.current.dx) === dxEnviado) dxTocado.current = false;
+      if (tplEnviado !== undefined && latest.current.templateId === tplEnviado) tplTocado.current = false;
+      const pendiente = tocadas.current.size > 0 || dxTocado.current || tplTocado.current;
+      setDirty(pendiente);
       setSavedAt(new Date());
       setSaving(false);
       onSaved?.();
@@ -210,15 +322,79 @@ export function VisitNoteEditor({
       setSaving(false);
       return false;
     }
-  }, [appointmentId, isSigned, t, onSaved]);
+    // `resolverVersionNueva` se define abajo y no cambia de identidad de forma
+    // relevante para este callback (usa refs y setState).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointmentId, isSigned, t, onSaved, cuerpo]);
+
+  /**
+   * Alguien guardó antes que nosotros. Qué se hace con cada sección:
+   *
+   *  · las que ESTA persona no tocó → se adoptan las del otro. No hay nada que
+   *    perder y es lo que hace que la pantalla muestre lo último de verdad.
+   *  · las que sí tocó y el otro también → conflicto. No se elige por nosotros:
+   *    se muestran los dos textos y decide quien está escribiendo.
+   *
+   * Si no quedó ningún conflicto, se reintenta el guardado una sola vez con la
+   * versión nueva — el caso normal cuando dos personas trabajan en secciones
+   * distintas, y ahí no tiene sentido molestar a nadie.
+   */
+  function resolverVersionNueva(servidor: VisitNoteData, enviadas: Set<SectionField>): void {
+    const choques: SectionField[] = [];
+    const proximo = { ...latest.current.content };
+    for (const { field } of SECTIONS) {
+      const suyo = servidor[field] ?? '';
+      if (tocadas.current.has(field) || enviadas.has(field)) {
+        if (suyo !== (latest.current.content[field] ?? '')) choques.push(field);
+      } else if (suyo !== proximo[field]) {
+        proximo[field] = suyo;
+      }
+    }
+    setContent(proximo);
+    if (!dxTocado.current) setDx(servidor.diagnoses ?? []);
+    if (servidor.updatedAt) version.current = servidor.updatedAt;
+
+    if (choques.length === 0) {
+      // Reintento único: la versión ya es la de la base, así que este PUT no
+      // puede volver a chocar por lo mismo.
+      void save();
+      return;
+    }
+    setConflicto({ servidor, secciones: choques });
+  }
+
+  /** "Conservar lo mío": se guarda encima, ya con la versión nueva en mano. */
+  const conservarLoMio = (): void => {
+    setConflicto(null);
+    setVerGuardado(false);
+    void save();
+  };
+
+  /** "Traer lo guardado": se descarta lo propio en las secciones en conflicto. */
+  const traerLoGuardado = (): void => {
+    if (!conflicto) return;
+    const proximo = { ...latest.current.content };
+    for (const f of conflicto.secciones) {
+      proximo[f] = conflicto.servidor[f] ?? '';
+      tocadas.current.delete(f);
+    }
+    setContent(proximo);
+    setDx(conflicto.servidor.diagnoses ?? []);
+    dxTocado.current = false;
+    setDirty(tocadas.current.size > 0 || tplTocado.current);
+    setConflicto(null);
+    setVerGuardado(false);
+  };
 
   // Autoguardado con debounce: cada tecla reinicia el reloj (las deps incluyen
   // `content`/`dx`/`templateId`, no solo `dirty`).
   React.useEffect(() => {
-    if (isSigned || !dirty) return;
+    // Con un conflicto sin resolver el autoguardado se detiene: reintentar solo
+    // sería martillar el mismo 409 y tapar el aviso que la persona tiene que leer.
+    if (isSigned || sinTurno || conflicto || !dirty) return;
     const id = setTimeout(() => { void save(); }, AUTOSAVE_MS);
     return () => clearTimeout(id);
-  }, [dirty, isSigned, save, content, dx, templateId]);
+  }, [dirty, isSigned, sinTurno, conflicto, save, content, dx, templateId]);
 
   // Salidas: cambio de tab (desmontaje) y pestaña que se oculta. Las dos perdían
   // el texto porque el temporizador del autoguardado se cancelaba sin guardar.
@@ -243,6 +419,9 @@ export function VisitNoteEditor({
 
   const setSection = (field: SectionField, html: string): void => {
     setContent((c) => ({ ...c, [field]: html }));
+    // Anotar QUÉ sección se tocó es lo que permite mandar solo eso: sin esto el
+    // guardado sigue siendo la nota entera y volvemos a pisar al otro.
+    tocadas.current.add(field);
     setDirty(true);
   };
 
@@ -258,7 +437,7 @@ export function VisitNoteEditor({
     const next = { ...content };
     for (const { field, key } of SECTIONS) {
       const html = tpl.sections.find((s) => s.sectionKey === key)?.content ?? '';
-      if (html) next[field] = html;
+      if (html) { next[field] = html; tocadas.current.add(field); }
     }
     setContent(next);
     const dxSection = tpl.sections.find((s) => s.sectionKey === 'DIAGNOSTICOS')?.content ?? '';
@@ -268,8 +447,10 @@ export function VisitNoteEditor({
         const seen = new Set(cur.map((d) => d.icd10Code));
         return [...cur, ...tplDx.filter((d) => d.icd10Code && !seen.has(d.icd10Code))];
       });
+      dxTocado.current = true;
     }
     setTemplateId(tpl.id);
+    tplTocado.current = true;
     setDirty(true);
   };
 
@@ -284,6 +465,7 @@ export function VisitNoteEditor({
         diagnosisId: row.id,
       }];
     });
+    dxTocado.current = true;
     setDirty(true);
   };
 
@@ -344,7 +526,7 @@ export function VisitNoteEditor({
           {/* Va PRIMERO y fuera del `isSigned`: consultar la ficha del paciente
               no depende de si la nota está abierta o ya firmada. */}
           {patientId && <MedicalHistoryButton patientId={patientId} />}
-          {!isSigned && (
+          {!soloLectura && (
             <>
               {/* `ghost`, no un borde violeta a mano: un borde de color se lee
                   como aviso, y en el sistema el borde queda solo donde ES el
@@ -389,6 +571,76 @@ export function VisitNoteEditor({
         </div>
       )}
 
+      {/* EL TURNO. La nota es del doctor mientras atiende; acá se ve en vivo y en
+          solo lectura. No es un candado de conexión: se libera solo cuando el
+          doctor cierra la consulta. Y si se fue sin cerrarla, "Tomar la nota"
+          desbloquea — el paciente está esperando en el mostrador y una nota
+          trabada no es una opción. Queda en la auditoría. */}
+      {sinTurno && (
+        <div className="rounded-md border border-violet/30 bg-violet/10 px-3 py-2.5 flex items-start gap-2 flex-wrap">
+          <Stethoscope className="w-3.5 h-3.5 text-violet-text shrink-0 mt-px" />
+          <div className="flex-1 min-w-[200px]">
+            <div className="text-[12px] text-violet-text font-semibold">
+              {t('noteTurnDoctor', { name: turno?.doctorName ?? t('noteTheDoctor') })}
+            </div>
+            <div className="text-[11px] text-text-muted mt-0.5">{t('noteTurnHint')}</div>
+          </div>
+          <Button variant="outline" onClick={tomarLaNota} className="h-8 gap-1.5 shrink-0">
+            <Unlock className="w-3.5 h-3.5" /> {t('noteTakeOver')}
+          </Button>
+        </div>
+      )}
+
+      {tomadaUi && turno?.enConsulta && (
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {t('noteTakenOverHint')}
+        </div>
+      )}
+
+      {/* CONFLICTO: el otro guardó las mismas secciones. Nada se descarta solo —
+          los dos textos se ven y decide la persona. */}
+      {conflicto && (
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-px" />
+            <div className="flex-1">
+              <div className="text-[12px] text-amber font-semibold">
+                {t('noteConflictTitle', {
+                  sections: conflicto.secciones.map((f) => t(`sec_${SECTIONS.find((s) => s.field === f)!.key}`)).join(' · '),
+                })}
+              </div>
+              <div className="text-[11px] text-text-muted mt-0.5">{t('noteConflictHint')}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={conservarLoMio} className="h-8">{t('noteConflictKeepMine')}</Button>
+            <Button variant="outline" onClick={traerLoGuardado} className="h-8">{t('noteConflictTakeTheirs')}</Button>
+            <button
+              type="button"
+              onClick={() => setVerGuardado((v) => !v)}
+              className="text-[11px] font-semibold text-violet-text hover:underline"
+            >
+              {verGuardado ? t('noteConflictHideSaved') : t('noteConflictShowSaved')}
+            </button>
+          </div>
+          {verGuardado && (
+            <div className="space-y-2 pt-1">
+              {conflicto.secciones.map((f) => (
+                <div key={f}>
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
+                    {t(`sec_${SECTIONS.find((s) => s.field === f)!.key}`)}
+                  </div>
+                  <div
+                    className="rte-content rounded-md bg-bg-2/60 px-3 py-2 text-[12.5px] text-text-1"
+                    dangerouslySetInnerHTML={{ __html: conflicto.servidor[f] || '—' }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5" /> {error}
@@ -402,7 +654,7 @@ export function VisitNoteEditor({
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
               {t(`sec_${key}`)}
             </span>
-            {!isSigned && (
+            {!soloLectura && (
               <button
                 type="button"
                 onClick={() => setTplTarget(key)}
@@ -412,7 +664,7 @@ export function VisitNoteEditor({
               </button>
             )}
           </div>
-          {isSigned ? (
+          {soloLectura ? (
             <div
               className="rte-content rounded-md border border-border bg-bg-2/40 px-3 py-2.5 text-[13px] text-text-1 min-h-[80px]"
               dangerouslySetInnerHTML={{ __html: content[field] || `<p class="text-text-muted">—</p>` }}
@@ -439,7 +691,7 @@ export function VisitNoteEditor({
               <div className="text-[13px] font-semibold text-text-1">{t('dxAdded', { count: dx.length })}</div>
               <div className="text-[11px] text-text-muted">{t('dxHint')}</div>
             </div>
-            {!isSigned && (
+            {!soloLectura && (
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
@@ -466,12 +718,12 @@ export function VisitNoteEditor({
                 <tr className="text-left text-[10px] uppercase tracking-wider text-text-muted">
                   <th className="px-3 py-2">ICD-10</th>
                   <th className="px-3 py-2">SNOMED</th>
-                  {!isSigned && <th className="px-3 py-2 w-10" />}
+                  {!soloLectura && <th className="px-3 py-2 w-10" />}
                 </tr>
               </thead>
               <tbody>
                 {dx.length === 0 ? (
-                  <tr><td colSpan={isSigned ? 2 : 3} className="px-3 py-6 text-center text-text-muted">{t('dxEmpty')}</td></tr>
+                  <tr><td colSpan={soloLectura ? 2 : 3} className="px-3 py-6 text-center text-text-muted">{t('dxEmpty')}</td></tr>
                 ) : dx.map((d, i) => (
                   <tr key={`${d.icd10Code ?? d.snomedCode}-${i}`} className="border-t border-row-sep">
                     <td className="px-3 py-2">
@@ -490,11 +742,11 @@ export function VisitNoteEditor({
                         </>
                       ) : <span className="text-text-muted">—</span>}
                     </td>
-                    {!isSigned && (
+                    {!soloLectura && (
                       <td className="px-3 py-2 text-right">
                         <button
                           type="button"
-                          onClick={() => { setDx((l) => l.filter((_, idx) => idx !== i)); setDirty(true); }}
+                          onClick={() => { setDx((l) => l.filter((_, idx) => idx !== i)); dxTocado.current = true; setDirty(true); }}
                           className="text-text-muted hover:text-rose transition-colors"
                           aria-label={t('dxRemove')}
                         >

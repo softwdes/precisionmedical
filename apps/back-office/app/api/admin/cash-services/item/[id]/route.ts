@@ -4,6 +4,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { syncCashServiceBilling } from '@/lib/cash-service-billing';
+import { montoYaPagado, respuestaYaPagado } from '@/lib/charge-payments';
 
 /**
  * PATCH /api/admin/cash-services/item/[id]
@@ -50,6 +51,12 @@ export async function PATCH(
   }
 
   const voiding = body.status === 'VOIDED';
+
+  // Cobrado no se anula: primero se anula el pago (ver lib/charge-payments.ts).
+  if (voiding) {
+    const pagado = await montoYaPagado({ cashServiceId: id });
+    if (pagado > 0) return respuestaYaPagado(pagado);
+  }
 
   const updated = await db.appointmentService.update({
     where: { id },

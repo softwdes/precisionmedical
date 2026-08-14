@@ -2003,7 +2003,19 @@
       "sumIncludesLabs": "includes {count} lab(s)",
       "rxPharmacies": "Pharmacies",
       "rxReportsTab": "Reports",
-      "rxSettingsTab": "Settings"
+      "rxSettingsTab": "Settings",
+      "noteTurnDoctor": "{name} is in the consult — the note is theirs",
+      "noteTurnHint": "You see it live as they write. You can edit once they close the consult.",
+      "noteTheDoctor": "The doctor",
+      "noteTakeOver": "Take over the note",
+      "noteTakenOverHint": "You took over the note while the consult is open. Who wrote it is recorded.",
+      "noteInConsultBlocked": "Not saved: {name} is in the consult and the note is theirs. Your text is still here — \"Take over the note\" saves it.",
+      "noteConflictTitle": "Someone else saved changes to: {sections}",
+      "noteConflictHint": "Your text was NOT lost: it is still on screen, unsaved. Choose which version the note keeps.",
+      "noteConflictKeepMine": "Keep mine",
+      "noteConflictTakeTheirs": "Take the saved one",
+      "noteConflictShowSaved": "See what they saved",
+      "noteConflictHideSaved": "Hide"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

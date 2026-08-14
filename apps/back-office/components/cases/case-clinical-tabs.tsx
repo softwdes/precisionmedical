@@ -24,7 +24,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import {
   Pill, FlaskConical, Scan, HeartPulse, FileText, Printer, Loader2, Upload,
   AlertTriangle, MapPin, RotateCcw, Building2, Home,
-  Bandage, Briefcase, Plus, Trash2, ArrowRight, Ban,
+  Bandage, Briefcase, Plus, Trash2, ArrowRight, Ban, X,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
@@ -293,6 +293,8 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
 }): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
+  /** Los avisos de cargos son los MISMOS en todas las pantallas que cobran. */
+  const tc = useTranslations('phoenix.charges');
   const locale = useLocale();
   const { visits, latestAppointmentId, loading, error, reload } = clinical;
 
@@ -323,8 +325,13 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'VOIDED' }),
       });
-      if (!res.ok) setLabError(td('labErrVoid'));
-      else await reload();
+      if (!res.ok) {
+        // Estudio ya cobrado: no se anula hasta que se anule el pago.
+        const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+        setLabError(d.error === 'ALREADY_PAID'
+          ? tc('errAlreadyPaid', { amount: money(Number(d.paid ?? 0)) })
+          : td('labErrVoid'));
+      } else await reload();
     } finally {
       setBusyLabId(null);
       setVoidTarget(null);
@@ -830,6 +837,20 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
   const [saving, setSaving] = React.useState(false);
   const [confirmCpt, setConfirmCpt] = React.useState<{ apptId: string; id: string } | null>(null);
   const [confirmCash, setConfirmCash] = React.useState<string | null>(null);
+  /** Por qué NO se pudo quitar un cargo. Hoy el único motivo es que ya se cobró. */
+  const [avisoCargo, setAvisoCargo] = React.useState<string | null>(null);
+
+  /**
+   * El rechazo de la API, dicho en el mostrador. Sin esto el clic en el tacho
+   * no hacía nada y no había forma de saber que el cargo estaba protegido
+   * porque ya se había cobrado (ver lib/charge-payments.ts).
+   */
+  const explicarRechazo = async (res: Response): Promise<string> => {
+    const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+    return d.error === 'ALREADY_PAID'
+      ? tc('errAlreadyPaid', { amount: money(Number(d.paid ?? 0)) })
+      : tc('errRemoveFailed');
+  };
 
   const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
   const pickerVisit = visits.find((v) => v.appointmentId === pickerApptId) ?? null;
@@ -838,13 +859,14 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
    *  quitar es reescribirlo entero. */
   const patchCpt = async (apptId: string, list: Visit['services']): Promise<void> => {
     setSaving(true);
+    setAvisoCargo(null);
     try {
       const res = await fetch(`/api/admin/appointments/${apptId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plannedServiceCodes: list }),
       });
-      if (!res.ok) return;
+      if (!res.ok) { setAvisoCargo(await explicarRechazo(res)); return; }
       // Cada CPT genera su fila de facturación — sin esto el saldo queda viejo
       await fetch(`/api/admin/appointments/${apptId}/sync-billing`, {
         method: 'POST',
@@ -894,6 +916,7 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
   /** Anular, no borrar: el cargo en efectivo ya pudo haberse cobrado. */
   const voidCash = async (id: string): Promise<void> => {
     setSaving(true);
+    setAvisoCargo(null);
     try {
       const res = await fetch(`/api/admin/cash-services/item/${id}`, {
         method: 'PATCH',
@@ -901,6 +924,7 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
         body: JSON.stringify({ status: 'VOIDED' }),
       });
       if (res.ok) await reload();
+      else setAvisoCargo(await explicarRechazo(res));
     } finally {
       setSaving(false);
     }
@@ -922,6 +946,17 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
           <Button onClick={() => setPickerApptId(latestVisit.appointmentId)} className="h-9 gap-1.5">
             <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
           </Button>
+        </div>
+      )}
+
+      {/* El motivo por el que el cargo sigue ahí después de mandarlo a quitar. */}
+      {avisoCargo && (
+        <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span className="flex-1">{avisoCargo}</span>
+          <button type="button" onClick={() => setAvisoCargo(null)} className="shrink-0 hover:opacity-70">
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
 
@@ -1072,7 +1107,11 @@ function ferulasDeLaVisita(v: Visit | null): ReadonlyMap<string, number> {
 export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
+  /** Los avisos de cargos son los MISMOS en todas las pantallas que cobran. */
+  const tc = useTranslations('phoenix.charges');
   const { visits, latestAppointmentId, loading, error, reload } = clinical;
+  /** Por qué la férula sigue en la lista después de mandarla a quitar. */
+  const [avisoCargo, setAvisoCargo] = React.useState<string | null>(null);
 
   // Igual que Servicios: se entrega y se quita EN LA LISTA. El diálogo
   // intermedio metía adentro el BracesTab entero de la consulta, así que la
@@ -1121,6 +1160,7 @@ export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): 
    */
   const quitar = async (id: string): Promise<void> => {
     setSaving(true);
+    setAvisoCargo(null);
     try {
       const res = await fetch(`/api/admin/braces/item/${id}`, {
         method: 'PATCH',
@@ -1128,6 +1168,14 @@ export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): 
         body: JSON.stringify({ status: 'VOIDED' }),
       });
       if (res.ok) await reload();
+      else {
+        // Férula ya cobrada: primero se anula el pago, si no el paciente queda
+        // sin férula y con el cobro puesto (ver lib/charge-payments.ts).
+        const d = await res.json().catch(() => ({} as { error?: string; paid?: number }));
+        setAvisoCargo(d.error === 'ALREADY_PAID'
+          ? tc('errAlreadyPaid', { amount: money(Number(d.paid ?? 0)) })
+          : tc('errRemoveFailed'));
+      }
     } finally {
       setSaving(false);
     }
@@ -1146,6 +1194,16 @@ export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): 
           <Button onClick={() => setPickerApptId(latestVisit.appointmentId)} className="h-9 gap-1.5">
             <Plus className="w-3.5 h-3.5" /> {td('braceAdd')}
           </Button>
+        </div>
+      )}
+
+      {avisoCargo && (
+        <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span className="flex-1">{avisoCargo}</span>
+          <button type="button" onClick={() => setAvisoCargo(null)} className="shrink-0 hover:opacity-70">
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
 

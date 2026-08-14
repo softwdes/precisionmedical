@@ -64,7 +64,7 @@ export default function LoginPage(): React.ReactElement {
   const [error, setError] = useState(() => {
     if (typeof window==='undefined') return '';
     return new URLSearchParams(window.location.search).get('expired')==='true'
-      ? 'Tu sesión expiró por seguridad. Inicia sesión de nuevo.' : '';
+      ? 'Your session expired for security reasons. Please sign in again.' : '';
   });
   const [tokenHandling] = useState<boolean>(() => {
     if (typeof window==='undefined') return false;
@@ -111,7 +111,7 @@ export default function LoginPage(): React.ReactElement {
           <defs><linearGradient id="g" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse"><stop stopColor="#6366F1"/><stop offset="1" stopColor="#06B6D4"/></linearGradient></defs>
         </svg>
       </div>
-      <p style={{color:'#4A5474',fontSize:13,letterSpacing:'0.04em'}}>Activando cuenta...</p>
+      <p style={{color:'#4A5474',fontSize:13,letterSpacing:'0.04em'}}>Activating account...</p>
     </div>
   );
 

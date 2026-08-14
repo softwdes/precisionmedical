@@ -26,7 +26,7 @@ export default function InvitePage(): React.ReactElement {
         if (session) {
           router.replace('/reset-password');
         } else {
-          setErrorMsg('No se encontraron credenciales de activación. El enlace puede haber expirado.');
+          setErrorMsg('No activation credentials found. The link may have expired.');
           setStatus('error');
         }
       });
@@ -37,7 +37,7 @@ export default function InvitePage(): React.ReactElement {
     supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
       .then(({ data, error }) => {
         if (error || !data.session) {
-          setErrorMsg('El enlace de activación ha expirado o no es válido. Pide al administrador que cree el usuario nuevamente.');
+          setErrorMsg('This activation link has expired or is not valid. Ask your administrator to create the user again.');
           setStatus('error');
           return;
         }
@@ -45,7 +45,7 @@ export default function InvitePage(): React.ReactElement {
         router.replace('/reset-password');
       })
       .catch(() => {
-        setErrorMsg('Ocurrió un error al procesar la invitación.');
+        setErrorMsg('Something went wrong while processing your invitation.');
         setStatus('error');
       });
   }, [router]);
@@ -97,7 +97,7 @@ export default function InvitePage(): React.ReactElement {
               </div>
             </div>
             <p style={{ color: '#F5F7FB', fontWeight: 800, fontSize: 20, letterSpacing: '-0.5px', margin: '0 0 3px' }}>
-              {status === 'error' ? 'Enlace inválido' : 'Activando cuenta'}
+              {status === 'error' ? 'Invalid link' : 'Activating account'}
             </p>
             <p style={{ color: '#4A5474', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
               Precision Medical · Utah, USA
@@ -132,10 +132,10 @@ export default function InvitePage(): React.ReactElement {
                   </div>
                 </div>
                 <p style={{ color: '#F5F7FB', fontWeight: 600, fontSize: 14, margin: '0 0 6px' }}>
-                  Verificando tu invitación...
+                  Verifying your invitation...
                 </p>
                 <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-                  En un momento serás redirigido para crear tu contraseña.
+                  You'll be redirected in a moment to create your password.
                 </p>
               </>
             ) : (
@@ -147,10 +147,10 @@ export default function InvitePage(): React.ReactElement {
                     </svg>
                   </div>
                 </div>
-                <p style={{ color: '#F43F5E', fontWeight: 600, fontSize: 14, margin: '0 0 8px' }}>Enlace expirado</p>
+                <p style={{ color: '#F43F5E', fontWeight: 600, fontSize: 14, margin: '0 0 8px' }}>Link expired</p>
                 <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: '0 0 1.25rem' }}>{errorMsg}</p>
                 <a href="/login" style={{ display: 'inline-block', background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', color: 'white', fontWeight: 700, fontSize: 13, padding: '10px 24px', borderRadius: 10, textDecoration: 'none' }}>
-                  Ir al login
+                  Go to login
                 </a>
               </>
             )}

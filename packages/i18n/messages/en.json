@@ -5100,7 +5100,15 @@
       "backBtn": "← Back",
       "sessionExpired": "🔒 Your session expired due to inactivity. Please sign in again.",
       "accountLocked": "⚠️ Account locked. Try again in {remaining}.",
-      "footer": "Authorized clinical staff only · Roles: Doctor · MA"
+      "footer": "Authorized clinical staff only · Roles: Doctor · MA",
+      "errAuth": "Authentication error. Please try again.",
+      "errCredentials": "Incorrect email or password.",
+      "errNetwork": "Connection error. Please check your network.",
+      "errMfaChallenge": "Could not start the MFA challenge.",
+      "errInvalidCode": "Invalid code. Please try again.",
+      "errConnection": "Connection error.",
+      "lockLessThanMinute": "less than a minute",
+      "lockMinutes": "{min} minutes"
     },
     "errors": {
       "noAccess": "No access",

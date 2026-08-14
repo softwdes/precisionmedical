@@ -310,7 +310,7 @@ export default function LoginPage(): React.ReactElement {
               {reason === 'session_expired' && (
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(56,189,248,0.10)',border:'1px solid rgba(56,189,248,0.30)',color:'#7dd3fc',fontSize:12}}>
                   <span style={{flexShrink:0}}>🔒</span>
-                  <span>Tu sesión expiró por inactividad. Ingresá nuevamente.</span>
+                  <span>Your session expired due to inactivity. Please sign in again.</span>
                 </div>
               )}
 

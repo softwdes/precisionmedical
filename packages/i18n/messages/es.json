@@ -5100,7 +5100,15 @@
       "backBtn": "← Volver",
       "sessionExpired": "🔒 Tu sesión expiró por inactividad. Ingresá nuevamente.",
       "accountLocked": "⚠️ Cuenta bloqueada. Intentá en {remaining}.",
-      "footer": "Solo personal clínico autorizado · Roles: Doctor · MA"
+      "footer": "Solo personal clínico autorizado · Roles: Doctor · MA",
+      "errAuth": "Error de autenticación. Intentá de nuevo.",
+      "errCredentials": "Email o contraseña incorrectos.",
+      "errNetwork": "Error de conexión. Verificá tu red.",
+      "errMfaChallenge": "No se pudo iniciar el desafío MFA.",
+      "errInvalidCode": "Código inválido. Intentá de nuevo.",
+      "errConnection": "Error de conexión.",
+      "lockLessThanMinute": "menos de un minuto",
+      "lockMinutes": "{min} minutos"
     },
     "errors": {
       "noAccess": "Sin acceso",

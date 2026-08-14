@@ -27,7 +27,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
       if (resetError) { setError(resetError.message); return; }
       setSent(true);
     } catch {
-      setError('Error al enviar. Verificá tu conexión e intentá de nuevo.');
+      setError('Could not send. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
               <span style={{color:'#0a0a0a',fontWeight:900,fontSize:20,letterSpacing:'-0.02em'}}>PM</span>
             </div>
             <h1 style={{color:'#F1F5FF',fontSize:18,fontWeight:700,margin:'0 0 4px',letterSpacing:'-0.02em'}}>
-              {sent ? 'Email enviado' : 'Restablecer contraseña'}
+              {sent ? 'Email sent' : 'Reset password'}
             </h1>
             <p style={{color:'#4A5474',fontSize:12,margin:0}}>
               {sent ? `Revisá tu bandeja de entrada` : 'Te enviaremos un link de acceso'}

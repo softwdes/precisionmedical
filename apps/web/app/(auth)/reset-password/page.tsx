@@ -35,15 +35,15 @@ interface Destino {
 // si algún día se unifica el nombre, este rótulo tiene que seguirlo.
 const BACK_OFFICE: Destino = {
   href: BACK_OFFICE_URL, title: 'Clinic',
-  desc: 'Pacientes, citas, admisión y facturación', color: '#6366F1',
+  desc: 'Patients, appointments, admission and billing', color: '#6366F1',
 };
 const PORTAL_MEDICO: Destino = {
-  href: DOCTOR_PORTAL_URL, title: 'Portal Médico',
-  desc: 'Tu día, tus pacientes y tus consultas', color: '#8B5CF6',
+  href: DOCTOR_PORTAL_URL, title: 'Doctor Portal',
+  desc: 'Your day, your patients and your visits', color: '#8B5CF6',
 };
 const TIME_CLOCK: Destino = {
   href: TIMECLOCK_URL, title: 'PM Time Clock',
-  desc: 'Marcar entrada y salida', color: '#10B981',
+  desc: 'Clock in and out', color: '#10B981',
 };
 
 const DESTINOS_POR_ROL: Record<string, Destino[]> = {
@@ -208,16 +208,16 @@ export default function ResetPasswordPage(): React.ReactElement {
                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', marginBottom: '1rem' }}>
                   <CheckCircle size={22} color="#10B981" />
                 </div>
-                <p style={{ color: '#F5F7FB', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Contraseña creada</p>
+                <p style={{ color: '#F5F7FB', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Password created</p>
 
                 {destinos.length === 0 ? (
                   <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-                    Tu contraseña fue creada exitosamente. Redirigiendo al login...
+                    Your password was created successfully. Redirecting to login...
                   </p>
                 ) : (
                   <>
                     <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-                      Ya podés entrar. Estos son tus accesos — iniciá sesión con tu nueva contraseña.
+                      You're all set. These are your workspaces — sign in with your new password.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>

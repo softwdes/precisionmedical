@@ -36,12 +36,12 @@ export default function NoAccessPage() {
       }}>
         <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚫</div>
         <h1 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
-          {isDoctorPortal ? 'Portal Médico — sin acceso' : 'Sin acceso'}
+          {isDoctorPortal ? 'Doctor Portal — no access' : 'No access'}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: '13px', lineHeight: '1.6', marginBottom: '24px' }}>
           {isDoctorPortal
-            ? 'Esta cuenta no es de un doctor. El Portal Médico es exclusivo del personal clínico — si necesitás acceso, pedilo al administrador.'
-            : 'Tu cuenta no tiene permisos para acceder a este módulo. Contactá al administrador del sistema.'}
+            ? 'This account is not a doctor account. The Doctor Portal is limited to clinical staff — ask your administrator if you need access.'
+            : 'Your account does not have permission to access this module. Please contact your system administrator.'}
         </p>
         <button
           onClick={handleLogout}

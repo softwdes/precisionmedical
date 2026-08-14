@@ -28,7 +28,7 @@ function LoginForm() {
 
   const [email,       setEmail]       = useState('');
   const [password,    setPassword]    = useState('');
-  const [error,       setError]       = useState(callbackErr ? 'Error de autenticación. Intentá de nuevo.' : '');
+  const [error,       setError]       = useState(callbackErr ? t('errAuth') : '');
   const [loading,     setLoading]     = useState(false);
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
   const [mfaStep,     setMfaStep]     = useState(false);
@@ -37,7 +37,7 @@ function LoginForm() {
 
   function formatLockRemaining(until: Date): string {
     const min = Math.ceil((until.getTime() - Date.now()) / 60_000);
-    return min <= 1 ? 'menos de un minuto' : `${min} minutos`;
+    return min <= 1 ? t('lockLessThanMinute') : t('lockMinutes', { min });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -62,7 +62,7 @@ function LoginForm() {
         body: JSON.stringify({ email, success: !authError }),
       });
 
-      if (authError) { setError('Email o contraseña incorrectos.'); return; }
+      if (authError) { setError(t('errCredentials')); return; }
 
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
@@ -75,7 +75,7 @@ function LoginForm() {
       router.push(redirectTo);
       router.refresh();
     } catch {
-      setError('Error de conexión. Verificá tu red.');
+      setError(t('errNetwork'));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -89,16 +89,16 @@ function LoginForm() {
     try {
       const supabase = createClient();
       const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-      if (!challenge) { setError('Error al generar desafío MFA.'); return; }
+      if (!challenge) { setError(t('errMfaChallenge')); return; }
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.replace(/\s/g, ''),
       });
-      if (verifyError) { setError('Código inválido. Intentá de nuevo.'); return; }
+      if (verifyError) { setError(t('errInvalidCode')); return; }
       navigating = true;
       router.push(redirectTo);
       router.refresh();
     } catch {
-      setError('Error de conexión.');
+      setError(t('errConnection'));
     } finally {
       if (!navigating) setLoading(false);
     }

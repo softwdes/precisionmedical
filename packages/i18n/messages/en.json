@@ -2102,7 +2102,9 @@
       "selectAll": "Select all",
       "autocompleteChange": "Change",
       "autocompleteSearching": "Searching...",
-      "autocompleteYears": "{age, plural, one {# year} other {# years}}"
+      "autocompleteYears": "{age, plural, one {# year} other {# years}}",
+      "doctorSearchPlaceholder": "Search doctor…",
+      "noDoctorsAvailable": "No doctors available."
     },
     "specialties": {
       "title": "Specialties",
@@ -3362,7 +3364,7 @@
       "slotConfirmed": "Appointment confirmed",
       "selectClinicDoctorHint": "Select clinic and doctor to check availability.",
       "fieldAppointmentType": "Appointment type",
-      "fieldNotes": "Notes for doctor (optional)",
+      "fieldNotes": "Reason for visit",
       "notesPlaceholder": "E.g. patient reports severe lower back pain · first evaluation...",
       "summaryTitle": "Summary",
       "drPrefix": "Dr.",
@@ -3413,7 +3415,8 @@
       "overlapTitle": "Overlaps another appointment",
       "overlapConfirm": "Overlap anyway",
       "overlapCancel": "Pick another time",
-      "dragConnectionError": "Connection error while rescheduling"
+      "dragConnectionError": "Connection error while rescheduling",
+      "caseCodeUnreadable": "Unreadable code"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

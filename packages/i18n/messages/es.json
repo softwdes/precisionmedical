@@ -2102,7 +2102,9 @@
       "selectAll": "Seleccionar todo",
       "autocompleteChange": "Cambiar",
       "autocompleteSearching": "Buscando...",
-      "autocompleteYears": "{age, plural, one {# año} other {# años}}"
+      "autocompleteYears": "{age, plural, one {# año} other {# años}}",
+      "doctorSearchPlaceholder": "Buscar doctor…",
+      "noDoctorsAvailable": "No hay doctores disponibles."
     },
     "specialties": {
       "title": "Especialidades",
@@ -3362,7 +3364,7 @@
       "slotConfirmed": "Cita confirmada",
       "selectClinicDoctorHint": "Selecciona clínica y doctor para ver disponibilidad.",
       "fieldAppointmentType": "Tipo de cita",
-      "fieldNotes": "Notas para el doctor (opcional)",
+      "fieldNotes": "Motivo de la consulta",
       "notesPlaceholder": "Ej: paciente reporta dolor lumbar severo · primera evaluación...",
       "summaryTitle": "Resumen",
       "drPrefix": "Dr.",
@@ -3413,7 +3415,8 @@
       "overlapTitle": "Se cruza con otra cita",
       "overlapConfirm": "Solapar igual",
       "overlapCancel": "Elegir otro horario",
-      "dragConnectionError": "Error de conexión al reprogramar"
+      "dragConnectionError": "Error de conexión al reprogramar",
+      "caseCodeUnreadable": "Código no legible"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

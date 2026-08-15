@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, X } from 'lucide-react';
 import { PersonAvatar } from './person-avatar';
 
@@ -30,6 +31,7 @@ interface DoctorComboboxProps {
   value: string;
   onChange: (id: string) => void;
   loading?: boolean;
+  /** Solo para sobreescribir el texto por defecto, que ya viene traducido. */
   placeholder?: string;
   drPrefix?: string;
 }
@@ -40,9 +42,13 @@ export function DoctorCombobox({
   value,
   onChange,
   loading = false,
-  placeholder = 'Buscar doctor…',
+  placeholder,
   drPrefix = 'Dr.',
 }: DoctorComboboxProps) {
+  // Los textos propios del primitivo salen de `phoenix.common`: lo montan tres
+  // pantallas y dos no pasaban `placeholder`, asi que el default en duro
+  // ("Buscar doctor…") se colaba en ingles — reportado por el staff.
+  const t = useTranslations('phoenix.common');
   const [search, setSearch]   = useState('');
   const [open,   setOpen]     = useState(false);
 
@@ -59,7 +65,7 @@ export function DoctorCombobox({
   }
 
   if (providers.length === 0) {
-    return <p className="text-[11px] text-text-muted italic">No hay doctores disponibles.</p>;
+    return <p className="text-[11px] text-text-muted italic">{t('noDoctorsAvailable')}</p>;
   }
 
   return (
@@ -91,7 +97,7 @@ export function DoctorCombobox({
             onChange={e => setSearch(e.target.value)}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t('doctorSearchPlaceholder')}
             className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
           />
           {open && (

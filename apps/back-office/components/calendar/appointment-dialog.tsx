@@ -32,9 +32,24 @@ interface Clinic    { id: string; name: string; address: string | null; phone: s
 interface Provider  { id: string; firstName: string; lastName: string; specialty: string; licenseNumber: string | null; specialtyCatalogIds: string[] }
 interface Specialty { id?: string; name: string; color: string }
 
+/**
+ * Estados de caso a los que se les puede agendar una cita.
+ *
+ * Vive acá arriba y no dentro del render porque lo usan DOS lugares: la tarjeta
+ * (que deshabilita las no agendables) y la auto-selección de más abajo. Con la
+ * lista escrita dos veces, agregar un estado en una y olvidarlo en la otra deja
+ * un caso que se auto-selecciona pero no se puede elegir a mano, o al revés.
+ */
+const ESTADOS_AGENDABLES = ['NEW_REFERRAL', 'INTAKE_PENDING', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'];
+const esAgendable = (status: string): boolean => ESTADOS_AGENDABLES.includes(status);
+
 interface CaseOption {
   id: string;
-  caseCode: string;
+  /**
+   * `null` cuando el código quedó cifrado en la migración y no se pudo descifrar
+   * — la API manda null antes que el `e:…` crudo. Se muestra un texto legible.
+   */
+  caseCode: string | null;
   status: string;
   accidentType: string | null;
   specialty: Specialty | null;
@@ -440,6 +455,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setCaseId('');
     setProviderId('');
   }, []);
+
+  /**
+   * Con UN solo caso agendable, se selecciona solo.
+   *
+   * Si no hay nada que elegir, preguntarlo es puro trámite: el staff llegaba
+   * hasta el final del formulario y recién ahí se enteraba de que faltaba tocar
+   * una tarjeta que —al ser la única— se leía como un dato ya cargado, igual que
+   * el campo Paciente de arriba. Con dos o más sí hay decisión y se pregunta.
+   *
+   * Solo cuando `caseId` está vacío: nunca pisa una elección hecha a mano.
+   */
+  useEffect(() => {
+    if (caseId || loadingCases) return;
+    const agendables = patientCases.filter((c) => esAgendable(c.status));
+    if (agendables.length === 1) setCaseId(agendables[0]!.id);
+  }, [patientCases, caseId, loadingCases]);
 
   // Reset slot cuando cambia provider/clinic para forzar nueva selección.
   // Skip the reset when triggered by the initial pre-population (skipSlotReset ref).
@@ -915,7 +946,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                           amber: '#fbbf24', 'text-muted': '#94a3b8',
                         };
                         const accidentLabel = c.accidentType === 'AUTO' || c.accidentType === 'MVA' ? 'MVA' : c.accidentType === 'GENERAL' || c.accidentType === 'GP' ? 'Gen.' : c.accidentType ?? '';
-                        const schedulable = ['NEW_REFERRAL', 'INTAKE_PENDING', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'].includes(c.status);
+                        const schedulable = esAgendable(c.status);
                         return (
                           <button
                             key={c.id}
@@ -932,7 +963,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             }`}
                           >
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs font-bold text-text-1">{c.caseCode}</span>
+                              <span className={`font-mono text-xs font-bold ${c.caseCode ? 'text-text-1' : 'text-text-muted italic'}`}>
+                                {c.caseCode ?? t('caseCodeUnreadable')}
+                              </span>
                               {accidentLabel && (
                                 <span className="text-[10px] px-1.5 py-px rounded border border-border text-text-muted font-medium">{accidentLabel}</span>
                               )}

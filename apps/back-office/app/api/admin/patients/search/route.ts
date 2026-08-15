@@ -12,6 +12,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { decryptScalars, decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
@@ -52,27 +53,42 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       phone: true,
       email: true,
       dateOfBirth: true,
+      // `deletedAt: null` en los dos: sin esto el resumen contaba los casos
+      // archivados y el "último caso" podía ser uno archivado. Se veía en vivo:
+      // una paciente con un caso archivado y uno real aparecía como "2 case(s)"
+      // y mostraba el código del archivado.
       cases: {
+        where: { deletedAt: null },
         orderBy: { createdAt: 'desc' },
         take: 1,
         select: { caseCode: true, status: true },
       },
-      _count: { select: { cases: true } },
+      _count: { select: { cases: { where: { deletedAt: null } } } },
     },
   });
 
   return NextResponse.json({
-    results: patients.map((p) => ({
-      id: p.id,
-      patientCode: p.patientCode,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      phone: p.phone,
-      email: p.email,
-      dateOfBirth: p.dateOfBirth ? p.dateOfBirth.toISOString().slice(0, 10) : null,
-      casesCount: p._count.cases,
-      lastCaseCode: p.cases[0]?.caseCode ?? null,
-      lastCaseStatus: p.cases[0]?.status ?? null,
-    })),
+    results: patients.map((p) => {
+      // Los escalares del paciente, de una pasada: parte de la data migrada del
+      // v2 sigue con el sobre `e:…` y este endpoint no desciframos nada, así que
+      // el buscador podía mostrar un nombre o un teléfono ilegible.
+      const { cases, _count, dateOfBirth, ...escalares } = p;
+      const d = decryptScalars(escalares);
+      const codigoCrudo = cases[0]?.caseCode ?? null;
+      return {
+        id: d.id,
+        patientCode: d.patientCode,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        phone: d.phone,
+        email: d.email,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().slice(0, 10) : null,
+        casesCount: _count.cases,
+        // Si no se puede descifrar va null, nunca el `e:…` crudo — mismo criterio
+        // que el selector de casos.
+        lastCaseCode: codigoCrudo && isCipher(codigoCrudo) ? dec(codigoCrudo) : codigoCrudo,
+        lastCaseStatus: cases[0]?.status ?? null,
+      };
+    }),
   });
 }

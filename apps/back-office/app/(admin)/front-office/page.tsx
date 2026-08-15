@@ -63,7 +63,9 @@ export default async function FrontOfficePage({
         lastName: true,
         phone: true,
         email: true,
-        _count: { select: { cases: true } },
+        // Sin `deletedAt: null` el conteo incluye los casos archivados y el
+        // paciente figura con más casos de los que tiene.
+        _count: { select: { cases: { where: { deletedAt: null } } } },
       },
     }),
     // Citas del día (scheduled/in-progress · no canceladas)

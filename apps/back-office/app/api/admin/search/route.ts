@@ -124,7 +124,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         email: true,
         status: true,
         dateOfBirth: true,
-        _count: { select: { cases: true } },
+        // Sin `deletedAt: null` el conteo incluye los casos archivados y el
+        // paciente figura con más casos de los que tiene.
+        _count: { select: { cases: { where: { deletedAt: null } } } },
       },
     }),
   ]);

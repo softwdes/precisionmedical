@@ -907,7 +907,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             <div className="text-text-muted text-[11px]">
                               {pt.patientCode && <span className="font-mono mr-2">{pt.patientCode}</span>}
                               {pt.phone && <span>{pt.phone}</span>}
-                              {pt.casesCount > 0 && <span className="ml-2">{t('patientCasesCount', { n: pt.casesCount, code: pt.lastCaseCode })}</span>}
+                              {/* Sin código legible se muestra solo el conteo: "2 caso(s) · último: null"
+                                  no le dice nada a nadie, y next-intl no acepta null como parámetro. */}
+                              {pt.casesCount > 0 && (
+                                <span className="ml-2">
+                                  {pt.lastCaseCode
+                                    ? t('patientCasesCount', { n: pt.casesCount, code: pt.lastCaseCode })
+                                    : t('patientCasesCountNoCode', { n: pt.casesCount })}
+                                </span>
+                              )}
                             </div>
                           </button>
                         ))}

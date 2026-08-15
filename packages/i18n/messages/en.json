@@ -3416,7 +3416,8 @@
       "overlapConfirm": "Overlap anyway",
       "overlapCancel": "Pick another time",
       "dragConnectionError": "Connection error while rescheduling",
-      "caseCodeUnreadable": "Unreadable code"
+      "caseCodeUnreadable": "Unreadable code",
+      "patientCasesCountNoCode": "{n} case(s)"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

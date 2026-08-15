@@ -3416,7 +3416,8 @@
       "overlapConfirm": "Solapar igual",
       "overlapCancel": "Elegir otro horario",
       "dragConnectionError": "Error de conexión al reprogramar",
-      "caseCodeUnreadable": "Código no legible"
+      "caseCodeUnreadable": "Código no legible",
+      "patientCasesCountNoCode": "{n} caso(s)"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

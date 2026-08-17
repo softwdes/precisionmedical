@@ -293,32 +293,46 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
             {weekDays.find(d => d.iso === selectedDay)?.dayName} {weekDays.find(d => d.iso === selectedDay)?.dayNum} · {t('selectHour')}
           </div>
 
-          {/* AM / PM / Evening tabs */}
+          {/* ── Franja del día: AM / PM / Noche ──
+               La franja activa va SÓLIDA, no tintada. Antes usaba exactamente el
+               mismo `bg-cyan/15 border-cyan/40 text-cyan` que el horario elegido
+               de abajo, así que el filtro y la respuesta se pintaban igual y
+               pegados uno debajo del otro: no se distinguía cuál era cuál.
+               Lleno vs. vacío se lee de un golpe; dos tintes del mismo color al
+               15% no. Mismo patrón que el CTA de cobro (`bg-amber` + texto
+               oscuro), así que no es un estilo nuevo. ── */}
           <div className="flex gap-1 mb-2">
             {([
-              { key: 'am',      label: 'AM',      count: amSlots.length      },
-              { key: 'pm',      label: 'PM',      count: pmSlots.length      },
-              { key: 'evening', label: 'Evening', count: eveningSlots.length },
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                type="button"
-                disabled={tab.count === 0}
-                onClick={() => setTimeTab(tab.key)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  timeTab === tab.key
-                    ? 'bg-cyan/15 border-cyan/40 text-cyan'
-                    : 'bg-bg-2 border-border text-text-muted hover:text-text-2 hover:border-border-strong'
-                }`}
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={`text-[9px] rounded-full px-1 py-0 leading-4 ${timeTab === tab.key ? 'bg-cyan/20 text-cyan' : 'bg-bg-1 text-text-muted'}`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+              // AM y PM se escriben igual en los dos idiomas; "Evening" no —
+              // estaba fijo en inglés y con la app en español decía "Evening".
+              { key: 'am',      label: 'AM',                count: amSlots.length      },
+              { key: 'pm',      label: 'PM',                count: pmSlots.length      },
+              { key: 'evening', label: t('periodEvening'),  count: eveningSlots.length },
+            ] as const).map(tab => {
+              const activa = timeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  disabled={tab.count === 0}
+                  onClick={() => setTimeTab(tab.key)}
+                  // 50% y no 30%: una franja vacía tiene que LEERSE como vacía,
+                  // no desaparecer.
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    activa
+                      ? 'bg-cyan text-bg-0 font-semibold'
+                      : 'bg-bg-2 text-text-2 font-medium hover:bg-bg-2/60'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`text-[9px] rounded-full px-1 py-0 leading-4 tabular-nums ${activa ? 'bg-bg-0/20 text-bg-0' : 'bg-bg-1 text-text-muted'}`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap gap-1.5 max-h-[168px] overflow-y-auto pr-1">

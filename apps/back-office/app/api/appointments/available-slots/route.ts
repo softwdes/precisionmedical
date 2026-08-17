@@ -117,15 +117,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   let query;
   try {
-    query = QuerySchema.parse({
-      clinicId:        searchParams.get('clinicId')        ?? undefined,
-      providerId:      searchParams.get('providerId')      ?? undefined,
-      fromDate:        searchParams.get('fromDate')        ?? undefined,
-      toDate:          searchParams.get('toDate')          ?? undefined,
-      durationMinutes: searchParams.get('durationMinutes') ?? undefined,
-      limit:           searchParams.get('limit')           ?? undefined,
-      excludeAppointmentId: searchParams.get('excludeAppointmentId') ?? undefined,
-    });
+    /**
+     * TODOS los searchParams de una, no listados a mano.
+     *
+     * Listarlos uno por uno ya causó un bug real: se agregó `limitPerDay` al
+     * esquema y se olvidó acá, así que llegaba siempre `undefined` y la consulta
+     * caía al default de `limit` (12) — el selector mostraba 12 horarios el lunes
+     * y los otros cuatro días vacíos, SIN ningún error. Zod ignora las claves que
+     * no conoce, así que sumar un parámetro al esquema ahora alcanza.
+     */
+    query = QuerySchema.parse(Object.fromEntries(searchParams));
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: 'INVALID_QUERY', details: err instanceof z.ZodError ? err.flatten() : String(err) },

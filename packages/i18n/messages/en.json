@@ -3418,7 +3418,8 @@
       "dragConnectionError": "Connection error while rescheduling",
       "caseCodeUnreadable": "Unreadable code",
       "patientCasesCountNoCode": "{n} case(s)",
-      "slotsAvailableShort": "{n, plural, one {1 slot} other {# slots}}"
+      "slotsAvailableShort": "{n, plural, one {1 slot} other {# slots}}",
+      "periodEvening": "Evening"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

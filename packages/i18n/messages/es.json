@@ -3418,7 +3418,8 @@
       "dragConnectionError": "Error de conexión al reprogramar",
       "caseCodeUnreadable": "Código no legible",
       "patientCasesCountNoCode": "{n} caso(s)",
-      "slotsAvailableShort": "{n, plural, one {1 horario} other {# horarios}}"
+      "slotsAvailableShort": "{n, plural, one {1 horario} other {# horarios}}",
+      "periodEvening": "Noche"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

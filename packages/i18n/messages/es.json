@@ -3417,7 +3417,8 @@
       "overlapCancel": "Elegir otro horario",
       "dragConnectionError": "Error de conexión al reprogramar",
       "caseCodeUnreadable": "Código no legible",
-      "patientCasesCountNoCode": "{n} caso(s)"
+      "patientCasesCountNoCode": "{n} caso(s)",
+      "slotsAvailableShort": "{n, plural, one {1 horario} other {# horarios}}"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

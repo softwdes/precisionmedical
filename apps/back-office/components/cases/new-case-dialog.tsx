@@ -334,7 +334,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setSlotsLoading(true); setSlotIso(null); setSelectedDay(null);
     const fromDate = weekStart.toISOString();
     const toDate   = addDays(weekStart, 5).toISOString();
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '100' });
+    // Igual que el selector del calendario: techo POR DÍA. Acá el `limit: 100`
+    // era peor todavía — con 30 min la semana genera 140 y se vaciaban jueves y
+    // viernes, sin necesidad de bajar a citas de 15 min.
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {

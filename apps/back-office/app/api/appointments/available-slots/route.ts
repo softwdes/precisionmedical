@@ -35,6 +35,16 @@ const QuerySchema = z.object({
   toDate:          z.string().datetime().optional(),
   durationMinutes: z.coerce.number().int().min(15).max(240).default(45),
   limit:           z.coerce.number().int().min(1).max(200).default(12),
+  /**
+   * Techo POR DÍA en vez de por respuesta. Lo usan los selectores semanales.
+   *
+   * El `limit` global recortaba la lista ya ordenada por fecha, así que los
+   * primeros días se comían todos los cupos y los últimos salían VACÍOS — con
+   * citas de 15 min la semana genera 280 candidatos y el techo de 200 dejaba el
+   * viernes en cero, indistinguible de "el doctor no atiende ese día". Cortando
+   * por día, cada día compite solo consigo mismo.
+   */
+  limitPerDay:     z.coerce.number().int().min(1).max(200).optional(),
   /** Al editar una cita existente, excluirla del chequeo de conflictos —
    *  si no, su propio horario se ve a sí mismo como "ocupado" y desaparece
    *  de la lista, así que al editar nunca aparecía marcado su horario actual. */
@@ -49,6 +59,30 @@ function mtHour(date: Date): number {
     }).format(date),
     10,
   );
+}
+
+/** Fecha civil en America/Denver (`YYYY-MM-DD`) — la clave para agrupar por día. */
+function denverDate(date: Date): string {
+  return date.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+}
+
+/**
+ * Deja como máximo `porDia` slots en cada día de Denver, respetando el orden.
+ *
+ * Reemplaza al `slice(0, limit)` global para los selectores semanales: recortar
+ * una lista ordenada por fecha vacía los últimos días del rango.
+ */
+function limitarPorDia(slots: Date[], porDia: number): Date[] {
+  const cuenta = new Map<string, number>();
+  const salida: Date[] = [];
+  for (const s of slots) {
+    const dia = denverDate(s);
+    const n = cuenta.get(dia) ?? 0;
+    if (n >= porDia) continue;
+    cuenta.set(dia, n + 1);
+    salida.push(s);
+  }
+  return salida;
 }
 
 /** ¿El timestamp UTC cae en horario laboral MT? (L-V, dentro del rango de horas) */
@@ -125,7 +159,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const candidates = generateCandidates(fromDate, toDate, query.durationMinutes);
   const durationMs = query.durationMinutes * 60 * 1000;
 
-  const available = candidates
+  const libres = candidates
     .filter((slot) => {
       // Debe estar en horario laboral MT
       if (!isBusinessSlot(slot, query.durationMinutes)) return false;
@@ -139,15 +173,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         if (slot < apptEnd && slotEnd > apptStart) return false;
       }
       return true;
-    })
-    .slice(0, query.limit)
-    .map((slot) => ({
-      startAt:         slot.toISOString(),
-      endAt:           new Date(slot.getTime() + durationMs).toISOString(),
-      durationMinutes: query.durationMinutes,
-      clinicId:        query.clinicId,
-      providerId:      query.providerId,
-    }));
+    });
+
+  // `limitPerDay` manda cuando viene: son dos formas de cortar y aplicar las dos
+  // devolvería el techo global igual, que es justo lo que se quiere evitar.
+  const recortados = query.limitPerDay
+    ? limitarPorDia(libres, query.limitPerDay)
+    : libres.slice(0, query.limit);
+
+  const available = recortados.map((slot) => ({
+    startAt:         slot.toISOString(),
+    endAt:           new Date(slot.getTime() + durationMs).toISOString(),
+    durationMinutes: query.durationMinutes,
+    clinicId:        query.clinicId,
+    providerId:      query.providerId,
+  }));
 
   return NextResponse.json({
     ok:    true,
@@ -158,6 +198,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       durationMinutes:  query.durationMinutes,
       existingCount:    existingAppointments.length,
       candidateCount:   candidates.length,
+      // Qué techo se aplicó y cuánto se recortó. Un corte silencioso fue
+      // exactamente el bug: la respuesta se veía sana y un día entero faltaba.
+      cap:              query.limitPerDay ? { perDay: query.limitPerDay } : { total: query.limit },
+      freeCount:        libres.length,
+      returnedCount:    available.length,
     },
   });
 }

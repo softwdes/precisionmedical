@@ -100,7 +100,12 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
 
     const fromDate = weekStart.toISOString();
     const toDate   = addDays(weekStart, 5).toISOString();
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '200' });
+    // `limitPerDay` y NO `limit`: el techo global recortaba la semana ya ordenada
+    // por fecha, así que lunes a jueves se comían los 200 cupos y el viernes
+    // salía vacío — se leía como "el doctor no atiende ese día". 60 cubre el
+    // máximo real de un día (56 slots, con la duración mínima de 15 min sobre
+    // una jornada de 8:00 a 22:00).
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
     if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId);
 
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
@@ -269,7 +274,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
                 <div className="mt-1 w-6 h-2 rounded bg-border animate-pulse" />
               ) : hasSlots ? (
                 <span className={`mt-1 text-[9px] ${isSelected ? 'text-cyan' : 'text-text-muted'}`}>
-                  {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
+                  {/* Son HORARIOS disponibles, no horas: con citas de 15 min,
+                      52 slots son 13 horas. Decía "hrs" y en inglés fijo. */}
+                  {t('slotsAvailableShort', { n: wd.slots.length })}
                 </span>
               ) : (
                 <span className="mt-1 text-[9px] text-text-muted">—</span>

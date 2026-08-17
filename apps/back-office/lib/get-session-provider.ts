@@ -80,41 +80,56 @@ export const getSessionProvider = cache(async (): Promise<SessionProvider | null
   const user = await getSessionUser();
   if (!user?.email) return null;
 
-  // 1. Doctor real: su propio perfil
+  // 1. Si eligió ver como otro doctor, eso gana — incluso si tiene perfil
+  //    propio. Antes el perfil propio cortaba acá y el selector quedaba muerto:
+  //    en cuanto un admin tiene ficha de doctor (los testers de QA, por ejemplo)
+  //    perdía la única forma de revisar el portal de los demás. La capacidad
+  //    sigue siendo opt-in y no se toca: sin `canViewAsDoctor` la cookie se
+  //    ignora, así que un doctor común no puede suplantar a otro poniéndola.
+  const selectedId = (await cookies()).get(DOCTOR_VIEW_COOKIE)?.value;
+  if (selectedId && await canViewAsDoctor(user.email)) {
+    const elegido = await db.provider.findFirst({
+      where: { id: selectedId, deletedAt: null },
+      select: PROVIDER_FIELDS,
+    });
+    if (elegido) return elegido;
+  }
+
+  // 2. Su propio perfil de doctor
   const own = await getOwnProvider(user.email);
   if (own) return own;
 
-  // 2. Modo "ver como": el doctor elegido en la cookie
-  if (!(await canViewAsDoctor(user.email))) return null;
-
-  const selectedId = (await cookies()).get(DOCTOR_VIEW_COOKIE)?.value;
-  if (!selectedId) return null;
-
-  return db.provider.findFirst({
-    where: { id: selectedId, deletedAt: null },
-    select: PROVIDER_FIELDS,
-  });
+  return null;
 });
 
 export interface DoctorViewInfo {
-  /** true si quien mira no tiene perfil propio y entra en modo "ver como" */
+  /** true cuando lo que se está viendo es el portal de OTRO doctor */
   isViewAs: boolean;
-  /** Doctores entre los que puede elegir (solo se llena en modo "ver como") */
+  /** Doctores entre los que puede elegir (vacío si no tiene la capacidad) */
   options: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
+  /** true si además tiene ficha propia — habilita "volver a mi portal" */
+  hasOwnProfile: boolean;
 }
 
 /**
  * Contexto para el selector del encabezado. Va aparte de `getSessionProvider`
  * para no cambiar la firma que ya consumen todas las páginas del portal.
+ *
+ * `isViewAs` mira la COOKIE, no la ausencia de ficha propia: quien tiene las dos
+ * cosas (ficha de doctor y permiso de admin) alterna entre su portal y el de
+ * otro, así que "estoy viendo a un ajeno" solo lo dice la selección vigente.
  */
 export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
   const user = await getSessionUser();
-  if (!user?.email) return { isViewAs: false, options: [] };
+  const vacio = { isViewAs: false, options: [], hasOwnProfile: false };
+  if (!user?.email) return vacio;
 
   const own = await getOwnProvider(user.email);
-  if (own) return { isViewAs: false, options: [] };
+  if (!(await canViewAsDoctor(user.email))) {
+    return { isViewAs: false, options: [], hasOwnProfile: !!own };
+  }
 
-  if (!(await canViewAsDoctor(user.email))) return { isViewAs: false, options: [] };
+  const selectedId = (await cookies()).get(DOCTOR_VIEW_COOKIE)?.value;
 
   const options = await db.provider.findMany({
     where: { deletedAt: null },
@@ -122,5 +137,8 @@ export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
     select: { id: true, firstName: true, lastName: true, specialty: true },
   });
 
-  return { isViewAs: true, options };
+  // Elegirse a sí mismo no es "ver como otro"
+  const viendoAjeno = !!selectedId && selectedId !== own?.id;
+
+  return { isViewAs: viendoAjeno, options, hasOwnProfile: !!own };
 });

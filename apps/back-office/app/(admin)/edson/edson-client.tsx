@@ -32,7 +32,7 @@ import {
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
-import { apptVisual, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
+import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -418,10 +418,19 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                     const done = !!row.completedAt;
                     // El color mira la cita mas reciente, no la primera: un no-show
                     // en la segunda visita tiene que pintar la fila igual.
-                    const vis  = apptVisual(row.appointment.latestStatus ?? row.appointment.status);
+                    const status = row.appointment.latestStatus ?? row.appointment.status;
+                    const vis    = apptVisual(status);
+                    /*
+                     * Precedencia decidida con Erick: si la cita no ocurrio, ese
+                     * fondo gana sobre el verde de "listo para Brunella". El
+                     * hecho objetivo (no vino) pesa mas que el estado del trabajo
+                     * de Edson, y el check verde sigue visible en su columna, asi
+                     * que no se pierde nada.
+                     */
+                    const rowBg = apptRowBg(status) ?? (done ? READY_BG : undefined);
                     return (
-                      <DataTable.Row key={row.caseId} highlight={done} highlightClass="bg-emerald/[0.16]">
-                        <DataTable.Td sticky="left" style={done ? { background: READY_BG } : undefined}>
+                      <DataTable.Row key={row.caseId} style={rowBg ? { background: rowBg } : undefined}>
+                        <DataTable.Td sticky="left" style={rowBg ? { background: rowBg } : undefined}>
                           <div className="flex items-center gap-2 min-w-0">
                             <span
                               className="w-1 h-8 rounded-full shrink-0"
@@ -512,7 +521,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             </span>
                           </DataTable.Td>
                         )}
-                        <DataTable.Td align="right" sticky="right" style={done ? { background: READY_BG } : undefined}>
+                        <DataTable.Td align="right" sticky="right" style={rowBg ? { background: rowBg } : undefined}>
                           <div className="flex items-center justify-end gap-1">
                             {archived ? (
                               <IconAction icon={ArchiveRestore} label={t('restore')} onClick={() => void setArchivedFlag(row.caseId, false)} />

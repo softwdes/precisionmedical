@@ -62,3 +62,25 @@ export function apptVisual(status: string): ApptVisual {
       return { background: APPT_COLORS.mvaFirst, strike: false, glow: true };
   }
 }
+
+/**
+ * Fondo de la FILA entera cuando la cita no ocurrio.
+ *
+ * Edson pidio esto mirando su Excel, donde un no-show pinta el renglon completo
+ * y el barre la hoja sin leer nada. La franja de 4px no le daba eso.
+ *
+ * Pidio amarillo y rosa —los colores de su hoja— y se uso el gris y el rose de
+ * la leyenda: en esta pantalla el amarillo ya significa "sin confirmar" y el
+ * rosa es el gradiente de cita viva, asi que ambos tendrian dos significados a
+ * la vez. Lo que el necesitaba era el escaneo de lejos, no el tono exacto.
+ *
+ * Va sobre `--bg-1` con color-mix para dar el mismo tono en las celdas normales
+ * y en las fijas, que llevan fondo opaco propio.
+ */
+export function apptRowBg(status: string): string | null {
+  switch (status) {
+    case 'NO_SHOW':   return 'color-mix(in srgb, #64748B 15%, var(--bg-1))';
+    case 'CANCELLED': return 'color-mix(in srgb, #F43F5E 12%, var(--bg-1))';
+    default:          return null;
+  }
+}

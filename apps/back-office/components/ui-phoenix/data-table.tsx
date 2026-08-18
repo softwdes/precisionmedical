@@ -52,17 +52,30 @@ type Sticky = 'left' | 'right';
 const stickySide = (s: Sticky): string => (s === 'left' ? 'sticky left-0' : 'sticky right-0');
 
 /**
- * El hover de la fila (`hover:bg-white/[0.02]` en el `<tr>`) queda tapado por
- * el fondo opaco de la celda fija. Se repone con una capa `::before` sobre el
- * fondo, activada por el `group` de `DataTable.Row` — así el resaltado cruza
- * la fila entera y no solo el centro.
+ * Hover de fila — una capa ENCIMA, no un cambio de fondo.
+ *
+ * Antes el `<tr>` hacía `hover:bg-white/[0.02]`, o sea REEMPLAZABA su fondo. En
+ * una fila que ya tiene color propio (un no-show gris, un "listo para Brunella"
+ * verde) eso borraba el color al pasar el mouse — y las celdas fijas, que
+ * pintan su fondo aparte, lo conservaban. El resultado era una fila que al
+ * hacer hover se marcaba solo por los extremos.
+ *
+ * Ahora TODAS las celdas llevan la misma capa `::before`, activada por el
+ * `group` del `<tr>`. Se compone sobre cualquier fondo, sea el de la Card o uno
+ * calculado en runtime, y el resaltado cruza la fila entera.
  */
-const STICKY_BODY_BG = [
-  'bg-bg-1',
+const HOVER_OVERLAY = [
+  'relative',
   'before:absolute before:inset-0 before:pointer-events-none',
   'before:bg-white/[0.02] before:opacity-0 group-hover:before:opacity-100',
   'before:transition-opacity',
 ].join(' ');
+
+/**
+ * Fondo de la celda fija. Tiene que ser OPACO (ver nota de Sticky arriba); el
+ * hover lo repone `HOVER_OVERLAY`, que llevan todas las celdas.
+ */
+const STICKY_BODY_BG = 'bg-bg-1';
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
@@ -127,6 +140,7 @@ function Row({
   muted,
   highlight,
   highlightClass,
+  style,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -136,13 +150,23 @@ function Row({
   highlight?: boolean;
   /** Override del highlight bg, ej: "bg-brand/[0.04]" */
   highlightClass?: string;
+  /**
+   * Fondo calculado en runtime, cuando el color no se puede expresar como
+   * clase de Tailwind (ej. un `color-mix` que depende del estado del registro).
+   * Las celdas STICKY llevan fondo opaco propio y hay que repintarlas aparte
+   * con el `style` de `DataTable.Td`.
+   */
+  style?: React.CSSProperties;
 }) {
   return (
     <tr
       onClick={onClick}
+      style={style}
       // `group` para que las celdas sticky puedan reponer el hover que su
       // fondo opaco tapa (ver STICKY_BODY_BG).
-      className={`group border-b border-row-sep hover:bg-white/[0.02] transition-colors ${
+      // El hover ya no vive acá: lo pone cada celda con `HOVER_OVERLAY`, para
+      // que se componga sobre el fondo en vez de reemplazarlo.
+      className={`group border-b border-row-sep transition-colors ${
         muted ? 'opacity-50' : ''
       } ${highlight ? (highlightClass ?? 'bg-brand/[0.04]') : ''} ${onClick ? 'cursor-pointer' : ''}`}
     >
@@ -186,6 +210,7 @@ function Td({
       className={[
         alignClass(align),
         'px-4 py-2',
+        HOVER_OVERLAY,
         sticky ? `${stickySide(sticky)} z-10 ${STICKY_BODY_BG}` : '',
         className,
       ].filter(Boolean).join(' ')}

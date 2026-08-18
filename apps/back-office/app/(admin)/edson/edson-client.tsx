@@ -32,7 +32,7 @@ import {
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
-import { apptVisual, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
+import { apptVisual, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -71,10 +71,23 @@ interface Props {
   carriers:  { id: string; name: string; shortCode: string; color: string }[];
 }
 
-/** Todos los estados posibles, para el selector de filtro. */
-const APPT_STATUSES = [
-  'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS',
-  'COMPLETED', 'PENDING', 'CANCELLED', 'NO_SHOW',
+/**
+ * Estados posibles y su clave de traducción.
+ *
+ * El selector mostraba el enum crudo (`SCHEDULED`, `NO_SHOW`), sin traducir y
+ * en mayúsculas. Las etiquetas salen del namespace del calendario para que sea
+ * el MISMO vocabulario en las dos pantallas: si acá dijera "Cancelada" y allá
+ * "Anulada", Edson tendría que aprender dos.
+ */
+const APPT_STATUSES: Array<[value: string, tKey: string]> = [
+  ['SCHEDULED',   'statusScheduled'],
+  ['CONFIRMED',   'statusConfirmed'],
+  ['CHECKED_IN',  'statusCheckedIn'],
+  ['IN_PROGRESS', 'statusInProgress'],
+  ['COMPLETED',   'statusCompleted'],
+  ['PENDING',     'statusPending'],
+  ['CANCELLED',   'statusCancelled'],
+  ['NO_SHOW',     'statusNoShow'],
 ];
 
 const PIP_CYCLE: Record<string, 'YES' | 'NO' | 'UNKNOWN'> = {
@@ -103,8 +116,10 @@ function Empty() { return <span className="text-text-muted italic">—</span>; }
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function EdsonClient({ clinics, providers, carriers }: Props) {
-  const t  = useTranslations('phoenix.edsonTracking');
-  const tc = useTranslations('phoenix.common');
+  const t    = useTranslations('phoenix.edsonTracking');
+  const tc   = useTranslations('phoenix.common');
+  // Las etiquetas de estado y de la leyenda se comparten con el calendario.
+  const tcal = useTranslations('phoenix.calendar');
   const router = useRouter();
 
   const [archived, setArchived] = useState(false);
@@ -293,7 +308,9 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         </select>
         <select value={apptStatus} onChange={e => { setApptStatus(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allStatuses')}</option>
-          {APPT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          {APPT_STATUSES.map(([value, key]) => (
+            <option key={value} value={value}>{tcal(key)}</option>
+          ))}
         </select>
         <select value={carrierId} onChange={e => { setCarrierId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allCarriers')}</option>
@@ -320,6 +337,8 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           </button>
         )}
       </div>
+
+      <StatusLegend />
 
       {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
 
@@ -554,6 +573,53 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 
 const selectCls =
   'bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand max-w-[190px]';
+
+/**
+ * Leyenda de colores de la franja de cada fila.
+ *
+ * Deliberadamente SIN borde ni fondo, y en `text-muted`: al lado hay una tira de
+ * pills que sí filtran, y si la leyenda se pareciera a ellas Edson intentaría
+ * hacerle clic. Se lee como rótulo, no como control.
+ *
+ * Muestra 5 de los 8 colores del calendario. Los otros tres —MVA seguimiento,
+ * GM seguimiento y GM 1ra cita— NO pueden aparecer acá: cada fila es, por
+ * definición, la PRIMERA cita de un caso MVA. Enseñarlos sería enseñar colores
+ * que nunca se van a ver.
+ */
+function StatusLegend() {
+  const t    = useTranslations('phoenix.edsonTracking');
+  const tcal = useTranslations('phoenix.calendar');
+
+  const items: Array<{ bg: string; label: string; glow?: boolean; strike?: boolean }> = [
+    { bg: APPT_COLORS.mvaFirst,    label: tcal('legendMvaFirst'), glow: true },
+    { bg: APPT_COLORS.unconfirmed, label: tcal('legendUnconfirmed') },
+    { bg: APPT_COLORS.attended,    label: tcal('legendAttended') },
+    { bg: APPT_COLORS.cancelled,   label: tcal('legendCancelled'), strike: true },
+    { bg: APPT_COLORS.noShow,      label: tcal('legendNoShow'),    strike: true },
+  ];
+
+  return (
+    <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-0.5">
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+        {t('legendTitle')}
+      </span>
+      {items.map(item => (
+        <span key={item.label} className="flex items-center gap-1.5">
+          <span
+            className="w-4 h-2 rounded-sm shrink-0"
+            style={{ background: item.bg, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }}
+          />
+          <span
+            className="text-[12px] text-text-muted"
+            style={{ textDecoration: item.strike ? 'line-through' : undefined }}
+          >
+            {item.label}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCycle: () => void }) {
   const t = useTranslations('phoenix.edsonTracking');

@@ -3550,7 +3550,9 @@
       "confirmCancelWithNotice": "Cancelar con aviso (sin cobro)",
       "legendCancelled": "Cancelada",
       "confirmCancelSameDay": "Cancelar mismo día (cobra penalidad)",
-      "legendNoShow": "No vino"
+      "legendNoShow": "No vino",
+      "statusCheckedIn": "Registrado",
+      "statusCancelled": "Cancelada"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -5348,7 +5350,8 @@
       "confirmArchiveTitle": "¿Archivar este caso?",
       "confirmArchiveBody": "{name} sale de la cola de tracking y pasa a Archivados. Desde ahí lo podés restaurar.",
       "confirmArchiveBulkTitle": "¿Archivar los casos que están listos?",
-      "confirmArchiveBulkBody": "{count, plural, one {# caso sale} other {# casos salen}} de la cola y pasan a Archivados. Desde ahí los podés restaurar."
+      "confirmArchiveBulkBody": "{count, plural, one {# caso sale} other {# casos salen}} de la cola y pasan a Archivados. Desde ahí los podés restaurar.",
+      "legendTitle": "Colores"
     }
   },
   "clinical": {

@@ -81,7 +81,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
   if (clinicId)   where.push(Prisma.sql`fa."clinicId" = ${clinicId}`);
   if (providerId) where.push(Prisma.sql`fa."providerId" = ${providerId}`);
-  if (apptStatus) where.push(Prisma.sql`fa."status"::text = ${apptStatus}`);
+  // Filtra por la cita MAS RECIENTE, igual que el color de la franja: si
+  // filtrara por la primera, buscar "No show" devolveria filas que no se ven
+  // como no-show y al reves.
+  if (apptStatus) where.push(Prisma.sql`la."status"::text = ${apptStatus}`);
   if (pip)        where.push(Prisma.sql`COALESCE(cai."pipAvailable"::text, 'UNKNOWN') = ${pip}`);
   if (carrierId)  where.push(Prisma.sql`COALESCE(cai."carrierId", c."primaryInsuranceId") = ${carrierId}`);
 
@@ -107,6 +110,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ORDER BY a."scheduledFor" ASC
       LIMIT 1
     ) fa ON TRUE
+    /*
+     * La cita mas RECIENTE del caso. Las columnas de la fila siguen siendo las
+     * de la PRIMERA —esta vista es el registro de primeras visitas— pero el
+     * color y el tachado salen de esta: si el paciente no vino a la tercera
+     * cita, eso es justo lo que Edson persigue y tiene que verlo de un vistazo.
+     */
+    JOIN LATERAL (
+      SELECT a."status" FROM appointments a
+      WHERE a."caseId" = c."id"
+      ORDER BY a."scheduledFor" DESC
+      LIMIT 1
+    ) la ON TRUE
     JOIN patients p              ON p."id"  = c."patientId"
     LEFT JOIN clinics cl         ON cl."id" = fa."clinicId"
     LEFT JOIN providers pr       ON pr."id" = fa."providerId"
@@ -133,6 +148,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       fa."id"           AS appt_id,
       fa."scheduledFor" AS appt_at,
       fa."status"::text AS appt_status,
+      la."status"::text AS latest_status,
       cl."name"         AS clinic_name,
       cl."color"        AS clinic_color,
       CASE WHEN pr."id" IS NULL THEN NULL
@@ -205,6 +221,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         id:          r.appt_id,
         scheduledFor: r.appt_at,
         status:      r.appt_status,
+        latestStatus: r.latest_status,
         clinicName:  r.clinic_name,
         clinicColor: r.clinic_color,
         providerName: r.provider_name,

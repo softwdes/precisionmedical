@@ -42,6 +42,11 @@ interface Row {
   patient: { id: string; firstName: string; lastName: string; dateOfBirth: string | null; phone: string | null };
   appointment: {
     id: string; scheduledFor: string; status: string;
+    /**
+     * Estado de la cita mas RECIENTE del caso — de aca sale el color de la
+     * franja. `status` es el de la primera, que es la que muestran las columnas.
+     */
+    latestStatus: string;
     clinicName: string | null; clinicColor: string | null; providerName: string | null;
   };
   lawFirmId: string | null;
@@ -411,7 +416,9 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 
                   {group.rows.map(row => {
                     const done = !!row.completedAt;
-                    const vis  = apptVisual(row.appointment.status);
+                    // El color mira la cita mas reciente, no la primera: un no-show
+                    // en la segunda visita tiene que pintar la fila igual.
+                    const vis  = apptVisual(row.appointment.latestStatus ?? row.appointment.status);
                     return (
                       <DataTable.Row key={row.caseId} highlight={done} highlightClass="bg-emerald/[0.16]">
                         <DataTable.Td sticky="left" style={done ? { background: READY_BG } : undefined}>
@@ -422,7 +429,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 background: vis.background,
                                 boxShadow: vis.glow ? MVA_FIRST_GLOW : undefined,
                               }}
-                              title={row.appointment.status}
+                              title={row.appointment.latestStatus ?? row.appointment.status}
                             />
                             <div className="min-w-0">
                               <div

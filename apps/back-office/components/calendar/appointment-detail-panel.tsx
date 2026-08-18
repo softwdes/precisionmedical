@@ -221,6 +221,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [confirming,    setConfirming]    = useState(false);
   const [cancelOpen,    setCancelOpen]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
+  /**
+   * Quien registro la cita. Se pide al abrir el panel y no viaja en el payload
+   * del calendario: son ~100 citas por semana y este dato solo se mira cuando
+   * alguien abre UNA.
+   */
+  const [registro, setRegistro] = useState<{
+    cita: { createdAt: string; por: { nombre: string; rol: string | null } | null; actorType: string | null };
+    caso: { createdAt: string; por: { nombre: string; rol: string | null } | null } | null;
+  } | null>(null);
   const [noShowOpen,    setNoShowOpen]    = useState(false);
   const [noShowing,     setNoShowing]     = useState(false);
   const [checkingIn,    setCheckingIn]    = useState(false);
@@ -472,6 +481,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     const k = c.catalogItemId !== null ? `c${c.catalogItemId}` : `c-${c.code}`;
     addedCharges.set(k, (addedCharges.get(k) ?? 0) + c.quantity);
   }
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/admin/appointments/${appt.id}/registration`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo && d?.ok) setRegistro({ cita: d.cita, caso: d.caso }); })
+      .catch(() => { /* la linea simplemente no se muestra */ });
+    return () => { vivo = false; };
+  }, [appt.id]);
 
   // ── Detail handlers ───────────────────────────────────────────────────────
   const handleConfirm = async () => {
@@ -901,6 +919,40 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         value={new Date(appt.case.accidentDate).toLocaleDateString(locale, { dateStyle: 'medium', timeZone: 'America/Denver' })} highlight />
                     )}
                   </div>
+
+                  {/* Quien registro la cita — la linea que el staff usaba en el
+                      v2 para saber a quien preguntarle. Va al PIE del bloque y
+                      atenuada: es trazabilidad, no un dato de la consulta.
+                      Reemplaza al modal "Quien atendio la llamada", que mostraba
+                      "Front Office" en duro y una fecha inventada. */}
+                  {registro && (
+                    <div className="mt-3 pt-3 border-t border-row-sep space-y-1">
+                      <div className="flex items-baseline gap-1.5 flex-wrap text-[11px]">
+                        <span className="uppercase tracking-wider font-semibold text-text-muted">{t('rowRegisteredBy')}</span>
+                        <span className="text-text-2">
+                          {registro.cita.por
+                            ? `${registro.cita.por.nombre}${registro.cita.por.rol ? ` · ${registro.cita.por.rol}` : ''}`
+                            : registro.cita.actorType && registro.cita.actorType !== 'HUMAN_USER'
+                              ? registro.cita.actorType
+                              : t('registeredByUnknown')}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-1.5 flex-wrap text-[11px]">
+                        <span className="uppercase tracking-wider font-semibold text-text-muted">{t('rowRegisteredOn')}</span>
+                        <span className="text-text-2">
+                          {new Date(registro.cita.createdAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })}
+                        </span>
+                      </div>
+                      {/* El creador del CASO solo si es OTRA persona: repetir el
+                          mismo nombre dos veces no informa nada. */}
+                      {registro.caso?.por && registro.caso.por.nombre !== registro.cita.por?.nombre && (
+                        <div className="flex items-baseline gap-1.5 flex-wrap text-[11px]">
+                          <span className="uppercase tracking-wider font-semibold text-text-muted">{t('rowCaseCreatedBy')}</span>
+                          <span className="text-text-2">{registro.caso.por.nombre}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-lg border border-border bg-bg-1 p-4">

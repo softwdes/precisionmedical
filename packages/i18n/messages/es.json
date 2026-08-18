@@ -3552,7 +3552,11 @@
       "confirmCancelSameDay": "Cancelar mismo día (cobra penalidad)",
       "legendNoShow": "No vino",
       "statusCheckedIn": "Registrado",
-      "statusCancelled": "Cancelada"
+      "statusCancelled": "Cancelada",
+      "rowRegisteredBy": "Registrado por:",
+      "rowRegisteredOn": "Fecha de registro:",
+      "rowCaseCreatedBy": "Caso creado por:",
+      "registeredByUnknown": "Sin registro (dato migrado del v2)"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

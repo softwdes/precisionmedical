@@ -3552,7 +3552,11 @@
       "confirmCancelSameDay": "Cancel same day (penalty applies)",
       "legendNoShow": "No show",
       "statusCheckedIn": "Checked in",
-      "statusCancelled": "Cancelled"
+      "statusCancelled": "Cancelled",
+      "rowRegisteredBy": "Registered by:",
+      "rowRegisteredOn": "Registration date:",
+      "rowCaseCreatedBy": "Case created by:",
+      "registeredByUnknown": "Not recorded (migrated from v2)"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

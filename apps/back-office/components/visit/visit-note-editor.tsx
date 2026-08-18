@@ -171,6 +171,12 @@ export function VisitNoteEditor({
   const [error, setError] = React.useState('');
 
   const [tplTarget, setTplTarget] = React.useState<string | null | undefined>(undefined); // undefined = cerrado
+  /**
+   * Plantilla completa esperando confirmacion. "Cargar plantilla completa" pisa
+   * las secciones Y los diagnosticos; si la nota ya tiene algo escrito se
+   * pregunta antes, en vez de borrar en silencio.
+   */
+  const [tplPorConfirmar, setTplPorConfirmar] = React.useState<PickableTemplate | null>(null);
   const [dxPickerMode, setDxPickerMode] = React.useState<'ICD10' | 'SNOMED' | null>(null);
   const [confirmSign, setConfirmSign] = React.useState(false);
   const [signing, setSigning] = React.useState(false);
@@ -425,33 +431,51 @@ export function VisitNoteEditor({
     setDirty(true);
   };
 
-  /** Aplica una plantilla: completa (todas las secciones + dx) o una sección */
-  const applyTemplate = (tpl: PickableTemplate): void => {
-    if (tplTarget) {
-      const html = tpl.sections.find((s) => s.sectionKey === tplTarget)?.content ?? '';
-      const field = SECTIONS.find((s) => s.key === tplTarget)?.field;
-      if (field && html) setSection(field, html);
-      return;
-    }
-    // Plantilla completa
+  /** Hay algo que se pueda perder? (texto en cualquier seccion, o diagnosticos) */
+  const notaTieneContenido = (): boolean =>
+    dx.length > 0 ||
+    SECTIONS.some(({ field }) => (content[field] ?? '').replace(/<[^>]*>/g, '').trim().length > 0);
+
+  /**
+   * Aplica una plantilla COMPLETA: pisa cada seccion que la plantilla traiga y
+   * REEMPLAZA los diagnosticos por los suyos.
+   *
+   * Antes los diagnosticos se SUMABAN (dedupe por ICD-10) mientras las secciones
+   * de texto se reemplazaban: el mismo clic hacia dos cosas opuestas, y cambiar
+   * de plantilla acumulaba para siempre — 10 + 6 = 16, reportado por el staff.
+   *
+   * Se reemplaza solo lo que la plantilla TRAE, mismo criterio que las secciones:
+   * una plantilla sin diagnosticos deja los que ya habia, no los borra.
+   */
+  const aplicarPlantillaCompleta = (tpl: PickableTemplate): void => {
     const next = { ...content };
     for (const { field, key } of SECTIONS) {
-      const html = tpl.sections.find((s) => s.sectionKey === key)?.content ?? '';
+      const html = tpl.sections.find((sec) => sec.sectionKey === key)?.content ?? '';
       if (html) { next[field] = html; tocadas.current.add(field); }
     }
     setContent(next);
-    const dxSection = tpl.sections.find((s) => s.sectionKey === 'DIAGNOSTICOS')?.content ?? '';
+    const dxSection = tpl.sections.find((sec) => sec.sectionKey === 'DIAGNOSTICOS')?.content ?? '';
     const tplDx = parseDx(dxSection);
     if (tplDx.length) {
-      setDx((cur) => {
-        const seen = new Set(cur.map((d) => d.icd10Code));
-        return [...cur, ...tplDx.filter((d) => d.icd10Code && !seen.has(d.icd10Code))];
-      });
+      setDx(tplDx.filter((d) => d.icd10Code));
       dxTocado.current = true;
     }
     setTemplateId(tpl.id);
     tplTocado.current = true;
     setDirty(true);
+  };
+
+  /** Aplica una plantilla: completa (todas las secciones + dx) o una sola seccion */
+  const applyTemplate = (tpl: PickableTemplate): void => {
+    if (tplTarget) {
+      const html = tpl.sections.find((sec) => sec.sectionKey === tplTarget)?.content ?? '';
+      const field = SECTIONS.find((sec) => sec.key === tplTarget)?.field;
+      if (field && html) setSection(field, html);
+      return;
+    }
+    // Nota vacia: no hay nada que perder, se aplica derecho sin estorbar.
+    if (!notaTieneContenido()) { aplicarPlantillaCompleta(tpl); return; }
+    setTplPorConfirmar(tpl);
   };
 
   const addDx = (row: DiagnosisRow): void => {
@@ -779,6 +803,17 @@ export function VisitNoteEditor({
           userId={userId}
           onClose={() => setDxPickerMode(null)}
           onPick={addDx}
+        />
+      )}
+      {tplPorConfirmar && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={t('tplReplaceTitle')}
+          description={t('tplReplaceBody', { name: tplPorConfirmar.title, dx: dx.length })}
+          confirmLabel={t('tplReplaceConfirm')}
+          onConfirm={() => { aplicarPlantillaCompleta(tplPorConfirmar); setTplPorConfirmar(null); }}
+          onCancel={() => setTplPorConfirmar(null)}
         />
       )}
       {confirmSign && (

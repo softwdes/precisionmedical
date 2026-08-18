@@ -2015,7 +2015,10 @@
       "noteConflictKeepMine": "Keep mine",
       "noteConflictTakeTheirs": "Take the saved one",
       "noteConflictShowSaved": "See what they saved",
-      "noteConflictHideSaved": "Hide"
+      "noteConflictHideSaved": "Hide",
+      "tplReplaceTitle": "Replace the note with this template?",
+      "tplReplaceBody": "\"{name}\" will overwrite the sections it provides and replace the {dx} current diagnoses. Anything you wrote in those sections is lost.",
+      "tplReplaceConfirm": "Yes, replace"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

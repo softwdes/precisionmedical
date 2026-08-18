@@ -2015,7 +2015,10 @@
       "noteConflictKeepMine": "Conservar lo mío",
       "noteConflictTakeTheirs": "Traer lo guardado",
       "noteConflictShowSaved": "Ver lo que guardó",
-      "noteConflictHideSaved": "Ocultar"
+      "noteConflictHideSaved": "Ocultar",
+      "tplReplaceTitle": "¿Reemplazar la nota con esta plantilla?",
+      "tplReplaceBody": "\"{name}\" va a sobrescribir las secciones que traiga y reemplazar los {dx} diagnósticos actuales. Lo que hayas escrito en esas secciones se pierde.",
+      "tplReplaceConfirm": "Sí, reemplazar"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

@@ -113,7 +113,7 @@ const DENVER = 'America/Denver';
  * fondo pisa el resaltado de la fila — justo en la columna del paciente, que es
  * la que mas se mira. El `color-mix` sobre `--bg-1` da el mismo tono en las dos.
  */
-const READY_BG = 'color-mix(in srgb, #10B981 16%, var(--bg-1))';
+const READY_BG = 'var(--row-ready)';
 
 function fmtDate(d: string | null): string {
   if (!d) return '';
@@ -629,8 +629,12 @@ function StatusLegend() {
     { bg: APPT_COLORS.mvaFirst,    label: tcal('legendMvaFirst'), glow: true },
     { bg: APPT_COLORS.unconfirmed, label: tcal('legendUnconfirmed') },
     { bg: APPT_COLORS.attended,    label: tcal('legendAttended') },
-    { bg: APPT_COLORS.cancelled,   label: tcal('legendCancelled'), strike: true },
-    { bg: APPT_COLORS.noShow,      label: tcal('legendNoShow'),    strike: true },
+    // Estas dos NO usan el color del calendario: la fila entera se pinta con el
+    // amarillo y el rosa del Excel de Edson, y la leyenda tiene que mostrar lo
+    // que el ve. Enseñarle el gris del calendario seria enseñarle algo que no
+    // pasa en esta pantalla.
+    { bg: 'var(--row-cancelled)',  label: tcal('legendCancelled'), strike: true },
+    { bg: 'var(--row-no-show)',    label: tcal('legendNoShow'),    strike: true },
   ];
 
   return (
@@ -641,7 +645,7 @@ function StatusLegend() {
       {items.map(item => (
         <span key={item.label} className="flex items-center gap-1.5">
           <span
-            className="w-4 h-2 rounded-sm shrink-0"
+            className="w-4 h-2 rounded-sm shrink-0 border border-border-strong"
             style={{ background: item.bg, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }}
           />
           <span

@@ -30,6 +30,22 @@
   --text-2: #A8B2CC;
   --text-3: #8B95B4;
   --text-muted: #7A86A8;
+
+  /* ─── Fondo de fila del tracking MVA ──────────────────────────────────────
+   *
+   * Amarillo para no-show y rosa para cancelada: son los colores del Excel de
+   * Edson y los pidio literales. NO salen de la paleta del calendario a
+   * proposito — en esa vista el amarillo tambien marca "sin confirmar" en la
+   * franja lateral, asi que hay una colision conocida y aceptada.
+   *
+   * Estan como token por tema y no como color-mix en el componente porque
+   * Edson trabaja en el tema CLARO (viene de su hoja de calculo) y el mismo
+   * amarillo que funciona sobre blanco se vuelve mostaza sucia sobre el fondo
+   * oscuro. Cada tema necesita su tono.
+   */
+  --row-no-show:   #4A4218;
+  --row-cancelled: #4A2230;
+  --row-ready:     #14352A;
   /* Azul y violeta PARA TEXTO. No es capricho de tener dos: `brand` y `violet`
      salen de los mockups aprobados y estan elegidos como identidad, no para
      leerse en 11px. Medido: brand da 4.1:1 sobre bg-1 en oscuro y 4.5 en claro
@@ -69,6 +85,22 @@
   --text-2: #475569;
   --text-3: #64748B;
   --text-muted: #94A3B8;
+
+  /* ─── Fondo de fila del tracking MVA ──────────────────────────────────────
+   *
+   * Amarillo para no-show y rosa para cancelada: son los colores del Excel de
+   * Edson y los pidio literales. NO salen de la paleta del calendario a
+   * proposito — en esa vista el amarillo tambien marca "sin confirmar" en la
+   * franja lateral, asi que hay una colision conocida y aceptada.
+   *
+   * Estan como token por tema y no como color-mix en el componente porque
+   * Edson trabaja en el tema CLARO (viene de su hoja de calculo) y el mismo
+   * amarillo que funciona sobre blanco se vuelve mostaza sucia sobre el fondo
+   * oscuro. Cada tema necesita su tono.
+   */
+  --row-no-show:   #FEF08A;
+  --row-cancelled: #FBCFE0;
+  --row-ready:     #BBF7D0;
   --brand-text: #4F46E5;   /* indigo-600 · 6.3:1 sobre blanco */
   --violet-text: #7C3AED;  /* violet-600 · 5.7:1 */
 

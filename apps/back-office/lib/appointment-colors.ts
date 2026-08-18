@@ -67,20 +67,21 @@ export function apptVisual(status: string): ApptVisual {
  * Fondo de la FILA entera cuando la cita no ocurrio.
  *
  * Edson pidio esto mirando su Excel, donde un no-show pinta el renglon completo
- * y el barre la hoja sin leer nada. La franja de 4px no le daba eso.
+ * y el barre la hoja de lejos. La franja de 4px no le daba eso.
  *
- * Pidio amarillo y rosa —los colores de su hoja— y se uso el gris y el rose de
- * la leyenda: en esta pantalla el amarillo ya significa "sin confirmar" y el
- * rosa es el gradiente de cita viva, asi que ambos tendrian dos significados a
- * la vez. Lo que el necesitaba era el escaneo de lejos, no el tono exacto.
+ * Y pidio SUS colores, literales: amarillo para no-show, rosa para cancelada.
+ * Se le hizo caso. Queda una colision conocida: el ambar de la franja tambien
+ * significa "sin confirmar". Se acepta porque Edson lee la fila por el fondo,
+ * no por la franja, y porque son sus dos estados de siempre.
  *
- * Va sobre `--bg-1` con color-mix para dar el mismo tono en las celdas normales
- * y en las fijas, que llevan fondo opaco propio.
+ * Los tonos viven en `globals.css` como token POR TEMA. Edson trabaja en el
+ * tema CLARO —viene de su hoja de calculo— y el amarillo que funciona sobre
+ * blanco se vuelve mostaza sucia sobre el fondo oscuro.
  */
 export function apptRowBg(status: string): string | null {
   switch (status) {
-    case 'NO_SHOW':   return 'color-mix(in srgb, #64748B 15%, var(--bg-1))';
-    case 'CANCELLED': return 'color-mix(in srgb, #F43F5E 12%, var(--bg-1))';
+    case 'NO_SHOW':   return 'var(--row-no-show)';
+    case 'CANCELLED': return 'var(--row-cancelled)';
     default:          return null;
   }
 }

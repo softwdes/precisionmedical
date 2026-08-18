@@ -5356,7 +5356,25 @@
       "confirmArchiveBody": "{name} leaves the tracking queue and moves to Archived. You can restore it from there.",
       "confirmArchiveBulkTitle": "Archive the cases that are ready?",
       "confirmArchiveBulkBody": "{count, plural, one {# case leaves} other {# cases leave}} the queue and move to Archived. You can restore them from there.",
-      "legendTitle": "Colors"
+      "legendTitle": "Colors",
+      "groupManagers": "Case managers",
+      "managersHint": "Who handles this case at the firm. They rotate — removing one keeps the record.",
+      "managerAdd": "Add case manager",
+      "managerPick": "From the firm",
+      "managerNew": "New person",
+      "managerFirstName": "First name",
+      "managerLastName": "Last name",
+      "managerEmail": "Email",
+      "managerPhone": "Phone",
+      "managerRole": "Role",
+      "managerNone": "Nobody assigned yet.",
+      "managerRemove": "No longer handles this case",
+      "managerPast": "Previously",
+      "managerSince": "since {date}",
+      "managerNoFirm": "Pick the law firm first — a new person is created inside it.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "contactsTitle": "Contacts"
     }
   },
   "clinical": {

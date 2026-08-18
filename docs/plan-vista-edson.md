@@ -224,3 +224,30 @@ Dos cuidados:
   distintos y en uso real no chocan. NO reasignar `PENDING`.
 - **Divergencia con el calendario aceptada**: allá un no-show es gris, acá
   amarillo. Es el precio de darle sus colores a Edson.
+
+
+## Encargados del caso (case managers) — 2026-08-18
+
+Pedido de Edson: poder anotar nombre, email y teléfono de los encargados del
+caso, **más de uno**.
+
+**No se resolvió como nota de texto.** Es data estructurada y repetida, y la
+persona pertenece al bufete: como nota, Edson retipearía el mismo email en cada
+caso de ese bufete — el problema que ya resolvió el catálogo de adjusters.
+
+**Modelo**: la PERSONA vive en el bufete (`Lawyer` con `parentFirmId` y
+`memberRole`, que ya incluía `CASE_MANAGER`; había 68 miembros cargados en 17
+bufetes). Lo que es del caso es la ASIGNACIÓN → tabla `case_managers`, N por
+caso.
+
+**Rotan** (Erick: "un case manager puede irse del bufete y después nombran a
+otro"). Por eso quitar a alguien **cierra** la asignación con `removedAt` en vez
+de borrarla: si se borrara, Edson perdería a quién le escribió el mes pasado.
+El unique es `(caseId, lawyerId)` y reasignar a alguien que ya estuvo revive su
+fila.
+
+**UI**: la columna Attorney abre un popover con clic —NO hover: con hover el
+panel se cierra al ir hacia él y copiar un email se vuelve una pelea, y en iPad
+no existe— con los encargados y sus emails copiables. En el modal, una sección
+para asignar de los que ya están en el bufete o crear uno nuevo al vuelo, que
+queda como miembro del bufete y aparece en sus demás casos.

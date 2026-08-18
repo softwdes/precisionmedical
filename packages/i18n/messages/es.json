@@ -5356,7 +5356,25 @@
       "confirmArchiveBody": "{name} sale de la cola de tracking y pasa a Archivados. Desde ahí lo podés restaurar.",
       "confirmArchiveBulkTitle": "¿Archivar los casos que están listos?",
       "confirmArchiveBulkBody": "{count, plural, one {# caso sale} other {# casos salen}} de la cola y pasan a Archivados. Desde ahí los podés restaurar.",
-      "legendTitle": "Colores"
+      "legendTitle": "Colores",
+      "groupManagers": "Encargados del caso",
+      "managersHint": "Quién lleva este caso en el bufete. Rotan — al quitar uno queda el registro.",
+      "managerAdd": "Agregar encargado",
+      "managerPick": "Del bufete",
+      "managerNew": "Persona nueva",
+      "managerFirstName": "Nombre",
+      "managerLastName": "Apellido",
+      "managerEmail": "Email",
+      "managerPhone": "Teléfono",
+      "managerRole": "Rol",
+      "managerNone": "Todavía no hay nadie asignado.",
+      "managerRemove": "Ya no lleva este caso",
+      "managerPast": "Antes",
+      "managerSince": "desde {date}",
+      "managerNoFirm": "Elegí primero el bufete — la persona nueva se crea dentro de él.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "contactsTitle": "Contactos"
     }
   },
   "clinical": {

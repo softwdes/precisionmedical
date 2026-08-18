@@ -174,7 +174,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ct."archivedAt"   AS archived_at,
       (SELECT n."body"      FROM case_tracking_notes n WHERE n."caseId" = c."id" ORDER BY n."createdAt" DESC LIMIT 1) AS last_note,
       (SELECT n."createdAt" FROM case_tracking_notes n WHERE n."caseId" = c."id" ORDER BY n."createdAt" DESC LIMIT 1) AS last_note_at,
-      (SELECT COUNT(*)::int FROM case_tracking_notes n WHERE n."caseId" = c."id") AS note_count
+      (SELECT COUNT(*)::int FROM case_tracking_notes n WHERE n."caseId" = c."id") AS note_count,
+      (SELECT COUNT(*)::int FROM case_managers cm
+        WHERE cm."caseId" = c."id" AND cm."removedAt" IS NULL) AS manager_count
     ${from}
     ORDER BY ${Prisma.raw(sortKey)} ${dir} NULLS LAST, c."id" ASC
     LIMIT ${size} OFFSET ${offset}
@@ -243,6 +245,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lastNote:      r.last_note,
       lastNoteAt:    r.last_note_at,
       noteCount:     r.note_count,
+      managerCount:  r.manager_count,
     })),
     stats: statsRes[0] ?? { total: 0, no_pip: 0, no_adjuster: 0, completed: 0, archivable: 0 },
     page,

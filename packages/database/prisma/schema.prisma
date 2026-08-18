@@ -589,6 +589,7 @@ model Lawyer {
 
   commissionConfig CommissionConfig?
 
+  managedCases CaseManager[]
   referrals   Patient[]    @relation("LawyerReferrer")
   commissions Commission[] @relation("LawyerCommission")
 
@@ -2579,6 +2580,7 @@ model Case {
   autoInsurance        CaseAutoInsurance?
   tracking             CaseTracking?
   trackingNotes        CaseTrackingNote[]
+  caseManagers         CaseManager[]
   notes                CaseNote[]
   lienSignatures       LienSignature[]
   intakeSubmission     IntakeSubmission?     @relation("CaseIntakeSubmission")
@@ -2898,6 +2900,53 @@ model CaseTrackingNote {
 
   @@index([caseId, createdAt])
   @@map("case_tracking_notes")
+}
+
+/// Encargado del caso por parte del bufete (B.12 — pedido de Edson).
+///
+/// La PERSONA vive en el bufete (`Lawyer` con `parentFirmId`), con su email y
+/// telefono escritos una sola vez. Lo que es del caso es la ASIGNACION, y hay
+/// varias: el correo tipico del bufete lista dos o tres encargados.
+///
+/// Rotan. Un case manager se va del bufete y nombran a otro, y Edson necesita
+/// saber quien lleva el caso HOY sin perder quien lo llevaba antes — por eso la
+/// asignacion se CIERRA con `removedAt` en vez de borrarse. Un DELETE dejaria a
+/// Edson sin saber a quien le habia escrito el mes pasado.
+///
+/// El rol no se guarda aca: sale de `Lawyer.memberRole`. A veces el encargado
+/// es el abogado mismo, a veces un paralegal, a veces alguien sin mas titulo
+/// que "encargado del caso"; el enum ya cubre los cuatro.
+model CaseManager {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  lawyerId String
+  lawyer   Lawyer @relation(fields: [lawyerId], references: [id])
+
+  assignedAt     DateTime  @default(now())
+  assignedById   String?
+  /// Denormalizado, mismo criterio que el resto de la vista: la grilla muestra
+  /// quien asigno sin join a `users`.
+  assignedByName String?
+
+  /// Null = es el encargado actual. Con fecha = ya no lleva el caso, pero queda
+  /// el registro de que lo llevo.
+  removedAt   DateTime?
+  removedById String?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Una persona no puede estar asignada dos veces al mismo caso a la vez. Al
+  /// reasignar a alguien que ya estuvo, se revive su fila en vez de duplicarla.
+  @@unique([caseId, lawyerId])
+  @@index([caseId, removedAt])
+  @@index([lawyerId])
+  @@map("case_managers")
 }
 
 // Junction table: many-to-many entre DoctorCredentials y SpecialtyCatalog.

@@ -32,6 +32,7 @@ import {
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
+import { ManagersPopover, ManagersSection } from './case-managers';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -66,6 +67,8 @@ interface Row {
   lastNote: string | null;
   lastNoteAt: string | null;
   noteCount: number;
+  /** Encargados del caso ACTIVOS — el badge de la columna Attorney. */
+  managerCount: number;
 }
 
 interface Stats { total: number; no_pip: number; no_adjuster: number; completed: number; archivable: number }
@@ -159,6 +162,8 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   const [error, setError]     = useState('');
   const [editing, setEditing] = useState<Row | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
+  /** Caso cuyo popover de encargados esta abierto. */
+  const [managersFor, setManagersFor] = useState<string | null>(null);
   // Archivar saca la fila de la cola de trabajo: se confirma, como el resto de
   // las acciones que mueven algo de sitio en el sistema.
   const [confirmArchive, setConfirmArchive] = useState<Row | null>(null);
@@ -470,7 +475,30 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         <DataTable.Td><Txt v={row.appointment.providerName} /></DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
-                        <DataTable.Td><Txt v={row.attorneyName ?? row.firmName} /></DataTable.Td>
+                        <DataTable.Td>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setManagersFor(managersFor === row.caseId ? null : row.caseId)}
+                              className="text-left max-w-[170px] flex items-center gap-1.5 group/att"
+                            >
+                              <Txt v={row.attorneyName ?? row.firmName} />
+                              {row.managerCount > 0 && (
+                                <span className="shrink-0 text-[10px] font-semibold px-1.5 rounded-full bg-brand/15 text-brand-text">
+                                  {row.managerCount}
+                                </span>
+                              )}
+                            </button>
+                            {managersFor === row.caseId && (
+                              <ManagersPopover
+                                caseId={row.caseId}
+                                attorneyName={row.attorneyName}
+                                firmName={row.firmName}
+                                onClose={() => setManagersFor(null)}
+                              />
+                            )}
+                          </div>
+                        </DataTable.Td>
                         <DataTable.Td><Txt v={row.chiropractor} /></DataTable.Td>
                         <DataTable.Td><Txt v={row.carrierName} /></DataTable.Td>
                         <DataTable.Td>{row.claimNum ? <span className="font-mono text-xs text-text-2">{row.claimNum}</span> : <Empty />}</DataTable.Td>
@@ -814,6 +842,7 @@ function TrackingDialog({
     row.attorneyId ? { id: row.attorneyId, label: row.attorneyName ?? '—' } : null,
   );
   const [adjusters, setAdjusters] = useState<AdjusterOpt[]>([]);
+  const [firmMembers, setFirmMembers] = useState<{ id: string; label: string; subtitle?: string }[]>([]);
   const [notes, setNotes] = useState<{ id: string; body: string; authorName: string | null; createdAt: string }[]>([]);
   const [newNote, setNewNote] = useState('');
   // Mismo dato que el check de la grilla (`CaseTracking.completedAt`): es el
@@ -840,6 +869,19 @@ function TrackingDialog({
     })();
     return () => { cancelled = true; };
   }, [row.caseId]);
+
+  // Miembros del bufete, para elegir un encargado sin escribirlo de nuevo.
+  useEffect(() => {
+    const firmId = lawFirm?.id;
+    if (!firmId) { setFirmMembers([]); return; }
+    let cancelled = false;
+    (async () => {
+      const res  = await fetch(`/api/admin/lawyers/autocomplete?firmId=${encodeURIComponent(firmId)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled && res.ok) setFirmMembers(json.results ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, [lawFirm?.id]);
 
   // Los adjusters se filtran por la aseguradora elegida: mostrarle a Edson los
   // de otras compañías es ruido, y elegir uno equivocado es un error real.
@@ -1001,6 +1043,13 @@ function TrackingDialog({
               <p className="text-[11px] text-text-muted mt-1">{t('fieldAdjusterFree', { name: row.adjusterName })}</p>
             )}
           </div>
+
+          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupManagers')}</div>
+          <ManagersSection
+            caseId={row.caseId}
+            lawFirmId={lawFirm?.id ?? null}
+            firmMembers={firmMembers}
+          />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupNotes')}</div>
           <div className="space-y-2.5">

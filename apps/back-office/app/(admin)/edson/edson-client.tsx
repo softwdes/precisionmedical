@@ -336,9 +336,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             {t('clearFilters')}
           </button>
         )}
-      </div>
 
-      <StatusLegend />
+        {/* `ml-auto` la manda al borde opuesto: comparte fila con las pills pero
+            queda separada de ellas, para que no se lea como un filtro mas. En
+            pantalla angosta el flex-wrap la baja sola a su linea. */}
+        <div className="ml-auto">
+          <StatusLegend />
+        </div>
+      </div>
 
       {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
 

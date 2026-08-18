@@ -132,12 +132,14 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, firmName, onClose,
+  caseId, attorneyName, firmName, onClose, onAdd,
 }: {
   caseId: string;
   attorneyName: string | null;
   firmName: string | null;
   onClose: () => void;
+  /** Abre el modal en la sección de encargados. */
+  onAdd: () => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, loading } = useManagers(caseId);
@@ -173,6 +175,14 @@ export function ManagersPopover({
           <p className="text-text-muted text-[12px] italic">{t('managerNone')}</p>
         )}
         {current.map(m => <ManagerCard key={m.id} m={m} />)}
+
+        <button
+          type="button"
+          onClick={() => { onClose(); onAdd(); }}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1 hover:border-brand"
+        >
+          <Plus className="w-3 h-3" /> {t('managerAdd')}
+        </button>
       </div>
     </>
   );

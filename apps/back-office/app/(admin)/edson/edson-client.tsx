@@ -495,6 +495,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 attorneyName={row.attorneyName}
                                 firmName={row.firmName}
                                 onClose={() => setManagersFor(null)}
+                                onAdd={() => setEditing(row)}
                               />
                             )}
                           </div>

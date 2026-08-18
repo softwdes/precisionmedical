@@ -158,6 +158,7 @@ function Td({
   onClick,
   colSpan,
   sticky,
+  style,
 }: {
   children: React.ReactNode;
   align?: Align;
@@ -166,11 +167,22 @@ function Td({
   colSpan?: number;
   /** Fija la columna al scrollear en horizontal. Ver nota de Sticky arriba. */
   sticky?: Sticky;
+  /**
+   * Escape hatch para el fondo de una celda STICKY.
+   *
+   * `STICKY_BODY_BG` es opaco a la fuerza y por eso pisa el `highlight` de
+   * `DataTable.Row`: una fila resaltada se ve del color correcto en el medio y
+   * del color normal en las columnas fijas. Hasta que el primitivo resuelva el
+   * highlight como resuelve el hover (con una capa `::before`), esto deja
+   * repintarlas desde afuera — el inline gana sobre la clase.
+   */
+  style?: React.CSSProperties;
 }) {
   return (
     <td
       colSpan={colSpan}
       onClick={onClick}
+      style={style}
       className={[
         alignClass(align),
         'px-4 py-2',

@@ -96,6 +96,20 @@ const PIP_CYCLE: Record<string, 'YES' | 'NO' | 'UNKNOWN'> = {
 
 const DENVER = 'America/Denver';
 
+/**
+ * Verde de "listo para Brunella".
+ *
+ * Es fuerte a proposito: Edson escanea la grilla de un vistazo y necesita ver
+ * cuales ya solto sin leer fila por fila.
+ *
+ * Va como valor y no como clase de Tailwind porque hay que aplicarlo TAMBIEN a
+ * las celdas fijas. `DataTable.Td` les pone un fondo opaco (`STICKY_BODY_BG`)
+ * para que el contenido no se transparente al scrollear en horizontal, y ese
+ * fondo pisa el resaltado de la fila — justo en la columna del paciente, que es
+ * la que mas se mira. El `color-mix` sobre `--bg-1` da el mismo tono en las dos.
+ */
+const READY_BG = 'color-mix(in srgb, #10B981 16%, var(--bg-1))';
+
 function fmtDate(d: string | null): string {
   if (!d) return '';
   return new Date(d).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: DENVER });
@@ -399,8 +413,8 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                     const done = !!row.completedAt;
                     const vis  = apptVisual(row.appointment.status);
                     return (
-                      <DataTable.Row key={row.caseId} highlight={done} highlightClass="bg-emerald/[0.05]">
-                        <DataTable.Td sticky="left">
+                      <DataTable.Row key={row.caseId} highlight={done} highlightClass="bg-emerald/[0.16]">
+                        <DataTable.Td sticky="left" style={done ? { background: READY_BG } : undefined}>
                           <div className="flex items-center gap-2 min-w-0">
                             <span
                               className="w-1 h-8 rounded-full shrink-0"
@@ -491,7 +505,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             </span>
                           </DataTable.Td>
                         )}
-                        <DataTable.Td align="right" sticky="right">
+                        <DataTable.Td align="right" sticky="right" style={done ? { background: READY_BG } : undefined}>
                           <div className="flex items-center justify-end gap-1">
                             {archived ? (
                               <IconAction icon={ArchiveRestore} label={t('restore')} onClick={() => void setArchivedFlag(row.caseId, false)} />

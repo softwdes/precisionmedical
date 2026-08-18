@@ -91,6 +91,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const type       = searchParams.get('type')       ?? undefined;
   const status     = searchParams.get('status')     ?? undefined;
   const patientId  = searchParams.get('patientId')  ?? undefined;
+  /**
+   * Incluir las canceladas. El calendario las pide para pintarlas TACHADAS: el
+   * hueco quedo libre y recepcion necesita ver por que. El resto de las
+   * pantallas que consumen este endpoint (ficha del paciente, citas del caso)
+   * siguen sin verlas, que es como venian.
+   */
+  const includeCancelled = searchParams.get('includeCancelled') === '1';
 
   // Rango por defecto: semana actual (lunes–domingo)
   const fromDate = from ? new Date(from) : (() => {
@@ -108,10 +115,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // ─── Build where clause (sin duplicate keys) ─────────────────────────────
   const where: Prisma.AppointmentWhereInput = {
     scheduledFor: { gte: fromDate, lte: toDate },
-    // Si pasan un status específico, úsalo; si no, excluir CANCELLED
-    status: status
-      ? (status as Prisma.EnumAppointmentStatusFilter)
-      : { not: 'CANCELLED' },
+    // Si pasan un status específico, úsalo. Si no: se excluyen las canceladas,
+    // salvo que las pidan explícitamente con includeCancelled.
+    ...(status
+      ? { status: status as Prisma.EnumAppointmentStatusFilter }
+      : includeCancelled ? {} : { status: { not: 'CANCELLED' as const } }),
   };
   if (clinicId)   where.clinicId   = clinicId;
   if (providerId) where.providerId = providerId;
@@ -159,6 +167,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       durationMinutes: appt.durationMinutes,
       type:            appt.type,
       status:          appt.status,
+      // Distingue la cancelacion del mismo dia: esa conserva servicios y admite
+      // penalidad, la cancelacion con aviso no. El panel decide con esto si
+      // ofrece entrar al caso.
+      cancelledSameDay: appt.cancelledSameDay,
       notes:           appt.notes,
       isOnline:        appt.isOnline,
       meetingUrl:      appt.meetingUrl,

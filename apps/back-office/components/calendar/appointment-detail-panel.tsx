@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
-  Stethoscope, Loader2, Clock, FolderOpen,
+  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -42,6 +42,8 @@ export interface CalendarAppointment {
   durationMinutes: number;
   type: string;
   status: string;
+  /** Solo relevante con status CANCELLED: si fue cancelacion del mismo dia. */
+  cancelledSameDay?: boolean;
   notes: string | null;
   visitNumber: number;
   isOnline?: boolean;
@@ -219,6 +221,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [confirming,    setConfirming]    = useState(false);
   const [cancelOpen,    setCancelOpen]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
+  const [noShowOpen,    setNoShowOpen]    = useState(false);
+  const [noShowing,     setNoShowing]     = useState(false);
+  const [checkingIn,    setCheckingIn]    = useState(false);
+  const [accionError,   setAccionError]   = useState<string | null>(null);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
   const [editOpen,       setEditOpen]       = useState(false);
   const [intakeLinkOpen, setIntakeLinkOpen] = useState(false);
@@ -476,13 +482,71 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     } finally { setConfirming(false); }
   };
 
-  const handleCancel = async () => {
+  /**
+   * Marcar que el paciente no vino. Solo se ofrece si TODAVIA no llego: si ya
+   * hizo check-in o esta en consulta, decir "no show" seria contradecir un hecho
+   * registrado — y ese estado pesa en las metricas del doctor.
+   */
+  const handleNoShow = async () => {
+    setAccionError(null); setNoShowing(true);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'NO_SHOW' }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      setNoShowOpen(false);
+      router.refresh(); onRefresh(); onClose();
+    } catch (e) {
+      setAccionError(e instanceof Error ? e.message : t('errorNoShow'));
+    } finally { setNoShowing(false); }
+  };
+
+  /**
+   * Check-in desde el calendario. Reusa el endpoint de Day Admission (B.14) en
+   * vez de escribir el estado a mano: ahi vive el sello de `checkedInAt` y su
+   * audit log, y dos caminos para lo mismo se desincronizan.
+   */
+  const handleCheckIn = async () => {
+    setAccionError(null); setCheckingIn(true);
+    try {
+      const res = await fetch(`/api/admin/admission/${appt.id}/check-in`, { method: 'POST' });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      router.refresh(); onRefresh(); onClose();
+    } catch (e) {
+      setAccionError(e instanceof Error ? e.message : t('errorCheckIn'));
+    } finally { setCheckingIn(false); }
+  };
+
+  /**
+   * El paciente todavia no llego: son los unicos estados donde tiene sentido
+   * ofrecer "Check in" o "No show". CHECKED_IN / IN_PROGRESS / COMPLETED ya son
+   * la prueba de que vino, y CANCELLED / NO_SHOW ya estan resueltos.
+   */
+  const noLlegoAun = appt.status === 'SCHEDULED' || appt.status === 'CONFIRMED' || appt.status === 'PENDING';
+
+  /**
+   * Entrar al caso desde una cita tiene un solo proposito: cobrar lo que se hizo
+   * (o lo que se perdio). Una cancelacion CON AVISO no genera nada, asi que ese
+   * camino se cierra. Todo lo demas si: la del mismo dia y la no-show consumieron
+   * el horario del doctor y admiten penalidad.
+   */
+  const mostrarCaso = appt.status !== 'CANCELLED' || appt.cancelledSameDay === true;
+
+  /**
+   * Cancelar. `mismoDia` marca la cancelacion tardia: el horario ya se perdio, la
+   * visita conserva sus servicios y admite un cobro de penalidad. La normal no
+   * cobra nada. La decision es de recepcion, no un calculo de fechas — asi se
+   * puede perdonar la penalidad cuando hubo una razon legitima.
+   */
+  const handleCancel = async (mismoDia = false) => {
     setCancelError(null); setCancelling(true);
     try {
       const res = await fetch(`/api/admin/appointments/${appt.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CANCELLED' }),
+        body: JSON.stringify({ status: 'CANCELLED', cancelledSameDay: mismoDia }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
       router.refresh(); onRefresh(); onClose();
@@ -781,7 +845,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   cita; el caso ya trae labs, servicios, férulas y el cobro en un
                   lugar, y es donde el mostrador tiene que estar. Sin caso
                   vinculado no hay a dónde ir, así que no se muestra nada. */}
-              {appt.case && onOpenCase && (
+              {appt.case && onOpenCase && mostrarCaso && (
                 <button
                   type="button"
                   onClick={() => {
@@ -951,15 +1015,25 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <p className="text-rose text-xs font-semibold">{t('cancelConfirmTitle')}</p>
                   <p className="text-text-muted text-[11px]">{t('cancelConfirmWarning')}</p>
                   {cancelError && <p className="text-rose text-[11px] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{cancelError}</p>}
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => { setCancelOpen(false); setCancelError(null); }} disabled={cancelling}
-                      className="flex-1 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
-                      {t('actionBack')}
-                    </button>
-                    <button type="button" onClick={handleCancel} disabled={cancelling}
-                      className="flex-1 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5">
+                  {/* Las DOS clases de cancelacion se eligen ACA y no como dos
+                      botones mas en el pie: el footer ya tiene cinco acciones, y
+                      sobre todo porque la diferencia (una cobra penalidad, la
+                      otra no) necesita estar explicada en el momento de decidir,
+                      no adivinarse desde una etiqueta. */}
+                  <div className="flex flex-col gap-2">
+                    <button type="button" onClick={() => void handleCancel(false)} disabled={cancelling}
+                      className="w-full px-3 py-2 min-h-11 sm:min-h-0 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5">
                       {cancelling ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-                      {cancelling ? t('cancellingInProgress') : t('confirmCancelYes')}
+                      {cancelling ? t('cancellingInProgress') : t('confirmCancelWithNotice')}
+                    </button>
+                    <button type="button" onClick={() => void handleCancel(true)} disabled={cancelling}
+                      className="w-full px-3 py-2 min-h-11 sm:min-h-0 rounded-md bg-amber/15 border border-amber/40 text-amber text-xs font-semibold hover:bg-amber/20 transition-colors flex items-center justify-center gap-1.5">
+                      {cancelling ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                      {cancelling ? t('cancellingInProgress') : t('confirmCancelSameDay')}
+                    </button>
+                    <button type="button" onClick={() => { setCancelOpen(false); setCancelError(null); }} disabled={cancelling}
+                      className="w-full px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
+                      {t('actionBack')}
                     </button>
                   </div>
                 </div>
@@ -969,6 +1043,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                    columna eso se pierde, asi que en mobile se reordena con `order`:
                    primaria arriba, editar, y cancelar al final como link ghost.
                    "Cerrar" se oculta: el Dialog ya tiene su X arriba a la derecha. */
+                <>
+                {accionError && (
+                  <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mb-2">
+                    {accionError}
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button type="button" onClick={() => setCancelOpen(true)}
                     className="order-3 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
@@ -982,6 +1062,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     className="order-2 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
                   </button>
+                  {/* No show / Check in: solo si el paciente TODAVIA no llego.
+                      No show va neutro a proposito (no es una alarma: no vino y
+                      no hay nada que atender) y Check in en cyan, el accent del
+                      modulo, para que sea la accion evidente cuando el paciente
+                      esta enfrente. */}
+                  {noLlegoAun && (
+                    <button type="button" onClick={() => setNoShowOpen(true)} disabled={noShowing}
+                      className="order-4 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors disabled:opacity-50">
+                      <UserX className="w-3.5 h-3.5" /> {t('actionNoShow')}
+                    </button>
+                  )}
+                  {noLlegoAun && (
+                    <button type="button" onClick={handleCheckIn} disabled={checkingIn}
+                      className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-cyan/15 border border-cyan/40 text-cyan hover:bg-cyan/20 text-xs font-semibold transition-colors disabled:opacity-50">
+                      {checkingIn ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                      {t('actionCheckIn')}
+                    </button>
+                  )}
                   {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (
                     <button type="button" onClick={handleConfirm} disabled={confirming}
                       className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-50">
@@ -990,6 +1088,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     </button>
                   )}
                 </div>
+                </>
               )}
             </div>
           )}
@@ -1017,6 +1116,18 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         cancelLabel="Cancel"
         onConfirm={() => { if (confirmVoidCash) void voidCashCharge(confirmVoidCash); setConfirmVoidCash(null); }}
         onCancel={() => setConfirmVoidCash(null)}
+      />
+
+      {/* No show — pesa en las metricas del doctor, se confirma antes */}
+      <ConfirmDialog
+        open={noShowOpen}
+        variant="danger"
+        title={t('noShowConfirmTitle')}
+        description={t('noShowConfirmBody', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
+        confirmLabel={t('actionNoShow')}
+        cancelLabel={t('actionCancel')}
+        onConfirm={handleNoShow}
+        onCancel={() => setNoShowOpen(false)}
       />
 
       {/* Confirm call — llamar de verdad es una accion real (Twilio), no solo abrir un link */}

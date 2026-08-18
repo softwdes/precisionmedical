@@ -11,6 +11,10 @@ import { localeApp } from '@/lib/fechas';
  *  FAMILY_PRACTICE 1ra cita  → emerald→teal gradient + glow
  *  PENDING / SCHEDULED sin confirmar → amber (#f59e0b)
  *  COMPLETED / atendida      → brand/indigo opacity 0.7
+ *  CANCELLED                 → rose muy tenue + TACHADA
+ *  NO_SHOW                   → text-muted (gris) + TACHADA
+ *
+ * El estado manda sobre el tipo: una MVA cancelada se pinta como cancelada.
  *
  * Accent del módulo: cyan (Regla #5 tabla)
  */
@@ -298,11 +302,41 @@ function apptTimeShort(iso: string): string {
 
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
 function getEventStyle(appt: CalendarAppointment): {
-  bg: string; border: string; text: string; glow?: string; badge?: string;
+  bg: string; border: string; text: string; glow?: string; badge?: string; strike?: boolean;
 } {
   const isFirst = appt.visitNumber === 0;
   const isCompleted = appt.status === 'COMPLETED';
   const isPending = appt.status === 'PENDING' || appt.status === 'SCHEDULED';
+
+  /**
+   * Cita que NO ocurrio: tachada. Va PRIMERO porque el estado manda sobre el
+   * tipo — una MVA cancelada es una cancelada, no una MVA.
+   *
+   * Los colores salen del v2 traducidos a los tokens de la casa: `rose` para
+   * cancelada (danger) y `text-muted` para no-show (apagado, no es una alarma:
+   * el paciente no vino y no hay nada que atender).
+   *
+   * El fondo de la cancelada va MAS transparente que el de una MVA normal
+   * (0.08 contra 0.15) a proposito: las MVA ya son rose, y sin esa diferencia
+   * una cancelada se leia como una cita de accidente. La senal fuerte es el
+   * tachado; el color solo acompana.
+   */
+  if (appt.status === 'CANCELLED') {
+    return {
+      bg: 'rgba(244,63,94,0.08)',
+      border: 'rgba(244,63,94,0.35)',
+      text: '#fda4af',
+      strike: true,
+    };
+  }
+  if (appt.status === 'NO_SHOW') {
+    return {
+      bg: 'rgba(100,116,139,0.12)',
+      border: 'rgba(100,116,139,0.35)',
+      text: '#94a3b8',
+      strike: true,
+    };
+  }
 
   if (isCompleted) {
     return {
@@ -444,11 +478,15 @@ function LegendStats({
           { color: 'linear-gradient(135deg,#10b981,#14b8a6)',           label: t('legendGpFirst'), glow: true },
           { color: 'rgba(245,158,11,0.75)',                             label: t('legendUnconfirmed') },
           { color: 'rgba(99,102,241,0.50)',                             label: t('legendAttended') },
-        ] as { color: string; label: string; glow?: boolean }[]).map(item => (
+          // Las que no ocurrieron van con la etiqueta TACHADA, igual que la
+          // tarjeta en el grid: es la senal que las distingue de un vistazo.
+          { color: 'rgba(244,63,94,0.35)',                              label: t('legendCancelled'), strike: true },
+          { color: 'rgba(100,116,139,0.45)',                            label: t('legendNoShow'),    strike: true },
+        ] as { color: string; label: string; glow?: boolean; strike?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-4 h-2 rounded-sm shrink-0"
               style={{ background: item.color, boxShadow: item.glow ? '0 0 4px rgba(244,63,94,0.40)' : undefined }} />
-            <span className="text-[12px] text-text-2 font-medium">{item.label}</span>
+            <span className="text-[12px] text-text-2 font-medium" style={{ textDecoration: item.strike ? 'line-through' : undefined }}>{item.label}</span>
           </div>
         ))}
       </div>
@@ -659,6 +697,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     const params = new URLSearchParams({
       from: from.toISOString(),
       to:   to.toISOString(),
+      // Las canceladas se piden a proposito: se pintan TACHADAS para que
+      // recepcion vea POR QUE un hueco quedo libre, en vez de que la cita
+      // desaparezca sin rastro. El horario igual se puede volver a dar: los
+      // chequeos de choque descartan las canceladas.
+      includeCancelled: '1',
       ...(filterClinic ? { clinicId: filterClinic } : {}),
       ...(lockedProviderId
         ? { providerId: lockedProviderId }
@@ -1224,7 +1267,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                     className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
-                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}>
+                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined }}>
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-xs font-bold" style={{ color: s.text }}>{timeRange}</span>
                       {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
@@ -1314,7 +1357,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                                 onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                                 onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                                 className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-1.5 py-[2px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined }}>
                                 <div className="flex items-baseline gap-1 leading-tight">
                                   <span className="text-[10px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                                     {appt.patient.firstName} {appt.patient.lastName}
@@ -1424,6 +1467,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         style={{
                           borderColor: s.border,
                           background: 'repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 6px,transparent 6px 12px)',
+                          textDecoration: s.strike ? 'line-through' : undefined,
                         }}>
                         <span className="text-[9.5px] truncate" style={{ color: s.text, opacity: 0.7 }}>
                           ↳ {t('slotContinues', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
@@ -1455,7 +1499,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                         onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                         className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined }}>
                         <div className="flex items-baseline gap-1 leading-tight">
                           <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                             {appt.patient.firstName} {appt.patient.lastName}
@@ -1574,7 +1618,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             return (
                               <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                                 className="w-full text-left text-[9.5px] px-1.5 py-[2px] rounded mb-[2px] truncate font-semibold transition-all hover:brightness-110"
-                                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}>
+                                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined }}>
                                 {s.badge && <span className="mr-0.5">{s.badge}</span>}
                                 {appt.patient.firstName} {appt.patient.lastName[0]}.
                               </button>

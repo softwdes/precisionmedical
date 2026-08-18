@@ -3422,7 +3422,17 @@
       "caseCodeUnreadable": "Código no legible",
       "patientCasesCountNoCode": "{n} caso(s)",
       "slotsAvailableShort": "{n, plural, one {1 horario} other {# horarios}}",
-      "periodEvening": "Noche"
+      "periodEvening": "Noche",
+      "errorCheckIn": "No se pudo registrar la llegada",
+      "noShowConfirmTitle": "¿Marcar que no vino?",
+      "noShowConfirmBody": "{name} queda registrado como ausente. Cuenta en las métricas del doctor.",
+      "errorNoShow": "No se pudo marcar como no vino",
+      "actionNoShow": "No vino",
+      "actionCheckIn": "Registrar llegada",
+      "confirmCancelWithNotice": "Cancelar con aviso (sin cobro)",
+      "legendCancelled": "Cancelada",
+      "confirmCancelSameDay": "Cancelar mismo día (cobra penalidad)",
+      "legendNoShow": "No vino"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

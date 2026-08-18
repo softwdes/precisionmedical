@@ -37,6 +37,13 @@ const PlannedServiceSchema = z.object({
 
 const PatchSchema = z.object({
   status:               z.enum(['SCHEDULED','CONFIRMED','CANCELLED','NO_SHOW','COMPLETED']).optional(),
+  /**
+   * Cancelacion del MISMO DIA: el horario ya se perdio, asi que la visita
+   * conserva sus servicios y admite un cobro de penalidad. Es intencion de
+   * recepcion (elige el boton), no un calculo de fechas — asi se puede perdonar
+   * la penalidad cuando hubo una razon legitima.
+   */
+  cancelledSameDay:     z.boolean().optional(),
   notes:                z.string().max(2000).nullable().optional(),
   durationMinutes:      z.number().int().min(5).max(480).optional(),
   plannedServiceCodes:  z.array(PlannedServiceSchema).optional(),
@@ -155,6 +162,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(parsed.status               !== undefined && { status:               parsed.status }),
+        ...(parsed.cancelledSameDay     !== undefined && { cancelledSameDay:     parsed.cancelledSameDay }),
         ...(parsed.notes                !== undefined && { notes:                parsed.notes }),
         ...(parsed.durationMinutes      !== undefined && { durationMinutes:      parsed.durationMinutes }),
         ...(parsed.plannedServiceCodes  !== undefined && { plannedServiceCodes:  parsed.plannedServiceCodes }),

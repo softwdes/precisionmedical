@@ -206,3 +206,21 @@ Dos cuidados:
    los estados nuevos a `Appointment.status` y defina el mapa. Vive en la
    constante `APPT_STATUS_COLOR` de `edson-client.tsx`, con valores
    provisionales, para que el cambio sea de una línea.
+
+
+## Decisiones confirmadas por Erick (2026-08-18)
+
+- **Colores de fila**: amarillo para no-show y rosa para cancelada, los del Excel
+  de Edson, literales. Token por tema en `globals.css` — Edson usa el tema
+  CLARO, viene de su hoja de cálculo.
+- **El color mira la cita MÁS RECIENTE**, no la primera. Las columnas siguen
+  siendo las de la primera. Consecuencia aceptada: un caso que canceló su
+  primera cita y ya tiene otra agendada (ej. `MVA-3178`) deja de verse cancelado
+  — el caso está vivo y eso es lo correcto.
+- **Precedencia**: si la cita no ocurrió, ese fondo gana sobre el verde de
+  "listo para Brunella". El check verde sigue visible en su columna.
+- **Colisión del ámbar aceptada**: en la franja lateral significa "sin
+  confirmar" y en el fondo el amarillo significa no-show. Son dos canales
+  distintos y en uso real no chocan. NO reasignar `PENDING`.
+- **Divergencia con el calendario aceptada**: allá un no-show es gris, acá
+  amarillo. Es el precio de darle sus colores a Edson.

@@ -286,15 +286,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // ─── Resolver nombres para pre-llenar consentsData del wizard ──────────
-  const [lawFirmRecord, attorneyRecord, insuranceRecord] = await Promise.all([
+  const [lawFirmRecord, attorneyRecord] = await Promise.all([
     parsed.legal.lawFirmId
       ? db.lawyer.findUnique({ where: { id: parsed.legal.lawFirmId }, select: { firmName: true } })
       : null,
     parsed.legal.attorneyId
       ? db.lawyer.findUnique({ where: { id: parsed.legal.attorneyId }, select: { firstName: true, lastName: true } })
-      : null,
-    parsed.insurance.primaryInsuranceId
-      ? db.insuranceCarrier.findUnique({ where: { id: parsed.insurance.primaryInsuranceId }, select: { name: true, shortCode: true, color: true } })
       : null,
   ]);
 
@@ -389,20 +386,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                 ? `${attorneyRecord.firstName ?? ''} ${attorneyRecord.lastName ?? ''}`.trim() || null
                 : null,
               chiropractor: parsed.legal.chiropractor ?? null,
-              insurances: insuranceRecord
-                ? [{
-                    id:       `pre-${Date.now()}`,
-                    insType:  'AUTO',
-                    carrier:  insuranceRecord.name,
-                    policyId: parsed.insurance.primaryPolicyNumber ?? '',
-                    holderName: '', groupNum: '', holderDOB: '', holderRelation: '',
-                    effectiveDate: '', copay: '', deductible: '',
-                    lossDate: '', pipAvailable: 'N/A', claimNum: '',
-                    adjusterName: '', adjusterPhone: '', adjusterFax: '',
-                    adjusterPhone2: '', adjusterEmail: '', comments: '',
-                    fullLien: false, lienComments: '',
-                  }]
-                : [],
+              // Ya NO se pre-llena una entrada AUTO acá. Copiaba
+              // `primaryInsuranceId` + `primaryPolicyNumber`, que el caso ya
+              // guarda en sus propias columnas, y ese duplicado es justo lo que
+              // se desincronizaba. El seguro de auto vive en
+              // `case_auto_insurances` y la vista cae a los datos del caso
+              // mientras esa fila no exista.
+              insurances: [],
             },
         ...(parsed.consents ? {
           consentsSignedAt:    new Date(),

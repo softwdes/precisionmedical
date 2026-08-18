@@ -794,8 +794,9 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
   { key: 'calendar',  label: 'Appointments',   emoji: '📅' },
   { key: 'admission', label: 'Day Admission',  emoji: '🏥' },
   { key: 'externals', label: 'Externals',      emoji: '⚖️' },
-  { key: 'edson',     label: 'Edson',          emoji: '📋' },
-  { key: 'intake',    label: 'Intake',         emoji: '📞' },
+  // Edson gobierna tambien /intake, cuyo menu se retiro cuando la vista de
+  // tracking lo reemplazo. Un `intake: true` viejo en la DB queda inofensivo.
+  { key: 'edson',     label: 'Tracking',       emoji: '📋' },
   { key: 'billing',   label: 'Billing',        emoji: '💼' },
   { key: 'settings',  label: 'Settings',       emoji: '⚙️' },
 ];

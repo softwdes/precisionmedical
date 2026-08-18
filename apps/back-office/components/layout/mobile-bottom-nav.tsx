@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BarChart3, Users, CalendarDays, ClipboardCheck, Menu, Sun } from 'lucide-react';
+import { BarChart3, Users, CalendarDays, ClipboardCheck, Menu, Sun, Briefcase } from 'lucide-react';
 import { cn } from '@precision/ui';
 
 const NAV_LINKS = [
@@ -21,9 +21,17 @@ const DOCTOR_NAV_LINKS = [
   { href: '/doctor/stats',    icon: BarChart3,    key: 'stats',         exact: false },
 ] as const;
 
+// Portal Legal — mismo acento brand que el back-office
+const ATTORNEY_NAV_LINKS = [
+  { href: '/attorney',              icon: BarChart3,    key: 'attorneyPanel',        exact: true,  moduleKey: 'panel'        },
+  { href: '/attorney/cases',        icon: Briefcase,    key: 'attorneyCases',        exact: false, moduleKey: 'cases'        },
+  { href: '/attorney/users',        icon: Users,        key: 'attorneyUsers',        exact: false, moduleKey: 'users'        },
+  { href: '/attorney/appointments', icon: CalendarDays, key: 'attorneyAppointments', exact: false, moduleKey: 'appointments' },
+] as const;
+
 interface MobileBottomNavProps {
   onMenuClick?: () => void;
-  variant?: 'admin' | 'doctor';
+  variant?: 'admin' | 'doctor' | 'attorney';
   /** Checks por menú del rol. null = ve todo. */
   allowedModules?: Record<string, boolean> | null;
 }
@@ -32,7 +40,7 @@ export function MobileBottomNav({ onMenuClick, variant = 'admin', allowedModules
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
   const isDoctor = variant === 'doctor';
-  const baseLinks = isDoctor ? DOCTOR_NAV_LINKS : NAV_LINKS;
+  const baseLinks = isDoctor ? DOCTOR_NAV_LINKS : variant === 'attorney' ? ATTORNEY_NAV_LINKS : NAV_LINKS;
   const links = allowedModules
     ? baseLinks.filter((l) => !('moduleKey' in l) || allowedModules[(l as { moduleKey: string }).moduleKey] !== false)
     : baseLinks;

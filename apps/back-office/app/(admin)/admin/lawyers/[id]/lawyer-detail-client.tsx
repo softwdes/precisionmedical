@@ -4,7 +4,7 @@ import { localeApp } from '@/lib/fechas';
 import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users, Ban, History, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users, Ban, History, X, AlertTriangle, KeyRound } from 'lucide-react';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { KpiCard } from '@/components/ui-phoenix/kpi-card';
 import { FormField } from '@/components/ui-phoenix/form-field';
@@ -54,6 +54,8 @@ interface Member {
   barNumber:    string | null;
   recoveryRate: number | null;
   casesCount:   number;
+  /** Acceso al portal legal — ver `lib/lawyer-access.ts`. */
+  access:       'none' | 'pending' | 'active' | 'revoked' | 'other-role';
 }
 
 interface Props {
@@ -362,6 +364,132 @@ function MemberGroup({
   );
 }
 
+/**
+ * Acceso al portal legal de UN miembro.
+ *
+ * El estado viene del directorio Admin (otra base — ver `lib/lawyer-access.ts`),
+ * así que después de cada acción se refresca la página en vez de mutar estado
+ * local: la fuente de verdad está del otro lado y adivinarla acá sería mentir.
+ */
+const ACCESS_BADGE: Record<Member['access'], { label: string; className: string } | null> = {
+  none:         null,
+  pending:      { label: 'Invitado',  className: 'bg-amber/10 text-amber-text border-amber/20' },
+  active:       { label: 'Con acceso', className: 'bg-emerald/10 text-emerald-text border-emerald/20' },
+  revoked:      { label: 'Revocado',  className: 'bg-rose/10 text-rose-text border-rose/20' },
+  'other-role': { label: 'Otro rol',  className: 'bg-white/5 text-text-muted border-white/10' },
+};
+
+function MemberAccessControl({ member, onChanged }: { member: Member; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Solo se muestra cuando el correo NO salió: sin RESEND_API_KEY configurado
+  // este enlace es la única forma de que la persona entre.
+  const [manualLink, setManualLink] = useState<string | null>(null);
+
+  const name = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || 'este miembro';
+  const badge = ACCESS_BADGE[member.access];
+
+  const call = async (method: 'POST' | 'DELETE') => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/lawyers/${member.id}/access`, { method });
+      const data = await res.json() as { message?: string; error?: string; emailSent?: boolean; activationLink?: string | null };
+      if (!res.ok) { setError(data.message ?? data.error ?? 'No se pudo completar la acción'); return; }
+      if (method === 'POST' && !data.emailSent && data.activationLink) setManualLink(data.activationLink);
+      onChanged();
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = () => {
+    if (!confirm(`¿Revocar el acceso al portal de ${name}? No podrá volver a entrar.`)) return;
+    void call('DELETE');
+  };
+
+  return (
+    <>
+      {badge && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border mr-1 ${badge.className}`}>
+          {badge.label}
+        </span>
+      )}
+
+      {member.access === 'other-role' ? (
+        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title="Ese email ya tiene una cuenta de otro rol">
+          <Ban className="w-3.5 h-3.5" />
+        </span>
+      ) : !member.email ? (
+        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title="Sin email: no se puede crear un acceso. Agregá el email primero.">
+          <KeyRound className="w-3.5 h-3.5" />
+        </span>
+      ) : member.access === 'active' ? (
+        <button
+          onClick={revoke}
+          disabled={busy}
+          className="w-8 h-8 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 disabled:opacity-50"
+          title="Revocar acceso al portal"
+        >
+          <Ban className="w-3.5 h-3.5 mx-auto" />
+        </button>
+      ) : (
+        <button
+          onClick={() => void call('POST')}
+          disabled={busy}
+          className="w-8 h-8 rounded-md text-text-muted hover:text-brand-text hover:bg-brand/10 disabled:opacity-50"
+          title={
+            member.access === 'pending' ? 'Reenviar el enlace de activación'
+            : member.access === 'revoked' ? 'Reactivar el acceso al portal'
+            : 'Crear acceso al portal legal'
+          }
+        >
+          <KeyRound className="w-3.5 h-3.5 mx-auto" />
+        </button>
+      )}
+
+      {error && (
+        <Dialog open onOpenChange={() => setError(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>No se pudo crear el acceso</DialogTitle>
+              <DialogDescription>{error}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setError(null)}>Entendido</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {manualLink && (
+        <Dialog open onOpenChange={() => setManualLink(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Acceso creado — el correo no salió</DialogTitle>
+              <DialogDescription>
+                La cuenta de {name} quedó creada, pero no hay envío de correo configurado en
+                este entorno. Pasale este enlace de activación por otro medio.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-md border border-white/10 bg-black/30 p-3 text-xs font-mono break-all text-text-2">
+              {manualLink}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => { void navigator.clipboard.writeText(manualLink); }}>
+                Copiar enlace
+              </Button>
+              <Button onClick={() => setManualLink(null)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
 function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: Member) => void; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false);
 
@@ -417,6 +545,7 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <MemberAccessControl member={member} onChanged={onDeleted} />
         <button onClick={() => onEdit(member)} className="w-8 h-8 rounded-md text-text-muted hover:text-white hover:bg-white/5" title="Editar">
           <Pencil className="w-3.5 h-3.5 mx-auto" />
         </button>

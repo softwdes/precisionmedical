@@ -24,6 +24,7 @@ export async function GET(
       intakeFormCompletedAt: true,
       consentsData: true,
       intakeSubmission: { select: { id: true } },
+      autoInsurance:    { select: { id: true } },
     },
   });
 
@@ -64,6 +65,7 @@ export async function GET(
       intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
       consentsData:         c.consentsData,
       hasIntakeSubmission:  !!c.intakeSubmission,
+      hasAutoInsurance:     !!c.autoInsurance,
       firstAppointment:     cAppts[0]                  ? { scheduledFor: cAppts[0].toISOString() }                  : null,
       lastAppointment:      cAppts.length > 1           ? { scheduledFor: cAppts[cAppts.length - 1].toISOString() } : null,
     };

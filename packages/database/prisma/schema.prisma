@@ -863,6 +863,23 @@ model Clinic {
   city      String?
   color     String? @default("#6366F1")
 
+  /// Tarjeta de oficina del Portal Legal (F7).
+  ///
+  /// El bufete ve en su barra lateral dónde queda la clínica a la que manda a
+  /// sus clientes: foto, horarios y sitio web. Nada de esto existía —`Clinic`
+  /// solo tenía dirección y teléfono— y sin estos campos la tarjeta no tiene
+  /// de dónde salir.
+  ///
+  /// `photos` es una lista de URLs (bucket público); el carrusel las pasa en
+  /// orden. `businessHours` es JSON y no una tabla aparte porque siempre se lee
+  /// entero y de una sola clínica: una fila por día serían siete joins para
+  /// pintar un bloque de texto. Forma esperada:
+  ///   { "mon": { "open": "09:00", "close": "18:00" }, "tue": null, ... }
+  /// `null` en un día = cerrado; día ausente = sin definir todavía.
+  photos        String[] @default([])
+  website       String?
+  businessHours Json?
+
   // ScriptSure / DAW (D4 — prescripción electrónica)
   scriptsurePracticeId String?
 
@@ -1039,6 +1056,10 @@ model Appointment {
   @@index([scheduledFor])
   @@index([status])
   @@index([providerId, scheduledFor])
+  /// La grilla de Edson saca la PRIMERA cita del caso con un LATERAL
+  /// (WHERE caseId = ? ORDER BY scheduledFor LIMIT 1). Sin el compuesto,
+  /// Postgres filtra y despues ordena.
+  @@index([caseId, scheduledFor])
   @@map("appointments")
 }
 
@@ -2555,6 +2576,9 @@ model Case {
 
   // Appointments, notas y firmas del lien
   appointments         Appointment[]         @relation("CaseAppointments")
+  autoInsurance        CaseAutoInsurance?
+  tracking             CaseTracking?
+  trackingNotes        CaseTrackingNote[]
   notes                CaseNote[]
   lienSignatures       LienSignature[]
   intakeSubmission     IntakeSubmission?     @relation("CaseIntakeSubmission")
@@ -2692,6 +2716,8 @@ model InsuranceCarrier {
   casesAsPrimary   Case[]           @relation("CasePrimaryInsurance")
   casesAsSecondary Case[]           @relation("CaseSecondaryInsurance")
   billingPayments  BillingPayment[]
+  adjusters        InsuranceAdjuster[]
+  caseAutoInsurances CaseAutoInsurance[] @relation("CaseAutoInsuranceCarrier")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2701,6 +2727,177 @@ model InsuranceCarrier {
   @@index([isActive])
   @@index([responseSpeed])
   @@map("insurance_carriers")
+}
+
+/// Catalogo de ajustadores (B.12 — bandeja de Edson).
+///
+/// Un adjuster pertenece a UNA aseguradora. Vive en el catalogo y no como texto
+/// suelto en cada caso porque la misma persona atiende decenas de casos del mismo
+/// carrier: en el Excel de Edson "Maria" de The General aparece repetida caso por
+/// caso, con la extension escrita distinta cada vez. Con el catalogo se elige de
+/// una lista y el telefono se hereda, que es justo lo que elimina esa suciedad.
+model InsuranceAdjuster {
+  id String @id @default(cuid())
+
+  insuranceCarrierId String
+  insuranceCarrier   InsuranceCarrier @relation(fields: [insuranceCarrierId], references: [id])
+
+  name String
+
+  /// Linea directa. `extension` va aparte y NO pegada al telefono: en el Excel se
+  /// escribe "ext. 122", "x122" y "ext 3853" para la misma persona, y asi no hay
+  /// forma de marcar automatico ni de detectar el duplicado.
+  phone     String?
+  extension String?
+  phone2    String?
+  fax       String?
+  email     String?
+
+  notes String? @db.Text
+
+  status ExternalStatus @default(ACTIVE)
+
+  caseAutoInsurances CaseAutoInsurance[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([insuranceCarrierId, name])
+  @@index([insuranceCarrierId])
+  @@index([status])
+  @@map("insurance_adjusters")
+}
+
+/// Y / N / vacio de la columna "PIP Available?" del Excel de Edson.
+///
+/// Es TRI-estado a proposito: vacio no significa "no tiene PIP", significa que
+/// todavia nadie llamo a la aseguradora a preguntar. Colapsar los dos en un
+/// boolean borraria justo el dato que Edson persigue todos los dias.
+enum PipAvailability {
+  YES
+  NO
+  UNKNOWN
+}
+
+/// Seguro de auto del caso (B.12 — bandeja de Edson).
+///
+/// Antes esto vivia dentro del blob `cases.consentsData.insurances[]`, escrito
+/// por el modal de la ficha del paciente. Se promovio a tabla porque el JSON no
+/// deja filtrar ni ordenar por claim/adjuster, y porque el guardado mandaba el
+/// array COMPLETO: si recepcion y Edson editaban a la vez, el ultimo en guardar
+/// borraba lo del otro.
+///
+/// NO duplica la aseguradora ni la fecha del accidente: esos ya viven en
+/// `Case.primaryInsuranceId` y `Case.accidentDate`, y la grilla cae ahi cuando
+/// estos campos estan vacios. Tener dos fuentes de verdad para el mismo dato es
+/// como se desincronizan.
+model CaseAutoInsurance {
+  id String @id @default(cuid())
+
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  /// Solo cuando el carrier del seguro de auto NO es el `primaryInsurance` del
+  /// caso. Si es null la grilla usa el del caso.
+  carrierId String?
+  carrier   InsuranceCarrier? @relation("CaseAutoInsuranceCarrier", fields: [carrierId], references: [id])
+  /// Nombre en texto libre cuando no matchea ningun carrier del catalogo.
+  carrierNameRaw String?
+
+  policyId String?
+  /// Override del `Case.accidentDate` — solo si difiere de lo que dice el caso.
+  lossDate DateTime?
+
+  pipAvailable PipAvailability @default(UNKNOWN)
+  claimNum     String?
+
+  adjusterId String?
+  adjuster   InsuranceAdjuster? @relation(fields: [adjusterId], references: [id])
+  /// Lo que se escribio a mano antes de que existiera el catalogo. Se conserva
+  /// para no perder dato mientras se depura; la UI prefiere `adjuster`.
+  adjusterNameRaw  String?
+  adjusterPhoneRaw String?
+
+  /// Comentarios DEL SEGURO, los escribe recepcion. Las observaciones de Edson
+  /// son otra cosa y viven en `CaseTrackingNote`.
+  comments String? @db.Text
+
+  fullLien     Boolean @default(false)
+  lienComments String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([carrierId])
+  @@index([adjusterId])
+  @@index([pipAvailable])
+  @@index([claimNum])
+  @@map("case_auto_insurances")
+}
+
+/// Cuaderno de Edson sobre el caso (B.12 — vista de tracking).
+///
+/// Vive aparte de `Case` porque no es verdad clinica: es el estado de SU
+/// trabajo de seguimiento, se audita distinto y se puede limpiar sin tocar el
+/// caso.
+///
+/// `completado` y `archivado` son dos actos distintos a proposito. Completado
+/// = "ya consegui toda la info" y pinta la fila de verde, pero NO la saca de la
+/// cola: un caso puede estar completo con la cita todavia por venir. Archivar =
+/// "ya no me ocupa" y recien ahi se va al segundo tab. Un solo check haciendo
+/// las dos cosas le esconderia a Edson justo los casos que ya resolvio pero
+/// todavia tiene por delante.
+model CaseTracking {
+  id String @id @default(cuid())
+
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  completedAt     DateTime?
+  completedById   String?
+  /// Denormalizado para no hacer join a `users` en cada fila de la grilla
+  /// (mismo criterio que `Case.coverageVerifiedByName`).
+  completedByName String?
+
+  archivedAt     DateTime?
+  archivedById   String?
+  archivedByName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([completedAt])
+  @@index([archivedAt])
+  @@map("case_tracking")
+}
+
+/// Observaciones de Edson — la columna "Observations" del Excel.
+///
+/// Son ENTRADAS con fecha y autor, no una celda que se sobrescribe (decision de
+/// Erick). Lo que el escribe es un registro de llamadas —"llame al bufete el 13
+/// a las 2:07pm y confirmaron representacion"— y en una sola celda cada llamada
+/// nueva borraba la anterior.
+///
+/// NO confundir con `CaseAutoInsurance.comments`, que son del seguro y los
+/// llena recepcion.
+model CaseTrackingNote {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  body String @db.Text
+
+  authorUserId String?
+  /// Denormalizado: la grilla muestra "18 feb, 3:40 PM - Edson M." sin join.
+  authorName   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId, createdAt])
+  @@map("case_tracking_notes")
 }
 
 // Junction table: many-to-many entre DoctorCredentials y SpecialtyCatalog.

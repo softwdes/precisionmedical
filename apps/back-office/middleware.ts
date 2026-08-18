@@ -30,8 +30,10 @@ const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
   ['calendar',  /^\/calendar/],
   ['admission', /^\/admission/],
   ['externals', /^\/admin\/lawyers/],
-  ['edson',     /^\/edson/],
-  ['intake',    /^\/intake/],
+  // `/intake` se gobierna con el modulo de Edson: su menú se retiró pero las
+  // rutas siguen existiendo, y sacarlas de esta lista las dejaria sin gobierno
+  // (visibles para cualquiera con un modulo cualquiera).
+  ['edson',     /^\/(edson|intake)/],
   ['billing',   /^\/billing/],
   ['settings',  /^\/(settings|audit-logs|admin\/(specialties|insurances|services|diagnoses|providers|templates))/],
 ];
@@ -88,7 +90,7 @@ function forbidden(module: string, base: NextResponse): NextResponse {
 const MODULE_HOME: Record<string, string> = {
   dashboard: '/dashboard', patients: '/patients', calendar: '/calendar',
   admission: '/admission', externals: '/admin/lawyers', edson: '/edson',
-  intake: '/intake', billing: '/billing', settings: '/settings',
+  billing: '/billing', settings: '/settings',
 };
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
@@ -172,6 +174,49 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const isProvidersHost = /^providers?\./.test(request.headers.get('host') ?? '');
   const isApi       = pathname.startsWith('/api/');
   const isAdminRole = dbRole === 'SUPER_ADMIN' || dbRole === 'ADMIN';
+
+  // ── Portal legal (/attorney) — scoping por rol y por host ─────────────────
+  // Mismo patrón que el portal médico de abajo. attorney.lienmaster.net (prod) /
+  // attorney.localhost (dev) → solo mundo abogado.
+  const isAttorneyArea = pathname === '/attorney' || pathname.startsWith('/attorney/');
+  const isAttorneyHost = /^attorney\./.test(request.headers.get('host') ?? '');
+
+  if (dbRole === 'LAWYER') {
+    // El abogado vive en /attorney/*. Cualquier otra página lo devuelve ahí —
+    // nunca al back-office, que no es suyo.
+    if (!isAttorneyArea && !isApi) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/attorney';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    // Las APIs pasan porque las vistas del portal consumen /api/attorney/*, que
+    // filtra por sesión. NO se le abre /api/admin/*: ahí las consultas asumen
+    // admin y devolverían la clínica entera.
+    if (isApi && !pathname.startsWith('/api/attorney/')) {
+      return forbidden('attorney', response);
+    }
+    return response;
+  }
+
+  // Por attorney.* solo entra el abogado (ya devuelto arriba) o un admin, que lo
+  // usa para soporte y demos eligiendo un bufete. El resto del staff recibe
+  // "sin acceso" explícito en el mismo dominio, igual que en providers.*.
+  if (isAttorneyHost) {
+    if (!isAdminRole) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/no-access';
+      url.search = '?portal=attorney';
+      return pathname === '/no-access' ? response : NextResponse.redirect(url);
+    }
+    if (!isAttorneyArea && !isApi) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/attorney';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return response;
+  }
 
   if (dbRole === 'DOCTOR' || dbRole === 'PROVIDER') {
     // Los doctores viven en /doctor/* — cualquier página administrativa redirige

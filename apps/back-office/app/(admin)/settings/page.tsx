@@ -14,6 +14,7 @@ export default async function SettingsPage() {
     providers,
     firms,
     insurances,
+    adjusters,
     services,
     serviceFavs,
     ,  // diagnoses — eliminado, se carga via API paginada
@@ -56,6 +57,11 @@ export default async function SettingsPage() {
     db.insuranceCarrier.findMany({
       where: { deletedAt: null },
       orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+    }),
+    db.insuranceAdjuster.findMany({
+      where: { deletedAt: null },
+      orderBy: [{ status: 'asc' }, { name: 'asc' }],
+      include: { insuranceCarrier: { select: { id: true, name: true, shortCode: true, color: true } } },
     }),
     db.serviceCode.findMany({
       where: { deletedAt: null },
@@ -160,6 +166,21 @@ export default async function SettingsPage() {
         slow: insurances.filter((i) => i.responseSpeed === 'SLOW').length,
         fast: insurances.filter((i) => i.responseSpeed === 'FAST').length,
         average: insurances.filter((i) => i.responseSpeed === 'AVERAGE').length,
+      }}
+      initialAdjusters={adjusters.map((a) => ({
+        id: a.id, insuranceCarrierId: a.insuranceCarrierId, name: a.name,
+        phone: a.phone, extension: a.extension, phone2: a.phone2, fax: a.fax,
+        email: a.email, notes: a.notes, status: a.status,
+        carrier: a.insuranceCarrier,
+      }))}
+      adjusterCarriers={insurances
+        .filter((i) => i.isActive)
+        .map((i) => ({ id: i.id, name: i.name, shortCode: i.shortCode, color: i.color }))}
+      adjusterStats={{
+        total: adjusters.length,
+        active: adjusters.filter((a) => a.status === 'ACTIVE').length,
+        carriersCovered: new Set(adjusters.map((a) => a.insuranceCarrierId)).size,
+        noPhone: adjusters.filter((a) => !a.phone && !a.phone2).length,
       }}
       initialServices={services.map((s) => ({
         id: s.id, code: s.code, type: s.type, shortDescription: s.shortDescription,

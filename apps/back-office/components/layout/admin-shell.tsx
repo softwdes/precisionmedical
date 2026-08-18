@@ -22,13 +22,16 @@ interface AdminShellProps {
   userRole?:     string;
   userInitials?: string;
   userEmail?:    string;
-  /** 'doctor' activa el portal médico: sidebar/bottom-nav violet con rutas /doctor/* */
-  variant?:      'admin' | 'doctor';
+  /** 'doctor' activa el portal médico (violet, rutas /doctor/*); 'attorney' el
+   *  portal legal (rutas /attorney/*). */
+  variant?:      'admin' | 'doctor' | 'attorney';
   /** Checks por menú del rol (roles_config.pm_clinic_modules). null = ve todo. */
   allowedModules?: Record<string, boolean> | null;
   /** Capacidad "ver como doctor": agrega el Portal Médico al menú. Va aparte de
    *  `allowedModules` porque ahí null significa "ve todo" y esta es opt-in. */
   canViewAsDoctor?: boolean;
+  /** Bloque libre al pie del menú lateral (Portal Legal: tarjeta de oficina). */
+  sidebarBelowNav?: React.ReactNode;
 }
 
 export function AdminShell({
@@ -40,6 +43,7 @@ export function AdminShell({
   variant      = 'admin',
   allowedModules = null,
   canViewAsDoctor = false,
+  sidebarBelowNav = null,
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -70,6 +74,7 @@ export function AdminShell({
             variant={variant}
             allowedModules={allowedModules}
             canViewAsDoctor={canViewAsDoctor}
+            belowNav={sidebarBelowNav}
           />
 
           {/* Backdrop mobile */}

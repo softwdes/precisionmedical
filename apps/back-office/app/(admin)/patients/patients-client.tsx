@@ -52,6 +52,8 @@ interface CaseRow {
   intakeFormCompletedAt: string | null;
   consentsData: Record<string, unknown> | null;
   hasIntakeSubmission?: boolean;
+  /** El seguro de auto vive en `case_auto_insurances`, no en `consentsData`. */
+  hasAutoInsurance?: boolean;
   firstAppointment: { scheduledFor: string } | null;
   lastAppointment:  { scheduledFor: string } | null;
 }
@@ -134,9 +136,11 @@ function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   if (!p.race || !p.sex || !p.maritalStatus) missingKeys.push('missingDemographics');
   // 4. Info del accidente — fecha registrada en el caso
   if (!c.accidentDate && !c.accidentType) missingKeys.push('missingAccident');
-  // 5. Seguros — array no vacío en consentsData
+  // 5. Seguros — los MEDICAL siguen en consentsData, el de auto vive en su
+  //    propia tabla (`case_auto_insurances`). Cuenta cualquiera de los dos.
   const ins = cd.insurances;
-  if (!ins || !Array.isArray(ins) || ins.length === 0) missingKeys.push('missingInsurance');
+  const tieneMedical = Array.isArray(ins) && ins.length > 0;
+  if (!tieneMedical && !c.hasAutoInsurance) missingKeys.push('missingInsurance');
   // 6. Historia médica — IntakeSubmission creado
   if (!c.hasIntakeSubmission) missingKeys.push('missingMedicalHistory');
   // 7. Consentimientos + firma
@@ -926,6 +930,7 @@ export interface PatientRow {
     intakeFormCompletedAt: string | null;
     consentsData: Record<string, unknown> | null;
     hasIntakeSubmission: boolean;
+    hasAutoInsurance: boolean;
   } | null;
   caseCount: number;
 }
@@ -1191,39 +1196,156 @@ const INS_TYPE_COLOR: Record<string, string> = {
   AUTO:    'bg-amber/10 text-amber border-amber/20',
 };
 
+/**
+ * Id fijo de la entrada AUTO en la lista de la UI.
+ *
+ * El seguro de auto dejó de vivir en `consentsData.insurances[]` y pasó a la
+ * tabla `case_auto_insurances`, que es 1:1 con el caso — o sea que hay UNO solo
+ * y no necesita id propio. Los seguros MEDICAL siguen en el JSON con su id.
+ */
+const AUTO_ENTRY_ID = '__auto__';
+
+const PIP_TO_TEXT: Record<string, string> = { YES: 'Y', NO: 'N', UNKNOWN: '' };
+
+function textToPip(raw: string): 'YES' | 'NO' | 'UNKNOWN' {
+  const v = raw.trim().toLowerCase();
+  if (['y', 'yes', 'si', 'sí', 's', 'true', '1'].includes(v)) return 'YES';
+  if (['n', 'no', 'false', '0'].includes(v)) return 'NO';
+  return 'UNKNOWN';
+}
+
 function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
   const t = useTranslations('phoenix.patients');
   const cd = patient.latestCase?.consentsData as Record<string, unknown> | null;
-  const initialIns = Array.isArray(cd?.insurances) ? (cd!.insurances as InsuranceEntry[]) : [];
+  // Del JSON ya solo salen los MEDICAL: los AUTO viven en su propia tabla.
+  const initialIns = (Array.isArray(cd?.insurances) ? (cd!.insurances as InsuranceEntry[]) : [])
+    .filter(i => i.insType !== 'AUTO');
   const [insurances, setInsurances] = useState<InsuranceEntry[]>(initialIns);
   // 'new' = formulario vacío · InsuranceEntry = editando ese seguro existente
   const [formTarget, setFormTarget] = useState<'new' | InsuranceEntry | null>(null);
   const [saving, setSaving]         = useState(false);
+  const [loading, setLoading]       = useState(!!patient.latestCase);
   const [error, setError]           = useState('');
 
-  async function saveInsurances(updated: InsuranceEntry[]) {
-    if (!patient.latestCase) return;
-    setSaving(true); setError('');
-    try {
-      const res = await fetch(`/api/admin/cases/${patient.latestCase.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consents: { insurances: updated } }),
-      });
+  const caseId = patient.latestCase?.id ?? null;
+
+  // El seguro de auto se pide al abrir el modal en vez de viajar en el payload
+  // de la lista de pacientes, que ya es pesado y se abre mucho más seguido que
+  // este diálogo.
+  useEffect(() => {
+    if (!caseId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/admin/cases/${caseId}/auto-insurance`);
+        const json = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        const row = json.autoInsurance;
+        if (!row) return;
+        const entry: InsuranceEntry = {
+          ...emptyInsEntry('AUTO'),
+          id: AUTO_ENTRY_ID,
+          carrier: row.carrier?.name ?? row.carrierNameRaw ?? '',
+          policyId: row.policyId ?? '',
+          lossDate: row.lossDate ? String(row.lossDate).slice(0, 10) : '',
+          pipAvailable: PIP_TO_TEXT[row.pipAvailable] ?? '',
+          claimNum: row.claimNum ?? '',
+          adjusterName: row.adjuster?.name ?? row.adjusterNameRaw ?? '',
+          adjusterPhone: row.adjuster?.phone ?? row.adjusterPhoneRaw ?? '',
+          comments: row.comments ?? '',
+          fullLien: row.fullLien ?? false,
+          lienComments: row.lienComments ?? '',
+        };
+        setInsurances(prev => [entry, ...prev.filter(i => i.id !== AUTO_ENTRY_ID)]);
+      } catch { /* si falla, el modal muestra solo los MEDICAL */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [caseId]);
+
+  /** Guarda los MEDICAL en el JSON del caso (los AUTO ya no van acá). */
+  async function saveMedical(updated: InsuranceEntry[]) {
+    if (!caseId) return false;
+    const res = await fetch(`/api/admin/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ consents: { insurances: updated.filter(i => i.insType !== 'AUTO') } }),
+    });
+    if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.message ?? 'Error al guardar.'); return; }
-      setInsurances(updated);
-    } catch { setError('Error de red.'); }
-    finally { setSaving(false); }
+      setError(json.message ?? 'Error al guardar.');
+      return false;
+    }
+    return true;
+  }
+
+  /** Guarda el seguro de auto en su tabla. */
+  async function saveAuto(entry: InsuranceEntry) {
+    if (!caseId) return false;
+    const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        carrierNameRaw: entry.carrier.trim() || null,
+        policyId: entry.policyId.trim() || null,
+        lossDate: entry.lossDate || null,
+        pipAvailable: textToPip(entry.pipAvailable),
+        claimNum: entry.claimNum.trim() || null,
+        adjusterNameRaw: entry.adjusterName.trim() || null,
+        adjusterPhoneRaw: entry.adjusterPhone.trim() || null,
+        comments: entry.comments.trim() || null,
+        fullLien: entry.fullLien,
+        lienComments: entry.lienComments.trim() || null,
+      }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError(json.message ?? 'Error al guardar.');
+      return false;
+    }
+    return true;
   }
 
   const insTypeLabel = { MEDICAL: t('segurosTypeMedical'), AUTO: t('segurosTypeAuto') };
 
   async function handleUpsert(entry: InsuranceEntry) {
-    const exists = insurances.some(i => i.id === entry.id);
-    await saveInsurances(exists ? insurances.map(i => i.id === entry.id ? entry : i) : [...insurances, entry]);
+    if (!caseId) return;
+    setSaving(true); setError('');
+    try {
+      if (entry.insType === 'AUTO') {
+        // La tabla es 1:1 con el caso: un segundo auto reemplaza al anterior en
+        // vez de agregarse, que es lo que el JSON dejaba hacer sin querer.
+        const withId = { ...entry, id: AUTO_ENTRY_ID };
+        if (!(await saveAuto(withId))) return;
+        setInsurances(prev => [withId, ...prev.filter(i => i.insType !== 'AUTO')]);
+      } else {
+        const exists  = insurances.some(i => i.id === entry.id);
+        const updated = exists
+          ? insurances.map(i => (i.id === entry.id ? entry : i))
+          : [...insurances, entry];
+        if (!(await saveMedical(updated))) return;
+        setInsurances(updated);
+      }
+    } catch { setError('Error de red.'); }
+    finally { setSaving(false); }
   }
-  async function handleDelete(id: string) { await saveInsurances(insurances.filter(i => i.id !== id)); }
+
+  async function handleDelete(id: string) {
+    if (!caseId) return;
+    setSaving(true); setError('');
+    try {
+      if (id === AUTO_ENTRY_ID) {
+        const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, { method: 'DELETE' });
+        if (!res.ok) { setError('Error al eliminar.'); return; }
+        setInsurances(prev => prev.filter(i => i.id !== AUTO_ENTRY_ID));
+      } else {
+        const updated = insurances.filter(i => i.id !== id);
+        if (!(await saveMedical(updated))) return;
+        setInsurances(updated);
+      }
+    } catch { setError('Error de red.'); }
+    finally { setSaving(false); }
+  }
 
   return (
     <>
@@ -1248,7 +1370,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
               </div>
             )}
 
-            {patient.latestCase && insurances.length === 0 && !saving && (
+            {patient.latestCase && insurances.length === 0 && !saving && !loading && (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
                 <Shield className="w-10 h-10 opacity-20" />
                 <p className="text-sm font-medium">{t('segurosEmpty')}</p>
@@ -1256,7 +1378,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
               </div>
             )}
 
-            {saving && (
+            {(saving || loading) && (
               <div className="flex items-center justify-center py-6 text-text-muted gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span className="text-sm">{t('segurosSaving')}</span>

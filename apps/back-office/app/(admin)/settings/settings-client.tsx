@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
+import { useTranslations } from 'next-intl';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound,
+  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset,
 } from 'lucide-react';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,
@@ -15,6 +16,7 @@ import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import { SpecialtiesClient } from '@/app/(admin)/admin/specialties/specialties-client';
 import { LawyersClient }     from '@/app/(admin)/admin/lawyers/lawyers-client';
 import { InsurancesClient }  from '@/app/(admin)/admin/insurances/insurances-client';
+import { AdjustersClient }   from '@/app/(admin)/admin/adjusters/adjusters-client';
 import { ServicesClient }    from '@/app/(admin)/admin/services/services-client';
 import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
 import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
@@ -29,17 +31,20 @@ interface Clinic {
 
 // Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
 // en el portal del doctor (/doctor/templates), con editor rich text y diagnósticos.
-type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos' | 'auditlog';
+type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'diagnosticos' | 'auditlog';
 
-const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
-  { id: 'clinicas',       label: 'Clínicas',       icon: Building2   },
-  { id: 'especialidades', label: 'Especialidades',  icon: Stethoscope },
-  { id: 'doctores',       label: 'Doctores',        icon: UserRound   },
-  { id: 'bufetes',        label: 'Bufetes',         icon: Scale       },
-  { id: 'aseguradoras',   label: 'Aseguradoras',    icon: ShieldCheck },
-  { id: 'servicios',      label: 'Servicios CPT',   icon: DollarSign  },
-  { id: 'diagnosticos',   label: 'Diagnósticos',    icon: FileText    },
-  { id: 'auditlog',       label: 'Audit Log',       icon: Shield      },
+// La etiqueta sale de `phoenix.settings.tabs.<id>` — antes era texto fijo en
+// español y no cambiaba al pasar la app a inglés.
+const TABS: Array<{ id: Tab; icon: React.ElementType }> = [
+  { id: 'clinicas',       icon: Building2   },
+  { id: 'especialidades', icon: Stethoscope },
+  { id: 'doctores',       icon: UserRound   },
+  { id: 'bufetes',        icon: Scale       },
+  { id: 'aseguradoras',   icon: ShieldCheck },
+  { id: 'ajustadores',    icon: Headset     },
+  { id: 'servicios',      icon: DollarSign  },
+  { id: 'diagnosticos',   icon: FileText    },
+  { id: 'auditlog',       icon: Shield      },
 ];
 
 interface Props {
@@ -50,6 +55,9 @@ interface Props {
   firmStats:          React.ComponentProps<typeof LawyersClient>['stats'];
   initialInsurances:  React.ComponentProps<typeof InsurancesClient>['insurances'];
   insuranceStats:     React.ComponentProps<typeof InsurancesClient>['stats'];
+  initialAdjusters:   React.ComponentProps<typeof AdjustersClient>['adjusters'];
+  adjusterCarriers:   React.ComponentProps<typeof AdjustersClient>['carriers'];
+  adjusterStats:      React.ComponentProps<typeof AdjustersClient>['stats'];
   initialServices:    React.ComponentProps<typeof ServicesClient>['services'];
   serviceStats:       React.ComponentProps<typeof ServicesClient>['stats'];
   diagnosisStats:     React.ComponentProps<typeof DiagnosesClient>['stats'];
@@ -79,11 +87,13 @@ export function SettingsClient({
   initialSpecialties, specialtyStats,
   initialFirms,       firmStats,
   initialInsurances,  insuranceStats,
+  initialAdjusters,   adjusterCarriers, adjusterStats,
   initialServices,    serviceStats,
   diagnosisStats,     diagnosisUserId,
   initialProviders,   providerStats,
   auditKpis,          initialAuditLogs,
 }: Props) {
+  const ts = useTranslations('phoenix.settings');
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
 
@@ -185,7 +195,7 @@ export function SettingsClient({
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="px-4 sm:px-6 pt-4 sm:pt-6">
-        <PageHeader title="Configuración" subtitle="Clínicas, catálogos y configuración global del sistema" />
+        <PageHeader title={ts('title')} subtitle={ts('subtitle')} />
 
         {/* ── Tab bar ── */}
         <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border mt-4">
@@ -197,7 +207,7 @@ export function SettingsClient({
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
                   active ? 'bg-gradient-brand text-white shadow-glow' : 'text-text-2 hover:text-text-1 hover:bg-white/5'
                 }`}>
-                <Icon className="w-3.5 h-3.5" />{tab.label}
+                <Icon className="w-3.5 h-3.5" />{ts(`tabs.${tab.id}`)}
               </button>
             );
           })}
@@ -286,6 +296,7 @@ export function SettingsClient({
       {activeTab === 'doctores'       && <ProvidersClient providers={initialProviders} stats={providerStats} />}
       {activeTab === 'bufetes'        && <LawyersClient firms={initialFirms} stats={firmStats} />}
       {activeTab === 'aseguradoras'   && <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />}
+      {activeTab === 'ajustadores'    && <AdjustersClient adjusters={initialAdjusters} carriers={adjusterCarriers} stats={adjusterStats} />}
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}

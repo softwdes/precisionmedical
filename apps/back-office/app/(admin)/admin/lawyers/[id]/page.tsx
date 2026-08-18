@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
+import { getLawyerAccessMap } from '@/lib/lawyer-access';
 import { LawyerDetailClient } from './lawyer-detail-client';
 
 // B.31 — Detalle de bufete con tabs (Resumen · Members · Notas)
@@ -22,6 +23,10 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
   if (!firm || firm.entityType !== 'FIRM') {
     notFound();
   }
+
+  // Acceso al portal legal: vive en el directorio Admin, no en Phoenix, así que
+  // se resuelve aparte y en un solo viaje para todos los miembros.
+  const access = await getLawyerAccessMap(firm.members.map((m) => m.email));
 
   return (
     <LawyerDetailClient
@@ -54,6 +59,7 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
         barNumber:    m.barNumber,
         recoveryRate: m.recoveryRate,
         casesCount:   m._count.casesAsAttorney,
+        access:       m.email ? (access[m.email.toLowerCase()] ?? 'none') : 'none',
       }))}
     />
   );

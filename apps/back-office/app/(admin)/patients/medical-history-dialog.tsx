@@ -2211,7 +2211,32 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
     setMh(prev => ({ ...prev, ...patch }));
     onChanged?.();
   };
-  const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
+  // Los MEDICAL siguen en el JSON del caso; el de auto se movio a su propia
+  // tabla y se pide aparte, si no esta seccion dejaria de mostrarlo.
+  const medicalIns = ((patient.latestCase?.consentsData as Record<string, unknown> | null)
+    ?.insurances as Array<Record<string, string>> | undefined ?? [])
+    .filter(i => i.insType !== 'AUTO');
+  const [autoIns, setAutoIns] = useState<Record<string, string> | null>(null);
+  const mhCaseId = patient.latestCase?.id ?? null;
+  useEffect(() => {
+    if (!mhCaseId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/admin/cases/${mhCaseId}/auto-insurance`);
+        const json = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok || !json.autoInsurance) return;
+        const row = json.autoInsurance;
+        setAutoIns({
+          insType: 'AUTO',
+          carrier: row.carrier?.name ?? row.carrierNameRaw ?? '',
+          policyId: row.policyId ?? '',
+        });
+      } catch { /* si falla, se muestran solo los MEDICAL */ }
+    })();
+    return () => { cancelled = true; };
+  }, [mhCaseId]);
+  const insurances = autoIns ? [autoIns, ...medicalIns] : medicalIns;
 
   const age    = calcAge(patient.dateOfBirth);
   const dobStr = fmtDOB(patient.dateOfBirth);

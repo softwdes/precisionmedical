@@ -105,6 +105,9 @@ export async function GET(req: NextRequest) {
         intakeFormSentAt: true, intakeFormCompletedAt: true,
         consentsData: true,
         intakeSubmission: { select: { id: true } },
+        // El seguro de auto salio del JSON a su propia tabla; sin esto la barra
+        // de completitud marcaria "falta seguro" en casos que si lo tienen.
+        autoInsurance: { select: { id: true } },
       },
     }),
   ]);
@@ -155,6 +158,7 @@ export async function GET(req: NextRequest) {
           intakeFormCompletedAt: latestCaseMap[p.id].intakeFormCompletedAt?.toISOString() ?? null,
           consentsData:          latestCaseMap[p.id].consentsData as Record<string, unknown> | null,
           hasIntakeSubmission:   !!latestCaseMap[p.id].intakeSubmission,
+          hasAutoInsurance:      !!latestCaseMap[p.id].autoInsurance,
         }
       : null,
   }));

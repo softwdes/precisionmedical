@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   Settings,
-  Phone,
   Briefcase,
   BarChart3,
   Lock,
@@ -51,8 +50,10 @@ const SECTIONS: NavSection[] = [
       { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11', moduleKey: 'calendar'  },
       { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15', moduleKey: 'admission' },
       { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31', moduleKey: 'externals' },
+      // "Intake (Edson)" se retiró: la vista de tracking de /edson lo reemplaza.
+      // Las rutas /intake/* siguen vivas (verify-pip sella `pipVerifiedAt`), pero
+      // ya no tienen entrada en el menú. Ver docs/plan-vista-edson.md §6.
       { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24', moduleKey: 'edson' },
-      { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13', moduleKey: 'intake'    },
       { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28', moduleKey: 'billing'   },
       { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+',      moduleKey: 'settings'  },
     ],
@@ -84,7 +85,25 @@ const DOCTOR_SECTIONS: NavSection[] = [
   },
 ];
 
-export type ShellVariant = 'admin' | 'doctor';
+/**
+ * Portal Legal — mismo acento `brand` que el back-office (Erick: "todo igual que
+ * los demás módulos"). Los `moduleKey` son las llaves de `AttorneyMenu`, así que
+ * el filtrado por rol del despacho reusa el mismo mecanismo `allowedModules` que
+ * ya gobierna los menús del staff interno.
+ */
+const ATTORNEY_SECTIONS: NavSection[] = [
+  {
+    titleKey: '',
+    items: [
+      { href: '/attorney',              icon: BarChart3,    labelKey: 'attorneyPanel',        moduleKey: 'panel', exact: true },
+      { href: '/attorney/cases',        icon: Briefcase,    labelKey: 'attorneyCases',        moduleKey: 'cases'        },
+      { href: '/attorney/users',        icon: Users,        labelKey: 'attorneyUsers',        moduleKey: 'users'        },
+      { href: '/attorney/appointments', icon: CalendarDays, labelKey: 'attorneyAppointments', moduleKey: 'appointments' },
+    ],
+  },
+];
+
+export type ShellVariant = 'admin' | 'doctor' | 'attorney';
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -96,14 +115,18 @@ interface SidebarProps {
   allowedModules?: Record<string, boolean> | null;
   /** Capacidad "ver como doctor" — agrega el Portal Médico al menú administrativo. */
   canViewAsDoctor?: boolean;
+  /** Bloque libre entre el menú y el footer. Lo usa el Portal Legal para la
+   *  tarjeta de oficina; se oculta con la barra colapsada, donde no hay ancho. */
+  belowNav?: React.ReactNode;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, belowNav = null }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
 
   const isDoctor = variant === 'doctor';
-  const baseSections = isDoctor ? DOCTOR_SECTIONS : SECTIONS;
+  const isAttorney = variant === 'attorney';
+  const baseSections = isDoctor ? DOCTOR_SECTIONS : isAttorney ? ATTORNEY_SECTIONS : SECTIONS;
   // Checks por menú del rol: sin mapa → todo visible; con mapa → solo los marcados
   const visibleSections = allowedModules
     ? baseSections.map((s) => ({
@@ -114,12 +137,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   // El Portal Médico cierra el menú administrativo. Se agrega a la última sección
   // en vez de abrir una nueva: la lista se renderiza con `titleKey` como key de
   // React y todas las secciones de acá comparten el título vacío.
-  const sections = !isDoctor && canViewAsDoctor
+  const sections = !isDoctor && !isAttorney && canViewAsDoctor
     ? visibleSections.map((s, i) =>
         i === visibleSections.length - 1 ? { ...s, items: [...s.items, DOCTOR_PORTAL_ITEM] } : s,
       )
     : visibleSections;
-  const homeHref = isDoctor ? '/doctor' : '/dashboard';
+  const homeHref = isDoctor ? '/doctor' : isAttorney ? '/attorney' : '/dashboard';
   const logoGradient = isDoctor
     ? 'linear-gradient(135deg,#7C3AED 0%,#8B5CF6 50%,#A78BFA 100%)'
     : 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)';
@@ -149,7 +172,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             <div className="flex flex-col min-w-0">
               <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
               <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet-text font-semibold' : 'text-text-muted')}>
-                {isDoctor ? t('doctorPortal') : 'LienMaster v3'}
+                {isDoctor ? t('doctorPortal') : isAttorney ? t('attorneyPortal') : 'LienMaster v3'}
               </span>
             </div>
           </Link>
@@ -204,6 +227,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
           </div>
         ))}
       </nav>
+
+      {belowNav && !collapsed && (
+        <div className="border-t border-border pt-3 max-h-[45vh] overflow-y-auto shrink-0">
+          {belowNav}
+        </div>
+      )}
 
       {/* Footer */}
       <div className={cn('border-t border-border', collapsed ? 'px-1.5 py-3' : 'px-5 py-4')}>

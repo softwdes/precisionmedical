@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 /**
  * B.10 — CalendarClient · Grid semanal de citas
@@ -472,20 +473,23 @@ function LegendStats({
     <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {([
-          { color: 'rgba(244,63,94,0.75)',                              label: t('legendMvaFollowUp') },
-          { color: 'linear-gradient(135deg,#f43f5e,#ec4899)',           label: t('legendMvaFirst'), glow: true },
-          { color: 'rgba(16,185,129,0.75)',                             label: t('legendGpFollowUp') },
-          { color: 'linear-gradient(135deg,#10b981,#14b8a6)',           label: t('legendGpFirst'), glow: true },
-          { color: 'rgba(245,158,11,0.75)',                             label: t('legendUnconfirmed') },
-          { color: 'rgba(99,102,241,0.50)',                             label: t('legendAttended') },
+          // Los valores salen de `lib/appointment-colors` — los comparte con la
+          // grilla de tracking MVA, que pinta la franja de cada fila con el
+          // mismo criterio. Antes estaban inline y solo aca.
+          { color: APPT_COLORS.mvaFollowUp, label: t('legendMvaFollowUp') },
+          { color: APPT_COLORS.mvaFirst,    label: t('legendMvaFirst'), glow: true },
+          { color: APPT_COLORS.gpFollowUp,  label: t('legendGpFollowUp') },
+          { color: APPT_COLORS.gpFirst,     label: t('legendGpFirst'), glow: true },
+          { color: APPT_COLORS.unconfirmed, label: t('legendUnconfirmed') },
+          { color: APPT_COLORS.attended,    label: t('legendAttended') },
           // Las que no ocurrieron van con la etiqueta TACHADA, igual que la
           // tarjeta en el grid: es la senal que las distingue de un vistazo.
-          { color: 'rgba(244,63,94,0.35)',                              label: t('legendCancelled'), strike: true },
-          { color: 'rgba(100,116,139,0.45)',                            label: t('legendNoShow'),    strike: true },
+          { color: APPT_COLORS.cancelled,   label: t('legendCancelled'), strike: true },
+          { color: APPT_COLORS.noShow,      label: t('legendNoShow'),    strike: true },
         ] as { color: string; label: string; glow?: boolean; strike?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-4 h-2 rounded-sm shrink-0"
-              style={{ background: item.color, boxShadow: item.glow ? '0 0 4px rgba(244,63,94,0.40)' : undefined }} />
+              style={{ background: item.color, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }} />
             <span className="text-[12px] text-text-2 font-medium" style={{ textDecoration: item.strike ? 'line-through' : undefined }}>{item.label}</span>
           </div>
         ))}

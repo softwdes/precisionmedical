@@ -2136,7 +2136,8 @@
       "noteConflictHideSaved": "Hide",
       "tplReplaceTitle": "Replace the note with this template?",
       "tplReplaceBody": "\"{name}\" will overwrite the sections it provides and replace the {dx} current diagnoses. Anything you wrote in those sections is lost.",
-      "tplReplaceConfirm": "Yes, replace"
+      "tplReplaceConfirm": "Yes, replace",
+      "rxNotOnboardedTryOther": "To try the inbox, pick {name} in the doctor selector above — they are the one set up in ScriptSure."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

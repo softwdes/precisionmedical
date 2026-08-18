@@ -35,7 +35,11 @@ const VISTAS: { key: Vista; icon: typeof Inbox; labelKey: string; soloAdmin?: bo
   { key: 'setting', icon: Settings, labelKey: 'rxSettingsTab', soloAdmin: true },
 ];
 
-export function PrescriptionsClient({ isAdmin = false }: { isAdmin?: boolean }): React.ReactElement {
+export function PrescriptionsClient({ isAdmin = false, puedeElegirDoctor = false }: {
+  isAdmin?: boolean;
+  /** Tiene el selector de "ver como doctor" — o sea, está probando el portal. */
+  puedeElegirDoctor?: boolean;
+}): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const vistas = React.useMemo(() => VISTAS.filter((v) => !v.soloAdmin || isAdmin), [isAdmin]);
 
@@ -43,6 +47,8 @@ export function PrescriptionsClient({ isAdmin = false }: { isAdmin?: boolean }):
   const [estado, setEstado] = React.useState<Estado>('loading');
   const [url, setUrl] = React.useState<string | null>(null);
   const [detalle, setDetalle] = React.useState<string | null>(null);
+  /** Un médico que SÍ está dado de alta, para poder probar la bandeja. */
+  const [habilitado, setHabilitado] = React.useState<string | null>(null);
   // Cambia en cada "actualizar" para forzar que el iframe recargue: si solo se
   // reusara la misma URL, React no vuelve a montarlo y la bandeja queda vieja.
   const [recarga, setRecarga] = React.useState(0);
@@ -56,12 +62,13 @@ export function PrescriptionsClient({ isAdmin = false }: { isAdmin?: boolean }):
     void (async () => {
       try {
         const res = await fetch(`/api/admin/scriptsure/practice-widget?widget=${vista}`);
-        const body = (await res.json()) as { url?: string; error?: string; message?: string };
+        const body = (await res.json()) as { url?: string; error?: string; message?: string; habilitado?: string | null };
         if (!vigente) return;
 
         if (!res.ok) {
           setEstado(body.error === 'NOT_ONBOARDED' ? 'not_onboarded' : 'error');
           setDetalle(body.message ?? body.error ?? null);
+          setHabilitado(body.habilitado ?? null);
           return;
         }
         setUrl(body.url ?? null);
@@ -127,6 +134,12 @@ export function PrescriptionsClient({ isAdmin = false }: { isAdmin?: boolean }):
               <div className="text-[12.5px] text-text-2 leading-relaxed">
                 <p className="text-text-1 font-medium mb-1">{t('rxNotOnboardedTitle')}</p>
                 <p>{t('rxNotOnboardedDesc')}</p>
+                {/* Para quien está PROBANDO: el mensaje de arriba le habla al
+                    médico y lo deja sin salida. Con el selector del encabezado
+                    puede ver la bandeja de uno que sí esté habilitado. */}
+                {puedeElegirDoctor && habilitado && (
+                  <p className="mt-2 text-violet-text">{t('rxNotOnboardedTryOther', { name: habilitado })}</p>
+                )}
               </div>
             </div>
           </div>

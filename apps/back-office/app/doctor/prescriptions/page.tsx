@@ -10,7 +10,7 @@
  */
 
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
-import { getSessionProvider } from '@/lib/get-session-provider';
+import { getDoctorViewInfo, getSessionProvider } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { PrescriptionsClient } from './prescriptions-client';
 
@@ -27,5 +27,12 @@ export default async function DoctorPrescriptionsPage(): Promise<React.ReactElem
   const user = await getSessionUser();
   const role = user?.email ? await fetchDbRole(user.email) : null;
 
-  return <PrescriptionsClient isAdmin={!!role && ADMIN_ROLES.has(role)} />;
+  /**
+   * ¿Tiene el selector de "ver como doctor" en el encabezado? Solo a esa persona
+   * le sirve que le digan "elegí a fulano": un médico de verdad sin alta no
+   * puede cambiar de identidad, y sugerírselo sería ruido.
+   */
+  const { options } = await getDoctorViewInfo();
+
+  return <PrescriptionsClient isAdmin={!!role && ADMIN_ROLES.has(role)} puedeElegirDoctor={options.length > 0} />;
 }

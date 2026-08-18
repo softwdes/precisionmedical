@@ -2136,7 +2136,8 @@
       "noteConflictHideSaved": "Ocultar",
       "tplReplaceTitle": "¿Reemplazar la nota con esta plantilla?",
       "tplReplaceBody": "\"{name}\" va a sobrescribir las secciones que traiga y reemplazar los {dx} diagnósticos actuales. Lo que hayas escrito en esas secciones se pierde.",
-      "tplReplaceConfirm": "Sí, reemplazar"
+      "tplReplaceConfirm": "Sí, reemplazar",
+      "rxNotOnboardedTryOther": "Para probar la bandeja, elegí a {name} en el selector de doctor de arriba — es el único con alta en ScriptSure."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

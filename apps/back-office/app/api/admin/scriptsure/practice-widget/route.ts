@@ -74,7 +74,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   ]);
 
   if (!row?.scriptsureUserId || !clinic?.scriptsurePracticeId) {
-    return NextResponse.json({ error: 'NOT_ONBOARDED' }, { status: 409 });
+    /**
+     * Se nombra a un médico que SÍ está dado de alta.
+     *
+     * Quien está probando el portal con el selector "ver como doctor" no tiene
+     * forma de adivinar cuál de los 20 funciona —hoy es uno solo— y el mensaje
+     * de "pedile a administración que te invite" está escrito para el médico,
+     * no para quien prueba. Sale de la base y no clavado: el día que haya tres
+     * dados de alta, nombra a uno que sirva.
+     */
+    const habilitado = await db.provider.findFirst({
+      where: { scriptsureUserId: { not: null }, deletedAt: null, status: 'ACTIVE' },
+      select: { firstName: true, lastName: true },
+      orderBy: { lastName: 'asc' },
+    });
+    return NextResponse.json({
+      error: 'NOT_ONBOARDED',
+      habilitado: habilitado ? `${habilitado.firstName} ${habilitado.lastName}`.trim() : null,
+    }, { status: 409 });
   }
 
   try {

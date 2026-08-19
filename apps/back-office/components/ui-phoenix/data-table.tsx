@@ -159,8 +159,11 @@ function Table({ children, gridLines }: { children: React.ReactNode; gridLines?:
         'w-full text-sm',
         // `[&_td]` en vez de tocar cada celda: la linea va a la DERECHA de cada
         // una y la ultima de la fila no la lleva.
-        gridLines ? '[&_td]:border-r [&_td]:border-row-sep [&_td:last-child]:border-r-0'
-                  + ' [&_th]:border-r [&_th]:border-row-sep [&_th:last-child]:border-r-0' : '',
+        // `border-strong` y no `row-sep`: este ultimo es 7% de opacidad en tema
+        // claro y la linea casi no se veia. Edson pidio que se noten — viene de
+        // una hoja de calculo, donde la cuadricula se lee de lejos.
+        gridLines ? '[&_td]:border-r [&_td]:border-border-strong [&_td:last-child]:border-r-0'
+                  + ' [&_th]:border-r [&_th]:border-border-strong [&_th:last-child]:border-r-0' : '',
       ].filter(Boolean).join(' ')}
     >
       {children}

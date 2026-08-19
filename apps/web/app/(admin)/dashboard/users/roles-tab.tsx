@@ -18,10 +18,19 @@ interface RoleConfig {
   is_system: boolean;
   permissions: {
     lm_admin: Record<string, string>;
-    pm_timeclock: boolean;
-    pm_clinic?:    boolean;   // Clinic Back-Office
-    pm_clinical?:  boolean;   // Doctors App
-    pm_attorney?:  boolean;   // Attorney Portal
+    /** Clinic Back-Office — el unico toggle que gobierna algo de verdad. */
+    pm_clinic?: boolean;
+    /**
+     * Llaves historicas: se siguen guardando tal como estan en la DB, pero
+     * NADIE las lee. El acceso a Doctors App y Attorney Portal lo decide la
+     * matriz estatica `canAccessV2App()` en `packages/auth/src/v2-apps.ts`, y el
+     * Time Clock se gobierna por la tabla `employees`, sin mirar el rol. Se
+     * dejaron de mostrar como toggles porque inducian al error: alguien los
+     * apagaba creyendo cerrar un acceso que seguia abierto.
+     */
+    pm_timeclock?: boolean;
+    pm_clinical?:  boolean;
+    pm_attorney?:  boolean;
   };
 }
 
@@ -103,25 +112,25 @@ function EditPermissionsModal({
   onSaved: () => void;
 }): React.ReactElement {
   // Defaults para nuevas apps según v2-apps.ts (aplican cuando aún no hay valor en DB)
-  const V2_DEFAULTS: Record<string, { clinic: boolean; clinical: boolean; attorney: boolean }> = {
-    SUPER_ADMIN: { clinic: true,  clinical: true,  attorney: true  },
-    ADMIN:       { clinic: true,  clinical: true,  attorney: true  },
-    CONTADOR:    { clinic: true,  clinical: false, attorney: false },
-    EMPLOYEE:    { clinic: false, clinical: true,  attorney: false },
-    DOCTOR:      { clinic: false, clinical: true,  attorney: false },
-    PROVIDER:    { clinic: false, clinical: true,  attorney: false },
-    LAWYER:      { clinic: false, clinical: false, attorney: true  },
-    AUDITOR_AI:  { clinic: false, clinical: false, attorney: false },
+  // Default del toggle de Clinic Back-Office cuando la fila no trae valor:
+  // espejo de la matriz estatica de `v2-apps.ts`. Los roles que ya entran por
+  // esa matriz (SUPER_ADMIN, ADMIN, CONTADOR) arrancan en ON.
+  const CLINIC_DEFAULTS: Record<string, boolean> = {
+    SUPER_ADMIN: true,
+    ADMIN:       true,
+    CONTADOR:    true,
+    EMPLOYEE:    false,
+    DOCTOR:      false,
+    PROVIDER:    false,
+    LAWYER:      false,
+    AUDITOR_AI:  false,
   };
-  const v2 = V2_DEFAULTS[config.role.toUpperCase()] ?? { clinic: false, clinical: false, attorney: false };
+  const clinicDefault = CLINIC_DEFAULTS[config.role.toUpperCase()] ?? false;
 
   const [perms, setPerms] = useState<Record<string, string>>(
     { ...config.permissions.lm_admin },
   );
-  const [timeclock, setTimeclock] = useState(config.permissions.pm_timeclock);
-  const [clinic,    setClinic]    = useState(config.permissions.pm_clinic    ?? v2.clinic);
-  const [clinical,  setClinical]  = useState(config.permissions.pm_clinical  ?? v2.clinical);
-  const [attorney,  setAttorney]  = useState(config.permissions.pm_attorney  ?? v2.attorney);
+  const [clinic, setClinic] = useState(config.permissions.pm_clinic ?? clinicDefault);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (): Promise<void> => {
@@ -130,13 +139,13 @@ function EditPermissionsModal({
       const res = await fetch(`/api/roles/${config.role}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        // El PATCH reemplaza `permissions` entero, asi que las llaves que ya no
+        // se editan viajan tal como vinieron: omitirlas las borraria de la fila.
         body: JSON.stringify({
           permissions: {
-            lm_admin: perms,
-            pm_timeclock: timeclock,
-            pm_clinic:    clinic,
-            pm_clinical:  clinical,
-            pm_attorney:  attorney,
+            ...config.permissions,
+            lm_admin:  perms,
+            pm_clinic: clinic,
           },
         }),
       });
@@ -223,15 +232,16 @@ function EditPermissionsModal({
 
           {/* Section 2: External apps */}
           <div className="px-6 mt-5 mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
               Apps Externas
+            </p>
+            <p className="text-[11px] text-text-muted leading-relaxed mb-3">
+              Doctors App y Attorney Portal se deciden por el rol, no por un
+              toggle; el Time Clock, por la ficha de empleado.
             </p>
             <div className="space-y-2">
               {([
-                { key: 'timeclock', label: 'PM Time Clock',       emoji: '⏱', color: 'bg-emerald', val: timeclock, set: setTimeclock },
-                { key: 'clinic',    label: 'Clinic Back-Office',  emoji: '🏥', color: 'bg-amber',   val: clinic,    set: setClinic    },
-                { key: 'clinical',  label: 'Doctors App',         emoji: '🩺', color: 'bg-violet',  val: clinical,  set: setClinical  },
-                { key: 'attorney',  label: 'Attorney Portal',     emoji: '⚖️', color: 'bg-brand',   val: attorney,  set: setAttorney  },
+                { key: 'clinic', label: 'Clinic Back-Office', emoji: '🏥', color: 'bg-amber', val: clinic, set: setClinic },
               ] as const).map(app => (
                 <div key={app.key} className="flex items-center gap-3 rounded-lg border border-border bg-surface/50 px-4 py-3">
                   <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${app.color}/15`}>

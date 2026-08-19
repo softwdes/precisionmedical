@@ -4,7 +4,7 @@
  */
 import Link from 'next/link';
 import { db } from '@precision-medical/database';
-import { FileText, Clock, DollarSign, CheckCircle2, Scale, ChevronRight, AlertCircle } from 'lucide-react';
+import { FileText, Clock, DollarSign, CheckCircle2, Scale, ChevronRight, AlertCircle, LogOut } from 'lucide-react';
 
 function calcAge(dob: Date | null): string {
   if (!dob) return '';
@@ -85,6 +85,24 @@ export default async function AttorneyDashboard() {
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
             {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
           </div>
+          {/*
+            Unica salida del portal. Va por servidor (`GET /api/auth/logout`)
+            porque `pm_role` es httpOnly: un signOut de cliente mataba la sesion
+            pero dejaba el rol cacheado vivo hasta una hora. Es un link, no un
+            boton, para que funcione sin JS.
+          */}
+          <a
+            href="/api/auth/logout"
+            title="Cerrar sesion"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+              borderRadius: 7, background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'rgba(255,255,255,0.60)', textDecoration: 'none', fontSize: 11,
+            }}
+          >
+            <LogOut size={13} /> Salir
+          </a>
         </div>
       </header>
 

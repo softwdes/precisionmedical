@@ -2139,7 +2139,9 @@
       "tplReplaceTitle": "Replace the note with this template?",
       "tplReplaceBody": "\"{name}\" will overwrite the sections it provides and replace the {dx} current diagnoses. Anything you wrote in those sections is lost.",
       "tplReplaceConfirm": "Yes, replace",
-      "rxNotOnboardedTryOther": "To try the inbox, pick {name} in the doctor selector above — they are the one set up in ScriptSure."
+      "rxNotOnboardedTryOther": "To try the inbox, pick {name} in the doctor selector above — they are the one set up in ScriptSure.",
+      "rxForbiddenTitle": "You can't prescribe on this appointment",
+      "rxForbiddenDesc": "Prescribing requires being the appointment's doctor (or an administrator): a prescription is signed by a real person, and viewing the portal as another provider is not enough. Have the appointment's doctor send it, or sign in with an administrator account."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

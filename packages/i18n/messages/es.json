@@ -2139,7 +2139,9 @@
       "tplReplaceTitle": "¿Reemplazar la nota con esta plantilla?",
       "tplReplaceBody": "\"{name}\" va a sobrescribir las secciones que traiga y reemplazar los {dx} diagnósticos actuales. Lo que hayas escrito en esas secciones se pierde.",
       "tplReplaceConfirm": "Sí, reemplazar",
-      "rxNotOnboardedTryOther": "Para probar la bandeja, elegí a {name} en el selector de doctor de arriba — es el único con alta en ScriptSure."
+      "rxNotOnboardedTryOther": "Para probar la bandeja, elegí a {name} en el selector de doctor de arriba — es el único con alta en ScriptSure.",
+      "rxForbiddenTitle": "No podés prescribir en esta cita",
+      "rxForbiddenDesc": "Prescribir exige ser el doctor de la cita (o un administrador): la receta la firma una persona real, y ver el portal como otro médico no alcanza. Que la mande el doctor de la cita, o entrá con una cuenta de administrador."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

@@ -99,6 +99,50 @@ export async function getSessionToken(loginEmail: string): Promise<string> {
   return login(loginEmail);
 }
 
+
+/**
+ * Una llamada a ScriptSure que sobrevive a los dos fallos que vimos de verdad.
+ *
+ * **401 — el token cacheado ya no vale.** Guardamos el `sessionToken` 12 h, pero
+ * ese plazo lo calculamos NOSOTROS: si del lado de ellos la sesión se invalida
+ * antes —y pasa, porque hoy varias personas comparten la misma cuenta de
+ * ScriptSure y entrar o salir puede tumbar la sesión de los demás— seguimos
+ * mandando un token muerto hasta que se cumpla nuestro reloj. Ahí se reloguea
+ * UNA vez y se reintenta. Esto no contradice su regla de "no relogear si hay un
+ * token válido": un token que ellos rechazan no es válido.
+ *
+ * **403 — su WAF.** Los 403 vienen del load balancer, no de la app, y se liberan
+ * solos (rate-limiting documentado). Se reintenta UNA vez con el MISMO token,
+ * sin relogear: relogear de más es justo lo que dispara el WAF.
+ *
+ * Un solo reintento, nunca un bucle: sus reglas de uso prohíben los reintentos
+ * continuos y nos monitorean.
+ */
+async function llamarConSesion(
+  loginEmail: string,
+  hacer: (token: string) => Promise<Response>,
+): Promise<Response> {
+  const token = await getSessionToken(loginEmail);
+  let res: Response;
+  try {
+    res = await hacer(token);
+  } catch (err) {
+    // Fallo de red: un reintento con el mismo token.
+    await new Promise((r) => setTimeout(r, 400));
+    return hacer(token);
+  }
+
+  if (res.status === 401) {
+    const nuevo = await login(loginEmail);   // upsertea la sesión nueva
+    return hacer(nuevo);
+  }
+  if (res.status === 403) {
+    await new Promise((r) => setTimeout(r, 700));
+    return hacer(token);
+  }
+  return res;
+}
+
 /**
  * Set Practice & Prescriber — obligatorio antes de cualquier otra llamada de
  * paciente/receta, y hay que repetirlo cada vez que cambia el prescriptor.
@@ -108,15 +152,14 @@ export async function setPracticePrescriber(
   practiceId: number,
   prescriberId: number,
 ): Promise<void> {
-  const sessionToken = await getSessionToken(loginEmail);
-  const res = await fetch(
-    `${hosts().backendPlatform}/v3/user/practice/prescriber?sessiontoken=${sessionToken}`,
+  const res = await llamarConSesion(loginEmail, (token) => fetch(
+    `${hosts().backendPlatform}/v3/user/practice/prescriber?sessiontoken=${token}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ practiceId, prescriberId }),
     },
-  );
+  ));
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -211,8 +254,6 @@ async function createScriptSurePatient(
   if (!patient.addressZip) missingFields.push('zip');
   if (missingFields.length > 0) throw new ScriptSurePatientDataError(missingFields);
 
-  const sessionToken = await getSessionToken(loginEmail);
-
   const payload: Record<string, unknown> = {
     preferredCommunicationId: 0,
     consent: true,
@@ -231,11 +272,13 @@ async function createScriptSurePatient(
   const cell = (patient.phone ?? patient.phone2 ?? '').replace(/[^0-9]/g, '');
   if (cell) payload.cell = cell;
 
-  const res = await fetch(`${hosts().backendScriptSure}/v3/patient?sessiontoken=${sessionToken}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const res = await llamarConSesion(loginEmail, (token) => fetch(
+    `${hosts().backendScriptSure}/v3/patient?sessiontoken=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  ));
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -585,10 +628,9 @@ export async function fetchScriptSureDrugHistory(
   loginEmail: string,
   patientId: number,
 ): Promise<Array<Record<string, unknown>>> {
-  const sessionToken = await getSessionToken(loginEmail);
-  const res = await fetch(
-    `${hosts().backendScriptSure}/v3/drughistory/current/${patientId}/0?sessiontoken=${sessionToken}`,
-  );
+  const res = await llamarConSesion(loginEmail, (token) => fetch(
+    `${hosts().backendScriptSure}/v3/drughistory/current/${patientId}/0?sessiontoken=${token}`,
+  ));
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');

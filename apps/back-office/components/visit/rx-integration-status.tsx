@@ -148,6 +148,10 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
     setErrorDetail(null);
     try {
       const res = await fetch(`/api/admin/scriptsure/widget/${appointmentId}?widget=${widget}`);
+      // 403 = no es su turno de firmar, no es un problema de red. Antes caía en
+      // el mensaje genérico de conexión y mandaba a buscar el problema al lugar
+      // equivocado.
+      if (res.status === 403) { setStatus('forbidden'); return; }
       if (res.status === 409) { setStatus('not_onboarded'); return; }
       if (res.status === 422) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;

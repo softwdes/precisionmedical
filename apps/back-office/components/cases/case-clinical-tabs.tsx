@@ -646,6 +646,7 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
     syncApptRef.current = rxTargetId;
     try {
       const res = await fetch(`/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`);
+      if (res.status === 403) { setWidgetStatus('forbidden'); return; }
       if (res.status === 409) { setWidgetStatus('not_onboarded'); return; }
       if (res.status === 422) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;

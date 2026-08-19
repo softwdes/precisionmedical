@@ -35,7 +35,18 @@ const WIDGET_TITLE: Record<WidgetKind, string> = {
   'approve-queue': 'ScriptSure Approval Queue',
 };
 export type WidgetStatus =
-  | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill' | 'error';
+  | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill'
+  /**
+   * 403: quien mira NO puede prescribir en esta cita — prescribir exige ser el
+   * doctor de la cita (o admin), y "ver como doctor" no alcanza: la receta la
+   * firma una persona real.
+   *
+   * Va aparte de `error` porque antes cualquier respuesta no-OK mostraba "no se
+   * pudo conectar con ScriptSure", y un tester perdió una tarde creyendo que era
+   * la red cuando era un permiso.
+   */
+  | 'forbidden'
+  | 'error';
 
 export interface RefillLaunchResult {
   status: WidgetStatus;
@@ -51,6 +62,7 @@ export interface RefillLaunchResult {
 export async function launchRefill(prescriptionId: string): Promise<RefillLaunchResult> {
   try {
     const res = await fetch(`/api/admin/scriptsure/refill/${prescriptionId}`, { method: 'POST' });
+    if (res.status === 403) return { status: 'forbidden', url: null, errorDetail: null };
     if (res.status === 409) return { status: 'not_onboarded', url: null, errorDetail: null };
     if (res.status === 422) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -111,6 +123,20 @@ export function ScriptSureWidgetDialog({
         {status === 'loading' && (
           <div className="flex-1 flex items-center justify-center gap-2 text-[12.5px] text-text-2">
             <Loader2 className="w-4 h-4 animate-spin" /> {t('rxWidgetLoading')}
+          </div>
+        )}
+
+        {status === 'forbidden' && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="flex items-start gap-3 max-w-md">
+              <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4 text-amber" />
+              </div>
+              <div className="text-[12.5px] text-text-2 leading-relaxed">
+                <p className="text-text-1 font-medium mb-1">{t('rxForbiddenTitle')}</p>
+                <p>{t('rxForbiddenDesc')}</p>
+              </div>
+            </div>
           </div>
         )}
 

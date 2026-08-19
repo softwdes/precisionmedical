@@ -163,7 +163,12 @@ function Table({ children, gridLines }: { children: React.ReactNode; gridLines?:
         // claro y la linea casi no se veia. Edson pidio que se noten — viene de
         // una hoja de calculo, donde la cuadricula se lee de lejos.
         gridLines ? '[&_td]:border-r [&_td]:border-border-strong [&_td:last-child]:border-r-0'
-                  + ' [&_th]:border-r [&_th]:border-border-strong [&_th:last-child]:border-r-0' : '',
+                  + ' [&_th]:border-r [&_th]:border-border-strong [&_th:last-child]:border-r-0'
+                  // Las horizontales al mismo tono que las verticales: una
+                  // cuadricula con un eje fuerte y el otro casi invisible se lee
+                  // peor que sin lineas. `!` porque `DataTable.Row` ya trae su
+                  // `border-row-sep` y hay que ganarle.
+                  + ' [&_tbody_tr]:!border-b-border-strong' : '',
       ].filter(Boolean).join(' ')}
     >
       {children}

@@ -1,12 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/server';
-import { dbRoleToRole, roleToDbRole } from '@/lib/permissions';
+import { ALL_ROLES, dbRoleToRole, roleToDbRole } from '@/lib/permissions';
 import type { Role } from '@/lib/permissions';
 
-const ALLOWED_ROLES: Role[] = [
-  'super_admin', 'admin', 'contador', 'employee', 'lawyer', 'provider', 'ia_auditor',
-];
+/**
+ * Los roles aceptados salen de `ALL_ROLES` — la misma lista que pinta el select
+ * de la tabla de usuarios. Cuando estaba duplicada acá a mano le faltaba
+ * `doctor`: el select lo ofrecía y el guardado moría con "Invalid role".
+ */
+const ALLOWED_ROLES: readonly Role[] = ALL_ROLES;
 
 export async function PATCH(
   req: NextRequest,
@@ -46,6 +49,14 @@ export async function PATCH(
     return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
   }
 
+  // El rol anterior se lee ANTES del update: es lo único que responde "de qué a
+  // qué" en el audit log, y después del update ya no existe en ninguna parte.
+  const { data: target } = await admin
+    .from('users')
+    .select('role, email')
+    .eq('id', id)
+    .single();
+
   // Convert internal role to DB value
   const dbRole = roleToDbRole(body.role as Role);
 
@@ -56,6 +67,21 @@ export async function PATCH(
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Cambiar un rol reparte o quita accesos: tiene que dejar rastro igual que el
+  // diálogo de edición (`users.update` en tRPC), que ya escribía su log. El
+  // fallo al registrar no revierte el cambio —ya está hecho— pero se anota.
+  const { error: logError } = await admin.from('audit_logs').insert({
+    actorUserId: caller?.id ?? null,
+    actorRole: caller?.role ?? null,
+    action: 'user.role_changed',
+    entityType: 'User',
+    entityId: id,
+    before: { role: target?.role ?? null },
+    after: { role: dbRole, email: target?.email ?? null },
+    createdAt: new Date().toISOString(),
+  });
+  if (logError) console.error('[users.role] audit log failed:', logError.message);
 
   return NextResponse.json({ success: true, role: body.role });
 }

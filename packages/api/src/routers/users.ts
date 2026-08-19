@@ -11,6 +11,22 @@ import { sendWelcomeEmail, sendPasswordResetEmail } from '../email';
  * recien creada y bloquearla romperia la activacion — el magiclink necesita
  * abrir sesion para que la persona pueda crear su contraseña.
  */
+/**
+ * Roles asignables desde el panel de usuarios.
+ *
+ * Es la misma lista que `ALL_ROLES` en `apps/web/lib/permissions.ts`, que es la
+ * que pinta los selects. Estaba escrita a mano en cada input y le faltaba
+ * `CONTADOR`: el select en linea de la tabla si lo ofrecia, pero crear o editar
+ * a alguien como CONTADOR moria en la validacion. CONTADOR es un rol real y
+ * acotado (solo Nomina, via `payrollProcedure`), no un sobrante.
+ *
+ * `FRONT_DESK` existe en el enum de la DB y hay filas con ese rol, pero ninguna
+ * pantalla lo ofrece: queda afuera a proposito para no empezar a repartirlo.
+ */
+const ROLES_ASIGNABLES = [
+  'SUPER_ADMIN', 'ADMIN', 'CONTADOR', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI',
+] as const;
+
 const ESTADOS_QUE_BLOQUEAN = new Set(['SUSPENDED', 'INACTIVE']);
 
 /**
@@ -79,7 +95,7 @@ export const usersRouter = router({
       page: z.number().min(1).default(1),
       pageSize: z.number().min(1).max(100).default(20),
       search: z.string().optional(),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
+      role: z.enum(ROLES_ASIGNABLES).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION']).optional(),
     }))
     .query(async ({ input }) => {
@@ -154,7 +170,7 @@ export const usersRouter = router({
       email: z.string().email(),
       firstName: z.string().min(1),
       lastName: z.string().min(1),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']),
+      role: z.enum(ROLES_ASIGNABLES),
       phone: z.string().optional(),
       /** If provided, the resulting user is linked back to the employee row
        *  via employees.userId. Source of truth for email/firstName/lastName
@@ -254,7 +270,7 @@ export const usersRouter = router({
       id: z.string(),
       firstName: z.string().min(1).optional(),
       lastName: z.string().min(1).optional(),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
+      role: z.enum(ROLES_ASIGNABLES).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION']).optional(),
       phone: z.string().optional(),
       /** Menús del Back-Office visibles para ESTE usuario. null = visión completa. */

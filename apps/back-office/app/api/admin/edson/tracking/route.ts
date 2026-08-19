@@ -26,13 +26,30 @@ import { decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
 
 /** Columnas por las que se puede ordenar. Nunca se interpola input del usuario. */
 const SORT_COLUMNS: Record<string, string> = {
-  appointment: 'fa."scheduledFor"',
   patient:     'p."lastName"',
   lossDate:    'loss_date',
   carrier:     'carrier_name',
   claim:       'cai."claimNum"',
   created:     'c."createdAt"',
 };
+
+/**
+ * Zona de la clínica. El día calendario se calcula acá y no en UTC: una cita de
+ * las 6 PM de Denver cae al día siguiente en UTC y se agruparía mal.
+ */
+const CLINIC_TZ = 'America/Denver';
+
+/**
+ * Orden por defecto: los días de más nuevo a más viejo, pero DENTRO de cada día
+ * de la primera cita a la última.
+ *
+ * Es lo que pidió Edson y es como se lee una jornada: se empieza por la mañana.
+ * Un `scheduledFor DESC` a secas ordenaba bien los días y al revés las horas.
+ */
+const SORT_BY_DAY = `
+  (fa."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE '${CLINIC_TZ}')::date DESC,
+  fa."scheduledFor" ASC
+`;
 
 const MAX_SIZE = 100;
 
@@ -49,8 +66,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const flag       = sp.get('flag')       ?? '';
   const archived   = sp.get('archived') === 'true';
 
-  const sortKey = SORT_COLUMNS[sp.get('sort') ?? ''] ?? SORT_COLUMNS.appointment;
-  const dir     = sp.get('dir') === 'asc' ? Prisma.raw('ASC') : Prisma.raw('DESC');
+  // `sort=appointment` (el default) usa el orden de dos niveles; el resto de las
+  // columnas es un ORDER BY simple con su direccion.
+  const sortParam = sp.get('sort') ?? '';
+  const sortKey   = SORT_COLUMNS[sortParam] ?? null;
+  const dir       = sp.get('dir') === 'asc' ? 'ASC' : 'DESC';
+  const orderBy   = sortKey ? `${sortKey} ${dir} NULLS LAST` : SORT_BY_DAY;
   const page    = Math.max(1, parseInt(sp.get('page') ?? '1', 10) || 1);
   const size    = Math.min(MAX_SIZE, Math.max(1, parseInt(sp.get('size') ?? '25', 10) || 25));
   const offset  = (page - 1) * size;
@@ -199,7 +220,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       (SELECT COUNT(*)::int FROM case_managers cm
         WHERE cm."caseId" = c."id" AND cm."removedAt" IS NULL) AS manager_count
     ${from}
-    ORDER BY ${Prisma.raw(sortKey)} ${dir} NULLS LAST, c."id" ASC
+    ORDER BY ${Prisma.raw(orderBy)}, c."id" ASC
     LIMIT ${size} OFFSET ${offset}
   `;
 

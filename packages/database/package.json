@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./audit": "./src/audit.ts",
     "./age": "./src/age.ts",
-    "./relations": "./src/relations.ts"
+    "./relations": "./src/relations.ts",
+    "./release-notes": "./src/release-notes.ts"
   },
   "scripts": {
     "db:generate": "prisma generate",

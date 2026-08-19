@@ -13,13 +13,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { db } from '../src/index';
-import {
-  moduleForScope,
-  parseHeader,
-  toNote,
-  type CommitNote,
-  type ParsedCommit,
-} from '@precision/release';
+// Subpaths y no el barrel: el barrel exporta `update-banner.tsx`, que es
+// 'use client' y arrastraria React a un script de Node.
+import { moduleForScope } from '@precision/release/modules';
+import { parseHeader, toNote, type CommitNote, type ParsedCommit } from '@precision/release/commit';
 import type { ReleaseAudience, ReleaseNoteKind } from '@prisma/client';
 
 const RECORD_SEP = '\x1e';

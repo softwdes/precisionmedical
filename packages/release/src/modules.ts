@@ -113,6 +113,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   permissions: 'access',
   roles: 'access',
   security: 'access',
+  accesos: 'access',
   activacion: 'access',
 
   // Otras apps
@@ -140,6 +141,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   sync: 'platform',
   webhook: 'platform',
   build: 'platform',
+  'release-notes': 'platform',
 };
 
 export function moduleLabel(module: string, locale: NoteLocale): string {

@@ -4,7 +4,12 @@
   "private": true,
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./audience": "./src/audience.ts",
+    "./modules": "./src/modules.ts",
+    "./commit": "./src/commit.ts",
+    "./types": "./src/types.ts",
+    "./notes": "./src/use-release-notes.ts"
   },
   "dependencies": {
     "lucide-react": "^0.452.0"

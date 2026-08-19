@@ -152,7 +152,12 @@ function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: n
  * Se activa por pantalla y no por defecto, para que las demas tablas del
  * back-office sigan como estan.
  */
-function Table({ children, gridLines }: { children: React.ReactNode; gridLines?: boolean }) {
+function Table({ children, gridLines, className = '' }: {
+  children: React.ReactNode;
+  gridLines?: boolean;
+  /** Ajustes de la pantalla, ej. un tamaño de fuente propio. */
+  className?: string;
+}) {
   return (
     <table
       className={[
@@ -169,6 +174,7 @@ function Table({ children, gridLines }: { children: React.ReactNode; gridLines?:
                   // peor que sin lineas. `!` porque `DataTable.Row` ya trae su
                   // `border-row-sep` y hay que ganarle.
                   + ' [&_tbody_tr]:!border-b-border-strong' : '',
+        className,
       ].filter(Boolean).join(' ')}
     >
       {children}

@@ -404,8 +404,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * pidio verlo siempre, porque con 15 columnas no se acuerda de cual
           * es cual. Ver la nota de `DataTable.Scroll`.
           */}
-        <DataTable.Scroll maxHeight="calc(100vh - 330px)">
-          <DataTable.Table gridLines>
+        <DataTable.Scroll maxHeight="calc(100vh - 240px)">
+          {/*
+          * `text-[13px]` en vez del `text-sm` (14px) del primitivo: Edson pidio
+          * bajar un punto SOLO el texto grande. Los datos secundarios —fecha de
+          * nacimiento, telefono, clinica— ya tienen su propio tamaño y no se
+          * tocan, si no quedarian ilegibles.
+          */}
+        <DataTable.Table gridLines className="text-[13px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>

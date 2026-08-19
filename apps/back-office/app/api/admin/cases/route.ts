@@ -417,6 +417,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (parsed.appointment) {
       appointment = await tx.appointment.create({
         data: {
+          createdByUserId: actor.actorUserId,
+          createdByName:   actor.actorName,
           patientId: patient.id,
           caseId: newCase.id,
           clinicId: parsed.appointment.clinicId,

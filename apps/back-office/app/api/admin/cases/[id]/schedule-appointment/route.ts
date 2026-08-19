@@ -134,6 +134,8 @@ export async function POST(
   const result = await db.$transaction(async (tx) => {
     const appointment = await tx.appointment.create({
       data: {
+        createdByUserId: actor.actorUserId,
+        createdByName:   actor.actorName,
         patientId: caseRecord.patientId,
         caseId: caseRecord.id,
         clinicId: parsed.clinicId,

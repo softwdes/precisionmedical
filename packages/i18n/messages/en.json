@@ -5393,7 +5393,8 @@
       "insComments": "Insurance notes",
       "insCommentsHint": "Shows as a banner under the row in the grid.",
       "insCommentsPh": "PIP EXHAUSTED! Case goes under attorney lien.",
-      "copyLienEmails": "Copy {count} emails"
+      "copyLienEmails": "Copy {count} emails",
+      "colCreatedBy": "Created by"
     }
   },
   "clinical": {

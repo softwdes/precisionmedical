@@ -127,7 +127,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const from = Prisma.sql`
     FROM cases c
     JOIN LATERAL (
-      SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId"
+      SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId", a."createdByName"
       FROM appointments a
       WHERE a."caseId" = c."id"
       ORDER BY a."scheduledFor" ASC
@@ -189,6 +189,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       la."status"::text AS latest_status,
       cl."name"         AS clinic_name,
       cl."color"        AS clinic_color,
+      fa."createdByName" AS created_by,
       CASE WHEN pr."id" IS NULL THEN NULL
            ELSE TRIM(CONCAT(pr."firstName", ' ', pr."lastName")) END AS provider_name,
 
@@ -270,6 +271,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         latestStatus: r.latest_status,
         clinicName:  r.clinic_name,
         clinicColor: r.clinic_color,
+        createdBy:   r.created_by,
         providerName: r.provider_name,
       },
       lawFirmId:     r.law_firm_id,

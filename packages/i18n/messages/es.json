@@ -5393,7 +5393,8 @@
       "insComments": "Notas del seguro",
       "insCommentsHint": "Se muestra como una banda debajo de la fila en la grilla.",
       "insCommentsPh": "¡PIP AGOTADO! El caso va por lien del abogado.",
-      "copyLienEmails": "Copiar {count} emails"
+      "copyLienEmails": "Copiar {count} emails",
+      "colCreatedBy": "Creada por"
     }
   },
   "clinical": {

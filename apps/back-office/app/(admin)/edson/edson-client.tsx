@@ -50,6 +50,12 @@ interface Row {
      */
     latestStatus: string;
     clinicName: string | null; clinicColor: string | null; providerName: string | null;
+    /**
+     * Quien agendo la cita. NULL en las migradas del v2 — nunca pasaron por
+     * este sistema y no hay a quien atribuirlas; el guion es la respuesta
+     * correcta, no un hueco.
+     */
+    createdBy: string | null;
   };
   lawFirmId: string | null;
   attorneyId: string | null;
@@ -387,6 +393,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
+              <DataTable.Th>{t('colCreatedBy')}</DataTable.Th>
               <DataTable.Th>{t('colProvider')}</DataTable.Th>
               <DataTable.Th>{t('colLossDate')}</DataTable.Th>
               <DataTable.Th>{t('colAttorney')}</DataTable.Th>
@@ -403,14 +410,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             </DataTable.Head>
             <tbody>
               {loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 15 : 14}>
+                <tr><DataTable.Td colSpan={archived ? 16 : 15}>
                   <div className="flex items-center justify-center gap-2 py-8 text-text-muted text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" /> {t('loading')}
                   </div>
                 </DataTable.Td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 15 : 14}>
+                <tr><DataTable.Td colSpan={archived ? 16 : 15}>
                   <EmptyState.Inline message={archived ? t('emptyArchived') : t('empty')} />
                 </DataTable.Td></tr>
               )}
@@ -418,7 +425,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               {groups.map(group => (
                 <Fragment key={group.key}>
                   <tr>
-                    <DataTable.Td colSpan={archived ? 15 : 14}>
+                    <DataTable.Td colSpan={archived ? 16 : 15}>
                       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-text-3 py-0.5">
                         <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                         <span className="text-text-muted">
@@ -482,6 +489,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             )}
                           </div>
                         </DataTable.Td>
+                        <DataTable.Td><Txt v={row.appointment.createdBy} /></DataTable.Td>
                         <DataTable.Td><Txt v={row.appointment.providerName} /></DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
                         <DataTable.Td>
@@ -609,7 +617,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                       {row.insComments && (
                         <tr>
                           <DataTable.Td
-                            colSpan={archived ? 15 : 14}
+                            colSpan={archived ? 16 : 15}
                             className="!py-1.5"
                             style={rowBg ? { background: rowBg } : undefined}
                           >

@@ -328,6 +328,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     isOnline:        parsed.isOnline,
     meetingUrl:      parsed.meetingUrl ?? null,
     status:          'SCHEDULED' as const,
+    // Quien agenda, para que Edson sepa a quien preguntarle. El nombre va
+    // denormalizado: la grilla no puede hacer join a `users` en cada fila.
+    createdByUserId: actor.actorUserId,
+    createdByName:   actor.actorName,
   };
 
   let appointment;

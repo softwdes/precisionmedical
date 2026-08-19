@@ -1048,6 +1048,17 @@ model Appointment {
   // Servicios e inyectables cobrados en efectivo (catálogo cash)
   cashServices AppointmentService[]
 
+  /// Quien agendo la cita — pedido de Edson: necesita saber a quien preguntarle.
+  ///
+  /// El nombre va denormalizado (mismo criterio que `coverageVerifiedByName`)
+  /// para que la grilla no haga join a `users` en cada fila.
+  ///
+  /// Las citas migradas del v2 lo tienen NULL y siempre lo van a tener: nunca
+  /// pasaron por este sistema y no hay a quien atribuirlas. Un guion ahi es la
+  /// respuesta correcta, no un hueco.
+  createdByUserId String?
+  createdByName   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

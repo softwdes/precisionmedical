@@ -3727,3 +3727,151 @@ model MessageAttachment {
   @@index([entryId])
   @@map("message_attachments")
 }
+
+// =====================================================
+// RELEASE NOTES
+// =====================================================
+
+/// Un release arranca en DRAFT: el script del build lo crea parseando el
+/// `git log`, y nadie lo ve hasta que alguien lo publica a mano.
+///
+/// El gate es a proposito. Hay commits que NO se publican —
+/// `fix(security): el Admin dejaba ver plata a cualquiera con sesion iniciada`
+/// le regala el mapa a cualquiera que lea el banner— y hay tres commits de
+/// `tracking` que se leen mejor como una sola linea. Si nadie publica, el
+/// banner sigue funcionando exactamente como antes: sin lista, sin romperse.
+enum ReleaseStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("release_status")
+}
+
+/// Solo `feat` y `fix` se publican. `chore`, `ci`, `deps`, `docs`, `refactor`
+/// y `style` son ruido para quien usa el sistema: nadie en recepcion necesita
+/// leer "refactor(ui): de 19 bordes a 4".
+enum ReleaseNoteKind {
+  FEAT
+  FIX
+
+  @@map("release_note_kind")
+}
+
+/// Audiencia de una nota. NO es la app.
+///
+/// `apps/back-office` sirve tres audiencias desde tres route groups —
+/// `(admin)`, `doctor` y `attorney`— y al reves, `doctor` vive en
+/// `back-office/app/doctor` y tambien en `clinical/app/doctor`. Filtrar por
+/// deployment le mostraria a un doctor las notas de admin y de abogados.
+///
+/// PATIENT existe para completar el mapeo de rutas (`forms/intake`, `cita`,
+/// `c`), pero nunca recibe notas — ver SILENT_AUDIENCES en @precision/release.
+enum ReleaseAudience {
+  ADMIN
+  DOCTOR
+  ATTORNEY
+  CLINIC
+  TIMECLOCK
+  PATIENT
+
+  @@map("release_audience")
+}
+
+/// Un deploy de una app del monorepo.
+///
+/// Guardamos una fila por deploy en vez de devolver las notas del build actual
+/// en `/api/version`, porque con `turbo-ignore` salteando builds un usuario
+/// puede quedar varios deploys atras y necesita ver TODO lo que se acumulo, no
+/// solo el ultimo.
+model Release {
+  id String @id @default(cuid())
+
+  /// App del monorepo: `back-office`, `web`, `clinical`, `timeclock`, `forms`,
+  /// `attorney`. No es enum porque agregar una app no deberia pedir migracion.
+  app String
+  /// `VERCEL_GIT_COMMIT_SHA` del build.
+  sha String
+
+  /// SHA del Release anterior de esta app — el `from` del rango de `git log`.
+  /// Null en el primer deploy que corre con esto.
+  previousSha String?
+
+  status ReleaseStatus @default(DRAFT)
+
+  deployedAt DateTime @default(now())
+
+  publishedAt     DateTime?
+  publishedById   String?
+  /// Denormalizado: la lista de /admin/releases muestra quien publico sin join.
+  publishedByName String?
+
+  entries ReleaseEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Un re-deploy del mismo commit no crea un release nuevo.
+  @@unique([app, sha])
+  @@index([app, status, deployedAt])
+  @@index([status, publishedAt])
+  @@map("releases")
+}
+
+/// Una linea del changelog.
+///
+/// Nace de un commit y llega editable, porque el mensaje del commit ya esta
+/// escrito para humanos —"las observaciones se pueden corregir y borrar"— pero
+/// no siempre con el corte justo.
+model ReleaseEntry {
+  id String @id @default(cuid())
+
+  releaseId String
+  release   Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  kind ReleaseNoteKind
+
+  /// Commit del que salio, para poder rastrear la linea hasta el codigo.
+  commitSha String
+  /// Scope crudo del commit (`tracking`, `recetas`, `rx`...). Se guarda como
+  /// vino: los scopes no son modulos —conviven `notes` con `nota` y `pagos`
+  /// con `billing`— asi que `module` es la version curada y esto la trazabilidad.
+  commitScope String?
+
+  /// CLAVE del modulo para agrupar: `tracking`, `prescriptions`, `billing`.
+  /// No la etiqueta: el nombre visible sale de MODULE_LABELS en
+  /// @precision/release, asi se traduce solo y no hay que escribirlo dos veces
+  /// como si pasa con el texto de la nota.
+  module String
+
+  /// A quien le afecta. Se deriva de los PATHS que toco el commit, no del
+  /// scope: `feat(ui): primitivo Section` toca `packages/ui` y le afecta a
+  /// todos. Los cambios en `packages/**` y en `back-office/components|lib/**`
+  /// quedan ambiguos y por eso el borrador se revisa a mano.
+  audiences ReleaseAudience[]
+
+  /// Los commits estan escritos en español, asi que esto llega lleno.
+  textEs String  @db.Text
+  /// El ingles hay que escribirlo. Un release no se puede publicar con esto en
+  /// null en alguna entrada visible: el locale sale de la cookie `locale` y si
+  /// el usuario esta en EN tiene que ver todo en EN.
+  textEn String? @db.Text
+
+  /// Excluida de la publicacion sin perder el registro — el caso de los
+  /// commits de seguridad.
+  hidden Boolean @default(false)
+
+  /// Orden dentro del modulo. Por defecto el del `git log` (mas nuevo primero).
+  sortOrder Int @default(0)
+
+  /// El borrador pide ojo humano: scope sin mapear, audiencia ambigua (codigo
+  /// en `packages/**` o en `back-office/components|lib`), o marcado sensible.
+  /// Es por lo que ordena /admin/releases.
+  needsReview Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([releaseId, module, sortOrder])
+  @@index([commitSha])
+  @@map("release_entries")
+}

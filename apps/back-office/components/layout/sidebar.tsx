@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -119,6 +120,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, belowNav = null }: SidebarProps): React.ReactElement {
+  /*
+   * Colapsada, la barra se abre sola al pasar el mouse y se vuelve a cerrar al
+   * salir — como Gmail. El boton de la barra superior es lo que la FIJA abierta.
+   *
+   * Se abre ENCIMA del contenido y no empujandolo: el `<aside>` es `fixed` y el
+   * margen del contenido lo decide `collapsed`, que no cambia al pasar el mouse.
+   * Si empujara, la pagina entera saltaria cada vez que el cursor roza el borde.
+   *
+   * `compact` es el estado VISUAL; `collapsed` sigue siendo el que se guarda.
+   */
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const compact = collapsed && !hoverOpen;
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
 
@@ -153,12 +166,17 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
         'transition-all duration-300 ease-out',
         'md:translate-x-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-        collapsed ? 'w-[60px]' : 'w-[240px]',
+        compact ? 'w-[60px]' : 'w-[240px]',
+        // Sombra solo cuando esta flotando sobre el contenido.
+        collapsed && hoverOpen ? 'shadow-2xl' : '',
       )}
+      /* Solo cuando esta colapsada: expandida no hay nada que abrir. */
+      onMouseEnter={() => { if (collapsed) setHoverOpen(true); }}
+      onMouseLeave={() => setHoverOpen(false)}
     >
       {/* Brand */}
-      <div className={cn('relative flex items-center border-b border-border', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
-        {!collapsed && (
+      <div className={cn('relative flex items-center border-b border-border', compact ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
+        {!compact && (
           <Link href={homeHref} onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: logoGradient, boxShadow: logoShadow }}>
               <svg suppressHydrationWarning width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -175,7 +193,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             </div>
           </Link>
         )}
-        {collapsed && (
+        {compact && (
           <Link suppressHydrationWarning href={homeHref} onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded-[10px] hover:opacity-80 transition-opacity" style={{ background: logoGradient, boxShadow: logoShadow }}>
             <svg suppressHydrationWarning width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect suppressHydrationWarning x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
@@ -191,7 +209,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
           */}
 
         {/* Close button mobile only */}
-        {!collapsed && (
+        {!compact && (
           <button
             type="button"
             onClick={onMobileClose}
@@ -204,15 +222,15 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
       </div>
 
       {/* Nav */}
-      <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1', collapsed ? 'px-1.5' : 'px-3 pt-5 space-y-6')}>
+      <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1', compact ? 'px-1.5' : 'px-3 pt-5 space-y-6')}>
         {sections.map((section) => (
           <div key={section.titleKey}>
-            {section.titleKey && !collapsed && (
+            {section.titleKey && !compact && (
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">
                 {t(section.titleKey)}
               </div>
             )}
-            <ul className={cn(collapsed ? 'space-y-1' : 'space-y-1')}>
+            <ul className={cn(compact ? 'space-y-1' : 'space-y-1')}>
               {section.items.map((item) => (
                 <NavItemLink
                   key={item.href}
@@ -223,7 +241,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
                   active={item.exact ? pathname === item.href : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                   disabled={item.disabled}
                   onClick={onMobileClose}
-                  collapsed={collapsed}
+                  collapsed={compact}
                   accent={isDoctor ? 'violet' : 'brand'}
                 />
               ))}
@@ -232,15 +250,15 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
         ))}
       </nav>
 
-      {belowNav && !collapsed && (
+      {belowNav && !compact && (
         <div className="border-t border-border pt-3 max-h-[45vh] overflow-y-auto shrink-0">
           {belowNav}
         </div>
       )}
 
       {/* Footer */}
-      <div className={cn('border-t border-border', collapsed ? 'px-1.5 py-3' : 'px-5 py-4')}>
-        {!collapsed ? (
+      <div className={cn('border-t border-border', compact ? 'px-1.5 py-3' : 'px-5 py-4')}>
+        {!compact ? (
           <div className="text-text-muted text-[10px] leading-relaxed">
             <div className="text-text-2 font-semibold mb-1">{t('footerStatus')}</div>
             <div className="mt-2 text-emerald flex items-center gap-1">

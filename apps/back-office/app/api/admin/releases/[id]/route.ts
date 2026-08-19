@@ -12,7 +12,11 @@ import { publishRelease, unpublishRelease } from '@precision-medical/database/re
 import { resolveActor } from '@/lib/actor';
 import { requireReleaseAdmin } from '../guard';
 
-const InputSchema = z.object({ action: z.enum(['publish', 'unpublish']) });
+const InputSchema = z.object({
+  action: z.enum(['publish', 'unpublish']),
+  /** Publicar aun con entradas sin traducir — el usuario en EN las verá en español. */
+  force: z.boolean().default(false),
+});
 
 export async function PATCH(
   req: NextRequest,
@@ -37,7 +41,11 @@ export async function PATCH(
   if (parsed.action === 'unpublish') {
     await unpublishRelease(id);
   } else {
-    const result = await publishRelease(id, { id: actor.actorUserId, name: actor.actorName });
+    const result = await publishRelease(
+      id,
+      { id: actor.actorUserId, name: actor.actorName },
+      { allowMissingEnglish: parsed.force },
+    );
     if (!result.ok) {
       // 409 y no 400: el payload está bien, es el estado del release el que no
       // permite publicar todavía.

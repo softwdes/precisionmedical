@@ -110,14 +110,14 @@ export function ReleasesClient(): React.ReactElement {
     }
   }
 
-  async function togglePublish(release: Release): Promise<void> {
+  async function togglePublish(release: Release, force = false): Promise<void> {
     const publishing = release.status !== 'PUBLISHED';
     setBusy(release.id);
     try {
       const res = await fetch('/api/admin/releases/' + release.id, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: publishing ? 'publish' : 'unpublish' }),
+        body: JSON.stringify({ action: publishing ? 'publish' : 'unpublish', force }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string; missing?: unknown[] };
@@ -167,7 +167,9 @@ export function ReleasesClient(): React.ReactElement {
         const visible = release.entries.filter((entry) => !entry.hidden);
         const review = release.entries.filter((entry) => entry.needsReview).length;
         const published = release.status === 'PUBLISHED';
-        const blocked = release.missingEnglish > 0 || visible.length === 0;
+        // Falta de inglés AVISA, no bloquea: lo único que impide publicar es no
+        // tener ninguna entrada visible.
+        const blocked = visible.length === 0;
 
         return (
           <Section
@@ -192,13 +194,13 @@ export function ReleasesClient(): React.ReactElement {
                 )}
                 <button
                   type="button"
-                  onClick={() => void togglePublish(release)}
+                  onClick={() => void togglePublish(release, release.missingEnglish > 0)}
                   disabled={busy === release.id || (!published && blocked)}
                   title={
-                    !published && release.missingEnglish > 0
-                      ? 'Escribí el inglés de todas las entradas visibles'
-                      : !published && visible.length === 0
-                        ? 'No hay ninguna entrada visible para publicar'
+                    !published && visible.length === 0
+                      ? 'No hay ninguna entrada visible para publicar'
+                      : !published && release.missingEnglish > 0
+                        ? 'Se publica igual: quien tenga la app en inglés verá esas líneas en español'
                         : undefined
                   }
                   className={
@@ -215,7 +217,11 @@ export function ReleasesClient(): React.ReactElement {
                   ) : (
                     <Rocket className="w-3 h-3" />
                   )}
-                  {published ? 'Despublicar' : 'Publicar'}
+                  {published
+                    ? 'Despublicar'
+                    : release.missingEnglish > 0
+                      ? 'Publicar sin traducir'
+                      : 'Publicar'}
                 </button>
               </div>
             }

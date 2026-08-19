@@ -176,14 +176,19 @@ export interface PublishResult {
 /**
  * Publica un release. Es lo único que lo hace visible en el banner.
  *
- * Bloquea si alguna entrada visible no tiene inglés: el idioma sale de la cookie
- * `locale`, y si el usuario está en EN tiene que ver TODO en EN. Esa regla no se
- * puede expresar en el schema (`textEn` es nullable mientras es borrador), así
- * que se valida acá.
+ * Avisa —no bloquea— si alguna entrada visible no tiene inglés. Arrancó como muro
+ * y estaba mal: con 8 notas por deploy sin traducir, el costo de publicar era
+ * tan alto que la feature se iba a quedar sin usar, y una nota en español para
+ * alguien con la app en inglés es mucho menos malo que no enterarse del cambio.
+ * `getChangelog` ya cae al español cuando falta el inglés.
+ *
+ * Sigue costando un acto deliberado: quien publica tiene que mandar `force` y la
+ * UI se lo dice.
  */
 export async function publishRelease(
   releaseId: string,
   publishedBy: { id: string | null; name: string | null },
+  options: { allowMissingEnglish?: boolean } = {},
 ): Promise<PublishResult> {
   const release = await db.release.findUnique({
     where: { id: releaseId },
@@ -195,7 +200,7 @@ export async function publishRelease(
   if (release.entries.length === 0) return { ok: false, error: 'NOTHING_TO_PUBLISH' };
 
   const missing = release.entries.filter((e) => e.textEn === null || e.textEn.trim() === '');
-  if (missing.length > 0) {
+  if (missing.length > 0 && options.allowMissingEnglish !== true) {
     return {
       ok: false,
       error: 'MISSING_ENGLISH',

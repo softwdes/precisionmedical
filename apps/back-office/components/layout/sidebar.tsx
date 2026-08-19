@@ -19,8 +19,6 @@ import {
   FlaskConical,
   Pill,
   Stethoscope,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
@@ -187,31 +185,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
           </Link>
         )}
         {/*
-          * Colapsar vive JUNTO AL LOGO y ya no al pie de la barra.
-          *
-          * Al pie no lo veia nadie: Edson pidio "colapsar el menu para ganar
-          * espacio" sin saber que el boton existia desde hace meses. Arriba es
-          * donde se busca —es el patron de Gmail— y ademas el estado se guarda
-          * por usuario en `localStorage`, asi que colapsarlo no le cambia la
-          * vista a nadie mas.
+          * El boton de colapsar ya NO vive acá: se movio a la barra superior.
+          * Dentro de una barra de 60px peleaba con el logo y no se veia — el
+          * control para expandir algo no puede vivir dentro de lo colapsado.
           */}
-        {onCollapsedChange && (
-          <button
-            type="button"
-            onClick={() => onCollapsedChange(!collapsed)}
-            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            className={cn(
-              'hidden md:flex items-center justify-center rounded-md hover:bg-white/5',
-              'text-text-muted hover:text-text-2 transition-colors shrink-0 w-7 h-7',
-              // Colapsado el header centra el isotipo y no queda ancho al lado,
-              // asi que el boton se posiciona sobre el borde derecho.
-              collapsed ? 'absolute right-1 top-1/2 -translate-y-1/2' : '',
-            )}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
-        )}
 
         {/* Close button mobile only */}
         {!collapsed && (

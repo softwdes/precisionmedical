@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Bell, Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap } from 'lucide-react';
+import { Bell, Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
@@ -20,6 +20,16 @@ interface TopbarProps {
   userInitials?: string;
   userEmail?:    string;
   onMenuClick?:  () => void;
+  /**
+   * Colapsar el menu vive ACA y no dentro del sidebar.
+   *
+   * Es el patron de Gmail, y por una razon concreta: el control para expandir
+   * algo no puede vivir dentro de lo que esta colapsado. En 60px peleaba con el
+   * logo y Edson no lo encontraba. Acá esta en el mismo pixel siempre, este la
+   * barra abierta o cerrada.
+   */
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?:  () => void;
 }
 
 function generateSecurePassword(): string {
@@ -48,6 +58,8 @@ export function Topbar({
   userInitials = 'ES',
   userEmail    = '',
   onMenuClick,
+  sidebarCollapsed = false,
+  onToggleSidebar,
 }: TopbarProps): React.ReactElement {
   const router        = useRouter();
   const currentLocale = useLocale();
@@ -156,6 +168,19 @@ export function Topbar({
     <>
       <header className="sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
         {/* Mobile menu — moved to MobileBottomNav */}
+
+        {/* Colapsar / expandir el menu lateral — ver nota en los props */}
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="hidden md:flex w-8 h-8 shrink-0 rounded-md hover:bg-white/5 items-center justify-center text-text-2 hover:text-text-1 transition-colors"
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        )}
 
         {/* Search */}
         <button

@@ -5374,7 +5374,23 @@
       "managerNoFirm": "Pick the law firm first — a new person is created inside it.",
       "copy": "Copy",
       "copied": "Copied",
-      "contactsTitle": "Contacts"
+      "contactsTitle": "Contacts",
+      "groupAdjusters": "Adjusters",
+      "adjustersHint": "Who handles the claim. More than one is fine — they rotate, and removing one keeps the record.",
+      "adjusterAdd": "Add adjuster",
+      "adjusterPick": "From the carrier",
+      "adjusterNew": "New person",
+      "adjusterName": "Name",
+      "adjusterNone": "Nobody assigned yet.",
+      "adjusterNoCarrier": "Pick the insurance company first — a new person is created inside it.",
+      "billingAddress": "Billing address",
+      "billingAddressHint": "The carrier's address — applies to all its cases.",
+      "billingAddressPh": "Root Insurance\nPO Box 14233\nLexington, KY 40512",
+      "save": "Save",
+      "fieldPhone": "Phone",
+      "fieldExtension": "Extension",
+      "fieldFax": "Fax",
+      "fieldEmail": "Email"
     }
   },
   "clinical": {

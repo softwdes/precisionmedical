@@ -73,7 +73,7 @@ export function useManagers(caseId: string | null) {
 }
 
 /** Texto con botón de copiar — el email es lo que Edson usa todo el día. */
-function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: string; href?: string }) {
+export function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: string; href?: string }) {
   const t = useTranslations('phoenix.edsonTracking');
   const [copied, setCopied] = useState(false);
 

@@ -89,7 +89,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (carrierId)  where.push(Prisma.sql`COALESCE(cai."carrierId", c."primaryInsuranceId") = ${carrierId}`);
 
   if (flag === 'noPip')        where.push(Prisma.sql`COALESCE(cai."pipAvailable"::text, 'UNKNOWN') = 'UNKNOWN'`);
-  if (flag === 'noAdjuster')   where.push(Prisma.sql`cai."adjusterId" IS NULL AND (cai."adjusterNameRaw" IS NULL OR cai."adjusterNameRaw" = '')`);
+  if (flag === 'noAdjuster')   where.push(Prisma.sql`
+    NOT EXISTS (SELECT 1 FROM case_adjusters ca WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL)
+    AND (cai."adjusterNameRaw" IS NULL OR cai."adjusterNameRaw" = '')`);
   if (flag === 'noClaim')      where.push(Prisma.sql`cai."claimNum" IS NULL OR cai."claimNum" = ''`);
   if (flag === 'noAttorney')   where.push(Prisma.sql`c."attorneyId" IS NULL AND c."lawFirmId" IS NULL`);
   if (flag === 'completed')    where.push(Prisma.sql`ct."completedAt" IS NOT NULL`);
@@ -129,7 +131,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     LEFT JOIN lawyers at         ON at."id" = c."attorneyId"
     LEFT JOIN case_auto_insurances cai ON cai."caseId" = c."id"
     LEFT JOIN insurance_carriers ic    ON ic."id" = COALESCE(cai."carrierId", c."primaryInsuranceId")
-    LEFT JOIN insurance_adjusters adj  ON adj."id" = cai."adjusterId"
+    /*
+     * Primer adjuster ACTIVO del caso. Antes salia del FK unico de
+     * case_auto_insurances, pero Edson pidio poder anotar varios ("Kenneth
+     * Kelly or Patricia Leon"), asi que la asignacion vive en case_adjusters.
+     *
+     * OJO: nada de backticks en este comentario — vive dentro de un template
+     * literal de Prisma.sql y lo cortarian a la mitad.
+     */
+    LEFT JOIN LATERAL (
+      SELECT ia."name", ia."phone", ia."extension"
+      FROM case_adjusters ca
+      JOIN insurance_adjusters ia ON ia."id" = ca."adjusterId"
+      WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL
+      ORDER BY ca."assignedAt" ASC
+      LIMIT 1
+    ) adj ON TRUE
     LEFT JOIN case_tracking ct         ON ct."caseId" = c."id"
     WHERE ${whereSql}
   `;
@@ -169,6 +186,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       COALESCE(adj."name", cai."adjusterNameRaw") AS adjuster_name,
       COALESCE(adj."phone", cai."adjusterPhoneRaw") AS adjuster_phone,
       adj."extension"                             AS adjuster_ext,
+      (SELECT COUNT(*)::int FROM case_adjusters ca
+        WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL) AS adjuster_count,
 
       ct."completedAt"  AS completed_at,
       ct."archivedAt"   AS archived_at,
@@ -190,7 +209,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     SELECT
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE COALESCE(cai."pipAvailable"::text, 'UNKNOWN') = 'UNKNOWN')::int AS no_pip,
-      COUNT(*) FILTER (WHERE cai."adjusterId" IS NULL AND (cai."adjusterNameRaw" IS NULL OR cai."adjusterNameRaw" = ''))::int AS no_adjuster,
+      COUNT(*) FILTER (WHERE NOT EXISTS (
+        SELECT 1 FROM case_adjusters ca WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL
+      ) AND (cai."adjusterNameRaw" IS NULL OR cai."adjusterNameRaw" = ''))::int AS no_adjuster,
       COUNT(*) FILTER (WHERE ct."completedAt" IS NOT NULL)::int AS completed,
       COUNT(*) FILTER (WHERE ct."completedAt" IS NOT NULL AND fa."scheduledFor" < NOW())::int AS archivable
     ${from}
@@ -246,6 +267,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lastNoteAt:    r.last_note_at,
       noteCount:     r.note_count,
       managerCount:  r.manager_count,
+      adjusterCount: r.adjuster_count,
     })),
     stats: statsRes[0] ?? { total: 0, no_pip: 0, no_adjuster: 0, completed: 0, archivable: 0 },
     page,

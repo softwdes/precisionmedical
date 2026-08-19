@@ -33,6 +33,7 @@ import {
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
 import { ManagersPopover, ManagersSection } from './case-managers';
+import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -69,6 +70,8 @@ interface Row {
   noteCount: number;
   /** Encargados del caso ACTIVOS — el badge de la columna Attorney. */
   managerCount: number;
+  /** Adjusters ACTIVOS — el badge de la columna Adjuster. */
+  adjusterCount: number;
 }
 
 interface Stats { total: number; no_pip: number; no_adjuster: number; completed: number; archivable: number }
@@ -164,6 +167,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   const [noteFor, setNoteFor] = useState<string | null>(null);
   /** Caso cuyo popover de encargados esta abierto. */
   const [managersFor, setManagersFor] = useState<string | null>(null);
+  const [adjustersFor, setAdjustersFor] = useState<string | null>(null);
   // Archivar saca la fila de la cola de trabajo: se confirma, como el resto de
   // las acciones que mueven algo de sitio en el sistema.
   const [confirmArchive, setConfirmArchive] = useState<Row | null>(null);
@@ -506,7 +510,29 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         <DataTable.Td align="center">
                           <PipChip row={row} readOnly={archived} onCycle={() => void cyclePip(row)} />
                         </DataTable.Td>
-                        <DataTable.Td><Txt v={row.adjusterName} /></DataTable.Td>
+                        <DataTable.Td>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setAdjustersFor(adjustersFor === row.caseId ? null : row.caseId)}
+                              className="text-left max-w-[150px] flex items-center gap-1.5"
+                            >
+                              <Txt v={row.adjusterName} />
+                              {row.adjusterCount > 1 && (
+                                <span className="shrink-0 text-[10px] font-semibold px-1.5 rounded-full bg-brand/15 text-brand-text">
+                                  {row.adjusterCount}
+                                </span>
+                              )}
+                            </button>
+                            {adjustersFor === row.caseId && (
+                              <AdjustersPopover
+                                caseId={row.caseId}
+                                onClose={() => setAdjustersFor(null)}
+                                onAdd={() => setEditing(row)}
+                              />
+                            )}
+                          </div>
+                        </DataTable.Td>
                         <DataTable.Td>
                           {row.adjusterPhone
                             ? <span className="font-mono text-xs text-text-2 whitespace-nowrap">
@@ -1027,23 +1053,8 @@ function TrackingDialog({
             </div>
           </div>
 
-          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupAdjuster')}</div>
-          <div>
-            <Label htmlFor="tr-adj">{t('fieldAdjuster')}</Label>
-            <select id="tr-adj" value={adjusterId} onChange={e => setAdjusterId(e.target.value)}
-                    disabled={!carrierId}
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand disabled:opacity-50">
-              <option value="">{t('fieldAdjusterNone')}</option>
-              {adjusters.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.name}{a.phone ? ` — ${a.phone}${a.extension ? ` ext. ${a.extension}` : ''}` : ''}
-                </option>
-              ))}
-            </select>
-            {row.adjusterName && !adjusterId && (
-              <p className="text-[11px] text-text-muted mt-1">{t('fieldAdjusterFree', { name: row.adjusterName })}</p>
-            )}
-          </div>
+          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupAdjusters')}</div>
+          <AdjustersSection caseId={row.caseId} />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupManagers')}</div>
           <ManagersSection

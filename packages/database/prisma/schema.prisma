@@ -2581,6 +2581,7 @@ model Case {
   tracking             CaseTracking?
   trackingNotes        CaseTrackingNote[]
   caseManagers         CaseManager[]
+  caseAdjusters        CaseAdjuster[]
   notes                CaseNote[]
   lienSignatures       LienSignature[]
   intakeSubmission     IntakeSubmission?     @relation("CaseIntakeSubmission")
@@ -2760,6 +2761,7 @@ model InsuranceAdjuster {
   status ExternalStatus @default(ACTIVE)
 
   caseAutoInsurances CaseAutoInsurance[]
+  caseAssignments    CaseAdjuster[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2814,6 +2816,10 @@ model CaseAutoInsurance {
   pipAvailable PipAvailability @default(UNKNOWN)
   claimNum     String?
 
+  /// DEPRECADO — un caso puede tener VARIOS adjusters ("Kenneth Kelly or
+  /// Patricia Leon" en el Excel de Edson). La asignacion vive ahora en
+  /// `CaseAdjuster`. Se deja la columna para no romper lo migrado; no se
+  /// escribe mas desde la UI.
   adjusterId String?
   adjuster   InsuranceAdjuster? @relation(fields: [adjusterId], references: [id])
   /// Lo que se escribio a mano antes de que existiera el catalogo. Se conserva
@@ -2947,6 +2953,49 @@ model CaseManager {
   @@index([caseId, removedAt])
   @@index([lawyerId])
   @@map("case_managers")
+}
+
+/// Adjuster asignado al claim del caso (B.12 — pedido de Edson).
+///
+/// Gemelo de `CaseManager` y por la misma razon: la PERSONA vive en el catalogo
+/// (`InsuranceAdjuster`, por aseguradora, con su telefono, extension y fax
+/// escritos una sola vez) y lo que es del caso es la ASIGNACION.
+///
+/// Son VARIOS: el Excel de Edson dice "Kenneth Kelly or Patricia Leon" con dos
+/// telefonos — no son roles distintos, son contactos alternativos para el mismo
+/// claim.
+///
+/// Quitar a uno CIERRA la asignacion con `removedAt` en vez de borrarla: los
+/// adjusters rotan y Edson no puede perder a quien le hablo el mes pasado.
+///
+/// La direccion de billing NO vive aca: es de la aseguradora
+/// (`InsuranceCarrier.claimsAddress`) y se escribe una sola vez para todos sus
+/// casos.
+model CaseAdjuster {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  adjusterId String
+  adjuster   InsuranceAdjuster @relation(fields: [adjusterId], references: [id])
+
+  assignedAt     DateTime  @default(now())
+  assignedById   String?
+  assignedByName String?
+
+  removedAt   DateTime?
+  removedById String?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([caseId, adjusterId])
+  @@index([caseId, removedAt])
+  @@index([adjusterId])
+  @@map("case_adjusters")
 }
 
 // Junction table: many-to-many entre DoctorCredentials y SpecialtyCatalog.

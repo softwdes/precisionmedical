@@ -9,6 +9,15 @@ import { canAccessV2App, fetchDbRole } from '@precision-medical/auth/v2-apps';
  */
 
 const ROLE_COOKIE        = 'pm_role';
+/**
+ * A quien pertenece `pm_role`.
+ *
+ * El rol cacheado no se puede usar sin comprobar de quien es: sin esto, un
+ * segundo login en el mismo navegador hereda el rol del usuario anterior por
+ * hasta una hora, y como el rol decide a que app entra cada uno, eso puede meter
+ * a alguien donde no le corresponde. Mismo patron que back-office y apps/web.
+ */
+const ROLE_EMAIL_COOKIE  = 'pm_role_email';
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
 
@@ -64,16 +73,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   });
   // ────────────────────────────────────────────────────────────────────────────
 
-  let dbRole = request.cookies.get(ROLE_COOKIE)?.value;
+  // La cookie del rol SOLO vale si pertenece al usuario actual; si no, se ignora
+  // y se vuelve a consultar.
+  const cookieOwner = request.cookies.get(ROLE_EMAIL_COOKIE)?.value;
+  const cookieFresh = !!user.email && cookieOwner === user.email;
+
+  let dbRole = cookieFresh ? request.cookies.get(ROLE_COOKIE)?.value : undefined;
 
   if (!dbRole && user.email) {
     dbRole = await fetchDbRole(user.email);
-    response.cookies.set(ROLE_COOKIE, dbRole, {
-      httpOnly: true,
-      path:     '/',
-      maxAge:   3600,
-      sameSite: 'lax',
-    });
+    const cookieOpts = { httpOnly: true, path: '/', maxAge: 3600, sameSite: 'lax' as const };
+    response.cookies.set(ROLE_COOKIE, dbRole, cookieOpts);
+    response.cookies.set(ROLE_EMAIL_COOKIE, user.email, cookieOpts);
   }
 
   if (!canAccessV2App(dbRole ?? '', 'clinical')) {

@@ -1,16 +1,14 @@
 'use client';
 
 import { createClient } from '@precision-medical/auth/client';
-import { useRouter } from 'next/navigation';
 
 export default function NoAccessPage() {
-  const router = useRouter();
-
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    // Se sale POR el endpoint: `pm_role` es httpOnly y desde el navegador no se
+    // puede borrar, asi que un signOut de cliente dejaba el rol cacheado vivo.
+    window.location.href = '/api/auth/logout';
   }
 
   return (

@@ -4,8 +4,12 @@ import { type NextRequest, NextResponse } from 'next/server';
 /**
  * GET /api/auth/logout
  *
- * Signs out from Supabase, clears PM session cookies, redirects to /login.
- * Called by middleware on inactivity expiry or by explicit user action.
+ * Cierra la sesión de Supabase, borra las cookies propias y manda al login.
+ *
+ * El portal no tenía ninguna salida por servidor: el único `signOut()` vivía en
+ * la página de "sin acceso" y corría en el navegador. Como `pm_role` es
+ * httpOnly, desde ahí no hay forma de borrarla — la sesión moría pero el rol
+ * cacheado quedaba vivo hasta una hora. Espejo de la de Clinical.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams, origin } = new URL(request.url);
@@ -18,7 +22,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (reason !== 'manual') loginUrl.searchParams.set('reason', reason);
 
   const response = NextResponse.redirect(loginUrl);
-  response.cookies.delete('pm_last_active');
   response.cookies.delete('pm_role');
   response.cookies.delete('pm_role_email');
 

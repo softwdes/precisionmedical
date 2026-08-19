@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const COMMISSION_SELECT = 'id, lawyerId, providerId, patientId, amount, currency, status, earnedAt, paidAt, paidProofUrl, reversedById, notes, createdAt, lawyer:lawyers!commissions_lawyerId_fkey(id, firstName, lastName, firmName), provider:providers!commissions_providerId_fkey(id, firstName, lastName), patient:patients(id, patientCode, firstName, lastName)';
 
 export const commissionsRouter = router({
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       page: z.number().int().min(1).default(1),
       pageSize: z.number().int().min(1).max(100).default(25),

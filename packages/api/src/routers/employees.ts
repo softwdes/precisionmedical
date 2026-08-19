@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const SPECIALTY_VALUES = ['RADIOLOGY', 'NEUROLOGY', 'ORTHOPEDICS', 'PHYSICAL_THERAPY', 'CHIROPRACTIC', 'PAIN_MANAGEMENT', 'PSYCHOLOGY', 'GENERAL', 'OTHER'] as const;
@@ -31,7 +31,7 @@ const createEmployeeSchema = z.object({
 });
 
 export const employeesRouter = router({
-  list: protectedProcedure
+  list: payrollProcedure
     .input(z.object({
       page: z.number().int().positive().default(1),
       pageSize: z.number().int().positive().max(200).default(25),
@@ -78,7 +78,7 @@ export const employeesRouter = router({
       };
     }),
 
-  getById: protectedProcedure
+  getById: payrollProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -272,7 +272,7 @@ export const employeesRouter = router({
       return data;
     }),
 
-  listActivity: protectedProcedure
+  listActivity: payrollProcedure
     .input(z.object({ employeeId: z.string() }))
     .query(async ({ input }) => {
       const { data } = await supabaseAdmin
@@ -285,7 +285,7 @@ export const employeesRouter = router({
       return data ?? [];
     }),
 
-  getSummary: protectedProcedure.query(async () => {
+  getSummary: payrollProcedure.query(async () => {
     const [{ count: total }, { data: byType }] = await Promise.all([
       supabaseAdmin.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'ACTIVE').is('deletedAt', null),
       supabaseAdmin.from('employees').select('type').eq('status', 'ACTIVE').is('deletedAt', null),
@@ -332,7 +332,7 @@ export const employeesRouter = router({
   // ─── REPORTE CONSOLIDADO DE PAGOS DE SALARIOS ─────────────────────────────
   // Agrega pagos PAID en un rango con filtros opcionales. Igual patron que
   // freelancers.getReport: separado por moneda, sin mezclar.
-  getReport: protectedProcedure
+  getReport: payrollProcedure
     .input(z.object({
       from:         z.string(), // YYYY-MM-DD
       to:           z.string(), // YYYY-MM-DD

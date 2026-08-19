@@ -80,6 +80,23 @@ export const payrollProcedure = t.procedure
   .use(authMiddleware)
   .use(requireRole(['ADMIN', 'SUPER_ADMIN', 'CONTADOR'] as UserRole[]));
 
+/**
+ * Agentes IA: ADMIN + SUPER_ADMIN + AUDITOR_AI.
+ *
+ * `agentes_ia` es el UNICO modulo del Admin donde la matriz de permisos le da
+ * acceso real al AUDITOR_AI ('write'), y su pantalla ya lo respeta —
+ * `dashboard/ai-agents/page.tsx` gatea con `can(role, 'agentes_ia')`—. Por eso el
+ * middleware lo deja pasar la puerta cuando bloquea a doctores y abogados.
+ *
+ * Subir estas lecturas a `adminProcedure` le romperia la unica pantalla que ese
+ * rol tiene; dejarlas en `protectedProcedure` las deja abiertas a cualquiera con
+ * sesion. Este es el punto medio.
+ */
+export const aiAuditProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware)
+  .use(requireRole(['ADMIN', 'SUPER_ADMIN', 'AUDITOR_AI'] as UserRole[]));
+
 export const lawyerProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)

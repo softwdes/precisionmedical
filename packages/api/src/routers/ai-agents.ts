@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure, aiAuditProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 import { sendAuditAlertEmail } from '../email';
 
@@ -42,7 +42,7 @@ export const aiAgentsRouter = router({
 
   // ── Existing procedures (unchanged) ─────────────────────
 
-  list: protectedProcedure.query(async () => {
+  list: aiAuditProcedure.query(async () => {
     const { data, error } = await supabaseAdmin
       .from('agents')
       .select(AGENT_SELECT)
@@ -51,7 +51,7 @@ export const aiAgentsRouter = router({
     return data ?? [];
   }),
 
-  getById: protectedProcedure
+  getById: aiAuditProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -128,7 +128,7 @@ export const aiAgentsRouter = router({
       return data;
     }),
 
-  listActions: protectedProcedure
+  listActions: aiAuditProcedure
     .input(z.object({
       agentId: z.string(),
       page: z.number().int().min(1).default(1),
@@ -175,7 +175,7 @@ export const aiAgentsRouter = router({
       return data;
     }),
 
-  listConversations: protectedProcedure
+  listConversations: aiAuditProcedure
     .input(z.object({
       agentId: z.string(),
       page: z.number().int().min(1).default(1),
@@ -196,7 +196,7 @@ export const aiAgentsRouter = router({
 
   // ── New procedures for the rebuilt module ────────────────
 
-  getAuditSettings: protectedProcedure.query(async () => {
+  getAuditSettings: aiAuditProcedure.query(async () => {
     const { data } = await supabaseAdmin
       .from('agent_settings')
       .select('id, created_at, updated_at, agent_name, mode_surveillance, mode_semi_autonomous, mode_autonomous, scan_frequency, scheduled_scan_time, notify_email, surveillance_active_since, monthly_budget')
@@ -466,7 +466,7 @@ export const aiAgentsRouter = router({
     return { runId, findingsCount: findings.length, criticalCount: critical_count, warningCount: warning_count, infoCount: info_count };
   }),
 
-  listFindings: protectedProcedure
+  listFindings: aiAuditProcedure
     .input(z.object({
       severity: z.enum(['critical', 'warning', 'info']).optional(),
       module: z.string().optional(),
@@ -513,7 +513,7 @@ export const aiAgentsRouter = router({
       return data as { id: string; status: string };
     }),
 
-  listAuditRuns: protectedProcedure
+  listAuditRuns: aiAuditProcedure
     .input(z.object({ limit: z.number().int().min(1).max(50).default(10) }).optional())
     .query(async ({ input }) => {
       const { data } = await supabaseAdmin
@@ -528,7 +528,7 @@ export const aiAgentsRouter = router({
       }>;
     }),
 
-  getAgentCosts: protectedProcedure.query(async () => {
+  getAgentCosts: aiAuditProcedure.query(async () => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0] as string;
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0] as string;
@@ -569,7 +569,7 @@ export const aiAgentsRouter = router({
     };
   }),
 
-  getLastAuditRun: protectedProcedure.query(async () => {
+  getLastAuditRun: aiAuditProcedure.query(async () => {
     const { data: run } = await supabaseAdmin
       .from('audit_runs')
       .select('*')
@@ -584,7 +584,7 @@ export const aiAgentsRouter = router({
     } | null;
   }),
 
-  getCifoConversations: protectedProcedure.query(async ({ ctx }) => {
+  getCifoConversations: aiAuditProcedure.query(async ({ ctx }) => {
     const { data } = await supabaseAdmin
       .from('cifo_conversations')
       .select('session_id, role, content, created_at')

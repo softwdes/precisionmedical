@@ -1,4 +1,4 @@
-import { router, protectedProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 
 /**
  * Observabilidad — lee métricas AGREGADAS de Sentry para mostrarlas dentro de
@@ -132,7 +132,7 @@ async function fetchProjectIssues(
 }
 
 export const observabilityRouter = router({
-  getHealth: protectedProcedure.query(async (): Promise<SentryHealth> => {
+  getHealth: adminProcedure.query(async (): Promise<SentryHealth> => {
     const token = process.env.SENTRY_API_TOKEN;
     const org = process.env.SENTRY_ORG ?? 'precision-medical';
 

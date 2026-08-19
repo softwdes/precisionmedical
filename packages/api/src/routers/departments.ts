@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 export const departmentsRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: payrollProcedure.query(async () => {
     const { data, error } = await supabaseAdmin
       .from('departments')
       .select('id, name, description')

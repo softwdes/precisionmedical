@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const taskStatusEnum = z.enum(['ASSIGNED', 'IN_PROGRESS', 'DELIVERED', 'REVIEWED', 'REJECTED', 'CANCELLED']);
 const taskPriorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
 
 export const tasksRouter = router({
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       page: z.number().int().positive().default(1),
       pageSize: z.number().int().positive().max(100).default(25),

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 export const searchRouter = router({
-  global: protectedProcedure
+  global: adminProcedure
     .input(z.object({ query: z.string().min(1).max(100) }))
     .query(async ({ input }) => {
       const q = input.query.trim();

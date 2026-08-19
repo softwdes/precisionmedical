@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const APPT_SELECT = 'id, patientId, clinicId, providerId, scheduledFor, durationMinutes, type, status, notes, createdAt, patient:patients(id, patientCode, firstName, lastName), clinic:clinics(id, name), provider:providers(id, firstName, lastName, specialty)';
 
 export const appointmentsRouter = router({
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       page: z.number().int().min(1).default(1),
       pageSize: z.number().int().min(1).max(100).default(25),
@@ -34,7 +34,7 @@ export const appointmentsRouter = router({
       return { items: data ?? [], total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
     }),
 
-  listClinics: protectedProcedure.query(async () => {
+  listClinics: adminProcedure.query(async () => {
     const { data, error } = await supabaseAdmin.from('clinics').select('id, name, address, phone').order('name');
     if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
     return data ?? [];

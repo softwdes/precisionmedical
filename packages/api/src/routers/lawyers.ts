@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const LAWYER_SELECT = 'id, entityType, firstName, lastName, firmName, parentFirmId, email, phone, address, status, createdAt';
 
 export const lawyersRouter = router({
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       page: z.number().int().min(1).default(1),
       pageSize: z.number().int().min(1).max(100).default(25),
@@ -28,7 +28,7 @@ export const lawyersRouter = router({
       return { items: data ?? [], total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
     }),
 
-  getById: protectedProcedure
+  getById: adminProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin

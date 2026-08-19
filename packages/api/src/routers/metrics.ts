@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 import { createClientWithCredentials } from '@precision-medical/auth';
 
@@ -367,7 +367,7 @@ export const metricsRouter = router({
       return data as ConsultationDetail;
     }),
 
-  listCalls: protectedProcedure
+  listCalls: adminProcedure
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {
       try {
@@ -404,7 +404,7 @@ export const metricsRouter = router({
       }
     }),
 
-  list: protectedProcedure
+  list: adminProcedure
     .input(z.object({
       month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
       departmentId: z.string().optional(),
@@ -431,7 +431,7 @@ export const metricsRouter = router({
       return items;
     }),
 
-  getByEmployee: protectedProcedure
+  getByEmployee: adminProcedure
     .input(z.object({
       employeeId: z.string(),
       limit: z.number().int().positive().max(24).default(6),

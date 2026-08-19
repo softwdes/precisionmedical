@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 const createFreelancerSchema = z.object({
@@ -47,7 +47,7 @@ const updatePaymentSchema = z.object({
 });
 
 export const freelancersRouter = router({
-  list: protectedProcedure
+  list: payrollProcedure
     .input(z.object({
       page:      z.number().int().positive().default(1),
       pageSize:  z.number().int().positive().max(100).default(25),
@@ -81,7 +81,7 @@ export const freelancersRouter = router({
       };
     }),
 
-  getSummary: protectedProcedure.query(async () => {
+  getSummary: payrollProcedure.query(async () => {
     const now        = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]!;
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]!;
@@ -180,7 +180,7 @@ export const freelancersRouter = router({
       return data;
     }),
 
-  listPayments: protectedProcedure
+  listPayments: payrollProcedure
     .input(z.object({ freelancerId: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -197,7 +197,7 @@ export const freelancersRouter = router({
   // Agrega pagos en un rango con filtros, devuelve KPIs por moneda + series
   // para gráficas + agrupado por freelancer + pagos detallados.
   // Nunca suma monedas distintas: cada bloque está separado por currency.
-  getReport: protectedProcedure
+  getReport: payrollProcedure
     .input(z.object({
       from:         z.string(), // YYYY-MM-DD
       to:           z.string(), // YYYY-MM-DD
@@ -454,7 +454,7 @@ export const freelancersRouter = router({
     }),
 
   // ─── PAGOS PENDIENTES — listado con filtros y orden PENDING-first ──────────
-  listPagos: protectedProcedure
+  listPagos: payrollProcedure
     .input(z.object({
       page:     z.number().int().positive().default(1),
       pageSize: z.number().int().positive().max(100).default(25),
@@ -505,7 +505,7 @@ export const freelancersRouter = router({
       };
     }),
 
-  getPagosSummary: protectedProcedure
+  getPagosSummary: payrollProcedure
     .input(z.object({}).optional())
     .query(async () => {
       const now        = new Date();

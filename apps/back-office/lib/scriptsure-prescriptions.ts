@@ -32,6 +32,15 @@ export function asStr(v: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * `null` = el payload NO dijo nada del estado del envío.
+ *
+ * No es lo mismo que "enviada" y la diferencia es peligrosa: el historial de
+ * medicamentos que devuelve ScriptSure (el que consume el sync) trae solo los
+ * datos del fármaco, sin el estado del mensaje. Suponer `SENT` ahí convertía una
+ * receta RECHAZADA por la farmacia en una receta "enviada" en la próxima
+ * sincronización — ver el comentario del enum `RxStatus.ERROR` en el schema.
+ */
 export type MappedRxStatus = 'SENT' | 'VOIDED' | 'ERROR';
 
 export interface MappedRx {
@@ -47,7 +56,8 @@ export interface MappedRx {
   clinicalIndication: string;
   pharmacyName: string | null;
   pharmacyAddress: string | null;
-  status: MappedRxStatus;
+  /** `null` cuando el payload no informó estado — NO asumir "enviada". */
+  status: MappedRxStatus | null;
   writtenAt: Date | null;
   /** Identificadores del fármaco — necesarios para repetir la receta */
   ndc: string | null;
@@ -96,8 +106,16 @@ export function mapRawRx(raw: Record<string, unknown>, outerStatus?: string): Ma
 
   // Anulada y con error NO son lo mismo: la primera es una decisión del doctor,
   // la segunda un envío que falló y hay que reintentar.
-  const status: MappedRxStatus =
-    statusRaw.includes('void') || statusRaw.includes('cancel') ? 'VOIDED'
+  //
+  // Y si no vino NINGÚN estado, se devuelve `null`: antes caía en `SENT` por
+  // default, y como el sync reescribe la fila cada vez que se cierra el widget
+  // (188 actualizaciones sobre 25 recetas en la base de prueba), una receta
+  // marcada ERROR volvía a "enviada" sola en la siguiente pasada. Encontrado el
+  // 2026-08-18 sobre la Adderall que el doctor reportó: 19:47 SENT → 19:48 ERROR
+  // → y la próxima sincronización la habría dado por enviada otra vez.
+  const status: MappedRxStatus | null =
+    !statusRaw ? null
+    : statusRaw.includes('void') || statusRaw.includes('cancel') ? 'VOIDED'
     : statusRaw.includes('error') || statusRaw.includes('fail') || statusRaw.includes('reject') ? 'ERROR'
     : 'SENT';
 
@@ -176,7 +194,7 @@ interface MedEntry {
 async function syncMedicationHistory(
   patientId: string,
   medicalHistory: unknown,
-  rx: { drugName: string; dawRxId?: string; status: MappedRxStatus; prescriberName: string | null },
+  rx: { drugName: string; dawRxId?: string; status: MappedRxStatus | null; prescriberName: string | null },
 ): Promise<void> {
   const mh = (medicalHistory ?? {}) as { medications?: MedEntry[] };
   const meds = [...(mh.medications ?? [])];
@@ -189,7 +207,15 @@ async function syncMedicationHistory(
   const entry: MedEntry = {
     id: idx >= 0 ? meds[idx]!.id : crypto.randomUUID(),
     name: rx.drugName,
-    status: rx.status === 'SENT' ? 'IN_USE' : 'HISTORY',
+    /**
+     * Anulada o con error → Anterior. Todo lo demás → Activo, **incluido el
+     * estado desconocido**: estas entradas salen del listado de medicación
+     * ACTUAL que devuelve ScriptSure, así que esconderlas contradiría a la
+     * fuente — y en el panel clínico es peor omitir un medicamento que el
+     * paciente podría estar tomando (interacciones) que mostrarlo de más.
+     * Lo que dejó de fingirse es el estado del ENVÍO, que es otra cosa.
+     */
+    status: rx.status === 'VOIDED' || rx.status === 'ERROR' ? 'HISTORY' : 'IN_USE',
     externalPrescriber: false,
     ...(rx.prescriberName ? { prescribedBy: rx.prescriberName } : {}),
     ...(rx.dawRxId ? { dawRxId: rx.dawRxId } : {}),
@@ -237,7 +263,6 @@ export async function persistPrescription(params: {
     pharmacyName: mapped.pharmacyName,
     pharmacyAddress: mapped.pharmacyAddress,
     prescriberName: params.prescriberName,
-    status: mapped.status,
     dawRxId: mapped.dawRxId ?? null,
     dawSentAt: mapped.writtenAt ?? new Date(),
     ndc: mapped.ndc,
@@ -251,10 +276,27 @@ export async function persistPrescription(params: {
     drugPayload: (mapped.drugPayload ?? undefined) as never,
   };
 
+  /**
+   * El estado se trata aparte del resto de los campos.
+   *
+   * Sin estado informado: en una fila que YA existe no se toca —lo último que
+   * se supo sigue siendo la mejor información que tenemos— y en una nueva queda
+   * `PENDING_DAW`, que es "todavía no sabemos", no "salió bien". El resto de los
+   * campos sí se actualiza siempre: la droga, la farmacia y el sig son el mismo
+   * dato y no dependen del envío.
+   */
   const saved = existing
-    ? await db.prescription.update({ where: { id: existing.id }, data })
+    ? await db.prescription.update({
+        where: { id: existing.id },
+        data: mapped.status ? { ...data, status: mapped.status } : data,
+      })
     : await db.prescription.create({
-        data: { ...data, appointmentId: params.appointmentId, visitNoteId: params.visitNoteId },
+        data: {
+          ...data,
+          status: mapped.status ?? 'PENDING_DAW',
+          appointmentId: params.appointmentId,
+          visitNoteId: params.visitNoteId,
+        },
       });
 
   await writeAuditLog(db, {
@@ -267,7 +309,7 @@ export async function persistPrescription(params: {
       source: params.source,
       dawRxId: mapped.dawRxId ?? null,
       drugName: mapped.drugName,
-      status: data.status,
+      status: mapped.status ?? (existing ? 'sin cambio (el payload no informó)' : 'PENDING_DAW'),
       appointmentId: params.appointmentId,
     },
   });

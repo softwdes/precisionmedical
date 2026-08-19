@@ -224,17 +224,19 @@ export function ManagersPopover({
 // ─── Sección del modal ───────────────────────────────────────────────────────
 
 export function ManagersSection({
-  caseId, lawFirmId, firmMembers, onChanged,
+  caseId, lawFirmId, firmMembers, onChanged, autoOpen,
 }: {
   caseId: string;
   lawFirmId: string | null;
   firmMembers: { id: string; label: string; subtitle?: string }[];
   onChanged?: () => void;
+  /** Abre el formulario de alta al montar — se llega desde "Agregar encargado". */
+  autoOpen?: boolean;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, loading, reload } = useManagers(caseId);
 
-  const [adding, setAdding]   = useState(false);
+  const [adding, setAdding]   = useState(!!autoOpen);
   const [mode, setMode]       = useState<'pick' | 'new'>('pick');
   const [pickId, setPickId]   = useState('');
   const [firstName, setFirst] = useState('');

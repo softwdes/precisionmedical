@@ -176,6 +176,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [editing, setEditing] = useState<Row | null>(null);
+  const [editingFocus, setEditingFocus] = useState<'managers' | 'adjusters' | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   /** Caso cuyo popover de encargados esta abierto. */
   const [managersFor, setManagersFor] = useState<string | null>(null);
@@ -518,7 +519,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 firmName={row.firmName}
                                 attorneyEmail={row.attorneyEmail}
                                 onClose={() => setManagersFor(null)}
-                                onAdd={() => setEditing(row)}
+                                onAdd={() => { setEditingFocus('managers'); setEditing(row); }}
                               />
                             )}
                           </div>
@@ -547,7 +548,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               <AdjustersPopover
                                 caseId={row.caseId}
                                 onClose={() => setAdjustersFor(null)}
-                                onAdd={() => setEditing(row)}
+                                onAdd={() => { setEditingFocus('adjusters'); setEditing(row); }}
                               />
                             )}
                           </div>
@@ -700,8 +701,9 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         <TrackingDialog
           row={editing}
           carriers={carriers}
-          onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); void load(); router.refresh(); }}
+          focus={editingFocus}
+          onClose={() => { setEditing(null); setEditingFocus(null); }}
+          onSaved={() => { setEditing(null); setEditingFocus(null); void load(); router.refresh(); }}
         />
       )}
     </div>
@@ -988,10 +990,12 @@ function NoteEntry({
 // ─── Modal de edición ────────────────────────────────────────────────────────
 
 function TrackingDialog({
-  row, carriers, onClose, onSaved,
+  row, carriers, focus, onClose, onSaved,
 }: {
   row: Row;
   carriers: { id: string; name: string }[];
+  /** Seccion a la que saltar al abrir, cuando se llega desde un popover. */
+  focus?: 'managers' | 'adjusters' | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1004,6 +1008,20 @@ function TrackingDialog({
   const [pip, setPip]             = useState<'YES' | 'NO' | 'UNKNOWN'>(row.pipAvailable);
   const [chiropractor, setChiro]  = useState(row.chiropractor ?? '');
   const [insComments, setInsComments] = useState(row.insComments ?? '');
+  const managersRef  = useRef<HTMLDivElement>(null);
+  const adjustersRef = useRef<HTMLDivElement>(null);
+
+  // Al llegar desde "Agregar encargado", el modal salta a esa seccion en vez de
+  // dejar al usuario buscandola. El timeout espera a que el dialogo termine de
+  // montarse: sin el, el scroll ocurre antes de que haya a donde scrollear.
+  useEffect(() => {
+    if (!focus) return;
+    const target = focus === 'managers' ? managersRef : adjustersRef;
+    const id = setTimeout(() => {
+      target.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }, 120);
+    return () => clearTimeout(id);
+  }, [focus]);
   // El bufete manda sobre el abogado: los abogados se buscan DENTRO del bufete,
   // que es como estan modelados (`Lawyer.parentFirmId`) y como ya lo hace el
   // wizard de alta de caso. Cambiar de bufete limpia el abogado a proposito.
@@ -1153,6 +1171,21 @@ function TrackingDialog({
             <Input id="tr-chiro" value={chiropractor} onChange={e => setChiro(e.target.value)} />
           </div>
 
+          {/*
+            * Los encargados van DENTRO del bloque Legal: son la gente del
+            * bufete, no un tema aparte. Estaban al final del modal y desde el
+            * popover habia que bajar a buscarlos.
+            */}
+          <div ref={managersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
+            {t('groupManagers')}
+          </div>
+          <ManagersSection
+            caseId={row.caseId}
+            lawFirmId={lawFirm?.id ?? null}
+            firmMembers={firmMembers}
+            autoOpen={focus === 'managers'}
+          />
+
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupInsurance')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -1196,15 +1229,10 @@ function TrackingDialog({
             <p className="text-[11px] text-text-muted mt-1">{t('insCommentsHint')}</p>
           </div>
 
-          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupAdjusters')}</div>
-          <AdjustersSection caseId={row.caseId} />
-
-          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupManagers')}</div>
-          <ManagersSection
-            caseId={row.caseId}
-            lawFirmId={lawFirm?.id ?? null}
-            firmMembers={firmMembers}
-          />
+          <div ref={adjustersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
+            {t('groupAdjusters')}
+          </div>
+          <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupNotes')}</div>
           <div className="space-y-2.5">

@@ -1675,6 +1675,8 @@
       "comingSoonTitle": "Module under construction",
       "comingSoonSubtitle": "This section of the doctor portal is coming in the next phase.",
       "viewAsLabel": "Viewing as",
+      "viewAsSelfLabel": "Portal you're viewing",
+      "viewAsBackToOwn": "Back to my portal",
       "viewAsRole": "Support view",
       "viewAsPlaceholder": "Pick a doctor…",
       "viewAsHint": "You see their portal exactly as they do. Nothing in their account is changed.",
@@ -5393,7 +5395,7 @@
       "insComments": "Insurance notes",
       "insCommentsHint": "Shows as a banner under the row in the grid.",
       "insCommentsPh": "PIP EXHAUSTED! Case goes under attorney lien.",
-      "copyLienEmails": "Copy {count} emails",
+      "copyLienEmails": "Copy {count, plural, one {# email} other {# emails}}",
       "colCreatedBy": "Created by"
     }
   },

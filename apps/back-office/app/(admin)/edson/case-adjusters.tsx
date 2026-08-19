@@ -214,12 +214,19 @@ export function AdjustersPopover({
 
 // ─── Sección del modal ───────────────────────────────────────────────────────
 
-export function AdjustersSection({ caseId, onChanged }: { caseId: string; onChanged?: () => void }) {
+export function AdjustersSection({
+  caseId, onChanged, autoOpen,
+}: {
+  caseId: string;
+  onChanged?: () => void;
+  /** Abre el formulario de alta al montar — se llega desde "Agregar adjuster". */
+  autoOpen?: boolean;
+}) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, carrier, loading, reload } = useCaseAdjusters(caseId);
 
   const [options, setOptions] = useState<{ id: string; name: string; phone: string | null; extension: string | null }[]>([]);
-  const [adding, setAdding]   = useState(false);
+  const [adding, setAdding]   = useState(!!autoOpen);
   const [mode, setMode]       = useState<'pick' | 'new'>('pick');
   const [pickId, setPickId]   = useState('');
   const [name, setName]       = useState('');

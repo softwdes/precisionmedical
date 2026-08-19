@@ -1675,6 +1675,8 @@
       "comingSoonTitle": "Módulo en construcción",
       "comingSoonSubtitle": "Esta sección del portal médico se habilita en la siguiente fase.",
       "viewAsLabel": "Viendo como",
+      "viewAsSelfLabel": "Portal que estás viendo",
+      "viewAsBackToOwn": "Volver a mi portal",
       "viewAsRole": "Vista de soporte",
       "viewAsPlaceholder": "Elegí un doctor…",
       "viewAsHint": "Ves su portal tal como lo ve él. No se modifica nada de su cuenta.",
@@ -5393,7 +5395,7 @@
       "insComments": "Notas del seguro",
       "insCommentsHint": "Se muestra como una banda debajo de la fila en la grilla.",
       "insCommentsPh": "¡PIP AGOTADO! El caso va por lien del abogado.",
-      "copyLienEmails": "Copiar {count} emails",
+      "copyLienEmails": "Copiar {count, plural, one {# email} other {# emails}}",
       "colCreatedBy": "Creada por"
     }
   },

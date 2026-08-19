@@ -435,7 +435,16 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               <DataTable.Th>{t('colProvider')}</DataTable.Th>
               <DataTable.Th>{t('colLossDate')}</DataTable.Th>
               <DataTable.Th>{t('colAttorney')}</DataTable.Th>
-              <DataTable.Th>{t('colChiropractor')}</DataTable.Th>
+              <DataTable.Th>
+                {/*
+                  * Rotulo corto: el completo son 23 caracteres y partia el
+                  * encabezado en dos lineas, subiendo el alto de toda la fila.
+                  * El nombre entero vive en el tooltip y en el campo del modal.
+                  */}
+                <span title={t('fieldChiropractor')} className="whitespace-nowrap">
+                  {t('colChiropractor')}
+                </span>
+              </DataTable.Th>
               <DataTable.Th>{t('colCarrier')}</DataTable.Th>
               <DataTable.Th>{t('colClaim')}</DataTable.Th>
               <DataTable.Th align="center">{t('colPip')}</DataTable.Th>

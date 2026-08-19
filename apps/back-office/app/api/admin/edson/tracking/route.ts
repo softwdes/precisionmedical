@@ -176,12 +176,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lf."firmName"     AS firm_name,
       CASE WHEN at."id" IS NULL THEN NULL
            ELSE TRIM(CONCAT(COALESCE(at."firstName", ''), ' ', COALESCE(at."lastName", ''))) END AS attorney_name,
+      at."email"        AS attorney_email,
       c."consentsData" -> 'chiropractor' AS chiropractor,
 
       -- Valor efectivo: la fila del seguro gana, el caso es el respaldo.
       COALESCE(ic."name", cai."carrierNameRaw")   AS carrier_name,
       COALESCE(cai."lossDate", c."accidentDate")  AS loss_date,
       cai."claimNum"                              AS claim_num,
+      cai."comments"                              AS ins_comments,
       COALESCE(cai."pipAvailable"::text, 'UNKNOWN') AS pip,
       COALESCE(adj."name", cai."adjusterNameRaw") AS adjuster_name,
       COALESCE(adj."phone", cai."adjusterPhoneRaw") AS adjuster_phone,
@@ -253,10 +255,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       attorneyId:    r.attorney_id,
       firmName:      r.firm_name,
       attorneyName:  (r.attorney_name as string | null)?.trim() || null,
+      attorneyEmail: r.attorney_email,
       chiropractor:  r.chiropractor,
       carrierName:   r.carrier_name,
       lossDate:      r.loss_date,
       claimNum:      r.claim_num,
+      insComments:   r.ins_comments,
       pipAvailable:  r.pip,
       adjusterName:  r.adjuster_name,
       adjusterPhone: r.adjuster_phone,

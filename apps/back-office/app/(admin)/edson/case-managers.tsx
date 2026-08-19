@@ -132,10 +132,11 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, firmName, onClose, onAdd,
+  caseId, attorneyName, attorneyEmail, firmName, onClose, onAdd,
 }: {
   caseId: string;
   attorneyName: string | null;
+  attorneyEmail: string | null;
   firmName: string | null;
   onClose: () => void;
   /** Abre el modal en la sección de encargados. */
@@ -143,6 +144,14 @@ export function ManagersPopover({
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, loading } = useManagers(caseId);
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  // Abogado primero y despues los encargados, que es el orden en que Edson los
+  // escribe en su correo.
+  const lienEmails = [
+    attorneyEmail,
+    ...current.map(m => m.lawyer.email),
+  ].filter((e): e is string => !!e);
 
   // Cierra al hacer clic afuera o con Escape. Se abre con CLIC y no con hover a
   // proposito: con hover el panel se cierra al ir hacia el, y copiar un email
@@ -175,6 +184,30 @@ export function ManagersPopover({
           <p className="text-text-muted text-[12px] italic">{t('managerNone')}</p>
         )}
         {current.map(m => <ManagerCard key={m.id} m={m} />)}
+
+        {/*
+          * Copiar TODOS los emails de una vez.
+          *
+          * Es el trabajo real que Edson venía haciendo a mano: en su Excel
+          * escribía "Send lien to attrny & CMs: erik@…; aimme@…; danna@…"
+          * porque no tenía los correos a mano en ningún lado. Con esto ese
+          * texto deja de hacer falta.
+          */}
+        {lienEmails.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(lienEmails.join('; '));
+              setCopiedAll(true);
+              setTimeout(() => setCopiedAll(false), 1400);
+            }}
+            className="w-full flex items-center justify-center gap-1.5 rounded-md bg-bg-2 px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1"
+          >
+            {copiedAll
+              ? <><Check className="w-3 h-3 text-emerald" /> {t('copied')}</>
+              : <><Copy className="w-3 h-3" /> {t('copyLienEmails', { count: lienEmails.length })}</>}
+          </button>
+        )}
 
         <button
           type="button"

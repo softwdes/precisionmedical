@@ -5390,7 +5390,11 @@
       "fieldPhone": "Teléfono",
       "fieldExtension": "Extensión",
       "fieldFax": "Fax",
-      "fieldEmail": "Email"
+      "fieldEmail": "Email",
+      "insComments": "Notas del seguro",
+      "insCommentsHint": "Se muestra como una banda debajo de la fila en la grilla.",
+      "insCommentsPh": "¡PIP AGOTADO! El caso va por lien del abogado.",
+      "copyLienEmails": "Copiar {count} emails"
     }
   },
   "clinical": {

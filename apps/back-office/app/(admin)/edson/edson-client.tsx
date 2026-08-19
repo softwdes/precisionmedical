@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   Search as SearchIcon, Check, ChevronLeft, ChevronRight, Pencil,
-  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus,
+  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle,
 } from 'lucide-react';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle,
          DialogDescription, DialogFooter, Label } from '@precision/ui';
@@ -55,10 +55,16 @@ interface Row {
   attorneyId: string | null;
   firmName: string | null;
   attorneyName: string | null;
+  attorneyEmail: string | null;
   chiropractor: string | null;
   carrierName: string | null;
   lossDate: string | null;
   claimNum: string | null;
+  /**
+   * Comentario del seguro. Es donde Edson escribe "PIP EXHAUSTED! Send lien
+   * to…" cuando el caso no va por seguro sino por lien del abogado.
+   */
+  insComments: string | null;
   pipAvailable: 'YES' | 'NO' | 'UNKNOWN';
   adjusterName: string | null;
   adjusterPhone: string | null;
@@ -438,7 +444,8 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                      */
                     const rowBg = apptRowBg(status) ?? (done ? READY_BG : undefined);
                     return (
-                      <DataTable.Row key={row.caseId} style={rowBg ? { background: rowBg } : undefined}>
+                      <Fragment key={row.caseId}>
+                      <DataTable.Row style={rowBg ? { background: rowBg } : undefined}>
                         <DataTable.Td sticky="left" style={rowBg ? { background: rowBg } : undefined}>
                           <div className="flex items-center gap-2 min-w-0">
                             <span
@@ -498,6 +505,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 caseId={row.caseId}
                                 attorneyName={row.attorneyName}
                                 firmName={row.firmName}
+                                attorneyEmail={row.attorneyEmail}
                                 onClose={() => setManagersFor(null)}
                                 onAdd={() => setEditing(row)}
                               />
@@ -589,6 +597,34 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           </div>
                         </DataTable.Td>
                       </DataTable.Row>
+
+                      {/*
+                        * Banda del comentario del seguro, a todo lo ancho.
+                        *
+                        * Es donde Edson escribe "PIP EXHAUSTED! Send lien to…"
+                        * cuando el caso no va por seguro sino por lien del
+                        * abogado. En su Excel ocupa el renglón entero para que
+                        * no se pierda entre las columnas, y acá hace lo mismo:
+                        * esconderlo tras un icono sería quitarle justo lo que
+                        * lo hace útil.
+                        */}
+                      {row.insComments && (
+                        <tr>
+                          <DataTable.Td
+                            colSpan={archived ? 16 : 15}
+                            className="!py-1.5"
+                            style={rowBg ? { background: rowBg } : undefined}
+                          >
+                            <div className="flex items-start gap-2 pl-3">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
+                              <span className="text-[12.5px] text-text-1 font-medium whitespace-pre-wrap">
+                                {row.insComments}
+                              </span>
+                            </div>
+                          </DataTable.Td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </Fragment>
@@ -840,8 +876,6 @@ function NoteCell({
 
 // ─── Modal de edición ────────────────────────────────────────────────────────
 
-interface AdjusterOpt { id: string; name: string; phone: string | null; extension: string | null }
-
 function TrackingDialog({
   row, carriers, onClose, onSaved,
 }: {
@@ -857,8 +891,8 @@ function TrackingDialog({
   const [claimNum, setClaimNum]   = useState(row.claimNum ?? '');
   const [lossDate, setLossDate]   = useState(row.lossDate ? row.lossDate.slice(0, 10) : '');
   const [pip, setPip]             = useState<'YES' | 'NO' | 'UNKNOWN'>(row.pipAvailable);
-  const [adjusterId, setAdjusterId] = useState('');
   const [chiropractor, setChiro]  = useState(row.chiropractor ?? '');
+  const [insComments, setInsComments] = useState(row.insComments ?? '');
   // El bufete manda sobre el abogado: los abogados se buscan DENTRO del bufete,
   // que es como estan modelados (`Lawyer.parentFirmId`) y como ya lo hace el
   // wizard de alta de caso. Cambiar de bufete limpia el abogado a proposito.
@@ -868,7 +902,6 @@ function TrackingDialog({
   const [attorney, setAttorney] = useState<AutoResult | null>(
     row.attorneyId ? { id: row.attorneyId, label: row.attorneyName ?? '—' } : null,
   );
-  const [adjusters, setAdjusters] = useState<AdjusterOpt[]>([]);
   const [firmMembers, setFirmMembers] = useState<{ id: string; label: string; subtitle?: string }[]>([]);
   const [notes, setNotes] = useState<{ id: string; body: string; authorName: string | null; createdAt: string }[]>([]);
   const [newNote, setNewNote] = useState('');
@@ -890,7 +923,6 @@ function TrackingDialog({
       if (cancelled) return;
       if (ai?.autoInsurance) {
         setCarrierId(ai.autoInsurance.carrierId ?? '');
-        setAdjusterId(ai.autoInsurance.adjusterId ?? '');
       }
       if (tr?.notes) setNotes(tr.notes);
     })();
@@ -910,19 +942,6 @@ function TrackingDialog({
     return () => { cancelled = true; };
   }, [lawFirm?.id]);
 
-  // Los adjusters se filtran por la aseguradora elegida: mostrarle a Edson los
-  // de otras compañías es ruido, y elegir uno equivocado es un error real.
-  useEffect(() => {
-    if (!carrierId) { setAdjusters([]); return; }
-    let cancelled = false;
-    (async () => {
-      const res = await fetch(`/api/admin/adjusters/by-carrier?carrierId=${encodeURIComponent(carrierId)}`);
-      const json = await res.json().catch(() => ({}));
-      if (!cancelled && res.ok) setAdjusters(json.adjusters ?? []);
-    })();
-    return () => { cancelled = true; };
-  }, [carrierId]);
-
   async function save() {
     setSaving(true); setError('');
     try {
@@ -934,7 +953,7 @@ function TrackingDialog({
           claimNum: claimNum.trim() || null,
           lossDate: lossDate || null,
           pipAvailable: pip,
-          adjusterId: adjusterId || null,
+          comments: insComments.trim() || null,
         }),
       });
       if (!r1.ok) { setError(t('errSave')); return; }
@@ -1027,7 +1046,7 @@ function TrackingDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="tr-carrier">{t('fieldCarrier')}</Label>
-              <select id="tr-carrier" value={carrierId} onChange={e => { setCarrierId(e.target.value); setAdjusterId(''); }}
+              <select id="tr-carrier" value={carrierId} onChange={e => setCarrierId(e.target.value)}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                 <option value="">{row.carrierName ? `${row.carrierName} (${t('fromCase')})` : '—'}</option>
                 {carriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1051,6 +1070,19 @@ function TrackingDialog({
                 <option value="NO">N</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="tr-ins-comments">{t('insComments')}</Label>
+            <textarea
+              id="tr-ins-comments"
+              rows={2}
+              value={insComments}
+              onChange={e => setInsComments(e.target.value)}
+              placeholder={t('insCommentsPh')}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
+            />
+            <p className="text-[11px] text-text-muted mt-1">{t('insCommentsHint')}</p>
           </div>
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupAdjusters')}</div>

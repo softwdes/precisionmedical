@@ -69,7 +69,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <>
-      <UpdateBanner />
+      <UpdateBanner audience="admin" />
       {/* `IncomingCallListener` DESMONTADO el 2026-08-05: Twilio desvía las
           entrantes a otro número, así que la clínica no recibe ninguna. Montado
           le pedía el micrófono a todos al cargar la app y latía contra el

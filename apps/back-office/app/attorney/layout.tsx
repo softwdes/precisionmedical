@@ -125,7 +125,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
 
   return (
     <>
-      <UpdateBanner />
+      <UpdateBanner audience="attorney" />
       <AdminShell
         variant="attorney"
         userName={displayName}

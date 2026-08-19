@@ -73,7 +73,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
 
   return (
     <>
-      <UpdateBanner />
+      <UpdateBanner audience="doctor" />
       <AdminShell
         variant="doctor"
         userName={`${provider.firstName} ${provider.lastName}`}

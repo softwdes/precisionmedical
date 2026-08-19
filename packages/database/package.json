@@ -16,9 +16,11 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx src/seed.ts",
     "db:seed:calendar": "tsx src/seed-dev-calendar.ts",
-    "seed:catalogs": "node prisma/seed-catalogs.mjs"
+    "seed:catalogs": "node prisma/seed-catalogs.mjs",
+    "release:notes": "tsx scripts/build-release-notes.ts"
   },
   "dependencies": {
+    "@precision/release": "workspace:*",
     "@prisma/client": "^5.20.0",
     "pg": "^8.21.0"
   },

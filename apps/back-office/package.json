@@ -15,6 +15,7 @@
     "@precision-medical/database": "workspace:*",
     "@precision-medical/i18n": "workspace:*",
     "@precision-medical/observability": "workspace:*",
+    "@precision/release": "workspace:*",
     "@precision/ui": "workspace:*",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^8.55.0",

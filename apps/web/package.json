@@ -16,6 +16,7 @@
     "@precision-medical/database": "workspace:*",
     "@precision-medical/i18n": "workspace:*",
     "@precision-medical/observability": "workspace:*",
+    "@precision/release": "workspace:*",
     "@precision/ui": "workspace:*",
     "@sentry/nextjs": "^8.55.0",
     "@serwist/next": "^9.5.11",

@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/timeclock",
+  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/timeclock && (pnpm --filter=@precision-medical/database release:notes -- --app timeclock || true)",
   "installCommand": "cd ../.. && pnpm install",
   "outputDirectory": ".next",
   "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/timeclock"

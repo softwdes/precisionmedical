@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm --filter=@precision-medical/forms build",
+  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm --filter=@precision-medical/forms build && (pnpm --filter=@precision-medical/database release:notes -- --app forms || true)",
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "framework": "nextjs",

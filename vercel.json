@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/web",
+  "buildCommand": "pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/web && (pnpm --filter=@precision-medical/database release:notes -- --app web || true)",
   "outputDirectory": "apps/web/.next",
   "installCommand": "pnpm install",
   "framework": "nextjs",

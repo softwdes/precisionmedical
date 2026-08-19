@@ -302,8 +302,15 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 
   const readyToArchive = rows.filter(r => r.completedAt && new Date(r.appointment.scheduledFor) < new Date()).length;
 
+  /*
+   * El margen negativo cancela el `p-4 sm:p-6 lg:p-8` que el shell del admin le
+   * pone a todas las paginas — hasta 32px muertos arriba. Edson pidio no perder
+   * nada de alto, asi que se recupera casi todo y quedan 4px para que el titulo
+   * no toque la barra superior. Solo el margen SUPERIOR: los laterales siguen
+   * alineando con el resto de las pantallas.
+   */
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5 -mt-3 sm:-mt-5 lg:-mt-7">
       {/*
         * Encabezado propio y no `PageHeader`, y todo en UNA fila: titulo, tabs y
         * leyenda. El primitivo usa `text-2xl` con subtitulo —bien en un catalogo,
@@ -334,7 +341,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         ))}
         </div>
 
-        <div className="ml-auto pb-1.5">
+        {/*
+          * La leyenda va JUNTO a los tabs y no en el borde opuesto: suelta a la
+          * derecha se leia como un bloque aparte, sin relacion con la tabla.
+          * Pegada al titulo se entiende que describe lo que viene abajo.
+          */}
+        <div className="pb-1.5">
           <StatusLegend />
         </div>
       </div>

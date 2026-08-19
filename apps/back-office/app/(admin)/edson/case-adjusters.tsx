@@ -266,7 +266,7 @@ export function AdjustersSection({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.message ?? t('errSave'));
+        setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
         return;
       }
       setAdding(false); setPickId(''); setName(''); setPhone(''); setExt(''); setFax(''); setEmail('');

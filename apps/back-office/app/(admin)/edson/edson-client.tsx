@@ -716,6 +716,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           row={editing}
           carriers={carriers}
           focus={editingFocus}
+          onCountsChanged={() => void load()}
           onClose={() => { setEditing(null); setEditingFocus(null); }}
           onSaved={() => { setEditing(null); setEditingFocus(null); void load(); router.refresh(); }}
         />
@@ -1050,7 +1051,7 @@ function NoteEntry({
 // ─── Modal de edición ────────────────────────────────────────────────────────
 
 function TrackingDialog({
-  row, carriers, focus, onClose, onSaved,
+  row, carriers, focus, onClose, onSaved, onCountsChanged,
 }: {
   row: Row;
   carriers: { id: string; name: string }[];
@@ -1058,6 +1059,12 @@ function TrackingDialog({
   focus?: 'managers' | 'adjusters' | null;
   onClose: () => void;
   onSaved: () => void;
+  /**
+   * Asignar un encargado o un adjuster guarda al instante, sin pasar por
+   * "Guardar cambios" — asi que la grilla tiene que recargar ahi mismo o el
+   * badge se queda en 0 aunque la persona ya este asignada.
+   */
+  onCountsChanged: () => void;
 }) {
   const t  = useTranslations('phoenix.edsonTracking');
   const tc = useTranslations('phoenix.common');
@@ -1100,6 +1107,19 @@ function TrackingDialog({
   const [readyForBrunella, setReadyForBrunella] = useState(!!row.completedAt);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
+
+  // Miembros del bufete, para asignar un encargado sin volver a escribirlo.
+  useEffect(() => {
+    const firmId = lawFirm?.id;
+    if (!firmId) { setFirmMembers([]); return; }
+    let cancelled = false;
+    (async () => {
+      const res  = await fetch(`/api/admin/lawyers/autocomplete?firmId=${encodeURIComponent(firmId)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled && res.ok) setFirmMembers(json.results ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, [lawFirm?.id]);
 
   // Carga el detalle al abrir: la grilla trae solo lo que se ve en la fila.
   useEffect(() => {
@@ -1244,6 +1264,7 @@ function TrackingDialog({
             lawFirmId={lawFirm?.id ?? null}
             firmMembers={firmMembers}
             autoOpen={focus === 'managers'}
+            onChanged={onCountsChanged}
           />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupInsurance')}</div>
@@ -1292,7 +1313,7 @@ function TrackingDialog({
           <div ref={adjustersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
             {t('groupAdjusters')}
           </div>
-          <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} />
+          <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} onChanged={onCountsChanged} />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupNotes')}</div>
           <div className="space-y-2.5">

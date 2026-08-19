@@ -22,29 +22,69 @@ import { mapRawRx, persistPrescription, asStr, pick } from '@/lib/scriptsure-pre
 
 export const dynamic = 'force-dynamic';
 
-function checkBasicAuth(req: NextRequest): boolean {
+/**
+ * Resultado del chequeo de auth, con el motivo.
+ *
+ * El motivo NO es un lujo: un 401 acá se devolvía antes de escribir cualquier
+ * registro, así que un webhook rechazado no dejaba **ninguna** huella. El
+ * 2026-08-19 la plataforma de ScriptSure decía "notification sent successfully"
+ * y de nuestro lado no había nada — y no había forma de distinguir "no lo
+ * mandaron" de "lo mandamos rebotar". Ahora el rechazo se registra igual.
+ */
+interface ResultadoAuth {
+  ok: boolean;
+  /** Por qué falló, para el registro. Nunca incluye la contraseña. */
+  motivo?: 'sin-credenciales-configuradas' | 'sin-header' | 'header-invalido' | 'usuario-o-clave-no-coincide';
+  /** Usuario que presentaron. Sirve para ver un espacio de más o un typo. */
+  usuarioPresentado?: string;
+  esquema?: string;
+}
+
+function checkBasicAuth(req: NextRequest): ResultadoAuth {
   const user = process.env.SCRIPTSURE_WEBHOOK_USER;
   const pass = process.env.SCRIPTSURE_WEBHOOK_PASS;
-  if (!user || !pass) return false;
-
   const header = req.headers.get('authorization') ?? '';
-  if (!header.startsWith('Basic ')) return false;
+  const esquema = header.split(' ')[0] || '(ninguno)';
+
+  if (!user || !pass) return { ok: false, motivo: 'sin-credenciales-configuradas', esquema };
+  if (!header) return { ok: false, motivo: 'sin-header', esquema };
+  if (!header.startsWith('Basic ')) return { ok: false, motivo: 'header-invalido', esquema };
+
   try {
     const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
     const idx = decoded.indexOf(':');
-    if (idx < 0) return false;
-    return decoded.slice(0, idx) === user && decoded.slice(idx + 1) === pass;
+    if (idx < 0) return { ok: false, motivo: 'header-invalido', esquema };
+    const u = decoded.slice(0, idx);
+    const p = decoded.slice(idx + 1);
+    if (u === user && p === pass) return { ok: true };
+    return { ok: false, motivo: 'usuario-o-clave-no-coincide', usuarioPresentado: u, esquema };
   } catch {
-    return false;
+    return { ok: false, motivo: 'header-invalido', esquema };
   }
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  if (!checkBasicAuth(req)) {
+  const sourceIp = (req.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || 'unknown';
+
+  const auth = checkBasicAuth(req);
+  if (!auth.ok) {
+    // Se registra el RECHAZO. Sin esto, un webhook mal autenticado es
+    // indistinguible de un webhook que nunca llegó.
+    await writeAuditLog(db, {
+      actorType: 'SYSTEM',
+      action: 'SCRIPTSURE_WEBHOOK_REJECTED',
+      entityType: 'prescriptions',
+      entityId: 'incoming',
+      ipAddress: sourceIp,
+      metadata: {
+        motivo: auth.motivo ?? 'desconocido',
+        esquemaAuth: auth.esquema ?? '(ninguno)',
+        usuarioPresentado: auth.usuarioPresentado ?? '(no vino)',
+        largoUsuarioEsperado: String((process.env.SCRIPTSURE_WEBHOOK_USER ?? '').length),
+      },
+    }).catch(() => undefined);
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
-
-  const sourceIp = (req.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || 'unknown';
 
   let payload: Record<string, unknown>;
   try {

@@ -15,7 +15,7 @@
  * Ver docs/plan-vista-edson.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, X, Mail, Phone, Printer, Loader2, MapPin } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
@@ -37,6 +37,30 @@ export interface CaseAdjuster {
     email: string | null;
     status: string;
     insuranceCarrier: { id: string; name: string; claimsAddress: string | null } | null;
+  } | null;
+  /** Escritos a mano — mandan cuando no hay `adjuster`. */
+  name: string | null;
+  phone: string | null;
+  extension: string | null;
+  phone2: string | null;
+  fax: string | null;
+  email: string | null;
+}
+
+/**
+ * Lo escrito a mano gana; el catálogo es el respaldo.
+ *
+ * Exigir que la persona existiera en la aseguradora hacía imposible agregar a
+ * nadie cuando el caso no tenía carrier. Ahora se escribe y ya.
+ */
+function adjData(a: CaseAdjuster) {
+  return {
+    name:      a.name      ?? a.adjuster?.name ?? '—',
+    phone:     a.phone     ?? a.adjuster?.phone ?? null,
+    extension: a.extension ?? a.adjuster?.extension ?? null,
+    phone2:    a.phone2    ?? a.adjuster?.phone2 ?? null,
+    fax:       a.fax       ?? a.adjuster?.fax ?? null,
+    email:     a.email     ?? a.adjuster?.email ?? null,
   };
 }
 
@@ -77,12 +101,13 @@ export function useCaseAdjusters(caseId: string | null) {
 }
 
 function AdjusterCard({ a, onRemove }: { a: CaseAdjuster; onRemove?: () => void }) {
-  const phone = withExt(a.adjuster.phone, a.adjuster.extension);
+  const d = adjData(a);
+  const phone = withExt(d.phone, d.extension);
   return (
     <div className="rounded-md bg-bg-2/40 px-3 py-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1 text-text-1 text-[13px] font-medium truncate">
-          {a.adjuster.name}
+          {d.name}
         </div>
         {onRemove && (
           <button type="button" onClick={onRemove}
@@ -93,10 +118,10 @@ function AdjusterCard({ a, onRemove }: { a: CaseAdjuster; onRemove?: () => void 
       </div>
       <div className="mt-1 space-y-0.5">
         {phone && <CopyLine icon={<Phone className="w-3 h-3" />} value={phone} />}
-        {a.adjuster.phone2 && <CopyLine icon={<Phone className="w-3 h-3" />} value={a.adjuster.phone2} />}
-        {a.adjuster.fax && <CopyLine icon={<Printer className="w-3 h-3" />} value={a.adjuster.fax} />}
-        {a.adjuster.email && (
-          <CopyLine icon={<Mail className="w-3 h-3" />} value={a.adjuster.email} href={`mailto:${a.adjuster.email}`} />
+        {d.phone2 && <CopyLine icon={<Phone className="w-3 h-3" />} value={d.phone2} />}
+        {d.fax && <CopyLine icon={<Printer className="w-3 h-3" />} value={d.fax} />}
+        {d.email && (
+          <CopyLine icon={<Mail className="w-3 h-3" />} value={d.email} href={`mailto:${d.email}`} />
         )}
       </div>
     </div>
@@ -215,20 +240,18 @@ export function AdjustersPopover({
 // ─── Sección del modal ───────────────────────────────────────────────────────
 
 export function AdjustersSection({
-  caseId, onChanged, autoOpen,
+  caseId, onChanged, autoOpen, handleRef,
 }: {
   caseId: string;
   onChanged?: () => void;
   /** Abre el formulario de alta al montar — se llega desde "Agregar adjuster". */
   autoOpen?: boolean;
+  handleRef?: Ref<import('./case-managers').SectionHandle>;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, carrier, loading, reload } = useCaseAdjusters(caseId);
 
-  const [options, setOptions] = useState<{ id: string; name: string; phone: string | null; extension: string | null }[]>([]);
   const [adding, setAdding]   = useState(!!autoOpen);
-  const [mode, setMode]       = useState<'pick' | 'new'>('pick');
-  const [pickId, setPickId]   = useState('');
   const [name, setName]       = useState('');
   const [phone, setPhone]     = useState('');
   const [ext, setExt]         = useState('');
@@ -237,28 +260,12 @@ export function AdjustersSection({
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
 
-  // Catálogo de la aseguradora del caso — los de otras compañías son ruido.
-  useEffect(() => {
-    if (!carrier?.id) { setOptions([]); return; }
-    let cancelled = false;
-    (async () => {
-      const res  = await fetch(`/api/admin/adjusters/by-carrier?carrierId=${encodeURIComponent(carrier.id)}`);
-      const json = await res.json().catch(() => ({}));
-      if (!cancelled && res.ok) setOptions(json.adjusters ?? []);
-    })();
-    return () => { cancelled = true; };
-  }, [carrier?.id]);
-
-  const assignedIds = new Set(current.map(a => a.adjuster.id));
-  const available   = options.filter(o => !assignedIds.has(o.id));
 
   async function assign() {
     setSaving(true); setError('');
     try {
-      const body = mode === 'pick'
-        ? { adjusterId: pickId }
-        : { name: name.trim(), phone: phone.trim() || null, extension: ext.trim() || null,
-            fax: fax.trim() || null, email: email.trim() || null };
+      const body = { name: name.trim(), phone: phone.trim() || null, extension: ext.trim() || null,
+                     fax: fax.trim() || null, email: email.trim() || null };
       const res = await fetch(`/api/admin/cases/${caseId}/adjusters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,17 +276,23 @@ export function AdjustersSection({
         setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
         return;
       }
-      setAdding(false); setPickId(''); setName(''); setPhone(''); setExt(''); setFax(''); setEmail('');
+      setAdding(false); setName(''); setPhone(''); setExt(''); setFax(''); setEmail('');
       await reload();
       onChanged?.();
     } catch { setError(t('errSave')); }
     finally { setSaving(false); }
   }
 
-  async function remove(adjusterId: string) {
-    const res = await fetch(`/api/admin/cases/${caseId}/adjusters?adjusterId=${encodeURIComponent(adjusterId)}`, { method: 'DELETE' });
+  async function remove(assignmentId: string) {
+    const res = await fetch(`/api/admin/cases/${caseId}/adjusters?id=${encodeURIComponent(assignmentId)}`, { method: 'DELETE' });
     if (res.ok) { await reload(); onChanged?.(); }
   }
+
+  // Ver la nota en `ManagersSection`: el pie del modal tambien confirma lo que
+  // quedo escrito acá, para que "Guardar cambios" haga lo que aparenta.
+  useImperativeHandle(handleRef, () => ({
+    flush: async () => { if (adding && name.trim()) await assign(); },
+  }));
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
@@ -298,7 +311,7 @@ export function AdjustersSection({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {current.map(a => <AdjusterCard key={a.id} a={a} onRemove={() => void remove(a.adjuster.id)} />)}
+        {current.map(a => <AdjusterCard key={a.id} a={a} onRemove={() => void remove(a.id)} />)}
       </div>
 
       {past.length > 0 && (
@@ -309,7 +322,7 @@ export function AdjustersSection({
           <div className="mt-1.5 space-y-1">
             {past.map(a => (
               <div key={a.id} className="text-[11.5px] text-text-muted">
-                <span className="line-through">{a.adjuster.name}</span>
+                <span className="line-through">{adjData(a).name}</span>
                 {a.removedAt && <span className="text-[10.5px]"> · {fmt(a.removedAt)}</span>}
               </div>
             ))}
@@ -318,76 +331,46 @@ export function AdjustersSection({
       )}
 
       {!adding && (
-        <Button variant="outline" onClick={() => { setAdding(true); setMode(available.length ? 'pick' : 'new'); }}>
+        <Button variant="outline" onClick={() => setAdding(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> {t('adjusterAdd')}
         </Button>
       )}
 
       {adding && (
         <div className="rounded-lg bg-bg-1 p-3 space-y-3">
-          <div className="flex gap-1">
-            {(['pick', 'new'] as const).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                disabled={m === 'pick' && available.length === 0}
-                className={`px-3 py-1 rounded-md text-[12px] font-medium disabled:opacity-40 ${
-                  mode === m ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:text-text-1'
-                }`}
-              >
-                {m === 'pick' ? t('adjusterPick') : t('adjusterNew')}
-              </button>
-            ))}
-          </div>
-
-          {mode === 'pick' ? (
-            <select
-              value={pickId}
-              onChange={e => setPickId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-            >
-              <option value="">—</option>
-              {available.map(o => (
-                <option key={o.id} value={o.id}>
-                  {o.name}{withExt(o.phone, o.extension) ? ` — ${withExt(o.phone, o.extension)}` : ''}
-                </option>
-              ))}
-            </select>
-          ) : !carrier ? (
-            <p className="text-[12px] text-amber">{t('adjusterNoCarrier')}</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="ca-name">{t('adjusterName')}</Label>
-                <Input id="ca-name" value={name} onChange={e => setName(e.target.value)} placeholder="Kenneth Kelly" />
-              </div>
-              <div>
-                <Label htmlFor="ca-phone">{t('fieldPhone')}</Label>
-                <Input id="ca-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="800-531-8722" />
-              </div>
-              <div>
-                <Label htmlFor="ca-ext">{t('fieldExtension')}</Label>
-                <Input id="ca-ext" value={ext} onChange={e => setExt(e.target.value)} placeholder="41773" maxLength={20} />
-              </div>
-              <div>
-                <Label htmlFor="ca-fax">{t('fieldFax')}</Label>
-                <Input id="ca-fax" value={fax} onChange={e => setFax(e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="ca-email">{t('fieldEmail')}</Label>
-                <Input id="ca-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-              </div>
+          {/*
+            * Un solo formulario, sin pestañas. Antes habia una para elegir del
+            * catalogo de la aseguradora, pero el catalogo esta vacio y elegir
+            * de ahi exigia que el caso tuviera carrier — dos condiciones para
+            * algo que se resuelve escribiendo el nombre.
+            */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="ca-name">{t('adjusterName')}</Label>
+              <Input id="ca-name" value={name} onChange={e => setName(e.target.value)} placeholder="Kenneth Kelly" />
             </div>
-          )}
+            <div>
+              <Label htmlFor="ca-phone">{t('fieldPhone')}</Label>
+              <Input id="ca-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="800-531-8722" />
+            </div>
+            <div>
+              <Label htmlFor="ca-ext">{t('fieldExtension')}</Label>
+              <Input id="ca-ext" value={ext} onChange={e => setExt(e.target.value)} placeholder="41773" maxLength={20} />
+            </div>
+            <div>
+              <Label htmlFor="ca-fax">{t('fieldFax')}</Label>
+              <Input id="ca-fax" value={fax} onChange={e => setFax(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="ca-email">{t('fieldEmail')}</Label>
+              <Input id="ca-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+          </div>
 
           {error && <div className="text-rose text-[12px]">{error}</div>}
 
           <div className="flex gap-2">
-            <Button
-              onClick={() => void assign()}
-              disabled={saving || (mode === 'pick' ? !pickId : !name.trim() || !carrier)}
-            >
+            <Button onClick={() => void assign()} disabled={saving || !name.trim()}>
               {saving ? '…' : t('adjusterAdd')}
             </Button>
             <Button variant="outline" onClick={() => { setAdding(false); setError(''); }}>

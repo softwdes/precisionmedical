@@ -2939,8 +2939,18 @@ model CaseManager {
   caseId String
   case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  lawyerId String
-  lawyer   Lawyer @relation(fields: [lawyerId], references: [id])
+  /// OPCIONAL. Se escribe a mano y punto — exigir que la persona existiera en
+  /// el bufete hacia imposible agregar a nadie cuando el caso no tenia bufete,
+  /// que es la mayoria. Si viene del catalogo se linkea y se aprovecha; si no,
+  /// los datos viven en los campos de abajo.
+  lawyerId String?
+  lawyer   Lawyer? @relation(fields: [lawyerId], references: [id])
+
+  /// Datos escritos a mano. Mandan cuando no hay `lawyer`.
+  name  String?
+  email String?
+  phone String?
+  role  String?
 
   assignedAt     DateTime  @default(now())
   assignedById   String?
@@ -2988,8 +2998,18 @@ model CaseAdjuster {
   caseId String
   case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  adjusterId String
-  adjuster   InsuranceAdjuster @relation(fields: [adjusterId], references: [id])
+  /// OPCIONAL, por lo mismo que en `CaseManager`: exigir la aseguradora dejaba
+  /// la funcion inservible.
+  adjusterId String?
+  adjuster   InsuranceAdjuster? @relation(fields: [adjusterId], references: [id])
+
+  /// Datos escritos a mano. Mandan cuando no hay `adjuster`.
+  name      String?
+  phone     String?
+  extension String?
+  phone2    String?
+  fax       String?
+  email     String?
 
   assignedAt     DateTime  @default(now())
   assignedById   String?

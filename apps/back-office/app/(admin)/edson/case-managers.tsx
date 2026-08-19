@@ -15,7 +15,7 @@
  * Ver docs/plan-vista-edson.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import { Copy, Check, Plus, X, Mail, Phone, UserRound, Loader2 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
@@ -36,6 +36,27 @@ export interface Manager {
     memberRole: string | null;
     status: string;
     parentFirm: { id: string; firmName: string | null } | null;
+  } | null;
+  /** Escritos a mano — mandan cuando no hay `lawyer`. */
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+}
+
+/**
+ * Los datos escritos a mano ganan; el catálogo es el respaldo.
+ *
+ * Exigir que la persona existiera en el bufete hacía imposible agregar a nadie
+ * en los casos sin bufete, que son la mayoría. Ahora se escribe y ya; el
+ * vínculo al catálogo sigue existiendo para cuando se elige de la lista.
+ */
+export function managerData(m: Manager) {
+  return {
+    name:  m.name  ?? `${m.lawyer?.firstName ?? ''} ${m.lawyer?.lastName ?? ''}`.trim(),
+    email: m.email ?? m.lawyer?.email ?? null,
+    phone: m.phone ?? m.lawyer?.phone ?? null,
+    role:  m.role  ?? m.lawyer?.memberRole ?? null,
   };
 }
 
@@ -48,7 +69,7 @@ export const ROLE_LABEL: Record<string, string> = {
 };
 
 export function managerName(m: Manager): string {
-  return `${m.lawyer.firstName ?? ''} ${m.lawyer.lastName ?? ''}`.trim() || '—';
+  return managerData(m).name || '—';
 }
 
 /** Carga los encargados de un caso. Compartido por el popover y el modal. */
@@ -101,13 +122,14 @@ export function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: 
 
 function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
   const t = useTranslations('phoenix.edsonTracking');
+  const d = managerData(m);
   return (
     <div className="rounded-md bg-bg-2/40 px-3 py-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-text-1 text-[13px] font-medium truncate">{managerName(m)}</div>
           <div className="text-text-muted text-[10.5px] uppercase tracking-wider">
-            {ROLE_LABEL[m.lawyer.memberRole ?? 'OTHER'] ?? m.lawyer.memberRole}
+            {ROLE_LABEL[d.role ?? 'OTHER'] ?? d.role}
           </div>
         </div>
         {onRemove && (
@@ -122,8 +144,8 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
         )}
       </div>
       <div className="mt-1 space-y-0.5">
-        {m.lawyer.email && <CopyLine icon={<Mail className="w-3 h-3" />} value={m.lawyer.email} href={`mailto:${m.lawyer.email}`} />}
-        {m.lawyer.phone && <CopyLine icon={<Phone className="w-3 h-3" />} value={m.lawyer.phone} />}
+        {d.email && <CopyLine icon={<Mail className="w-3 h-3" />} value={d.email} href={`mailto:${d.email}`} />}
+        {d.phone && <CopyLine icon={<Phone className="w-3 h-3" />} value={d.phone} />}
       </div>
     </div>
   );
@@ -150,7 +172,7 @@ export function ManagersPopover({
   // escribe en su correo.
   const lienEmails = [
     attorneyEmail,
-    ...current.map(m => m.lawyer.email),
+    ...current.map(m => managerData(m).email),
   ].filter((e): e is string => !!e);
 
   // Cierra al hacer clic afuera o con Escape. Se abre con CLIC y no con hover a
@@ -223,8 +245,11 @@ export function ManagersPopover({
 
 // ─── Sección del modal ───────────────────────────────────────────────────────
 
+/** Permite al modal guardar lo que quedo escrito sin agregar. */
+export interface SectionHandle { flush: () => Promise<void> }
+
 export function ManagersSection({
-  caseId, lawFirmId, firmMembers, onChanged, autoOpen,
+  caseId, lawFirmId, firmMembers, onChanged, autoOpen, handleRef,
 }: {
   caseId: string;
   lawFirmId: string | null;
@@ -232,6 +257,7 @@ export function ManagersSection({
   onChanged?: () => void;
   /** Abre el formulario de alta al montar — se llega desde "Agregar encargado". */
   autoOpen?: boolean;
+  handleRef?: Ref<SectionHandle>;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, loading, reload } = useManagers(caseId);
@@ -246,7 +272,7 @@ export function ManagersSection({
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
 
-  const assignedIds = new Set(current.map(m => m.lawyer.id));
+  const assignedIds = new Set(current.map(m => m.lawyer?.id).filter(Boolean));
   const available   = firmMembers.filter(m => !assignedIds.has(m.id));
 
   async function assign() {
@@ -277,10 +303,25 @@ export function ManagersSection({
     finally { setSaving(false); }
   }
 
-  async function remove(lawyerId: string) {
-    const res = await fetch(`/api/admin/cases/${caseId}/managers?lawyerId=${encodeURIComponent(lawyerId)}`, { method: 'DELETE' });
+  async function remove(assignmentId: string) {
+    const res = await fetch(`/api/admin/cases/${caseId}/managers?id=${encodeURIComponent(assignmentId)}`, { method: 'DELETE' });
     if (res.ok) { await reload(); onChanged?.(); }
   }
+
+  /*
+    * El pie del modal dice "Guardar cambios" y es lo que cualquiera pulsa al
+    * terminar. Pero ese boton guarda los campos del CASO — asignar al encargado
+    * lo hacia solo el boton de adentro, que Edson no vio: escribia el nombre,
+    * pulsaba Guardar y no pasaba nada.
+    *
+    * Con esto el pie tambien confirma lo que quedo escrito acá.
+    */
+  useImperativeHandle(handleRef, () => ({
+    flush: async () => {
+      if (adding && mode === 'new' && firstName.trim() && lastName.trim()) await assign();
+      else if (adding && mode === 'pick' && pickId) await assign();
+    },
+  }));
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
@@ -299,7 +340,7 @@ export function ManagersSection({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {current.map(m => <ManagerCard key={m.id} m={m} onRemove={() => void remove(m.lawyer.id)} />)}
+        {current.map(m => <ManagerCard key={m.id} m={m} onRemove={() => void remove(m.id)} />)}
       </div>
 
       {past.length > 0 && (
@@ -354,8 +395,6 @@ export function ManagersSection({
                 <option key={m.id} value={m.id}>{m.label}{m.subtitle ? ` · ${m.subtitle}` : ''}</option>
               ))}
             </select>
-          ) : !lawFirmId ? (
-            <p className="text-[12px] text-amber">{t('managerNoFirm')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
@@ -382,7 +421,7 @@ export function ManagersSection({
           <div className="flex gap-2">
             <Button
               onClick={() => void assign()}
-              disabled={saving || (mode === 'pick' ? !pickId : !firstName.trim() || !lastName.trim() || !lawFirmId)}
+              disabled={saving || (mode === 'pick' ? !pickId : !firstName.trim() || !lastName.trim())}
             >
               {saving ? '…' : t('managerAdd')}
             </Button>

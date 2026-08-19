@@ -41,6 +41,7 @@ const AssignSchema = z.union([
 
 const SELECT = {
   id: true, assignedAt: true, assignedByName: true, removedAt: true, notes: true,
+  name: true, email: true, phone: true, role: true,
   lawyer: {
     select: {
       id: true, firstName: true, lastName: true, email: true, phone: true,
@@ -92,55 +93,48 @@ export async function POST(
   });
   if (!kase || kase.deletedAt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  let lawyerId: string;
+  const stamp = {
+    assignedById: actor.actorUserId,
+    assignedByName: actor.actorName,
+    notes: parsed.notes ?? null,
+  };
+
+  let saved;
 
   if ('lawyerId' in parsed) {
     const lawyer = await db.lawyer.findUnique({ where: { id: parsed.lawyerId } });
     if (!lawyer || lawyer.deletedAt) {
       return NextResponse.json({ error: 'LAWYER_NOT_FOUND' }, { status: 404 });
     }
-    lawyerId = lawyer.id;
+    // Del catálogo: se revive la fila si ya había estado, así no se duplica ni
+    // se pierde el histórico.
+    saved = await db.caseManager.upsert({
+      where:  { caseId_lawyerId: { caseId: id, lawyerId: lawyer.id } },
+      create: { caseId: id, lawyerId: lawyer.id, ...stamp },
+      update: { removedAt: null, removedById: null, assignedAt: new Date(), ...stamp },
+      select: SELECT,
+    });
   } else {
-    // La persona nueva se cuelga del bufete del caso. Sin bufete no hay dónde
-    // ponerla, y crearla suelta la dejaría invisible para los demás casos.
-    if (!kase.lawFirmId) {
-      return NextResponse.json(
-        { error: 'NO_FIRM', message: 'El caso no tiene bufete asignado. Elegí el bufete antes de agregar un encargado.' },
-        { status: 400 },
-      );
-    }
-    const created = await db.lawyer.create({
+    /*
+     * Escrito a mano. NO se exige bufete y NO se crea nada en el catálogo:
+     * pedirlo hacía imposible agregar a nadie en los casos sin bufete, que son
+     * la mayoría. Los datos viven en la asignación misma.
+     *
+     * Si el caso tiene bufete, igual se deja constancia del vínculo — pero como
+     * dato, no como requisito.
+     */
+    saved = await db.caseManager.create({
       data: {
-        entityType: 'FIRM_MEMBER',
-        parentFirmId: kase.lawFirmId,
-        firstName: parsed.firstName,
-        lastName: parsed.lastName,
+        caseId: id,
+        name: `${parsed.firstName} ${parsed.lastName}`.trim(),
         email: parsed.email ?? null,
         phone: parsed.phone ?? null,
-        memberRole: parsed.memberRole,
-        status: 'ACTIVE',
+        role: parsed.memberRole,
+        ...stamp,
       },
+      select: SELECT,
     });
-    lawyerId = created.id;
   }
-
-  // Si ya estuvo asignado y se le habia cerrado, se revive esa misma fila: el
-  // unique es (caseId, lawyerId) y ademas asi no se pierde el historial.
-  const saved = await db.caseManager.upsert({
-    where:  { caseId_lawyerId: { caseId: id, lawyerId } },
-    create: {
-      caseId: id, lawyerId,
-      assignedById: actor.actorUserId, assignedByName: actor.actorName,
-      notes: parsed.notes ?? null,
-    },
-    update: {
-      removedAt: null, removedById: null,
-      assignedAt: new Date(),
-      assignedById: actor.actorUserId, assignedByName: actor.actorName,
-      ...(parsed.notes !== undefined ? { notes: parsed.notes ?? null } : {}),
-    },
-    select: SELECT,
-  });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
@@ -163,18 +157,18 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const { id } = await params;
   const actor = await resolveActor(req.headers);
-  const lawyerId = req.nextUrl.searchParams.get('lawyerId');
-  if (!lawyerId) return NextResponse.json({ error: 'MISSING_LAWYER_ID' }, { status: 400 });
+  // Se identifica por el id de la ASIGNACION: los encargados escritos a mano no
+  // tienen `lawyerId`, asi que ese ya no sirve como llave.
+  const assignmentId = req.nextUrl.searchParams.get('id');
+  if (!assignmentId) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
 
-  const before = await db.caseManager.findUnique({
-    where: { caseId_lawyerId: { caseId: id, lawyerId } },
-  });
-  if (!before || before.removedAt) {
+  const before = await db.caseManager.findUnique({ where: { id: assignmentId } });
+  if (!before || before.caseId !== id || before.removedAt) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
 
   const closed = await db.caseManager.update({
-    where: { caseId_lawyerId: { caseId: id, lawyerId } },
+    where: { id: assignmentId },
     data: { removedAt: new Date(), removedById: actor.actorUserId },
     select: SELECT,
   });

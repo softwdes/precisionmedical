@@ -32,7 +32,7 @@ import {
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
-import { ManagersPopover, ManagersSection } from './case-managers';
+import { ManagersPopover, ManagersSection, type SectionHandle } from './case-managers';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
@@ -305,16 +305,19 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   return (
     <div className="space-y-2.5">
       {/*
-        * Encabezado propio y no `PageHeader`: Edson trabaja de arriba a abajo
-        * todo el dia y pidio recuperar el alto. El primitivo usa `text-2xl` con
-        * subtitulo, que en una lista de catalogo esta bien pero aca son ~90px
-        * antes de la primera fila. El titulo baja a `text-lg` y el subtitulo se
-        * retira: decia "una fila por caso, solo la primera cita", que el ya sabe.
+        * Encabezado propio y no `PageHeader`, y todo en UNA fila: titulo, tabs y
+        * leyenda. El primitivo usa `text-2xl` con subtitulo —bien en un catalogo,
+        * aca eran ~90px antes de la primera fila— y esto eran tres renglones
+        * para tres cosas cortas. Cada renglon que se va es una fila mas de la
+        * tabla a la vista, que es lo unico que Edson mira.
+        *
+        * El subtitulo se retiro: decia "una fila por caso, solo la primera
+        * cita", que el ya sabe.
         */}
-      <h1 className="text-lg font-bold text-text-1 leading-none">{t('title')}</h1>
+      <div className="flex items-end gap-4 flex-wrap border-b border-border">
+        <h1 className="text-lg font-bold text-text-1 leading-none pb-2">{t('title')}</h1>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+        <div className="flex gap-1">
         {[false, true].map((isArch) => (
           <button
             key={String(isArch)}
@@ -329,6 +332,11 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             {isArch ? t('tabArchived') : t('tabTracking')}
           </button>
         ))}
+        </div>
+
+        <div className="ml-auto pb-1.5">
+          <StatusLegend />
+        </div>
       </div>
 
       {/* Filtros */}
@@ -355,9 +363,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           <option value="">{t('allCarriers')}</option>
           {carriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-      </div>
 
-      <div className="flex gap-1.5 items-center flex-wrap">
         {([
           ['noPip', t('flagNoPip')], ['noAdjuster', t('flagNoAdjuster')],
           ['noClaim', t('flagNoClaim')], ['noAttorney', t('flagNoAttorney')],
@@ -376,12 +382,6 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           </button>
         )}
 
-        {/* `ml-auto` la manda al borde opuesto: comparte fila con las pills pero
-            queda separada de ellas, para que no se lea como un filtro mas. En
-            pantalla angosta el flex-wrap la baja sola a su linea. */}
-        <div className="ml-auto">
-          <StatusLegend />
-        </div>
       </div>
 
       {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
@@ -1106,6 +1106,10 @@ function TrackingDialog({
   const [insComments, setInsComments] = useState(row.insComments ?? '');
   const managersRef  = useRef<HTMLDivElement>(null);
   const adjustersRef = useRef<HTMLDivElement>(null);
+  // Handles para que "Guardar cambios" confirme lo que quedo escrito en esas
+  // secciones y no solo los campos del caso.
+  const managersApi  = useRef<SectionHandle>(null);
+  const adjustersApi = useRef<SectionHandle>(null);
 
   // Al llegar desde "Agregar encargado", el modal salta a esa seccion en vez de
   // dejar al usuario buscandola. El timeout espera a que el dialogo termine de
@@ -1183,6 +1187,12 @@ function TrackingDialog({
   async function save() {
     setSaving(true); setError('');
     try {
+      // Primero lo que quedo escrito en las secciones: si Edson lleno el
+      // formulario del encargado y pulso "Guardar cambios" sin tocar el boton
+      // de adentro, se guarda igual.
+      await managersApi.current?.flush();
+      await adjustersApi.current?.flush();
+
       const r1 = await fetch(`/api/admin/cases/${row.caseId}/auto-insurance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1294,6 +1304,7 @@ function TrackingDialog({
             firmMembers={firmMembers}
             autoOpen={focus === 'managers'}
             onChanged={onCountsChanged}
+            handleRef={managersApi}
           />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupInsurance')}</div>
@@ -1342,7 +1353,7 @@ function TrackingDialog({
           <div ref={adjustersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
             {t('groupAdjusters')}
           </div>
-          <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} onChanged={onCountsChanged} />
+          <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} onChanged={onCountsChanged} handleRef={adjustersApi} />
 
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupNotes')}</div>
           <div className="space-y-2.5">

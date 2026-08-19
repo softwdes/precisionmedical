@@ -33,6 +33,7 @@ const AssignSchema = z.union([
 
 const SELECT = {
   id: true, assignedAt: true, assignedByName: true, removedAt: true, notes: true,
+  name: true, phone: true, extension: true, phone2: true, fax: true, email: true,
   adjuster: {
     select: {
       id: true, name: true, phone: true, extension: true, phone2: true,
@@ -106,58 +107,43 @@ export async function POST(
   const kase = await db.case.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
   if (!kase || kase.deletedAt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  let adjusterId: string;
+  const stamp = {
+    assignedById: actor.actorUserId,
+    assignedByName: actor.actorName,
+    notes: parsed.notes ?? null,
+  };
+
+  let saved;
 
   if ('adjusterId' in parsed) {
     const adj = await db.insuranceAdjuster.findUnique({ where: { id: parsed.adjusterId } });
     if (!adj || adj.deletedAt) return NextResponse.json({ error: 'ADJUSTER_NOT_FOUND' }, { status: 404 });
-    adjusterId = adj.id;
-  } else {
-    // La persona nueva se cuelga de la aseguradora del caso — igual que en el
-    // catalogo, para que la proxima vez ya salga en la lista.
-    const carrierId = await resolveCarrierId(id);
-    if (!carrierId) {
-      return NextResponse.json(
-        { error: 'NO_CARRIER', message: 'El caso no tiene aseguradora. Elegila antes de agregar un adjuster.' },
-        { status: 400 },
-      );
-    }
-    // El unique del catalogo es (aseguradora, nombre): si ya existe se revive en
-    // vez de chocar, que es como se comporta el CRUD del catalogo.
-    const existing = await db.insuranceAdjuster.findUnique({
-      where: { insuranceCarrierId_name: { insuranceCarrierId: carrierId, name: parsed.name } },
+    saved = await db.caseAdjuster.upsert({
+      where:  { caseId_adjusterId: { caseId: id, adjusterId: adj.id } },
+      create: { caseId: id, adjusterId: adj.id, ...stamp },
+      update: { removedAt: null, removedById: null, assignedAt: new Date(), ...stamp },
+      select: SELECT,
     });
-    const data = {
-      insuranceCarrierId: carrierId,
-      name: parsed.name,
-      phone: parsed.phone ?? null,
-      extension: parsed.extension ?? null,
-      phone2: parsed.phone2 ?? null,
-      fax: parsed.fax ?? null,
-      email: parsed.email ?? null,
-      status: 'ACTIVE' as const,
-    };
-    const saved = existing
-      ? await db.insuranceAdjuster.update({ where: { id: existing.id }, data: { ...data, deletedAt: null } })
-      : await db.insuranceAdjuster.create({ data });
-    adjusterId = saved.id;
+  } else {
+    /*
+     * Escrito a mano. NO se exige aseguradora y NO se toca el catalogo: pedirlo
+     * hacia imposible agregar a nadie cuando el caso no tenia carrier, que es
+     * la mayoria. Los datos viven en la asignacion misma.
+     */
+    saved = await db.caseAdjuster.create({
+      data: {
+        caseId: id,
+        name: parsed.name,
+        phone: parsed.phone ?? null,
+        extension: parsed.extension ?? null,
+        phone2: parsed.phone2 ?? null,
+        fax: parsed.fax ?? null,
+        email: parsed.email ?? null,
+        ...stamp,
+      },
+      select: SELECT,
+    });
   }
-
-  const saved = await db.caseAdjuster.upsert({
-    where:  { caseId_adjusterId: { caseId: id, adjusterId } },
-    create: {
-      caseId: id, adjusterId,
-      assignedById: actor.actorUserId, assignedByName: actor.actorName,
-      notes: parsed.notes ?? null,
-    },
-    update: {
-      removedAt: null, removedById: null,
-      assignedAt: new Date(),
-      assignedById: actor.actorUserId, assignedByName: actor.actorName,
-      ...(parsed.notes !== undefined ? { notes: parsed.notes ?? null } : {}),
-    },
-    select: SELECT,
-  });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
@@ -180,16 +166,17 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const { id } = await params;
   const actor = await resolveActor(req.headers);
-  const adjusterId = req.nextUrl.searchParams.get('adjusterId');
-  if (!adjusterId) return NextResponse.json({ error: 'MISSING_ADJUSTER_ID' }, { status: 400 });
+  // Por id de la ASIGNACION: los escritos a mano no tienen `adjusterId`.
+  const assignmentId = req.nextUrl.searchParams.get('id');
+  if (!assignmentId) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
 
-  const before = await db.caseAdjuster.findUnique({
-    where: { caseId_adjusterId: { caseId: id, adjusterId } },
-  });
-  if (!before || before.removedAt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  const before = await db.caseAdjuster.findUnique({ where: { id: assignmentId } });
+  if (!before || before.caseId !== id || before.removedAt) {
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  }
 
   const closed = await db.caseAdjuster.update({
-    where: { caseId_adjusterId: { caseId: id, adjusterId } },
+    where: { id: assignmentId },
     data: { removedAt: new Date(), removedById: actor.actorUserId },
     select: SELECT,
   });

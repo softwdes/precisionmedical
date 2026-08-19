@@ -5398,7 +5398,10 @@
       "insCommentsHint": "Se muestra como una banda debajo de la fila en la grilla.",
       "insCommentsPh": "¡PIP AGOTADO! El caso va por lien del abogado.",
       "copyLienEmails": "Copiar {count, plural, one {# email} other {# emails}}",
-      "colCreatedBy": "Creada por"
+      "colCreatedBy": "Creada por",
+      "managersOpen": "Encargados — clic para ver y agregar",
+      "adjustersOpen": "Adjusters — clic para ver y agregar",
+      "notesOpen": "Clic para leerlo completo"
     }
   },
   "clinical": {

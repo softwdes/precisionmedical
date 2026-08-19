@@ -22,12 +22,12 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   Search as SearchIcon, Check, ChevronLeft, ChevronRight, Pencil,
-  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle, Trash2,
+  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle, Trash2, Users,
 } from 'lucide-react';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle,
          DialogDescription, DialogFooter, Label } from '@precision/ui';
 import {
-  PageHeader, KpiCard, FilterPill, IconAction, DataTable,
+  PageHeader, FilterPill, IconAction, DataTable,
   TableFooter, EmptyState, Autocomplete, type AutoResult,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -324,15 +324,6 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         ))}
       </div>
 
-      {!archived && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label={t('kpiTotal')}       value={stats.total}      sub={t('kpiTotalSub')}      color="text-text-1" />
-          <KpiCard label={t('kpiNoPip')}       value={stats.no_pip}     sub={t('kpiNoPipSub')}      color={stats.no_pip > 0 ? 'text-amber' : 'text-text-muted'} />
-          <KpiCard label={t('kpiNoAdjuster')}  value={stats.no_adjuster} sub={t('kpiNoAdjusterSub')} color={stats.no_adjuster > 0 ? 'text-rose' : 'text-text-muted'} />
-          <KpiCard label={t('kpiArchivable')}  value={stats.archivable} sub={t('kpiArchivableSub')} color={stats.archivable > 0 ? 'text-emerald' : 'text-text-muted'} />
-        </div>
-      )}
-
       {/* Filtros */}
       <div className="flex gap-2 items-center flex-wrap">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
@@ -501,14 +492,24 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             <button
                               type="button"
                               onClick={() => setManagersFor(managersFor === row.caseId ? null : row.caseId)}
-                              className="text-left max-w-[170px] flex items-center gap-1.5 group/att"
+                              title={t('managersOpen')}
+                              className="text-left max-w-[170px] flex items-center gap-1.5 hover:text-text-1"
                             >
                               <Txt v={row.attorneyName ?? row.firmName} />
-                              {row.managerCount > 0 && (
-                                <span className="shrink-0 text-[10px] font-semibold px-1.5 rounded-full bg-brand/15 text-brand-text">
-                                  {row.managerCount}
-                                </span>
-                              )}
+                              {/*
+                                * El badge sale SIEMPRE, tambien en 0. Antes solo
+                                * aparecia con datos, asi que una celda vacia no
+                                * daba ninguna pista de que ahi se podia hacer
+                                * clic — Edson reporto estos pedidos como "no
+                                * implementados" justo por eso.
+                                */}
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 rounded-full ${
+                                row.managerCount > 0
+                                  ? 'bg-brand/15 text-brand-text'
+                                  : 'border border-dashed border-border-strong text-text-muted'
+                              }`}>
+                                <Users className="w-2.5 h-2.5" />{row.managerCount}
+                              </span>
                             </button>
                             {managersFor === row.caseId && (
                               <ManagersPopover
@@ -533,14 +534,17 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             <button
                               type="button"
                               onClick={() => setAdjustersFor(adjustersFor === row.caseId ? null : row.caseId)}
-                              className="text-left max-w-[150px] flex items-center gap-1.5"
+                              title={t('adjustersOpen')}
+                              className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1"
                             >
                               <Txt v={row.adjusterName} />
-                              {row.adjusterCount > 1 && (
-                                <span className="shrink-0 text-[10px] font-semibold px-1.5 rounded-full bg-brand/15 text-brand-text">
-                                  {row.adjusterCount}
-                                </span>
-                              )}
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 rounded-full ${
+                                row.adjusterCount > 0
+                                  ? 'bg-brand/15 text-brand-text'
+                                  : 'border border-dashed border-border-strong text-text-muted'
+                              }`}>
+                                <Users className="w-2.5 h-2.5" />{row.adjusterCount}
+                              </span>
                             </button>
                             {adjustersFor === row.caseId && (
                               <AdjustersPopover
@@ -559,14 +563,19 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             : <Empty />}
                         </DataTable.Td>
                         <DataTable.Td>
-                          <NoteCell
-                            row={row}
-                            readOnly={archived}
-                            open={noteFor === row.caseId}
-                            onOpen={() => setNoteFor(row.caseId)}
-                            onClose={() => setNoteFor(null)}
-                            onSave={(body) => addNote(row.caseId, body)}
-                          />
+                          <div className="relative">
+                            <NoteCell row={row} onOpen={() => setNoteFor(row.caseId)} />
+                            {noteFor === row.caseId && (
+                              <NotesPopover
+                                caseId={row.caseId}
+                                readOnly={archived}
+                                onClose={() => setNoteFor(null)}
+                                onAdded={(body, count) => patchRow(row.caseId, {
+                                  lastNote: body, lastNoteAt: new Date().toISOString(), noteCount: count,
+                                })}
+                              />
+                            )}
+                          </div>
                         </DataTable.Td>
                         <DataTable.Td align="center">
                           {archived ? (
@@ -794,84 +803,23 @@ function Txt({ v }: { v: string | null }) {
 
 // ─── Celda de observaciones ──────────────────────────────────────────────────
 
-function NoteCell({
-  row, readOnly, open, onOpen, onClose, onSave,
-}: {
-  row: Row;
-  readOnly: boolean;
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  onSave: (body: string) => Promise<boolean>;
-}) {
+/**
+ * Celda de observaciones — solo muestra y abre.
+ *
+ * Antes el clic abria un compositor para AGREGAR, y para LEER una nota larga
+ * habia que abrir el modal. Edson pregunto justo eso: "si escribo un parrafo,
+ * donde lo leo entero". Ahora el clic abre un popover con el texto completo, y
+ * agregar es una accion dentro de ese popover.
+ */
+function NoteCell({ row, onOpen }: { row: Row; onOpen: () => void }) {
   const t = useTranslations('phoenix.edsonTracking');
-  const [value, setValue] = useState('');
-  const [saving, setSaving] = useState(false);
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => { if (open) ref.current?.focus(); }, [open]);
-
-  async function commit() {
-    const body = value.trim();
-    if (!body) { onClose(); return; }
-    setSaving(true);
-    const ok = await onSave(body);
-    setSaving(false);
-    if (ok) { setValue(''); onClose(); }
-  }
-
-  // En archivados la celda solo muestra: no se agregan entradas a un caso que
-  // ya se cerro.
-  if (readOnly) {
-    if (!row.lastNote) return <Empty />;
-    return (
-      <div className="max-w-[240px]">
-        <span className="text-[12.5px] text-text-2 line-clamp-2">
-          <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
-          {row.lastNote}
-        </span>
-        {row.noteCount > 1 && (
-          <span className="block text-[10.5px] text-text-muted mt-0.5">{t('noteCount', { count: row.noteCount })}</span>
-        )}
-      </div>
-    );
-  }
-
-  if (open) {
-    return (
-      <div className="min-w-[220px]">
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onKeyDown={e => {
-            // Enter guarda, Shift+Enter hace salto de línea: se escriben muchas
-            // entradas seguidas y llegar al botón con el mouse cada vez cansa.
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void commit(); }
-            if (e.key === 'Escape') onClose();
-          }}
-          rows={2}
-          disabled={saving}
-          placeholder={t('newNotePlaceholder')}
-          className="w-full bg-bg-2 border border-border rounded-md px-2 py-1.5 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
-        />
-        <div className="flex items-center gap-2 mt-1">
-          <button type="button" onClick={() => void commit()} disabled={saving}
-                  className="text-[11px] text-brand-text hover:underline disabled:opacity-50">{t('saveNote')}</button>
-          <button type="button" onClick={onClose} className="text-[11px] text-text-muted hover:text-text-1">
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      title={t('addNote')}
-      className="text-left max-w-[240px] w-full group/note"
+      title={row.lastNote ? t('notesOpen') : t('addNote')}
+      className="text-left max-w-[240px] w-full hover:text-text-1"
     >
       {row.lastNote ? (
         <>
@@ -879,12 +827,12 @@ function NoteCell({
             <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
             {row.lastNote}
           </span>
-          {row.noteCount > 1 && (
-            <span className="block text-[10.5px] text-text-muted mt-0.5">{t('noteCount', { count: row.noteCount })}</span>
-          )}
+          <span className="block text-[10.5px] text-text-muted mt-0.5">
+            {t('noteCount', { count: row.noteCount })}
+          </span>
         </>
       ) : (
-        <span className="text-[12px] text-text-muted italic flex items-center gap-1 opacity-0 group-hover/note:opacity-100 focus:opacity-100">
+        <span className="text-[12px] text-text-muted italic flex items-center gap-1">
           <MessageSquarePlus className="w-3 h-3" /> {t('addNote')}
         </span>
       )}
@@ -893,16 +841,123 @@ function NoteCell({
 }
 
 /**
- * Una entrada de las observaciones, corregible en el sitio.
+ * Todas las observaciones del caso, completas.
  *
- * Edson dijo que reescribe estas notas todo el tiempo. El `PATCH` y el `DELETE`
- * existian en la API desde que se hizo la tabla, pero nunca se habian sacado a
- * la interfaz: solo se podia agregar.
+ * El texto va SIN recortar y con `whitespace-pre-wrap`: Edson escribe parrafos
+ * enteros explicando la situacion del caso, y en la celda solo caben dos lineas.
+ */
+function NotesPopover({
+  caseId, readOnly, onClose, onAdded,
+}: {
+  caseId: string;
+  readOnly: boolean;
+  onClose: () => void;
+  onAdded: (body: string, count: number) => void;
+}) {
+  const t  = useTranslations('phoenix.edsonTracking');
+  const tc = useTranslations('phoenix.common');
+  const [notes, setNotes]   = useState<{ id: string; body: string; authorName: string | null; createdAt: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [value, setValue]   = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/admin/cases/${caseId}/tracking`);
+        const json = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) setNotes(json.notes ?? []);
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [caseId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  async function add() {
+    const body = value.trim();
+    if (!body) return;
+    setSaving(true);
+    try {
+      const res  = await fetch(`/api/admin/cases/${caseId}/tracking/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      if (!res.ok) return;
+      const json = await res.json().catch(() => ({}));
+      const note = json.note ?? { id: String(Date.now()), body, authorName: null, createdAt: new Date().toISOString() };
+      setNotes(prev => [note, ...prev]);
+      setValue('');
+      onAdded(body, notes.length + 1);
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-1 z-50 w-[340px] rounded-lg bg-surface shadow-xl p-3 text-left">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-amber mb-2">
+          {t('groupNotes')}
+        </div>
+
+        {loading && (
+          <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
+            <Loader2 className="w-3 h-3 animate-spin" /> …
+          </div>
+        )}
+        {!loading && notes.length === 0 && (
+          <p className="text-text-muted text-[12px] italic">{t('noNotes')}</p>
+        )}
+
+        <div className="space-y-2.5 max-h-[300px] overflow-y-auto scroll-thin pr-1">
+          {notes.map(n => (
+            <div key={n.id} className="border-l-2 border-border-strong pl-2.5">
+              <div className="text-[10.5px] text-text-muted font-mono">
+                {fmtDate(n.createdAt)} {fmtTime(n.createdAt)}{n.authorName ? ` · ${n.authorName}` : ''}
+              </div>
+              <div className="text-[12.5px] text-text-2 whitespace-pre-wrap break-words">{n.body}</div>
+            </div>
+          ))}
+        </div>
+
+        {!readOnly && (
+          <div className="mt-2.5 pt-2.5 border-t border-border">
+            <textarea
+              rows={3}
+              value={value}
+              disabled={saving}
+              onChange={e => setValue(e.target.value)}
+              placeholder={t('newNotePlaceholder')}
+              className="w-full bg-bg-2 border border-border rounded-md px-2 py-1.5 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
+            />
+            <div className="flex justify-end gap-2 mt-1">
+              <button type="button" onClick={onClose} className="text-[11px] text-text-muted hover:text-text-1">
+                {tc('close')}
+              </button>
+              <button type="button" onClick={() => void add()} disabled={saving || !value.trim()}
+                      className="text-[11px] text-brand-text hover:underline disabled:opacity-40">
+                {t('saveNote')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Una entrada de las observaciones, corregible en el sitio (dentro del modal).
  *
- * Se mantiene el timeline con fecha y autor —corregir una entrada no la
- * convierte en un campo que se sobrescribe— porque lo que el escribe es un
- * registro de llamadas y en una sola celda cada llamada nueva borraba la
- * anterior.
+ * Edson dijo que reescribe estas notas todo el tiempo. Se mantiene el timeline
+ * con fecha y autor: corregir una entrada no la convierte en un campo que se
+ * sobrescribe.
  */
 function NoteEntry({
   caseId, note, onChanged,
@@ -986,7 +1041,7 @@ function NoteEntry({
           </div>
         </div>
       ) : (
-        <div className="text-[12.5px] text-text-2 whitespace-pre-wrap">{note.body}</div>
+        <div className="text-[12.5px] text-text-2 whitespace-pre-wrap break-words">{note.body}</div>
       )}
     </div>
   );

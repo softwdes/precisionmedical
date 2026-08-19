@@ -28,7 +28,15 @@ import { useTransitionProgress } from '@/components/layout/navigation-progress';
 
 interface Props {
   providers: DoctorComboboxProvider[];
-  /** Doctor actualmente elegido ('' si todavía no eligió) */
+  /**
+   * Doctor que el portal está mostrando ahora ('' si todavía no eligió).
+   *
+   * NO se le pasa como `value` al combobox: con un id, el combobox esconde el
+   * buscador y muestra el badge de "ya elegiste a este" — el selector quedaba
+   * mudo justo cuando más se necesita, y salir del badge (la X) no dispara
+   * ningún cambio porque un id vacío no es una selección. Acá solo sirve para
+   * no repetir el viaje al server si eligen al que ya está puesto.
+   */
   currentId: string;
   /** true cuando la agenda que se ve es de OTRO médico — enciende el aviso ámbar. */
   isViewAs?: boolean;
@@ -100,7 +108,7 @@ export function DoctorViewBar({
       <div className="flex-1 min-w-[220px]">
         <DoctorCombobox
           providers={providers}
-          value={currentId}
+          value=""
           onChange={(id) => void select(id)}
           placeholder={t('viewAsPlaceholder')}
         />

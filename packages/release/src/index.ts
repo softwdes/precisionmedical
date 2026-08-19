@@ -6,7 +6,6 @@ export type {
   NoteLocale,
   ReleaseModuleGroup,
   ReleaseNote,
-  ReleaseSummary,
 } from './types';
 
 export {
@@ -29,7 +28,7 @@ export type { CommitNote, ParsedCommit } from './commit';
 export { useVersionCheck } from './use-version-check';
 export type { VersionCheck } from './use-version-check';
 
-export { countNotes, useReleaseNotes } from './use-release-notes';
+export { useReleaseNotes } from './use-release-notes';
 export type { ReleaseNotes } from './use-release-notes';
 
 export { clearPendingNotes, readPendingNotes, stashPendingNotes } from './pending-notes';

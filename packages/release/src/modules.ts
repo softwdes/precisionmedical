@@ -128,6 +128,12 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   ux: 'interface',
   tailwind: 'interface',
   i18n: 'interface',
+  // Menu, barra superior, sidebar: es interfaz. Caian en `other` y el aviso
+  // mostraba "OTROS" para un cambio del menu.
+  nav: 'interface',
+  sidebar: 'interface',
+  topbar: 'interface',
+  menu: 'interface',
 
   // Configuracion y plataforma
   settings: 'settings',

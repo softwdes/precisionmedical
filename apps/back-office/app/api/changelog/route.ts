@@ -30,6 +30,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const since = req.nextUrl.searchParams.get('since');
   const audience = req.nextUrl.searchParams.get('audience');
+  // Ancla temporal: lo que de verdad decide desde cuándo contar.
+  const bootAt = req.nextUrl.searchParams.get('bootAt') ?? undefined;
 
   if (since === null || audience === null || !isAudience(audience)) {
     return NextResponse.json({ error: 'INVALID_PARAMS' }, { status: 400 });
@@ -39,10 +41,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Topbar. El default es 'en', igual que `i18n/request.ts`.
   const locale = (await cookies()).get('locale')?.value === 'es' ? 'es' : 'en';
 
-  const releases = await getChangelog({ app: APP, since, audience, locale });
+  const { modules, count } = await getChangelog({ app: APP, since, bootAt, audience, locale });
 
   return NextResponse.json(
-    { releases, audience, locale },
+    { modules, count, audience, locale },
     // Depende del usuario y del momento: nunca en CDN.
     { headers: { 'Cache-Control': 'no-store' } },
   );

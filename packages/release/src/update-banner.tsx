@@ -50,7 +50,7 @@ export function UpdateBanner({
   labels,
   onBeforeReload,
 }: UpdateBannerProps): React.ReactElement | null {
-  const { isOutdated, bootVersion } = useVersionCheck();
+  const { isOutdated, bootVersion, bootAt } = useVersionCheck();
   const [applying, setApplying] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -92,7 +92,7 @@ export function UpdateBanner({
       // contar los cambios. Si nunca llego a leerse un SHA, no hay rango que
       // pedir y el reload pasa sin changelog.
       if (bootVersion !== null) {
-        stashPendingNotes({ since: bootVersion, audience });
+        stashPendingNotes({ since: bootVersion, audience, bootAt: bootAt ?? undefined });
       }
 
       // Sin desregistrar el SW, seguiria sirviendo el bundle cacheado

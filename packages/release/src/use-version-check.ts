@@ -20,11 +20,21 @@ export interface VersionCheck {
   isOutdated: boolean;
   /** SHA con el que se cargo esta pestaña. `null` hasta el primer fetch. */
   bootVersion: string | null;
+  /**
+   * Hora del SERVER cuando arranco esta pestaña — el ancla del changelog.
+   *
+   * El sha no alcanza: con `turbo-ignore` salteando builds, Vercel crea
+   * deployments para commits que nunca buildearon esta app, asi que el sha en
+   * runtime puede no tener fila en `releases` y el changelog volvia vacio. Este
+   * timestamp no depende de eso.
+   */
+  bootAt: string | null;
 }
 
 export function useVersionCheck(): VersionCheck {
   const [isOutdated, setIsOutdated] = useState(false);
   const [bootVersion, setBootVersion] = useState<string | null>(null);
+  const [bootAt, setBootAt] = useState<string | null>(null);
   const bootRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -37,12 +47,14 @@ export function useVersionCheck(): VersionCheck {
         // NetworkOnly, asi que esto es defensa en profundidad.
         const res = await fetch(`/api/version?_=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
-        const data = (await res.json()) as { version: string };
+        const data = (await res.json()) as { version: string; now?: string };
         if (cancelled) return;
 
         if (bootRef.current === null) {
           bootRef.current = data.version;
           setBootVersion(data.version);
+          // `now` puede faltar si el bundle es viejo o el server no lo manda.
+          setBootAt(data.now ?? null);
         } else if (data.version !== bootRef.current) {
           setIsOutdated(true);
         }
@@ -68,5 +80,5 @@ export function useVersionCheck(): VersionCheck {
     };
   }, []);
 
-  return { isOutdated, bootVersion };
+  return { isOutdated, bootVersion, bootAt };
 }

@@ -16,7 +16,7 @@
 
 import { Sparkles, Wrench } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { countNotes, useReleaseNotes } from '@precision/release/notes';
+import { useReleaseNotes } from '@precision/release/notes';
 import {
   Button,
   Dialog,
@@ -28,12 +28,10 @@ import {
 } from '@precision/ui';
 
 export function ReleaseNotesDialog(): React.ReactElement | null {
-  const { releases, dismiss } = useReleaseNotes();
+  const { modules, count, dismiss } = useReleaseNotes();
   const t = useTranslations('phoenix.releaseNotes');
 
-  if (releases.length === 0) return null;
-
-  const total = countNotes(releases);
+  if (modules.length === 0) return null;
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) dismiss(); }}>
@@ -49,32 +47,30 @@ export function ReleaseNotesDialog(): React.ReactElement | null {
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto px-4 sm:px-6 py-2 space-y-4">
-          {releases.map((release) =>
-            release.modules.map((group) => (
-              <div key={release.sha + group.module} className="space-y-1.5">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                  {group.moduleLabel}
-                </p>
-                <div className="rounded-md bg-bg-2/40 p-3 space-y-2">
-                  {group.notes.map((note) => (
-                    <div key={note.id} className="flex items-start gap-2">
-                      {note.kind === 'FEAT' ? (
-                        <Sparkles className="w-3 h-3 text-brand shrink-0 mt-1" />
-                      ) : (
-                        <Wrench className="w-3 h-3 text-violet shrink-0 mt-1" />
-                      )}
-                      <p className="text-[12.5px] text-text-1 leading-relaxed">{note.text}</p>
-                    </div>
-                  ))}
-                </div>
+          {modules.map((group) => (
+            <div key={group.module} className="space-y-1.5">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                {group.moduleLabel}
+              </p>
+              <div className="rounded-md bg-bg-2/40 p-3 space-y-2">
+                {group.notes.map((note) => (
+                  <div key={note.id} className="flex items-start gap-2">
+                    {note.kind === 'FEAT' ? (
+                      <Sparkles className="w-3 h-3 text-brand shrink-0 mt-1" />
+                    ) : (
+                      <Wrench className="w-3 h-3 text-violet shrink-0 mt-1" />
+                    )}
+                    <p className="text-[12.5px] text-text-1 leading-relaxed">{note.text}</p>
+                  </div>
+                ))}
               </div>
-            )),
-          )}
+            </div>
+          ))}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2 px-4 sm:px-6 pb-4 sm:pb-6">
           <span className="text-[11px] text-text-muted sm:mr-auto">
-            {t('count', { count: total })}
+            {t('count', { count })}
           </span>
           <Button onClick={dismiss} className="w-full sm:w-auto">
             {t('dismiss')}

@@ -8,7 +8,7 @@
 import { db } from './index';
 import { moduleLabel } from '@precision/release/modules';
 import type { Audience } from '@precision/release/audience';
-import type { NoteLocale, ReleaseSummary } from '@precision/release/types';
+import type { NoteLocale, ReleaseModuleGroup } from '@precision/release/types';
 import type { ReleaseAudience } from '@prisma/client';
 
 /** Las audiencias que nunca reciben notas (el paciente). */
@@ -21,43 +21,75 @@ function toDbAudience(audience: Audience): ReleaseAudience {
 export interface ChangelogQuery {
   /** App del monorepo — cada deploy consulta lo suyo. */
   app: string;
-  /** SHA con el que arrancó la pestaña del usuario. */
+  /** SHA con el que arrancó la pestaña. Ancla de RESERVA. */
   since: string;
+  /**
+   * Hora del server cuando arrancó la pestaña. El ancla buena.
+   *
+   * Anclar en el SHA era el bug que hizo que esto no se viera nunca: con
+   * `turbo-ignore` salteando builds, Vercel crea deployments para commits que
+   * no buildearon esta app, así que el sha en runtime puede no tener fila en
+   * `releases` — y el lookup fallaba y devolvíamos vacío en silencio.
+   */
+  bootAt?: string;
   audience: Audience;
   locale: NoteLocale;
 }
 
 /**
- * Lo publicado DESPUÉS del build que tiene el usuario.
+ * Desde cuándo contar. Tres niveles, del mejor al peor:
  *
- * Si el SHA no existe en `releases` devolvemos vacío a propósito. Pasa cuando el
- * usuario viene de un build anterior a que esto existiera, y la alternativa
- * —mostrarle todo el historial— sería peor que no mostrarle nada.
+ *  1. `bootAt` — exacto y siempre disponible en bundles nuevos.
+ *  2. el `deployedAt` de la fila del sha — para marcas viejas ya guardadas.
+ *  3. el último release publicado — antes que no mostrar nada. El usuario
+ *     acaba de actualizar: lo más nuevo publicado es, casi siempre, lo que
+ *     acaba de recibir.
  */
-export async function getChangelog(query: ChangelogQuery): Promise<ReleaseSummary[]> {
-  const { app, since, audience, locale } = query;
+async function resolveFrom(app: string, since: string, bootAt?: string): Promise<Date | null> {
+  if (bootAt !== undefined) {
+    const parsed = new Date(bootAt);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
 
-  if (SILENT.includes(audience)) return [];
-
-  const from = await db.release.findUnique({
+  const row = await db.release.findUnique({
     where: { app_sha: { app, sha: since } },
     select: { deployedAt: true },
   });
-  if (from === null) return [];
+  if (row !== null) return row.deployedAt;
+
+  const last = await db.release.findFirst({
+    where: { app, status: 'PUBLISHED' },
+    orderBy: { deployedAt: 'desc' },
+    select: { deployedAt: true },
+  });
+  if (last === null) return null;
+
+  // Un milisegundo antes, para que ESE release entre en el `gt`.
+  return new Date(last.deployedAt.getTime() - 1);
+}
+
+/** Lo publicado después de que arrancó la pestaña, unificado por módulo. */
+export async function getChangelog(
+  query: ChangelogQuery,
+): Promise<{ modules: ReleaseModuleGroup[]; count: number }> {
+  const { app, since, bootAt, audience, locale } = query;
+
+  if (SILENT.includes(audience)) return { modules: [], count: 0 };
+
+  const from = await resolveFrom(app, since, bootAt);
+  if (from === null) return { modules: [], count: 0 };
 
   const releases = await db.release.findMany({
     where: {
       app,
       status: 'PUBLISHED',
-      deployedAt: { gt: from.deployedAt },
+      deployedAt: { gt: from },
       publishedAt: { not: null },
     },
     orderBy: { deployedAt: 'desc' },
     // Techo por si alguien vuelve después de meses sin abrir la app.
     take: 20,
     select: {
-      sha: true,
-      publishedAt: true,
       entries: {
         where: { hidden: false, audiences: { has: toDbAudience(audience) } },
         orderBy: [{ module: 'asc' }, { sortOrder: 'asc' }],
@@ -66,35 +98,34 @@ export async function getChangelog(query: ChangelogQuery): Promise<ReleaseSummar
     },
   });
 
-  return releases
-    .map((release) => {
-      // Agrupar por módulo preservando el orden que ya trajo la query.
-      const groups = new Map<string, ReleaseSummary['modules'][number]>();
+  // Un solo grupo por módulo, aunque las notas vengan de varios deploys.
+  const groups = new Map<string, ReleaseModuleGroup>();
+  let count = 0;
 
-      for (const entry of release.entries) {
-        const group = groups.get(entry.module) ?? {
-          module: entry.module,
-          moduleLabel: moduleLabel(entry.module, locale),
-          notes: [],
-        };
-        group.notes.push({
-          id: entry.id,
-          kind: entry.kind,
-          // Si falta el inglés cae al español antes que mostrar un hueco. El
-          // publish debería impedir que llegue así.
-          text: locale === 'en' ? (entry.textEn ?? entry.textEs) : entry.textEs,
-        });
-        groups.set(entry.module, group);
-      }
-
-      return {
-        sha: release.sha,
-        publishedAt: (release.publishedAt ?? new Date()).toISOString(),
-        modules: [...groups.values()],
+  for (const release of releases) {
+    for (const entry of release.entries) {
+      const group = groups.get(entry.module) ?? {
+        module: entry.module,
+        moduleLabel: moduleLabel(entry.module, locale),
+        notes: [],
       };
-    })
-    // Un release cuyas entradas eran todas de otras audiencias no se muestra.
-    .filter((release) => release.modules.length > 0);
+      group.notes.push({
+        id: entry.id,
+        kind: entry.kind,
+        // Si falta el inglés cae al español antes que mostrar un hueco.
+        text: locale === 'en' ? (entry.textEn ?? entry.textEs) : entry.textEs,
+      });
+      groups.set(entry.module, group);
+      count += 1;
+    }
+  }
+
+  // `other` último: es el cajón de lo que el mapa de scopes no reconoció.
+  const modules = [...groups.values()].sort((a, b) =>
+    a.module === 'other' ? 1 : b.module === 'other' ? -1 : a.moduleLabel.localeCompare(b.moduleLabel),
+  );
+
+  return { modules, count };
 }
 
 /** Una entrada tal como la ve /admin/releases: con los dos idiomas y las banderas. */

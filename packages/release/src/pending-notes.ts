@@ -16,8 +16,11 @@ import type { Audience } from './audience';
 const PENDING_KEY = 'pm:pending-release-notes';
 
 export interface PendingNotes {
+  /** SHA de arranque. Se sigue mandando, pero es el ancla de RESERVA. */
   since: string;
   audience: Audience;
+  /** Hora del server al arrancar la pestaña — el ancla buena. */
+  bootAt?: string;
 }
 
 export function stashPendingNotes(pending: PendingNotes): void {
@@ -37,7 +40,11 @@ export function readPendingNotes(): PendingNotes | null {
     if (typeof parsed.since !== 'string' || typeof parsed.audience !== 'string') {
       return null;
     }
-    return { since: parsed.since, audience: parsed.audience as Audience };
+    return {
+      since: parsed.since,
+      audience: parsed.audience as Audience,
+      bootAt: typeof parsed.bootAt === 'string' ? parsed.bootAt : undefined,
+    };
   } catch {
     return null;
   }

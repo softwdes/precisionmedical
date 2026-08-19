@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { clearPendingNotes, readPendingNotes } from './pending-notes';
-import type { ReleaseSummary } from './types';
+import type { ReleaseModuleGroup } from './types';
 
 /**
  * Las notas que hay que mostrarle al usuario DESPUÉS del reload.
@@ -19,16 +19,18 @@ import type { ReleaseSummary } from './types';
  * primitivos: el back-office tiene una regla vinculante de usar `ui-phoenix` y
  * nada más, y `timeclock` no tiene ni preset de Tailwind ni primitivos.
  *
- * `releases` vacío significa "no mostrar nada" — no hay modal vacío.
+ * `modules` vacío significa "no mostrar nada" — no hay aviso vacío.
  */
 export interface ReleaseNotes {
-  releases: ReleaseSummary[];
+  modules: ReleaseModuleGroup[];
+  count: number;
   /** Cierra el aviso. No vuelve a aparecer: la marca ya se borró. */
   dismiss: () => void;
 }
 
 export function useReleaseNotes(): ReleaseNotes {
-  const [releases, setReleases] = useState<ReleaseSummary[]>([]);
+  const [modules, setModules] = useState<ReleaseModuleGroup[]>([]);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
     const pending = readPendingNotes();
@@ -42,17 +44,28 @@ export function useReleaseNotes(): ReleaseNotes {
 
     void (async () => {
       try {
-        const url =
-          '/api/changelog?since=' +
-          encodeURIComponent(pending.since) +
-          '&audience=' +
-          encodeURIComponent(pending.audience);
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { releases: ReleaseSummary[] };
-        if (!cancelled) setReleases(data.releases);
-      } catch {
-        // Sin changelog no pasa nada: el usuario ya tiene el bundle nuevo.
+        const params = new URLSearchParams({
+          since: pending.since,
+          audience: pending.audience,
+        });
+        if (pending.bootAt !== undefined) params.set('bootAt', pending.bootAt);
+
+        const res = await fetch('/api/changelog?' + params.toString(), { cache: 'no-store' });
+        if (cancelled) return;
+        if (!res.ok) {
+          // Antes esto era un `catch {}` mudo y por eso un bug real —el ancla
+          // por sha— vivio horas sin dejar un solo sintoma. El usuario no ve
+          // nada igual, pero ahora queda rastro en la consola.
+          console.warn('[release-notes] /api/changelog respondio', res.status);
+          return;
+        }
+        const data = (await res.json()) as { modules: ReleaseModuleGroup[]; count: number };
+        if (!cancelled) {
+          setModules(data.modules);
+          setCount(data.count);
+        }
+      } catch (err) {
+        console.warn('[release-notes] no se pudo pedir el changelog', err);
       }
     })();
 
@@ -61,13 +74,12 @@ export function useReleaseNotes(): ReleaseNotes {
     };
   }, []);
 
-  return { releases, dismiss: () => setReleases([]) };
-}
-
-/** Cuántas notas hay en total — para el "N cambios" del pie. */
-export function countNotes(releases: ReleaseSummary[]): number {
-  return releases.reduce(
-    (sum, release) => sum + release.modules.reduce((n, group) => n + group.notes.length, 0),
-    0,
-  );
+  return {
+    modules,
+    count,
+    dismiss: () => {
+      setModules([]);
+      setCount(0);
+    },
+  };
 }

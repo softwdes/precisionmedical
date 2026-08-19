@@ -21,16 +21,18 @@ export interface ReleaseModuleGroup {
   notes: ReleaseNote[];
 }
 
-/** Un deploy publicado, con sus notas agrupadas por modulo. */
-export interface ReleaseSummary {
-  sha: string;
-  publishedAt: string;
-  modules: ReleaseModuleGroup[];
-}
-
+/**
+ * Lo que ve el usuario: los modulos, unificados.
+ *
+ * NO agrupado por release. El aviso no muestra fronteras entre deploys, asi que
+ * agrupar por release repetia el encabezado del modulo —salian dos "OTROS"
+ * seguidos— y se leia como un error. Si dos deploys tocaron `tracking`, es una
+ * sola seccion "Seguimiento de casos".
+ */
 export interface ChangelogResponse {
-  /** Vacio = no hay nada publicado que mostrar (o audiencia silenciosa). */
-  releases: ReleaseSummary[];
+  /** Vacio = no hay nada que mostrar (o audiencia silenciosa). */
+  modules: ReleaseModuleGroup[];
+  count: number;
   audience: Audience;
   locale: NoteLocale;
 }

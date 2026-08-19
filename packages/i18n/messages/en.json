@@ -5401,7 +5401,8 @@
       "colCreatedBy": "Created by",
       "managersOpen": "Case managers — click to see and add",
       "adjustersOpen": "Adjusters — click to see and add",
-      "notesOpen": "Click to read the whole thing"
+      "notesOpen": "Click to read the whole thing",
+      "createdByShort": "by {name}"
     }
   },
   "clinical": {

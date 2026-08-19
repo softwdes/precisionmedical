@@ -5401,7 +5401,8 @@
       "colCreatedBy": "Creada por",
       "managersOpen": "Encargados — clic para ver y agregar",
       "adjustersOpen": "Adjusters — clic para ver y agregar",
-      "notesOpen": "Clic para leerlo completo"
+      "notesOpen": "Clic para leerlo completo",
+      "createdByShort": "por {name}"
     }
   },
   "clinical": {

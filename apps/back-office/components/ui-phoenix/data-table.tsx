@@ -141,8 +141,31 @@ function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: n
   );
 }
 
-function Table({ children }: { children: React.ReactNode }) {
-  return <table className="w-full text-sm">{children}</table>;
+/**
+ * `gridLines` dibuja una linea vertical entre columnas.
+ *
+ * Es una EXCEPCION consciente a la regla de bordes del CLAUDE.md ("el fondo
+ * separa, la linea sobra"). Se aprobo para la vista de tracking porque Edson
+ * viene de una hoja de calculo, donde la cuadricula ES la estructura: con 13
+ * columnas y sin lineas, se le iba el ojo de fila.
+ *
+ * Se activa por pantalla y no por defecto, para que las demas tablas del
+ * back-office sigan como estan.
+ */
+function Table({ children, gridLines }: { children: React.ReactNode; gridLines?: boolean }) {
+  return (
+    <table
+      className={[
+        'w-full text-sm',
+        // `[&_td]` en vez de tocar cada celda: la linea va a la DERECHA de cada
+        // una y la ultima de la fila no la lleva.
+        gridLines ? '[&_td]:border-r [&_td]:border-row-sep [&_td:last-child]:border-r-0'
+                  + ' [&_th]:border-r [&_th]:border-row-sep [&_th:last-child]:border-r-0' : '',
+      ].filter(Boolean).join(' ')}
+    >
+      {children}
+    </table>
+  );
 }
 
 function Head({ children }: { children: React.ReactNode }) {

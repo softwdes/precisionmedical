@@ -303,8 +303,15 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   const readyToArchive = rows.filter(r => r.completedAt && new Date(r.appointment.scheduledFor) < new Date()).length;
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+    <div className="space-y-2.5">
+      {/*
+        * Encabezado propio y no `PageHeader`: Edson trabaja de arriba a abajo
+        * todo el dia y pidio recuperar el alto. El primitivo usa `text-2xl` con
+        * subtitulo, que en una lista de catalogo esta bien pero aca son ~90px
+        * antes de la primera fila. El titulo baja a `text-lg` y el subtitulo se
+        * retira: decia "una fila por caso, solo la primera cita", que el ya sabe.
+        */}
+      <h1 className="text-lg font-bold text-text-1 leading-none">{t('title')}</h1>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -313,7 +320,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             key={String(isArch)}
             type="button"
             onClick={() => { setArchived(isArch); setPage(1); }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`px-3 py-1.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
               archived === isArch
                 ? 'border-amber text-amber'
                 : 'border-transparent text-text-3 hover:text-text-1'
@@ -325,10 +332,10 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <Input className="pl-9" placeholder={t('searchPlaceholder')} value={qLive} onChange={e => setQLive(e.target.value)} />
+      <div className="flex gap-1.5 items-center flex-wrap">
+        <div className="relative flex-1 min-w-[190px] max-w-[260px]">
+          <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+          <Input className="pl-8 !h-8 !text-[13px]" placeholder={t('searchPlaceholder')} value={qLive} onChange={e => setQLive(e.target.value)} />
         </div>
         <select value={clinicId} onChange={e => { setClinicId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allClinics')}</option>
@@ -350,7 +357,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         </select>
       </div>
 
-      <div className="flex gap-2 items-center flex-wrap">
+      <div className="flex gap-1.5 items-center flex-wrap">
         {([
           ['noPip', t('flagNoPip')], ['noAdjuster', t('flagNoAdjuster')],
           ['noClaim', t('flagNoClaim')], ['noAttorney', t('flagNoAttorney')],
@@ -386,11 +393,10 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * es cual. Ver la nota de `DataTable.Scroll`.
           */}
         <DataTable.Scroll maxHeight="calc(100vh - 330px)">
-          <DataTable.Table>
+          <DataTable.Table gridLines>
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
-              <DataTable.Th>{t('colCreatedBy')}</DataTable.Th>
               <DataTable.Th>{t('colProvider')}</DataTable.Th>
               <DataTable.Th>{t('colLossDate')}</DataTable.Th>
               <DataTable.Th>{t('colAttorney')}</DataTable.Th>
@@ -399,7 +405,6 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               <DataTable.Th>{t('colClaim')}</DataTable.Th>
               <DataTable.Th align="center">{t('colPip')}</DataTable.Th>
               <DataTable.Th>{t('colAdjuster')}</DataTable.Th>
-              <DataTable.Th width="130px">{t('colAdjusterPhone')}</DataTable.Th>
               <DataTable.Th>{t('colObservations')}</DataTable.Th>
               <DataTable.Th align="center">{t('colDone')}</DataTable.Th>
               {archived && <DataTable.Th>{t('colArchivedAt')}</DataTable.Th>}
@@ -407,21 +412,21 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             </DataTable.Head>
             <tbody>
               {loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 16 : 15}>
+                <tr><DataTable.Td colSpan={archived ? 14 : 13}>
                   <div className="flex items-center justify-center gap-2 py-8 text-text-muted text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" /> {t('loading')}
                   </div>
                 </DataTable.Td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 16 : 15}>
+                <tr><DataTable.Td colSpan={archived ? 14 : 13}>
                   <EmptyState.Inline message={archived ? t('emptyArchived') : t('empty')} />
                 </DataTable.Td></tr>
               )}
 
               {groups.map(group => (
                 <Fragment key={group.key}>
-                  <DataTable.GroupRow colSpan={archived ? 16 : 15}>
+                  <DataTable.GroupRow colSpan={archived ? 14 : 13}>
                     <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
@@ -484,8 +489,23 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td><Txt v={row.appointment.createdBy} /></DataTable.Td>
-                        <DataTable.Td><Txt v={row.appointment.providerName} /></DataTable.Td>
+                        <DataTable.Td>
+                          {/*
+                            * "Creada por" baja como segunda linea del provider en
+                            * vez de ocupar columna propia. Mismo recurso que ya
+                            * usan paciente (DOB + telefono) y hora (+ clinica):
+                            * es la unica forma real de bajar de 15 columnas sin
+                            * perder dato.
+                            */}
+                          <div className="min-w-0">
+                            <Txt v={row.appointment.providerName} />
+                            {row.appointment.createdBy && (
+                              <div className="text-[10.5px] text-text-muted truncate" title={t('colCreatedBy')}>
+                                {t('createdByShort', { name: row.appointment.createdBy })}
+                              </div>
+                            )}
+                          </div>
+                        </DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
                         <DataTable.Td>
                           <div className="relative">
@@ -537,7 +557,21 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               title={t('adjustersOpen')}
                               className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1"
                             >
-                              <Txt v={row.adjusterName} />
+                              {/*
+                                * El telefono baja como segunda linea en vez de
+                                * ocupar columna propia. Mismo recurso que ya usan
+                                * paciente (DOB + telefono) y hora (+ clinica): es
+                                * la unica forma real de bajar de 15 columnas sin
+                                * perder dato.
+                                */}
+                              <span className="min-w-0">
+                                <Txt v={row.adjusterName} />
+                                {row.adjusterPhone && (
+                                  <span className="block text-[10.5px] text-text-muted font-mono truncate">
+                                    {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
+                                  </span>
+                                )}
+                              </span>
                               <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 rounded-full ${
                                 row.adjusterCount > 0
                                   ? 'bg-brand/15 text-brand-text'
@@ -554,13 +588,6 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               />
                             )}
                           </div>
-                        </DataTable.Td>
-                        <DataTable.Td>
-                          {row.adjusterPhone
-                            ? <span className="font-mono text-xs text-text-2 whitespace-nowrap">
-                                {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
-                              </span>
-                            : <Empty />}
                         </DataTable.Td>
                         <DataTable.Td>
                           <div className="relative">
@@ -630,7 +657,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                       {row.insComments && (
                         <tr>
                           <DataTable.Td
-                            colSpan={archived ? 16 : 15}
+                            colSpan={archived ? 14 : 13}
                             className="!py-1.5"
                             style={rowBg ? { background: rowBg } : undefined}
                           >
@@ -725,8 +752,10 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   );
 }
 
+// Compacto a proposito: son cuatro selectores en una fila y Edson pidio
+// recuperar ese alto para las filas de la tabla.
 const selectCls =
-  'bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand max-w-[190px]';
+  'bg-bg-2 border border-border rounded-md px-2 py-1 h-8 text-[13px] text-text-1 focus:outline-none focus:border-brand max-w-[160px]';
 
 /**
  * Leyenda de colores de la franja de cada fila.
@@ -757,18 +786,18 @@ function StatusLegend() {
   ];
 
   return (
-    <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-0.5">
-      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+    <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap px-0.5">
+      <span className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">
         {t('legendTitle')}
       </span>
       {items.map(item => (
         <span key={item.label} className="flex items-center gap-1.5">
           <span
-            className="w-4 h-2 rounded-sm shrink-0 border border-border-strong"
+            className="w-3 h-1.5 rounded-sm shrink-0 border border-border-strong"
             style={{ background: item.bg, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }}
           />
           <span
-            className="text-[12px] text-text-muted"
+            className="text-[11px] text-text-muted"
             style={{ textDecoration: item.strike ? 'line-through' : undefined }}
           >
             {item.label}

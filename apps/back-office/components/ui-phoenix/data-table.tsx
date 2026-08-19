@@ -102,10 +102,42 @@ function Scroll({ children, maxHeight }: { children: React.ReactNode; maxHeight?
   return (
     <div
       className={maxHeight ? 'overflow-x-auto overflow-y-auto' : 'overflow-x-auto'}
-      style={maxHeight ? { maxHeight } : undefined}
+      // `--dt-head-h` es el alto de la fila de encabezados, y lo consume
+      // `GroupRow` para pegarse JUSTO debajo. Sale de su padding (py-2.5 = 10px
+      // arriba y abajo) mas la linea de texto de 10px: ~34px. Vive acá como
+      // variable y no como numero suelto en la vista, para que cambiar el
+      // padding del `Th` no deje la banda de grupo tapando el encabezado.
+      style={{ ...(maxHeight ? { maxHeight } : {}), ['--dt-head-h' as string]: '34px' }}
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * Fila separadora de grupo (ej. "miércoles 19 de agosto — 3 citas").
+ *
+ * Se fija en los DOS ejes, y cada uno resuelve un problema distinto:
+ *
+ *  · Arriba, debajo del encabezado: al bajar por un día largo se pierde de
+ *    vista a qué día pertenece la fila que se está mirando.
+ *  · A la IZQUIERDA: sin esto, al scrollear en horizontal el texto se va de
+ *    pantalla y el separador queda como una banda vacía. El `<td>` ocupa todo
+ *    el ancho de la tabla, así que su contenido se desplaza con ella.
+ *
+ * El z queda ENTRE el encabezado (20/30) y las celdas del cuerpo (10): pasa por
+ * encima de las filas al scrollear, pero se mete debajo del encabezado.
+ */
+function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: number }) {
+  return (
+    <tr>
+      <td
+        colSpan={colSpan}
+        className="sticky top-[var(--dt-head-h)] z-[15] bg-bg-1 px-4 py-1.5"
+      >
+        <div className="sticky left-4 w-fit">{children}</div>
+      </td>
+    </tr>
   );
 }
 
@@ -248,4 +280,4 @@ function Td({
   );
 }
 
-export const DataTable = { Card, Scroll, Table, Head, Th, Row, Td };
+export const DataTable = { Card, Scroll, Table, Head, Th, Row, Td, GroupRow };

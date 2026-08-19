@@ -430,16 +430,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 
               {groups.map(group => (
                 <Fragment key={group.key}>
-                  <tr>
-                    <DataTable.Td colSpan={archived ? 16 : 15}>
-                      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-text-3 py-0.5">
-                        <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
-                        <span className="text-text-muted">
-                          — {t('apptCount', { count: group.rows.length })}
-                        </span>
-                      </div>
-                    </DataTable.Td>
-                  </tr>
+                  <DataTable.GroupRow colSpan={archived ? 16 : 15}>
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
+                      <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
+                      <span className="text-text-muted">
+                        — {t('apptCount', { count: group.rows.length })}
+                      </span>
+                    </div>
+                  </DataTable.GroupRow>
 
                   {group.rows.map(row => {
                     const done = !!row.completedAt;
@@ -627,7 +625,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             className="!py-1.5"
                             style={rowBg ? { background: rowBg } : undefined}
                           >
-                            <div className="flex items-start gap-2 pl-3">
+                            {/*
+                              * `sticky left-4` por lo mismo que la fila de
+                              * grupo: el <td> ocupa todo el ancho de la tabla,
+                              * asi que al scrollear en horizontal el texto se
+                              * iba de pantalla y la banda quedaba vacia — justo
+                              * el aviso que tiene que verse siempre.
+                              */}
+                            <div className="sticky left-4 w-fit flex items-start gap-2">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
                               <span className="text-[12.5px] text-text-1 font-medium whitespace-pre-wrap">
                                 {row.insComments}

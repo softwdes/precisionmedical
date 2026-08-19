@@ -44,7 +44,12 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
               <div className="text-text-1 font-semibold">{t('viewAsPickTitle')}</div>
               <div className="text-text-2 text-sm mt-1">{t('viewAsPickSubtitle')}</div>
             </div>
-            <DoctorViewBar providers={viewInfo.options} currentId="" />
+            <DoctorViewBar
+              providers={viewInfo.options}
+              currentId=""
+              hasOwnProfile={viewInfo.hasOwnProfile}
+              canReturnToAdmin={viewInfo.canReturnToAdmin}
+            />
           </div>
         </div>
       </NavigationProgressProvider>
@@ -68,7 +73,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
 
   return (
     <>
-      <UpdateBanner />
+      <UpdateBanner audience="doctor" />
       <AdminShell
         variant="doctor"
         userName={`${provider.firstName} ${provider.lastName}`}
@@ -76,8 +81,19 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
         userInitials={initials}
         userEmail={provider.email}
       >
-        {viewInfo.isViewAs && (
-          <DoctorViewBar providers={viewInfo.options} currentId={provider.id} />
+        {/* La barra sale con la CAPACIDAD, no con la suplantación: quien puede
+            elegir médico tiene que poder hacerlo también cuando está en su propia
+            agenda. Antes colgaba de `isViewAs` y un tester con ficha de doctor
+            entraba a su portal sin ningún selector — la agenda propia era una
+            trampa. En modo propio la barra va gris y sin el aviso ámbar. */}
+        {viewInfo.canSelect && (
+          <DoctorViewBar
+            providers={viewInfo.options}
+            currentId={provider.id}
+            isViewAs={viewInfo.isViewAs}
+            hasOwnProfile={viewInfo.hasOwnProfile}
+            canReturnToAdmin={viewInfo.canReturnToAdmin}
+          />
         )}
         {children}
       </AdminShell>

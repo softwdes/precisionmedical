@@ -46,6 +46,16 @@ const PROVIDER_FIELDS = {
 
 const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 
+/** Roles que NO tienen back-office: su única casa es el portal medico. */
+const PORTAL_ONLY_ROLES = new Set(['DOCTOR', 'PROVIDER']);
+
+/**
+ * Rol de la base Admin, memorizado por request. Detrás hay una llamada de red
+ * (~180ms): la consultan `canViewAsDoctor` y el layout, y antes cada uno pagaba
+ * la suya.
+ */
+const getRole = cache(async (email: string): Promise<string> => fetchDbRole(email));
+
 /**
  * ¿Puede este usuario abrir el portal de OTRO médico ("ver como")?
  *
@@ -57,7 +67,7 @@ const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
  * consultan, y detrás hay dos fetch al proyecto Admin.
  */
 export const canViewAsDoctor = cache(async (email: string): Promise<boolean> => {
-  const role = await fetchDbRole(email);
+  const role = await getRole(email);
   if (ADMIN_ROLES.has(role)) return true;
 
   const modules = await fetchUserClinicModules(email);
@@ -109,6 +119,20 @@ export interface DoctorViewInfo {
   options: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
   /** true si además tiene ficha propia — habilita "volver a mi portal" */
   hasOwnProfile: boolean;
+  /**
+   * true si tiene la capacidad de elegir doctor, esté o no suplantando a alguien.
+   *
+   * Va aparte de `isViewAs` porque son preguntas distintas: `isViewAs` es "lo que
+   * veo ahora es de otro", y esto es "puedo cambiar de doctor". Un tester con
+   * ficha propia arrancaba con las dos en false y quedaba encerrado en su propio
+   * portal, sin forma de abrir el del médico que sí está dado de alta en DAW.
+   */
+  canSelect: boolean;
+  /**
+   * true si tiene back-office al que volver. Un rol DOCTOR/PROVIDER no: el
+   * middleware lo devuelve a /doctor, así que el botón sería un callejón.
+   */
+  canReturnToAdmin: boolean;
 }
 
 /**
@@ -121,13 +145,17 @@ export interface DoctorViewInfo {
  */
 export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
   const user = await getSessionUser();
-  const vacio = { isViewAs: false, options: [], hasOwnProfile: false };
+  const vacio: DoctorViewInfo = {
+    isViewAs: false, options: [], hasOwnProfile: false, canSelect: false, canReturnToAdmin: false,
+  };
   if (!user?.email) return vacio;
 
   const own = await getOwnProvider(user.email);
   if (!(await canViewAsDoctor(user.email))) {
-    return { isViewAs: false, options: [], hasOwnProfile: !!own };
+    return { ...vacio, hasOwnProfile: !!own };
   }
+
+  const canReturnToAdmin = !PORTAL_ONLY_ROLES.has(await getRole(user.email));
 
   const selectedId = (await cookies()).get(DOCTOR_VIEW_COOKIE)?.value;
 
@@ -140,5 +168,5 @@ export const getDoctorViewInfo = cache(async (): Promise<DoctorViewInfo> => {
   // Elegirse a sí mismo no es "ver como otro"
   const viendoAjeno = !!selectedId && selectedId !== own?.id;
 
-  return { isViewAs: viendoAjeno, options, hasOwnProfile: !!own };
+  return { isViewAs: viendoAjeno, options, hasOwnProfile: !!own, canSelect: true, canReturnToAdmin };
 });

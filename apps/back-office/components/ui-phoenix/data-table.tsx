@@ -85,8 +85,28 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Scroll({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-x-auto">{children}</div>;
+/**
+ * Contenedor de scroll de la tabla.
+ *
+ * `maxHeight` convierte la caja en un scroll VERTICAL propio, y con eso el
+ * encabezado se congela al bajar. Sin el, no hay forma: `overflow-x-auto` ya
+ * hace que `overflow-y` compute a `auto` (asi lo define la spec), o sea que la
+ * caja YA es un contenedor de scroll — pero de alto automatico, asi que nunca
+ * scrollea en vertical y un `top: 0` no tiene contra que pegarse. El sticky del
+ * `<thead>` quedaba inerte aunque estuviera bien escrito.
+ *
+ * Es opcional para no cambiarle el comportamiento a las ~20 pantallas que ya
+ * usan el primitivo: solo lo pide quien de verdad lo necesita.
+ */
+function Scroll({ children, maxHeight }: { children: React.ReactNode; maxHeight?: string }) {
+  return (
+    <div
+      className={maxHeight ? 'overflow-x-auto overflow-y-auto' : 'overflow-x-auto'}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
+      {children}
+    </div>
+  );
 }
 
 function Table({ children }: { children: React.ReactNode }) {
@@ -124,7 +144,15 @@ function Th({
       className={[
         alignClass(align),
         'px-4 py-2.5 font-semibold',
-        sticky ? `${stickySide(sticky)} z-10 bg-bg-2` : '',
+        // `top-0` congela la fila de encabezados cuando el contenedor tiene
+        // `maxHeight`; sin el, no hace nada. El z es MAYOR que el de las celdas
+        // del cuerpo (z-10) para que el encabezado pase por encima al bajar, y
+        // las esquinas (fija arriba Y al costado) necesitan uno mas todavia.
+        // El `border-b` vive en el <tr>, y un borde de fila no viaja con las
+        // celdas al quedar fijas: al bajar, el encabezado flotaba sin linea
+        // que lo separara. La sombra de 1px la repone en la celda misma.
+        'sticky top-0 bg-bg-2 shadow-[0_1px_0_0_var(--row-sep)]',
+        sticky ? `${stickySide(sticky)} z-30` : 'z-20',
         className,
       ].filter(Boolean).join(' ')}
       style={width ? { width } : undefined}

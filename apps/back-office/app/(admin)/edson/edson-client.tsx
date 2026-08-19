@@ -388,7 +388,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
       {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
 
       <DataTable.Card>
-        <DataTable.Scroll>
+        {/*
+          * Alto acotado para que el encabezado se congele al bajar: Edson
+          * pidio verlo siempre, porque con 15 columnas no se acuerda de cual
+          * es cual. Ver la nota de `DataTable.Scroll`.
+          */}
+        <DataTable.Scroll maxHeight="calc(100vh - 330px)">
           <DataTable.Table>
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>

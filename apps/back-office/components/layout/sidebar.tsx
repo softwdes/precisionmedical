@@ -159,7 +159,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
       )}
     >
       {/* Brand */}
-      <div className={cn('flex items-center border-b border-border', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
+      <div className={cn('relative flex items-center border-b border-border', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
         {!collapsed && (
           <Link href={homeHref} onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: logoGradient, boxShadow: logoShadow }}>
@@ -186,6 +186,33 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             </svg>
           </Link>
         )}
+        {/*
+          * Colapsar vive JUNTO AL LOGO y ya no al pie de la barra.
+          *
+          * Al pie no lo veia nadie: Edson pidio "colapsar el menu para ganar
+          * espacio" sin saber que el boton existia desde hace meses. Arriba es
+          * donde se busca —es el patron de Gmail— y ademas el estado se guarda
+          * por usuario en `localStorage`, asi que colapsarlo no le cambia la
+          * vista a nadie mas.
+          */}
+        {onCollapsedChange && (
+          <button
+            type="button"
+            onClick={() => onCollapsedChange(!collapsed)}
+            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+            className={cn(
+              'hidden md:flex items-center justify-center rounded-md hover:bg-white/5',
+              'text-text-muted hover:text-text-2 transition-colors shrink-0 w-7 h-7',
+              // Colapsado el header centra el isotipo y no queda ancho al lado,
+              // asi que el boton se posiciona sobre el borde derecho.
+              collapsed ? 'absolute right-1 top-1/2 -translate-y-1/2' : '',
+            )}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        )}
+
         {/* Close button mobile only */}
         {!collapsed && (
           <button
@@ -248,19 +275,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
           <div className="flex justify-center">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
           </div>
-        )}
-        {/* Collapse toggle — desktop only */}
-        {onCollapsedChange && (
-          <button
-            type="button"
-            onClick={() => onCollapsedChange(!collapsed)}
-            className={cn(
-              'hidden md:flex w-full items-center justify-center rounded-md hover:bg-white/5 text-text-muted hover:text-text-2 transition-colors mt-2 py-1.5',
-            )}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
         )}
       </div>
     </aside>

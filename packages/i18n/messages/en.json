@@ -1364,6 +1364,12 @@
     }
   },
   "phoenix": {
+    "releaseNotes": {
+      "title": "What's new in this version",
+      "subtitle": "These are the changes made while you had the app open.",
+      "dismiss": "Got it",
+      "count": "{count, plural, one {# change} other {# changes}}"
+    },
     "nav": {
       "catalogs": "Catalogs",
       "specialties": "Specialties",
@@ -4933,7 +4939,8 @@
         "ajustadores": "Adjusters",
         "servicios": "CPT services",
         "diagnosticos": "Diagnoses",
-        "auditlog": "Audit Log"
+        "auditlog": "Audit Log",
+        "releases": "Release notes"
       }
     },
     "providers": {

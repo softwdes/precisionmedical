@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { Stethoscope } from 'lucide-react';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
+import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { getSessionProvider, getDoctorViewInfo } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
@@ -74,6 +75,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
   return (
     <>
       <UpdateBanner audience="doctor" />
+      <ReleaseNotesDialog />
       <AdminShell
         variant="doctor"
         userName={`${provider.firstName} ${provider.lastName}`}

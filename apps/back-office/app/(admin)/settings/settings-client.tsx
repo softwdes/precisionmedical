@@ -5,7 +5,7 @@ import { HexColorPicker } from 'react-colorful';
 import { useTranslations } from 'next-intl';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset,
+  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset, Rocket,
 } from 'lucide-react';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,
@@ -20,6 +20,7 @@ import { AdjustersClient }   from '@/app/(admin)/admin/adjusters/adjusters-clien
 import { ServicesClient }    from '@/app/(admin)/admin/services/services-client';
 import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
 import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
+import { ReleasesClient }  from '@/app/(admin)/settings/releases/releases-client';
 import { ProvidersClient }  from '@/app/(admin)/admin/providers/providers-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ interface Clinic {
 
 // Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
 // en el portal del doctor (/doctor/templates), con editor rich text y diagnósticos.
-type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'diagnosticos' | 'auditlog';
+type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'diagnosticos' | 'auditlog' | 'releases';
 
 // La etiqueta sale de `phoenix.settings.tabs.<id>` — antes era texto fijo en
 // español y no cambiaba al pasar la app a inglés.
@@ -45,6 +46,9 @@ const TABS: Array<{ id: Tab; icon: React.ElementType }> = [
   { id: 'servicios',      icon: DollarSign  },
   { id: 'diagnosticos',   icon: FileText    },
   { id: 'auditlog',       icon: Shield      },
+  // Notas de release: es un registro que se lee y se cura, mas parecido al
+  // audit log que a los catalogos de al lado.
+  { id: 'releases',       icon: Rocket      },
 ];
 
 interface Props {
@@ -300,6 +304,7 @@ export function SettingsClient({
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
+      {activeTab === 'releases'       && <ReleasesClient />}
 
       {/* ── Clinic form dialog (shared for create + edit) ── */}
       {[

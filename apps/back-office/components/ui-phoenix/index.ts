@@ -69,3 +69,5 @@ export { ToastProvider, useToast } from './toast';
 
 export { Section, SectionDivider } from './section';
 export type { SectionProps } from './section';
+
+export { ReleaseNotesDialog } from './release-notes-dialog';

@@ -5,6 +5,7 @@ import { Scale } from 'lucide-react';
 import { db } from '@precision-medical/database';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
+import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
 import { getSessionUser } from '@/lib/session';
 import { getSessionLawyer, canViewAsLawyer, ATTORNEY_VIEW_COOKIE } from '@/lib/get-session-lawyer';
@@ -126,6 +127,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
   return (
     <>
       <UpdateBanner audience="attorney" />
+      <ReleaseNotesDialog />
       <AdminShell
         variant="attorney"
         userName={displayName}

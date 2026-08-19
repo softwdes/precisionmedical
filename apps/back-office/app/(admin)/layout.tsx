@@ -6,6 +6,7 @@ import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
+import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
@@ -70,6 +71,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <>
       <UpdateBanner audience="admin" />
+      <ReleaseNotesDialog />
       {/* `IncomingCallListener` DESMONTADO el 2026-08-05: Twilio desvía las
           entrantes a otro número, así que la clínica no recibe ninguna. Montado
           le pedía el micrófono a todos al cargar la app y latía contra el

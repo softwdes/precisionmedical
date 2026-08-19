@@ -4,6 +4,45 @@ import { router, protectedProcedure, adminProcedure, superAdminProcedure } from 
 import { supabaseAdmin } from '../supabase-admin';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../email';
 
+/**
+ * Estados que deben CORTAR el acceso.
+ *
+ * `PENDING_VERIFICATION` queda afuera a proposito: es el estado de una cuenta
+ * recien creada y bloquearla romperia la activacion — el magiclink necesita
+ * abrir sesion para que la persona pueda crear su contraseña.
+ */
+const ESTADOS_QUE_BLOQUEAN = new Set(['SUSPENDED', 'INACTIVE']);
+
+/**
+ * Sincroniza `users.status` con Supabase Auth.
+ *
+ * Hasta ahora, cambiar el status no impedia NADA: ningun middleware ni camino de
+ * auth miraba ese campo (verificado por grep en los 5 middlewares, las paginas
+ * de login, /api/auth/* y packages/auth). Suspender a alguien dejaba el cartel
+ * "SUSPENDED" en el panel y a la persona trabajando igual, con su sesion viva y
+ * pudiendo volver a entrar.
+ *
+ * El corte se hace en la capa de Auth y no con un chequeo en cada app por dos
+ * razones: es inmediato —un usuario baneado no puede refrescar su sesion ni
+ * volver a loguear— y no depende de que cada middleware nuevo se acuerde de
+ * mirar el campo.
+ *
+ * Falla ruidosamente a proposito: si el baneo no se aplica, el status diria
+ * "suspendido" sin serlo, que es exactamente el bug que esto viene a cerrar.
+ */
+async function sincronizarAccesoAuth(userId: string, status: string): Promise<void> {
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    // 'none' levanta el baneo; la duracion larga equivale a indefinido.
+    ban_duration: ESTADOS_QUE_BLOQUEAN.has(status) ? '876000h' : 'none',
+  });
+  if (error) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `El estado se guardo pero NO se pudo aplicar el corte de acceso: ${error.message}`,
+    });
+  }
+}
+
 export const usersRouter = router({
   ping: protectedProcedure.query(() => 'ok' as const),
 
@@ -232,6 +271,11 @@ export const usersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
+      // El status se cambia desde el select del dialogo de edicion, no solo con
+      // `suspend`. Sin esto, bajar a alguien a SUSPENDED desde aca no cortaba
+      // nada. `users.id` es el UUID de Supabase Auth (lo fija `create`).
+      if (updateData.status) await sincronizarAccesoAuth(id, updateData.status);
+
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
@@ -455,6 +499,8 @@ export const usersRouter = router({
         .single();
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await sincronizarAccesoAuth(input.id, 'SUSPENDED');
 
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,

@@ -18,7 +18,7 @@
 import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, X, Mail, Phone, Printer, Loader2, MapPin } from 'lucide-react';
-import { Button, Input, Label } from '@precision/ui';
+import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { localeApp } from '@/lib/fechas';
 import { CopyLine } from './case-managers';
 
@@ -190,50 +190,45 @@ export function AdjustersPopover({
   const t = useTranslations('phoenix.edsonTracking');
   const { current, carrier, loading } = useCaseAdjusters(caseId);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
+  // Modal y no panel flotante: ver la nota en `ManagersPopover` — dentro de la
+  // tabla el panel quedaba recortado por el `overflow-hidden` de la Card.
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full mt-1 z-50 w-[270px] rounded-lg bg-surface shadow-xl p-3 space-y-2 text-left">
-        {carrier && <div className="text-text-1 text-[13px] font-semibold">{carrier.name}</div>}
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{carrier?.name ?? t('groupAdjusters')}</DialogTitle>
+        </DialogHeader>
 
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
-          {t('groupAdjusters')}
+        <div className="space-y-2 py-2 max-h-[60vh] overflow-y-auto scroll-thin">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
+            {t('groupAdjusters')}
+          </div>
+
+          {loading && (
+            <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
+              <Loader2 className="w-3 h-3 animate-spin" /> …
+            </div>
+          )}
+          {!loading && current.length === 0 && (
+            <p className="text-text-muted text-[12px] italic">{t('adjusterNone')}</p>
+          )}
+          {current.map(a => <AdjusterCard key={a.id} a={a} />)}
+
+          {carrier?.claimsAddress && (
+            <div className="pt-1">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">
+                {t('billingAddress')}
+              </div>
+              <p className="text-[11.5px] text-text-2 whitespace-pre-wrap font-mono">{carrier.claimsAddress}</p>
+            </div>
+          )}
         </div>
 
-        {loading && (
-          <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
-            <Loader2 className="w-3 h-3 animate-spin" /> …
-          </div>
-        )}
-        {!loading && current.length === 0 && (
-          <p className="text-text-muted text-[12px] italic">{t('adjusterNone')}</p>
-        )}
-        {current.map(a => <AdjusterCard key={a.id} a={a} />)}
-
-        {carrier?.claimsAddress && (
-          <div className="pt-1">
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">
-              {t('billingAddress')}
-            </div>
-            <p className="text-[11.5px] text-text-2 whitespace-pre-wrap font-mono">{carrier.claimsAddress}</p>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => { onClose(); onAdd(); }}
-          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1 hover:border-brand"
-        >
-          <Plus className="w-3 h-3" /> {t('adjusterAdd')}
-        </button>
-      </div>
-    </>
+        <Button className="w-full sm:w-auto" onClick={() => { onClose(); onAdd(); }}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> {t('adjusterAdd')}
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 

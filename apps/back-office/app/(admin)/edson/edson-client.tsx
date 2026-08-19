@@ -915,12 +915,6 @@ function NotesPopover({
     return () => { cancelled = true; };
   }, [caseId]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   async function add() {
     const body = value.trim();
     if (!body) return;
@@ -941,56 +935,65 @@ function NotesPopover({
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full mt-1 z-50 w-[340px] rounded-lg bg-surface shadow-xl p-3 text-left">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-amber mb-2">
-          {t('groupNotes')}
-        </div>
+    /*
+     * Modal ancho y no panel flotante, por dos razones:
+     *
+     *  · Dentro de la tabla quedaba RECORTADO — `DataTable.Card` tiene
+     *    `overflow-hidden` y el scroll tiene alto acotado, asi que se veia
+     *    cortado "por debajo" de la grilla.
+     *  · Edson escribe parrafos enteros. En 340px no se lee nada; acá el texto
+     *    va completo, sin recortar y respetando los saltos de linea.
+     */
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t('groupNotes')}</DialogTitle>
+        </DialogHeader>
 
-        {loading && (
-          <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
-            <Loader2 className="w-3 h-3 animate-spin" /> …
-          </div>
-        )}
-        {!loading && notes.length === 0 && (
-          <p className="text-text-muted text-[12px] italic">{t('noNotes')}</p>
-        )}
-
-        <div className="space-y-2.5 max-h-[300px] overflow-y-auto scroll-thin pr-1">
+        <div className="space-y-3 py-2 max-h-[55vh] overflow-y-auto scroll-thin pr-1">
+          {loading && (
+            <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> …
+            </div>
+          )}
+          {!loading && notes.length === 0 && (
+            <p className="text-text-muted text-[13px] italic">{t('noNotes')}</p>
+          )}
           {notes.map(n => (
-            <div key={n.id} className="border-l-2 border-border-strong pl-2.5">
-              <div className="text-[10.5px] text-text-muted font-mono">
+            <div key={n.id} className="border-l-2 border-border-strong pl-3">
+              <div className="text-[11px] text-text-muted font-mono">
                 {fmtDate(n.createdAt)} {fmtTime(n.createdAt)}{n.authorName ? ` · ${n.authorName}` : ''}
               </div>
-              <div className="text-[12.5px] text-text-2 whitespace-pre-wrap break-words">{n.body}</div>
+              <div className="text-[13px] text-text-1 whitespace-pre-wrap break-words leading-relaxed">
+                {n.body}
+              </div>
             </div>
           ))}
         </div>
 
         {!readOnly && (
-          <div className="mt-2.5 pt-2.5 border-t border-border">
+          <div className="pt-2 border-t border-border">
             <textarea
-              rows={3}
+              rows={4}
               value={value}
               disabled={saving}
               onChange={e => setValue(e.target.value)}
               placeholder={t('newNotePlaceholder')}
-              className="w-full bg-bg-2 border border-border rounded-md px-2 py-1.5 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-[13px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y min-h-[90px]"
             />
-            <div className="flex justify-end gap-2 mt-1">
-              <button type="button" onClick={onClose} className="text-[11px] text-text-muted hover:text-text-1">
-                {tc('close')}
-              </button>
-              <button type="button" onClick={() => void add()} disabled={saving || !value.trim()}
-                      className="text-[11px] text-brand-text hover:underline disabled:opacity-40">
-                {t('saveNote')}
-              </button>
-            </div>
           </div>
         )}
-      </div>
-    </>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{tc('close')}</Button>
+          {!readOnly && (
+            <Button className="w-full sm:w-auto" onClick={() => void add()} disabled={saving || !value.trim()}>
+              {saving ? tc('saving') : t('saveNote')}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

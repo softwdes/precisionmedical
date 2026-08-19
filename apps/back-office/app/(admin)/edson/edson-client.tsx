@@ -411,7 +411,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * nacimiento, telefono, clinica— ya tienen su propio tamaño y no se
           * tocan, si no quedarian ilegibles.
           */}
-        <DataTable.Table gridLines className="text-[13px]">
+        <DataTable.Table gridLines className="text-[13px] [&_td]:!py-1.5 [&_th]:!py-2">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>

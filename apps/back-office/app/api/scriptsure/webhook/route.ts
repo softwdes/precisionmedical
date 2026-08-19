@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
-import { mapRawRx, persistPrescription, asStr, pick } from '@/lib/scriptsure-prescriptions';
+import { mapRawRx, persistPrescription, marcarRechazoNcpdp, asStr, pick } from '@/lib/scriptsure-prescriptions';
 
 /**
  * POST /api/scriptsure/webhook — receptor de notificaciones de ScriptSure/DAW.
@@ -104,7 +104,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata: JSON.parse(JSON.stringify({ raw: payload })) as Record<string, string>,
   });
 
-  // 2. Mapear. El estado suele venir en el sobre, no en la receta.
+  // 2. ¿Es un RECHAZO de Surescripts? Va antes del mapeo de recetas: no trae
+  //    paciente ni medicamento, así que el mapeo lo descartaría y el rechazo se
+  //    perdería hasta la próxima sincronización — lo que hacía que la pantalla
+  //    dijera "enviada" minutos después de que la farmacia la rechazara.
+  const rechazo = await marcarRechazoNcpdp(payload, sourceIp);
+  if (rechazo.tipo !== 'no-es-error') {
+    return NextResponse.json({ ok: true, rechazo });
+  }
+
+  // 3. Mapear. El estado suele venir en el sobre, no en la receta.
   const outerStatus = asStr(pick(payload, 'messageType', 'status', 'messageStatus', 'event'));
   const mapped = mapRawRx(payload, outerStatus);
   if (!mapped) {

@@ -326,3 +326,135 @@ export async function persistPrescription(params: {
 
   return { id: saved.id, created: !existing };
 }
+
+// ─── Rechazo NCPDP de Surescripts ────────────────────────────────────────────
+
+/**
+ * El aviso de rechazo que manda Surescripts cuando la farmacia no acepta la
+ * receta. Forma real, capturada del primer aviso que llegó (2026-08-19 20:01):
+ *
+ * ```
+ * Message.Body.Error.Code            = "900"
+ * Message.Body.Error.Description     = "The receiver is unable to accept
+ *                                       messages sent using supported NCPDP schema"
+ * Message.Header.RelatesToMessageID  = "E164FE38..."   (el NewRx original)
+ * Message.Header.SentTime            = "2026-08-19T20:01:21.643Z"
+ * ```
+ *
+ * No trae paciente ni medicamento: es un error de sobre, no de receta. Por eso
+ * `mapRawRx` lo descartaba (no encuentra `drugName`) y el rechazo se perdía hasta
+ * la próxima sincronización — que es exactamente lo que vio el doctor: la
+ * pantalla decía "enviada" varios minutos después de que la farmacia la rechazara.
+ */
+export interface ErrorNcpdp {
+  code: string;
+  description: string;
+  /** MessageID del NewRx original, en la mensajería de ELLOS (no es `dawRxId`). */
+  relatesTo: string | null;
+  sentTime: string | null;
+}
+
+export function leerErrorNcpdp(payload: Record<string, unknown>): ErrorNcpdp | null {
+  const msg = (payload.Message ?? payload.message) as Record<string, unknown> | undefined;
+  if (!msg) return null;
+  const body = (msg.Body ?? msg.body) as Record<string, unknown> | undefined;
+  const err = (body?.Error ?? body?.error) as Record<string, unknown> | undefined;
+  if (!err) return null;
+
+  const code = asStr(pick(err, 'Code', 'code'));
+  const description = asStr(pick(err, 'Description', 'description'));
+  if (!code && !description) return null;
+
+  const header = (msg.Header ?? msg.header ?? {}) as Record<string, unknown>;
+  return {
+    code: code ?? '—',
+    description: description ?? 'Surescripts rechazó el envío sin detalle',
+    relatesTo: asStr(pick(header, 'RelatesToMessageID', 'relatesToMessageID')) ?? null,
+    sentTime: asStr(pick(header, 'SentTime', 'sentTime')) ?? null,
+  };
+}
+
+/** Ventana para atribuir el rechazo. El aviso llega segundos después del envío. */
+const VENTANA_RECHAZO_MS = 15 * 60 * 1000;
+
+export type ResultadoRechazo =
+  | { tipo: 'no-es-error' }
+  | { tipo: 'marcada'; prescriptionId: string; dawRxId: string | null; code: string }
+  | { tipo: 'ambigua'; candidatas: number; code: string }
+  | { tipo: 'sin-candidata'; code: string };
+
+/**
+ * Marca como rechazada la receta a la que corresponde el aviso.
+ *
+ * **La atribución es por TIEMPO y solo cuando no hay ambigüedad.** El aviso no
+ * dice a qué receta pertenece —su `RelatesToMessageID` es de la mensajería de
+ * ellos y nosotros nunca vemos ese id— así que se busca entre las recetas que
+ * todavía figuran como enviadas o pendientes de los últimos 15 minutos:
+ *
+ *  · exactamente UNA → se marca con error;
+ *  · varias → **no se adivina**: queda el rechazo en la auditoría y el estado
+ *    real lo corrige la sincronización, que sí sabe cuál falló. Marcar la
+ *    equivocada sería peor que esperar.
+ *
+ * Todo queda en el audit log con el código y el texto de Surescripts, atribuido
+ * o no: es la única traza que explica por qué una receta cambió de estado sola.
+ */
+export async function marcarRechazoNcpdp(
+  payload: Record<string, unknown>,
+  sourceIp: string,
+): Promise<ResultadoRechazo> {
+  const err = leerErrorNcpdp(payload);
+  if (!err) return { tipo: 'no-es-error' };
+
+  const desde = new Date(Date.now() - VENTANA_RECHAZO_MS);
+  const candidatas = await db.prescription.findMany({
+    where: { status: { in: ['SENT', 'PENDING_DAW'] }, createdAt: { gte: desde } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, dawRxId: true, drugName: true, createdAt: true },
+  });
+
+  const comun = {
+    actorType: 'SYSTEM' as const,
+    entityType: 'prescriptions',
+    ipAddress: sourceIp,
+  };
+
+  if (candidatas.length !== 1) {
+    await writeAuditLog(db, {
+      ...comun,
+      action: 'SCRIPTSURE_RX_REJECTED',
+      entityId: 'sin-atribuir',
+      metadata: {
+        code: err.code,
+        description: err.description,
+        relatesTo: err.relatesTo ?? '—',
+        candidatas: String(candidatas.length),
+        nota: candidatas.length === 0
+          ? 'ninguna receta reciente en estado enviada/pendiente'
+          : 'varias candidatas: no se adivina, lo corrige la sincronización',
+      },
+    }).catch(() => undefined);
+    return candidatas.length === 0
+      ? { tipo: 'sin-candidata', code: err.code }
+      : { tipo: 'ambigua', candidatas: candidatas.length, code: err.code };
+  }
+
+  const rx = candidatas[0]!;
+  await db.prescription.update({ where: { id: rx.id }, data: { status: 'ERROR' } });
+
+  await writeAuditLog(db, {
+    ...comun,
+    action: 'SCRIPTSURE_RX_REJECTED',
+    entityId: rx.id,
+    metadata: {
+      code: err.code,
+      description: err.description,
+      relatesTo: err.relatesTo ?? '—',
+      drugName: rx.drugName,
+      dawRxId: rx.dawRxId ?? '—',
+      atribucion: 'unica receta reciente en enviada/pendiente',
+    },
+  }).catch(() => undefined);
+
+  return { tipo: 'marcada', prescriptionId: rx.id, dawRxId: rx.dawRxId, code: err.code };
+}

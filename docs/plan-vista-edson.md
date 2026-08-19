@@ -251,3 +251,18 @@ panel se cierra al ir hacia él y copiar un email se vuelve una pelea, y en iPad
 no existe— con los encargados y sus emails copiables. En el modal, una sección
 para asignar de los que ya están en el bufete o crear uno nuevo al vuelo, que
 queda como miembro del bufete y aparece en sus demás casos.
+
+
+## PENDIENTE — las observaciones de Edson no llegan a Brunella
+
+Al pedir el campo de comentarios generales (2026-08-18), Edson escribió:
+
+> "I document here important information about my findings and **what billing
+> should be aware of**."
+
+O sea que estas notas también son para Brunella. **Hoy no las ve en ninguna
+parte**: viven solo en la vista de tracking. Edson las escribe dando por hecho
+que alguien más las lee, y ese alguien no tiene por dónde.
+
+Erick decidió no resolverlo ahora. Queda para cuando se toque la vista de
+Billing: mostrar `CaseTrackingNote` del caso también ahí.

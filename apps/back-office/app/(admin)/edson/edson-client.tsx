@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   Search as SearchIcon, Check, ChevronLeft, ChevronRight, Pencil,
-  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle,
+  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle, Trash2,
 } from 'lucide-react';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle,
          DialogDescription, DialogFooter, Label } from '@precision/ui';
@@ -874,6 +874,106 @@ function NoteCell({
   );
 }
 
+/**
+ * Una entrada de las observaciones, corregible en el sitio.
+ *
+ * Edson dijo que reescribe estas notas todo el tiempo. El `PATCH` y el `DELETE`
+ * existian en la API desde que se hizo la tabla, pero nunca se habian sacado a
+ * la interfaz: solo se podia agregar.
+ *
+ * Se mantiene el timeline con fecha y autor —corregir una entrada no la
+ * convierte en un campo que se sobrescribe— porque lo que el escribe es un
+ * registro de llamadas y en una sola celda cada llamada nueva borraba la
+ * anterior.
+ */
+function NoteEntry({
+  caseId, note, onChanged,
+}: {
+  caseId: string;
+  note: { id: string; body: string; authorName: string | null; createdAt: string };
+  /** `null` = la entrada se borró. */
+  onChanged: (body: string | null) => void;
+}) {
+  const t  = useTranslations('phoenix.edsonTracking');
+  const tc = useTranslations('phoenix.common');
+  const [editing, setEditing] = useState(false);
+  const [value, setValue]     = useState(note.body);
+  const [busy, setBusy]       = useState(false);
+
+  async function save() {
+    const body = value.trim();
+    if (!body || body === note.body) { setEditing(false); setValue(note.body); return; }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/tracking/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId: note.id, body }),
+      });
+      if (res.ok) { onChanged(body); setEditing(false); }
+    } finally { setBusy(false); }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/admin/cases/${caseId}/tracking/notes?noteId=${encodeURIComponent(note.id)}`,
+        { method: 'DELETE' },
+      );
+      if (res.ok) onChanged(null);
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="border-l-2 border-border-strong pl-3 group/note">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-text-muted font-mono">
+          {fmtDate(note.createdAt)} {fmtTime(note.createdAt)}{note.authorName ? ` · ${note.authorName}` : ''}
+        </span>
+        {!editing && (
+          <span className="flex items-center gap-0.5 opacity-0 group-hover/note:opacity-100 focus-within:opacity-100">
+            <button type="button" onClick={() => setEditing(true)} title={tc('edit')}
+                    className="p-0.5 rounded text-text-muted hover:text-text-1">
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button type="button" onClick={() => void remove()} disabled={busy} title={tc('delete')}
+                    className="p-0.5 rounded text-text-muted hover:text-rose">
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </span>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="mt-1">
+          <textarea
+            autoFocus
+            rows={3}
+            value={value}
+            disabled={busy}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setValue(note.body); } }}
+            className="w-full bg-bg-2 border border-border rounded-md px-2 py-1.5 text-[12.5px] text-text-1 focus:outline-none focus:border-brand resize-none"
+          />
+          <div className="flex items-center gap-2 mt-1">
+            <button type="button" onClick={() => void save()} disabled={busy}
+                    className="text-[11px] text-brand-text hover:underline disabled:opacity-50">
+              {tc('save')}
+            </button>
+            <button type="button" onClick={() => { setEditing(false); setValue(note.body); }}
+                    className="text-[11px] text-text-muted hover:text-text-1">
+              {tc('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-[12.5px] text-text-2 whitespace-pre-wrap">{note.body}</div>
+      )}
+    </div>
+  );
+}
+
 // ─── Modal de edición ────────────────────────────────────────────────────────
 
 function TrackingDialog({
@@ -1099,12 +1199,15 @@ function TrackingDialog({
           <div className="space-y-2.5">
             {notes.length === 0 && <p className="text-[12px] text-text-muted italic">{t('noNotes')}</p>}
             {notes.map(n => (
-              <div key={n.id} className="border-l-2 border-border-strong pl-3">
-                <div className="text-[11px] text-text-muted font-mono">
-                  {fmtDate(n.createdAt)} {fmtTime(n.createdAt)}{n.authorName ? ` · ${n.authorName}` : ''}
-                </div>
-                <div className="text-[12.5px] text-text-2 whitespace-pre-wrap">{n.body}</div>
-              </div>
+              <NoteEntry
+                key={n.id}
+                caseId={row.caseId}
+                note={n}
+                onChanged={(body) => setNotes(prev =>
+                  body === null
+                    ? prev.filter(x => x.id !== n.id)
+                    : prev.map(x => (x.id === n.id ? { ...x, body } : x)))}
+              />
             ))}
           </div>
           <div>

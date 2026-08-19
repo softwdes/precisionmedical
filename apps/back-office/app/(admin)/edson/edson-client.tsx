@@ -33,6 +33,7 @@ import {
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
 import { ManagersPopover, ManagersSection, type SectionHandle } from './case-managers';
+import { type AnchorRect } from './anchored-panel';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
@@ -181,6 +182,22 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   /** Caso cuyo popover de encargados esta abierto. */
   const [managersFor, setManagersFor] = useState<string | null>(null);
   const [adjustersFor, setAdjustersFor] = useState<string | null>(null);
+  /*
+   * Rectangulo del boton que abrio el panel. El panel se renderiza en un portal
+   * —fuera de la tabla, que lo recortaria— asi que necesita coordenadas de
+   * viewport para colocarse. Se captura en el clic y no con un ref por fila:
+   * solo hay un panel abierto a la vez.
+   */
+  const [anchorRect, setAnchorRect] = useState<AnchorRect | null>(null);
+
+  function openPanel(
+    set: (v: string | null) => void, caseId: string, current: string | null, el: HTMLElement,
+  ) {
+    if (current === caseId) { set(null); return; }
+    const r = el.getBoundingClientRect();
+    setAnchorRect({ top: r.top, bottom: r.bottom, left: r.left, right: r.right });
+    set(caseId);
+  }
   // Archivar saca la fila de la cola de trabajo: se confirma, como el resto de
   // las acciones que mueven algo de sitio en el sistema.
   const [confirmArchive, setConfirmArchive] = useState<Row | null>(null);
@@ -529,7 +546,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="relative">
                             <button
                               type="button"
-                              onClick={() => setManagersFor(managersFor === row.caseId ? null : row.caseId)}
+                              onClick={(e) => openPanel(setManagersFor, row.caseId, managersFor, e.currentTarget)}
                               title={t('managersOpen')}
                               className="text-left max-w-[170px] flex items-center gap-1.5 hover:text-text-1"
                             >
@@ -549,9 +566,10 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 <Users className="w-2.5 h-2.5" />{row.managerCount}
                               </span>
                             </button>
-                            {managersFor === row.caseId && (
+                            {managersFor === row.caseId && anchorRect && (
                               <ManagersPopover
                                 caseId={row.caseId}
+                                rect={anchorRect}
                                 attorneyName={row.attorneyName}
                                 firmName={row.firmName}
                                 attorneyEmail={row.attorneyEmail}
@@ -571,7 +589,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="relative">
                             <button
                               type="button"
-                              onClick={() => setAdjustersFor(adjustersFor === row.caseId ? null : row.caseId)}
+                              onClick={(e) => openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget)}
                               title={t('adjustersOpen')}
                               className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1"
                             >
@@ -598,9 +616,10 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 <Users className="w-2.5 h-2.5" />{row.adjusterCount}
                               </span>
                             </button>
-                            {adjustersFor === row.caseId && (
+                            {adjustersFor === row.caseId && anchorRect && (
                               <AdjustersPopover
                                 caseId={row.caseId}
+                                rect={anchorRect}
                                 onClose={() => setAdjustersFor(null)}
                                 onAdd={() => { setEditingFocus('adjusters'); setEditing(row); }}
                               />

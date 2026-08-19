@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { Copy, Check, Plus, X, Mail, Phone, UserRound, Loader2 } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
 import { localeApp } from '@/lib/fechas';
+import { AnchoredPanel, type AnchorRect } from './anchored-panel';
 
 export interface Manager {
   id: string;
@@ -154,9 +155,11 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, attorneyEmail, firmName, onClose, onAdd,
+  caseId, attorneyName, attorneyEmail, firmName, rect, onClose, onAdd,
 }: {
   caseId: string;
+  /** Rectangulo del boton que lo abrio — ver `AnchoredPanel`. */
+  rect: AnchorRect;
   attorneyName: string | null;
   attorneyEmail: string | null;
   firmName: string | null;
@@ -176,62 +179,50 @@ export function ManagersPopover({
   ].filter((e): e is string => !!e);
 
   return (
-    /*
-     * Modal y no panel flotante.
-     *
-     * Dentro de la tabla el panel quedaba RECORTADO: `DataTable.Card` tiene
-     * `overflow-hidden` y el contenedor de scroll tiene alto acotado, asi que
-     * cualquier cosa posicionada adentro se corta por esas cajas. Se veia "por
-     * debajo" de la tabla.
-     *
-     * Ademas es lo que ya hace el resto del sistema, asi que no hay un patron
-     * nuevo que aprender.
-     */
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{attorneyName ?? firmName ?? '—'}</DialogTitle>
-          {firmName && attorneyName && <DialogDescription>{firmName}</DialogDescription>}
-        </DialogHeader>
+    <AnchoredPanel rect={rect} width={280} onClose={onClose}>
+      <div>
+        <div className="text-text-1 text-[13px] font-semibold">{attorneyName ?? firmName ?? '—'}</div>
+        {firmName && attorneyName && <div className="text-text-muted text-[11px]">{firmName}</div>}
+      </div>
 
-        <div className="space-y-2 py-2 max-h-[60vh] overflow-y-auto scroll-thin">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
-            {t('groupManagers')}
-          </div>
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-amber pt-1">
+        {t('groupManagers')}
+      </div>
 
-          {loading && (
-            <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
-              <Loader2 className="w-3 h-3 animate-spin" /> …
-            </div>
-          )}
-          {!loading && current.length === 0 && (
-            <p className="text-text-muted text-[12px] italic">{t('managerNone')}</p>
-          )}
-          {current.map(m => <ManagerCard key={m.id} m={m} />)}
+      {loading && (
+        <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
+          <Loader2 className="w-3 h-3 animate-spin" /> …
         </div>
+      )}
+      {!loading && current.length === 0 && (
+        <p className="text-text-muted text-[12px] italic">{t('managerNone')}</p>
+      )}
+      {current.map(m => <ManagerCard key={m.id} m={m} />)}
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          {lienEmails.length > 0 && (
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                void navigator.clipboard.writeText(lienEmails.join('; '));
-                setCopiedAll(true);
-                setTimeout(() => setCopiedAll(false), 1400);
-              }}
-            >
-              {copiedAll
-                ? <><Check className="w-3.5 h-3.5 mr-1 text-emerald" /> {t('copied')}</>
-                : <><Copy className="w-3.5 h-3.5 mr-1" /> {t('copyLienEmails', { count: lienEmails.length })}</>}
-            </Button>
-          )}
-          <Button className="w-full sm:w-auto" onClick={() => { onClose(); onAdd(); }}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> {t('managerAdd')}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {lienEmails.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(lienEmails.join('; '));
+            setCopiedAll(true);
+            setTimeout(() => setCopiedAll(false), 1400);
+          }}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md bg-bg-2 px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1"
+        >
+          {copiedAll
+            ? <><Check className="w-3 h-3 text-emerald" /> {t('copied')}</>
+            : <><Copy className="w-3 h-3" /> {t('copyLienEmails', { count: lienEmails.length })}</>}
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={() => { onClose(); onAdd(); }}
+        className="w-full flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1 hover:border-brand"
+      >
+        <Plus className="w-3 h-3" /> {t('managerAdd')}
+      </button>
+    </AnchoredPanel>
   );
 }
 

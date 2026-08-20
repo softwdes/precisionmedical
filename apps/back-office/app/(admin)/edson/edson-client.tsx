@@ -327,7 +327,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
    * alineando con el resto de las pantallas.
    */
   return (
-    <div className="space-y-2 -mt-3 sm:-mt-5 lg:-mt-7 -mx-2 sm:-mx-4 lg:-mx-6 -mb-3 sm:-mb-5 lg:-mb-7">
+    <div className="space-y-2 -mt-3 sm:-mt-5 lg:-mt-7 -mx-3 sm:-mx-5 lg:-mx-7 -mb-3 sm:-mb-5 lg:-mb-7">
       {/*
         * Encabezado propio y no `PageHeader`, y todo en UNA fila: titulo, tabs y
         * leyenda. El primitivo usa `text-2xl` con subtitulo —bien en un catalogo,
@@ -434,7 +434,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * y la jerarquia de la fila se aplana. Es reversible en estos valores
           * si al usarlo cuesta distinguirlos.
           */}
-        <DataTable.Table gridLines className="text-[12px] [&_td]:!py-1.5 [&_th]:!py-1 [&_th]:!leading-tight [&_th]:!text-[9px]">
+        <DataTable.Table gridLines className="text-[11px] [&_td]:!py-1.5 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
@@ -477,7 +477,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               {groups.map(group => (
                 <Fragment key={group.key}>
                   <DataTable.GroupRow colSpan={archived ? 14 : 13}>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-[9.5px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
                         — {t('apptCount', { count: group.rows.length })}
@@ -519,7 +519,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </div>
-                              <div className="text-text-muted text-[10px] truncate font-mono">
+                              <div className="text-text-muted text-[9.5px] truncate font-mono">
                                 {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </div>
                             </div>
@@ -529,7 +529,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[10px] text-text-muted mt-0.5">
+                              <span className="flex items-center gap-1 text-[9.5px] text-text-muted mt-0.5">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}
@@ -550,7 +550,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="min-w-0">
                             <Txt v={row.appointment.providerName} />
                             {row.appointment.createdBy && (
-                              <div className="text-[10px] text-text-muted truncate" title={t('colCreatedBy')}>
+                              <div className="text-[9.5px] text-text-muted truncate" title={t('colCreatedBy')}>
                                 {t('createdByShort', { name: row.appointment.createdBy })}
                               </div>
                             )}
@@ -573,7 +573,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 * clic — Edson reporto estos pedidos como "no
                                 * implementados" justo por eso.
                                 */}
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.managerCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -596,7 +596,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         <DataTable.Td><Txt v={row.chiropractor} /></DataTable.Td>
                         <DataTable.Td><Txt v={row.carrierName} /></DataTable.Td>
-                        <DataTable.Td>{row.claimNum ? <span className="font-mono text-xs text-text-2">{row.claimNum}</span> : <Empty />}</DataTable.Td>
+                        <DataTable.Td>{row.claimNum ? <span className="font-mono text-text-2">{row.claimNum}</span> : <Empty />}</DataTable.Td>
                         <DataTable.Td align="center">
                           <PipChip row={row} readOnly={archived} onCycle={() => void cyclePip(row)} />
                         </DataTable.Td>
@@ -618,12 +618,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               <span className="min-w-0">
                                 <Txt v={row.adjusterName} />
                                 {row.adjusterPhone && (
-                                  <span className="block text-[10px] text-text-muted font-mono truncate">
+                                  <span className="block text-[9.5px] text-text-muted font-mono truncate">
                                     {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
                                   </span>
                                 )}
                               </span>
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.adjusterCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -677,7 +677,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         {archived && (
                           <DataTable.Td>
-                            <span className="text-text-muted text-xs whitespace-nowrap">
+                            <span className="text-text-muted text-[9.5px] whitespace-nowrap">
                               {row.archivedAt ? fmtDate(row.archivedAt) : <Empty />}
                             </span>
                           </DataTable.Td>
@@ -722,7 +722,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               */}
                             <div className="sticky left-4 w-fit flex items-start gap-2">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
-                              <span className="text-[11.5px] text-text-1 font-medium whitespace-pre-wrap">
+                              <span className="text-[11px] text-text-1 font-medium whitespace-pre-wrap">
                                 {row.insComments}
                               </span>
                             </div>

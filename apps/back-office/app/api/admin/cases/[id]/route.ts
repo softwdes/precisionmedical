@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
       coverageVerifiedAt: true,
       coverageVerifiedByName: true,
       coverageCarrierName: true,
+      coverageNote: true,
       consentSignaturePng: true,
       portalToken: true,
       createdAt: true,
@@ -161,14 +162,23 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
       const { label, prevPerson } = fieldMeta[field];
       const newId = parsed.data[field] as string | null;
 
-      // Resolve new person name from DB if assigned
+      // El nombre nuevo sale de `lawyers`, NO de `employees`.
+      //
+      // Buscarlo en `employees` no encontraba NUNCA a nadie —las tres columnas
+      // (`attorneyId`, `paralegalId`, `legalAssistantId`) son FK a `lawyers`—,
+      // así que `newName` quedaba siempre null. Y como la acción se deduce de si
+      // hay nombre nuevo, ASIGNAR a alguien quedaba registrado como "Removido"
+      // y el historial no podía mostrar a quién se asignó. Las 6 filas que hay
+      // en la base salieron todas con `newValue: null`.
       let newName: string | null = null;
       if (newId) {
-        const emp = await db.employee.findUnique({
+        const lawyer = await db.lawyer.findUnique({
           where: { id: newId },
-          select: { firstName: true, lastName: true },
+          select: { firstName: true, lastName: true, firmName: true },
         });
-        if (emp) newName = `${emp.firstName} ${emp.lastName}`.trim();
+        if (lawyer) {
+          newName = `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || lawyer.firmName;
+        }
       }
 
       const prevName = prevPerson ? `${prevPerson.firstName} ${prevPerson.lastName}`.trim() : null;
@@ -188,7 +198,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
           changeTypeRaw: field.replace('Id', '').toUpperCase(),
           action,
           actionRaw:     action === 'Asignado' ? 'ASSIGNED' : action === 'Removido' ? 'REMOVED' : 'UPDATED',
-          changedByEmail: actor.actorUserId ?? null,
+          // El EMAIL de quien hizo el cambio, no su id: la columna "Usuario" del
+          // historial mostraba un cuid (`cqhr4cvbc2vx1xtyzofuqw`) porque acá iba
+          // `actorUserId`. `resolveActor` ya trae el email de la sesión.
+          changedByEmail: actor.email ?? null,
+          changedByName:  actor.actorName ?? null,
           previousValue: prevName,
           newValue:      newName,
           caseCode:      prevCase.caseCode,

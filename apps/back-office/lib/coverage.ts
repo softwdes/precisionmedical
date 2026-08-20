@@ -40,6 +40,7 @@ export const COVERAGE_LIST_SELECT = {
   coverageVerifiedAt: true,
   coverageVerifiedByName: true,
   coverageCarrierName: true,
+  coverageNote: true,
   primaryInsurance: { select: { name: true } },
 } as const;
 
@@ -57,6 +58,7 @@ export interface CoverageInput {
   coverageVerifiedAt?: Date | null;
   coverageVerifiedByName?: string | null;
   coverageCarrierName?: string | null;
+  coverageNote?: string | null;
   primaryInsurance?: { name: string } | null;
   /** Solo en vistas de detalle — habilita la sugerencia desde el intake. */
   consentsData?: Prisma.JsonValue | null;
@@ -78,6 +80,12 @@ export interface CoverageState {
   verifiedByName: string | null;
   /** Normalizado > texto libre > lo que haya en el intake. */
   carrierName: string | null;
+  /**
+   * Nota libre que dejó quien respondió: "no trajo la tarjeta", "el hijo paga".
+   * Viaja hasta el chip a propósito — una nota que hay que abrir un diálogo para
+   * leer no la lee nadie, y el doctor la necesita con el paciente delante.
+   */
+  note: string | null;
   /**
    * Qué responder si nadie respondió. Se usa para PRE-SELECCIONAR la opción del
    * diálogo, nunca para dar la pregunta por contestada.
@@ -125,6 +133,7 @@ export function resolveCoverage(input: CoverageInput): CoverageState {
       verifiedAt: input.coverageVerifiedAt ?? null,
       verifiedByName: input.coverageVerifiedByName?.trim() || null,
       carrierName,
+      note: input.coverageNote?.trim() || null,
       suggestion: null,
       suggestionSource: null,
     };
@@ -153,6 +162,7 @@ export function resolveCoverage(input: CoverageInput): CoverageState {
     verifiedAt: null,
     verifiedByName: null,
     carrierName,
+    note: input.coverageNote?.trim() || null,
     suggestion,
     suggestionSource: source,
   };
@@ -177,6 +187,7 @@ export interface CoverageDTO {
   verifiedAt: string | null;
   verifiedByName: string | null;
   carrierName: string | null;
+  note: string | null;
   suggestion: CoverageType | null;
   suggestionSource: CoverageState['suggestionSource'];
 }

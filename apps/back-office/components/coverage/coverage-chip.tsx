@@ -15,6 +15,7 @@
  */
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button } from '@precision/ui';
@@ -84,20 +85,23 @@ export function CoverageChip({
     </span>
   );
 
-  if (!clickable) return chip;
+  // Solo lectura (la cola de Mi Día) también muestra la nota: es donde el doctor
+  // repasa el día de un pantallazo.
+  if (!clickable) return <NoteHover note={state.note}>{chip}</NoteHover>;
 
   return (
     <>
       {/* `stopPropagation` porque el chip vive dentro de filas y heroes que son
           links a la consulta — tocarlo debe abrir el diálogo, no navegar. */}
-      <button
-        type="button"
-        aria-label={t('changeAria')}
-        title={t('changeAria')}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
-      >
-        {chip}
-      </button>
+      <NoteHover note={state.note}>
+        <button
+          type="button"
+          aria-label={t('changeAria')}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
+        >
+          {chip}
+        </button>
+      </NoteHover>
       {open && (
         <CoverageDialog
           caseId={caseId}
@@ -107,6 +111,56 @@ export function CoverageChip({
         />
       )}
     </>
+  );
+}
+
+// ─── Nota al pasar el mouse ─────────────────────────────────────────────────
+
+/**
+ * Muestra la nota de la cobertura al pasar el mouse por el chip.
+ *
+ * Va en el chip y no solo dentro del diálogo porque una nota que hay que abrir
+ * un diálogo para leer no la lee nadie: "no trajo la tarjeta" tiene que estar
+ * donde el doctor ya mira, con el paciente delante.
+ *
+ * Por `createPortal` y no un `absolute`: el chip vive en filas con `overflow`
+ * y también dentro de Dialogs, y el `transform` del DialogContent encierra
+ * cualquier `fixed` que quede adentro (ver css-fixed-inside-dialog-trap). El
+ * panel se ancla a coordenadas de viewport colgado del body.
+ *
+ * Sin nota no envuelve nada: cero handlers en las 20 filas de Mi Día.
+ */
+function NoteHover({ note, children }: { note: string | null; children: React.ReactNode }): React.ReactElement {
+  const t = useTranslations('phoenix.coverage');
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
+  const ref = React.useRef<HTMLSpanElement>(null);
+
+  if (!note) return <>{children}</>;
+
+  return (
+    <span
+      ref={ref}
+      className="inline-flex"
+      onMouseEnter={() => {
+        const r = ref.current?.getBoundingClientRect();
+        if (r) setPos({ top: r.top - 8, left: r.left });
+      }}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && createPortal(
+        <div
+          className="fixed z-[9999] w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/40 p-2.5 pointer-events-none -translate-y-full"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
+            {t('noteHeading')}
+          </p>
+          <p className="text-[11px] text-text leading-snug whitespace-pre-wrap">{note}</p>
+        </div>,
+        document.body,
+      )}
+    </span>
   );
 }
 
@@ -149,7 +203,7 @@ function CoverageDialog({ caseId, coverage, onClose, onSaved }: {
   );
   const [carrier, setCarrier] = React.useState(coverage.carrierName ?? '');
   const [verified, setVerified] = React.useState(coverage.verifyMethod === 'VERIFIED');
-  const [note, setNote] = React.useState('');
+  const [note, setNote] = React.useState(coverage.note ?? '');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
 

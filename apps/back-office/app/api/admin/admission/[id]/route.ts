@@ -51,6 +51,7 @@ export async function GET(
             coverageVerifiedAt:     true,
             coverageVerifiedByName: true,
             coverageCarrierName:    true,
+            coverageNote:           true,
             lawFirm: {
               select: { id: true, firmName: true, phone: true, email: true },
             },

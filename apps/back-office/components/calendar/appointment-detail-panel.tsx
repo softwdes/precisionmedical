@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { edad } from '@/lib/fechas';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
@@ -136,7 +137,7 @@ interface Props {
 /** Cobertura sin responder — default cuando el caller no la pasa. */
 const COVERAGE_UNSET: CoverageDTO = {
   type: 'UNKNOWN', answered: false, verifyMethod: null, verifiedAt: null,
-  verifiedByName: null, carrierName: null, suggestion: null, suggestionSource: null,
+  verifiedByName: null, carrierName: null, note: null, suggestion: null, suggestionSource: null,
 };
 
 type Tab = 'detail' | 'services';
@@ -163,13 +164,6 @@ function formatDateTime(iso: string, locale = 'en-US') {
     dateInput: `${year}-${mon}-${day}`,
     timeInput: `${hr === '24' ? '00' : hr}:${min}`,
   };
-}
-
-function ageFromISO(iso: string | null): string {
-  if (!iso) return '?';
-  const dob  = new Date(iso);
-  const diff = Date.now() - dob.getTime();
-  return String(Math.floor(diff / (365.25 * 24 * 3600 * 1000)));
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -845,7 +839,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       {appt.patient.firstName} {appt.patient.lastName}
                       {appt.case && <span className="ml-2 text-rose font-mono text-[11px]">#{appt.case.caseCode}</span>}
                     </div>
-                    <div className="text-text-muted text-xs mt-0.5">{t('ageSuffix', { age: ageFromISO(appt.patient.dateOfBirth) })}</div>
+                    <div className="text-text-muted text-xs mt-0.5">{t('ageSuffix', { age: edad(appt.patient.dateOfBirth) ?? '?' })}</div>
                   </div>
                   {isFirst ? (
                     <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"

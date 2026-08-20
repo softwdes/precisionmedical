@@ -51,6 +51,7 @@ const APPT_INCLUDE = {
       coverageVerifiedAt: true,
       coverageVerifiedByName: true,
       coverageCarrierName: true,
+      coverageNote: true,
       // En el modelo Case la relación al attorney es "attorney" (no lawyerReferrer)
       attorney: {
         select: {

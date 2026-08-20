@@ -91,7 +91,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       coverageVerifiedById: answered ? (dbUser?.id ?? null) : null,
       coverageVerifiedByName: answered ? actorName : null,
       coverageCarrierName: isInsurance ? (body.carrierName?.trim() || null) : null,
-      coverageNote: body.note?.trim() || null,
+      // La nota acompaña a la respuesta: al volver a UNKNOWN se va con ella. El
+      // diálogo la manda de vuelta siempre (arranca con la guardada), así que un
+      // guardado que solo cambia el carrier no la pisa.
+      coverageNote: answered ? (body.note?.trim() || null) : null,
     },
     select: {
       coverageType: true,
@@ -117,11 +120,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       coverageType: before.coverageType,
       coverageVerifyMethod: before.coverageVerifyMethod,
       coverageCarrierName: before.coverageCarrierName,
+      coverageNote: before.coverageNote,
     },
     after: {
       coverageType: updated.coverageType,
       coverageVerifyMethod: updated.coverageVerifyMethod,
       coverageCarrierName: updated.coverageCarrierName,
+      coverageNote: updated.coverageNote,
     },
     metadata: { caseCode: before.caseCode },
   });
@@ -134,6 +139,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       verifyMethod: updated.coverageVerifyMethod,
       verifiedAt: updated.coverageVerifiedAt?.toISOString() ?? null,
       carrierName: updated.coverageCarrierName,
+      note: updated.coverageNote,
       verifiedByName: updated.coverageVerifiedByName,
       suggestion: null,
       suggestionSource: null,

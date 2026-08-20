@@ -423,12 +423,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           */}
         <DataTable.Scroll maxHeight="calc(100vh - 205px)">
           {/*
-          * `text-[13px]` en vez del `text-sm` (14px) del primitivo: Edson pidio
+          * `text-[12px]` en vez del `text-sm` (14px) del primitivo: Edson pidio
           * bajar un punto SOLO el texto grande. Los datos secundarios —fecha de
           * nacimiento, telefono, clinica— ya tienen su propio tamaño y no se
           * tocan, si no quedarian ilegibles.
           */}
-        <DataTable.Table gridLines className="text-[13px] [&_td]:!py-1.5 [&_th]:!py-1 [&_th]:!leading-tight">
+        <DataTable.Table gridLines className="text-[12px] [&_td]:!py-1.5 [&_th]:!py-1 [&_th]:!leading-tight [&_th]:!text-[9px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
@@ -471,7 +471,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               {groups.map(group => (
                 <Fragment key={group.key}>
                   <DataTable.GroupRow colSpan={archived ? 14 : 13}>
-                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
                         — {t('apptCount', { count: group.rows.length })}
@@ -513,7 +513,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </div>
-                              <div className="text-text-muted text-[11px] truncate font-mono">
+                              <div className="text-text-muted text-[10px] truncate font-mono">
                                 {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </div>
                             </div>
@@ -523,7 +523,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[11px] text-text-muted mt-0.5">
+                              <span className="flex items-center gap-1 text-[10px] text-text-muted mt-0.5">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}
@@ -544,7 +544,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="min-w-0">
                             <Txt v={row.appointment.providerName} />
                             {row.appointment.createdBy && (
-                              <div className="text-[10.5px] text-text-muted truncate" title={t('colCreatedBy')}>
+                              <div className="text-[10px] text-text-muted truncate" title={t('colCreatedBy')}>
                                 {t('createdByShort', { name: row.appointment.createdBy })}
                               </div>
                             )}
@@ -612,7 +612,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               <span className="min-w-0">
                                 <Txt v={row.adjusterName} />
                                 {row.adjusterPhone && (
-                                  <span className="block text-[10.5px] text-text-muted font-mono truncate">
+                                  <span className="block text-[10px] text-text-muted font-mono truncate">
                                     {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
                                   </span>
                                 )}
@@ -716,7 +716,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               */}
                             <div className="sticky left-4 w-fit flex items-start gap-2">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
-                              <span className="text-[12.5px] text-text-1 font-medium whitespace-pre-wrap">
+                              <span className="text-[11.5px] text-text-1 font-medium whitespace-pre-wrap">
                                 {row.insComments}
                               </span>
                             </div>

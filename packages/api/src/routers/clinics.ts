@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure, superAdminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { insertAuditLog } from '../audit-log';
 
 export const clinicsRouter = router({
   // Read available to any admin role (read-only for ADMIN, edit for SUPER_ADMIN)
@@ -82,7 +83,7 @@ export const clinicsRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'clinic.created',
@@ -122,7 +123,7 @@ export const clinicsRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'clinic.updated',

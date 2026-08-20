@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { insertAuditLog } from '../audit-log';
 
 const createPaymentSchema = z.object({
   employeeId: z.string(),
@@ -452,7 +453,7 @@ export const paymentsRouter = router({
         .update({ status: 'REVERSED', updatedAt: new Date().toISOString() })
         .eq('id', input.id);
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'payment.reversed',

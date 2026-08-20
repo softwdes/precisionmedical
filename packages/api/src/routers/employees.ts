@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { insertAuditLog } from '../audit-log';
 
 const SPECIALTY_VALUES = ['RADIOLOGY', 'NEUROLOGY', 'ORTHOPEDICS', 'PHYSICAL_THERAPY', 'CHIROPRACTIC', 'PAIN_MANAGEMENT', 'PSYCHOLOGY', 'GENERAL', 'OTHER'] as const;
 
@@ -150,7 +151,7 @@ export const employeesRouter = router({
       }
       // ─────────────────────────────────────────────────────────────────────────
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'employee.created',
@@ -234,7 +235,7 @@ export const employeesRouter = router({
       }
       // ─────────────────────────────────────────────────────────────────────────
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'employee.updated',
@@ -260,7 +261,7 @@ export const employeesRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'employee.deactivated',

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/server';
@@ -71,7 +72,11 @@ export async function PATCH(
   // Cambiar un rol reparte o quita accesos: tiene que dejar rastro igual que el
   // diálogo de edición (`users.update` en tRPC), que ya escribía su log. El
   // fallo al registrar no revierte el cambio —ya está hecho— pero se anota.
+  // El `id` va a mano: `@default(cuid())` lo genera Prisma en el cliente y el
+  // schema se aplicó con `db push`, así que en la DB la columna es `text NOT
+  // NULL` sin default. Omitirlo hacía fallar el insert siempre.
   const { error: logError } = await admin.from('audit_logs').insert({
+    id: randomUUID(),
     actorUserId: caller?.id ?? null,
     actorRole: caller?.role ?? null,
     action: 'user.role_changed',

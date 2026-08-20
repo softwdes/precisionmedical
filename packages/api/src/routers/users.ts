@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, superAdminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { insertAuditLog } from '../audit-log';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../email';
 
 /**
@@ -252,7 +253,7 @@ export const usersRouter = router({
         }
       }
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.created',
@@ -292,7 +293,7 @@ export const usersRouter = router({
       // nada. `users.id` es el UUID de Supabase Auth (lo fija `create`).
       if (updateData.status) await sincronizarAccesoAuth(id, updateData.status);
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.updated',
@@ -339,7 +340,7 @@ export const usersRouter = router({
         .eq('id', input.employeeId);
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.employee_linked',
@@ -372,7 +373,7 @@ export const usersRouter = router({
         .eq('id', emp.id);
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.employee_unlinked',
@@ -420,7 +421,7 @@ export const usersRouter = router({
 
       await supabaseAdmin.auth.admin.deleteUser(input.id);
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.deleted',
@@ -518,7 +519,7 @@ export const usersRouter = router({
 
       await sincronizarAccesoAuth(input.id, 'SUSPENDED');
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.suspended',

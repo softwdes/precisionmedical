@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure, payrollProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { insertAuditLog } from '../audit-log';
 
 const createFreelancerSchema = z.object({
   nombre:     z.string().min(2).max(150),
@@ -114,7 +115,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.created',
@@ -144,7 +145,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.updated',
@@ -168,7 +169,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.deactivated',
@@ -440,7 +441,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      input.status === 'PENDING' ? 'freelancer.payment.scheduled' : 'freelancer.payment.created',
@@ -555,7 +556,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.payment.marked_paid',
@@ -588,7 +589,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.payment.cancelled',
@@ -650,7 +651,7 @@ export const freelancersRouter = router({
 
       if (updErr) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: updErr.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.payment.reversed',
@@ -692,7 +693,7 @@ export const freelancersRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      await supabaseAdmin.from('audit_logs').insert({
+      await insertAuditLog({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
         action:      'freelancer.payment.updated',

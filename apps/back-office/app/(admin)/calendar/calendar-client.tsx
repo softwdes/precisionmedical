@@ -311,9 +311,10 @@ function apptTimeShort(iso: string): string {
  * variable, asi que en claro quedaba fondo rosa palido sobre blanco Y texto rosa
  * palido encima: dos tonos del mismo color, ilegible. Lo reporto el staff.
  *
- * Con el token, el contraste lo resuelve el tema en los dos modos. La identidad
- * de color vive en el FONDO y el BORDE, que es lo que explica la leyenda del pie
- * — igual que Google Calendar y Outlook.
+ * Ahora el tono vive en una variable por tema (`--cal-text-*` en globals.css):
+ * en OSCURO cada tarjeta conserva el tono de su color, que es la identidad visual
+ * del calendario y se lee bien; en CLARO todas caen a texto oscuro, porque el
+ * fondo ya es un tinte de ese color sobre blanco.
  */
 function getEventStyle(appt: CalendarAppointment): {
   bg: string; border: string; text: string; glow?: string; badge?: string; strike?: boolean;
@@ -339,7 +340,7 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(244,63,94,0.08)',
       border: 'rgba(244,63,94,0.35)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-cancelled)',
       strike: true,
     };
   }
@@ -347,7 +348,7 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(100,116,139,0.12)',
       border: 'rgba(100,116,139,0.35)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-noshow)',
       strike: true,
     };
   }
@@ -356,14 +357,14 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(99,102,241,0.18)',
       border: 'rgba(99,102,241,0.35)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-attended)',
     };
   }
   if (isPending) {
     return {
       bg: 'rgba(245,158,11,0.15)',
       border: 'rgba(245,158,11,0.40)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-pending)',
     };
   }
 
@@ -374,28 +375,28 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'linear-gradient(135deg,rgba(244,63,94,0.28),rgba(236,72,153,0.18))',
       border: 'rgba(236,72,153,0.55)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-mva-first)',
       glow: '0 0 10px rgba(244,63,94,0.35)',
       badge: '🆕',
     };
   }
   if (isMVA) {
-    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: 'var(--text-1)' };
+    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: 'var(--cal-text-mva)' };
   }
   if (isGM && isFirst) {
     return {
       bg: 'linear-gradient(135deg,rgba(16,185,129,0.28),rgba(20,184,166,0.18))',
       border: 'rgba(16,185,129,0.55)',
-      text: 'var(--text-1)',
+      text: 'var(--cal-text-gp)',
       glow: '0 0 10px rgba(16,185,129,0.30)',
       badge: '🆕',
     };
   }
   if (isGM) {
-    return { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.40)', text: 'var(--text-1)' };
+    return { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.40)', text: 'var(--cal-text-gp)' };
   }
   // Other
-  return { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)', text: 'var(--text-1)' };
+  return { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)', text: 'var(--cal-text-other)' };
 }
 
 // ─── FilterChip ───────────────────────────────────────────────────────────────

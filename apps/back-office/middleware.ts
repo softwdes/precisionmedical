@@ -165,11 +165,22 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Portal médico (/doctor) — scoping por rol y por host ───────────────────
-  // /doctor-print/* son documentos imprimibles del portal (sin shell) — mismo scoping
+  //
+  // `/doctor-print/*` (nota clínica y orden de laboratorio imprimibles) NO es
+  // área del portal, aunque el nombre lo sugiera: se abre también desde el
+  // detalle del caso, que es una pantalla administrativa. Exigirle la capacidad
+  // "ver como doctor" mandaba al dashboard —en una pestaña nueva— a cualquiera
+  // del staff que no la tuviera, después de haberle mostrado el botón.
+  //
+  // Imprime cualquiera que ya tenga acceso a la clínica (decisión de Erick
+  // 2026-08-20): si la pantalla te deja LEER la nota, dejarte imprimirla no
+  // agrega alcance. Quien no debe ver la de otro es el doctor común, y eso lo
+  // resuelve la página con `canViewAsDoctor` — no el ruteo.
+  const isDoctorPrint = pathname.startsWith('/doctor-print/');
   const isDoctorArea =
     pathname === '/doctor' ||
     pathname.startsWith('/doctor/') ||
-    pathname.startsWith('/doctor-print/');
+    isDoctorPrint;
   // providers.lienmaster.net (prod) / providers.localhost (dev) → solo mundo doctor
   const isProvidersHost = /^providers?\./.test(request.headers.get('host') ?? '');
   const isApi       = pathname.startsWith('/api/');
@@ -283,8 +294,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response;
   }
 
-  // Staff sin la capacidad no navega el portal médico
-  if (isDoctorArea && !canViewAsDoctor) {
+  // Staff sin la capacidad no navega el portal médico — pero sí imprime.
+  if (isDoctorArea && !isDoctorPrint && !canViewAsDoctor) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

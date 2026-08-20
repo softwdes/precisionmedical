@@ -11,9 +11,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { fechaCalendario, edad } from '@/lib/fechas';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
-import { getSessionProvider } from '@/lib/get-session-provider';
+import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
+import { getSessionUser } from '@/lib/session';
 
 type Props = { params: Promise<{ groupId: string }> };
 
@@ -25,9 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     where: { groupId },
     select: { appointment: { select: { patient: { select: { firstName: true, lastName: true } } } } },
   });
-  if (!first) return { title: 'Orden de laboratorio' };
+  const t = await getTranslations('phoenix.pageTitles');
+  // `absolute` en las dos salidas: el título es el nombre del PDF (ver el
+  // template en app/layout.tsx), no una pestaña del navegador.
+  if (!first) return { title: { absolute: t('labOrder') } };
   const p = first.appointment.patient;
-  return { title: `Orden — ${dec(p.lastName) ?? ''}, ${dec(p.firstName) ?? ''}` };
+  return { title: { absolute: `${t('labOrder')} — ${dec(p.lastName) ?? ''}, ${dec(p.firstName) ?? ''}` } };
 }
 
 function fmtDate(d: Date | null | undefined, locale: string): string {
@@ -45,9 +50,15 @@ function fmtDateTime(d: Date | null | undefined, locale: string): string {
   });
 }
 
-function age(dob: Date | null): number | null {
-  if (!dob) return null;
-  return Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000));
+/**
+ * Nacimiento y fecha del accidente son fechas de CALENDARIO: van sin zona, a
+ * diferencia de `fmtDate`, que fija America/Denver porque formatea instantes
+ * (la hora de la cita). Con la zona puesta, un nacimiento guardado a medianoche
+ * UTC se imprimía con el día anterior — y esto sale impreso de la clínica.
+ * Ver lib/fechas.ts.
+ */
+function fmtCalendar(d: Date | string | null | undefined, locale: string): string {
+  return fechaCalendario(d, locale === 'en' ? 'en-US' : 'es-US');
 }
 
 export default async function LabOrderPrintPage({ params }: Props): Promise<React.ReactElement> {
@@ -56,13 +67,27 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
   const tSpec = await getTranslations('providers.specialties');
   const locale = await getLocale();
 
-  const provider = await getSessionProvider();
+  // Quién puede imprimir la nota de OTRO doctor: el staff sí (soporte, admin, el
+  // detalle del caso), el doctor común no. `canViewAsDoctor` es la misma señal
+  // que usa el middleware, así que ruteo y página dejan de contradecirse — antes
+  // el middleware te dejaba entrar y la página te devolvía 404.
+  //
+  // El perfil se lee con `getOwnSessionProvider`: el propio, sin la cookie de
+  // "ver como otro". Esa cookie vale solo dentro de /doctor — si acá se colara,
+  // un admin que revisó el portal del Dr. X no podría imprimir nada de nadie más.
+  const user = await getSessionUser();
+  const esStaff = user?.email ? await canViewAsDoctor(user.email) : false;
+  const propio = esStaff ? null : await getOwnSessionProvider();
+  // Ni staff ni ficha de doctor: no hay nada que pueda imprimir. Sin esto el
+  // `propio` en null abriría la consulta a cualquier cita — el caso vacío no
+  // puede caer del lado permisivo.
+  if (!esStaff && !propio) notFound();
 
   const rows = await db.labOrder.findMany({
     where: {
       groupId,
       status: { not: 'VOIDED' },
-      ...(provider ? { appointment: { providerId: provider.id } } : {}),
+      ...(propio ? { appointment: { providerId: propio.id } } : {}),
     },
     orderBy: [{ orderType: 'asc' }, { studyName: 'asc' }],
     select: {
@@ -96,7 +121,7 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
   const a = head.appointment;
   const patient = a.patient;
   const clinic = a.clinic;
-  const pa = age(patient.dateOfBirth);
+  const pa = edad(patient.dateOfBirth);
 
   const addr = clinic.address?.trim() ?? '';
   const zip = clinic.zipCode ?? '';
@@ -212,7 +237,7 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
                 <div className="irow">
                   <span className="il">{t('prDob')}</span>
                   <span className="iv">
-                    {fmtDate(patient.dateOfBirth, locale)}{pa != null ? ` (${pa} ${t('yearsShort')})` : ''}
+                    {fmtCalendar(patient.dateOfBirth, locale)}{pa != null ? ` (${pa} ${t('yearsShort')})` : ''}
                   </span>
                 </div>
               )}
@@ -239,7 +264,7 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
                 <div className="irow"><span className="il">{t('prCaseCode')}</span><span className="iv mono">{a.case.caseCode}</span></div>
               )}
               {a.case?.accidentDate && (
-                <div className="irow"><span className="il">{t('prAccident')}</span><span className="iv">{fmtDate(a.case.accidentDate, locale)}</span></div>
+                <div className="irow"><span className="il">{t('prAccident')}</span><span className="iv">{fmtCalendar(a.case.accidentDate, locale)}</span></div>
               )}
               {a.case?.primaryInsurance && (
                 <div className="irow"><span className="il">{t('prInsurance')}</span><span className="iv">{a.case.primaryInsurance.name}</span></div>

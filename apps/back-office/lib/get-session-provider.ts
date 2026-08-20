@@ -112,6 +112,26 @@ export const getSessionProvider = cache(async (): Promise<SessionProvider | null
   return null;
 });
 
+/**
+ * Perfil propio del usuario, IGNORANDO la cookie de "ver como otro".
+ *
+ * Existe porque `pm_doctor_view` es pegajosa: se pone una vez en el selector del
+ * portal y sigue viva en todas las pantallas. Fuera del portal eso no es "ver
+ * como", es contaminación — un admin que alguna vez revisó el portal del Dr. X
+ * quedaba, en el DETALLE DEL CASO, atado a las citas del Dr. X. El botón de
+ * imprimir la nota le tiraba 404 (pestaña nueva con error) para toda nota de
+ * otro doctor, y el de imprimir la orden de laboratorio le dejaba el iframe en
+ * blanco, sin decir nada.
+ *
+ * Regla: la suplantación vale SOLO dentro de `/doctor/*`. Todo lo que se abra
+ * desde una pantalla administrativa usa esta función, no `getSessionProvider`.
+ */
+export const getOwnSessionProvider = cache(async (): Promise<SessionProvider | null> => {
+  const user = await getSessionUser();
+  if (!user?.email) return null;
+  return getOwnProvider(user.email);
+});
+
 export interface DoctorViewInfo {
   /** true cuando lo que se está viendo es el portal de OTRO doctor */
   isViewAs: boolean;

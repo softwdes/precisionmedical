@@ -38,6 +38,29 @@ const fechaClinica = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'la fecha de
     return d.getUTCFullYear() >= 1900 && d.getTime() <= Date.now() + 24 * 60 * 60 * 1000;
   }, 'la fecha tiene que estar entre 1900 y hoy');
 
+/**
+ * `YYYY` o `YYYY-MM-DD`, para lo que se recuerda a medias.
+ *
+ * Una cirugía de 2011 se recuerda por el año, no por el día — el formulario lo
+ * dice: el campo se llama "Año" y sugiere "ej., 2018". Pero validaba con
+ * `fechaClinica`, así que escribir 2018 moría con "la fecha debe ser
+ * YYYY-MM-DD": el campo era imposible de completar como estaba pedido.
+ *
+ * Se acepta la fecha completa además del año porque las filas que ya existen
+ * (intake y migración) la traen así, y porque cuando el dato se sabe exacto no
+ * hay razón para perderlo.
+ */
+const anioOFecha = z.union([
+  z.string().trim().regex(/^\d{4}$/).refine((v) => {
+    const n = Number(v);
+    return n >= 1900 && n <= new Date().getFullYear();
+  }, 'el año tiene que estar entre 1900 y hoy'),
+  fechaClinica,
+]);
+
+/** Estado de consumo (tabaco, alcohol, drogas). Vacío = sin registrar. */
+const consumo = z.enum(['NEVER', 'FORMER', 'CURRENT']);
+
 /** Año suelto (colonoscopía) — mismo criterio. */
 const anio = z.string().trim().regex(/^\d{4}$/).refine((v) => {
   const n = Number(v);
@@ -96,7 +119,7 @@ const SECCIONES = {
   history: { fila: condicion, max: 200 },
   medications: { fila: medicamento, max: 300 },
   surgeries: { fila: z.object({
-    id: z.string(), procedure: corto, date: fechaClinica.optional(), notes: largo.optional(),
+    id: z.string(), procedure: corto, date: anioOFecha.optional(), notes: largo.optional(),
   }), max: 200 },
   familyHistory: { fila: z.object({
     id: z.string(), relation: corto, condition: corto,
@@ -113,9 +136,22 @@ const SECCIONES = {
     bloodTestDate: fechaClinica.optional(), normalResults: z.boolean().optional(),
     colonoscopyYear: anio.optional(), abnormal: z.boolean().optional(),
   }).strict() },
+  /**
+   * El consumo va como VOCABULARIO, no texto libre.
+   *
+   * La pantalla ya lo trataba como estado (pinta el alcohol como píldora de
+   * color), y una píldora con "2 copas los findes" adentro no comunica nada. Con
+   * el enum el dato es comparable y el color significa algo.
+   *
+   * Se puede apretar así sin migración porque la sección estaba VACÍA para todos
+   * los pacientes: nada la escribía —ni el intake, ni la migración, ni una API—,
+   * el único camino de entrada era un lápiz que nunca se conectó.
+   *
+   * `work` y `children` siguen libres: son texto por naturaleza.
+   */
   socialHistory: { valor: z.object({
-    work: largo.optional(), children: largo.optional(), tobacco: corto.optional(),
-    alcohol: corto.optional(), drugs: corto.optional(),
+    work: largo.optional(), children: largo.optional(),
+    tobacco: consumo.optional(), alcohol: consumo.optional(), drugs: consumo.optional(),
   }).strict() },
   comments: { fila: z.object({
     id: z.string(), date: z.string(), text: largo, author: corto.optional(),

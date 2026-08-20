@@ -1,7 +1,7 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, edad, fechaCalendario } from '@/lib/fechas';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useRef } from 'react';
 import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors, searchSpecialties } from './actions';
 import { useTranslations } from 'next-intl';
 import {
@@ -13,7 +13,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@precision/ui';
-import { PersonAvatar, TagPill, useToast } from '@/components/ui-phoenix';
+import { PersonAvatar, TagPill, useToast, FloatingPanel } from '@/components/ui-phoenix';
 import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
 
 /** Hoy en YYYY-MM-DD — tope de los campos de fecha clínica (nada del futuro). */
@@ -89,21 +89,14 @@ async function guardarSeccion(
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Décimo formateador de fecha de nacimiento del back-office, el que se escapó de
+ * la limpieza porque se llama distinto a los otros nueve. Mismo bug: sin zona,
+ * un nacimiento guardado a medianoche UTC muestra el día anterior. Ahora delega
+ * en el helper compartido. Ver lib/fechas.ts.
+ */
 function fmtDOB(dob: Date | string | null | undefined): string {
-  if (!dob) return 'N/D';
-  const d = typeof dob === 'string' ? new Date(dob) : dob;
-  return d.toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' });
-}
-
-function calcAge(dob: Date | string | null | undefined): number | null {
-  if (!dob) return null;
-  const d = typeof dob === 'string' ? new Date(dob) : dob;
-  if (isNaN(d.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - d.getFullYear();
-  const m = today.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-  return age;
+  return dob ? fechaCalendario(dob) : 'N/D';
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -126,10 +119,23 @@ function SideSection({
           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{title}</span>
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Era un `span` con `onClick` a secas: no se alcanzaba con el
+              teclado ni tenía anillo de foco, así que la única forma de editar
+              cualquiera de estas 12 secciones era con el mouse.
+              Sigue siendo `span` y no `<button>` a propósito: el encabezado
+              entero YA es un `<button>` (el que despliega la sección) y un botón
+              dentro de otro es HTML inválido. `role="button"` + `tabIndex` +
+              Enter/Espacio da el mismo comportamiento sin anidar. */}
           {editBtn && open && (
             <span
-              className="p-0.5 rounded text-text-muted hover:text-brand-text transition-colors"
+              role="button"
+              tabIndex={0}
+              aria-label={title}
+              className="p-0.5 rounded text-text-muted hover:text-brand-text focus:outline-none focus-visible:ring-1 focus-visible:ring-brand transition-colors"
               onClick={e => { e.stopPropagation(); onEdit?.(); }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onEdit?.(); }
+              }}
             >
               <Edit2 className="w-3 h-3" />
             </span>
@@ -537,7 +543,7 @@ function AddProblemDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md w-full p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProblemTitle')}
@@ -552,50 +558,17 @@ function AddProblemDialog({
           {/* Condition — searchable dropdown */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDropOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
-              >
-                <span className={selected ? 'text-text-1' : 'text-text-muted'}>
-                  {selected ? selected.label : t('mh.sub.selectCondition')}
-                </span>
-                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
-              </button>
-
-              {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-row-sep">
-                    <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
-                      <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input maxLength={LARGO_CORTO}
-                        autoFocus
-                        value={query}
-                        onChange={e => handleQuery(e.target.value)}
-                        placeholder={t('mh.sub.search')}
-                        className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {results.length === 0 ? (
-                      <p className="px-3 py-3 text-xs text-text-muted text-center">{t('mh.sub.noResults')}</p>
-                    ) : results.map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => pick(opt)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                          ${selected?.id === opt.id ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Al primitivo: el panel era `absolute` y lo cortaba el cuerpo
+                scrolleable del diálogo. Ver SearchDropdown. */}
+            <SearchDropdown
+              value={selected?.label ?? ''}
+              placeholder={t('mh.sub.selectCondition')}
+              options={results}
+              onSearch={handleQuery}
+              onSelect={id => { const o = results.find(r => r.id === id); if (o) pick(o); }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
+            />
           </div>
 
           {/* Status */}
@@ -657,14 +630,21 @@ function SearchDropdown({
   searchPlaceholder?: string;
   emptyText?:         string;
 }) {
+  // Los 5 diálogos que hospedan este dropdown perdieron su `overflow-hidden`:
+  // el `FloatingPanel` se monta DENTRO del DialogContent (para que la rueda
+  // funcione, ver floating-panel.tsx) y con el clip puesto el panel seguía
+  // cortado, ahora en el borde del diálogo. Es un no-op visual: ni el header ni
+  // el footer tienen fondo propio, solo bordes, así que no hay nada que se
+  // asome por la esquina redondeada.
   const [open, setOpen] = useState(false);
   const [q, setQ]       = useState('');
+  const anchor = useRef<HTMLDivElement>(null);
 
   function handleQ(v: string) { setQ(v); onSearch(v); }
   function pick(id: string, label: string) { onSelect(id, label); setOpen(false); setQ(''); }
 
   return (
-    <div className="relative">
+    <div ref={anchor} className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -673,8 +653,14 @@ function SearchDropdown({
         <span className={value ? 'text-text-1' : 'text-text-muted'}>{value || placeholder}</span>
         <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
       </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
+      {/* `FloatingPanel` y no un `absolute`: el panel se salía del alto del
+          diálogo y el `overflow-hidden` del DialogContent lo cortaba justo
+          debajo de la primera opción. Portalear a `body` a secas NO alcanza —
+          Radix bloquea la rueda fuera del subárbol del diálogo y la lista
+          quedaría visible pero sin scroll. El primitivo ya resuelve las dos.
+          Ver el comentario de floating-panel.tsx. */}
+      <FloatingPanel anchorRef={anchor} open={open} maxHeight={280} className="p-0">
+        <div>
           <div className="p-2 border-b border-row-sep">
             <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -706,8 +692,155 @@ function SearchDropdown({
                 ))}
           </div>
         </div>
-      )}
+      </FloatingPanel>
     </div>
+  );
+}
+
+/**
+ * Estado de consumo: select y píldora, juntos para que no se separen.
+ *
+ * El color ES el significado (Regla #0): actual en ámbar porque es lo que el
+ * doctor tiene que ver, ex en gris porque es antecedente, nunca en verde. Antes
+ * solo el alcohol tenía píldora —y ámbar fija, dijera lo que dijera— y el tabaco
+ * y las drogas eran texto plano.
+ */
+const CONSUMO_VALORES = ['NEVER', 'FORMER', 'CURRENT'] as const;
+
+const CONSUMO_COLOR: Record<string, string> = {
+  NEVER:   'bg-emerald/10 text-emerald border-emerald/20',
+  FORMER:  'bg-bg-2 text-text-muted border-border',
+  CURRENT: 'bg-amber/10 text-amber border-amber/20',
+};
+
+function ConsumoSelect({ label, value, onChange }: {
+  label: string; value: string; onChange: (v: string) => void;
+}) {
+  const t = useTranslations('phoenix.patients');
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs text-text-muted">{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+      >
+        <option value="">{t('mh.sub.consumoNotSet')}</option>
+        {CONSUMO_VALORES.map(v => (
+          <option key={v} value={v}>{t(`mh.sub.consumo${v}`)}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ConsumoPill({ value }: { value?: string }) {
+  const t = useTranslations('phoenix.patients');
+  if (!value) return <span className="text-text-muted">{t('mh.na')}</span>;
+  const color = CONSUMO_COLOR[value];
+  // Un valor viejo fuera del vocabulario se muestra tal cual en vez de
+  // desaparecer: preferimos verlo y corregirlo a que se pierda en silencio.
+  return <TagPill label={color ? t(`mh.sub.consumo${value}`) : value} colorClass={color ?? 'bg-bg-2 text-text-muted border-border'} />;
+}
+
+/**
+ * Editar historia social — el diálogo que faltaba.
+ *
+ * La sección se mostraba desde siempre pero **nadie podía llenarla**: el lápiz
+ * del encabezado se dibujaba con `editBtn` y sin `onEdit`, así que el click
+ * llamaba a `onEdit?.()` y no pasaba nada, en silencio. Este diálogo no existía;
+ * el esquema sí. De ahí que los cinco renglones dijeran N/A para todos los
+ * pacientes, no solo para uno.
+ *
+ * Consumo por vocabulario y no texto libre (decisión de Erick 2026-08-20): lo
+ * llena alguien con el paciente delante, y la pantalla ya lo trata como estado.
+ */
+function SocialHistoryEditDialog({
+  patientId, initial, open, onClose, onSaved,
+}: {
+  patientId: string;
+  initial:   MedicalHistoryData['socialHistory'];
+  open:      boolean;
+  onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
+}) {
+  const t = useTranslations('phoenix.patients');
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [work,     setWork]     = useState(initial?.work     ?? '');
+  const [children, setChildren] = useState(initial?.children ?? '');
+  const [tobacco,  setTobacco]  = useState(initial?.tobacco  ?? '');
+  const [alcohol,  setAlcohol]  = useState(initial?.alcohol  ?? '');
+  const [drugs,    setDrugs]    = useState(initial?.drugs    ?? '');
+
+  function handleSave() {
+    // Los vacíos se omiten, no se mandan como '': el esquema espera el enum o
+    // nada, y `''` no es ninguno de los dos.
+    const patch = {
+      socialHistory: {
+        ...(work.trim()     ? { work: work.trim() }         : {}),
+        ...(children.trim() ? { children: children.trim() } : {}),
+        ...(tobacco ? { tobacco } : {}),
+        ...(alcohol ? { alcohol } : {}),
+        ...(drugs   ? { drugs }   : {}),
+      },
+    } as Partial<MedicalHistoryData>;
+    startTransition(async () => {
+      if (!await guardarSeccion(patientId, patch, toast.error)) return;
+      onSaved?.(patch);
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.socialHistoryTitle')}</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            {t('mh.sub.socialHistoryDesc')}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className="rounded-md bg-bg-2/40 p-4 space-y-3">
+            <p className="text-sm font-semibold text-text-1">{t('mh.workAndFamily')}</p>
+            <div className="space-y-1.5">
+              <label className="text-xs text-text-muted">{t('mh.sub.workLabel')}</label>
+              <input maxLength={LARGO_CORTO}
+                value={work}
+                onChange={e => setWork(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-text-muted">{t('mh.sub.childrenLabel')}</label>
+              <input maxLength={LARGO_CORTO}
+                value={children}
+                onChange={e => setChildren(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md bg-bg-2/40 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ConsumoSelect label={t('mh.tobaccoUse')} value={tobacco} onChange={setTobacco} />
+            <ConsumoSelect label={t('mh.alcoholUse')} value={alcohol} onChange={setAlcohol} />
+            <ConsumoSelect label={t('mh.drugUse')}    value={drugs}   onChange={setDrugs} />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -831,7 +964,7 @@ function AddMedicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg w-full p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.newPrescriptionTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1085,9 +1218,15 @@ function AddSurgeryDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.yearLabel')}</label>
-            <input maxLength={LARGO_CORTO}
+            {/* Un año, no 120 caracteres de texto libre: el campo pide "ej.,
+                2018" y `LARGO_CORTO` dejaba escribir cualquier cosa que después
+                el servidor rechazaba. Se filtran los no-dígitos al tipear, así
+                que es imposible mandar algo que la validación no acepte. */}
+            <input
+              inputMode="numeric"
+              maxLength={4}
               value={year}
-              onChange={e => setYear(e.target.value)}
+              onChange={e => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder={t('mh.sub.yearPlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
@@ -1166,7 +1305,7 @@ function AddProviderDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md w-full p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProviderTitle')}
@@ -1903,7 +2042,6 @@ function AddFamilyHistoryDialog({
 
   const [memberQuery,   setMemberQuery]   = useState('');
   const [relation,      setRelation]      = useState('');
-  const [memberOpen,    setMemberOpen]    = useState(false);
 
   const [diagOptions,   setDiagOptions]   = useState<Array<{ id: string; label: string }>>([]);
   const [condition,     setCondition]     = useState('');
@@ -1927,7 +2065,7 @@ function AddFamilyHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md w-full p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addFamilyHistoryTitle')}
@@ -1942,47 +2080,18 @@ function AddFamilyHistoryDialog({
           {/* Family member — local filter */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.familyMemberLabel')}</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMemberOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
-              >
-                <span className={relation ? 'text-text-1' : 'text-text-muted'}>
-                  {relation || t('mh.sub.selectOption')}
-                </span>
-                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
-              </button>
-              {memberOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-row-sep">
-                    <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
-                      <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input maxLength={LARGO_CORTO}
-                        autoFocus
-                        value={memberQuery}
-                        onChange={e => setMemberQuery(e.target.value)}
-                        placeholder={t('mh.sub.search')}
-                        className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-52 overflow-y-auto">
-                    {filteredMembers.map(m => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => { setRelation(m); setMemberOpen(false); setMemberQuery(''); }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                          ${relation === m ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Cuarta y última copia del dropdown. Filtra en local, así que
+                `onSearch` solo mueve la query; el reset de `memberQuery` va acá
+                porque el primitivo limpia SU búsqueda interna, no la de afuera. */}
+            <SearchDropdown
+              value={relation}
+              placeholder={t('mh.sub.selectOption')}
+              options={filteredMembers.map(m => ({ id: m, label: m }))}
+              onSearch={setMemberQuery}
+              onSelect={(_, label) => { setRelation(label); setMemberQuery(''); }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
+            />
           </div>
 
           {/* Condition — ICD search */}
@@ -2070,7 +2179,7 @@ function AddHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md w-full p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProblemTitle')}
@@ -2083,49 +2192,17 @@ function AddHistoryDialog({
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDropOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
-              >
-                <span className={selected ? 'text-text-1' : 'text-text-muted'}>
-                  {selected ? selected.label : t('mh.sub.selectCondition')}
-                </span>
-                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
-              </button>
-              {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md bg-bg-1 shadow-lg">
-                  <div className="p-2 border-b border-row-sep">
-                    <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
-                      <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                      <input maxLength={LARGO_CORTO}
-                        autoFocus
-                        value={query}
-                        onChange={e => handleQuery(e.target.value)}
-                        placeholder={t('mh.sub.search')}
-                        className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {results.length === 0
-                      ? <p className="px-3 py-3 text-xs text-text-muted text-center">{t('mh.sub.noResults')}</p>
-                      : results.map(opt => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => pick(opt)}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
-                              ${selected?.id === opt.id ? 'bg-brand/10 text-brand-text' : 'text-text-2'}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Cuarta copia del mismo dropdown en este archivo — al primitivo.
+                Todas tenían el panel `absolute`, cortado por el diálogo. */}
+            <SearchDropdown
+              value={selected?.label ?? ''}
+              placeholder={t('mh.sub.selectCondition')}
+              options={results}
+              onSearch={handleQuery}
+              onSelect={id => { const o = results.find(r => r.id === id); if (o) pick(o); }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
+            />
           </div>
 
           <div className="rounded-md bg-bg-2/40 p-4 space-y-3">
@@ -2204,6 +2281,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
   const [editDevices,      setEditDevices]      = useState(false);
   const [editSystems,      setEditSystems]      = useState(false);
   const [editExams,        setEditExams]        = useState(false);
+  const [editSocial,       setEditSocial]       = useState(false);
   const [addComment,       setAddComment]       = useState(false);
 
   const [mh, setMh] = useState<MedicalHistoryData>(() => (patient.medicalHistory ?? {}) as MedicalHistoryData);
@@ -2238,7 +2316,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
   }, [mhCaseId]);
   const insurances = autoIns ? [autoIns, ...medicalIns] : medicalIns;
 
-  const age    = calcAge(patient.dateOfBirth);
+  const age    = edad(patient.dateOfBirth);
   const dobStr = fmtDOB(patient.dateOfBirth);
 
   // Sidebar section label maps
@@ -2396,7 +2474,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
             </SideSection>
 
             {/* Social history */}
-            <SideSection icon={<MessageSquare className="w-3.5 h-3.5" />} title={t('mh.socialHistory')} editBtn defaultOpen={false}>
+            <SideSection icon={<MessageSquare className="w-3.5 h-3.5" />} title={t('mh.socialHistory')} editBtn onEdit={() => setEditSocial(true)} defaultOpen={false}>
               <div className="space-y-2">
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.workAndFamily')}</p>
@@ -2408,7 +2486,10 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                     <Cigarette className="w-3 h-3 text-text-muted" />
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.tobaccoUse')}</p>
                   </div>
-                  <SideRow na={t('mh.na')} label={t('mh.status')} value={mh.socialHistory?.tobacco} />
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-text-muted">{t('mh.status')}:</span>
+                    <ConsumoPill value={mh.socialHistory?.tobacco} />
+                  </div>
                 </div>
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -2417,9 +2498,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-text-muted">{t('mh.status')}:</span>
-                    {mh.socialHistory?.alcohol
-                      ? <TagPill label={mh.socialHistory.alcohol} colorClass="bg-amber/10 text-amber border-amber/20" />
-                      : <span className="text-text-muted">{t('mh.na')}</span>}
+                    <ConsumoPill value={mh.socialHistory?.alcohol} />
                   </div>
                 </div>
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
@@ -2427,7 +2506,10 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                     <FlaskConical className="w-3 h-3 text-text-muted" />
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.drugUse')}</p>
                   </div>
-                  <SideRow na={t('mh.na')} label={t('mh.status')} value={mh.socialHistory?.drugs} />
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-text-muted">{t('mh.status')}:</span>
+                    <ConsumoPill value={mh.socialHistory?.drugs} />
+                  </div>
                 </div>
               </div>
             </SideSection>
@@ -2780,6 +2862,15 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
         initial={mh.cognitiveStatus}
         open={editCognitive}
         onClose={() => setEditCognitive(false)}
+        onSaved={onSaved}
+      />
+    )}
+    {editSocial && (
+      <SocialHistoryEditDialog
+        patientId={patient.id}
+        initial={mh.socialHistory}
+        open={editSocial}
+        onClose={() => setEditSocial(false)}
         onSaved={onSaved}
       />
     )}

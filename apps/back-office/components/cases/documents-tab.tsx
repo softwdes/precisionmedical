@@ -13,7 +13,7 @@ import {
   RefreshCw, X, FileArchive, CloudUpload,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
-import { EmptyState } from '@/components/ui-phoenix';
+import { EmptyState, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -233,6 +233,9 @@ function PreviewModal({ item, onClose, onDownload }: {
 export function DocumentsTab({ caseId }: { caseId: string }) {
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
+  // `handleDownload` hace su propio fetch porque distingue "S3 sin configurar"
+  // del resto de los errores, así que usa `show` y no `open`.
+  const viewer = useFileViewer(t('alertDownloadError'));
   const [items, setItems]           = useState<DocItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -398,11 +401,14 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       alert(data.message ?? t('alertDownloadError'));
       return;
     }
-    window.open(data.url, '_blank');
+    // Modal, no pestaña nueva: el usuario no pierde el expediente donde estaba
+    // y la URL firmada —que es PHI— no queda en el historial del navegador.
+    viewer.show({ fileName: data.name ?? item.name, url: data.url, downloadUrl: data.downloadUrl });
   }
 
   return (
     <>
+      <FileViewerDialog {...viewer.props} />
       <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-border bg-bg-2/40">

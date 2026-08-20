@@ -51,9 +51,23 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     key = doc.s3Key;
   }
 
-  const { data, error } = await storage.storage.from(bucket).createSignedUrl(key!, 900);
-  if (error || !data) {
-    console.error('[message-attachment] signed url error:', error);
+  // Dos firmas del MISMO archivo, misma expiración: una para VER embebido y
+  // otra para DESCARGAR.
+  //
+  // La de descarga lleva `download`, que hace que Storage responda con
+  // `Content-Disposition: attachment`. Sin eso el navegador NAVEGA la pestaña
+  // al PDF: el atributo `download` del `<a>` se ignora cuando la URL es de otro
+  // origen —y la firmada es de supabase.co, no del dominio de la app—, así que
+  // el usuario perdía el hilo donde estaba y la URL firmada quedaba en el
+  // historial del navegador. Con el header el archivo baja sin navegar a
+  // ninguna parte: el modal no se cierra y no queda rastro en el historial.
+  const [view, dl] = await Promise.all([
+    storage.storage.from(bucket).createSignedUrl(key!, 900),
+    storage.storage.from(bucket).createSignedUrl(key!, 900, { download: att.fileName }),
+  ]);
+  const { data, error } = view;
+  if (error || !data || dl.error || !dl.data) {
+    console.error('[message-attachment] signed url error:', error ?? dl.error);
     return NextResponse.json({ error: 'STORAGE_ERROR' }, { status: 500 });
   }
 
@@ -65,5 +79,9 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     metadata: { attachmentId: att.id, fileName: att.fileName },
   }).catch(() => undefined);
 
-  return NextResponse.json({ url: data.signedUrl, name: att.fileName });
+  return NextResponse.json({
+    url: data.signedUrl,
+    downloadUrl: dl.data.signedUrl,
+    name: att.fileName,
+  });
 }

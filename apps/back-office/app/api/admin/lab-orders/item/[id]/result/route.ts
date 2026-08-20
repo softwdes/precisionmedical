@@ -126,10 +126,21 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
   if (!order?.resultFileUrl) return NextResponse.json({ error: 'NO_RESULT' }, { status: 404 });
 
-  const { data, error } = await storage.storage.from(BUCKET).createSignedUrl(order.resultFileUrl, 900);
-  if (error || !data) {
-    console.error('[lab-result] signed url error:', error);
-    return NextResponse.json({ error: 'STORAGE_ERROR', message: error?.message }, { status: 500 });
+  // Dos firmas del MISMO archivo, misma expiración: una para VER embebido en el
+  // modal y otra para DESCARGAR. La de descarga lleva `download`, que hace que
+  // Storage responda con `Content-Disposition: attachment`. Sin eso el botón de
+  // descargar NAVEGA la pestaña al archivo, porque el atributo `download` del
+  // `<a>` se ignora cuando la URL es de otro origen (la firmada es de
+  // supabase.co, no del dominio de la app).
+  const fileName = order.resultFileName ?? 'resultado.pdf';
+  const [view, dl] = await Promise.all([
+    storage.storage.from(BUCKET).createSignedUrl(order.resultFileUrl, 900),
+    storage.storage.from(BUCKET).createSignedUrl(order.resultFileUrl, 900, { download: fileName }),
+  ]);
+  const { data, error } = view;
+  if (error || !data || dl.error || !dl.data) {
+    console.error('[lab-result] signed url error:', error ?? dl.error);
+    return NextResponse.json({ error: 'STORAGE_ERROR', message: (error ?? dl.error)?.message }, { status: 500 });
   }
 
   writeAuditLog(db, {
@@ -140,5 +151,5 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     metadata: { studyName: order.studyName },
   }).catch(() => undefined);
 
-  return NextResponse.json({ url: data.signedUrl, name: order.resultFileName ?? 'resultado.pdf' });
+  return NextResponse.json({ url: data.signedUrl, downloadUrl: dl.data.signedUrl, name: fileName });
 }

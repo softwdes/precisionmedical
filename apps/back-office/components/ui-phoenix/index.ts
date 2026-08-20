@@ -70,4 +70,7 @@ export { ToastProvider, useToast } from './toast';
 export { Section, SectionDivider } from './section';
 export type { SectionProps } from './section';
 
+export { FileViewerDialog } from './file-viewer-dialog';
+export { useFileViewer } from './use-file-viewer';
+export type { FileViewerHandle } from './use-file-viewer';
 export { ReleaseNotesDialog } from './release-notes-dialog';

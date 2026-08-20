@@ -16,7 +16,7 @@ import {
   FlaskConical, Scan, HeartPulse, Plus, Printer, Loader2, Upload, FileText,
   ChevronDown, ChevronRight, AlertTriangle, Building2, Home, Trash2,
 } from 'lucide-react';
-import { EmptyState, TagPill } from '@/components/ui-phoenix';
+import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { LabOrderDialog, type SelectedStudy } from './lab-order-dialog';
 
@@ -107,6 +107,11 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [showHistory, setShowHistory] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  // El resultado se abre en un modal, no en otra pestaña: así el usuario no
+  // pierde la visita donde estaba y la URL firmada —que es PHI— no queda en el
+  // historial del navegador. Sin spinner en el botón: el modal ya muestra
+  // "cargando" mientras pide la firma.
+  const viewer = useFileViewer(t('labErrResult'));
   const [deleteTarget, setDeleteTarget] = React.useState<LabOrderRow | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -137,19 +142,6 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
     await load();
   };
 
-  const openResult = async (id: string): Promise<void> => {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/admin/lab-orders/item/${id}/result`);
-      const d = await res.json() as { url?: string };
-      if (d.url) window.open(d.url, '_blank', 'noopener');
-      else setError(t('labErrResult'));
-    } catch {
-      setError(t('labErrResult'));
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const uploadResult = async (id: string, file: File): Promise<void> => {
     setBusyId(id);
@@ -234,11 +226,10 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
           {o.resultFileName ? (
             <button
               type="button"
-              onClick={() => void openResult(o.id)}
-              disabled={busy}
+              onClick={() => viewer.open(`/api/admin/lab-orders/item/${o.id}/result`, o.resultFileName!)}
               className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-emerald hover:underline"
             >
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+              <FileText className="w-3 h-3" />
               {t('labViewResult')}
             </button>
           ) : !voided ? (
@@ -419,6 +410,8 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
         confirmLabel={t('labRemove')}
         variant="danger"
       />
+
+      <FileViewerDialog {...viewer.props} />
     </div>
   );
 }

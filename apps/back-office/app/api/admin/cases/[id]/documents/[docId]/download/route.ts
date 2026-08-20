@@ -36,14 +36,22 @@ export async function GET(
     return NextResponse.json({ error: 'NO_S3_KEY' }, { status: 400 });
   }
 
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(doc.s3Key, 900);
+  // Dos firmas del MISMO archivo, misma expiración: una para VER embebido en el
+  // modal y otra para DESCARGAR. La de descarga lleva `download`, que hace que
+  // Storage responda con `Content-Disposition: attachment`. Sin eso el botón de
+  // descargar NAVEGA la pestaña al archivo, porque el atributo `download` del
+  // `<a>` se ignora cuando la URL es de otro origen (la firmada es de
+  // supabase.co, no del dominio de la app).
+  const [view, dl] = await Promise.all([
+    supabase.storage.from(BUCKET).createSignedUrl(doc.s3Key, 900),
+    supabase.storage.from(BUCKET).createSignedUrl(doc.s3Key, 900, { download: doc.name }),
+  ]);
+  const { data, error } = view;
 
-  if (error || !data) {
-    console.error('[download] Supabase Storage error:', error);
-    return NextResponse.json({ error: 'STORAGE_ERROR', message: error?.message }, { status: 500 });
+  if (error || !data || dl.error || !dl.data) {
+    console.error('[download] Supabase Storage error:', error ?? dl.error);
+    return NextResponse.json({ error: 'STORAGE_ERROR', message: (error ?? dl.error)?.message }, { status: 500 });
   }
 
-  return NextResponse.json({ url: data.signedUrl, name: doc.name });
+  return NextResponse.json({ url: data.signedUrl, downloadUrl: dl.data.signedUrl, name: doc.name });
 }

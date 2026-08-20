@@ -27,7 +27,7 @@ import {
   Bandage, Briefcase, Plus, Trash2, ArrowRight, Ban, X,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
-import { EmptyState, TagPill } from '@/components/ui-phoenix';
+import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import {
   ScriptSureWidgetDialog, launchRefill, type WidgetStatus,
@@ -344,22 +344,11 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
   const [printGroup, setPrintGroup] = React.useState<string | null>(null);
 
   const [busyLabId, setBusyLabId] = React.useState<string | null>(null);
+  // El resultado se abre en un modal, no en otra pestaña (ver FileViewerDialog).
+  const labViewer = useFileViewer(td('labErrResult'));
   const [labError, setLabError] = React.useState<string | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
-  const openResult = async (id: string): Promise<void> => {
-    setBusyLabId(id);
-    try {
-      const res = await fetch(`/api/admin/lab-orders/item/${id}/result`);
-      const d = await res.json() as { url?: string };
-      if (d.url) window.open(d.url, '_blank', 'noopener');
-      else setLabError(td('labErrResult'));
-    } catch {
-      setLabError(td('labErrResult'));
-    } finally {
-      setBusyLabId(null);
-    }
-  };
 
   const uploadResult = async (id: string, file: File): Promise<void> => {
     setBusyLabId(id);
@@ -469,11 +458,10 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
                         {o.resultFileName ? (
                           <button
                             type="button"
-                            onClick={() => void openResult(o.id)}
-                            disabled={busy}
+                            onClick={() => labViewer.open(`/api/admin/lab-orders/item/${o.id}/result`, o.resultFileName!)}
                             className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-emerald hover:underline"
                           >
-                            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                            <FileText className="w-3 h-3" />
                             {td('labViewResult')}
                           </button>
                         ) : !voided ? (
@@ -581,6 +569,7 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
         variant="danger"
       />
 
+      <FileViewerDialog {...labViewer.props} />
     </div>
   );
 }

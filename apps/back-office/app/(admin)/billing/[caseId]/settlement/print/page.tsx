@@ -6,6 +6,7 @@ import { localeApp } from '@/lib/fechas';
  * Uso:    Botón "Imprimir comprobante" en la pantalla de settlement procesado
  */
 
+import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import type { Metadata } from 'next';
@@ -15,7 +16,10 @@ type Props = { params: Promise<{ caseId: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { caseId } = await params;
   const c = await db.case.findUnique({ where: { id: caseId }, select: { caseCode: true } });
-  return { title: `Settlement · ${c?.caseCode ?? caseId}` };
+  const t = await getTranslations('phoenix.pageTitles');
+  // `absolute` se salta el template del layout raíz: este título es el nombre
+  // con el que se guarda el PDF, no una pestaña — el sufijo no va.
+  return { title: { absolute: `${t('settlementReceipt')} · ${c?.caseCode ?? caseId}` } };
 }
 
 function fmtDate(d: Date | string | null | undefined): string {

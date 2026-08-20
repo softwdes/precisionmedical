@@ -2,6 +2,7 @@
  * B.15 — Admisión "Pagos y Cobros" · Detalle de cita
  */
 
+import { getTranslations } from 'next-intl/server';
 import { notFound }             from 'next/navigation';
 import { db }                   from '@precision-medical/database';
 import { AdmissionDetailClient } from './admission-detail-client';
@@ -16,8 +17,12 @@ export async function generateMetadata({ params }: Props) {
     where:  { id },
     select: { patient: { select: { firstName: true, lastName: true } } },
   });
-  const name = appt ? `${appt.patient.firstName} ${appt.patient.lastName}` : 'Cita';
-  return { title: `${name} · Admisión · LienMaster` };
+  const [t, tp] = await Promise.all([
+    getTranslations('phoenix.nav'),
+    getTranslations('phoenix.pageTitles'),
+  ]);
+  const name = appt ? `${appt.patient.firstName} ${appt.patient.lastName}` : tp('appointment');
+  return { title: `${name} · ${t('admission')}` };
 }
 
 export default async function AdmissionDetailPage({ params }: Props) {

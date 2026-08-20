@@ -5,12 +5,17 @@
  * mismas vistas día/semana/mes, drag & drop, telemedicina — solo sus citas.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { CalendarClient } from '@/app/(admin)/calendar/calendar-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
-export const metadata = { title: 'Mi Calendario · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('myCalendar') };
+}
 
 export default async function DoctorCalendarPage({
   searchParams,

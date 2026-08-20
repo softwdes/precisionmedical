@@ -11,7 +11,25 @@ const font = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Precision Medical · Clinical Management',
+  /**
+   * El sufijo va UNA vez acá, no copiado en cada página.
+   *
+   * Antes cada `page.tsx` lo escribía a mano y convivían seis convenciones
+   * distintas (`· LienMaster`, `· Portal Médico`, `· Back-office`,
+   * `— Precision Medical`, `| Precision Medical`, y varias sin nada). Con el
+   * template cada página declara solo su nombre —traducido— y el sufijo sale
+   * solo, igual en todas y también en la próxima que se agregue.
+   *
+   * `default` es el título de las rutas que no declaran ninguno (login,
+   * activación, sin-acceso): esas van SIEMPRE en inglés por regla, y así lo
+   * quedan sin tener que declararlo. Las rutas de impresión (`doctor-print`,
+   * el settlement) se salen del template con `title: { absolute }`, porque su
+   * título ES el nombre del PDF y no debe llevar sufijo.
+   */
+  title: {
+    template: '%s · Precision Medical',
+    default: 'Precision Medical · Clinical Management',
+  },
   description: 'Precision Medical — Clinical management & operations platform',
   manifest: '/manifest.json',
   robots: 'noindex,nofollow',

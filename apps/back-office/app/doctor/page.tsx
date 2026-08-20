@@ -6,13 +6,18 @@
  * Navegable por día: ?date=YYYY-MM-DD (default hoy) — igual que Day Admission.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { MyDayClient, type MyDayAppointment } from './my-day-client';
 
-export const metadata = { title: 'Mi Día · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('myDay') };
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const dayKeyOf = (d: Date): string =>

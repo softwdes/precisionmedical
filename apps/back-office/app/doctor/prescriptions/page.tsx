@@ -9,12 +9,17 @@
  * ahora no había ningún lugar donde verlo.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getDoctorViewInfo, getSessionProvider } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { PrescriptionsClient } from './prescriptions-client';
 
-export const metadata = { title: 'Recetas · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('prescriptions') };
+}
 
 const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 

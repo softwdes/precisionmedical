@@ -5,9 +5,14 @@
  * poder filtrar/refrescar sin full page reload).
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { IntakeClient } from './intake-client';
 
-export const metadata = { title: 'Bandeja Edson · LienMaster' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('edsonInbox') };
+}
 
 export default function IntakePage() {
   return <IntakeClient />;

@@ -5,6 +5,7 @@
  * (la misma fuente que consumirá Métricas del Admin). Rango por searchParam.
  */
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import {
@@ -14,7 +15,10 @@ import { PageHeader, KpiCard, EmptyState } from '@/components/ui-phoenix';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { getProviderMetrics, type MetricsRange } from '@/lib/provider-metrics';
 
-export const metadata = { title: 'Mis Estadísticas · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('stats') };
+}
 
 const RANGES: MetricsRange[] = ['week', 'month', 'year'];
 

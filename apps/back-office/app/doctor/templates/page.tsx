@@ -6,13 +6,18 @@
  * Los favoritos son personales por doctor.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { TemplatesClient, type DoctorTemplate } from './templates-client';
 
-export const metadata = { title: 'Plantillas · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('templates') };
+}
 
 export default async function DoctorTemplatesPage(): Promise<React.ReactElement> {
   const provider = await getSessionProvider();

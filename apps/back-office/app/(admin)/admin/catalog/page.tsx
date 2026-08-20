@@ -4,6 +4,8 @@
  * Punto de mantenimiento canónico. Reemplaza el Excel "LabCorp Lab Pricing".
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
 import {
@@ -11,7 +13,10 @@ import {
 } from '@/lib/catalog';
 import { CatalogClient } from '@/components/catalog/catalog-client';
 
-export const metadata = { title: 'Catálogo de precios' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('catalogPrices') };
+}
 
 export default async function AdminCatalogPage(): Promise<React.ReactElement> {
   const [rows, services, user] = await Promise.all([

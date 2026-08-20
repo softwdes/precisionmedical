@@ -5,6 +5,8 @@
  * mantiene — mismo componente que /admin/catalog, `canEdit` lo decide el rol.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
 import {
@@ -12,7 +14,10 @@ import {
 } from '@/lib/catalog';
 import { CatalogClient } from '@/components/catalog/catalog-client';
 
-export const metadata = { title: 'Laboratorios y precios · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('labsAndPrices') };
+}
 
 export default async function DoctorCatalogPage(): Promise<React.ReactElement> {
   const [rows, services, user] = await Promise.all([

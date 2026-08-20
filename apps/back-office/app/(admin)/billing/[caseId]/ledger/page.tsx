@@ -1,8 +1,11 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { LedgerClient } from './ledger-client';
 
-export const metadata = {
-  title: 'Ledger del caso · Billing | Precision Medical',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('ledger') };
+}
 
 export default function LedgerPage() {
   return <LedgerClient />;

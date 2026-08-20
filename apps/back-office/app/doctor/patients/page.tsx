@@ -6,12 +6,17 @@
  * Acciones administrativas (crear, archivar, enviar portal) ocultas.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { PatientsData, PatientsTableSkeleton } from '@/app/(admin)/patients/patients-data';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
-export const metadata = { title: 'Mis Pacientes · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('myPatients') };
+}
 
 export default async function DoctorPatientsPage({
   searchParams,

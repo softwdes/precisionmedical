@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { getCaseDetailData, providerHasCase } from '@/lib/case-detail-data';
@@ -13,7 +15,10 @@ import { parseCaseTab } from '@/lib/case-tabs';
  * Desde Mis Pacientes esta ruta se intercepta y se muestra como modal.
  */
 
-export const metadata = { title: 'Caso · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('case') };
+}
 
 export default async function DoctorCasePage({
   params,

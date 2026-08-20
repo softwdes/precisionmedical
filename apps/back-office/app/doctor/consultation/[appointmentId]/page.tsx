@@ -7,6 +7,8 @@
  * Seguridad: solo citas del Provider de la sesión.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
@@ -15,7 +17,10 @@ import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { ConsultationClient } from './consultation-client';
 
-export const metadata = { title: 'Consulta · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('consultation') };
+}
 
 export default async function DoctorConsultationPage({
   params,
@@ -56,7 +61,7 @@ export default async function DoctorConsultationPage({
           // porque este select ya trae `primaryInsurance` con más campos y el
           // spread lo pisaría.
           coverageType: true, coverageVerifyMethod: true, coverageVerifiedAt: true,
-          coverageVerifiedByName: true, coverageCarrierName: true,
+          coverageVerifiedByName: true, coverageCarrierName: true, coverageNote: true,
           primaryPolicyNumber: true, secondaryPolicyNumber: true,
           primaryInsurance: { select: { id: true, name: true, type: true } },
           secondaryInsurance: { select: { id: true, name: true } },

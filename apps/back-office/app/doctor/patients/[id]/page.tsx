@@ -5,12 +5,17 @@
  * con al menos una cita del doctor de sesión — cualquier otro id → 404.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
 
-export const metadata = { title: 'Paciente · Portal Médico' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('patient') };
+}
 
 export default async function DoctorPatientDetailPage({
   params,

@@ -12,10 +12,15 @@
  * Ver docs/plan-vista-edson.md
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { EdsonClient } from './edson-client';
 import { db } from '@precision-medical/database';
 
-export const metadata = { title: 'Tracking MVA · Precision Medical' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.pageTitles');
+  return { title: t('trackingMva') };
+}
 
 export default async function EdsonPage() {
   const [clinics, providers, carriers] = await Promise.all([

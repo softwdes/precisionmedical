@@ -1,10 +1,15 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { AuditLogsClient } from './audit-logs-client';
 
 // B.44 — Visor de Audit Log (HIPAA compliance)
 // Server component: carga KPIs iniciales + primera página de logs.
 
-export const metadata = { title: 'Audit Log · Back-office' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('auditLog') };
+}
 
 export default async function AuditLogsPage() {
   const [total, todayCount, humanCount, systemCount, recentLogs] = await Promise.all([

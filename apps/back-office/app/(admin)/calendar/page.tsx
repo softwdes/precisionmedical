@@ -6,11 +6,16 @@
  * permitir navegación semana/mes sin full page reload.
  */
 
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { CalendarClient } from './calendar-client';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
-export const metadata = { title: 'Calendario · LienMaster' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('phoenix.nav');
+  return { title: t('calendar') };
+}
 
 export default async function CalendarPage({
   searchParams,

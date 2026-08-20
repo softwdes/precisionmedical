@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fechaCalendario, edad } from '@/lib/fechas';
 
 /**
  * B.11 — Modales secundarios del detalle de cita
@@ -58,19 +58,6 @@ interface Props {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function ageFromISO(iso: string | null): string {
-  if (!iso) return '?';
-  const d    = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  return String(Math.floor(diff / (365.25 * 24 * 3600 * 1000)));
-}
-
-function formatDOB(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString(localeApp(), { day: '2-digit', month: 'short', year: 'numeric' });
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -171,7 +158,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       onClose={onClose}
     >
       <DataRow label={t('rowFullName')}      value={`${p.firstName} ${p.lastName}`} highlight />
-      <DataRow label={t('rowDateOfBirth')}   value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} yrs)`} />
+      <DataRow label={t('rowDateOfBirth')}   value={`${fechaCalendario(p.dateOfBirth)}${edad(p.dateOfBirth) !== null ? ` (${t('ageSuffix', { age: edad(p.dateOfBirth)! })})` : ''}`} />
       <DataRow label={t('rowPhone')}         value={p.phone} />
       <DataRow label={t('rowEmail')}         value={p.email} />
       <DataRow label={t('rowLanguage')}      value={t('rowLanguageHint')} />

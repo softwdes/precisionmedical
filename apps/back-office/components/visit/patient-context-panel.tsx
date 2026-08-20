@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { fechaCalendario, edad, anioOFecha } from '@/lib/fechas';
 
 /**
  * PatientContextPanel — contexto clínico del paciente junto a la nota (N2).
@@ -79,22 +79,23 @@ function EmptyNote({ text }: { text: string }): React.ReactElement {
   );
 }
 
-function ageOf(dobIso: string | null): number | null {
-  if (!dobIso) return null;
-  return Math.floor((Date.now() - new Date(dobIso).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-}
-
+/**
+ * Envoltorio de `fechaCalendario` que devuelve `null` —no `'—'`— cuando no hay
+ * fecha: las tres llamadas de acá viven en `.filter(Boolean)` o detrás de un
+ * guard, y un guión suelto se colaría en el medio ("Activo · —").
+ *
+ * Las tres son fechas de CALENDARIO (nacimiento, diagnóstico, cirugía), así que
+ * van sin zona. Ver el comentario en lib/fechas.ts.
+ */
 function fmtDate(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(localeApp(), { day: 'numeric', month: 'short', year: 'numeric' });
+  return iso ? fechaCalendario(iso) : null;
 }
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
 export function PatientContextPanel({ patient: p }: { patient: PatientContext }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
-  const age = ageOf(p.dateOfBirth);
+  const age = edad(p.dateOfBirth);
   const h = p.history;
   const activeMeds = h.medications.filter((m) => m.status === 'IN_USE');
   const social = h.socialHistory;
@@ -255,7 +256,10 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
             {h.surgeries.map((s, i) => (
               <div key={i} className="rounded-md bg-bg-2/40 px-3 py-2">
                 <div className="text-[11.5px] text-text-1 font-medium">{s.procedure}</div>
-                {s.date && <div className="text-[10px] text-text-muted mt-0.5">{fmtDate(s.date)}</div>}
+                {/* `anioOFecha` y no `fmtDate`: el campo del formulario pide el
+                    AÑO, y formatear "2018" como fecha lo mostraba como "1 ene
+                    2018" — día y mes inventados en un historial clínico. */}
+                {s.date && <div className="text-[10px] text-text-muted mt-0.5">{anioOFecha(s.date)}</div>}
               </div>
             ))}
           </div>

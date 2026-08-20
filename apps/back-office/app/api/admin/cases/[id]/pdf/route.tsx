@@ -1,4 +1,4 @@
-import { localeApp } from '@/lib/fechas';
+import { localeApp, edad } from '@/lib/fechas';
 /**
  * GET /api/admin/cases/[id]/pdf
  *
@@ -257,10 +257,19 @@ function fmtDate(d: Date | string | null | undefined) {
   if (!d) return null;
   return new Date(d).toLocaleDateString(localeApp(), { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
-function age(dob: Date | null | undefined): string | null {
+/**
+ * Nacimiento: fecha de CALENDARIO, sin zona. Este PDF sale de la clínica, así
+ * que el día impreso tiene que ser el día real — no el anterior. Ver lib/fechas.ts.
+ */
+function fmtDob(dob: Date | string | null | undefined) {
   if (!dob) return null;
-  const diff = Date.now() - new Date(dob).getTime();
-  return String(Math.floor(diff / (365.25 * 24 * 3600 * 1000)));
+  return new Date(dob).toLocaleDateString(localeApp(), {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
+  });
+}
+function age(dob: Date | null | undefined): string | null {
+  const a = edad(dob);
+  return a === null ? null : String(a);
 }
 
 // Checkbox indicator (unused standalone — checkboxes rendered inline in consent text)
@@ -436,7 +445,7 @@ async function buildPDF(data: {
         <View style={s.sectionBody}>
           <TableRow2 l1="Name:" v1={fullName} l2="Address:" v2={address} />
           <TableRow2 l1="Sex:" v1={SEX_LABEL[patient.sex ?? ''] ?? null} l2="Phone:" v2={patient.phone} />
-          <TableRow2 l1="Date of Birth:" v1={fmtDate(patient.dateOfBirth)} l2="Cellphone:" v2={patient.phone2} />
+          <TableRow2 l1="Date of Birth:" v1={fmtDob(patient.dateOfBirth)} l2="Cellphone:" v2={patient.phone2} />
           <TableRow2 l1="Age:" v1={age(patient.dateOfBirth)} l2="Email:" v2={patient.email} />
           <TableRow2 l1="Ethnicity:" v1={ETHNICITY_LABEL[patient.ethnicity ?? ''] ?? null} l2="Employer:" v2={patient.employer} />
           <TableRow2 l1="Race:" v1={RACE_LABEL[patient.race ?? ''] ?? null} l2="Preferred Language:" v2={patient.preferredLanguage === 'en' ? 'English' : patient.preferredLanguage === 'es' ? 'Spanish' : null} />

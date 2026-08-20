@@ -21,6 +21,7 @@ import {
   Label,
 } from '@precision/ui';
 import { FormField, PersonAvatar, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
+import { fechaParaInput, edad } from '@/lib/fechas';
 
 type PatientStatus    = 'NEW' | 'ACTIVE' | 'COMPLETED' | 'DISCHARGED' | 'INACTIVE';
 
@@ -85,27 +86,6 @@ interface Props {
   patient:       EditablePatient;
   externalOpen?: boolean;
   onClose?:      () => void;
-}
-
-function toDateInput(d: Date | string | null | undefined): string {
-  if (!d) return '';
-  if (typeof d === 'string') return d.slice(0, 10);
-  if (isNaN(d.getTime())) return '';
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function calcAge(dob: string): number | null {
-  if (!dob) return null;
-  const birth = new Date(dob);
-  if (isNaN(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
 }
 
 function formatPhone(raw: string): string {
@@ -183,7 +163,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     email:                     patient.email                    ?? '',
     phone:                     formatPhone(patient.phone ?? ''),
     phone2:                    formatPhone(patient.phone2 ?? ''),
-    dateOfBirth:               toDateInput(patient.dateOfBirth),
+    dateOfBirth:               fechaParaInput(patient.dateOfBirth),
     status:                    patient.status                   as string,
     preferredLanguage:         patient.preferredLanguage        ?? '',
     sex:                       patient.sex                      ?? '',
@@ -209,7 +189,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
   const [form, setForm] = useState(initialForm);
 
-  const age     = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
+  const age     = useMemo(() => edad(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
 
   // ─── Tutor legal ────────────────────────────────────────────────────────
@@ -247,7 +227,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const guardianEmail   = guardianSel?.email?.trim() || null;
   const guardianLegacy  = [patient.guardianName, patient.guardianPhone].filter(Boolean).join(' · ');
   const guardianNewAge  = useMemo(
-    () => (guardianNew ? calcAge(guardianNew.dateOfBirth) : null),
+    () => (guardianNew ? edad(guardianNew.dateOfBirth) : null),
     [guardianNew],
   );
 
@@ -295,7 +275,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     if (form.email && !validateEmail(form.email)) { setError(t('errorEmailInvalid')); return; }
     if (form.phone && !validatePhone(form.phone)) { setError(t('errorPhoneInvalid')); return; }
     if (form.dateOfBirth) {
-      const a = calcAge(form.dateOfBirth);
+      const a = edad(form.dateOfBirth);
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
       if (a > 120) { setError(t('errorDOBYear')); return; }
     }

@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, edad } from '@/lib/fechas';
 
 /**
  * Portal Médico · Consulta — client (D3 shell)
@@ -97,13 +97,6 @@ function timeLabel(iso: string): string {
   });
 }
 
-function ageOf(dobIso: string | null): number | null {
-  if (!dobIso) return null;
-  const dob = new Date(dobIso);
-  const diff = Date.now() - dob.getTime();
-  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-}
-
 /** Campo read-only — misma caja de valor que los inputs del triaje de Day Admission */
 function F({ label, value, accent, align = 'center' }: { label: string; value: React.ReactNode; accent?: 'amber'; align?: 'center' | 'left' }): React.ReactElement {
   const empty = value === null || value === undefined || value === '';
@@ -157,7 +150,7 @@ export function ConsultationClient({
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
   const isCompleted = a.status === 'COMPLETED';
-  const age = ageOf(a.patient.dateOfBirth);
+  const age = edad(a.patient.dateOfBirth);
   const tr = a.triage;
 
   // Paso actual del flujo (mismo criterio que Day Admission).

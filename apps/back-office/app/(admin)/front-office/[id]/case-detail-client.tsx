@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fecha, fechaCalendario, edad } from '@/lib/fechas';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -10,13 +10,13 @@ import {
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
   FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
-  FlaskConical, Briefcase, Bandage,
+  FlaskConical, Briefcase, Bandage, Lock,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 // Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
 // SIN tab Notes: las notas del doctor viven en el Historial Médico del paciente
 // (decisión de Erick 2026-08-08) — un tab aparte era redundante.
-import { TABS_CON_FILTRO_DE_VISITA, type ActiveTab } from '@/lib/case-tabs';
+import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
@@ -158,7 +158,13 @@ interface Props {
    *            el summary (pagó/no pagó/saldo) — el cobro es del asistente,
    *            misma regla que `hidePayments` en el panel de servicios.
    */
-  variant?: 'admin' | 'doctor';
+  /** 'attorney' = portal legal: solo lectura y 4 tabs (ver `TABS_ATTORNEY`). */
+  variant?: 'admin' | 'doctor' | 'attorney';
+  /** Portal legal: el caso todavía no tiene la firma del abogado. Con esto los
+   *  documentos quedan cerrados hasta que firme. */
+  signatureRequired?: boolean;
+  /** Portal legal: abre el diálogo de firma desde el bloqueo de documentos. */
+  onRequestSign?: () => void;
   /** Renderizado dentro del modal interceptado — "volver" cierra en vez de navegar */
   inModal?: boolean;
   onClose?: () => void;
@@ -171,8 +177,11 @@ interface Props {
   initialTab?: ActiveTab;
 }
 
-export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inModal = false, onClose, initialTab }: Props) {
+export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inModal = false, onClose, initialTab, signatureRequired = false, onRequestSign }: Props) {
   const isDoctor = variant === 'doctor';
+  const isAttorney = variant === 'attorney';
+  /** Ni el doctor ni el abogado editan desde acá — cada uno por su motivo. */
+  const isReadOnly = isDoctor || isAttorney;
   const t = useTranslations('phoenix.caseDetail');
   // Labels de los tabs clínicos — las MISMAS claves que usa la consulta del
   // doctor, para que digan exactamente lo mismo en los dos lados.
@@ -345,9 +354,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   };
 
   const st = STATUS_META[caseInfo.status];
-  const age = (caseInfo.patient.dateOfBirth)
-    ? Math.floor((Date.now() - new Date(caseInfo.patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    : null;
+  const age = edad(caseInfo.patient.dateOfBirth);
 
   const handleSimulateIntake = async () => {
     setMarkingIntake(true);
@@ -409,8 +416,8 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               </a>
             )}
             {/* Editar paciente vive en /patients (ruta de admin) — el doctor
-                edita desde su propio módulo, así que acá no ve el link */}
-            {!isDoctor && (
+                edita desde su propio módulo y el abogado no edita nada */}
+            {!isReadOnly && (
               <Link
                 href={`/patients/${caseInfo.patient.id}`}
                 className="inline-flex items-center gap-1 text-text-muted hover:text-brand-text text-xs transition-colors"
@@ -420,7 +427,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             )}
           </span>
         }
-        action={<ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
+        action={isAttorney ? undefined : <ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
       />
 
       {/* Next action banner según status */}
@@ -439,7 +446,13 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             { id: 'braces',         label: td('tabBraces'),      labelShort: td('tabBraces'),      icon: Bandage },
             { id: 'finanzas',       label: t('tabFinance'),      labelShort: t('tabFinance'),      icon: DollarSign },
             { id: 'documentos',     label: t('tabDocuments'),    labelShort: t('tabDocumentsShort'), icon: FolderOpen },
-          ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[]).map(tab => (
+          ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[])
+            // El bufete ve las cuatro pestañas de v2. Las cinco clínicas
+            // (historial, labs, rx, servicios, férulas) son del equipo médico y
+            // no le corresponden — no es un permiso más, es información que no
+            // tiene por qué salir de la clínica.
+            .filter(tab => !isAttorney || TABS_ATTORNEY.has(tab.id))
+            .map(tab => (
             <button
               key={tab.id}
               onClick={() => cambiarTab(tab.id)}
@@ -496,7 +509,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     )}
                   </div>
                 </div>
-                {!isDoctor && (
+                {!isReadOnly && (
                   <Link
                     href={`/patients/${caseInfo.patient.id}`}
                     className="text-text-muted hover:text-brand-text transition-colors shrink-0"
@@ -508,12 +521,12 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               </div>
               <div className="space-y-0">
                 {caseInfo.patient.dateOfBirth && (
-                  <InfoRow label="Fecha de nacimiento" value={
-                    <span>{formatDate(caseInfo.patient.dateOfBirth)}{age !== null ? ` · ${age} años` : ''}</span>
+                  <InfoRow label={t('rowDob')} value={
+                    <span>{fechaCalendario(caseInfo.patient.dateOfBirth)}{age !== null ? ` · ${t('ageYears', { age })}` : ''}</span>
                   } />
                 )}
                 {(caseInfo.patient.addressLine1 || caseInfo.patient.addressCity) && (
-                  <InfoRow label="Dirección" value={
+                  <InfoRow label={t('rowAddress')} value={
                     <span className="text-text-2 text-xs">
                       {[
                         caseInfo.patient.addressLine1,
@@ -524,7 +537,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     </span>
                   } />
                 )}
-                <InfoRow label="Seguro social" value={
+                <InfoRow label={t('rowSsn')} value={
                   caseInfo.patient.socialSecurityNumber
                     ? <span className="font-mono text-xs text-text-2">***-**-{caseInfo.patient.socialSecurityNumber.slice(-4)}</span>
                     : <span className="text-text-muted text-sm">—</span>
@@ -538,7 +551,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               <CaseProgressBar status={caseInfo.status} />
 
               <div className="mt-4 space-y-0">
-                <InfoRow label="Tipo de caso" value={
+                <InfoRow label={t('rowCaseType')} value={
                   <code className="text-text-1 font-mono text-xs font-bold">{caseInfo.caseType}</code>
                 } />
                 <InfoRow label={t('fieldSpecialty')} value={
@@ -551,30 +564,30 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     />
                   ) : <span className="text-text-muted text-sm">—</span>
                 } />
-                <InfoRow label="Estado" value={
+                <InfoRow label={t('rowStatus')} value={
                   <TagPill label={st.label} colorClass={st.colorClass} />
                 } />
-                <InfoRow label="Fecha de creación" value={formatDate(caseInfo.createdAt)} />
+                <InfoRow label={t('rowCreatedAt')} value={fecha(caseInfo.createdAt)} />
                 {caseInfo.accidentDate && (
-                  <InfoRow label="Fecha del accidente" value={formatDate(caseInfo.accidentDate)} />
+                  <InfoRow label={t('rowAccidentDate')} value={fechaCalendario(caseInfo.accidentDate)} />
                 )}
-                <InfoRow label="Firma de abogados" value={
+                <InfoRow label={t('rowLawFirm')} value={
                   caseInfo.lawFirm ? (
                     <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand-text text-sm">
                       {caseInfo.lawFirm.firmName}
                     </Link>
                   ) : <span className="text-text-muted text-sm italic">{t('noFirm')}</span>
                 } />
-                <InfoRow label="Abogado representante" value={
+                <InfoRow label={t('rowAttorney')} value={
                   caseInfo.attorney
                     ? <span className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</span>
                     : <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
-                <InfoRow label="Quiropráctico tratante" value={
+                <InfoRow label={t('rowChiropractor')} value={
                   <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
                 {caseInfo.intakeFormCompletedAt && (
-                  <InfoRow label="Intake completado" value={formatDate(caseInfo.intakeFormCompletedAt)} />
+                  <InfoRow label={t('rowIntakeCompleted')} value={fecha(caseInfo.intakeFormCompletedAt)} />
                 )}
               </div>
             </InfoCard>
@@ -724,7 +737,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           caseCode={caseInfo.caseCode}
           patient={{ firstName: caseInfo.patient.firstName, lastName: caseInfo.patient.lastName }}
           specialty={caseInfo.specialty}
-          hidePayments={isDoctor}
+          hidePayments={isReadOnly}
         />
       )}
 
@@ -761,11 +774,15 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           `filterAppointmentId` ya existía en FinanzasTab (lo usa el panel de la
           cita) y nunca se le pasaba desde el caso: el selector lo aprovecha. */}
       {activeTab === 'finanzas' && (
-        <FinanzasTab caseId={caseInfo.id} readOnly={isDoctor} filterAppointmentId={visitId ?? undefined} />
+        <FinanzasTab caseId={caseInfo.id} readOnly={isReadOnly} filterAppointmentId={visitId ?? undefined} />
       )}
 
       {/* Tab: Documentos */}
-      {activeTab === 'documentos' && <DocumentsTab caseId={caseInfo.id} />}
+      {activeTab === 'documentos' && (
+        isAttorney && signatureRequired
+          ? <DocumentsLocked onSign={onRequestSign} />
+          : <DocumentsTab caseId={caseInfo.id} />
+      )}
 
       {/* Modals */}
       <SendPortalDialog
@@ -1377,10 +1394,6 @@ function NotesPanel({ notes, onAddNote }: {
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 function formatRelative(d: Date | string): string {
   const h = (Date.now() - new Date(d).getTime()) / (1000 * 60 * 60);
   if (h < 1) {
@@ -1458,6 +1471,31 @@ function LienSignatureRow({
             className={`w-full object-contain rounded transition-all duration-200 ${expanded ? 'max-h-48' : 'max-h-16 opacity-70'}`}
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Portal Legal · documentos cerrados hasta que el abogado firme.
+ *
+ * Es el ÚNICO bloqueo real del portal: el caso siempre se puede ver (eso solo
+ * dispara una advertencia), pero los documentos exigen la firma. Se muestra el
+ * motivo y el botón para firmar en el mismo lugar — mandarlo a buscar el menú
+ * "..." de la lista sería hacerle dar una vuelta para llegar acá de nuevo.
+ */
+function DocumentsLocked({ onSign }: { onSign?: () => void }): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  return (
+    <div className="rounded-lg bg-bg-1 p-10 text-center">
+      <Lock className="w-8 h-8 text-amber mx-auto mb-3" />
+      <div className="text-text-1 font-semibold text-sm">{t('documentsLockedTitle')}</div>
+      <div className="text-text-2 text-xs mt-1 max-w-sm mx-auto">{t('documentsLockedBody')}</div>
+      {onSign && (
+        <Button className="mt-4" onClick={onSign}>
+          <PenLine className="w-3.5 h-3.5 mr-1.5" />
+          {t('signNow')}
+        </Button>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fecha, fechaCalendario } from '@/lib/fechas';
 
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
@@ -33,12 +33,6 @@ function fmtPhone(raw: string): string {
   return '';
 }
 
-function fmtLocalDate(d: Date | string | null | undefined, locale = 'en-US'): string {
-  if (!d) return '—';
-  const iso = typeof d === 'string' ? d : (d as Date).toISOString();
-  const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
-  return new Date(y, mo - 1, day).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 // ── Case action types ──────────────────────────────────────────────────────
 interface CaseRow {
@@ -2573,8 +2567,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                           },
                         })}
                         className="p-1.5 rounded hover:bg-brand/10 transition-colors group"
-                        title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
-                        aria-label={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
+                        title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fecha(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
+                        aria-label={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fecha(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                       >
                         <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand-text' : 'text-text-muted group-hover:text-brand-text'}`} />
                       </button>
@@ -2609,7 +2603,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
                 {/* Created */}
                 <td className="hidden xl:table-cell px-4 py-2 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
-                  {fmtLocalDate(p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt))}
+                  {fecha(p.createdAt)}
                 </td>
 
                 {/* Acciones */}
@@ -2693,7 +2687,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                 </div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                                   {c.caseType && <span className="text-[10px] text-text-muted">{CASE_TYPE_LABEL[c.caseType] ?? c.caseType}</span>}
-                                  {c.accidentDate && <span className="text-[10px] text-text-muted tabular-nums">{fmtLocalDate(c.accidentDate)}</span>}
+                                  {c.accidentDate && <span className="text-[10px] text-text-muted tabular-nums">{fechaCalendario(c.accidentDate)}</span>}
                                 </div>
                                 {/* Etapa del CASO — misma info que la columna
                                     Progreso del desktop (la admision ya esta en
@@ -2771,7 +2765,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                     {/* Fecha accidente */}
                                     <td className="px-3 py-2">
                                       <span className="text-[11px] text-text-2 tabular-nums">
-                                        {c.accidentDate ? fmtLocalDate(c.accidentDate) : <span className="text-text-muted">—</span>}
+                                        {c.accidentDate ? fechaCalendario(c.accidentDate) : <span className="text-text-muted">—</span>}
                                       </span>
                                     </td>
 
@@ -2978,7 +2972,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 {viewTarget.dateOfBirth && (
                   <div className="flex items-center gap-2 text-text-2">
                     <Calendar className="w-3.5 h-3.5 text-text-muted" />
-                    <span>{fmtLocalDate(viewTarget.dateOfBirth)}</span>
+                    <span>{fechaCalendario(viewTarget.dateOfBirth)}</span>
                   </div>
                 )}
               </div>
@@ -2988,7 +2982,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Accidente</p>
                   <div className="flex items-center gap-2 text-text-2">
                     <Car className="w-3.5 h-3.5 text-text-muted" />
-                    <span>{fmtLocalDate(viewTarget.accidentDate)}</span>
+                    <span>{fechaCalendario(viewTarget.accidentDate)}</span>
                     {viewTarget.accidentType && <span className="text-text-muted">· {viewTarget.accidentType}</span>}
                   </div>
                 </div>

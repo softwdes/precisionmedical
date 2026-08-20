@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { fecha, fechaCalendario, edad } from '@/lib/fechas';
 
 /**
  * B.4 mockup · PatientDetailClient
@@ -127,18 +127,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
   const totalAppointments = patient.cases.reduce((acc, c) => acc + c._count.appointments, 0);
   const totalNotes = patient.cases.reduce((acc, c) => acc + c._count.notes, 0);
 
-  // Edad
-  const age = (() => {
-    if (!patient.dateOfBirth) return null;
-    const iso = typeof patient.dateOfBirth === 'string' ? patient.dateOfBirth : patient.dateOfBirth.toISOString();
-    const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
-    const birth = new Date(y, mo - 1, day);
-    const today = new Date();
-    let a = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) a--;
-    return a;
-  })();
+  const age = edad(patient.dateOfBirth);
 
   const patientStatusColors = PATIENT_STATUS_COLORS[patient.status];
   const PATIENT_STATUS_LABEL_KEYS: Record<PatientStatus, string> = {
@@ -231,7 +220,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
             label={t('fieldDob')}
             value={
               patient.dateOfBirth
-                ? <span>{formatDate(patient.dateOfBirth)}{age !== null ? <span className="text-text-muted ml-2">({t('ageYears', { age })})</span> : null}</span>
+                ? <span>{fechaCalendario(patient.dateOfBirth)}{age !== null ? <span className="text-text-muted ml-2">({t('ageYears', { age })})</span> : null}</span>
                 : <span className="text-text-muted italic">{t('dobNotRegistered')}</span>
             }
           />
@@ -277,7 +266,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
           />
           <InfoRow
             label={t('fieldRegistered')}
-            value={<span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-text-muted" />{formatDate(patient.createdAt)}</span>}
+            value={<span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-text-muted" />{fecha(patient.createdAt)}</span>}
           />
           <InfoRow
             label={t('fieldTotalCases')}
@@ -375,7 +364,7 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick?: () => void
           <div className="flex items-center gap-x-4 gap-y-0.5 text-[11px] text-text-muted flex-wrap">
             {c.accidentDate && (
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />DOL: {formatDate(c.accidentDate)}
+                <Calendar className="w-3 h-3" />DOL: {fechaCalendario(c.accidentDate)}
               </span>
             )}
             {c.accidentLocation && (
@@ -415,13 +404,6 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick?: () => void
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatDate(d: Date | string): string {
-  // Parse as local date to avoid UTC→local timezone shift (e.g. 2000-01-01 UTC → Dec 31)
-  const iso = typeof d === 'string' ? d : d.toISOString();
-  const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
-  const local = new Date(y, mo - 1, day);
-  return local.toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 type TFn = ReturnType<typeof useTranslations<'phoenix.patients'>>;
 

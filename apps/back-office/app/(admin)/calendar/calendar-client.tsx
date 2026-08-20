@@ -302,6 +302,19 @@ function apptTimeShort(iso: string): string {
 }
 
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
+/**
+ * El TEXTO de las tarjetas sale de `var(--text-1)`, no de un hex.
+ *
+ * Antes cada rama devolvia su propio tono claro (`#fca5a5` para MVA, `#6ee7b7`
+ * para family practice...) elegido para fondo oscuro. El tema claro cambia
+ * `--text-1` de casi-blanco a casi-negro, pero estas tarjetas no usaban la
+ * variable, asi que en claro quedaba fondo rosa palido sobre blanco Y texto rosa
+ * palido encima: dos tonos del mismo color, ilegible. Lo reporto el staff.
+ *
+ * Con el token, el contraste lo resuelve el tema en los dos modos. La identidad
+ * de color vive en el FONDO y el BORDE, que es lo que explica la leyenda del pie
+ * — igual que Google Calendar y Outlook.
+ */
 function getEventStyle(appt: CalendarAppointment): {
   bg: string; border: string; text: string; glow?: string; badge?: string; strike?: boolean;
 } {
@@ -326,7 +339,7 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(244,63,94,0.08)',
       border: 'rgba(244,63,94,0.35)',
-      text: '#fda4af',
+      text: 'var(--text-1)',
       strike: true,
     };
   }
@@ -334,7 +347,7 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(100,116,139,0.12)',
       border: 'rgba(100,116,139,0.35)',
-      text: '#94a3b8',
+      text: 'var(--text-1)',
       strike: true,
     };
   }
@@ -343,14 +356,14 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'rgba(99,102,241,0.18)',
       border: 'rgba(99,102,241,0.35)',
-      text: '#a5b4fc',
+      text: 'var(--text-1)',
     };
   }
   if (isPending) {
     return {
       bg: 'rgba(245,158,11,0.15)',
       border: 'rgba(245,158,11,0.40)',
-      text: '#fbbf24',
+      text: 'var(--text-1)',
     };
   }
 
@@ -361,28 +374,28 @@ function getEventStyle(appt: CalendarAppointment): {
     return {
       bg: 'linear-gradient(135deg,rgba(244,63,94,0.28),rgba(236,72,153,0.18))',
       border: 'rgba(236,72,153,0.55)',
-      text: '#fda4af',
+      text: 'var(--text-1)',
       glow: '0 0 10px rgba(244,63,94,0.35)',
       badge: '🆕',
     };
   }
   if (isMVA) {
-    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: '#fca5a5' };
+    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: 'var(--text-1)' };
   }
   if (isGM && isFirst) {
     return {
       bg: 'linear-gradient(135deg,rgba(16,185,129,0.28),rgba(20,184,166,0.18))',
       border: 'rgba(16,185,129,0.55)',
-      text: '#6ee7b7',
+      text: 'var(--text-1)',
       glow: '0 0 10px rgba(16,185,129,0.30)',
       badge: '🆕',
     };
   }
   if (isGM) {
-    return { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.40)', text: '#6ee7b7' };
+    return { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.40)', text: 'var(--text-1)' };
   }
   // Other
-  return { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)', text: '#67e8f9' };
+  return { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)', text: 'var(--text-1)' };
 }
 
 // ─── FilterChip ───────────────────────────────────────────────────────────────

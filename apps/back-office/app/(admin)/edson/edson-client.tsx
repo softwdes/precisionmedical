@@ -423,10 +423,16 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           */}
         <DataTable.Scroll maxHeight="calc(100vh - 205px)">
           {/*
-          * `text-[12px]` en vez del `text-sm` (14px) del primitivo: Edson pidio
-          * bajar un punto SOLO el texto grande. Los datos secundarios —fecha de
-          * nacimiento, telefono, clinica— ya tienen su propio tamaño y no se
-          * tocan, si no quedarian ilegibles.
+          * Toda la grilla un punto mas chica que el primitivo, a pedido de
+          * Edson: principal 12px (el `text-sm` son 14), secundario 10px y
+          * encabezado 9px.
+          *
+          * Los modales NO cambian: ahi se lee y se escribe, y el tamaño chico
+          * sirve para escanear una grilla, no para redactar un parrafo.
+          *
+          * A este tamaño el principal y el secundario quedan a 2px de distancia
+          * y la jerarquia de la fila se aplana. Es reversible en estos valores
+          * si al usarlo cuesta distinguirlos.
           */}
         <DataTable.Table gridLines className="text-[12px] [&_td]:!py-1.5 [&_th]:!py-1 [&_th]:!leading-tight [&_th]:!text-[9px]">
             <DataTable.Head>

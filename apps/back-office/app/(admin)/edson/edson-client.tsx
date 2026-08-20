@@ -327,7 +327,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
    * alineando con el resto de las pantallas.
    */
   return (
-    <div className="space-y-2.5 -mt-3 sm:-mt-5 lg:-mt-7">
+    <div className="space-y-2 -mt-3 sm:-mt-5 lg:-mt-7 -mx-2 sm:-mx-4 lg:-mx-6 -mb-3 sm:-mb-5 lg:-mb-7">
       {/*
         * Encabezado propio y no `PageHeader`, y todo en UNA fila: titulo, tabs y
         * leyenda. El primitivo usa `text-2xl` con subtitulo —bien en un catalogo,
@@ -421,14 +421,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * pidio verlo siempre, porque con 15 columnas no se acuerda de cual
           * es cual. Ver la nota de `DataTable.Scroll`.
           */}
-        <DataTable.Scroll maxHeight="calc(100vh - 240px)">
+        <DataTable.Scroll maxHeight="calc(100vh - 205px)">
           {/*
           * `text-[13px]` en vez del `text-sm` (14px) del primitivo: Edson pidio
           * bajar un punto SOLO el texto grande. Los datos secundarios —fecha de
           * nacimiento, telefono, clinica— ya tienen su propio tamaño y no se
           * tocan, si no quedarian ilegibles.
           */}
-        <DataTable.Table gridLines className="text-[13px] [&_td]:!py-1.5 [&_th]:!py-2">
+        <DataTable.Table gridLines className="text-[13px] [&_td]:!py-1.5 [&_th]:!py-1 [&_th]:!leading-tight">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>

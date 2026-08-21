@@ -7,7 +7,7 @@ import { writeAuditLog } from '@precision-medical/database/audit';
 import { resolveActor, getDbUserByEmail } from '@/lib/actor';
 import { getSessionUser } from '@/lib/session';
 import type { MedicalHistoryData } from './medical-history-dialog';
-import { validarHistorial } from '@/lib/medical-history-schema';
+import { validarHistorial, type CodigoValidacion } from '@/lib/medical-history-schema';
 
 export async function searchDrugs(q: string): Promise<Array<{ id: number; name: string; generic: string; category: string }>> {
   const rows = await db.drug.findMany({
@@ -90,7 +90,7 @@ const PUEDEN_EDITAR_HISTORIAL: readonly UserRole[] = [
 export async function updateMedicalHistory(
   patientId: string,
   patch: Partial<MedicalHistoryData>,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; code?: CodigoValidacion | 'sinPermiso' | 'sesionVencida' | 'inesperado'; max?: number }> {
   try {
     /**
      * Quién es, antes de escribir.
@@ -108,11 +108,11 @@ export async function updateMedicalHistory(
      * atribuir en el audit log pero no para decidir un permiso.
      */
     const user = await getSessionUser();
-    if (!user?.email) return { ok: false, error: 'Sesión vencida — volvé a entrar' };
+    if (!user?.email) return { ok: false, code: 'sesionVencida' };
 
     const dbUser = await getDbUserByEmail(user.email);
     if (!dbUser || !PUEDEN_EDITAR_HISTORIAL.includes(dbUser.role)) {
-      return { ok: false, error: 'Tu rol no puede editar el historial médico' };
+      return { ok: false, code: 'sinPermiso' };
     }
 
     const existing = await db.patient.findUnique({
@@ -135,7 +135,13 @@ export async function updateMedicalHistory(
       current as unknown as Record<string, unknown>,
       patch as unknown as Record<string, unknown>,
     );
-    if (!revisado.ok) return { ok: false, error: revisado.error };
+    if (!revisado.ok) {
+      // El `donde` (el path del esquema) va al LOG, no al usuario: le sirve a
+      // quien depura, y en un toast era "surgeries.date: ..." — un nombre de
+      // columna. Al cliente viaja el codigo, que traduce.
+      console.error('[medical-history] rechazado:', revisado.code, revisado.donde);
+      return { ok: false, code: revisado.code, max: revisado.max };
+    }
 
     const updated  = { ...current, ...revisado.data };
 
@@ -158,7 +164,9 @@ export async function updateMedicalHistory(
     revalidatePath('/patients');
     return { ok: true };
   } catch (err) {
+    // `String(err)` iba al toast del usuario: podia incluir el mensaje crudo de
+    // Prisma. Queda en el log; al usuario le llega un codigo.
     console.error('updateMedicalHistory', err);
-    return { ok: false, error: String(err) };
+    return { ok: false, code: 'inesperado' };
   }
 }

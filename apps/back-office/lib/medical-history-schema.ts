@@ -31,12 +31,12 @@ const largo = z.string().trim().max(2000);
  * 1900 descarta los años tecleados de más (1212), y el tope de hoy vale para lo
  * que YA pasó: un diagnóstico o una cirugía no pueden ser del futuro.
  */
-const fechaClinica = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'la fecha debe ser YYYY-MM-DD')
+const fechaClinica = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'fechaFormato')
   .refine((v) => {
     const d = new Date(v + 'T00:00:00Z');
     if (Number.isNaN(d.getTime())) return false;
     return d.getUTCFullYear() >= 1900 && d.getTime() <= Date.now() + 24 * 60 * 60 * 1000;
-  }, 'la fecha tiene que estar entre 1900 y hoy');
+  }, 'fechaRango');
 
 /**
  * `YYYY` o `YYYY-MM-DD`, para lo que se recuerda a medias.
@@ -54,7 +54,7 @@ const anioOFecha = z.union([
   z.string().trim().regex(/^\d{4}$/).refine((v) => {
     const n = Number(v);
     return n >= 1900 && n <= new Date().getFullYear();
-  }, 'el año tiene que estar entre 1900 y hoy'),
+  }, 'anioRango'),
   fechaClinica,
 ]);
 
@@ -65,7 +65,7 @@ const consumo = z.enum(['NEVER', 'FORMER', 'CURRENT']);
 const anio = z.string().trim().regex(/^\d{4}$/).refine((v) => {
   const n = Number(v);
   return n >= 1900 && n <= new Date().getFullYear();
-}, 'año fuera de rango');
+}, 'anioRango');
 
 const condicion = z.object({
   id: z.string(),
@@ -162,9 +162,37 @@ type Seccion = keyof typeof SECCIONES;
 
 const igual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/**
+ * Códigos de fallo. El cliente los traduce; el path interno del esquema NO viaja
+ * al usuario.
+ *
+ * Antes el error era `${seccion}.${path}: ${mensaje}` y se mostraba tal cual en
+ * un toast: "surgeries.date: la fecha debe ser YYYY-MM-DD". Un path de Zod, en
+ * español, con la interfaz en inglés, y filtrando nombres de columnas. Los
+ * mensajes de los validadores propios son ahora estos códigos (ver
+ * `fechaClinica`), así que `issue.message` ES el código.
+ */
+export type CodigoValidacion =
+  | 'fechaFormato' | 'fechaRango' | 'anioRango'
+  | 'muyLargo' | 'valorInvalido'
+  | 'seccionDesconocida' | 'listaEsperada' | 'demasiadas';
+
+const CODIGOS_PROPIOS = new Set<string>(['fechaFormato', 'fechaRango', 'anioRango']);
+
+/** Traduce un issue de Zod a uno de nuestros códigos. */
+function codigoDeIssue(i: z.ZodIssue): CodigoValidacion {
+  if (CODIGOS_PROPIOS.has(i.message)) return i.message as CodigoValidacion;
+  if (i.code === 'too_big') return 'muyLargo';
+  return 'valorInvalido';
+}
+
 export type ResultadoValidacion =
   | { ok: true; data: Record<string, unknown> }
-  | { ok: false; error: string };
+  /**
+   * `donde` y `max` son para el log del servidor y para que el llamador pueda
+   * dar contexto — NO para mostrarle el path al usuario.
+   */
+  | { ok: false; code: CodigoValidacion; donde: string; max?: number };
 
 /**
  * Valida el patch contra lo ya guardado y devuelve lo que se puede escribir.
@@ -182,7 +210,7 @@ export function validarHistorial(
     if (!(clave in SECCIONES)) {
       // Una sección inventada entraría al JSON y quedaría ahí para siempre sin
       // que nadie la lea. Mejor rechazar que acumular basura invisible.
-      return { ok: false, error: `sección desconocida: ${clave}` };
+      return { ok: false, code: 'seccionDesconocida', donde: clave };
     }
     const def = SECCIONES[clave as Seccion] as { fila?: z.ZodTypeAny; valor?: z.ZodTypeAny; max?: number };
     const valorActual = actual[clave];
@@ -190,9 +218,9 @@ export function validarHistorial(
     if (igual(valorActual, valorNuevo)) { salida[clave] = valorNuevo; continue; }
 
     if (def.fila) {
-      if (!Array.isArray(valorNuevo)) return { ok: false, error: `${clave}: se esperaba una lista` };
+      if (!Array.isArray(valorNuevo)) return { ok: false, code: 'listaEsperada', donde: clave };
       if (def.max && valorNuevo.length > def.max) {
-        return { ok: false, error: `${clave}: máximo ${def.max} registros` };
+        return { ok: false, code: 'demasiadas', donde: clave, max: def.max };
       }
       const previas = new Map<string, unknown>();
       for (const it of (Array.isArray(valorActual) ? valorActual : [])) {
@@ -208,7 +236,7 @@ export function validarHistorial(
         const r = def.fila.safeParse(fila);
         if (!r.success) {
           const i = r.error.issues[0];
-          return { ok: false, error: `${clave}.${i.path.join('.')}: ${i.message}` };
+          return { ok: false, code: codigoDeIssue(i), donde: `${clave}.${i.path.join('.')}` };
         }
         filas.push(r.data);
       }
@@ -219,8 +247,11 @@ export function validarHistorial(
     const r = def.valor!.safeParse(valorNuevo);
     if (!r.success) {
       const i = r.error.issues[0];
-      const donde = i.path.length ? `${clave}.${i.path.join('.')}` : clave;
-      return { ok: false, error: `${donde}: ${i.message}` };
+      return {
+        ok: false,
+        code: codigoDeIssue(i),
+        donde: i.path.length ? `${clave}.${i.path.join('.')}` : clave,
+      };
     }
     salida[clave] = r.data;
   }

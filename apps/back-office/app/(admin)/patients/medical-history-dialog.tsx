@@ -81,9 +81,18 @@ async function guardarSeccion(
   patientId: string,
   patch: Partial<MedicalHistoryData>,
   avisar: (msg: string) => void,
+  t: (clave: string, vars?: Record<string, string | number | Date>) => string,
 ): Promise<boolean> {
   const r = await updateMedicalHistory(patientId, patch);
-  if (!r.ok) { avisar(r.error ?? 'No se pudo guardar'); return false; }
+  if (!r.ok) {
+    // El action devuelve un CODIGO, no prosa. Antes venia el error armado en el
+    // server —`surgeries.date: la fecha debe ser YYYY-MM-DD`— y se mostraba tal
+    // cual: un path de Zod, en español, con la interfaz en ingles, filtrando
+    // nombres de columnas. Y en el `catch` era `String(err)`, que podia soltar
+    // el mensaje crudo de Prisma.
+    avisar(r.code ? t(`mh.err.${r.code}`, { max: r.max ?? 0 }) : t('mh.err.inesperado'));
+    return false;
+  }
   return true;
 }
 
@@ -304,7 +313,7 @@ function VisitInfoEditDialog({
 
   function handleSave() {
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { visitInfo: form }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { visitInfo: form }, toast.error, t)) return;
       onSaved?.({ visitInfo: form });
       onClose();
     });
@@ -412,7 +421,7 @@ function HealthInfoEditDialog({
 
   function handleSave() {
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { healthInfo: { goals, selfRating: rating } }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { healthInfo: { goals, selfRating: rating } }, toast.error, t)) return;
       onSaved?.({ healthInfo: { goals, selfRating: rating } });
       onClose();
     });
@@ -535,7 +544,7 @@ function AddProblemDialog({
     };
     const updated = [...(existing ?? []), newProblem];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { problems: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { problems: updated }, toast.error, t)) return;
       onSaved?.({ problems: updated });
       onClose();
     });
@@ -786,7 +795,7 @@ function SocialHistoryEditDialog({
       },
     } as Partial<MedicalHistoryData>;
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, patch, toast.error)) return;
+      if (!await guardarSeccion(patientId, patch, toast.error, t)) return;
       onSaved?.(patch);
       onClose();
     });
@@ -956,7 +965,7 @@ function AddMedicationDialog({
     };
     const updated = [...(existing ?? []), newMed];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { medications: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { medications: updated }, toast.error, t)) return;
       onSaved?.({ medications: updated });
       onClose();
     });
@@ -1186,7 +1195,7 @@ function AddSurgeryDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { surgeries: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { surgeries: updated }, toast.error, t)) return;
       onSaved?.({ surgeries: updated });
       onClose();
     });
@@ -1297,7 +1306,7 @@ function AddProviderDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { providers: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { providers: updated }, toast.error, t)) return;
       onSaved?.({ providers: updated });
       onClose();
     });
@@ -1389,7 +1398,7 @@ function AllergiesEditDialog({
 
   function handleSave() {
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { allergies: value.trim() || undefined }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { allergies: value.trim() || undefined }, toast.error, t)) return;
       onSaved?.({ allergies: value.trim() || undefined });
       onClose();
     });
@@ -1452,7 +1461,7 @@ function VaccinesEditDialog({
   function handleSave() {
     const vaccines = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { vaccines }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { vaccines }, toast.error, t)) return;
       onSaved?.({ vaccines });
       onClose();
     });
@@ -1542,7 +1551,7 @@ function CognitiveEditDialog({
   function handleSave() {
     const cognitiveStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { cognitiveStatus }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { cognitiveStatus }, toast.error, t)) return;
       onSaved?.({ cognitiveStatus });
       onClose();
     });
@@ -1644,7 +1653,7 @@ function FunctionalEditDialog({
   function handleSave() {
     const functionalStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { functionalStatus }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { functionalStatus }, toast.error, t)) return;
       onSaved?.({ functionalStatus });
       onClose();
     });
@@ -1730,7 +1739,7 @@ function DevicesEditDialog({
   function handleSave() {
     const implantedDevices = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { implantedDevices }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { implantedDevices }, toast.error, t)) return;
       onSaved?.({ implantedDevices });
       onClose();
     });
@@ -1802,7 +1811,7 @@ function SystemsReviewEditDialog({
   function handleSave() {
     const systemsReview = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { systemsReview }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { systemsReview }, toast.error, t)) return;
       onSaved?.({ systemsReview });
       onClose();
     });
@@ -1874,7 +1883,7 @@ function HealthExamsEditDialog({
     startTransition(async () => {
       if (!await guardarSeccion(patientId, {
         healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal },
-      }, toast.error)) return;
+      }, toast.error, t)) return;
       onSaved?.({ healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal } });
       onClose();
     });
@@ -1971,7 +1980,7 @@ function AddCommentDialog({
     const newComment = { id: crypto.randomUUID(), date, text: text.trim() };
     const newComments = [...(existing ?? []), newComment];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { comments: newComments }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { comments: newComments }, toast.error, t)) return;
       onSaved?.({ comments: newComments });
       onClose();
     });
@@ -2057,7 +2066,7 @@ function AddFamilyHistoryDialog({
     const newItem = { id: crypto.randomUUID(), relation, condition };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { familyHistory: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { familyHistory: updated }, toast.error, t)) return;
       onSaved?.({ familyHistory: updated });
       onClose();
     });
@@ -2171,7 +2180,7 @@ function AddHistoryDialog({
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      if (!await guardarSeccion(patientId, { history: updated }, toast.error)) return;
+      if (!await guardarSeccion(patientId, { history: updated }, toast.error, t)) return;
       onSaved?.({ history: updated });
       onClose();
     });

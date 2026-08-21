@@ -7,7 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
-import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 
 export async function GET(
@@ -44,14 +44,9 @@ export async function GET(
             primaryPolicyNumber:   true,
             lawFirmId:             true,
             attorneyId:            true,
-            // Cobertura (¿quién paga?). Explícitas y no con COVERAGE_LIST_SELECT
-            // porque este select ya trae `primaryInsurance` con más campos.
-            coverageType:           true,
-            coverageVerifyMethod:   true,
-            coverageVerifiedAt:     true,
-            coverageVerifiedByName: true,
-            coverageCarrierName:    true,
-            coverageNote:           true,
+            // Cobertura (¿quién paga?): las columnas del helper, sin su
+            // `primaryInsurance`. Ver COVERAGE_FIELDS.
+            ...COVERAGE_FIELDS,
             lawFirm: {
               select: { id: true, firmName: true, phone: true, email: true },
             },

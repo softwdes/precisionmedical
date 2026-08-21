@@ -13,7 +13,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
-import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { ConsultationClient } from './consultation-client';
 
@@ -57,11 +57,9 @@ export default async function DoctorConsultationPage({
         select: {
           id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
           pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
-          // Cobertura. Las columnas van explícitas y no con COVERAGE_LIST_SELECT
-          // porque este select ya trae `primaryInsurance` con más campos y el
-          // spread lo pisaría.
-          coverageType: true, coverageVerifyMethod: true, coverageVerifiedAt: true,
-          coverageVerifiedByName: true, coverageCarrierName: true, coverageNote: true,
+          // Cobertura: las columnas del helper, sin su `primaryInsurance` —
+          // este select trae el suyo con más campos. Ver COVERAGE_FIELDS.
+          ...COVERAGE_FIELDS,
           primaryPolicyNumber: true, secondaryPolicyNumber: true,
           primaryInsurance: { select: { id: true, name: true, type: true } },
           secondaryInsurance: { select: { id: true, name: true } },

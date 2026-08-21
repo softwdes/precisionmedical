@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, casePrefixFor } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,12 +27,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
       accidentLocation: true,
       accidentNotes: true,
       consentsData: true,
-      coverageType: true,
-      coverageVerifyMethod: true,
-      coverageVerifiedAt: true,
-      coverageVerifiedByName: true,
-      coverageCarrierName: true,
-      coverageNote: true,
+      ...COVERAGE_FIELDS,
       consentSignaturePng: true,
       portalToken: true,
       createdAt: true,

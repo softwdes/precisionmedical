@@ -19,6 +19,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { COVERAGE_FIELDS } from '@/lib/coverage';
 import { createServerClient } from '@precision-medical/auth/server';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -57,11 +58,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: {
       id: true,
       caseCode: true,
-      coverageType: true,
-      coverageVerifyMethod: true,
-      coverageVerifiedAt: true,
-      coverageCarrierName: true,
-      coverageNote: true,
+      // Misma fuente que las pantallas que lo LEEN: si mañana se agrega una
+      // columna de cobertura, el audit log la registra sin que nadie se acuerde.
+      ...COVERAGE_FIELDS,
     },
   });
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
@@ -96,14 +95,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       // guardado que solo cambia el carrier no la pisa.
       coverageNote: answered ? (body.note?.trim() || null) : null,
     },
-    select: {
-      coverageType: true,
-      coverageVerifyMethod: true,
-      coverageVerifiedAt: true,
-      coverageVerifiedByName: true,
-      coverageCarrierName: true,
-      coverageNote: true,
-    },
+    select: COVERAGE_FIELDS,
   });
 
   await writeAuditLog(db, {

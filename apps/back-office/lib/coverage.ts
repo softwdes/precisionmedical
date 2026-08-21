@@ -34,13 +34,32 @@ export type CoverageVerifyMethod = 'DECLARED' | 'VERIFIED';
  * multiplicado por 20 filas es payload que no se usa. La sugerencia derivada del
  * intake solo hace falta en el diálogo, que trae un caso solo.
  */
-export const COVERAGE_LIST_SELECT = {
+/**
+ * Las columnas de cobertura SOLAS, sin `primaryInsurance`.
+ *
+ * Existe por una trampa concreta: cuatro pantallas —la consulta del doctor, Day
+ * Admission, el listado de citas y el detalle del caso— NO podían usar
+ * `COVERAGE_LIST_SELECT` porque ya traen `primaryInsurance` con más campos y el
+ * spread lo pisaba. Así que copiaban las columnas a mano, y cuando se agregó
+ * `coverageNote` se olvidó en las cuatro. `tsc` no lo delata: los campos de
+ * `CoverageInput` son todos opcionales, así que compila limpio y el dato
+ * simplemente no aparece.
+ *
+ * Con las columnas separadas del `include` cualquiera puede hacer
+ * `...COVERAGE_FIELDS` y agregar su propio `primaryInsurance`. El próximo campo
+ * de cobertura se agrega en UN lugar.
+ */
+export const COVERAGE_FIELDS = {
   coverageType: true,
   coverageVerifyMethod: true,
   coverageVerifiedAt: true,
   coverageVerifiedByName: true,
   coverageCarrierName: true,
   coverageNote: true,
+} as const;
+
+export const COVERAGE_LIST_SELECT = {
+  ...COVERAGE_FIELDS,
   primaryInsurance: { select: { name: true } },
 } as const;
 

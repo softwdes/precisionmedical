@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
-import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
 const APPT_INCLUDE = {
@@ -46,12 +46,7 @@ const APPT_INCLUDE = {
       // Cobertura: ordena qué catálogo abre primero el picker de cargos. Es una
       // columna del caso, no una consulta extra — se deriva con
       // `resolveCoverage` para no reimplementar la regla en el cliente.
-      coverageType: true,
-      coverageVerifyMethod: true,
-      coverageVerifiedAt: true,
-      coverageVerifiedByName: true,
-      coverageCarrierName: true,
-      coverageNote: true,
+      ...COVERAGE_FIELDS,
       // En el modelo Case la relación al attorney es "attorney" (no lawyerReferrer)
       attorney: {
         select: {

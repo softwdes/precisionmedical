@@ -212,7 +212,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const sp = new URLSearchParams({ page: String(page), size: '25', archived: String(archived) });
+      const sp = new URLSearchParams({ page: String(page), size: '100', archived: String(archived) });
       if (q)          sp.set('q', q);
       if (clinicId)   sp.set('clinicId', clinicId);
       if (providerId) sp.set('providerId', providerId);
@@ -440,7 +440,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * y la jerarquia de la fila se aplana. Es reversible en estos valores
           * si al usarlo cuesta distinguirlos.
           */}
-        <DataTable.Table gridLines className="text-[9px] [&_td]:!py-1.5 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
+        <DataTable.Table gridLines className="text-[9px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
@@ -511,31 +511,42 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         <DataTable.Td sticky="left" style={rowBg ? { background: rowBg } : undefined}>
                           <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className="w-1 h-8 rounded-full shrink-0"
+                              // h-8 estiraba la fila ahora que el contenido cabe
+                              // en un renglon: la franja pasaba a ser el elemento
+                              // mas alto de la celda y mandaba ella el alto.
+                              className="w-1 h-3.5 rounded-full shrink-0"
                               style={{
                                 background: vis.background,
                                 boxShadow: vis.glow ? MVA_FIRST_GLOW : undefined,
                               }}
                               title={row.appointment.latestStatus ?? row.appointment.status}
                             />
-                            <div className="min-w-0">
-                              <div
+                            {/*
+                              * Nombre, nacimiento y telefono en UNA linea.
+                              *
+                              * Estaban apilados y eso costaba el doble de alto por
+                              * fila. Con las 13 columnas ya entrando sin scroll
+                              * horizontal, el ancho es lo que sobra y el alto lo
+                              * que falta: se paga una cosa con la otra.
+                              */}
+                            <div className="flex items-baseline gap-1.5 min-w-0">
+                              <span
                                 className="text-text-1 font-semibold truncate"
                                 style={{ textDecoration: vis.strike ? 'line-through' : undefined }}
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
-                              </div>
-                              <div className="text-text-muted text-[7.5px] truncate font-mono">
+                              </span>
+                              <span className="text-text-muted text-[7.5px] whitespace-nowrap font-mono shrink-0">
                                 {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
-                              </div>
+                              </span>
                             </div>
                           </div>
                         </DataTable.Td>
                         <DataTable.Td>
-                          <div className="whitespace-nowrap">
+                          <div className="flex items-baseline gap-1.5 whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[7.5px] text-text-muted mt-0.5">
+                              <span className="flex items-center gap-1 text-[7.5px] text-text-muted">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}
@@ -553,13 +564,22 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             * es la unica forma real de bajar de 15 columnas sin
                             * perder dato.
                             */}
+                          {/*
+                            * "Creada por" ya NO baja como segunda linea: en la
+                            * mayoria de las filas repetia el mismo nombre del
+                            * provider y costaba una linea entera de alto. Vive en
+                            * el tooltip, que es donde Edson lo consulta cuando
+                            * necesita saber quien agendo — no de un vistazo.
+                            */}
                           <div className="min-w-0">
-                            <Txt v={row.appointment.providerName} />
-                            {row.appointment.createdBy && (
-                              <div className="text-[7.5px] text-text-muted truncate" title={t('colCreatedBy')}>
-                                {t('createdByShort', { name: row.appointment.createdBy })}
-                              </div>
-                            )}
+                            <span
+                              className="text-text-2 truncate block max-w-[160px]"
+                              title={row.appointment.createdBy
+                                ? `${row.appointment.providerName ?? ''} — ${t('createdByShort', { name: row.appointment.createdBy })}`
+                                : row.appointment.providerName ?? undefined}
+                            >
+                              {row.appointment.providerName ?? <Empty />}
+                            </span>
                           </div>
                         </DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
@@ -911,12 +931,22 @@ function NoteCell({ row, onOpen }: { row: Row; onOpen: () => void }) {
     >
       {row.lastNote ? (
         <>
-          <span className="text-[9px] text-text-2 line-clamp-2">
-            <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
-            {row.lastNote}
-          </span>
-          <span className="block text-[7.5px] text-text-muted mt-0.5">
-            {t('noteCount', { count: row.noteCount })}
+          {/*
+            * Una sola linea, y el contador al lado en vez de debajo.
+            *
+            * Con `line-clamp-2` mas la fecha mas el contador, esta celda llegaba
+            * a cuatro renglones y estiraba la fila entera: dos filas contiguas
+            * median distinto segun si tenian nota, y eso rompia el ritmo de la
+            * grilla. El texto completo esta a un clic en el modal.
+            */}
+          <span className="flex items-baseline gap-1.5 min-w-0">
+            <span className="text-[9px] text-text-2 truncate">
+              <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
+              {row.lastNote}
+            </span>
+            <span className="text-[7.5px] text-text-muted whitespace-nowrap shrink-0">
+              {t('noteCount', { count: row.noteCount })}
+            </span>
           </span>
         </>
       ) : (

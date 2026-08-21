@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
@@ -6,7 +7,10 @@ import { UsersClient } from './users-client';
 import { getCurrentUserRole } from '@/lib/auth/get-role';
 import { can } from '@/lib/permissions';
 
-export const metadata = { title: 'Usuarios' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('users.title') };
+}
 
 export default async function UsersPage(): Promise<React.ReactElement> {
   // Get current user role (with permission check)

@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
 import { DashboardClient } from './dashboard-client';
@@ -5,7 +6,10 @@ import { SalaryAlertModal } from '@/components/SalaryAlertModal';
 import { getCurrentUserRole } from '@/lib/auth/get-role';
 import { can } from '@/lib/permissions';
 
-export const metadata = { title: 'Dashboard — Precision Medical' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('dashboard.title') };
+}
 
 export default async function DashboardPage(): Promise<React.ReactElement> {
   // El middleware solo desvía a `employee` y `contador`; doctores, abogados,

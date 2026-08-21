@@ -1,8 +1,12 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { api } from '@/lib/trpc/server';
 import { PaymentsClient } from './payments-client';
 
-export const metadata = { title: 'Pagos' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('payments.title') };
+}
 
 export default async function PaymentsPage(): Promise<React.ReactElement> {
   const [initial, summary, planillaBolivia] = await Promise.all([

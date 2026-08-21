@@ -1,8 +1,12 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { api } from '@/lib/trpc/server';
 import { WalletsClient } from './wallets-client';
 
-export const metadata = { title: 'Wallets' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('wallets.title') };
+}
 
 export default async function WalletsPage(): Promise<React.ReactElement> {
   const wallets = await api.wallets.list();

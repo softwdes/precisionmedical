@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import * as React from 'react';
 import { redirect } from 'next/navigation';
@@ -22,7 +23,10 @@ const ALL_TABS = [
 // Tabs visible when empleados = 'payroll_only'
 const PAYROLL_TABS = ['asistencia', 'reporte'];
 
-export const metadata = { title: 'Empleados' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('employees.title') };
+}
 
 export default async function EmployeesPage({
   searchParams,

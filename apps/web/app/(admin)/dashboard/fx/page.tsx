@@ -1,9 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import * as React from 'react';
 import { api } from '@/lib/trpc/server';
 import { FxClient } from './fx-client';
 
-export const metadata = { title: 'FX / Divisas' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('fx.title') };
+}
 
 export default async function FxPage(): Promise<React.ReactElement> {
   const [initial, wallets, initialSummary, initialHouses] = await Promise.all([

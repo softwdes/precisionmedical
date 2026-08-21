@@ -1,8 +1,12 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { api } from '@/lib/trpc/server';
 import { MetricsClient } from './metrics-client';
 
-export const metadata = { title: 'Métricas' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('metrics.title') };
+}
 
 export default async function MetricsPage(): Promise<React.ReactElement> {
   const currentMonth = new Date().toISOString().slice(0, 7);

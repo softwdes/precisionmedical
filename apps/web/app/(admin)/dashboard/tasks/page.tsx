@@ -1,8 +1,12 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { api } from '@/lib/trpc/server';
 import { TasksClient } from './tasks-client';
 
-export const metadata = { title: 'Tareas' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('tasks.title') };
+}
 
 export default async function TasksPage(): Promise<React.ReactElement> {
   const [initial, employees] = await Promise.all([

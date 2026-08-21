@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import * as React from 'react';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
@@ -10,7 +11,10 @@ import { EmpleadosMetricasClient } from './empleados-metricas-client';
 import { DoctoresMetricasClient } from './doctores-metricas-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
-export const metadata = { title: 'Métricas' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('nav.metrics') };
+}
 
 const TABS = [
   { key: 'comunicaciones', label: 'Comunicaciones', href: '/dashboard/metricas?tab=comunicaciones' },

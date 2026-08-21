@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import * as React from 'react';
 import { api } from '@/lib/trpc/server';
@@ -8,7 +9,10 @@ import { CashBoxesClient } from './cash-boxes-client';
 import { ReportesClient } from './reportes-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
-export const metadata = { title: 'Finanzas' };
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return { title: t('nav.finance') };
+}
 
 const TABS = [
   { key: 'caja-chica', label: 'Caja Chica',     href: '/dashboard/finanzas' },

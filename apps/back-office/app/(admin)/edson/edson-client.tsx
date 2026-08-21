@@ -339,7 +339,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
         * cita", que el ya sabe.
         */}
       <div className="flex items-end gap-4 flex-wrap border-b border-border">
-        <h1 className="text-lg font-bold text-text-1 leading-none pb-2">{t('title')}</h1>
+        <h1 className="text-base font-bold text-text-1 leading-none pb-2">{t('title')}</h1>
 
         <div className="flex gap-1">
         {[false, true].map((isArch) => (
@@ -347,7 +347,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             key={String(isArch)}
             type="button"
             onClick={() => { setArchived(isArch); setPage(1); }}
-            className={`px-3 py-1.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
+            className={`px-3 py-1.5 text-[11px] font-medium border-b-2 -mb-px transition-colors ${
               archived === isArch
                 ? 'border-amber text-amber'
                 : 'border-transparent text-text-3 hover:text-text-1'
@@ -372,7 +372,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
       <div className="flex gap-1.5 items-center flex-wrap">
         <div className="relative flex-1 min-w-[190px] max-w-[260px]">
           <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-          <Input className="pl-8 !h-8 !text-[13px]" placeholder={t('searchPlaceholder')} value={qLive} onChange={e => setQLive(e.target.value)} />
+          <Input className="pl-8 !h-8 !text-[11px]" placeholder={t('searchPlaceholder')} value={qLive} onChange={e => setQLive(e.target.value)} />
         </div>
         <select value={clinicId} onChange={e => { setClinicId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allClinics')}</option>
@@ -406,14 +406,14 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           />
         ))}
         {anyFilter && (
-          <button type="button" onClick={clearFilters} className="text-xs text-text-muted hover:text-text-1 underline underline-offset-2">
+          <button type="button" onClick={clearFilters} className="text-[10px] text-text-muted hover:text-text-1 underline underline-offset-2">
             {t('clearFilters')}
           </button>
         )}
 
       </div>
 
-      {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
+      {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[10px] text-rose">{error}</div>}
 
       <DataTable.Card>
         {/*
@@ -423,9 +423,15 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           */}
         <DataTable.Scroll maxHeight="calc(100vh - 205px)">
           {/*
-          * Toda la grilla un punto mas chica que el primitivo, a pedido de
-          * Edson: principal 12px (el `text-sm` son 14), secundario 10px y
-          * encabezado 9px.
+          * Escala propia de esta vista, MUY por debajo del primitivo, pedida
+          * por Edson en tres bajadas sucesivas: principal 9px (el `text-sm`
+          * del sistema son 14), secundario 7.5px y encabezado 7px.
+          *
+          * No es un descuido ni copiar mal el sistema: Edson viene de su Excel
+          * y su unica metrica es cuantas filas y columnas entran sin mover el
+          * scroll. A 7px el encabezado esta en el piso de lo legible; si en el
+          * uso real cuesta leerlo, lo que hay que subir es ESE valor primero,
+          * porque el principal es el que carga el dato.
           *
           * Los modales NO cambian: ahi se lee y se escribe, y el tamaño chico
           * sirve para escanear una grilla, no para redactar un parrafo.
@@ -434,7 +440,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * y la jerarquia de la fila se aplana. Es reversible en estos valores
           * si al usarlo cuesta distinguirlos.
           */}
-        <DataTable.Table gridLines className="text-[11px] [&_td]:!py-1.5 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px]">
+        <DataTable.Table gridLines className="text-[9px] [&_td]:!py-1.5 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
@@ -463,7 +469,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
             <tbody>
               {loading && rows.length === 0 && (
                 <tr><DataTable.Td colSpan={archived ? 14 : 13}>
-                  <div className="flex items-center justify-center gap-2 py-8 text-text-muted text-sm">
+                  <div className="flex items-center justify-center gap-2 py-8 text-text-muted text-[12px]">
                     <Loader2 className="w-4 h-4 animate-spin" /> {t('loading')}
                   </div>
                 </DataTable.Td></tr>
@@ -477,7 +483,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
               {groups.map(group => (
                 <Fragment key={group.key}>
                   <DataTable.GroupRow colSpan={archived ? 14 : 13}>
-                    <div className="flex items-center gap-2 text-[9.5px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-[7.5px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
                         — {t('apptCount', { count: group.rows.length })}
@@ -519,7 +525,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </div>
-                              <div className="text-text-muted text-[9.5px] truncate font-mono">
+                              <div className="text-text-muted text-[7.5px] truncate font-mono">
                                 {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </div>
                             </div>
@@ -529,7 +535,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[9.5px] text-text-muted mt-0.5">
+                              <span className="flex items-center gap-1 text-[7.5px] text-text-muted mt-0.5">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}
@@ -550,7 +556,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="min-w-0">
                             <Txt v={row.appointment.providerName} />
                             {row.appointment.createdBy && (
-                              <div className="text-[9.5px] text-text-muted truncate" title={t('colCreatedBy')}>
+                              <div className="text-[7.5px] text-text-muted truncate" title={t('colCreatedBy')}>
                                 {t('createdByShort', { name: row.appointment.createdBy })}
                               </div>
                             )}
@@ -573,7 +579,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 * clic — Edson reporto estos pedidos como "no
                                 * implementados" justo por eso.
                                 */}
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[7.5px] font-semibold px-1.5 rounded-full ${
                                 row.managerCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -618,12 +624,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               <span className="min-w-0">
                                 <Txt v={row.adjusterName} />
                                 {row.adjusterPhone && (
-                                  <span className="block text-[9.5px] text-text-muted font-mono truncate">
+                                  <span className="block text-[7.5px] text-text-muted font-mono truncate">
                                     {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
                                   </span>
                                 )}
                               </span>
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[7.5px] font-semibold px-1.5 rounded-full ${
                                 row.adjusterCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -677,7 +683,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         {archived && (
                           <DataTable.Td>
-                            <span className="text-text-muted text-[9.5px] whitespace-nowrap">
+                            <span className="text-text-muted text-[7.5px] whitespace-nowrap">
                               {row.archivedAt ? fmtDate(row.archivedAt) : <Empty />}
                             </span>
                           </DataTable.Td>
@@ -722,7 +728,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               */}
                             <div className="sticky left-4 w-fit flex items-start gap-2">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
-                              <span className="text-[11px] text-text-1 font-medium whitespace-pre-wrap">
+                              <span className="text-[9px] text-text-1 font-medium whitespace-pre-wrap">
                                 {row.insComments}
                               </span>
                             </div>
@@ -754,7 +760,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 
       {!archived && readyToArchive > 0 && (
         <div className="flex items-center gap-3 flex-wrap rounded-lg bg-bg-1 px-4 py-3">
-          <span className="text-sm text-text-2">{t('archiveBulkHint', { count: readyToArchive })}</span>
+          <span className="text-[12px] text-text-2">{t('archiveBulkHint', { count: readyToArchive })}</span>
           <span className="flex-1" />
           <Button onClick={() => setConfirmBulk(true)}>
             <Archive className="w-3.5 h-3.5 mr-1" /> {t('archiveBulk', { count: readyToArchive })}
@@ -807,7 +813,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
 // Compacto a proposito: son cuatro selectores en una fila y Edson pidio
 // recuperar ese alto para las filas de la tabla.
 const selectCls =
-  'bg-bg-2 border border-border rounded-md px-2 py-1 h-8 text-[13px] text-text-1 focus:outline-none focus:border-brand max-w-[160px]';
+  'bg-bg-2 border border-border rounded-md px-2 py-1 h-8 text-[11px] text-text-1 focus:outline-none focus:border-brand max-w-[160px]';
 
 /**
  * Leyenda de colores de la franja de cada fila.
@@ -839,7 +845,7 @@ function StatusLegend() {
 
   return (
     <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap px-0.5">
-      <span className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">
+      <span className="text-[7px] uppercase tracking-wider font-semibold text-text-muted">
         {t('legendTitle')}
       </span>
       {items.map(item => (
@@ -849,7 +855,7 @@ function StatusLegend() {
             style={{ background: item.bg, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }}
           />
           <span
-            className="text-[11px] text-text-muted"
+            className="text-[9px] text-text-muted"
             style={{ textDecoration: item.strike ? 'line-through' : undefined }}
           >
             {item.label}
@@ -867,7 +873,7 @@ function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCy
     row.pipAvailable === 'YES' ? 'bg-emerald/15 text-emerald border-emerald/30'
     : row.pipAvailable === 'NO' ? 'bg-rose/15 text-rose border-rose/30'
     : 'text-text-muted border-dashed border-border-strong';
-  const base = `min-w-[38px] inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold border ${tone}`;
+  const base = `min-w-[38px] inline-block rounded-md px-2 py-0.5 text-[9px] font-semibold border ${tone}`;
 
   if (readOnly) return <span className={base}>{label}</span>;
   return (
@@ -905,16 +911,16 @@ function NoteCell({ row, onOpen }: { row: Row; onOpen: () => void }) {
     >
       {row.lastNote ? (
         <>
-          <span className="text-[12.5px] text-text-2 line-clamp-2">
+          <span className="text-[9px] text-text-2 line-clamp-2">
             <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
             {row.lastNote}
           </span>
-          <span className="block text-[10.5px] text-text-muted mt-0.5">
+          <span className="block text-[7.5px] text-text-muted mt-0.5">
             {t('noteCount', { count: row.noteCount })}
           </span>
         </>
       ) : (
-        <span className="text-[12px] text-text-muted italic flex items-center gap-1">
+        <span className="text-[9px] text-text-muted italic flex items-center gap-1">
           <MessageSquarePlus className="w-3 h-3" /> {t('addNote')}
         </span>
       )}

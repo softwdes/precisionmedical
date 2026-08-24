@@ -646,7 +646,17 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                         </DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
                         <DataTable.Td>
-                          <div className="relative flex items-center gap-1.5 max-w-[170px]">
+                          {/*
+                            * `w-full` en el contenedor y `flex-1` en el editor.
+                            *
+                            * Sin eso el flex se encoge al contenido: con el
+                            * abogado vacio el disparador medía lo que mide un
+                            * guion —unos pocos pixeles— y el clic caía al lado,
+                            * en la nada. En Insurance y Claim no pasa porque el
+                            * editor es hijo unico del <td> y ocupa toda la celda.
+                            */}
+                          <div className="relative flex items-center gap-1.5 w-full max-w-[170px]">
+                            <span className="flex-1 min-w-0">
                             <InlineCombo
                               value={row.attorneyName ?? row.firmName}
                               options={lawyers}
@@ -660,6 +670,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 { attorneyId: next.id, attorneyNameRaw: next.text },
                               )}
                             />
+                            </span>
                             <button
                               type="button"
                               onClick={(e) => openPanel(setManagersFor, row.caseId, managersFor, e.currentTarget)}

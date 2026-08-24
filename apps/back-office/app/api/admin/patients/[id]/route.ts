@@ -306,6 +306,16 @@ export async function DELETE(
     metadata:    {
       patientCode:   existing.patientCode,
       casesArchived: existing.cases.length,
+      /**
+       * Los IDs, no solo el conteo: es lo que le permite a `restore` revivir
+       * EXACTAMENTE los casos que se archivaron con el paciente.
+       *
+       * Hace falta desde que archivar un caso suelto también escribe
+       * `deletedAt` (antes ponía `status: CANCELLED`): sin esta lista, restaurar
+       * al paciente resucitaba también los casos que alguien había archivado uno
+       * por uno, a propósito.
+       */
+      caseIds: existing.cases.map((c) => c.id),
       // Regla #3: cancelar citas es una mutación con consecuencia real (se libera
       // el horario de un doctor y no se revierte al restaurar), así que queda
       // cuál y de cuándo — no solo el conteo.

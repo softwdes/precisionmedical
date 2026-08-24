@@ -3405,9 +3405,22 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-text-1">{t('deletePatientTitle')}</DialogTitle>
+            {/*
+              * Baja de PACIENTE, no de caso (decisión de Erick 2026-08-21).
+              *
+              * El texto decía "Delete patient — This cannot be undone" mientras la
+              * acción es un archivado reversible (`status: INACTIVE`), y dos líneas
+              * abajo el mismo diálogo decía "the data is kept and can be restored".
+              * Se contradecía solo, y "eliminar" asustaba de una acción que no
+              * borra nada.
+              *
+              * Ahora dice qué es y para qué sirve: bajas reales —un duplicado,
+              * data de prueba—. Cerrar la atención de alguien es archivar SU CASO,
+              * que es otra acción y otro botón.
+              */}
+            <DialogTitle className="text-text-1">{t('archivePatientTitle')}</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
-              {t('deletePatientBody', { name: `${deleteTarget?.firstName ?? ''} ${deleteTarget?.lastName ?? ''}` })}
+              {t('archivePatientBody', { name: `${deleteTarget?.firstName ?? ''} ${deleteTarget?.lastName ?? ''}` })}
             </DialogDescription>
           </DialogHeader>
           {(deleteTarget?.caseCount ?? 0) > 0 && (
@@ -3415,6 +3428,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               {t('deletePatientCasesNote', { count: deleteTarget!.caseCount })}
             </div>
           )}
+          <div className="rounded-md bg-bg-2/40 px-3 py-2 text-xs text-text-2 mt-2">
+            {t('archivePatientKept')}
+          </div>
           {/* La agenda es la consecuencia que no se ve en esta pantalla: archivar
               libera el horario del doctor cancelando las citas futuras, y eso NO
               se revierte al restaurar. Se avisa antes, no después. */}
@@ -3431,7 +3447,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               {t('btnCancel')}
             </Button>
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDelete} disabled={deleting}>
-              {deleting ? t('btnDeleting') : t('btnYesDelete')}
+              {deleting ? t('btnDeleting') : t('btnYesArchive')}
             </Button>
           </DialogFooter>
         </DialogContent>

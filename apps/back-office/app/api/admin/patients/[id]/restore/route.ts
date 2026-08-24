@@ -45,15 +45,40 @@ export async function POST(
     },
   });
 
+  /**
+   * Qué casos revivir: SOLO los que se archivaron con este paciente.
+   *
+   * El filtro era `deletedAt: { not: null }`, o sea todos. Alcanzaba mientras
+   * `deletedAt` lo escribiera únicamente el archivado de paciente — pero desde
+   * que archivar un caso suelto también lo escribe (antes ponía
+   * `status: CANCELLED`, que lo hacía indistinguible de un caso cancelado de
+   * verdad), ese filtro resucitaría casos que alguien archivó a propósito.
+   *
+   * La lista sale del audit log del propio archivado, que es donde quedó
+   * registrado qué se tocó. Si no hay entrada —un paciente archivado antes de
+   * este cambio— se cae al comportamiento viejo: es lo único que se puede saber
+   * de esos, y para ellos sigue siendo correcto.
+   */
+  const archivado = await db.auditLog.findFirst({
+    where: { action: 'DELETE_PATIENT', entityType: 'patients', entityId: id },
+    orderBy: { createdAt: 'desc' },
+    select: { metadata: true },
+  });
+  const idsRegistrados = (() => {
+    const m = archivado?.metadata as { caseIds?: unknown } | null;
+    return Array.isArray(m?.caseIds) ? m!.caseIds.filter((x): x is string => typeof x === 'string') : null;
+  })();
+
   await db.$transaction([
     db.patient.update({
       where: { id },
       data: { status: 'ACTIVE' },
     }),
-    // Reactivar solo los casos que se archivaron junto con el paciente
     ...(existing.cases.length > 0
       ? [db.case.updateMany({
-          where: { patientId: id, deletedAt: { not: null } },
+          where: idsRegistrados
+            ? { patientId: id, id: { in: idsRegistrados }, deletedAt: { not: null } }
+            : { patientId: id, deletedAt: { not: null } },
           data: { deletedAt: null },
         })]
       : []),

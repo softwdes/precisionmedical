@@ -253,17 +253,33 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<NextRes
 
   const existing = await db.case.findUnique({
     where: { id },
-    select: { id: true, caseCode: true, status: true },
+    select: { id: true, caseCode: true, status: true, deletedAt: true },
   });
   if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
 
-  if (existing.status === 'CANCELLED') {
-    return NextResponse.json({ ok: false, error: 'ALREADY_CANCELLED', message: 'El caso ya está cancelado.' }, { status: 409 });
+  if (existing.deletedAt) {
+    return NextResponse.json({ ok: false, error: 'ALREADY_ARCHIVED', message: 'El caso ya está archivado.' }, { status: 409 });
   }
 
+  /**
+   * Archivar un caso escribe `deletedAt`, NO pisa el `status`.
+   *
+   * Antes ponía `status: 'CANCELLED'`, que es el mismo valor que tiene un caso
+   * cancelado por motivos clínicos o administrativos: un caso archivado quedaba
+   * INDISTINGUIBLE de uno cancelado, y se perdía el hecho de que alguien lo quitó
+   * (decisión de Erick 2026-08-21: el archivado tiene que ser distinguible).
+   *
+   * Además conserva el estado real del caso, que es el dato que importa si se
+   * restaura: un caso ACTIVE archivado por error volvía como CANCELLED.
+   *
+   * Seguro de hacer: `deletedAt: null` ya es la convención dominante para excluir
+   * casos (110 consultas lo filtran contra 29 que miran `CANCELLED`, y ninguna de
+   * esas 29 es un filtro de caso — son de cita o de pago). Y `Case.deletedAt` ya
+   * existía en el schema; lo escribía solo el archivado de PACIENTE.
+   */
   await db.case.update({
     where: { id },
-    data: { status: 'CANCELLED' },
+    data: { deletedAt: new Date() },
   });
 
   const actor = await resolveActor(req.headers);
@@ -274,7 +290,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<NextRes
     action:      'DELETE_CASE',
     entityType:  'cases',
     entityId:    id,
-    metadata:    { caseCode: existing.caseCode, previousStatus: existing.status },
+    // `status` se conserva: es el estado en el que quedó, no "cancelado".
+    metadata:    { caseCode: existing.caseCode, statusAlArchivar: existing.status },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });
 

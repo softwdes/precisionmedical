@@ -423,15 +423,18 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           */}
         <DataTable.Scroll maxHeight="calc(100vh - 205px)" headHeight="17px">
           {/*
-          * Escala propia de esta vista, MUY por debajo del primitivo, pedida
-          * por Edson en tres bajadas sucesivas: principal 9px (el `text-sm`
-          * del sistema son 14), secundario 7.5px y encabezado 7px.
+          * Escala propia de esta vista, MUY por debajo del primitivo: principal
+          * 8px (el `text-sm` del sistema son 14), secundario 9.5px y encabezado
+          * 7px.
           *
-          * No es un descuido ni copiar mal el sistema: Edson viene de su Excel
-          * y su unica metrica es cuantas filas y columnas entran sin mover el
-          * scroll. A 7px el encabezado esta en el piso de lo legible; si en el
-          * uso real cuesta leerlo, lo que hay que subir es ESE valor primero,
-          * porque el principal es el que carga el dato.
+          * Si, el secundario es MAS GRANDE que el principal. No es un error:
+          * Edson lo pidio mirando la vista con datos reales. Viene de su Excel,
+          * donde todas las celdas miden igual, y a 7.5px no llegaba a leer el
+          * nacimiento ni el telefono. La jerarquia la sigue dando el peso
+          * (`font-semibold` en el nombre) y no el tamaño.
+          *
+          * Si alguna vez se "corrige" esto por parecer al reves, va a volver el
+          * reclamo de que los datos chicos no se leen.
           *
           * Los modales NO cambian: ahi se lee y se escribe, y el tamaño chico
           * sirve para escanear una grilla, no para redactar un parrafo.
@@ -440,7 +443,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * y la jerarquia de la fila se aplana. Es reversible en estos valores
           * si al usarlo cuesta distinguirlos.
           */}
-        <DataTable.Table gridLines className="text-[9px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
+        <DataTable.Table gridLines className="text-[8px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th>{t('colTime')}</DataTable.Th>
@@ -536,7 +539,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
-                              <span className="text-text-muted text-[7.5px] whitespace-nowrap font-mono shrink-0">
+                              <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono shrink-0">
                                 {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </span>
                             </div>
@@ -546,7 +549,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           <div className="flex items-baseline gap-1.5 whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[7.5px] text-text-muted">
+                              <span className="flex items-center gap-1 text-[9.5px] text-text-muted">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}
@@ -599,7 +602,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                                 * clic — Edson reporto estos pedidos como "no
                                 * implementados" justo por eso.
                                 */}
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[7.5px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.managerCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -644,12 +647,12 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                               <span className="min-w-0">
                                 <Txt v={row.adjusterName} />
                                 {row.adjusterPhone && (
-                                  <span className="block text-[7.5px] text-text-muted font-mono truncate">
+                                  <span className="block text-[9.5px] text-text-muted font-mono truncate">
                                     {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
                                   </span>
                                 )}
                               </span>
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[7.5px] font-semibold px-1.5 rounded-full ${
+                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.adjusterCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -703,7 +706,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         {archived && (
                           <DataTable.Td>
-                            <span className="text-text-muted text-[7.5px] whitespace-nowrap">
+                            <span className="text-text-muted text-[9.5px] whitespace-nowrap">
                               {row.archivedAt ? fmtDate(row.archivedAt) : <Empty />}
                             </span>
                           </DataTable.Td>
@@ -893,7 +896,7 @@ function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCy
     row.pipAvailable === 'YES' ? 'bg-emerald/15 text-emerald border-emerald/30'
     : row.pipAvailable === 'NO' ? 'bg-rose/15 text-rose border-rose/30'
     : 'text-text-muted border-dashed border-border-strong';
-  const base = `min-w-[38px] inline-block rounded-md px-2 py-0.5 text-[9px] font-semibold border ${tone}`;
+  const base = `min-w-[38px] inline-block rounded-md px-2 py-0.5 text-[8px] font-semibold border ${tone}`;
 
   if (readOnly) return <span className={base}>{label}</span>;
   return (
@@ -940,17 +943,17 @@ function NoteCell({ row, onOpen }: { row: Row; onOpen: () => void }) {
             * grilla. El texto completo esta a un clic en el modal.
             */}
           <span className="flex items-baseline gap-1.5 min-w-0">
-            <span className="text-[9px] text-text-2 truncate">
+            <span className="text-[8px] text-text-2 truncate">
               <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
               {row.lastNote}
             </span>
-            <span className="text-[7.5px] text-text-muted whitespace-nowrap shrink-0">
+            <span className="text-[9.5px] text-text-muted whitespace-nowrap shrink-0">
               {t('noteCount', { count: row.noteCount })}
             </span>
           </span>
         </>
       ) : (
-        <span className="text-[9px] text-text-muted italic flex items-center gap-1">
+        <span className="text-[8px] text-text-muted italic flex items-center gap-1">
           <MessageSquarePlus className="w-3 h-3" /> {t('addNote')}
         </span>
       )}

@@ -94,6 +94,9 @@ interface Props {
   clinics:   { id: string; name: string; color: string | null }[];
   providers: { id: string; name: string }[];
   carriers:  { id: string; name: string; shortCode: string; color: string }[];
+  lawyers:   { id: string; name: string }[];
+  /** Sugerencias de quiropractico: lo ya usado, no un catalogo. */
+  chiroOptions: string[];
 }
 
 /**
@@ -154,7 +157,7 @@ function Empty() { return <span className="text-text-muted italic">—</span>; }
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export function EdsonClient({ clinics, providers, carriers }: Props) {
+export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOptions }: Props) {
   const t    = useTranslations('phoenix.edsonTracking');
   const tc   = useTranslations('phoenix.common');
   // Las etiquetas de estado y de la leyenda se comparten con el calendario.
@@ -266,6 +269,30 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
     patchRow(caseId, patch);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      return true;
+    } catch {
+      patchRow(caseId, undo);
+      setError(t('saveFailed'));
+      return false;
+    }
+  }
+
+  /** Igual que `saveCell`, contra el endpoint que corresponda. */
+  async function saveTo(url: string, caseId: string, patch: Partial<Row>, body: Record<string, unknown>) {
+    const prev = rows.find(r => r.caseId === caseId);
+    if (!prev) return false;
+    const undo: Partial<Row> = {};
+    for (const k of Object.keys(patch) as (keyof Row)[]) {
+      (undo as Record<string, unknown>)[k] = prev[k];
+    }
+    patchRow(caseId, patch);
+    try {
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -619,22 +646,39 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                         </DataTable.Td>
                         <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
                         <DataTable.Td>
-                          <div className="relative">
+                          <div className="relative flex items-center gap-1.5 max-w-[170px]">
+                            <InlineCombo
+                              value={row.attorneyName ?? row.firmName}
+                              options={lawyers}
+                              readOnly={archived}
+                              title={t('editAttorney')}
+                              emptyHint={t('attorneyFreeText')}
+                              onSave={next => saveTo(
+                                `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                row.caseId,
+                                { attorneyName: next.id ? (lawyers.find(l => l.id === next.id)?.name ?? null) : next.text },
+                                { attorneyId: next.id, attorneyNameRaw: next.text },
+                              )}
+                            />
                             <button
                               type="button"
                               onClick={(e) => openPanel(setManagersFor, row.caseId, managersFor, e.currentTarget)}
                               title={t('managersOpen')}
-                              className="text-left max-w-[170px] flex items-center gap-1.5 hover:text-text-1"
+                              className="shrink-0"
                             >
-                              <Txt v={row.attorneyName ?? row.firmName} />
                               {/*
                                 * El badge sale SIEMPRE, tambien en 0. Antes solo
                                 * aparecia con datos, asi que una celda vacia no
                                 * daba ninguna pista de que ahi se podia hacer
                                 * clic — Edson reporto estos pedidos como "no
                                 * implementados" justo por eso.
+                                *
+                                * Ahora ademas es el UNICO destino del panel de
+                                * encargados: el resto de la celda pasó a editar
+                                * el abogado, y dos acciones no pueden compartir
+                                * el mismo clic.
                                 */}
-                              <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
+                              <span className={`flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.managerCount > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
@@ -655,7 +699,26 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td><Txt v={row.chiropractor} /></DataTable.Td>
+                        <DataTable.Td>
+                          {/*
+                            * Se guarda en `case_tracking`, NO en el JSON del
+                            * formulario: la respuesta firmada del paciente no se
+                            * pisa. La grilla ya muestra COALESCE(esto, el JSON).
+                            */}
+                          <InlineCombo
+                            value={row.chiropractor}
+                            options={chiroOptions.map(n => ({ id: n, name: n }))}
+                            readOnly={archived}
+                            title={t('editChiro')}
+                            emptyHint={t('chiroFreeText')}
+                            onSave={next => saveTo(
+                              `/api/admin/cases/${row.caseId}/tracking`,
+                              row.caseId,
+                              { chiropractor: next.id ?? next.text },
+                              { chiroReferral: next.id ?? next.text },
+                            )}
+                          />
+                        </DataTable.Td>
                         <DataTable.Td>
                           <InlineCombo
                             value={row.carrierName}

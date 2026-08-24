@@ -18,9 +18,16 @@ import { resolveActor } from '@/lib/actor';
 const InputSchema = z.object({
   completed: z.boolean().optional(),
   archived: z.boolean().optional(),
-}).refine((v) => v.completed !== undefined || v.archived !== undefined, {
-  message: 'Mandá al menos uno: completed o archived',
-});
+  /**
+   * Quiropractico / referral corregido por Edson. Ver `CaseTracking.chiroReferral`:
+   * se guarda ACA y no en `consentsData`, para no pisar lo que declaro el
+   * paciente en su formulario firmado.
+   */
+  chiroReferral: z.string().max(200).nullable().optional(),
+}).refine(
+  (v) => v.completed !== undefined || v.archived !== undefined || v.chiroReferral !== undefined,
+  { message: 'Mandá al menos uno: completed, archived o chiroReferral' },
+);
 
 export async function GET(
   _req: NextRequest,
@@ -72,6 +79,9 @@ export async function PATCH(
         ? { archivedAt: now, archivedById: actor.actorUserId, archivedByName: actor.actorName }
         : { archivedAt: null, archivedById: null, archivedByName: null }
       : {}),
+    ...(parsed.chiroReferral !== undefined
+      ? { chiroReferral: parsed.chiroReferral ?? null }
+      : {}),
   };
 
   const before = await db.caseTracking.findUnique({ where: { caseId: id } });
@@ -86,9 +96,11 @@ export async function PATCH(
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole: actor.actorRole,
-    action: parsed.archived !== undefined
-      ? (parsed.archived ? 'ARCHIVE_CASE_TRACKING' : 'UNARCHIVE_CASE_TRACKING')
-      : (parsed.completed ? 'COMPLETE_CASE_TRACKING' : 'UNCOMPLETE_CASE_TRACKING'),
+    action: parsed.chiroReferral !== undefined
+      ? 'UPDATE_CASE_CHIRO_REFERRAL'
+      : parsed.archived !== undefined
+        ? (parsed.archived ? 'ARCHIVE_CASE_TRACKING' : 'UNARCHIVE_CASE_TRACKING')
+        : (parsed.completed ? 'COMPLETE_CASE_TRACKING' : 'UNCOMPLETE_CASE_TRACKING'),
     entityType: 'case_tracking',
     entityId: saved.id,
     ipAddress: actor.ipAddress,

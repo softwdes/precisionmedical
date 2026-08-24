@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function EdsonPage() {
-  const [clinics, providers, carriers] = await Promise.all([
+  const [clinics, providers, carriers, lawyers, chiros] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, color: true },
@@ -46,6 +46,30 @@ export default async function EdsonPage() {
       orderBy: { name: 'asc' },
       select: { id: true, name: true, shortCode: true, color: true },
     }),
+    // Personas, no bufetes: la columna Attorney muestra al abogado a cargo.
+    // Los bufetes son filas de `lawyers` con `firmName` y sin nombre propio.
+    db.lawyer.findMany({
+      where: { deletedAt: null, firstName: { not: null } },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      select: { id: true, firstName: true, lastName: true },
+    }),
+    /*
+     * Sugerencias del quiropractico. No hay catalogo —el dato viene escrito en
+     * el formulario de admision— asi que la lista se arma con lo YA usado,
+     * ordenado por frecuencia. Se acota a 40: es un autocompletado para no
+     * escribir "Cascade Chiropractic" de cero cada vez, no un catalogo.
+     */
+    db.$queryRaw<{ name: string }[]>`
+      SELECT name, COUNT(*) AS n FROM (
+        SELECT NULLIF(TRIM(ct."chiroReferral"), '') AS name
+          FROM case_tracking ct WHERE ct."chiroReferral" IS NOT NULL
+        UNION ALL
+        SELECT NULLIF(TRIM(c."consentsData" ->> 'chiropractor'), '') AS name
+          FROM cases c WHERE c."consentsData" ->> 'chiropractor' IS NOT NULL
+      ) t
+      WHERE name IS NOT NULL
+      GROUP BY name ORDER BY COUNT(*) DESC, name ASC LIMIT 40
+    `,
   ]);
 
   return (
@@ -56,6 +80,11 @@ export default async function EdsonPage() {
         name: `${p.firstName} ${p.lastName}`.trim(),
       }))}
       carriers={carriers}
+      lawyers={lawyers.map((l) => ({
+        id: l.id,
+        name: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim(),
+      }))}
+      chiroOptions={chiros.map((c) => c.name)}
     />
   );
 }

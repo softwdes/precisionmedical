@@ -2513,6 +2513,11 @@ model Case {
   lawFirm          Lawyer? @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
   attorneyId       String?
   attorney         Lawyer? @relation("CaseAttorney", fields: [attorneyId], references: [id])
+  /// Abogado escrito a mano cuando no esta en el catalogo. Mismo patron que
+  /// `CaseAutoInsurance.carrierNameRaw`: crear la ficha al vuelo llenaria el
+  /// catalogo de duplicados, y exigir la lista traba a Edson justo cuando el
+  /// bufete es nuevo. La grilla resuelve con COALESCE(attorney, este).
+  attorneyNameRaw  String?
   paralegalId      String?
   paralegal        Lawyer? @relation("CaseParalegal", fields: [paralegalId], references: [id])
   legalAssistantId String?
@@ -2888,6 +2893,15 @@ model CaseTracking {
   archivedAt     DateTime?
   archivedById   String?
   archivedByName String?
+
+  /// Quiropractico / referral corregido por Edson.
+  ///
+  /// El de la grilla sale de `Case.consentsData->'chiropractor'`, que es la
+  /// respuesta del PACIENTE en su formulario. Normalmente viene vacio y Edson
+  /// lo completa; a veces el paciente dice otro y Edson corrige. En los dos
+  /// casos se escribe aca y el formulario firmado queda intacto: la clinica
+  /// corrige lo que USA sin alterar lo que el paciente DECLARO.
+  chiroReferral  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

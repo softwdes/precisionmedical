@@ -5584,7 +5584,11 @@
       "editCarrier": "Click to change the insurance",
       "carrierFreeText": "Not listed? Type it and press Enter",
       "editClaim": "Click to edit the claim #",
-      "saveFailed": "Couldn't save. The previous value was restored."
+      "saveFailed": "Couldn't save. The previous value was restored.",
+      "editAttorney": "Click to change the attorney",
+      "attorneyFreeText": "Not listed? Type it and press Enter",
+      "editChiro": "Click to edit the chiropractor / referral",
+      "chiroFreeText": "Type it and press Enter — the intake form is not modified"
     }
   },
   "clinical": {

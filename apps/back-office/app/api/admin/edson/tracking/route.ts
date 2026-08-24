@@ -196,10 +196,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       c."lawFirmId"     AS law_firm_id,
       c."attorneyId"    AS attorney_id,
       lf."firmName"     AS firm_name,
-      CASE WHEN at."id" IS NULL THEN NULL
-           ELSE TRIM(CONCAT(COALESCE(at."firstName", ''), ' ', COALESCE(at."lastName", ''))) END AS attorney_name,
+      -- El del catalogo manda; el escrito a mano es el respaldo. Al elegir del
+      -- catalogo el PATCH borra el texto libre, asi que nunca conviven.
+      COALESCE(
+        CASE WHEN at."id" IS NULL THEN NULL
+             ELSE TRIM(CONCAT(COALESCE(at."firstName", ''), ' ', COALESCE(at."lastName", ''))) END,
+        c."attorneyNameRaw"
+      ) AS attorney_name,
       at."email"        AS attorney_email,
-      c."consentsData" -> 'chiropractor' AS chiropractor,
+
+      -- La correccion de Edson gana sobre la respuesta del paciente, PERO no la
+      -- pisa: el formulario firmado sigue diciendo lo suyo en consentsData.
+      -- (Sin comillas invertidas: adentro de un Prisma.sql cierran el template.)
+      COALESCE(
+        ct."chiroReferral",
+        NULLIF(c."consentsData" ->> 'chiropractor', '')
+      ) AS chiropractor,
 
       -- Valor efectivo: la fila del seguro gana, el caso es el respaldo.
       COALESCE(ic."name", cai."carrierNameRaw")   AS carrier_name,

@@ -5584,7 +5584,11 @@
       "editCarrier": "Clic para cambiar el seguro",
       "carrierFreeText": "¿No está en la lista? Escríbelo y Enter",
       "editClaim": "Clic para editar el claim #",
-      "saveFailed": "No se pudo guardar. Se repuso el valor anterior."
+      "saveFailed": "No se pudo guardar. Se repuso el valor anterior.",
+      "editAttorney": "Clic para cambiar el abogado",
+      "attorneyFreeText": "¿No está en la lista? Escríbelo y Enter",
+      "editChiro": "Clic para editar el quiropráctico / referral",
+      "chiroFreeText": "Escríbelo y Enter — no modifica el formulario del paciente"
     }
   },
   "clinical": {

@@ -84,6 +84,28 @@ export async function PATCH(
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
+  /**
+   * Cancelar algo ya cancelado: se rechaza.
+   *
+   * No es redundancia inofensiva. Las dos clases de cancelacion se distinguen por
+   * `cancelledSameDay`, y la del MISMO DIA cobra penalidad y consume el horario.
+   * Re-cancelar con "con aviso" sobreescribia esa bandera en silencio y **borraba
+   * la penalidad** — un PATCH sin guarda escribe el `status` que le manden.
+   *
+   * Es lo que cierra el agujero de verdad: apagar el boton en el modal no
+   * alcanza, porque el modal se puede reabrir con datos viejos en cache y ahi el
+   * boton vuelve a estar disponible.
+   *
+   * Deliberadamente NO se bloquea todo lo demas sobre una cita cancelada:
+   * corregir la nota o el motivo despues sigue siendo legitimo.
+   */
+  if (existing.status === 'CANCELLED' && parsed.status === 'CANCELLED') {
+    return NextResponse.json({
+      error:   'ALREADY_CANCELLED',
+      message: 'La cita ya está cancelada',
+    }, { status: 409 });
+  }
+
   // COMPLETED appointments: only plannedServiceCodes may be updated (Step 4 billing happens post-visit)
   if (existing.status === 'COMPLETED') {
     const keys = Object.keys(parsed);

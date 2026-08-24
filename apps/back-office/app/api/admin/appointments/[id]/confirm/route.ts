@@ -16,7 +16,10 @@ export async function POST(
 
   const appt = await db.appointment.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-  if (appt.status === 'COMPLETED' || appt.status === 'CANCELLED') {
+  // `NO_SHOW` faltaba en esta lista: desde ahi confirmar RESUCITABA la cita, y
+  // un no-show consume el horario y cobra penalidad — volver a CONFIRMED deshace
+  // las dos cosas. Los otros dos ya estaban.
+  if (appt.status === 'COMPLETED' || appt.status === 'CANCELLED' || appt.status === 'NO_SHOW') {
     return NextResponse.json({ error: 'INVALID_STATUS' }, { status: 400 });
   }
   // Máquina de estados: confirmar NUNCA degrada a un paciente que ya llegó.

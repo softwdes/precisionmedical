@@ -487,10 +487,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   // ── Detail handlers ───────────────────────────────────────────────────────
   const handleConfirm = async () => {
-    setConfirming(true);
+    setAccionError(null); setConfirming(true);
     try {
-      await fetch(`/api/admin/appointments/${appt.id}/confirm`, { method: 'POST' });
+      // Antes no miraba `res.ok`: sobre una cita cancelada el server responde
+      // 400 y el modal se cerraba como si hubiera funcionado. `handleCancel` sí
+      // lo miraba — dentro del mismo archivo convivían las dos formas.
+      const res = await fetch(`/api/admin/appointments/${appt.id}/confirm`, { method: 'POST' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message ?? `HTTP ${res.status}`);
+      }
       onRefresh(); onClose();
+    } catch (e) {
+      setAccionError(e instanceof Error ? e.message : t('errorConfirm'));
     } finally { setConfirming(false); }
   };
 
@@ -537,6 +546,21 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
    * la prueba de que vino, y CANCELLED / NO_SHOW ya estan resueltos.
    */
   const noLlegoAun = appt.status === 'SCHEDULED' || appt.status === 'CONFIRMED' || appt.status === 'PENDING';
+
+  /**
+   * La cita ya tiene un desenlace: no hay nada que cancelar ni confirmar.
+   *
+   * El comentario de `noLlegoAun` ya decía "CANCELLED / NO_SHOW ya están
+   * resueltos", pero eso solo apagaba Check in y No show. Cancelar y Marcar
+   * confirmada seguían disponibles sobre una cita cancelada o un no-show, que es
+   * lo que se veía al reabrir el modal.
+   *
+   * Se DESHABILITAN, no se esconden (decisión de Erick): el pie no cambia de
+   * forma al reabrir y queda claro que la acción existe pero ya no corresponde.
+   * Un botón que desaparece hace dudar de si estaba antes.
+   */
+  const estaResuelta =
+    appt.status === 'CANCELLED' || appt.status === 'NO_SHOW' || appt.status === 'COMPLETED';
 
   /**
    * Entrar al caso desde una cita tiene un solo proposito: cobrar lo que se hizo
@@ -1095,9 +1119,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     {accionError}
                   </div>
                 )}
+                {/* Por qué están apagados. Un botón deshabilitado sin razón
+                    frustra tanto como uno que no funciona: el estado ya está en
+                    el sello de arriba, pero nadie lo relaciona con el pie. */}
+                {estaResuelta && (
+                  <p className="text-[11px] text-text-muted mb-1">
+                    {t('apptResolvedHint', { status: statusCfg.label })}
+                  </p>
+                )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <button type="button" onClick={() => setCancelOpen(true)}
-                    className="order-3 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
+                  <button type="button" onClick={() => setCancelOpen(true)} disabled={estaResuelta}
+                    className="order-3 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">
                     <Ban className="w-3.5 h-3.5" /> {t('actionCancelAppointment')}
                   </button>
                   <button type="button" onClick={() => { twilio.hangUp(); onClose(); }}
@@ -1127,8 +1159,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     </button>
                   )}
                   {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (
-                    <button type="button" onClick={handleConfirm} disabled={confirming}
-                      className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-50">
+                    <button type="button" onClick={handleConfirm} disabled={confirming || estaResuelta}
+                      className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald/15">
                       {confirming ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                       {t('actionMarkConfirmed')}
                     </button>

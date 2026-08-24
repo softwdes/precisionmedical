@@ -257,9 +257,11 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           setConsents({
             hipaa:                 !!(cd.hipaa),
             assignedParties:       !!(cd.assignedParties),
-            assignedPartiesCheck1: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check1),
-            assignedPartiesCheck2: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check2),
-            assignedPartiesCheck3: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check3),
+            // El nombre nuevo primero; `assignedPartiesOpts` es el viejo, que
+            // siguen teniendo los casos creados antes de unificar.
+            assignedPartiesCheck1: !!(cd.authRecords       ?? (cd.assignedPartiesOpts as Record<string,boolean> | undefined)?.check1),
+            assignedPartiesCheck2: !!(cd.authVoicemail     ?? (cd.assignedPartiesOpts as Record<string,boolean> | undefined)?.check2),
+            assignedPartiesCheck3: !!(cd.authNotifications ?? (cd.assignedPartiesOpts as Record<string,boolean> | undefined)?.check3),
             treatment:             !!(cd.treatment),
             financial:             !!(cd.financial),
             medicalHistory:        !!(cd.medicalHistory),
@@ -346,6 +348,19 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           consents: {
             hipaa:                 consents.hipaa,
             assignedParties:       consents.assignedParties,
+            /**
+             * Los tres nombres que ya usa el formulario en línea. Antes esto se
+             * guardaba como `assignedPartiesOpts.check1/2/3` — los MISMOS tres
+             * checkboxes con otro nombre —, y esa clave solo la leía este wizard
+             * para su propio pre-llenado: el PDF del formulario no la miraba, así
+             * que salía impreso con las autorizaciones en blanco.
+             *
+             * Se sigue mandando `assignedPartiesOpts` para no romper el
+             * pre-llenado de los casos ya creados con el nombre viejo.
+             */
+            authRecords:       consents.assignedPartiesCheck1,
+            authVoicemail:     consents.assignedPartiesCheck2,
+            authNotifications: consents.assignedPartiesCheck3,
             assignedPartiesOpts: {
               check1: consents.assignedPartiesCheck1,
               check2: consents.assignedPartiesCheck2,
@@ -357,7 +372,20 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
             signatureDataUrl: consents.signatureDataUrl,
             lawFirm,
             chiropractor,
-            responsiblePersons: responsible,
+            /**
+             * `authorizedPersons` y no `responsiblePersons`: es el nombre que ya
+             * usa el formulario en línea (`apps/forms`), que guarda y relee esta
+             * misma lista en `consentsData`. Mientras los dos formularios usaron
+             * nombres distintos, el del consultorio escribía una clave que nadie
+             * leía — y encima el servidor la descartaba antes (no estaba en el
+             * esquema Zod, y Zod borra las claves que no declara SIN error).
+             *
+             * Se manda `{ name, relation }` sin el `id` local, y sin las filas
+             * vacías, igual que el formulario en línea.
+             */
+            authorizedPersons: responsible
+              .filter((p) => p.name.trim())
+              .map(({ name, relation }) => ({ name: name.trim(), relation: relation.trim() })),
           },
         }),
       });
@@ -395,6 +423,19 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           consents: {
             hipaa:               consents.hipaa,
             assignedParties:     consents.assignedParties,
+            /**
+             * Los tres nombres que ya usa el formulario en línea. Antes esto se
+             * guardaba como `assignedPartiesOpts.check1/2/3` — los MISMOS tres
+             * checkboxes con otro nombre —, y esa clave solo la leía este wizard
+             * para su propio pre-llenado: el PDF del formulario no la miraba, así
+             * que salía impreso con las autorizaciones en blanco.
+             *
+             * Se sigue mandando `assignedPartiesOpts` para no romper el
+             * pre-llenado de los casos ya creados con el nombre viejo.
+             */
+            authRecords:       consents.assignedPartiesCheck1,
+            authVoicemail:     consents.assignedPartiesCheck2,
+            authNotifications: consents.assignedPartiesCheck3,
             assignedPartiesOpts: {
               check1: consents.assignedPartiesCheck1,
               check2: consents.assignedPartiesCheck2,

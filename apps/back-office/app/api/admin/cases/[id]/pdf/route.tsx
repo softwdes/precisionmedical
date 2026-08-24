@@ -371,6 +371,42 @@ async function buildPDF(data: {
   // Se deja como fallback solo para no perder los casos que ya quedaron con
   // esa firma y ninguna otra.
   const patientSig = (cd?.financialSignatureSvg as string | null) ?? null;
+
+  /**
+   * Personas autorizadas a recibir información médica.
+   *
+   * El PDF NUNCA imprimió esto: recorría un array constante de cuatro `'Name:'` y
+   * dejaba los renglones en blanco. Así que hasta el formulario en línea —que sí
+   * las guarda— salía vacío al imprimir, y eso hacía parecer que tampoco guardaba.
+   *
+   * Los renglones en blanco siguen existiendo, pero para lo que sirven: completar
+   * a mano hasta cuatro. Lo que hay cargado se imprime.
+   */
+  const authPersons = (Array.isArray(cd?.authorizedPersons) ? cd!.authorizedPersons : [])
+    .filter((p): p is { name?: string; relation?: string } => !!p && typeof p === 'object')
+    .map((p) => ({ name: (p.name ?? '').trim(), relation: (p.relation ?? '').trim() }))
+    .filter((p) => p.name)
+    .slice(0, 4);
+  /**
+   * Las tres autorizaciones, leyendo los DOS nombres.
+   *
+   * El formulario en línea siempre guardó `authRecords/authVoicemail/
+   * authNotifications`; el del consultorio guardaba los mismos tres como
+   * `assignedPartiesOpts.check1/2/3`. Se unificó en los primeros, pero los casos
+   * ya creados en el consultorio solo tienen los viejos: sin este respaldo, este
+   * PDF les dejaría las tres autorizaciones sin tildar.
+   */
+  const opts = (cd?.assignedPartiesOpts ?? null) as Record<string, boolean> | null;
+  const autoriza = {
+    records:       (cd?.authRecords       as boolean | undefined) ?? opts?.check1 ?? false,
+    voicemail:     (cd?.authVoicemail     as boolean | undefined) ?? opts?.check2 ?? false,
+    notifications: (cd?.authNotifications as boolean | undefined) ?? opts?.check3 ?? false,
+  };
+
+  const authRows = [
+    ...authPersons,
+    ...Array.from({ length: Math.max(0, 4 - authPersons.length) }, () => ({ name: '', relation: '' })),
+  ];
   const staffSig    = caseData.consentSignaturePng;
   const sigPng       = patientSig ?? staffSig;
   const sigIsPatient = !!patientSig;
@@ -517,25 +553,37 @@ async function buildPDF(data: {
           <Text style={s.consentTitle}>{CONSENT_TEXTS.c2Title}</Text>
           <Text style={s.consentBody}>{CONSENT_TEXTS.c2Body}</Text>
 
-          {/* Auth persons rows */}
-          {CONSENT_TEXTS.c2AuthRows.map((_, i) => (
+          {/* Auth persons rows — lo cargado impreso, el resto en blanco */}
+          {authRows.map((p, i) => (
             <View key={i} style={s.authRow}>
               <Text style={s.authLabel}>Name:</Text>
-              <Text style={s.authNameBlank}> </Text>
+              <Text style={p.name ? s.authValue : s.authNameBlank}>{p.name || ' '}</Text>
               <Text style={s.authRelLabel}>Relationship:</Text>
-              <Text style={s.authValue}> </Text>
+              <Text style={s.authValue}>{p.relation || ' '}</Text>
             </View>
           ))}
 
           <View style={{ marginTop: 6 }}>
+            {/*
+              * Las tres autorizaciones específicas, con SU flag.
+              *
+              * Estaban mal: la primera se pintaba con `assignedParties` —que es el
+              * "acepto los términos" del consentimiento entero, no esta
+              * autorización— y las otras dos estaban fijas en `[ ]`, sin mirar
+              * nada. Los flags reales (`authRecords`, `authVoicemail`,
+              * `authNotifications`) los guardan los dos formularios y no se leían
+              * en ninguna parte del PDF. Un formulario HIPAA impreso mostrando
+              * autorizaciones que el paciente no dio (o escondiendo las que sí)
+              * es peor que uno incompleto.
+              */}
             <View style={s.consentCheck}>
-              <Text style={s.consentCheckText}>[{cd?.assignedParties ? 'X' : ' '}] I AUTHORIZE THE RELEASE OF ALL OR PORTIONS OF MY MEDICAL RECORDS TO MY PARENTS (18 years of age and older).</Text>
+              <Text style={s.consentCheckText}>[{autoriza.records ? 'X' : ' '}] I AUTHORIZE THE RELEASE OF ALL OR PORTIONS OF MY MEDICAL RECORDS TO MY PARENTS (18 years of age and older).</Text>
             </View>
             <View style={s.consentCheck}>
-              <Text style={s.consentCheckText}>[ ] I AUTHORIZE TEST RESULTS AND APPOINTMENT REMINDERS TO BE LEFT ON MY VOICE MAIL.</Text>
+              <Text style={s.consentCheckText}>[{autoriza.voicemail ? 'X' : ' '}] I AUTHORIZE TEST RESULTS AND APPOINTMENT REMINDERS TO BE LEFT ON MY VOICE MAIL.</Text>
             </View>
             <View style={s.consentCheck}>
-              <Text style={s.consentCheckText}>[ ] I AUTHORIZE NOTIFICATIONS AND APPOINTMENT REMINDERS TO BE SENT BY EMAIL OR TEXT MESSAGE.</Text>
+              <Text style={s.consentCheckText}>[{autoriza.notifications ? 'X' : ' '}] I AUTHORIZE NOTIFICATIONS AND APPOINTMENT REMINDERS TO BE SENT BY EMAIL OR TEXT MESSAGE.</Text>
             </View>
             <View style={[s.consentCheck, { marginTop: 4 }]}>
               <Text style={s.consentCheckText}>[{cd?.assignedParties ? 'X' : ' '}] I accept all the terms of this consent</Text>

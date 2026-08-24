@@ -110,6 +110,11 @@ const InputSchema = z.object({
   consents: z.object({
     hipaa:           z.boolean(),
     assignedParties: z.boolean(),
+    // Los tres nombres unificados con el formulario en línea. `assignedPartiesOpts`
+    // se sigue aceptando: es el nombre viejo de los mismos tres checkboxes.
+    authRecords:       z.boolean().optional(),
+    authVoicemail:     z.boolean().optional(),
+    authNotifications: z.boolean().optional(),
     assignedPartiesOpts: z.object({
       check1: z.boolean(),
       check2: z.boolean(),
@@ -121,6 +126,17 @@ const InputSchema = z.object({
     signatureDataUrl: z.string().nullable().optional(),
     lawFirm:          z.string().nullable().optional(),
     chiropractor:     z.string().nullable().optional(),
+    /**
+     * Personas autorizadas a recibir información médica (la liberación HIPAA).
+     *
+     * Faltaba acá, y como Zod BORRA en silencio las claves que no declara, el
+     * wizard las mandaba y se perdían sin un error ni un log. Mismo nombre que
+     * usa el formulario en línea, que ya las guarda en `consentsData`.
+     */
+    authorizedPersons: z.array(z.object({
+      name:     z.string().trim().min(1).max(120),
+      relation: z.string().trim().max(120),
+    })).max(10).optional(),
   }).optional(),
 });
 

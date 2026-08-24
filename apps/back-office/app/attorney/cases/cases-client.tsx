@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import { CaseActionsMenu } from './case-actions';
 import {
   PageHeader, DataTable, TagPill, StatusPill, EmptyState, Skeleton, TableFooter,
 } from '@/components/ui-phoenix';
@@ -60,16 +61,29 @@ const ROLE_FOR_COLUMN = {
 type AssignColumn = keyof typeof ROLE_FOR_COLUMN;
 
 export function AttorneyCasesClient({
-  members, canAssign,
+  members, canAssign, canSign, sessionName,
 }: {
   members: FirmMember[];
   canAssign: boolean;
+  /** Solo los abogados firman el lien (decisión de Erick). */
+  canSign: boolean;
+  /** Pre-carga el nombre del diálogo de firma cuando el caso no tiene abogado. */
+  sessionName: string;
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
+  const tc = useTranslations('phoenix.common');
 
+  /**
+   * Los filtros ARRANCAN de la URL: los KPIs del Panel son links
+   * (`/attorney/cases?status=active`, `?sig=pending`), así que la lista tiene
+   * que abrir ya filtrada. Solo se leen al montar — a partir de ahí manda el
+   * estado local, y la URL se actualiza sin re-navegar.
+   */
+  const params = useSearchParams();
   const [search, setSearch] = React.useState('');
   const [debounced, setDebounced] = React.useState('');
-  const [status, setStatus] = React.useState('');
+  const [status, setStatus] = React.useState(() => params.get('status') ?? '');
+  const [signature, setSignature] = React.useState(() => params.get('sig') ?? '');
   const [page, setPage] = React.useState(1);
 
   const [rows, setRows] = React.useState<CaseRow[]>([]);
@@ -90,6 +104,7 @@ export function AttorneyCasesClient({
       const qs = new URLSearchParams({ page: String(page) });
       if (debounced) qs.set('search', debounced);
       if (status) qs.set('status', status);
+      if (signature) qs.set('sig', signature);
       const res = await fetch(`/api/attorney/cases?${qs.toString()}`);
       if (!res.ok) { setError(t('assignError')); return; }
       const data = await res.json() as { cases: CaseRow[]; total: number; pageSize: number };
@@ -102,7 +117,7 @@ export function AttorneyCasesClient({
     } finally {
       setLoading(false);
     }
-  }, [page, debounced, status, t]);
+  }, [page, debounced, status, signature, t]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -126,9 +141,30 @@ export function AttorneyCasesClient({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  /**
+   * El encabezado explica a qué viniste — el acierto de v2: en vez de un "Casos"
+   * genérico, "Casos sin firmar · Lista de casos que requieren tu firma...".
+   *
+   * Se calcula del filtro VIGENTE, no del que traía la URL al entrar. Si alguien
+   * llega desde el KPI de pendientes y después cambia el selector a "Firmada",
+   * un título congelado en "Casos sin firmar" estaría mintiendo sobre lo que
+   * tiene delante. Con los dos filtros puestos vuelve al genérico: los selectores
+   * ya muestran la combinación, y un título que solo nombra la mitad confunde
+   * más que uno neutro.
+   */
+  const heading = (() => {
+    const onlySig = signature && !status;
+    const onlyStatus = status && !signature;
+    if (onlySig && signature === 'pending') return { title: t('kpiPendingListTitle'), sub: t('kpiPendingListSub') };
+    if (onlySig && signature === 'signed')  return { title: t('sigSigned'),           sub: t('casesSubtitle') };
+    if (onlyStatus && status === 'active')    return { title: t('kpiActiveListTitle'), sub: t('kpiActiveListSub') };
+    if (onlyStatus && status === 'completed') return { title: t('kpiClosedListTitle'), sub: t('kpiClosedListSub') };
+    return { title: t('casesTitle'), sub: t('casesSubtitle') };
+  })();
+
   return (
     <div className="space-y-4">
-      <PageHeader title={t('casesTitle')} subtitle={t('casesSubtitle')} />
+      <PageHeader title={heading.title} subtitle={heading.sub} />
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex-1 min-w-[220px]">
@@ -144,9 +180,22 @@ export function AttorneyCasesClient({
           className="rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40"
         >
           <option value="">{t('allStatuses')}</option>
+          {/* Los grupos primero: son a donde apuntan los KPIs del Panel. */}
+          <option value="active">{t('groupActive')}</option>
+          <option value="completed">{t('groupCompleted')}</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
           ))}
+        </select>
+
+        <select
+          value={signature}
+          onChange={(e) => { setSignature(e.target.value); setPage(1); }}
+          className="rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40"
+        >
+          <option value="">{t('allSignatures')}</option>
+          <option value="pending">{t('sigPending')}</option>
+          <option value="signed">{t('sigSigned')}</option>
         </select>
       </div>
 
@@ -176,9 +225,7 @@ export function AttorneyCasesClient({
                 <DataTable.Th>{t('colSignature')}</DataTable.Th>
                 <DataTable.Th>{t('colStatus')}</DataTable.Th>
                 <DataTable.Th>{t('colCreated')}</DataTable.Th>
-                <DataTable.Th align="right" sticky="right">
-                  <span className="sr-only">{t('colCase')}</span>
-                </DataTable.Th>
+                <DataTable.Th align="right" sticky="right">{tc('actions')}</DataTable.Th>
               </DataTable.Head>
               <tbody>
                 {rows.map((c) => (
@@ -211,9 +258,18 @@ export function AttorneyCasesClient({
                       <span className="whitespace-nowrap">{fecha(c.createdAt)}</span>
                     </DataTable.Td>
                     <DataTable.Td align="right" sticky="right">
-                      <Link href={`/attorney/cases/${c.id}`} className="text-text-muted hover:text-brand-text inline-flex">
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <CaseActionsMenu
+                        caseRow={{
+                          id: c.id,
+                          caseCode: c.caseCode,
+                          hasSigned: c.hasSigned,
+                          signatureExempt: c.signatureExempt,
+                          attorneyName: members.find((m) => m.id === c.attorneyId)?.name ?? null,
+                        }}
+                        canSign={canSign}
+                        sessionName={sessionName}
+                        onSigned={() => void load()}
+                      />
                     </DataTable.Td>
                   </DataTable.Row>
                 ))}

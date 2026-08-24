@@ -42,6 +42,22 @@ export function canSeeMenu(lawyer: SessionLawyer, menu: AttorneyMenu): boolean {
 }
 
 /**
+ * ¿Puede firmar el lien?
+ *
+ * TODOS los miembros del despacho (Erick, 2026-08-20 — corrige la definición
+ * anterior, que lo limitaba al rol Abogado). A los gestores y asistentes se les
+ * asignan casos para que hagan el seguimiento a pedido del abogado, y firmar es
+ * parte de ese trabajo. Lo que separa a los roles es **qué ven**, no qué pueden
+ * hacer: eso lo gobierna `lawyerCaseFilter()`.
+ *
+ * El alcance sigue protegiendo igual: un gestor solo puede firmar los casos que
+ * ve, o sea aquellos donde figura asignado.
+ */
+export function canSignLien(_lawyer: SessionLawyer): boolean {
+  return true;
+}
+
+/**
  * ¿Puede repartir el trabajo del despacho (asignar abogado/paralegal/asistente)?
  *
  * Solo el titular y la cuenta del bufete. Va aparte de `canSeeMenu('users')`
@@ -107,3 +123,98 @@ export function lawyerMemberFilter(lawyer: SessionLawyer): Prisma.LawyerWhereInp
   if (!lawyer.firmId) return { id: { in: [] } };
   return { deletedAt: null, parentFirmId: lawyer.firmId };
 }
+
+// ─── Filtros de la lista de casos ────────────────────────────────────────────
+//
+// Viven acá y no en la ruta porque los usan los DOS lados: la API para filtrar
+// y el Panel para armar los links de sus KPIs. Si cada uno definiera "activo"
+// por su cuenta, el número del KPI y el de la lista dejarían de coincidir en
+// cuanto alguien agregue un estado — que es justo lo que Erick va a hacer.
+
+/** Estados que cuentan como "caso abierto". */
+export const ACTIVE_STATUSES = [
+  'NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED', 'ACTIVE', 'MMI',
+] as const;
+
+/** Estados que cuentan como "caso cerrado". */
+export const CLOSED_STATUSES = ['CLOSED', 'SETTLED', 'ARCHIVED'] as const;
+
+/** Grupos que acepta el parámetro `status` además de un estado suelto. */
+export const STATUS_GROUPS: Record<string, readonly string[]> = {
+  active: ACTIVE_STATUSES,
+  completed: CLOSED_STATUSES,
+};
+
+export type SignatureFilter = 'pending' | 'signed';
+
+/**
+ * Traduce los filtros de la URL a un `where` de Prisma.
+ *
+ * `status` acepta un GRUPO (`active`, `completed`) o un estado suelto
+ * (`ACTIVE`). Un valor que no sea ninguno de los dos se ignora en vez de
+ * devolver cero resultados: un parámetro viejo pegado en un favorito no debería
+ * hacer creer al bufete que se quedó sin casos.
+ *
+ * `signature` mira SOLO la firma del abogado, y los casos exentos quedan fuera
+ * de "pendiente" — nunca van a firmarse.
+ */
+export interface CaseListParams {
+  status?: string;
+  signature?: string;
+  /** Id de un miembro del despacho — casos donde figura en cualquiera de los tres puestos. */
+  assignee?: string;
+  /** Acota el filtro anterior a UN puesto. Sin esto, cuenta los tres. */
+  assigneeRole?: string;
+}
+
+/** Columna del caso que corresponde a cada puesto. */
+const ASSIGNEE_COLUMN: Record<string, 'attorneyId' | 'paralegalId' | 'legalAssistantId'> = {
+  attorney:  'attorneyId',
+  paralegal: 'paralegalId',
+  assistant: 'legalAssistantId',
+};
+
+export function caseListFilters({
+  status, signature, assignee, assigneeRole,
+}: CaseListParams): Prisma.CaseWhereInput {
+  const where: Prisma.CaseWhereInput = {};
+
+  if (status) {
+    const group = STATUS_GROUPS[status];
+    if (group) where.status = { in: group as unknown as never[] };
+    else if (ALL_STATUSES.includes(status)) where.status = status as never;
+  }
+
+  if (signature === 'pending') {
+    where.signatureExempt = false;
+    where.lienSignatures = { none: { signerType: 'ATTORNEY' } };
+  } else if (signature === 'signed') {
+    where.lienSignatures = { some: { signerType: 'ATTORNEY' } };
+  }
+
+  // Filtrar por persona NO amplía el alcance: esto se combina con
+  // `lawyerCaseFilter()`, que ya ancló al bufete. Un id de otro despacho acá
+  // devuelve cero casos, no los suyos.
+  if (assignee) {
+    const column = assigneeRole ? ASSIGNEE_COLUMN[assigneeRole] : undefined;
+    if (column) {
+      where[column] = assignee;
+    } else {
+      // Sin puesto: cuenta en cualquiera de los tres. Va en `AND` y no en `OR`
+      // suelto porque `lawyerCaseFilter` ya usa `OR` a nivel raíz para el
+      // bufete — pisarlo dejaría entrar casos ajenos.
+      where.AND = [{
+        OR: [
+          { attorneyId: assignee },
+          { paralegalId: assignee },
+          { legalAssistantId: assignee },
+        ],
+      }];
+    }
+  }
+
+  return where;
+}
+
+/** Todos los estados válidos — para distinguir un estado suelto de un valor basura. */
+const ALL_STATUSES: string[] = [...ACTIVE_STATUSES, ...CLOSED_STATUSES, 'CANCELLED'];

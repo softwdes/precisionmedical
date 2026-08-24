@@ -25,6 +25,53 @@ import { cookies } from 'next/headers';
  * es la protección: cada página filtra sus datos por sesión (`lawyerCaseFilter`).
  */
 
+/**
+ * Bufetes con su gente, para el selector de "ver como".
+ *
+ * Dos consultas y no una por bufete: 21 despachos serían 21 viajes para armar
+ * un desplegable.
+ */
+async function buildViewOptions(): Promise<FirmOption[]> {
+  const [firms, members] = await Promise.all([
+    db.lawyer.findMany({
+      where: { deletedAt: null, status: 'ACTIVE', parentFirmId: null },
+      orderBy: [{ firmName: 'asc' }, { lastName: 'asc' }],
+      select: { id: true, firmName: true, firstName: true, lastName: true },
+    }),
+    db.lawyer.findMany({
+      where: { deletedAt: null, parentFirmId: { not: null } },
+      orderBy: [{ memberRole: 'asc' }, { lastName: 'asc' }],
+      select: {
+        id: true, firstName: true, lastName: true,
+        memberRole: true, status: true, parentFirmId: true,
+      },
+    }),
+  ]);
+
+  const byFirm = new Map<string, FirmOption['members']>();
+  for (const m of members) {
+    if (!m.parentFirmId) continue;
+    const list = byFirm.get(m.parentFirmId) ?? [];
+    list.push({
+      id: m.id,
+      label: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || '—',
+      role: m.memberRole,
+      // Los inactivos se muestran marcados, no escondidos: sirven para probar
+      // qué pasa cuando alguien deja el despacho.
+      inactive: m.status !== 'ACTIVE',
+    });
+    byFirm.set(m.parentFirmId, list);
+  }
+
+  return firms.map((f) => ({
+    id: f.id,
+    label: f.firmName ?? (`${f.firstName ?? ''} ${f.lastName ?? ''}`.trim() || '—'),
+    // Sin `firmName` no es un despacho sino un abogado independiente.
+    isIndependent: !f.firmName,
+    members: byFirm.get(f.id) ?? [],
+  }));
+}
+
 export default async function AttorneyLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
   const [user, lawyer, t] = await Promise.all([
     getSessionUser(),
@@ -35,18 +82,18 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
 
   const canView = user.email ? await canViewAsLawyer(user.email) : false;
 
-  // La lista se arma una sola vez: la usan el selector inicial Y la barra de
-  // "viendo como", que sin ella no dejaría cambiar de despacho sin desloguearse.
-  const options: FirmOption[] = canView
-    ? (await db.lawyer.findMany({
-        where: { deletedAt: null, status: 'ACTIVE', parentFirmId: null },
-        orderBy: [{ firmName: 'asc' }, { lastName: 'asc' }],
-        select: { id: true, firmName: true, firstName: true, lastName: true },
-      })).map((f) => ({
-        id: f.id,
-        label: f.firmName ?? (`${f.firstName ?? ''} ${f.lastName ?? ''}`.trim() || '—'),
-      }))
-    : [];
+  /**
+   * Opciones del selector "ver como", en DOS niveles: bufete → persona.
+   *
+   * El de un solo nivel solo dejaba entrar como la cuenta del bufete, que ve
+   * todo el despacho. Con eso era imposible comprobar qué ve un gestor de casos
+   * o un asistente —justo los roles con el alcance recortado— y esa lógica
+   * nunca se pudo verificar en pantalla.
+   *
+   * Los INDEPENDIENTES (sin bufete) van en su propio grupo: aparecían mezclados
+   * entre los despachos y se leían como si fueran uno.
+   */
+  const options: FirmOption[] = canView ? await buildViewOptions() : [];
 
   // Admin sin bufete elegido todavía: el selector, no un "sin acceso" que sería
   // falso. Mismo criterio que el portal médico.
@@ -90,18 +137,25 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
     appointments: menus.includes('appointments'),
   };
 
-  // Tarjeta de oficina (F7). Los campos `photos`/`website`/`businessHours` son
-  // nuevos y hoy están vacíos: la tarjeta esconde cada bloque sin datos y va
-  // apareciendo sola a medida que se carguen.
+  // Tarjeta de oficina (F7). Las 5 clínicas que v2 muestra en el portal legal ya
+  // tienen foto, horarios y web; "Murray - Surgery" no aparece en v2 y quedó sin
+  // cargar a propósito — la tarjeta esconde los bloques vacíos.
   const clinicRows = await db.clinic.findMany({
     orderBy: { name: 'asc' },
     select: {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
-      photos: true, website: true, businessHours: true,
+      photos: true, website: true, businessHours: true, isMainOffice: true,
     },
   });
 
-  const clinics: OfficeClinic[] = clinicRows.map((c) => ({
+  const clinics: OfficeClinic[] = clinicRows
+    // Sin dirección no hay nada que mostrar: la tarjeta existe para decirle al
+    // bufete DÓNDE atienden a su cliente. "Murray - Surgery" no tiene dirección
+    // ni foto y ocupaba un lugar del carrusel con una tarjeta vacía — v2 tampoco
+    // la muestra. El filtro es por dato y no por nombre: si algún día se le
+    // carga la dirección, aparece sola.
+    .filter((c) => !!c.address)
+    .map((c) => ({
     id: c.id,
     name: c.name,
     address: c.address,
@@ -110,6 +164,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
     zipCode: c.zipCode,
     photos: c.photos,
     website: c.website,
+    isMainOffice: c.isMainOffice,
     // `businessHours` es Json: puede traer cualquier forma. Se pasa solo si es
     // un objeto — un string o un array roto pintaría "undefined - undefined".
     hours:

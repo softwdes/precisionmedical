@@ -1,12 +1,15 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { FileSignature, Activity, CheckCircle2, Users, Briefcase, FileDown, ChevronRight } from 'lucide-react';
+import { FileSignature, Activity, CheckCircle2, Users, UserPlus, Briefcase, FileDown, ChevronRight } from 'lucide-react';
 import { db } from '@precision-medical/database';
 import {
   PageHeader, KpiCard, DataTable, TagPill, StatusPill, EmptyState,
 } from '@/components/ui-phoenix';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
-import { lawyerCaseFilter, lawyerMemberFilter, canSeeMenu } from '@/lib/attorney-portal';
+import {
+  lawyerCaseFilter, lawyerMemberFilter, canSeeMenu,
+  ACTIVE_STATUSES, CLOSED_STATUSES,
+} from '@/lib/attorney-portal';
 import { fecha } from '@/lib/fechas';
 
 /**
@@ -17,8 +20,19 @@ import { fecha } from '@/lib/fechas';
  * puede venir de nada que el cliente escriba.
  */
 
-const ACTIVE_STATUSES = ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED', 'ACTIVE', 'MMI'] as const;
-const CLOSED_STATUSES = ['CLOSED', 'SETTLED', 'ARCHIVED'] as const;
+/**
+ * Columnas de la fila de accesos rápidos, por cantidad.
+ *
+ * El mapa existe porque Tailwind necesita la clase COMPLETA en el código para
+ * generarla: `lg:grid-cols-${n}` se compila a nada y la grilla cae a una sola
+ * columna sin ningún error.
+ */
+const QUICK_GRID: Record<number, string> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5',
+};
 
 /** Estados del caso → tono del StatusPill. */
 const STATUS_STATE: Record<string, 'active' | 'info' | 'warning' | 'success' | 'neutral'> = {
@@ -38,9 +52,15 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
   const scope = lawyerCaseFilter(lawyer);
 
   const [pendingSignature, activeCases, closedCases, staffCount, recent] = await Promise.all([
-    // "Firmas pendientes": sin firma de lien y sin exención. Los casos exentos
-    // no cuentan — nunca van a firmarse y engordarían el número para siempre.
-    db.case.count({ where: { ...scope, signatureExempt: false, lienSignatures: { none: {} } } }),
+    // "Firmas pendientes" = falta la firma del ABOGADO. Ojo con el matiz: antes
+    // preguntaba `lienSignatures: { none: {} }` ("sin ninguna firma"), y eso NO
+    // es lo mismo — dejaba fuera los casos donde el paciente ya firmó y el
+    // abogado no, que son exactamente los que el portal existe para destrabar.
+    // En Garcia Law eran 11 casos invisibles: mostraba 74 en vez de 87.
+    // Los exentos no cuentan: nunca van a firmarse y engordarían el número.
+    db.case.count({
+      where: { ...scope, signatureExempt: false, lienSignatures: { none: { signerType: 'ATTORNEY' } } },
+    }),
     db.case.count({ where: { ...scope, status: { in: ACTIVE_STATUSES as unknown as never[] } } }),
     db.case.count({ where: { ...scope, status: { in: CLOSED_STATUSES as unknown as never[] } } }),
     db.lawyer.count({ where: lawyerMemberFilter(lawyer) }),
@@ -63,6 +83,15 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
 
   const showUsers = canSeeMenu(lawyer, 'users');
 
+  const quickActions = [
+    { href: '/attorney/cases',      icon: Briefcase, title: t('actionCases'),  subtitle: t('actionCasesSub') },
+    { href: '/api/attorney/report', icon: FileDown,  title: t('actionReport'), subtitle: t('actionReportSub'), external: true },
+    ...(showUsers ? [
+      { href: '/attorney/users?new=1', icon: UserPlus, title: t('actionInvite'), subtitle: t('actionInviteSub') },
+      { href: '/attorney/users',       icon: Users,    title: t('actionUsers'),  subtitle: t('actionUsersSub') },
+    ] : []),
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -70,21 +99,36 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
         subtitle={t('subtitle', { firm: lawyer.firmName ?? '—' })}
       />
 
+      {/* Cada KPI lleva a la lista YA filtrada — el mismo criterio con el que se
+          contó, porque el filtro sale de `caseListFilters()` en los dos lados.
+          Si el número y la lista se calcularan por separado, dejarían de
+          coincidir apenas alguien agregue un estado. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label={t('kpiPendingSignature')} value={pendingSignature} color="text-amber"       icon={FileSignature} iconBg="bg-amber/10"   iconColor="text-amber"       sub={t('kpiPendingSignatureSub')} />
-        <KpiCard label={t('kpiActive')}           value={activeCases}      color="text-brand-text"  icon={Activity}      iconBg="bg-brand/10"   iconColor="text-brand-text"  sub={t('kpiActiveSub')} />
-        <KpiCard label={t('kpiClosed')}           value={closedCases}      color="text-emerald"     icon={CheckCircle2}  iconBg="bg-emerald/10" iconColor="text-emerald"     sub={t('kpiClosedSub')} />
+        <KpiLink href="/attorney/cases?sig=pending">
+          <KpiCard label={t('kpiPendingSignature')} value={pendingSignature} color="text-amber"      icon={FileSignature} iconBg="bg-amber/10"   iconColor="text-amber"      sub={t('kpiPendingSignatureSub')} />
+        </KpiLink>
+        <KpiLink href="/attorney/cases?status=active">
+          <KpiCard label={t('kpiActive')}           value={activeCases}      color="text-brand-text" icon={Activity}      iconBg="bg-brand/10"   iconColor="text-brand-text" sub={t('kpiActiveSub')} />
+        </KpiLink>
+        <KpiLink href="/attorney/cases?status=completed">
+          <KpiCard label={t('kpiClosed')}           value={closedCases}      color="text-emerald"    icon={CheckCircle2}  iconBg="bg-emerald/10" iconColor="text-emerald"    sub={t('kpiClosedSub')} />
+        </KpiLink>
         {showUsers && (
-          <KpiCard label={t('kpiStaff')} value={staffCount} color="text-violet-text" icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text" sub={t('kpiStaffSub')} />
+          <KpiLink href="/attorney/users">
+            <KpiCard label={t('kpiStaff')} value={staffCount} color="text-violet-text" icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text" sub={t('kpiStaffSub')} />
+          </KpiLink>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <QuickAction href="/attorney/cases"       icon={Briefcase} title={t('actionCases')}  subtitle={t('actionCasesSub')} />
-        <QuickAction href="/api/attorney/report"  icon={FileDown}  title={t('actionReport')} subtitle={t('actionReportSub')} external />
-        {showUsers && (
-          <QuickAction href="/attorney/users" icon={Users} title={t('actionUsers')} subtitle={t('actionUsersSub')} />
-        )}
+      {/* Las columnas SIGUEN a la cantidad de accesos, no al revés.
+          Con `lg:grid-cols-3` fijo y 4 accesos, el cuarto caía solo en una
+          segunda fila. Y la cantidad cambia por rol —un gestor de casos no ve
+          los dos de Usuarios— así que fijar el número deja hueco o huérfano
+          según quién mire. */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${QUICK_GRID[quickActions.length] ?? 'lg:grid-cols-4'}`}>
+        {quickActions.map((a) => (
+          <QuickAction key={a.href} href={a.href} icon={a.icon} title={a.title} subtitle={a.subtitle} external={a.external} />
+        ))}
       </div>
 
       <section className="space-y-3">
@@ -128,7 +172,10 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
                         <span className="whitespace-nowrap">{fecha(c.createdAt)}</span>
                       </DataTable.Td>
                       <DataTable.Td align="right" sticky="right">
-                        <Link href={`/attorney/cases/${c.id}`} className="text-text-muted hover:text-brand-text inline-flex">
+                        {/* Abre el caso COMO MODAL sobre la lista de casos, el
+                            mismo camino que el menú "..." — no una pantalla
+                            aparte. Ver `lib/case-modal-url.ts`. */}
+                        <Link href={`/attorney/cases?case=${c.id}`} className="text-text-muted hover:text-brand-text inline-flex">
                           <ChevronRight className="w-3.5 h-3.5" />
                         </Link>
                       </DataTable.Td>
@@ -163,6 +210,22 @@ function QuickAction({
       <Icon className="w-4 h-4 text-brand mb-2" />
       <div className="text-text-1 font-semibold text-sm">{title}</div>
       <div className="text-text-2 text-xs mt-0.5">{subtitle}</div>
+    </Link>
+  );
+}
+
+/**
+ * Envoltorio que hace clickeable un `KpiCard` sin tocar el primitivo.
+ *
+ * `KpiCard` es compartido con el resto del back-office, donde los KPIs NO
+ * navegan. Agregarle un `href` opcional obligaría a revisar todos sus usos;
+ * envolverlo deja el primitivo intacto y el comportamiento acá, que es donde
+ * vive la decisión.
+ */
+function KpiLink({ href, children }: { href: string; children: React.ReactNode }): React.ReactElement {
+  return (
+    <Link href={href} className="block rounded-lg transition-opacity hover:opacity-80 focus:outline-none focus:ring-1 focus:ring-brand/40">
+      {children}
     </Link>
   );
 }

@@ -12,8 +12,8 @@ import { MapPin, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
  * nuevos — ver el comentario del modelo).
  *
  * Todo bloque se esconde si no tiene datos, en vez de mostrar un placeholder:
- * hoy las 6 clínicas están sin fotos ni horarios, y una tarjeta llena de "—" es
- * peor que una tarjeta corta. A medida que se carguen, va apareciendo sola.
+ * una tarjeta llena de "—" es peor que una corta. Es lo que sostiene a
+ * "Murray - Surgery", que no tiene ni dirección ni foto y v2 tampoco muestra.
  */
 
 export interface OfficeClinic {
@@ -25,8 +25,24 @@ export interface OfficeClinic {
   zipCode: string | null;
   photos: string[];
   website: string | null;
+  /** Sede principal: cambia el texto de "Visítanos en" a "oficina principal". */
+  isMainOffice: boolean;
   /** { mon: { open, close } | null, ... } — ver `Clinic.businessHours`. */
   hours: Record<string, { open: string; close: string } | null> | null;
+}
+
+/**
+ * "08:30" -> "8:30 AM". Los horarios se guardan en 24h (ordenables, sin
+ * ambigüedad) y se muestran en 12h, que es como los lee la clínica y como los
+ * mostraba v2. Devuelve el original si no matchea, en vez de romper la tarjeta.
+ */
+function to12h(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!m) return hhmm;
+  const h = Number(m[1]);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
 }
 
 const DAYS: Array<{ key: string; labelKey: string }> = [
@@ -115,7 +131,7 @@ export function OfficeCard({ clinics }: { clinics: OfficeClinic[] }): React.Reac
       {mapsUrl && (
         <div>
           <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">
-            {t('officeVisitUs')}
+            {clinic.isMainOffice ? t('officeVisitMain') : t('officeVisitUs')}
           </div>
           <a
             href={mapsUrl}
@@ -141,7 +157,7 @@ export function OfficeCard({ clinics }: { clinics: OfficeClinic[] }): React.Reac
                 <div key={d.key} className="flex items-baseline justify-between gap-2">
                   <dt className="text-text-2 text-[10.5px]">{t(d.labelKey as 'dayMon')}</dt>
                   <dd className={`text-[10.5px] ${slot ? 'text-text-1' : 'text-rose'}`}>
-                    {slot ? `${slot.open} - ${slot.close}` : t('officeClosed')}
+                    {slot ? `${to12h(slot.open)} - ${to12h(slot.close)}` : t('officeClosed')}
                   </dd>
                 </div>
               );

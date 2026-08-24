@@ -1,18 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus, Pencil, Trash2, KeyRound, Ban, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Ban, Loader2, Mail, Phone, MapPin } from 'lucide-react';
 import {
-  PageHeader, DataTable, StatusPill, TagPill, EmptyState, PersonAvatar, IconAction,
+  PageHeader, StatusPill, TagPill, EmptyState, PersonAvatar, IconAction,
 } from '@/components/ui-phoenix';
 import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter,
 } from '@precision/ui';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
-import { fecha } from '@/lib/fechas';
 
 /**
  * Portal Legal · directorio del despacho.
@@ -34,7 +34,11 @@ export interface MemberRow {
   barNumber: string | null;
   status: string;
   createdAt: string;
+  /** Dirección ya compuesta (calle, ciudad, estado, ZIP). */
+  address: string | null;
   access: AccessState;
+  /** Casos donde figura, por puesto. Se cuenta con el alcance de la sesión. */
+  caseLoad: { attorney: number; paralegal: number; assistant: number };
 }
 
 const MEMBER_ROLES = ['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'] as const;
@@ -67,10 +71,15 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
   const router = useRouter();
+  // El acceso rápido "Invitar personal" del Panel entra con `?new=1` y abre el
+  // alta directo, sin obligar a buscar el botón después de navegar.
+  const params = useSearchParams();
   const [isPending, startTransition] = React.useTransition();
   useTransitionProgress(isPending);
 
-  const [form, setForm] = React.useState<FormState | null>(null);
+  const [form, setForm] = React.useState<FormState | null>(
+    () => (params.get('new') === '1' ? { ...EMPTY_FORM } : null),
+  );
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -182,107 +191,30 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
       {members.length === 0 ? (
         <EmptyState.Inline message={t('usersEmpty')} />
       ) : (
-        <DataTable.Card>
-          <DataTable.Scroll>
-            <DataTable.Table>
-              <DataTable.Head>
-                <DataTable.Th sticky="left">{tc('name')}</DataTable.Th>
-                <DataTable.Th>{t('colRole')}</DataTable.Th>
-                <DataTable.Th>{t('colEmail')}</DataTable.Th>
-                <DataTable.Th>{t('colPhone')}</DataTable.Th>
-                <DataTable.Th>{t('colAccess')}</DataTable.Th>
-                <DataTable.Th>{t('colCreated')}</DataTable.Th>
-                <DataTable.Th align="right" sticky="right">{tc('actions')}</DataTable.Th>
-              </DataTable.Head>
-              <tbody>
-                {members.map((m) => {
-                  const pill = ACCESS_PILL[m.access];
-                  const busy = busyId === m.id;
-                  return (
-                    <DataTable.Row key={m.id} muted={m.status !== 'ACTIVE'}>
-                      <DataTable.Td sticky="left">
-                        <div className="flex items-center gap-2">
-                          <PersonAvatar firstName={m.firstName} lastName={m.lastName} size={6} />
-                          <span className="text-text-1">{fullName(m)}</span>
-                        </div>
-                      </DataTable.Td>
-                      <DataTable.Td>
-                        <TagPill
-                          label={t(`role${m.memberRole ?? 'OTHER'}` as 'roleOTHER')}
-                          compact
-                          colorClass="bg-white/5 text-text-2 border-border"
-                        />
-                      </DataTable.Td>
-                      <DataTable.Td>
-                        {m.email
-                          ? <a href={`mailto:${m.email}`} className="hover:text-brand-text">{m.email}</a>
-                          : '—'}
-                      </DataTable.Td>
-                      <DataTable.Td>
-                        <span className="font-mono text-[12.5px]">{m.phone ?? '—'}</span>
-                      </DataTable.Td>
-                      <DataTable.Td>
-                        <StatusPill state={pill.state} label={t(pill.key as 'accessNone')} />
-                      </DataTable.Td>
-                      <DataTable.Td>
-                        <span className="whitespace-nowrap">{fecha(m.createdAt)}</span>
-                      </DataTable.Td>
-                      <DataTable.Td align="right" sticky="right">
-                        <div className="flex items-center justify-end gap-1">
-                          {busy && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
-
-                          {m.access === 'active' ? (
-                            <IconAction
-                              icon={Ban}
-                              label={t('revokeAccess')}
-                              variant="danger"
-                              disabled={busy}
-                              onClick={() => void accessAction(m, 'revoke')}
-                            />
-                          ) : m.access === 'other-role' ? null : (
-                            <IconAction
-                              icon={KeyRound}
-                              label={m.email
-                                ? (m.access === 'pending' ? t('resendAccess')
-                                  : m.access === 'revoked' ? t('grantAccess')
-                                  : t('grantAccess'))
-                                : t('noEmailHint')}
-                              disabled={busy || !m.email}
-                              onClick={() => void accessAction(m, 'grant')}
-                            />
-                          )}
-
-                          <IconAction
-                            icon={Pencil}
-                            label={tc('edit')}
-                            disabled={busy}
-                            onClick={() => setForm({
-                              id: m.id,
-                              firstName: m.firstName ?? '',
-                              lastName: m.lastName ?? '',
-                              email: m.email ?? '',
-                              phone: m.phone ?? '',
-                              memberRole: m.memberRole ?? 'OTHER',
-                              barNumber: m.barNumber ?? '',
-                              grantAccess: false,
-                            })}
-                          />
-                          <IconAction
-                            icon={Trash2}
-                            label={tc('delete')}
-                            variant="danger"
-                            disabled={busy}
-                            onClick={() => void remove(m)}
-                          />
-                        </div>
-                      </DataTable.Td>
-                    </DataTable.Row>
-                  );
-                })}
-              </tbody>
-            </DataTable.Table>
-          </DataTable.Scroll>
-        </DataTable.Card>
+        /* Tarjetas y no tabla, en todos los tamaños (decisión de Erick,
+           replicando v2). Cada persona junta su rol, su carga y su contacto en
+           un bloque, que es como se lee un directorio. */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {members.map((m) => (
+            <MemberCard
+              key={m.id}
+              member={m}
+              busy={busyId === m.id}
+              onEdit={() => setForm({
+                id: m.id,
+                firstName: m.firstName ?? '',
+                lastName: m.lastName ?? '',
+                email: m.email ?? '',
+                phone: m.phone ?? '',
+                memberRole: m.memberRole ?? 'OTHER',
+                barNumber: m.barNumber ?? '',
+                grantAccess: false,
+              })}
+              onAccess={(action) => void accessAction(m, action)}
+              onRemove={() => void remove(m)}
+            />
+          ))}
+        </div>
       )}
 
       {form && (
@@ -392,6 +324,143 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1.5">
       <Label>{label}</Label>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Carga de casos de un miembro, con cada número enlazado a la lista filtrada.
+ *
+ * Los números son LINKS y no texto a propósito: "26 casos" sin poder abrirlos
+ * obliga a ir a Casos y reconstruir el filtro a mano. Acá el desglose es la
+ * navegación — es lo que el desplegable del modal de v2 hacía por dentro, pero
+ * llevando a la pantalla real, donde además se puede buscar y cruzar filtros.
+ */
+function CaseLoad({ member }: { member: MemberRow }): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  const { attorney, paralegal, assistant } = member.caseLoad;
+  const total = attorney + paralegal + assistant;
+
+  if (total === 0) {
+    return <span className="text-text-muted text-[11px] italic">{t('noAssigned')}</span>;
+  }
+
+  const parts: Array<{ role: string; count: number; label: string }> = [
+    { role: 'attorney',  count: attorney,  label: t('asAttorney') },
+    { role: 'paralegal', count: paralegal, label: t('asParalegal') },
+    { role: 'assistant', count: assistant, label: t('asAssistant') },
+  ].filter((p) => p.count > 0);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {parts.map((p) => (
+        <Link
+          key={p.role}
+          href={`/attorney/cases?assignee=${member.id}&role=${p.role}`}
+          className="text-[11.5px] text-text-2 hover:text-brand-text whitespace-nowrap"
+        >
+          <span className="font-semibold text-text-1">{p.count}</span> {p.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Tarjeta de un miembro del despacho — réplica de la vista de v2.
+ *
+ * Sin bordes (Regla #0): el escalón `bg-1` para la tarjeta y `bg-2/40` para la
+ * caja de carga ya separan los niveles; una línea encima sería decir lo mismo
+ * dos veces.
+ */
+function MemberCard({
+  member, busy, onEdit, onAccess, onRemove,
+}: {
+  member: MemberRow;
+  busy: boolean;
+  onEdit: () => void;
+  onAccess: (action: 'grant' | 'revoke') => void;
+  onRemove: () => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  const tc = useTranslations('phoenix.common');
+
+  const full = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || '—';
+  const pill = ACCESS_PILL[member.access];
+  const isActive = member.status === 'ACTIVE';
+
+  return (
+    <div className={`rounded-lg bg-bg-1 p-5 flex flex-col gap-3 ${isActive ? '' : 'opacity-50'}`}>
+      <div className="flex items-start gap-3">
+        <PersonAvatar firstName={member.firstName} lastName={member.lastName} size={10} />
+        <div className="flex-1 min-w-0">
+          <div className="text-text-1 font-semibold text-sm truncate">{full}</div>
+          <div className="text-text-2 text-xs mt-0.5">
+            {t(`role${member.memberRole ?? 'OTHER'}` as 'roleOTHER')}
+          </div>
+        </div>
+        <StatusPill
+          state={isActive ? 'active' : 'inactive'}
+          label={isActive ? tc('active') : tc('inactive')}
+        />
+      </div>
+
+      <div className="rounded-md bg-bg-2/40 p-3">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+            {t('colAssigned')}
+          </span>
+          <TagPill
+            label={String(member.caseLoad.attorney + member.caseLoad.paralegal + member.caseLoad.assistant)}
+            compact
+            mono
+            colorClass="bg-brand/10 text-brand-text border-brand/20"
+          />
+        </div>
+        <CaseLoad member={member} />
+      </div>
+
+      <div className="space-y-1 text-[11.5px] text-text-2">
+        {member.email && (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Mail className="w-3 h-3 text-text-muted shrink-0" />
+            <a href={`mailto:${member.email}`} className="hover:text-brand-text truncate">{member.email}</a>
+          </div>
+        )}
+        {member.phone && (
+          <div className="flex items-center gap-1.5">
+            <Phone className="w-3 h-3 text-text-muted shrink-0" />
+            <span className="font-mono">{member.phone}</span>
+          </div>
+        )}
+        {member.address && (
+          <div className="flex items-start gap-1.5">
+            <MapPin className="w-3 h-3 text-text-muted shrink-0 mt-0.5" />
+            <span>{member.address}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-1 mt-auto">
+        <StatusPill state={pill.state} label={t(pill.key as 'accessNone')} />
+        <div className="flex items-center gap-1">
+          {busy && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
+          {member.access === 'active' ? (
+            <IconAction icon={Ban} label={t('revokeAccess')} variant="danger" disabled={busy} onClick={() => onAccess('revoke')} />
+          ) : member.access === 'other-role' ? null : (
+            <IconAction
+              icon={KeyRound}
+              label={member.email
+                ? (member.access === 'pending' ? t('resendAccess') : t('grantAccess'))
+                : t('noEmailHint')}
+              disabled={busy || !member.email}
+              onClick={() => onAccess('grant')}
+            />
+          )}
+          <IconAction icon={Pencil} label={tc('edit')} disabled={busy} onClick={onEdit} />
+          <IconAction icon={Trash2} label={tc('delete')} variant="danger" disabled={busy} onClick={onRemove} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -17,16 +17,19 @@
  * toda la lista por un id viejo pegado en un favorito.
  */
 
+import { db } from '@precision-medical/database';
 import { getCaseDetailData, providerHasCase } from '@/lib/case-detail-data';
-import { parseCaseTab } from '@/lib/case-tabs';
+import { parseCaseTab, TABS_ATTORNEY } from '@/lib/case-tabs';
 import { CaseDetailModal } from '@/components/cases/case-detail-modal';
+import { getSessionLawyer } from '@/lib/get-session-lawyer';
+import { lawyerCaseFilter, canSignLien } from '@/lib/attorney-portal';
 
 export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId }: {
   /** `?case=` — sin valor no se monta nada */
   caseId?: string;
   /** `?tab=` — el tab con el que abre */
   tab?: string;
-  variant?: 'admin' | 'doctor';
+  variant?: 'admin' | 'doctor' | 'attorney';
   /**
    * Portal médico: el doctor solo abre casos con una cita suya. Se valida acá,
    * en el server, igual que lo hacía la página completa del doctor.
@@ -40,15 +43,51 @@ export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId 
     if (!(await providerHasCase(providerId, caseId))) return null;
   }
 
+  // Portal legal: el bufete solo abre casos DENTRO de su alcance, y con el mismo
+  // filtro que usa su lista. Se valida acá, en el server — igual que el doctor.
+  let signature: { hasSigned: boolean; exempt: boolean; canSign: boolean; defaultName: string } | null = null;
+
+  if (variant === 'attorney') {
+    const lawyer = await getSessionLawyer();
+    if (!lawyer) return null;
+
+    const allowed = await db.case.findFirst({
+      where: { AND: [lawyerCaseFilter(lawyer), { id: caseId }] },
+      select: {
+        signatureExempt: true,
+        lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
+      },
+    });
+    if (!allowed) return null;
+
+    signature = {
+      hasSigned: allowed.lienSignatures.length > 0,
+      exempt: allowed.signatureExempt,
+      canSign: canSignLien(lawyer),
+      // Se pre-carga el nombre de QUIEN ESTÁ FIRMANDO, no el del abogado del
+      // caso. Ahora que también firman gestores y asistentes, poner el nombre
+      // del abogado dejaría un documento que dice "Sergio Garcia" firmado desde
+      // la cuenta de otra persona. El campo sigue siendo editable para firmar en
+      // representación, pero el default no puede inducir a eso.
+      defaultName: `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || (lawyer.firmName ?? ''),
+    };
+  }
+
   const data = await getCaseDetailData(caseId);
   if (!data) return null;
+
+  // Un `?tab=` que el bufete no puede ver cae al tab por defecto, en vez de
+  // abrir en una pestaña que para él no existe.
+  const parsed = parseCaseTab(tab);
+  const initialTab = variant === 'attorney' && parsed && !TABS_ATTORNEY.has(parsed) ? undefined : parsed;
 
   return (
     <CaseDetailModal
       caseInfo={data.caseInfo}
       auditEvents={data.auditEvents}
       variant={variant}
-      initialTab={parseCaseTab(tab)}
+      initialTab={initialTab}
+      signature={signature}
     />
   );
 }

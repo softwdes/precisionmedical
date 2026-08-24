@@ -881,6 +881,12 @@ model Clinic {
   website       String?
   businessHours Json?
 
+  /// La sede principal. v2 le cambia el texto a la tarjeta ("Visita nuestra
+  /// oficina principal" en vez de "Visítanos en"), así que es un dato del
+  /// negocio y no una decisión de la vista: reconocerla por el nombre "Provo"
+  /// funcionaría hasta la primera vez que se mude o se renombre.
+  isMainOffice  Boolean  @default(false)
+
   // ScriptSure / DAW (D4 — prescripción electrónica)
   scriptsurePracticeId String?
 

@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
-import { lawyerCaseFilter, canAssignStaff } from '@/lib/attorney-portal';
+import { lawyerCaseFilter, canAssignStaff, caseListFilters } from '@/lib/attorney-portal';
 import { resolveActor } from '@/lib/actor';
 
 const PAGE_SIZE = 10;
@@ -36,22 +36,40 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = req.nextUrl;
   const search = searchParams.get('search')?.trim() ?? '';
   const status = searchParams.get('status')?.trim() ?? '';
+  // `sig=pending|signed` — mira SOLO la firma del abogado.
+  const signature = searchParams.get('sig')?.trim() ?? '';
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
 
-  const scope = lawyerCaseFilter(lawyer);
+  /**
+   * Los filtros se COMPONEN con `AND`, nunca con spread.
+   *
+   * Con spread se pisaban entre ellos por usar la misma llave: `lawyerCaseFilter`
+   * ancla al bufete con un `OR`, y el `OR` de la búsqueda lo sobrescribía. El
+   * efecto no era una lista vacía —que se habría notado— sino una MÁS GRANDE:
+   * buscar "maria" en Garcia Law devolvía 33 casos de toda la clínica en vez de
+   * sus 2. Un filtro que se pierde en silencio y agranda el resultado es la
+   * peor forma de fallar que tiene este módulo.
+   */
   const where: Prisma.CaseWhereInput = {
-    ...scope,
-    ...(status ? { status: status as never } : {}),
-    ...(search
-      ? {
-          OR: [
-            ...fullNameOR(search),
-            { caseCode: { contains: search, mode: 'insensitive' } },
-            { patient: { firstName: { contains: search, mode: 'insensitive' } } },
-            { patient: { lastName:  { contains: search, mode: 'insensitive' } } },
-          ],
-        }
-      : {}),
+    AND: [
+      lawyerCaseFilter(lawyer),
+      caseListFilters({
+        status,
+        signature,
+        assignee:     searchParams.get('assignee')?.trim() || undefined,
+        assigneeRole: searchParams.get('role')?.trim() || undefined,
+      }),
+      ...(search
+        ? [{
+            OR: [
+              ...fullNameOR(search),
+              { caseCode: { contains: search, mode: 'insensitive' as const } },
+              { patient: { firstName: { contains: search, mode: 'insensitive' as const } } },
+              { patient: { lastName:  { contains: search, mode: 'insensitive' as const } } },
+            ],
+          }]
+        : []),
+    ],
   };
 
   const [rows, total] = await Promise.all([
@@ -65,7 +83,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         accidentDate: true, signatureExempt: true,
         patient: { select: { firstName: true, lastName: true } },
         attorneyId: true, paralegalId: true, legalAssistantId: true,
-        lienSignatures: { select: { id: true }, take: 1 },
+        // SOLO la del abogado: sin el filtro, un caso firmado por el paciente
+        // salía como "Firmado" aunque el abogado nunca hubiera firmado.
+        lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
       },
     }),
     db.case.count({ where }),
@@ -163,15 +183,70 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     select: { id: true, attorneyId: true, paralegalId: true, legalAssistantId: true },
   });
 
-  await writeAuditLog(db, {
-    ...(await resolveActor(req.headers)),
-    action: 'ATTORNEY_ASSIGN_CASE_STAFF',
-    entityType: 'cases',
-    entityId: target.id,
-    before: { attorneyId: target.attorneyId, paralegalId: target.paralegalId, legalAssistantId: target.legalAssistantId },
-    after: updated,
-    metadata: { firmId: lawyer.firmId, by: lawyer.email, caseCode: target.caseCode },
-  });
+  // Una entrada `ASSIGNMENT_CHANGE` por campo cambiado — MISMA forma que escribe
+  // el admin en `/api/admin/cases/[id]`.
+  //
+  // Es a propósito: el "Historial de cambios" del caso tiene que mostrar en una
+  // sola tabla lo que se movió desde el back-office Y desde el portal. Con un
+  // `action` propio quedaban dos formatos y el historial tendría que unirlos,
+  // que es la clase de costura que se rompe cuando alguien toca uno de los dos.
+  const actor = await resolveActor(req.headers);
+
+  const FIELDS = [
+    { key: 'attorneyId',       label: 'Abogado',         raw: 'ATTORNEY',        prevId: target.attorneyId,       newId: updated.attorneyId },
+    { key: 'paralegalId',      label: 'Gestor de casos', raw: 'PARALEGAL',       prevId: target.paralegalId,      newId: updated.paralegalId },
+    { key: 'legalAssistantId', label: 'Asistente',       raw: 'LEGALASSISTANT',  prevId: target.legalAssistantId, newId: updated.legalAssistantId },
+  ] as const;
+
+  const changed = FIELDS.filter((f) => f.prevId !== f.newId);
+  const involvedIds = changed.flatMap((f) => [f.prevId, f.newId]).filter((v): v is string => !!v);
+
+  // Un solo viaje para todos los nombres involucrados. Se resuelven de `lawyers`,
+  // que es adonde apuntan las tres columnas (el admin lo buscaba en `employees`
+  // y por eso su historial nunca registraba a quién se asignaba).
+  const names = new Map<string, string>();
+  if (involvedIds.length > 0) {
+    const rows = await db.lawyer.findMany({
+      where: { id: { in: [...new Set(involvedIds)] } },
+      select: { id: true, firstName: true, lastName: true, firmName: true },
+    });
+    for (const r of rows) {
+      names.set(r.id, `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || (r.firmName ?? '—'));
+    }
+  }
+
+  for (const f of changed) {
+    const previousValue = f.prevId ? (names.get(f.prevId) ?? null) : null;
+    const newValue      = f.newId  ? (names.get(f.newId)  ?? null) : null;
+    const action =
+      !previousValue && newValue ? 'Asignado' :
+      previousValue && !newValue ? 'Removido' : 'Actualizado';
+
+    await writeAuditLog(db, {
+      actorType:   actor.actorType,
+      actorUserId: actor.actorUserId,
+      actorRole:   actor.actorRole,
+      action:      'ASSIGNMENT_CHANGE',
+      entityType:  'cases',
+      entityId:    target.id,
+      ipAddress:   actor.ipAddress,
+      userAgent:   actor.userAgent,
+      metadata: {
+        changeType:     f.label,
+        changeTypeRaw:  f.raw,
+        action,
+        actionRaw:      action === 'Asignado' ? 'ASSIGNED' : action === 'Removido' ? 'REMOVED' : 'UPDATED',
+        changedByEmail: actor.email ?? lawyer.email ?? null,
+        changedByName:  actor.actorName ?? null,
+        previousValue,
+        newValue,
+        caseCode:       target.caseCode,
+        // Deja rastro de que el cambio vino del portal y no del back-office.
+        source:         'ATTORNEY_PORTAL',
+        firmId:         lawyer.firmId,
+      },
+    });
+  }
 
   return NextResponse.json({ ok: true, case: updated });
 }

@@ -32,6 +32,17 @@ export const TABS_CON_FILTRO_DE_VISITA = new Set<ActiveTab>([
 ]);
 
 /**
+ * Tabs que ve el bufete en el Portal Legal — los mismos cuatro de v2.
+ *
+ * Queda acá y no en el componente porque la página del portal también los
+ * necesita para validar el `?tab=` en el servidor, y este módulo es neutro
+ * (ver el comentario de arriba sobre `'use client'`).
+ */
+export const TABS_ATTORNEY = new Set<ActiveTab>([
+  'caso', 'citas', 'finanzas', 'documentos',
+]);
+
+/**
  * ¿El `?tab=` de la URL es un tab real? Devuelve undefined si no lo es, para
  * que el caso abra en su tab por defecto en vez de en uno inexistente.
  */

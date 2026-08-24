@@ -98,16 +98,37 @@ function Card({ children }: { children: React.ReactNode }) {
  * Es opcional para no cambiarle el comportamiento a las ~20 pantallas que ya
  * usan el primitivo: solo lo pide quien de verdad lo necesita.
  */
-function Scroll({ children, maxHeight }: { children: React.ReactNode; maxHeight?: string }) {
+function Scroll({ children, maxHeight, headHeight = '34px' }: {
+  children: React.ReactNode;
+  maxHeight?: string;
+  /**
+   * Alto REAL de la fila de encabezados. Solo hace falta pasarlo si la vista
+   * le pisa el padding o el tamaño de letra al `Th`.
+   *
+   * El default sale del primitivo sin tocar: `py-2.5` (10px arriba y abajo)
+   * mas una linea de 10px = ~34px.
+   *
+   * Se declara en vez de medirse porque medir pide un hook, y este primitivo
+   * lo importan server components (el portal del abogado, el `loading.tsx`
+   * del admin): volverlo cliente por un detalle visual saldria mucho mas caro
+   * que esta prop.
+   */
+  headHeight?: string;
+}) {
   return (
     <div
       className={maxHeight ? 'overflow-x-auto overflow-y-auto' : 'overflow-x-auto'}
-      // `--dt-head-h` es el alto de la fila de encabezados, y lo consume
-      // `GroupRow` para pegarse JUSTO debajo. Sale de su padding (py-2.5 = 10px
-      // arriba y abajo) mas la linea de texto de 10px: ~34px. Vive acá como
-      // variable y no como numero suelto en la vista, para que cambiar el
-      // padding del `Th` no deje la banda de grupo tapando el encabezado.
-      style={{ ...(maxHeight ? { maxHeight } : {}), ['--dt-head-h' as string]: '34px' }}
+      /*
+       * `--dt-head-h` lo consume `GroupRow` para pegarse JUSTO debajo del
+       * encabezado.
+       *
+       * Si el valor queda MAS GRANDE que el encabezado real, la banda de grupo
+       * flota mas abajo de donde deberia y tapa la primera fila del grupo — se
+       * ve como una fila cortada por la mitad. Fue exactamente el bug de la
+       * vista de tracking, que bajo el `Th` a `py-1` + 7px (~17px reales)
+       * mientras esto seguia clavado en 34.
+       */
+      style={{ ...(maxHeight ? { maxHeight } : {}), ['--dt-head-h' as string]: headHeight }}
     >
       {children}
     </div>

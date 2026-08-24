@@ -421,7 +421,7 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
           * pidio verlo siempre, porque con 15 columnas no se acuerda de cual
           * es cual. Ver la nota de `DataTable.Scroll`.
           */}
-        <DataTable.Scroll maxHeight="calc(100vh - 205px)">
+        <DataTable.Scroll maxHeight="calc(100vh - 205px)" headHeight="17px">
           {/*
           * Escala propia de esta vista, MUY por debajo del primitivo, pedida
           * por Edson en tres bajadas sucesivas: principal 9px (el `text-sm`

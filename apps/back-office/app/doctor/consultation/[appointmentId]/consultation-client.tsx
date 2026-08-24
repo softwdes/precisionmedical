@@ -537,6 +537,7 @@ export function ConsultationClient({
           appointmentId={a.id}
           note={note}
           triage={a.triage}
+          hasTriage={hasTriage}
           services={(a.servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
           checkedInAt={a.checkedInAt}
           doctorDoneAt={a.doctorDoneAt}

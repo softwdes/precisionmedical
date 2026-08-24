@@ -291,17 +291,40 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   // Patient intake info (from consentsData or case)
   const intakeChiefComplaint = vitals.chiefComplaint || d.notes || null;
 
-  // Vitales para el resumen del step 3: en esta pantalla son strings de inputs
+  /**
+   * Vitales para el resumen del step 3: **el valor en vivo gana, el guardado es
+   * el respaldo**.
+   *
+   * El espejo `vitals` arranca vacío y lo llena el `TriageVitalsForm` con su
+   * `onChange`. Pero ese formulario vive en el STEP 2, y los dos bloques son
+   * mutuamente excluyentes: con el paciente ya en sala el formulario no se monta,
+   * el `onChange` nunca dispara y el espejo se queda en `EMPTY_VITALS`. El
+   * resumen concluía "no hay triaje" con el triaje guardado en la base — que es
+   * justo el estado en el que se mira esta pantalla.
+   *
+   * No se seedea `vitals` desde el registro a propósito, por dos razones: el
+   * formulario hace conversiones propias (F→C, pulgadas→cm, libras→kg) y
+   * duplicar ese mapeo acá es pedir que se desincronicen; y escribir en `vitals`
+   * desde afuera es lo que ya le borró a la MA lo que estaba tipeando (ver el
+   * comentario del refetch silencioso).
+   */
   const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number(v));
+  const enVivoOGuardado = (v: string, guardado: number | null | undefined): number | null =>
+    numOrNull(v) ?? guardado ?? null;
+  const tr = d.triageRecord;
   const summaryTriage = {
-    systolicMmhg:    numOrNull(vitals.systolicMmhg),
-    diastolicMmhg:   numOrNull(vitals.diastolicMmhg),
-    pulseBpm:        numOrNull(vitals.pulseBpm),
-    respiratoryRate: numOrNull(vitals.respiratoryRate),
-    tempFahrenheit:  numOrNull(vitals.tempFahrenheit),
-    painScale:       numOrNull(vitals.painScale),
-    o2Saturation:    numOrNull(vitals.o2Saturation),
-    chiefComplaint:  intakeChiefComplaint,
+    systolicMmhg:    enVivoOGuardado(vitals.systolicMmhg,    tr?.systolicMmhg),
+    diastolicMmhg:   enVivoOGuardado(vitals.diastolicMmhg,   tr?.diastolicMmhg),
+    pulseBpm:        enVivoOGuardado(vitals.pulseBpm,        tr?.pulseBpm),
+    respiratoryRate: enVivoOGuardado(vitals.respiratoryRate, tr?.respiratoryRate),
+    tempFahrenheit:  enVivoOGuardado(vitals.tempFahrenheit,  tr?.tempFahrenheit),
+    painScale:       enVivoOGuardado(vitals.painScale,       tr?.painScale),
+    o2Saturation:    enVivoOGuardado(vitals.o2Saturation,    tr?.o2Saturation),
+    // El orden importa: lo que se está tipeando, después el motivo del TRIAJE, y
+    // solo al final la nota de la cita. `intakeChiefComplaint` ya cae en `d.notes`,
+    // así que ponerlo primero haría que una nota administrativa ("llamó para
+    // reprogramar") le gane al motivo clínico real.
+    chiefComplaint:  vitals.chiefComplaint || tr?.chiefComplaint || intakeChiefComplaint,
   };
   const accidentInfo = d.case?.accidentDate
     ? `${fmtDate(d.case.accidentDate)}${d.case.accidentType ? ` · ${d.case.accidentType}` : ''}`
@@ -449,6 +472,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             checkedOutAt={d.checkedOutAt ?? null}
             providerName={d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : null}
             triage={summaryTriage}
+            hasTriage={!!d.triageRecord}
             servicesPanel={{
               id:                  d.id,
               scheduledFor:        d.scheduledFor,

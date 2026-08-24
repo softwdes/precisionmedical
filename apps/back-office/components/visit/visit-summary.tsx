@@ -87,6 +87,13 @@ interface Props {
   appointmentId: string;
   note: VisitNoteData | null;
   triage: SummaryTriage | null;
+  /**
+   * ¿Existe el registro de triaje? Por defecto se deduce de `triage`, que sirve
+   * cuando el llamador manda null si no hay registro (la consulta del doctor).
+   * Day Admission lo manda explícito porque ahí `triage` es el espejo en vivo del
+   * formulario y puede venir todo en null con el triaje ya guardado.
+   */
+  hasTriage?: boolean;
   services: ServiceCode[];
   checkedInAt: string | null;
   doctorDoneAt: string | null;
@@ -208,7 +215,7 @@ function Card({
 }
 
 export function VisitSummary({
-  appointmentId, note, triage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
+  appointmentId, note, triage, hasTriage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
   balanceDue, onCollect,
 }: Props): React.ReactElement {
@@ -426,6 +433,10 @@ export function VisitSummary({
       setSaving(false);
     }
   };
+
+  // Por defecto se deduce de `triage`: alcanza para quien manda null cuando no hay
+  // registro. Day Admission lo manda explícito (ver el comentario del prop).
+  const existeTriaje = hasTriage ?? triage !== null;
 
   const vitalLine = triage
     ? [
@@ -677,9 +688,18 @@ export function VisitSummary({
 
       {/* Triaje */}
       <Card icon={HeartPulse} title={t('tabTriage')}>
+        {/* "No hay triaje" es que NO EXISTA EL REGISTRO, no que la línea saliera
+            vacía: `[...].filter(Boolean).join()` sobre puros nulls da `''`, que es
+            falsy e indistinguible de "nadie tomó nada". Y la línea mira seis
+            campos de los que se pueden guardar, así que un triaje con solo talla
+            y peso, o solo la 2ª toma, también decía "no hay". Con el registro
+            existente pero sin ninguno de los seis se muestra `triageNoVitals`,
+            que es la verdad: hay triaje, no hay signos vitales cargados. */}
         {vitalLine
           ? <div className="text-[12.5px] text-text-2 tabular-nums">{vitalLine}</div>
-          : <div className="text-[12px] text-text-muted">{t('triageEmptyTitle')}</div>}
+          : <div className="text-[12px] text-text-muted">
+              {existeTriaje ? t('triageNoVitals') : t('triageEmptyTitle')}
+            </div>}
         {triage?.chiefComplaint && (
           <div className="text-[12px] text-text-2 mt-2">
             <span className="text-text-muted">{t('chiefComplaint')}: </span>{triage.chiefComplaint}

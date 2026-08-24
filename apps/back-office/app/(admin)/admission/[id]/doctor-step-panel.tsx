@@ -55,6 +55,12 @@ interface Props {
   checkedOutAt?: string | null;
   providerName: string | null;
   triage: SummaryTriage | null;
+  /**
+   * ¿EXISTE el registro de triaje? Va aparte de `triage` porque en esta pantalla
+   * `triage` se arma del espejo en vivo del formulario y sus campos pueden estar
+   * todos en null sin que eso signifique "nadie tomó los vitales".
+   */
+  hasTriage?: boolean;
   /** Payload del panel de servicios y pagos (el mismo del viejo step 4) */
   servicesPanel: React.ComponentProps<typeof AppointmentDetailPanel>['appointment'];
   /** Saldo pendiente, para el panel de pagos */
@@ -72,7 +78,7 @@ interface Props {
 
 export function DoctorStepPanel({
   appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
-  triage, servicesPanel, billingTotal, coverage, onRefresh, onSync,
+  triage, hasTriage, servicesPanel, billingTotal, coverage, onRefresh, onSync,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
@@ -269,6 +275,7 @@ export function DoctorStepPanel({
                 providerName={providerName}
                 note={note}
                 triage={triage}
+                hasTriage={hasTriage}
                 services={(servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
                 checkedInAt={checkedInAt}
                 doctorDoneAt={doctorDoneAt}

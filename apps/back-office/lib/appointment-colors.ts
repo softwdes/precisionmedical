@@ -25,6 +25,20 @@ export const APPT_COLORS = {
   unconfirmed: 'rgba(245,158,11,0.75)',
   attended:    'rgba(99,102,241,0.50)',
   cancelled:   'rgba(244,63,94,0.35)',
+  /**
+   * Cancelada EL MISMO DÍA — ámbar, no rose.
+   *
+   * No son lo mismo y el sistema ya lo sabe: con aviso libera la agenda y no
+   * cobra; el mismo día CONSUME el horario (ya no se llena) y cobra penalidad,
+   * así que operativamente está más cerca de un no-show que de una cancelación.
+   * `Appointment.cancelledSameDay` existe y la API ya lo devuelve; lo que
+   * faltaba era mirarlo.
+   *
+   * Ámbar porque en esta paleta es el color de atención/advertencia, y porque
+   * cae visualmente ENTRE la cancelada normal (rose tenue) y el no-show (gris),
+   * que es donde está su significado.
+   */
+  cancelledSameDay: 'rgba(245,158,11,0.35)',
   noShow:      'rgba(100,116,139,0.45)',
 } as const;
 
@@ -46,10 +60,15 @@ export interface ApptVisual {
  * MVA — así que cuando la cita sigue viva se usa el gradiente de "MVA · 1ª
  * visita", no el de seguimiento.
  */
-export function apptVisual(status: string): ApptVisual {
+export function apptVisual(status: string, cancelledSameDay = false): ApptVisual {
   switch (status) {
     case 'CANCELLED':
-      return { background: APPT_COLORS.cancelled, strike: true, glow: false };
+      // Las dos van TACHADAS: el tachado es la señal fuerte, el color acompaña.
+      return {
+        background: cancelledSameDay ? APPT_COLORS.cancelledSameDay : APPT_COLORS.cancelled,
+        strike: true,
+        glow: false,
+      };
     case 'NO_SHOW':
       return { background: APPT_COLORS.noShow, strike: true, glow: false };
     case 'PENDING':

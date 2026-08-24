@@ -73,6 +73,9 @@
   --cal-text-attended:  #A5B4FC;
   --cal-text-other:     #67E8F9;
   --cal-text-cancelled: #FDA4AF;
+  /* Cancelada el MISMO día: ámbar. Va por variable y no con el hex a mano —
+     un color fijo acá deja el texto ilegible en tema claro. */
+  --cal-text-cancelled-sameday: #FCD34D;
   --cal-text-noshow:    #94A3B8;
 
   --shadow-soft:
@@ -136,6 +139,7 @@
   --cal-text-attended:  var(--text-1);
   --cal-text-other:     var(--text-1);
   --cal-text-cancelled: var(--text-1);
+  --cal-text-cancelled-sameday: var(--text-1);
   --cal-text-noshow:    var(--text-1);
 
   --shadow-soft:

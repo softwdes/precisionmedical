@@ -48,6 +48,13 @@ interface CalendarAppointment {
   isOnline: boolean;
   meetingUrl: string | null;
   visitNumber: number; // 0 = primera cita
+  /**
+   * Cancelada el MISMO día. La API ya lo devolvía; este tipo no lo declaraba, así
+   * que el dato llegaba y se descartaba, y las dos cancelaciones se pintaban
+   * igual. No son lo mismo: con aviso libera la agenda, el mismo día consume el
+   * horario y cobra penalidad.
+   */
+  cancelledSameDay?: boolean;
   patient: {
     id: string;
     firstName: string;
@@ -337,12 +344,22 @@ function getEventStyle(appt: CalendarAppointment): {
    * tachado; el color solo acompana.
    */
   if (appt.status === 'CANCELLED') {
-    return {
-      bg: 'rgba(244,63,94,0.08)',
-      border: 'rgba(244,63,94,0.35)',
-      text: 'var(--cal-text-cancelled)',
-      strike: true,
-    };
+    // El mismo día va ámbar: consume el horario y cobra penalidad, así que se
+    // lee más cerca de un no-show que de una cancelación con aviso. Las dos
+    // siguen tachadas — esa es la señal fuerte.
+    return appt.cancelledSameDay
+      ? {
+          bg: 'rgba(245,158,11,0.10)',
+          border: 'rgba(245,158,11,0.35)',
+          text: 'var(--cal-text-cancelled-sameday)',
+          strike: true,
+        }
+      : {
+          bg: 'rgba(244,63,94,0.08)',
+          border: 'rgba(244,63,94,0.35)',
+          text: 'var(--cal-text-cancelled)',
+          strike: true,
+        };
   }
   if (appt.status === 'NO_SHOW') {
     return {
@@ -476,13 +493,50 @@ function FilterChip({
 // ─── LegendStats (shared entre las 3 vistas) ─────────────────────────────────
 
 function LegendStats({
-  appointments, firstVisitCount, pendingConfirm, t,
+  appointments, firstVisitCount, pendingConfirm, filterClinic, t,
 }: {
   appointments: CalendarAppointment[];
   firstVisitCount: number;
   pendingConfirm: number;
+  /** Vacío = viendo todas las clínicas; ahí (y solo ahí) se abre el desglose. */
+  filterClinic: string;
   t: ReturnType<typeof useTranslations<'phoenix.calendar'>>;
 }) {
+  /**
+   * El total contaba las canceladas y los no-show ADENTRO.
+   *
+   * El calendario las pide a propósito (`includeCancelled: '1'`) para pintarlas
+   * tachadas y que se vea POR QUÉ quedó un hueco libre. Pero entonces "12 citas"
+   * incluía las que no van a pasar, y quien mira la agenda para saber a cuántos
+   * atiende leía ese número. Ahora el total son las citas VIVAS y las otras dos
+   * van al lado, con su color.
+   */
+  const canceladas = appointments.filter(a => a.status === 'CANCELLED' && !a.cancelledSameDay).length;
+  // Aparte del anterior: es el que cobra penalidad y quema el horario. Juntarlos
+  // en un solo número volvería a mezclar lo que la leyenda distingue.
+  const mismoDia   = appointments.filter(a => a.status === 'CANCELLED' && a.cancelledSameDay).length;
+  const noShow     = appointments.filter(a => a.status === 'NO_SHOW').length;
+  const vivas      = appointments.length - canceladas - mismoDia - noShow;
+
+  /**
+   * Desglose por clínica — SOLO cuando se están viendo todas.
+   *
+   * Con una clínica filtrada el total ya ES el de esa clínica y repetirlo es
+   * ruido. Y este pie ya carga ocho ítems de leyenda: el desglose aparece
+   * únicamente cuando aporta algo.
+   *
+   * Cuenta citas vivas, por el mismo criterio que el total.
+   */
+  const porClinica = useMemo(() => {
+    if (filterClinic) return [];
+    const mapa = new Map<string, number>();
+    for (const a of appointments) {
+      if (a.status === 'CANCELLED' || a.status === 'NO_SHOW') continue;
+      mapa.set(a.clinic.name, (mapa.get(a.clinic.name) ?? 0) + 1);
+    }
+    return [...mapa.entries()].sort((x, y) => y[1] - x[1]);
+  }, [appointments, filterClinic]);
+
   return (
     <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
@@ -499,6 +553,7 @@ function LegendStats({
           // Las que no ocurrieron van con la etiqueta TACHADA, igual que la
           // tarjeta en el grid: es la senal que las distingue de un vistazo.
           { color: APPT_COLORS.cancelled,   label: t('legendCancelled'), strike: true },
+          { color: APPT_COLORS.cancelledSameDay, label: t('legendCancelledSameDay'), strike: true },
           { color: APPT_COLORS.noShow,      label: t('legendNoShow'),    strike: true },
         ] as { color: string; label: string; glow?: boolean; strike?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
@@ -508,10 +563,30 @@ function LegendStats({
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0">
-        <span><span className="text-text-1 font-bold">{appointments.length}</span> {t('statAppointments')}</span>
+      <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0 flex-wrap justify-end">
+        <span><span className="text-text-1 font-bold">{vivas}</span> {t('statAppointments')}</span>
         {firstVisitCount > 0 && <span className="text-rose font-bold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
         {pendingConfirm  > 0 && <span className="text-amber font-bold">{pendingConfirm} {t('statUnconfirmed')}</span>}
+        {/* Tachadas, igual que en la leyenda y en la tarjeta: es la señal que las
+            distingue de un vistazo. */}
+        {canceladas > 0 && (
+          <span className="text-rose/70 font-bold line-through">{canceladas} {t('statCancelled')}</span>
+        )}
+        {mismoDia > 0 && (
+          <span className="text-amber font-bold line-through">{mismoDia} {t('statCancelledSameDay')}</span>
+        )}
+        {noShow > 0 && (
+          <span className="text-text-muted font-bold line-through">{noShow} {t('statNoShow')}</span>
+        )}
+        {porClinica.length > 1 && (
+          <span className="flex items-center gap-2 pl-3 border-l border-border">
+            {porClinica.map(([nombre, n]) => (
+              <span key={nombre} className="text-text-muted">
+                <span className="text-text-2 font-bold">{n}</span> {nombre}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1406,7 +1481,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} filterClinic={filterClinic} t={t} />
             </>
           );
         })()}
@@ -1592,7 +1667,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} filterClinic={filterClinic} t={t} />
             </>
           );
         })()}
@@ -1661,7 +1736,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} filterClinic={filterClinic} t={t} />
             </>
           );
         })()}

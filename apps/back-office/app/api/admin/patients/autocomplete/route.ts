@@ -71,6 +71,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // Mensajería interna: un mensaje siempre pertenece a un caso, así que un
       // paciente sin casos no es elegible. Se muestra igual, pero bloqueado.
       _count: { select: { cases: { where: { deletedAt: null } } } },
+      // Igual que en `/search`: sin esto el llamador no puede distinguir a un
+      // paciente dado de baja de uno activo.
+      status: true,
     },
   });
 
@@ -98,6 +101,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         // El UI usa esto para marcar en rose y bloquear la selección
         isMinor: age !== null && age < 18,
         caseCount: p._count.cases,
+        isArchived: p.status === 'INACTIVE',
       };
     }),
   });

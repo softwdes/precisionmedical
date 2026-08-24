@@ -64,6 +64,9 @@ interface PatientResult {
   casesCount: number;
   lastCaseCode: string | null;
   lastCaseStatus: string | null;
+  /** Paciente DADO DE BAJA (duplicado, data de prueba). No es lo mismo que tener
+   *  el caso archivado: eso deja al paciente activo y agendable. */
+  isArchived?: boolean;
 }
 
 // Props para modo case (caso pre-fijado)
@@ -897,13 +900,32 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     {(searchingPt || patientResults.length > 0) && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
                         {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
+                        {/*
+                          * Un paciente dado de baja se MUESTRA pero no se puede
+                          * elegir. Mostrarlo importa: si desaparece, quien busca
+                          * cree que no existe y lo crea de nuevo — y duplicar un
+                          * paciente parte su historial en dos.
+                          *
+                          * Y bloquearlo importa porque dar de baja al paciente
+                          * CANCELA sus citas futuras para liberar la agenda:
+                          * dejarlo agendar deshace a mano lo que esa acción hizo
+                          * a propósito.
+                          */}
                         {patientResults.map((pt) => (
                           <button
                             key={pt.id}
-                            onClick={() => selectPatient(pt)}
-                            className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0"
+                            onClick={() => { if (!pt.isArchived) selectPatient(pt); }}
+                            disabled={pt.isArchived}
+                            className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                           >
-                            <div className="text-text-1 text-sm font-medium">{pt.firstName} {pt.lastName}</div>
+                            <div className="text-text-1 text-sm font-medium flex items-center gap-2">
+                              <span>{pt.firstName} {pt.lastName}</span>
+                              {pt.isArchived && (
+                                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber">
+                                  {t('patientArchivedBadge')}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-text-muted text-[11px]">
                               {pt.patientCode && <span className="font-mono mr-2">{pt.patientCode}</span>}
                               {pt.phone && <span>{pt.phone}</span>}

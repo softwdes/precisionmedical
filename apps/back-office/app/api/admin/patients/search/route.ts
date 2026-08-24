@@ -64,6 +64,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         select: { caseCode: true, status: true },
       },
       _count: { select: { cases: { where: { deletedAt: null } } } },
+      /**
+       * Para que el llamador pueda distinguir a un paciente DADO DE BAJA.
+       *
+       * Antes no viajaba, así que ningún selector podía marcarlos ni bloquearlos
+       * aunque quisiera: aparecían igual que uno activo. Ojo que esto es la baja
+       * del PACIENTE (duplicado, data de prueba); un paciente con su CASO
+       * archivado sigue activo y se agenda normal.
+       */
+      status: true,
     },
   });
 
@@ -88,6 +97,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         // que el selector de casos.
         lastCaseCode: codigoCrudo && isCipher(codigoCrudo) ? dec(codigoCrudo) : codigoCrudo,
         lastCaseStatus: cases[0]?.status ?? null,
+        isArchived: d.status === 'INACTIVE',
       };
     }),
   });

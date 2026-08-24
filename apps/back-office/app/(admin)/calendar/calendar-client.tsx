@@ -563,7 +563,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
   // Patient search with dropdown
   const [patientSearch,   setPatientSearch]   = useState('');
-  const [patientResults,  setPatientResults]  = useState<Array<{ id: string; firstName: string; lastName: string; phone: string | null }>>([]);
+  const [patientResults,  setPatientResults]  = useState<Array<{ id: string; firstName: string; lastName: string; phone: string | null; isArchived?: boolean }>>([]);
   const [searchingPt,     setSearchingPt]     = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [patientQuery,    setPatientQuery]     = useState(''); // for client-side filter (selected patient id)
@@ -1131,7 +1131,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       onClick={() => selectPatient(p)}
                       className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0"
                     >
-                      <div className="text-text-1 text-xs font-medium">{p.firstName} {p.lastName}</div>
+                      {/* Se marca pero NO se bloquea: este buscador FILTRA el
+                          calendario, no agenda nada. Ver las citas pasadas de un
+                          paciente dado de baja es legítimo. */}
+                      <div className="text-text-1 text-xs font-medium flex items-center gap-1.5">
+                        <span>{p.firstName} {p.lastName}</span>
+                        {p.isArchived && (
+                          <span className="text-[9px] uppercase tracking-wider font-semibold px-1 py-px rounded border border-amber/30 bg-amber/10 text-amber">
+                            {t('patientArchivedBadge')}
+                          </span>
+                        )}
+                      </div>
                       {p.phone && <div className="text-text-muted text-[10px]">{p.phone}</div>}
                     </button>
                   ))}

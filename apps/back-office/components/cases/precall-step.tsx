@@ -76,6 +76,9 @@ interface PatientSearchResult {
   casesCount: number;
   lastCaseCode: string | null;
   lastCaseStatus: string | null;
+  /** Paciente dado de baja. Se MARCA pero se puede elegir — ver el comentario
+   *  en la lista de resultados. */
+  isArchived?: boolean;
 }
 
 export function PreCallStep({
@@ -88,6 +91,9 @@ export function PreCallStep({
   initialMode?: PreCallMode;
 }) {
   const t = useTranslations('phoenix.frontOffice.precall');
+  // El sello del paciente dado de baja vive en el namespace del calendario, que
+  // es donde se definió al bloquearlo en Nueva cita.
+  const ta = useTranslations('phoenix.calendar');
   const [mode, setMode] = useState<PreCallMode | null>(initialMode ?? null);
 
   // Ref para el phone screen div — captura teclado físico (siempre al top — reglas de hooks)
@@ -276,7 +282,24 @@ export function PreCallStep({
                       >
                         <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={9} gradientClass="bg-gradient-brand" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-text-1 text-sm font-medium truncate">{p.firstName} {p.lastName}</div>
+                          {/*
+                            * Acá el dado de baja se MARCA pero SÍ se puede elegir,
+                            * al revés que en Nueva cita.
+                            *
+                            * Si llama alguien que estaba dado de baja es porque
+                            * volvió. Si el buscador no lo encuentra, recepción crea
+                            * un paciente NUEVO y el historial queda partido en dos
+                            * — y eso es peor que un sello ámbar. El sello avisa
+                            * que hay que reactivarlo.
+                            */}
+                          <div className="text-text-1 text-sm font-medium truncate flex items-center gap-1.5">
+                            <span className="truncate">{p.firstName} {p.lastName}</span>
+                            {p.isArchived && (
+                              <span className="shrink-0 text-[9px] uppercase tracking-wider font-semibold px-1 py-px rounded border border-amber/30 bg-amber/10 text-amber">
+                                {ta('patientArchivedBadge')}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-text-muted text-[11px] flex items-center gap-x-2 gap-y-0.5 flex-wrap mt-0.5">
                             <code className="font-mono">{p.patientCode}</code>
                             {p.phone && <span className="font-mono">· {p.phone}</span>}

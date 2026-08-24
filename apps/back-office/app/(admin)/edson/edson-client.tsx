@@ -1332,17 +1332,24 @@ function TrackingDialog({
   const managersApi  = useRef<SectionHandle>(null);
   const adjustersApi = useRef<SectionHandle>(null);
 
+  /**
+   * Al llegar desde "Agregar adjuster" o "Agregar encargado", el modal muestra
+   * SOLO esa seccion. Entrando por el lapiz se abre completo, como siempre.
+   */
+  const [expanded, setExpanded] = useState(!focus);
+
   // Al llegar desde "Agregar encargado", el modal salta a esa seccion en vez de
   // dejar al usuario buscandola. El timeout espera a que el dialogo termine de
   // montarse: sin el, el scroll ocurre antes de que haya a donde scrollear.
   useEffect(() => {
-    if (!focus) return;
+    // Acotado no hay a donde scrollear: la seccion es lo unico que se ve.
+    if (!focus || !expanded) return;
     const target = focus === 'managers' ? managersRef : adjustersRef;
     const id = setTimeout(() => {
       target.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }, 120);
     return () => clearTimeout(id);
-  }, [focus]);
+  }, [focus, expanded]);
   // El bufete manda sobre el abogado: los abogados se buscan DENTRO del bufete,
   // que es como estan modelados (`Lawyer.parentFirmId`) y como ya lo hace el
   // wizard de alta de caso. Cambiar de bufete limpia el abogado a proposito.
@@ -1414,6 +1421,15 @@ function TrackingDialog({
       await managersApi.current?.flush();
       await adjustersApi.current?.flush();
 
+      /*
+       * Acotado se guarda SOLO la seccion visible y se sale.
+       *
+       * Si siguiera de largo, mandaria el seguro, la fecha de perdida y el PIP
+       * con los valores que cargo el estado al abrir — pisando en silencio
+       * cualquier cambio que se haya hecho desde la grilla mientras tanto.
+       */
+      if (!expanded) { onSaved(); return; }
+
       const r1 = await fetch(`/api/admin/cases/${row.caseId}/auto-insurance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1478,6 +1494,28 @@ function TrackingDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2 scroll-thin">
+          {/*
+            * Modal ACOTADO a la seccion desde la que se abrio.
+            *
+            * Entrando por "Agregar adjuster" se veian tambien el bufete, el
+            * abogado, el seguro, la fecha de perdida y el PIP, con un unico
+            * boton "Guardar cambios" al pie: un boton que dice guardar sobre un
+            * formulario del que solo se mira un pedazo. Acotado, el boton vuelve
+            * a decir la verdad.
+            *
+            * Es el MISMO componente, no uno nuevo: duplicarlo habria duplicado
+            * el guardado, la validacion y el audit log.
+            */}
+          {!expanded && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-[11px] text-brand-text hover:underline"
+            >
+              {t('showWholeCase')}
+            </button>
+          )}
+          {expanded && (<>
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold">{t('groupLegal')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -1516,6 +1554,8 @@ function TrackingDialog({
             * bufete, no un tema aparte. Estaban al final del modal y desde el
             * popover habia que bajar a buscarlos.
             */}
+          </>)}
+          {(expanded || focus === 'managers') && (<>
           <div ref={managersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
             {t('groupManagers')}
           </div>
@@ -1528,6 +1568,8 @@ function TrackingDialog({
             handleRef={managersApi}
           />
 
+          </>)}
+          {expanded && (<>
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupInsurance')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -1571,11 +1613,15 @@ function TrackingDialog({
             <p className="text-[11px] text-text-muted mt-1">{t('insCommentsHint')}</p>
           </div>
 
+          </>)}
+          {(expanded || focus === 'adjusters') && (<>
           <div ref={adjustersRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">
             {t('groupAdjusters')}
           </div>
           <AdjustersSection caseId={row.caseId} autoOpen={focus === 'adjusters'} onChanged={onCountsChanged} handleRef={adjustersApi} />
+          </>)}
 
+          {expanded && (<>
           <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold pt-2">{t('groupNotes')}</div>
           <div className="space-y-2.5">
             {notes.length === 0 && <p className="text-[12px] text-text-muted italic">{t('noNotes')}</p>}
@@ -1611,6 +1657,7 @@ function TrackingDialog({
             </span>
           </label>
 
+          </>)}
           {error && <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>}
         </div>
 

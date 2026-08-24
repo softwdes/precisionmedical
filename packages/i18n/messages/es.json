@@ -5588,7 +5588,8 @@
       "editAttorney": "Clic para cambiar el abogado",
       "attorneyFreeText": "¿No está en la lista? Escríbelo y Enter",
       "editChiro": "Clic para editar el quiropráctico / referral",
-      "chiroFreeText": "Escríbelo y Enter — no modifica el formulario del paciente"
+      "chiroFreeText": "Escríbelo y Enter — no modifica el formulario del paciente",
+      "showWholeCase": "Ver el caso completo"
     }
   },
   "clinical": {

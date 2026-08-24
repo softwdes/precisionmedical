@@ -66,6 +66,8 @@ function UploadModal({ onClose, onUpload, uploading }: {
   onUpload: (files: File[]) => void;
   uploading: boolean;
 }) {
+  const t  = useTranslations('phoenix.caseTabs.documents');
+  const tc = useTranslations('phoenix.common');
   const [dragOver, setDragOver] = useState(false);
   const [pending, setPending]   = useState<File[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,9 +106,9 @@ function UploadModal({ onClose, onUpload, uploading }: {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-text-1 font-semibold text-base">Subir archivos</h2>
+            <h2 className="text-text-1 font-semibold text-base">{t('uploadTitle')}</h2>
             <p className="text-text-muted text-xs mt-0.5">
-              Aquí puedes subir archivos al sistema. Puedes seleccionar múltiples archivos a la vez, pero asegúrate de que cada archivo no exceda los 100MB.
+              {t('uploadIntro')}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors ml-3 flex-shrink-0">
@@ -128,8 +130,8 @@ function UploadModal({ onClose, onUpload, uploading }: {
         >
           <CloudUpload className={`w-10 h-10 ${dragOver ? 'text-brand-text' : 'text-text-muted'} transition-colors`} />
           <div className="text-center">
-            <p className={`text-sm font-medium ${dragOver ? 'text-brand-text' : 'text-text-1'}`}>Subir archivos</p>
-            <p className="text-text-muted text-xs mt-0.5">Haz clic o arrastra y suelta archivos aquí para subirlos</p>
+            <p className={`text-sm font-medium ${dragOver ? 'text-brand-text' : 'text-text-1'}`}>{t('uploadDropTitle')}</p>
+            <p className="text-text-muted text-xs mt-0.5">{t('uploadDropHint')}</p>
           </div>
           <input
             ref={inputRef}
@@ -142,7 +144,7 @@ function UploadModal({ onClose, onUpload, uploading }: {
 
         {/* File hint */}
         <p className="text-[11px] text-text-muted">
-          Selecciona o arrastra y suelta archivos aquí (máximo 10 archivos, 100MB cada uno). Formatos compatibles: imágenes, PDF, Word, Excel.
+          {t('uploadFootnote')}
         </p>
 
         {/* Pending files list */}
@@ -164,7 +166,7 @@ function UploadModal({ onClose, onUpload, uploading }: {
         {/* Footer */}
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose} disabled={uploading}>
-            Cancelar
+            {tc('cancel')}
           </Button>
           <Button
             size="sm"
@@ -174,7 +176,7 @@ function UploadModal({ onClose, onUpload, uploading }: {
           >
             {uploading
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo…</>
-              : <><Upload className="w-3.5 h-3.5" /> Subir archivos</>
+              : <><Upload className="w-3.5 h-3.5" /> {t('uploadTitle')}</>
             }
           </Button>
         </div>
@@ -190,6 +192,8 @@ function PreviewModal({ item, onClose, onDownload }: {
   onClose: () => void;
   onDownload: (item: DocItem) => void;
 }) {
+  const t  = useTranslations('phoenix.caseTabs.documents');
+  const tc = useTranslations('phoenix.common');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -199,7 +203,7 @@ function PreviewModal({ item, onClose, onDownload }: {
             <div className="min-w-0">
               <p className="text-text-1 font-semibold text-sm truncate">{item.name}</p>
               <div className="flex items-center gap-3 mt-0.5">
-                {item.size && <span className="text-[11px] text-text-muted">Tamaño: {formatBytes(item.size)}</span>}
+                {item.size && <span className="text-[11px] text-text-muted">{t('sizeLabel', { size: formatBytes(item.size) })}</span>}
                 {item.mimeType && <span className="text-[11px] text-text-muted uppercase">Formato: {item.mimeType.split('/')[1] ?? item.mimeType}</span>}
               </div>
             </div>
@@ -214,13 +218,13 @@ function PreviewModal({ item, onClose, onDownload }: {
           </div>
           <div className="text-center space-y-1">
             <p className="text-text-1 font-medium text-sm">{item.name}</p>
-            <p className="text-text-muted text-xs">La vista previa estará disponible cuando se configure el almacenamiento S3.</p>
+            <p className="text-text-muted text-xs">{t('previewUnavailable')}</p>
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{tc('close')}</Button>
           <Button size="sm" onClick={() => { onDownload(item); onClose(); }} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Descargar
+            <Download className="w-3.5 h-3.5" /> {tc('download')}
           </Button>
         </div>
       </div>
@@ -239,7 +243,9 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
   const [items, setItems]           = useState<DocItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: 'Pestaña Principal' }]);
+  // El nombre de la raíz se resuelve al pintar, no acá: `useState` corre una vez
+  // y guardarlo traducido lo congelaría en el idioma que hubiera al montar.
+  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: '' }]);
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
 
   const [selected, setSelected]     = useState<Set<string>>(new Set());
@@ -374,7 +380,10 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       alert(t('alertFolderNotEmpty', { name: item.name, count: item._count.children }));
       return;
     }
-    if (!window.confirm(`¿Eliminar ${item.isFolder ? 'la carpeta' : 'el archivo'} "${item.name}"?`)) return;
+    const pregunta = item.isFolder
+      ? t('confirmDeleteFolder', { name: item.name })
+      : t('confirmDeleteFile',   { name: item.name });
+    if (!window.confirm(pregunta)) return;
     setDeleting(item.id);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'DELETE' });
@@ -421,12 +430,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                   <span className="text-text-1 font-medium flex items-center gap-1">
                     {i === 0 && <FolderOpen className="w-3.5 h-3.5 text-brand-text" />}
                     {i > 0 && <Folder className="w-3.5 h-3.5 text-amber" />}
-                    {item.name}
+                    {i === 0 ? t('rootFolder') : item.name}
                   </span>
                 ) : (
                   <button onClick={() => navigateTo(item)} className="hover:text-brand-text transition-colors flex items-center gap-1">
                     {i === 0 && <Home className="w-3 h-3" />}
-                    {item.name}
+                    {i === 0 ? t('rootFolder') : item.name}
                   </button>
                 )}
               </span>
@@ -440,11 +449,11 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
               <FolderPlus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Crear carpeta</span>
+              <span className="hidden sm:inline">{t('btnCreateFolder')}</span>
             </Button>
             <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
               <Upload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Subir archivos</span>
+              <span className="hidden sm:inline">{t('uploadTitle')}</span>
             </Button>
           </div>
         </div>
@@ -493,8 +502,8 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                     title={tc('selectAll')}
                   />
                 </th>
-                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Nombre</th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell whitespace-nowrap">Tamaño</th>
+                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colName')}</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell whitespace-nowrap">{t('colSize')}</th>
                 <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell whitespace-nowrap">Última modificación</th>
                 <th className="w-16 px-3 py-2.5" />
               </tr>
@@ -537,7 +546,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       {!item.isFolder && (
-                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title="Descargar">
+                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title={tc('download')}>
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -564,7 +573,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
           <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <FolderPlus className="w-4 h-4 text-brand-text" />
-              <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Nueva carpeta</h2>
+              <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('newFolderTitle')}</h2>
             </div>
             <input
               type="text"
@@ -579,9 +588,9 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">Cancelar</Button>
+              <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">{tc('cancel')}</Button>
               <Button size="sm" onClick={createFolder} disabled={creatingFolder || !newFolderName.trim()} className="flex-1">
-                {creatingFolder ? 'Creando…' : 'Crear'}
+                {creatingFolder ? t('creating') : t('btnCreate')}
               </Button>
             </div>
           </div>

@@ -2289,6 +2289,7 @@
       "required": "obligatorio",
       "comma": "separados por coma",
       "close": "Cerrar",
+      "download": "Descargar",
       "reload": "Recargar",
       "loading": "Cargando...",
       "error": "Error",

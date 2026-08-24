@@ -1,6 +1,16 @@
 'use client';
 import { localeApp, fecha, fechaCalendario, edad } from '@/lib/fechas';
 
+/**
+ * El traductor cuando viaja por parámetro.
+ *
+ * Hace falta porque los mapas de constantes y los helpers sueltos de este archivo
+ * viven fuera de un componente, donde `useTranslations()` no existe. Antes esas
+ * cadenas quedaban en español a mano — es la razón por la que el timeline mezclaba
+ * idiomas dentro de la misma lista.
+ */
+type Traductor = (clave: string, vars?: Record<string, string | number | Date>) => string;
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -694,7 +704,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     </div>
                     <div className="mt-2">
                       {caseInfo.pipVerifiedAt ? (
-                        <TagPill label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt)}`} colorClass="bg-emerald/10 text-emerald border-emerald/30" />
+                        <TagPill label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt, t)}`} colorClass="bg-emerald/10 text-emerald border-emerald/30" />
                       ) : (
                         <TagPill label={`⏳ ${t('pipNotVerified')}`} colorClass="bg-amber/10 text-amber border-amber/30" />
                       )}
@@ -1100,15 +1110,23 @@ function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
 
 // ─── CaseProgressBar ──────────────────────────────────────────────────────────
 
-const PROGRESS_STAGES: Array<{ key: CaseStatus[]; label: string }> = [
-  { key: ['NEW_REFERRAL'],                                   label: 'Registro' },
-  { key: ['INTAKE_PENDING', 'INTAKE_COMPLETED'],             label: 'Intake' },
-  { key: ['CONFIRMED'],                                      label: 'Primera cita' },
-  { key: ['ACTIVE', 'MMI'],                                  label: 'Seguimiento' },
-  { key: ['CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED'],    label: 'Cerrado' },
+/**
+ * Las etiquetas van como CLAVE, no como texto.
+ *
+ * Este mapa vive a nivel de módulo, y ahí no existe `useTranslations()` — por eso
+ * estas cinco sobrevivieron en español mientras el resto del archivo se traducía.
+ * La clave se resuelve en el render, que sí tiene el hook.
+ */
+const PROGRESS_STAGES: Array<{ key: CaseStatus[]; labelKey: string }> = [
+  { key: ['NEW_REFERRAL'],                                labelKey: 'stageRegistro' },
+  { key: ['INTAKE_PENDING', 'INTAKE_COMPLETED'],          labelKey: 'stageIntake' },
+  { key: ['CONFIRMED'],                                   labelKey: 'stageFirstAppt' },
+  { key: ['ACTIVE', 'MMI'],                               labelKey: 'stageFollowUp' },
+  { key: ['CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED'],  labelKey: 'stageClosed' },
 ];
 
 function CaseProgressBar({ status }: { status: CaseStatus }) {
+  const t = useTranslations('phoenix.caseDetail');
   const activeIdx = PROGRESS_STAGES.findIndex((s) => s.key.includes(status));
   const isCancelled = status === 'CANCELLED';
 
@@ -1136,10 +1154,10 @@ function CaseProgressBar({ status }: { status: CaseStatus }) {
           }
 
           return (
-            <React.Fragment key={stage.label}>
+            <React.Fragment key={stage.labelKey}>
               <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
                 <div className={`w-2.5 h-2.5 rounded-full ${dotColor} ring-2 ring-bg-1 z-10`} />
-                <span className={`text-[9px] mt-1 whitespace-nowrap ${labelColor}`}>{stage.label}</span>
+                <span className={`text-[9px] mt-1 whitespace-nowrap ${labelColor}`}>{t(stage.labelKey)}</span>
               </div>
               {!isLast && (
                 <div className={`h-px flex-1 ${lineColor} mt-[-10px]`} />
@@ -1244,8 +1262,8 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
     if (!cfg) return;
     events.push({
       id: e.id,
-      title: cfg.title,
-      detail: cfg.detail?.(e.metadata),
+      title: t(cfg.titleKey),
+      detail: cfg.detail?.(e.metadata, t),
       icon: cfg.icon,
       iconColor: cfg.iconColor,
       at: e.createdAt,
@@ -1284,7 +1302,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
                     <ActorIcon className="w-3 h-3" />
                     <span>{e.actor}</span>
                     <span>·</span>
-                    <span>{formatRelative(e.at)}</span>
+                    <span>{formatRelative(e.at, t)}</span>
                   </div>
                 </div>
               </div>
@@ -1296,42 +1314,56 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   );
 }
 
+/**
+ * Config del timeline por acción auditada.
+ *
+ * `titleKey` y no `title`, y `detail` recibe el traductor: este mapa está a nivel
+ * de módulo y ahí no hay `useTranslations()`. Por eso los seis títulos quedaron
+ * en español mientras el resto del archivo se traducía, y por eso el timeline
+ * mostraba "Case created" (que viene por otro camino) junto a "Caso creado desde
+ * llamada" en la misma lista.
+ *
+ * Los `detail` que solo concatenan datos —nombre del doctor, clínica, fecha— no
+ * necesitan traducción: no tienen palabras propias.
+ */
 const AUDIT_ACTION_CFG: Record<string, {
-  title: string;
-  detail?: (metadata: Record<string, unknown> | null) => string | undefined;
+  titleKey: string;
+  detail?: (metadata: Record<string, unknown> | null, t: Traductor) => string | undefined;
   icon: React.ElementType;
   iconColor: string;
 }> = {
   CREATE_CASE_FROM_CALL: {
-    title: 'Caso creado desde llamada',
+    titleKey: 'tlCaseFromCall',
     icon: PhoneCall,
     iconColor: 'text-brand-text',
   },
   SEND_PORTAL_LINK: {
-    title: 'Portal enviado',
-    detail: (m) => m ? `Vía ${String(m.via ?? '?')} · idioma ${String(m.language ?? '?')}` : undefined,
+    titleKey: 'tlPortalSent',
+    detail: (m, t) => m
+      ? t('tlPortalSentDetail', { via: String(m.via ?? '?'), language: String(m.language ?? '?') })
+      : undefined,
     icon: Send,
     iconColor: 'text-cyan',
   },
   MARK_INTAKE_COMPLETE_DEV: {
-    title: 'Portal completado (simulado)',
-    detail: () => 'Phase 1A dev helper — Phase 2 lo dispara el portal real',
+    titleKey: 'tlPortalDevDone',
+    detail: (_m, t) => t('tlPortalDevDoneDetail'),
     icon: FileText,
     iconColor: 'text-amber',
   },
   CONFIRM_FIRST_APPOINTMENT: {
-    title: 'Primera cita confirmada',
-    detail: (m) => {
+    titleKey: 'tlFirstApptConfirmed',
+    detail: (m, t) => {
       if (!m?.checklist) return undefined;
       const c = m.checklist as Record<string, boolean>;
-      const checked = Object.values(c).filter(Boolean).length;
-      return `Checklist ${checked}/4 completado`;
+      return t('tlChecklistDetail', { done: Object.values(c).filter(Boolean).length });
     },
     icon: FileCheck,
     iconColor: 'text-emerald',
   },
   SCHEDULE_FIRST_APPOINTMENT: {
-    title: 'Primera cita agendada',
+    titleKey: 'tlFirstApptScheduled',
+    // Solo datos concatenados: no hay texto que traducir.
     detail: (m) => {
       if (!m) return undefined;
       const provider = m.providerName as string | undefined;
@@ -1347,7 +1379,7 @@ const AUDIT_ACTION_CFG: Record<string, {
     iconColor: 'text-brand-text',
   },
   INSERT_CASE_NOTE: {
-    title: 'Nota interna agregada',
+    titleKey: 'tlNoteAdded',
     detail: (m) => m?.contentPreview ? `"${String(m.contentPreview).slice(0, 50)}..."` : undefined,
     icon: MessageSquarePlus,
     iconColor: 'text-violet-text',
@@ -1380,7 +1412,7 @@ function NotesPanel({ notes, onAddNote }: {
               <div className="flex items-center gap-2 text-[10px] text-text-muted mb-1">
                 <span className="font-semibold text-text-2">{n.authorName}</span>
                 <span>·</span>
-                <span>{formatRelative(n.createdAt)}</span>
+                <span>{formatRelative(n.createdAt, t)}</span>
                 {n.isPrivate && <TagPill label={`🔒 ${t('notePrivate')}`} colorClass="bg-bg-1 text-text-muted border-border" compact />}
               </div>
               <div className="text-text-1 text-xs whitespace-pre-wrap leading-relaxed">{n.content}</div>
@@ -1394,14 +1426,12 @@ function NotesPanel({ notes, onAddNote }: {
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
-function formatRelative(d: Date | string): string {
+/** El traductor entra por parámetro: esto es una función suelta, sin hook. */
+function formatRelative(d: Date | string, t: Traductor): string {
   const h = (Date.now() - new Date(d).getTime()) / (1000 * 60 * 60);
-  if (h < 1) {
-    const m = Math.max(1, Math.floor(h * 60));
-    return `hace ${m}m`;
-  }
-  if (h < 24) return `hace ${Math.floor(h)}h`;
-  if (h < 24 * 7) return `hace ${Math.floor(h / 24)}d`;
+  if (h < 1) return t('relMinutes', { n: Math.max(1, Math.floor(h * 60)) });
+  if (h < 24) return t('relHours', { n: Math.floor(h) });
+  if (h < 24 * 7) return t('relDays', { n: Math.floor(h / 24) });
   return new Date(d).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric' });
 }
 

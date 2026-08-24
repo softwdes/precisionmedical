@@ -142,8 +142,6 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
 
     .pbar{background:#f6f5fa;border-bottom:1px solid #e3e0ec;padding:10px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:10;margin-bottom:24px}
     .pbar button{padding:9px 18px;background:#6d28d9;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-    .pbar a{padding:8px 14px;color:#4b5563;border:1px solid #d1d5db;border-radius:6px;font-size:12px;text-decoration:none;font-family:inherit}
-    .pbar span{font-size:11px;color:#6b7280}
 
     .lh{border-bottom:2px solid #6d28d9;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
     .cn{font-size:17pt;font-weight:bold;color:#5b21b6;line-height:1.2}
@@ -194,10 +192,23 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
+      {/*
+        * Solo el botón. Tenía dos cosas más que salían mal, porque esta página se
+        * abre TAMBIÉN embebida en un iframe (el modal "Print order" del tab de
+        * labs) y ninguna de las dos sabía en cuál de los dos contextos estaba:
+        *
+        *  · "← Volver a la consulta" era un `<a>` sin `target`, así que dentro
+        *    del iframe navegaba EL IFRAME a la consulta: la app entera metida en
+        *    un marco chico. Y en una pestaña suelta tampoco hacía falta — para
+        *    eso está cerrar la pestaña.
+        *  · "Ctrl+P → Guardar como PDF" no era solo redundante: era una
+        *    instrucción EQUIVOCADA. Ctrl+P imprime el documento de nivel
+        *    superior, o sea la app con el modal encima, no el iframe. El botón
+        *    llama a `window.print()` desde adentro, y por eso sí imprime el
+        *    documento solo.
+        */}
       <div className="pbar">
         <button id="btn-print" type="button">🖨 {t('prPrintBtn')}</button>
-        <a href={`/doctor/consultation/${a.id}`}>← {t('prBack')}</a>
-        <span>{t('prBarHint')}</span>
       </div>
 
       <div className="wrap">

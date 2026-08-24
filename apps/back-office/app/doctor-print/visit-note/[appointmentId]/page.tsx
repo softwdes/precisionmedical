@@ -201,7 +201,6 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     /* Barra de acciones (no se imprime) */
     .pbar{background:#f6f5fa;border-bottom:1px solid #e3e0ec;padding:10px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:10;margin-bottom:24px}
     .pbar button{padding:9px 18px;background:#6d28d9;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-    .pbar a{padding:8px 14px;color:#4b5563;border:1px solid #d1d5db;border-radius:6px;font-size:12px;text-decoration:none;font-family:inherit}
     .pbar span{font-size:11px;color:#6b7280}
 
     /* Encabezado */
@@ -279,10 +278,18 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
+      {/*
+        * Se fueron el "← Volver a la consulta" y el "Ctrl+P" — ver el comentario
+        * equivalente en la orden de laboratorio: el link navegaba el iframe y la
+        * pista de Ctrl+P instruía algo que imprime la app, no el documento.
+        *
+        * El estado SE QUEDA: firmada vs borrador es lo único de esa barra que era
+        * información y no instrucción, y en una nota clínica saber que estás
+        * imprimiendo un borrador importa.
+        */}
       <div className="pbar">
         <button id="btn-print" type="button">🖨 {t('prPrintBtn')}</button>
-        <a href={`/doctor/consultation/${a.id}`}>← {t('prBack')}</a>
-        <span>{isSigned ? t('prBarSigned') : t('prBarDraft')} · {t('prBarHint')}</span>
+        <span>{isSigned ? t('prBarSigned') : t('prBarDraft')}</span>
       </div>
 
       <div className="wrap">

@@ -95,14 +95,23 @@ export function lawyerCaseFilter(lawyer: SessionLawyer): Prisma.CaseWhereInput {
     ],
   };
 
-  // El titular y la cuenta del bufete ven todo el despacho.
-  if (lawyer.isFirmAccount || lawyer.memberRole === 'ATTORNEY') {
+  // Solo la CUENTA DEL BUFETE ve el despacho entero.
+  if (lawyer.isFirmAccount) {
     return { deletedAt: null, ...belongsToFirm };
   }
 
-  // El resto solo los casos donde figura. Se mantiene el ancla al bufete además
-  // del match personal: si alguien quedara asignado a un caso de otro despacho
-  // por un error de datos, el bufete sigue mandando.
+  // Toda PERSONA —abogado incluido— ve únicamente los casos donde figura
+  // (Erick, 2026-08-21: un abogado no ve los casos de otro abogado del mismo
+  // despacho). Antes el rol Abogado veía todo el bufete.
+  //
+  // Consecuencia asumida: un caso del bufete SIN nadie asignado no lo ve nadie
+  // del despacho — en Garcia Law son 14 de 90. Esos casos siguen siendo
+  // visibles y asignables desde la clínica (Externals), que es de donde salen
+  // las asignaciones.
+  //
+  // Se mantiene el ancla al bufete además del match personal: si alguien
+  // quedara asignado a un caso de otro despacho por un error de datos, el
+  // bufete sigue mandando.
   return {
     deletedAt: null,
     AND: [

@@ -5576,7 +5576,11 @@
       "managersOpen": "Encargados — clic para ver y agregar",
       "adjustersOpen": "Adjusters — clic para ver y agregar",
       "notesOpen": "Clic para leerlo completo",
-      "createdByShort": "por {name}"
+      "createdByShort": "por {name}",
+      "editCarrier": "Clic para cambiar el seguro",
+      "carrierFreeText": "¿No está en la lista? Escríbelo y Enter",
+      "editClaim": "Clic para editar el claim #",
+      "saveFailed": "No se pudo guardar. Se repuso el valor anterior."
     }
   },
   "clinical": {

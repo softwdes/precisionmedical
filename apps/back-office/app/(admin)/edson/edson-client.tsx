@@ -34,6 +34,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
 import { ManagersPopover, ManagersSection, type SectionHandle } from './case-managers';
 import { type AnchorRect } from './anchored-panel';
+import { InlineText, InlineCombo } from './inline-edit';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
@@ -245,6 +246,37 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
   /** Cambia un campo de la fila en pantalla sin recargar toda la tabla. */
   function patchRow(caseId: string, patch: Partial<Row>) {
     setRows(prev => prev.map(r => (r.caseId === caseId ? { ...r, ...patch } : r)));
+  }
+
+  /**
+   * Guardado de una celda contra el PATCH parcial de `auto-insurance`.
+   *
+   * Optimista y con vuelta atras: la fila se pinta con el valor nuevo antes de
+   * que responda el servidor, porque a 100 filas esperar el round-trip hace
+   * sentir la grilla trabada. Si falla, se repone lo anterior y se avisa — en
+   * silencio seria peor que no dejar editar.
+   */
+  async function saveCell(caseId: string, patch: Partial<Row>, body: Record<string, unknown>) {
+    const prev = rows.find(r => r.caseId === caseId);
+    if (!prev) return false;
+    const undo: Partial<Row> = {};
+    for (const k of Object.keys(patch) as (keyof Row)[]) {
+      (undo as Record<string, unknown>)[k] = prev[k];
+    }
+    patchRow(caseId, patch);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      return true;
+    } catch {
+      patchRow(caseId, undo);
+      setError(t('saveFailed'));
+      return false;
+    }
   }
 
   async function cyclePip(row: Row) {
@@ -624,8 +656,29 @@ export function EdsonClient({ clinics, providers, carriers }: Props) {
                           </div>
                         </DataTable.Td>
                         <DataTable.Td><Txt v={row.chiropractor} /></DataTable.Td>
-                        <DataTable.Td><Txt v={row.carrierName} /></DataTable.Td>
-                        <DataTable.Td>{row.claimNum ? <span className="font-mono text-text-2">{row.claimNum}</span> : <Empty />}</DataTable.Td>
+                        <DataTable.Td>
+                          <InlineCombo
+                            value={row.carrierName}
+                            options={carriers.map(c => ({ id: c.id, name: c.name }))}
+                            readOnly={archived}
+                            title={t('editCarrier')}
+                            emptyHint={t('carrierFreeText')}
+                            onSave={next => saveCell(
+                              row.caseId,
+                              { carrierName: next.id ? (carriers.find(c => c.id === next.id)?.name ?? null) : next.text },
+                              { carrierId: next.id, carrierNameRaw: next.text },
+                            )}
+                          />
+                        </DataTable.Td>
+                        <DataTable.Td>
+                          <InlineText
+                            value={row.claimNum}
+                            mono
+                            readOnly={archived}
+                            title={t('editClaim')}
+                            onSave={next => saveCell(row.caseId, { claimNum: next }, { claimNum: next })}
+                          />
+                        </DataTable.Td>
                         <DataTable.Td align="center">
                           <PipChip row={row} readOnly={archived} onCycle={() => void cyclePip(row)} />
                         </DataTable.Td>

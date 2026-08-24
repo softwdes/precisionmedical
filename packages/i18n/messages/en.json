@@ -5576,7 +5576,11 @@
       "managersOpen": "Case managers — click to see and add",
       "adjustersOpen": "Adjusters — click to see and add",
       "notesOpen": "Click to read the whole thing",
-      "createdByShort": "by {name}"
+      "createdByShort": "by {name}",
+      "editCarrier": "Click to change the insurance",
+      "carrierFreeText": "Not listed? Type it and press Enter",
+      "editClaim": "Click to edit the claim #",
+      "saveFailed": "Couldn't save. The previous value was restored."
     }
   },
   "clinical": {

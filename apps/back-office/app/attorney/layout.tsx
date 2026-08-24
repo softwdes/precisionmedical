@@ -33,8 +33,31 @@ import { cookies } from 'next/headers';
  */
 async function buildViewOptions(): Promise<FirmOption[]> {
   const [firms, members] = await Promise.all([
+    /**
+     * Primer nivel: bufetes de verdad y abogados independientes de verdad.
+     *
+     * `parentFirmId: null` a secas traía también las fichas HUÉRFANAS: personas
+     * marcadas `FIRM_MEMBER` que se quedaron sin bufete padre. Aparecían como si
+     * fueran despachos, con cero gente y cero casos, y elegirlas mostraba un
+     * portal vacío.
+     *
+     * El caso que lo destapó: hay DOS "Sergio Garcia". El real es miembro de
+     * Garcia Law con 69 casos pero está etiquetado `INDEPENDENT`; el huérfano
+     * dice `FIRM_MEMBER`, no tiene padre y no tiene nada. Los enums están al
+     * revés, así que el filtro NO puede confiar en `entityType` para decidir
+     * quién es un despacho: se decide por tener `firmName` (es un bufete) o por
+     * ser explícitamente independiente SIN padre.
+     */
     db.lawyer.findMany({
-      where: { deletedAt: null, status: 'ACTIVE', parentFirmId: null },
+      where: {
+        deletedAt: null,
+        status: 'ACTIVE',
+        parentFirmId: null,
+        OR: [
+          { firmName: { not: null } },
+          { entityType: 'INDEPENDENT' },
+        ],
+      },
       orderBy: [{ firmName: 'asc' }, { lastName: 'asc' }],
       select: { id: true, firmName: true, firstName: true, lastName: true },
     }),

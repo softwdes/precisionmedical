@@ -11,6 +11,16 @@ export const TWILIO_ACCOUNT_SID   = process.env.TWILIO_ACCOUNT_SID ?? '';
 export const TWILIO_PHONE_NUMBER  = process.env.TWILIO_PHONE_NUMBER ?? '';
 export const TWILIO_TWIML_APP_SID = process.env.TWILIO_TWIML_APP_SID ?? '';
 
+/**
+ * Messaging Service de Twilio — por acá salen los SMS.
+ *
+ * El registro A2P 10DLC ata la campaña aprobada a un Messaging Service, no al
+ * número suelto. Mandar con `from: <numero>` se saltea esa campaña, y es una
+ * de las causas típicas de que el operador filtre mensajes con la campaña YA
+ * aprobada. Si está seteado, `lib/sms.ts` lo usa en lugar del número.
+ */
+export const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID ?? '';
+
 // La ventana de presencia vive en `lib/twilio-presence.ts`: el hook del
 // navegador también la necesita, y este archivo no puede entrar al bundle del
 // cliente porque instancia el cliente de Twilio con las credenciales.

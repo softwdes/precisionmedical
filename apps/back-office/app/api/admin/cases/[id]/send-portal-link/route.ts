@@ -3,20 +3,29 @@
  *
  * POST /api/admin/cases/[id]/send-portal-link
  *
- * Phase 1A: mock. NO se envía SMS real (Weave BAA pendiente).
- * Phase 2: integra Weave API real.
+ * SMS: envío REAL por Twilio desde el 2026-08-25 (antes era un stub que no
+ * mandaba nada aunque la pantalla dijera "Portal enviado"). Sale por
+ * `lib/sms.ts` y queda registrado en `message_logs` con su estado.
  *
- * Flow:
- * 1. Generate magic token (CUID-like)
- * 2. Update Case.intakeFormSentAt + intakeFormSentVia
- * 3. Update Case.status: NEW_REFERRAL → INTAKE_PENDING
- * 4. Write audit log con action SEND_PORTAL_LINK
- * 5. Return mock magic link URL for dev display
+ * EMAIL: todavía NO cablea nada. Falta confirmar si el BAA cubre SendGrid, que
+ * es un producto aparte de Twilio. Devuelve `error: 'EMAIL_NOT_WIRED'` en vez
+ * de fingir que salió.
+ *
+ * Flujo:
+ * 1. Genera el magic token
+ * 2. Actualiza Case.intakeFormSentAt + intakeFormSentVia + portalToken
+ * 3. Case.status: NEW_REFERRAL → INTAKE_PENDING
+ * 4. Manda el SMS y lo registra
+ * 5. Audit log con el RESULTADO (no con la intención)
+ *
+ * ⚠️ `delivered: true` en la respuesta significa que Twilio lo aceptó, no que
+ * el paciente lo recibió. Eso lo confirma /api/twilio/sms-status.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
+import { sendSms } from '@/lib/sms';
 import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
@@ -165,13 +174,24 @@ export async function POST(
   // Al apoderado se le habla de "tu hijo/a" y se lo nombra: si recibiera el
   // mismo texto que el paciente, no entendería de quién es el caso.
   const nombreMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
+  // El texto tiene que PARECERSE a los "sample messages" que se registraron en
+  // la campaña A2P 10DLC — los operadores comparan, y contenido que no encaja
+  // con lo declarado se filtra aunque la campaña esté aprobada. El ejemplo #4
+  // registrado es exactamente este caso: formulario de registro con link seguro.
+  //
+  // Las dos piezas que NO son opcionales:
+  //   · el prefijo "Precision Medical:" — identifica al remitente
+  //   · "STOP para no recibir más mensajes" — es requisito legal (TCPA) y los
+  //     operadores filtran el primer mensaje a un número si no lo lleva.
+  // Twilio maneja el STOP solo: da de baja al número y devuelve el error 21610
+  // en los siguientes intentos (ver lib/sms.ts).
   const messageBody = parsed.language === 'es'
     ? paraMenor
-      ? `Hola ${destino.firstName}, soy de Precision Medical. Para completar el intake de ${nombreMenor} (caso ${caseRecord.caseCode}), click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
-      : `Hola ${caseRecord.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseRecord.caseCode}, click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
+      ? `Precision Medical: Complete el formulario de registro de ${nombreMenor} (caso ${caseRecord.caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
+      : `Precision Medical: Complete su formulario de registro (caso ${caseRecord.caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
     : paraMenor
-      ? `Hi ${destino.firstName}, this is Precision Medical. To complete the intake for ${nombreMenor} (case ${caseRecord.caseCode}), click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`
-      : `Hi ${caseRecord.patient.firstName}, this is Precision Medical. To complete intake for case ${caseRecord.caseCode}, click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`;
+      ? `Precision Medical: Please complete the registration form for ${nombreMenor} (case ${caseRecord.caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`
+      : `Precision Medical: Please complete your registration form (case ${caseRecord.caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`;
 
   // Si el paciente ya completó el form y se re-envía, limpiar intakeFormCompletedAt
   // para que el portal lo permita llenar de nuevo.
@@ -189,7 +209,29 @@ export async function POST(
     },
   });
 
-  // Audit log con detalles del envío
+  // ─── Envío real ──────────────────────────────────────────────────────────
+  //
+  // Hasta el 2026-08-25 esto era un stub: escribía el audit log y devolvía
+  // `stub: true`. El paciente nunca recibió nada, aunque la pantalla dijera
+  // "Portal enviado".
+  //
+  // El EMAIL sigue sin cablear a propósito: falta confirmar si el BAA cubre
+  // SendGrid (producto aparte de Twilio). Mientras tanto no se finge que sale.
+  const smsResult = parsed.via === 'SMS'
+    ? await sendSms({
+        to: destino.phone!,
+        body: messageBody,
+        patientId: caseRecord.patient.id,
+        caseId: caseId,
+        sentByUserId: actor.actorUserId,
+        sentByName: actor.actorName,
+      })
+    : null;
+
+  const emailPendiente = parsed.via === 'EMAIL';
+  const enviado = smsResult?.ok ?? false;
+
+  // Audit log con el resultado REAL, no con la intención
   await writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
@@ -200,22 +242,23 @@ export async function POST(
     ipAddress: actor.ipAddress,
     userAgent: actor.userAgent,
     metadata: {
-      phase: '1A_mock',
-      stub: true,
       via: parsed.via,
       language: parsed.language,
       recipientLast4: recipient.slice(-4), // No PHI completa en log
-      magicToken, // Phase 1A: visible para testing local. Phase 2: hash.
+      // El token queda fuera del log: es la credencial de acceso al portal.
       expiresAt: expiresIn24h.toISOString(),
       caseCode: caseRecord.caseCode,
       previousStatus: caseRecord.status,
       newStatus: updated.status,
+      delivered: enviado,
+      messageLogId: smsResult?.messageLogId ?? null,
+      providerMessageId: smsResult?.messageSid ?? null,
+      sendError: smsResult?.error ?? (emailPendiente ? 'EMAIL_NOT_WIRED' : null),
     },
   });
 
   return NextResponse.json({
     ok: true,
-    stub: true,
     case: { id: updated.id, caseCode: updated.caseCode, status: updated.status },
     sent: {
       via: parsed.via,
@@ -225,7 +268,14 @@ export async function POST(
       portalUrl,
       messageBody,
       expiresAt: expiresIn24h.toISOString(),
+      // Lo que de verdad pasó. `QUEUED` NO es entregado: la confirmación del
+      // operador llega después por /api/twilio/sms-status.
+      delivered: enviado,
+      status: smsResult?.status ?? null,
+      messageLogId: smsResult?.messageLogId ?? null,
+      error: smsResult?.error ?? (emailPendiente ? 'EMAIL_NOT_WIRED' : null),
+      errorDetail: smsResult?.errorDetail
+        ?? (emailPendiente ? 'El envío por email todavía no está conectado' : null),
     },
-    message: 'Phase 1A stub · NO SMS real enviado. Weave wire en Phase 2 después de BAA.',
   });
 }

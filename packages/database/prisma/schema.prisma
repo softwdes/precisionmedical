@@ -785,6 +785,7 @@ model Patient {
   cases          Case[]            @relation("PatientCases")
   documents      PatientDocument[]
   callLogs       CallLog[]
+  messageLogs    MessageLog[]
   messageThreads MessageThread[]   @relation("PatientMessageThreads")
 
   createdAt DateTime @default(now())
@@ -2643,6 +2644,7 @@ model Case {
   consents             CaseConsent[]
   authorizedDependents AuthorizedDependent[]
   callLogs             CallLog[]
+  messageLogs          MessageLog[]
   messageThreads       MessageThread[]       @relation("CaseMessageThreads")
 
   createdAt DateTime  @default(now())
@@ -3532,6 +3534,75 @@ model CallLog {
   @@index([outcome])
   @@index([createdAt])
   @@map("call_logs")
+}
+
+enum MessageChannel {
+  SMS
+  EMAIL
+}
+
+/// Estado normalizado. Twilio maneja ~10 estados propios; acá se guardan los
+/// que cambian una decisión: si llegó, si no llegó, o si todavía no se sabe.
+enum MessageStatus {
+  /// Twilio lo aceptó pero todavía no hay confirmación del operador.
+  QUEUED
+  /// Salió de Twilio. NO significa que el teléfono lo haya recibido.
+  SENT
+  /// El operador confirmó la entrega. Es el único estado que prueba que llegó.
+  DELIVERED
+  /// El operador lo rechazó — número inválido, bloqueado, o filtrado por A2P.
+  UNDELIVERED
+  /// No salió: error de Twilio, credenciales, o nuestra propia validación.
+  FAILED
+}
+
+/// Mensajes salientes al paciente (SMS hoy, email después).
+///
+/// Existe porque hasta ahora "enviar el portal" solo dejaba un audit log con la
+/// INTENCION de enviar, no el resultado. Con A2P 10DLC de por medio eso no
+/// alcanza: Twilio acepta el mensaje y responde queued aunque el operador lo
+/// filtre despues, asi que sin el estado real no hay forma de distinguir "no
+/// llego" de "nadie lo mando".
+model MessageLog {
+  id String @id @default(cuid())
+
+  /// SID de Twilio. Null si fallo antes de que Twilio lo aceptara.
+  providerMessageId String? @unique
+
+  channel MessageChannel
+  status  MessageStatus  @default(QUEUED)
+
+  toAddress   String
+  fromAddress String
+
+  /// El texto que se mando. Puede llevar el nombre del paciente y el link del
+  /// portal, asi que es PHI: no exponerlo fuera del back-office ni loggearlo.
+  body String
+
+  /// Codigo y mensaje de error de Twilio (ej. 30007 = filtrado por el operador).
+  errorCode    Int?
+  errorMessage String?
+
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  caseId    String?
+  case      Case?    @relation(fields: [caseId], references: [id])
+
+  /// Quien lo disparo. Null si lo mando un proceso automatico.
+  sentByUserId String?
+  sentByName   String?
+
+  /// Cuando el operador confirmo la entrega. Null mientras no este confirmada.
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([caseId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("message_logs")
 }
 
 // ─── Authorized Dependents ───────────────────────────────────────────────────

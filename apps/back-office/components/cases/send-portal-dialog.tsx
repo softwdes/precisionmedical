@@ -37,6 +37,13 @@ interface SendResult {
   portalUrl: string;
   messageBody: string;
   expiresAt: string;
+  /** Twilio lo aceptó. NO significa que el paciente lo haya recibido. */
+  delivered: boolean;
+  /** Estado inicial de Twilio (`queued`, `sent`…). */
+  status: string | null;
+  /** Por qué no salió. `EMAIL_NOT_WIRED` = el canal todavía no existe. */
+  error: string | null;
+  errorDetail: string | null;
 }
 
 type Channel  = 'SMS' | 'EMAIL';
@@ -106,8 +113,11 @@ function ui(lang: Lang) {
     noPhone:      '(sin teléfono)',
     noEmail:      '(sin email)',
     successTitle: 'Portal enviado',
-    successDesc:  'Phase 1A · simulado (Twilio/Mailgun activos con BAA firmado)',
+    successDesc:  'El SMS salió por Twilio. La confirmación de entrega llega en unos minutos.',
     successVia:   'Enviado por',
+    notSentTitle: 'No se pudo enviar',
+    notSentEmail: 'El envío por email todavía no está conectado. Pasale el link de abajo a mano.',
+    notSentSms:   'El SMS no salió. Podés pasarle el link de abajo a mano mientras se resuelve.',
     magicLink:    'Magic link generado',
     copied:       '¡Copiado!',
     copy:         'Copiar',
@@ -141,8 +151,11 @@ function ui(lang: Lang) {
     noPhone:      '(no phone)',
     noEmail:      '(no email)',
     successTitle: 'Portal sent',
-    successDesc:  'Phase 1A · simulated (Twilio/Mailgun activate with signed BAA)',
+    successDesc:  'The SMS was handed to Twilio. Delivery confirmation arrives in a few minutes.',
     successVia:   'Sent via',
+    notSentTitle: 'Could not send',
+    notSentEmail: 'Email sending is not wired yet. Share the link below manually.',
+    notSentSms:   'The SMS did not go out. You can share the link below manually meanwhile.',
     magicLink:    'Magic link generated',
     copied:       'Copied!',
     copy:         'Copy',
@@ -366,18 +379,22 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
         <DialogContent className="max-w-lg p-0 overflow-hidden">
           <div className="px-5 pt-5 pb-4 border-b border-border">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-emerald text-sm">
+              <DialogTitle className={`flex items-center gap-2 text-sm ${result.delivered ? 'text-emerald' : 'text-amber'}`}>
                 <Check className="w-4 h-4" />
-                {L.successTitle}
+                {result.delivered ? L.successTitle : L.notSentTitle}
               </DialogTitle>
-              <p className="text-[11px] text-text-muted mt-1">{L.successDesc}</p>
+              <p className="text-[11px] text-text-muted mt-1">
+                {result.delivered
+                  ? L.successDesc
+                  : result.error === 'EMAIL_NOT_WIRED' ? L.notSentEmail : L.notSentSms}
+              </p>
             </DialogHeader>
           </div>
 
           <div className="px-5 py-4 space-y-3">
             {/* Via + message */}
-            <div className="rounded-md border border-emerald/25 bg-emerald/5 p-3.5">
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald font-semibold uppercase tracking-wider mb-2">
+            <div className={`rounded-md p-3.5 border ${result.delivered ? 'border-emerald/25 bg-emerald/5' : 'border-amber/25 bg-amber/5'}`}>
+              <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-2 ${result.delivered ? 'text-emerald' : 'text-amber'}`}>
                 {result.via === 'SMS' ? <MessageSquare className="w-3 h-3" /> : <Mail className="w-3 h-3" />}
                 {L.successVia} {result.via} · {result.to}
               </div>

@@ -169,6 +169,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       LIMIT 1
     ) adj ON TRUE
     LEFT JOIN case_tracking ct         ON ct."caseId" = c."id"
+    LEFT JOIN users cu                 ON cu."id" = c."createdByUserId"
     WHERE ${whereSql}
   `;
 
@@ -204,6 +205,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         c."attorneyNameRaw"
       ) AS attorney_name,
       at."email"        AS attorney_email,
+
+      -- Quien dio de alta el CASO. Ojo: solo lo tienen los casos creados en v3.
+      -- Los migrados del v2 no traen autor, asi que hoy la mayoria sale vacia —
+      -- es un hueco de DATOS, no de la consulta.
+      NULLIF(TRIM(CONCAT(COALESCE(cu."firstName", ''), ' ', COALESCE(cu."lastName", ''))), '')
+        AS case_created_by,
 
       -- La correccion de Edson gana sobre la respuesta del paciente, PERO no la
       -- pisa: el formulario firmado sigue diciendo lo suyo en consentsData.
@@ -292,6 +299,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       attorneyName:  (r.attorney_name as string | null)?.trim() || null,
       attorneyEmail: r.attorney_email,
       chiropractor:  r.chiropractor,
+      caseCreatedBy: r.case_created_by,
       carrierName:   r.carrier_name,
       lossDate:      r.loss_date,
       claimNum:      r.claim_num,

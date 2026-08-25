@@ -66,6 +66,8 @@ interface Row {
   attorneyName: string | null;
   attorneyEmail: string | null;
   chiropractor: string | null;
+  /** Quien dio de alta el caso. Vacio en los migrados del v2. */
+  caseCreatedBy: string | null;
   carrierName: string | null;
   lossDate: string | null;
   claimNum: string | null;
@@ -600,6 +602,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               * horizontal, el ancho es lo que sobra y el alto lo
                               * que falta: se paga una cosa con la otra.
                               */}
+                            <div className="min-w-0">
                             <div className="flex items-baseline gap-1.5 min-w-0">
                               <span
                                 className="text-text-1 font-semibold truncate"
@@ -610,6 +613,23 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono shrink-0">
                                 {fechaCalendarioNum(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </span>
+                            </div>
+                            {/*
+                              * Quien dio de alta el caso, pedido por Edson.
+                              *
+                              * Va en segunda linea a pedido suyo, sabiendo que
+                              * cuesta alto de fila: es el mismo apilado que se
+                              * quito para pasar de 10 filas visibles a ~22.
+                              *
+                              * Solo sale cuando hay dato. Hoy lo tienen 25 de
+                              * 1103 casos MVA: los creados en v3. Los migrados
+                              * del v2 no traen autor.
+                              */}
+                            {row.caseCreatedBy && (
+                              <div className="text-amber text-[9.5px] italic truncate" title={t('colCreatedByCase')}>
+                                {t('createdByShort', { name: row.caseCreatedBy })}
+                              </div>
+                            )}
                             </div>
                           </div>
                         </DataTable.Td>

@@ -5589,7 +5589,8 @@
       "attorneyFreeText": "Not listed? Type it and press Enter",
       "editChiro": "Click to edit the chiropractor / referral",
       "chiroFreeText": "Type it and press Enter — the intake form is not modified",
-      "showWholeCase": "Show the whole case"
+      "showWholeCase": "Show the whole case",
+      "colCreatedByCase": "Who created the case"
     }
   },
   "clinical": {

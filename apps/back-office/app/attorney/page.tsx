@@ -194,7 +194,6 @@ export default async function AttorneyPanelPage({ searchParams }: {
                           }}
                           canSign={canSignLien(lawyer)}
                           sessionName={sessionName}
-                          onSigned={() => { /* el refresh lo dispara el diálogo */ }}
                         />
                       </DataTable.Td>
                     </DataTable.Row>

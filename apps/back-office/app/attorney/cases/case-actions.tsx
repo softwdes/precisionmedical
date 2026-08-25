@@ -184,7 +184,20 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
  * quedan a un clic. Comparten los mismos diálogos que el menú, así que el aviso
  * de firma faltante y el pad se comportan igual en los dos lados.
  */
-export function CaseRowIcons({ caseRow, canSign, sessionName, onSigned }: Props): React.ReactElement {
+export function CaseRowIcons({
+  caseRow, canSign, sessionName, onSigned,
+}: Omit<Props, 'onSigned'> & {
+  /**
+   * OPCIONAL a propósito: el Panel es un SERVER component y no puede pasar una
+   * función a un componente de cliente — Next no serializa funciones al cruzar
+   * esa frontera y la página revienta entera en runtime.
+   *
+   * Sin handler, el refresco lo hace este componente por su cuenta. Lo pasa
+   * quien ya vive en el cliente y necesita hacer algo más (la lista de Casos
+   * recarga su propio fetch, que el router no toca).
+   */
+  onSigned?: () => void;
+}): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const router = useRouter();
   const pathname = usePathname();
@@ -228,7 +241,11 @@ export function CaseRowIcons({ caseRow, canSign, sessionName, onSigned }: Props)
           caseRow={caseRow}
           defaultName={sessionName}
           onClose={() => setDialog(null)}
-          onSigned={() => { setDialog(null); onSigned(); }}
+          onSigned={() => {
+            setDialog(null);
+            if (onSigned) onSigned();
+            else router.refresh();
+          }}
         />
       )}
     </div>

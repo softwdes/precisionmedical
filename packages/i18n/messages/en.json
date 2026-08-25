@@ -1666,6 +1666,8 @@
       "apptAllClinics": "All clinics",
       "apptNoneThisDay": "No appointments for your clients on this day.",
       "colProviders": "Providers",
+      "lienSignHere": "Sign as attorney",
+      "lienPrint": "Print agreement",
       "roleFirm": "Firm",
       "roleATTORNEY": "Attorney",
       "roleCASE_MANAGER": "Case manager",

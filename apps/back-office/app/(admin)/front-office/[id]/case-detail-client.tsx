@@ -20,7 +20,7 @@ import {
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
   FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
-  FlaskConical, Briefcase, Bandage, Lock,
+  FlaskConical, Briefcase, Bandage, Lock, Printer,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 // Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
@@ -196,6 +196,8 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   // Labels de los tabs clínicos — las MISMAS claves que usa la consulta del
   // doctor, para que digan exactamente lo mismo en los dos lados.
   const td = useTranslations('phoenix.doctor');
+  // Firmar/imprimir el lien son acciones del portal legal: sus textos viven ahí.
+  const ta = useTranslations('phoenix.attorney');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -666,6 +668,32 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2 flex items-center gap-1.5">
                   <PenLine className="w-3 h-3" /> {t('lienSignatures')}
                 </div>
+
+                {/* Portal legal: firmar e imprimir viven DONDE están las firmas.
+                    Antes había que salir del caso, buscar el menú "..." de la
+                    lista y volver — un rodeo para llegar al mismo lugar.
+                    El acuerdo solo se puede imprimir una vez firmado: es el
+                    mismo criterio que abre el tab de Documentos. */}
+                {isAttorney && (
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    {signatureRequired && onRequestSign && (
+                      <Button size="sm" onClick={onRequestSign}>
+                        <PenLine className="w-3.5 h-3.5 mr-1.5" />
+                        {ta('lienSignHere')}
+                      </Button>
+                    )}
+                    {!signatureRequired && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`/api/attorney/cases/${caseInfo.id}/lien`, '_blank', 'noopener')}
+                      >
+                        <Printer className="w-3.5 h-3.5 mr-1.5" />
+                        {ta('lienPrint')}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {caseInfo.lienSignatures.length > 0 ? (
                   <div className="space-y-2">
                     {caseInfo.lienSignatures.map((sig) => (

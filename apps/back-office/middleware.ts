@@ -23,6 +23,22 @@ const MODULES_COOKIE     = 'pm_mods'; // JSON de pm_clinic_modules ('*' = sin re
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
 
+/**
+ * Cuanto viven las cookies de permisos (rol, acceso y modulos).
+ *
+ * Era 1 hora y eso producia un sintoma que parecia un bug de permisos: al darle
+ * un modulo a alguien, **el menu lo mostraba pero el clic no entraba**. El menu
+ * lo pinta `(admin)/layout.tsx`, que consulta la DB en cada carga, mientras que
+ * el portero de este archivo lee la cookie cacheada. Durante una hora las dos
+ * mitades del sistema decian cosas distintas, y el usuario veia una opcion
+ * muerta (reportado con Wilfredo, 25-ago).
+ *
+ * 60s deja la ventana en algo que nadie alcanza a notar. El costo es una
+ * consulta por minuto y por usuario activo, y solo cuando la cookie vencio —no
+ * por request—, asi que el ahorro que motivo el cache se conserva casi entero.
+ */
+const PERMS_CACHE_SECONDS = 60;
+
 // Mapa ruta → módulo del back-office (checks por rol en roles_config)
 const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
   ['dashboard', /^\/dashboard/],
@@ -159,7 +175,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   if (!dbRole && user.email) {
     dbRole = await fetchDbRole(user.email);
-    const cookieOpts = { httpOnly: true, path: '/', maxAge: 3600, sameSite: 'lax' as const };
+    const cookieOpts = { httpOnly: true, path: '/', maxAge: PERMS_CACHE_SECONDS, sameSite: 'lax' as const };
     response.cookies.set(ROLE_COOKIE, dbRole, cookieOpts);
     response.cookies.set(ROLE_EMAIL_COOKIE, user.email, cookieOpts);
   }
@@ -261,7 +277,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       const fetched = await fetchUserClinicModules(user.email);
       modsRaw = fetched ? JSON.stringify(fetched) : '*';
       response.cookies.set(MODULES_COOKIE, modsRaw, {
-        httpOnly: true, path: '/', maxAge: 3600, sameSite: 'lax',
+        httpOnly: true, path: '/', maxAge: PERMS_CACHE_SECONDS, sameSite: 'lax',
       });
     }
 
@@ -313,7 +329,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     response.cookies.set(CLINIC_COOKIE, clinicAccess, {
       httpOnly: true,
       path:     '/',
-      maxAge:   3600,
+      maxAge:   PERMS_CACHE_SECONDS,
       sameSite: 'lax',
     });
   }

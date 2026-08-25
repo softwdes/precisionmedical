@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Plus, Pencil, Trash2, KeyRound, Ban, Loader2, Mail, Phone, MapPin } from 'lucide-react';
 import {
-  PageHeader, StatusPill, TagPill, EmptyState, PersonAvatar, IconAction,
+  PageHeader, StatusPill, TagPill, EmptyState, PersonAvatar, IconAction, FormField,
 } from '@/components/ui-phoenix';
 import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader,
@@ -60,11 +60,13 @@ interface FormState {
   memberRole: string;
   barNumber: string;
   grantAccess: boolean;
+  /** Lo reporta `FormField.Phone`. Un teléfono vacío es válido: es opcional. */
+  phoneValid: boolean;
 }
 
 const EMPTY_FORM: FormState = {
   firstName: '', lastName: '', email: '', phone: '',
-  memberRole: 'CASE_MANAGER', barNumber: '', grantAccess: false,
+  memberRole: 'CASE_MANAGER', barNumber: '', grantAccess: false, phoneValid: true,
 };
 
 export function AttorneyUsersClient({ members }: { members: MemberRow[] }): React.ReactElement {
@@ -209,6 +211,10 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
                 memberRole: m.memberRole ?? 'OTHER',
                 barNumber: m.barNumber ?? '',
                 grantAccess: false,
+                // Lo que ya está guardado se acepta tal cual: si el número vino
+                // mal de la migración, obligar a corregirlo para poder cambiar
+                // el rol convertiría un dato viejo en un bloqueo.
+                phoneValid: true,
               })}
               onAccess={(action) => void accessAction(m, action)}
               onRemove={() => void remove(m)}
@@ -234,9 +240,17 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
               <Field label={t('colEmail')}>
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </Field>
-              <Field label={t('colPhone')}>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </Field>
+              {/* `FormField.Phone` y no un Input pelado: formatea a
+                  `(801) 555-0100` mientras se escribe y valida las reglas NANP.
+                  Con el input crudo se guardaban números como `656565989811` en
+                  la misma columna donde el resto está formateado — hay 8 así en
+                  la base. Es el mismo primitivo que usa Externals para la ficha
+                  del miembro, así que las dos puertas guardan igual. */}
+              <FormField.Phone
+                label={t('colPhone')}
+                value={form.phone}
+                onChange={(v, valid) => setForm({ ...form, phone: v, phoneValid: valid })}
+              />
               <Field label={t('colRole')}>
                 <select
                   value={form.memberRole}
@@ -280,7 +294,7 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
               <Button
                 className="w-full sm:w-auto"
                 loading={saving}
-                disabled={!form.firstName.trim() || !form.lastName.trim()}
+                disabled={!form.firstName.trim() || !form.lastName.trim() || !form.phoneValid}
                 onClick={() => void save()}
               >
                 {tc('save')}

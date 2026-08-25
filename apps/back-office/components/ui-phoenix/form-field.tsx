@@ -11,6 +11,7 @@
  */
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Input, Label } from '@precision/ui';
 
 type Required = { required?: boolean };
@@ -155,7 +156,9 @@ function TextareaField({
 
 // ─── Phone input ─────────────────────────────────────────────────────────────
 // Formats as (XXX) XXX-XXXX while typing. Only allows digits.
-// Validates: 10 digits, area code 2-9, exchange 2-9 (US NANP rules).
+// Valida la regla NANP, que cubre TODO Estados Unidos y Canadá: 10 dígitos, y
+// el código de área y la central empiezan entre 2 y 9. No hay lista de estados
+// ni de códigos permitidos — (212), (310), (713) y (801) pasan por igual.
 
 function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 10);
@@ -172,7 +175,7 @@ function isValidPhone(value: string): boolean {
 }
 
 function PhoneField({
-  label, required, value, onChange, placeholder = '(801) 555-0100', hint, autoFocus,
+  label, required, value, onChange, placeholder, hint, autoFocus,
 }: Required & {
   label: React.ReactNode;
   value: string;
@@ -181,6 +184,7 @@ function PhoneField({
   hint?: React.ReactNode;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations('phoenix.common');
   const [touched, setTouched] = React.useState(false);
   const digits = value.replace(/\D/g, '');
   const showError = touched && digits.length > 0 && !isValidPhone(value);
@@ -199,17 +203,26 @@ function PhoneField({
         value={value}
         onChange={handleChange}
         onBlur={() => setTouched(true)}
-        placeholder={placeholder}
+        // `(___) ___-____` y no un número de ejemplo: el default era
+        // `(801) 555-0100` y el 801 es Utah, así que el campo PARECÍA pedir un
+        // número de ese estado. La validación siempre aceptó todo EE.UU. y
+        // Canadá; era el placeholder el que confundía.
+        placeholder={placeholder ?? t('phonePlaceholder')}
         autoFocus={autoFocus}
         className={showError || showIncomplete ? 'border-rose focus:border-rose' : ''}
         maxLength={14}
         inputMode="numeric"
       />
+      {/* Los dos mensajes estaban escritos a mano EN ESPAÑOL dentro de un
+          primitivo compartido: en el portal legal, que arranca en inglés, se
+          mezclaban los idiomas (Regla #2). Y el viejo decía "debe ser 10
+          dígitos US (ej: (801) 555-0100)", reforzando la idea de que pedía
+          Utah. Ahora explica la regla real: EE.UU. o Canadá. */}
       {showError && (
-        <div className="text-rose text-[10px] mt-1">Número inválido · debe ser 10 dígitos US (ej: (801) 555-0100)</div>
+        <div className="text-rose text-[10px] mt-1">{t('phoneInvalid')}</div>
       )}
       {showIncomplete && !showError && (
-        <div className="text-rose text-[10px] mt-1">Teléfono requerido</div>
+        <div className="text-rose text-[10px] mt-1">{t('phoneRequired')}</div>
       )}
       {!showError && !showIncomplete && hint && (
         <div className="text-text-muted text-[10px] mt-1">{hint}</div>

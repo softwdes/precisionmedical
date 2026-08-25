@@ -2332,6 +2332,9 @@
       "searching": "Buscando…"
     },
     "common": {
+      "phonePlaceholder": "(___) ___-____",
+      "phoneInvalid": "No es un número válido de EE.UU. o Canadá · 10 dígitos, y el código de área no puede empezar en 0 ni 1",
+      "phoneRequired": "El teléfono es obligatorio",
       "create": "Crear",
       "edit": "Editar",
       "view": "Ver",

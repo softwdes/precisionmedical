@@ -2332,6 +2332,9 @@
       "searching": "Searching…"
     },
     "common": {
+      "phonePlaceholder": "(___) ___-____",
+      "phoneInvalid": "Not a valid US or Canada number · 10 digits, area code cannot start with 0 or 1",
+      "phoneRequired": "Phone is required",
       "create": "Create",
       "edit": "Edit",
       "view": "View",

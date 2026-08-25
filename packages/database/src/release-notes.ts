@@ -6,6 +6,7 @@
  * llama a esto — son 6 deploys separados, cada uno con su propio /api/changelog.
  */
 import { db } from './index';
+import { traducirPendientes } from './release-translate';
 import { moduleLabel } from '@precision/release/modules';
 import type { Audience } from '@precision/release/audience';
 import type { NoteLocale, ReleaseModuleGroup } from '@precision/release/types';
@@ -106,26 +107,42 @@ export async function getChangelog(
     },
   });
 
+  const entries = releases.flatMap((release) => release.entries);
+
+  // En inglés, traducir lo que falte — una vez en la vida de cada nota. Los
+  // commits están en español y siempre lo van a estar; mostrarle español a
+  // alguien con la app en inglés se veía roto. Si no hay proveedor o falla,
+  // `traducidas` viene vacío y cae al español, que es lo que había antes.
+  const traducidas =
+    locale === 'en'
+      ? await traducirPendientes(
+          entries
+            .filter((e) => e.textEn === null || e.textEn.trim() === '')
+            .map((e) => ({ id: e.id, textEs: e.textEs })),
+        )
+      : new Map<string, string>();
+
   // Un solo grupo por módulo, aunque las notas vengan de varios deploys.
   const groups = new Map<string, ReleaseModuleGroup>();
   let count = 0;
 
-  for (const release of releases) {
-    for (const entry of release.entries) {
-      const group = groups.get(entry.module) ?? {
-        module: entry.module,
-        moduleLabel: moduleLabel(entry.module, locale),
-        notes: [],
-      };
-      group.notes.push({
-        id: entry.id,
-        kind: entry.kind,
-        // Si falta el inglés cae al español antes que mostrar un hueco.
-        text: locale === 'en' ? (entry.textEn ?? entry.textEs) : entry.textEs,
-      });
-      groups.set(entry.module, group);
-      count += 1;
-    }
+  for (const entry of entries) {
+    const group = groups.get(entry.module) ?? {
+      module: entry.module,
+      moduleLabel: moduleLabel(entry.module, locale),
+      notes: [],
+    };
+    group.notes.push({
+      id: entry.id,
+      kind: entry.kind,
+      // Si falta el inglés cae al español antes que mostrar un hueco.
+      text:
+        locale === 'en'
+          ? (entry.textEn ?? traducidas.get(entry.id) ?? entry.textEs)
+          : entry.textEs,
+    });
+    groups.set(entry.module, group);
+    count += 1;
   }
 
   // `other` último: es el cajón de lo que el mapa de scopes no reconoció.

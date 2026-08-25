@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { SWRegister } from '@/components/SWRegister';
+import { UpdateNotice } from '@/components/UpdateNotice';
 import './globals.css';
 
 const font = Plus_Jakarta_Sans({
@@ -33,6 +34,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en-US" suppressHydrationWarning>
       <body className={font.className} suppressHydrationWarning>
         <NextIntlClientProvider locale={locale} messages={messages}>
+          {/* Dentro del provider: usa useTranslations */}
+          <UpdateNotice />
           {children}
         </NextIntlClientProvider>
         <SWRegister />

@@ -71,8 +71,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 422 });
 
-  const { accidentDate, chiropractor, lawFirmLabel, consents, ...rest } = parsed.data;
+  const { accidentDate, chiropractor, lawFirmLabel, consents, legalAssistantId, ...rest } = parsed.data;
   const data: Record<string, unknown> = { ...rest };
+
+  /**
+   * El asistente legal ya NO es una columna: viven en `case_legal_assistants`,
+   * porque un caso puede tener varios (el Portal Legal los asigna así).
+   *
+   * Esta pantalla sigue mandando UNO solo, y eso está bien — lo que no puede
+   * pasar es que escriba en la columna vieja mientras el portal escribe en la
+   * tabla: serían dos verdades para el mismo dato, y la que se desincroniza es
+   * siempre la que nadie mira. Se traduce a "reemplazá la lista por esta única
+   * persona", que es exactamente lo que significa el selector de acá.
+   */
+  if (legalAssistantId !== undefined) {
+    data.legalAssistants = {
+      deleteMany: {},
+      ...(legalAssistantId ? { create: [{ lawyerId: legalAssistantId }] } : {}),
+    };
+  }
   if (accidentDate !== undefined) {
     data.accidentDate = accidentDate ? new Date(accidentDate + 'T12:00:00') : null;
   }
@@ -123,7 +140,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     caseCode: string;
     attorney:       { id: string; firstName: string | null; lastName: string | null } | null;
     paralegal:      { id: string; firstName: string | null; lastName: string | null } | null;
-    legalAssistant: { id: string; firstName: string | null; lastName: string | null } | null;
+    legalAssistants: Array<{ lawyer: { id: string; firstName: string | null; lastName: string | null } }>;
   } | null = null;
 
   if (changingAssignment) {
@@ -133,7 +150,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
         caseCode: true,
         attorney:       { select: { id: true, firstName: true, lastName: true } },
         paralegal:      { select: { id: true, firstName: true, lastName: true } },
-        legalAssistant: { select: { id: true, firstName: true, lastName: true } },
+        legalAssistants: { select: { lawyer: { select: { id: true, firstName: true, lastName: true } } } },
       },
     });
   }
@@ -149,13 +166,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     const fieldMeta: Record<string, { label: string; prevPerson: PrevPerson }> = {
       attorneyId:       { label: 'Abogado',          prevPerson: prevCase.attorney },
       paralegalId:      { label: 'Gestor de casos',  prevPerson: prevCase.paralegal },
-      legalAssistantId: { label: 'Asistente',        prevPerson: prevCase.legalAssistant },
+      legalAssistantId: { label: 'Asistente',        prevPerson: prevCase.legalAssistants[0]?.lawyer ?? null },
     };
 
     for (const field of assignmentFields) {
-      if (parsed.data[field] === undefined) continue;
+      const raw = field === 'legalAssistantId' ? legalAssistantId : parsed.data[field];
+      if (raw === undefined) continue;
       const { label, prevPerson } = fieldMeta[field];
-      const newId = parsed.data[field] as string | null;
+      const newId = raw as string | null;
 
       // El nombre nuevo sale de `lawyers`, NO de `employees`.
       //

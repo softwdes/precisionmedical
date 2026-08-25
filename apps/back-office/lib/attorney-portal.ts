@@ -89,9 +89,11 @@ export function lawyerCaseFilter(lawyer: SessionLawyer): Prisma.CaseWhereInput {
   const belongsToFirm: Prisma.CaseWhereInput = {
     OR: [
       { lawFirmId: lawyer.firmId },
-      { attorney:       { parentFirmId: lawyer.firmId } },
-      { paralegal:      { parentFirmId: lawyer.firmId } },
-      { legalAssistant: { parentFirmId: lawyer.firmId } },
+      { attorney:  { parentFirmId: lawyer.firmId } },
+      { paralegal: { parentFirmId: lawyer.firmId } },
+      // Los asistentes son VARIOS por caso: se pregunta por la tabla, no por
+      // una columna. `some` = "alguno de los asistentes es de este bufete".
+      { legalAssistants: { some: { lawyer: { parentFirmId: lawyer.firmId } } } },
     ],
   };
 
@@ -118,9 +120,9 @@ export function lawyerCaseFilter(lawyer: SessionLawyer): Prisma.CaseWhereInput {
       belongsToFirm,
       {
         OR: [
-          { attorneyId:       lawyer.id },
-          { paralegalId:      lawyer.id },
-          { legalAssistantId: lawyer.id },
+          { attorneyId:  lawyer.id },
+          { paralegalId: lawyer.id },
+          { legalAssistants: { some: { lawyerId: lawyer.id } } },
         ],
       },
     ],
@@ -176,11 +178,10 @@ export interface CaseListParams {
   assigneeRole?: string;
 }
 
-/** Columna del caso que corresponde a cada puesto. */
-const ASSIGNEE_COLUMN: Record<string, 'attorneyId' | 'paralegalId' | 'legalAssistantId'> = {
+/** Columna del caso que corresponde a cada puesto de UNA sola persona. */
+const ASSIGNEE_COLUMN: Record<string, 'attorneyId' | 'paralegalId'> = {
   attorney:  'attorneyId',
   paralegal: 'paralegalId',
-  assistant: 'legalAssistantId',
 };
 
 export function caseListFilters({
@@ -205,6 +206,11 @@ export function caseListFilters({
   // `lawyerCaseFilter()`, que ya ancló al bufete. Un id de otro despacho acá
   // devuelve cero casos, no los suyos.
   if (assignee) {
+    // El puesto de asistente no es una columna: son varios por caso.
+    if (assigneeRole === 'assistant') {
+      where.legalAssistants = { some: { lawyerId: assignee } };
+      return where;
+    }
     const column = assigneeRole ? ASSIGNEE_COLUMN[assigneeRole] : undefined;
     if (column) {
       where[column] = assignee;
@@ -216,7 +222,7 @@ export function caseListFilters({
         OR: [
           { attorneyId: assignee },
           { paralegalId: assignee },
-          { legalAssistantId: assignee },
+          { legalAssistants: { some: { lawyerId: assignee } } },
         ],
       }];
     }

@@ -82,7 +82,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         id: true, caseCode: true, caseType: true, status: true, createdAt: true,
         accidentDate: true, signatureExempt: true,
         patient: { select: { firstName: true, lastName: true } },
-        attorneyId: true, paralegalId: true, legalAssistantId: true,
+        attorneyId: true, paralegalId: true,
+        legalAssistants: { select: { lawyerId: true } },
         // SOLO la del abogado: sin el filtro, un caso firmado por el paciente
         // salía como "Firmado" aunque el abogado nunca hubiera firmado.
         lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       patient: c.patient,
       attorneyId: c.attorneyId,
       paralegalId: c.paralegalId,
-      legalAssistantId: c.legalAssistantId,
+      legalAssistantIds: c.legalAssistants.map((a) => a.lawyerId),
       hasSigned: c.lienSignatures.length > 0,
       signatureExempt: c.signatureExempt,
     })),
@@ -115,9 +116,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 const AssignSchema = z.object({
   caseId: z.string().min(1),
   /** null desasigna. */
-  attorneyId:       z.string().nullable().optional(),
-  paralegalId:      z.string().nullable().optional(),
-  legalAssistantId: z.string().nullable().optional(),
+  attorneyId:  z.string().nullable().optional(),
+  paralegalId: z.string().nullable().optional(),
+  /**
+   * Los asistentes son VARIOS: viaja la lista COMPLETA, no un alta o una baja.
+   * Mandar el estado final evita el problema clásico de dos pestañas abiertas
+   * aplicando deltas sobre versiones distintas del caso.
+   */
+  legalAssistantIds: z.array(z.string()).optional(),
 });
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
@@ -141,14 +147,17 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   //    con el mismo filtro que la lista: si no lo ve, tampoco lo puede tocar.
   const target = await db.case.findFirst({
     where: { AND: [lawyerCaseFilter(lawyer), { id: input.caseId }] },
-    select: { id: true, caseCode: true, attorneyId: true, paralegalId: true, legalAssistantId: true },
+    select: {
+      id: true, caseCode: true, attorneyId: true, paralegalId: true,
+      legalAssistants: { select: { lawyerId: true } },
+    },
   });
   if (!target) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
   // 2. Las personas asignadas tienen que ser DEL MISMO bufete. Sin esto se
   //    podría asignar a un miembro de otro despacho pasando su id a mano, y de
   //    paso darle visibilidad del caso (el filtro mira estas mismas columnas).
-  const ids = [input.attorneyId, input.paralegalId, input.legalAssistantId]
+  const ids = [input.attorneyId, input.paralegalId, ...(input.legalAssistantIds ?? [])]
     .filter((v): v is string => typeof v === 'string' && v.length > 0);
 
   if (ids.length > 0) {
@@ -170,8 +179,15 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   if (input.paralegalId !== undefined) {
     data.paralegal = input.paralegalId ? { connect: { id: input.paralegalId } } : { disconnect: true };
   }
-  if (input.legalAssistantId !== undefined) {
-    data.legalAssistant = input.legalAssistantId ? { connect: { id: input.legalAssistantId } } : { disconnect: true };
+  if (input.legalAssistantIds !== undefined) {
+    // `deleteMany` + `create` en la misma operación: la lista que llega es el
+    // estado final, así que se reemplaza entera dentro de la misma transacción
+    // implícita del update. Un diff manual dejaría ventanas donde el caso queda
+    // sin asistentes si algo falla en el medio.
+    data.legalAssistants = {
+      deleteMany: {},
+      create: [...new Set(input.legalAssistantIds)].map((lawyerId) => ({ lawyerId })),
+    };
   }
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'NOTHING_TO_UPDATE' }, { status: 400 });
@@ -180,7 +196,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const updated = await db.case.update({
     where: { id: target.id },
     data,
-    select: { id: true, attorneyId: true, paralegalId: true, legalAssistantId: true },
+    select: {
+      id: true, attorneyId: true, paralegalId: true,
+      legalAssistants: { select: { lawyerId: true } },
+    },
   });
 
   // Una entrada `ASSIGNMENT_CHANGE` por campo cambiado — MISMA forma que escribe
@@ -193,13 +212,29 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
 
   const FIELDS = [
-    { key: 'attorneyId',       label: 'Abogado',         raw: 'ATTORNEY',        prevId: target.attorneyId,       newId: updated.attorneyId },
-    { key: 'paralegalId',      label: 'Gestor de casos', raw: 'PARALEGAL',       prevId: target.paralegalId,      newId: updated.paralegalId },
-    { key: 'legalAssistantId', label: 'Asistente',       raw: 'LEGALASSISTANT',  prevId: target.legalAssistantId, newId: updated.legalAssistantId },
+    { key: 'attorneyId',  label: 'Abogado',         raw: 'ATTORNEY',  prevId: target.attorneyId,  newId: updated.attorneyId },
+    { key: 'paralegalId', label: 'Gestor de casos', raw: 'PARALEGAL', prevId: target.paralegalId, newId: updated.paralegalId },
   ] as const;
 
   const changed = FIELDS.filter((f) => f.prevId !== f.newId);
-  const involvedIds = changed.flatMap((f) => [f.prevId, f.newId]).filter((v): v is string => !!v);
+
+  /**
+   * Los asistentes se registran como UNA entrada con las dos listas, no como una
+   * fila por persona: "Camila, Daiana → Camila, Dianka" se lee de un vistazo,
+   * mientras que un alta y una baja separadas obligan a reconstruir mentalmente
+   * quién quedó.
+   */
+  const prevAssistants = target.legalAssistants.map((a) => a.lawyerId);
+  const newAssistants = updated.legalAssistants.map((a) => a.lawyerId);
+  const assistantsChanged =
+    prevAssistants.length !== newAssistants.length ||
+    prevAssistants.some((id) => !newAssistants.includes(id));
+
+  const involvedIds = [
+    ...changed.flatMap((f) => [f.prevId, f.newId]),
+    ...prevAssistants,
+    ...newAssistants,
+  ].filter((v): v is string => !!v);
 
   // Un solo viaje para todos los nombres involucrados. Se resuelven de `lawyers`,
   // que es adonde apuntan las tres columnas (el admin lo buscaba en `employees`
@@ -215,9 +250,26 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  for (const f of changed) {
-    const previousValue = f.prevId ? (names.get(f.prevId) ?? null) : null;
-    const newValue      = f.newId  ? (names.get(f.newId)  ?? null) : null;
+  const listado = (ids: string[]): string | null =>
+    ids.length ? ids.map((id) => names.get(id) ?? '—').join(', ') : null;
+
+  const entries: Array<{ label: string; raw: string; previousValue: string | null; newValue: string | null }> = [
+    ...changed.map((f) => ({
+      label: f.label,
+      raw: f.raw,
+      previousValue: f.prevId ? (names.get(f.prevId) ?? null) : null,
+      newValue:      f.newId  ? (names.get(f.newId)  ?? null) : null,
+    })),
+    ...(assistantsChanged ? [{
+      label: 'Asistente',
+      raw: 'LEGALASSISTANT',
+      previousValue: listado(prevAssistants),
+      newValue:      listado(newAssistants),
+    }] : []),
+  ];
+
+  for (const f of entries) {
+    const { previousValue, newValue } = f;
     const action =
       !previousValue && newValue ? 'Asignado' :
       previousValue && !newValue ? 'Removido' : 'Actualizado';

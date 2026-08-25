@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 import { CaseActionsMenu } from './case-actions';
+import { AssistantsSelect, type AssistantOption } from './assistants-select';
 import {
   PageHeader, DataTable, TagPill, StatusPill, EmptyState, Skeleton, TableFooter,
 } from '@/components/ui-phoenix';
@@ -35,7 +36,8 @@ interface CaseRow {
   patient: { firstName: string; lastName: string };
   attorneyId: string | null;
   paralegalId: string | null;
-  legalAssistantId: string | null;
+  /** Varios por caso — a diferencia del abogado y el paralegal. */
+  legalAssistantIds: string[];
   hasSigned: boolean;
   signatureExempt: boolean;
 }
@@ -51,14 +53,24 @@ const STATUSES = [
   'ACTIVE', 'MMI', 'CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED',
 ] as const;
 
-/** Los tres selectores filtran por el rol que le toca a cada columna. */
+/** Los selectores de UNA persona filtran por el rol que le toca a cada columna. */
 const ROLE_FOR_COLUMN = {
-  attorneyId:       ['ATTORNEY'],
-  paralegalId:      ['PARALEGAL', 'CASE_MANAGER'],
-  legalAssistantId: ['LEGAL_ASSISTANT'],
+  attorneyId:  ['ATTORNEY'],
+  paralegalId: ['PARALEGAL', 'CASE_MANAGER'],
 } as const;
 
 type AssignColumn = keyof typeof ROLE_FOR_COLUMN;
+
+/**
+ * Quién puede figurar como asistente: todo el personal del despacho MENOS los
+ * abogados (Erick, 2026-08-21).
+ *
+ * v2 ofrece ahí a los "Gestor de casos" y a los "Asistente legal"; nuestro enum
+ * parte en dos lo que allá es un solo rol, así que se incluye también
+ * `PARALEGAL`. Filtrar más estricto dejaba la columna sin opciones, porque los
+ * roles de la base no coinciden con cómo se usan.
+ */
+const ASSISTANT_ROLES = ['CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'];
 
 export function AttorneyCasesClient({
   members, canAssign, canSign, sessionName,
@@ -121,6 +133,22 @@ export function AttorneyCasesClient({
 
   React.useEffect(() => { void load(); }, [load]);
 
+  /** Los asistentes viajan como lista completa: el server espera el estado final. */
+  async function assignAssistants(caseId: string, ids: string[]): Promise<void> {
+    setRows((prev) => prev.map((r) => (r.id === caseId ? { ...r, legalAssistantIds: ids } : r)));
+    try {
+      const res = await fetch('/api/attorney/cases', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId, legalAssistantIds: ids }),
+      });
+      if (!res.ok) { setError(t('assignError')); void load(); }
+    } catch {
+      setError(t('assignError'));
+      void load();
+    }
+  }
+
   async function assign(caseId: string, column: AssignColumn, value: string): Promise<void> {
     // Optimista: el selector queda en el valor elegido mientras viaja el PATCH.
     // Si el server rechaza, `load()` lo devuelve al valor real — no se inventa
@@ -138,6 +166,13 @@ export function AttorneyCasesClient({
       void load();
     }
   }
+
+  const assistantOptions: AssistantOption[] = React.useMemo(
+    () => members
+      .filter((m) => m.role !== null && ASSISTANT_ROLES.includes(m.role))
+      .map((m) => ({ id: m.id, name: m.name, roleLabel: t(`role${m.role ?? 'OTHER'}` as 'roleOTHER') })),
+    [members, t],
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -242,7 +277,21 @@ export function AttorneyCasesClient({
 
                     <AssignCell caseRow={c} column="attorneyId"       members={members} canAssign={canAssign} onAssign={assign} placeholder={t('selectAttorney')} unassigned={t('unassigned')} />
                     <AssignCell caseRow={c} column="paralegalId"      members={members} canAssign={canAssign} onAssign={assign} placeholder={t('selectParalegal')} unassigned={t('unassigned')} />
-                    <AssignCell caseRow={c} column="legalAssistantId" members={members} canAssign={canAssign} onAssign={assign} placeholder={t('selectAssistant')} unassigned={t('unassigned')} />
+                    <DataTable.Td>
+                      {canAssign ? (
+                        <AssistantsSelect
+                          options={assistantOptions}
+                          selected={c.legalAssistantIds}
+                          onChange={(ids) => assignAssistants(c.id, ids)}
+                        />
+                      ) : (
+                        <span className="text-[12.5px]">
+                          {c.legalAssistantIds.length
+                            ? c.legalAssistantIds.map((id) => members.find((m) => m.id === id)?.name ?? '—').join(', ')
+                            : '—'}
+                        </span>
+                      )}
+                    </DataTable.Td>
 
                     <DataTable.Td>
                       {c.signatureExempt

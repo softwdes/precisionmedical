@@ -42,7 +42,9 @@ export default async function AttorneyUsersPage(): Promise<React.ReactElement> {
   const [byAttorney, byParalegal, byAssistant] = await Promise.all([
     db.case.groupBy({ by: ['attorneyId'],       where: { AND: [scope, { attorneyId:       { not: null } }] }, _count: true }),
     db.case.groupBy({ by: ['paralegalId'],      where: { AND: [scope, { paralegalId:      { not: null } }] }, _count: true }),
-    db.case.groupBy({ by: ['legalAssistantId'], where: { AND: [scope, { legalAssistantId: { not: null } }] }, _count: true }),
+    // Los asistentes viven en su propia tabla (varios por caso), así que se
+    // cuentan desde ahí y no con un `groupBy` sobre la columna vieja.
+    db.caseLegalAssistant.groupBy({ by: ['lawyerId'], where: { case: scope }, _count: true }),
   ]);
 
   const toMap = (rows: Array<{ _count: number } & Record<string, unknown>>, key: string): Map<string, number> =>
@@ -53,7 +55,7 @@ export default async function AttorneyUsersPage(): Promise<React.ReactElement> {
 
   const attorneyCount  = toMap(byAttorney,  'attorneyId');
   const paralegalCount = toMap(byParalegal, 'paralegalId');
-  const assistantCount = toMap(byAssistant, 'legalAssistantId');
+  const assistantCount = toMap(byAssistant, 'lawyerId');
 
   const rows: MemberRow[] = members.map((m) => ({
     id: m.id,

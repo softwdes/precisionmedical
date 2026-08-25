@@ -597,7 +597,8 @@ model Lawyer {
   casesAsLawFirm     Case[] @relation("CaseLawFirm")
   casesAsAttorney    Case[] @relation("CaseAttorney")
   casesAsParalegal   Case[] @relation("CaseParalegal")
-  casesAsLegalAssist Case[] @relation("CaseLegalAssistant")
+  casesAsLegalAssist Case[] @relation("CaseLegalAssistant") // deprecada, ver Case.legalAssistantId
+  legalAssistantOn   CaseLegalAssistant[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2468,6 +2469,31 @@ enum ReferralSource {
   OTHER
 }
 
+/// Asistentes legales asignados a un caso.
+///
+/// Tabla y no columna porque un caso puede tener VARIOS asistentes — el abogado
+/// y el paralegal siguen siendo uno solo. Reemplaza a `Case.legalAssistantId`,
+/// que queda deprecada hasta el paso 2 de la migracion.
+///
+/// El `id` tiene default en la BASE ademas de en Prisma: el schema se aplico con
+/// `db push` y los `@default(cuid())` no existen como default real, asi que un
+/// insert por la API REST que omita el id moriria en silencio.
+model CaseLegalAssistant {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  lawyerId String
+  lawyer   Lawyer @relation(fields: [lawyerId], references: [id])
+
+  assignedAt DateTime @default(now())
+
+  @@unique([caseId, lawyerId])
+  @@index([lawyerId])
+  @@map("case_legal_assistants")
+}
+
 enum CaseTypeWorkflow {
   MVA // Motor Vehicle Accident — PI con lien
   GENERAL // Medicina general (no lien)
@@ -2520,8 +2546,14 @@ model Case {
   attorneyNameRaw  String?
   paralegalId      String?
   paralegal        Lawyer? @relation("CaseParalegal", fields: [paralegalId], references: [id])
+  /// DEPRECADA — la reemplaza `legalAssistants`. Se borra en el paso 2 de la
+  /// migracion, una vez desplegado el codigo que usa la tabla nueva. No leerla.
   legalAssistantId String?
   legalAssistant   Lawyer? @relation("CaseLegalAssistant", fields: [legalAssistantId], references: [id])
+
+  /// Asistentes legales del caso — VARIOS, a diferencia del abogado y el
+  /// paralegal, que siguen siendo uno solo (Erick, 2026-08-21, replicando v2).
+  legalAssistants CaseLegalAssistant[]
 
   // Insurance — primary (PIP) + optional secondary (Med Pay)
   primaryInsuranceId    String?

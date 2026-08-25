@@ -8,6 +8,21 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const userId = user.id;
+  /**
+   * En DOS tandas, no en una de doce.
+   *
+   * Esta pantalla abria 17 consultas EN PARALELO y rompio dos veces por eso: con
+   * el pool por defecto de Prisma (`num_cpus*2+1`, 49 en la maquina de Erick)
+   * agotaba el pooler de transacciones de Supabase y Prisma reportaba
+   * "Can't reach database server" —que suena a base caida cuando en realidad
+   * estaba llena—; y con `connection_limit=1` se serializaban y las ultimas
+   * morian por `pool_timeout`.
+   *
+   * Acotar la concurrencia ACA y no solo en la URL: el numero del env hay que
+   * afinarlo en cada entorno (local, Vercel) y nadie se acuerda. Dos tandas de 7
+   * y 5 entran en cualquier limite razonable. Cuesta un viaje de ida y vuelta
+   * extra —unos 150 ms— en una pantalla de configuracion que se mira poco.
+   */
   const [
     clinics,
     specialties,
@@ -16,17 +31,6 @@ export default async function SettingsPage() {
     insurances,
     adjusters,
     services,
-    serviceFavs,
-    ,  // diagnoses — eliminado, se carga via API paginada
-    diagnosisFavs,
-    diagnosisTotal,
-    diagnosisPiRelevant,
-    diagnosisWithSnomed,
-    auditTotal,
-    auditToday,
-    auditHuman,
-    auditSystem,
-    auditLogs,
   ] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
@@ -67,17 +71,56 @@ export default async function SettingsPage() {
       where: { deletedAt: null },
       orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     }),
+  ]);
+
+  const [
+    serviceFavs,
+    diagnosisFavs,
+    diagnosisCounts,
+    auditCounts,
+    auditLogs,
+  ] = await Promise.all([
     db.userServiceFavorite.findMany({ where: { userId: userId }, select: { serviceCodeId: true } }),
-    // Diagnoses: solo stats — los rows se cargan via API paginada en DiagnosesClient
-    Promise.resolve([] as unknown[]),
     db.userDiagnosisFavorite.findMany({ where: { userId: userId }, select: { diagnosisId: true } }),
-    db.diagnosis.count(),
-    db.diagnosis.count({ where: { piRelevant: true } }),
-    db.diagnosis.count({ where: { snomedCode: { not: null } } }),
-    db.auditLog.count(),
-    db.auditLog.count({ where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
-    db.auditLog.count({ where: { actorType: 'HUMAN_USER' } }),
-    db.auditLog.count({ where: { actorType: 'SYSTEM' } }),
+    /**
+     * Los 3 conteos de diagnosticos y los 4 de auditoria, en 2 viajes en vez de 7.
+     *
+     * Esta pantalla abria 17 consultas EN PARALELO, y con eso agotaba el pool de
+     * Prisma contra el pooler de transacciones de Supabase: la pagina moria con
+     * "Can't reach database server at ...:6543", que suena a base caida cuando en
+     * realidad estaba llena. Settings era el canario —la que mas conexiones pide
+     * de golpe—, no la culpable.
+     *
+     * `count(*) FILTER (WHERE ...)` resuelve varios conteos sobre la MISMA tabla
+     * en una sola pasada. No hay equivalente en la API de Prisma, de ahi el raw.
+     *
+     * `::int` porque `count()` de Postgres devuelve bigint y eso no serializa a
+     * JSON: sin el cast, cruzar el limite server→client revienta.
+     */
+    db.$queryRaw<[{ total: number; pi: number; snomed: number }]>`
+      SELECT count(*)::int                                        AS total,
+             count(*) FILTER (WHERE "piRelevant")::int            AS pi,
+             count(*) FILTER (WHERE "snomedCode" IS NOT NULL)::int AS snomed
+        FROM diagnoses
+    `,
+    /**
+     * `hoy` se corta en la medianoche de la CLINICA, no del servidor.
+     *
+     * Era `new Date().setHours(0,0,0,0)`, o sea medianoche LOCAL del proceso —
+     * en Vercel eso es UTC, asi que "hoy" arrancaba a las 5 o 6 de la tarde del
+     * dia anterior en Utah y el numero contaba horas que no eran de hoy.
+     * `date_trunc` con la zona lo resuelve exacto y aguanta el cambio de horario.
+     */
+    db.$queryRaw<[{ total: number; hoy: number; humano: number; sistema: number }]>`
+      SELECT count(*)::int AS total,
+             count(*) FILTER (
+               WHERE "createdAt" >= date_trunc('day', now() AT TIME ZONE 'America/Denver')
+                                    AT TIME ZONE 'America/Denver'
+             )::int AS hoy,
+             count(*) FILTER (WHERE "actorType" = 'HUMAN_USER')::int AS humano,
+             count(*) FILTER (WHERE "actorType" = 'SYSTEM')::int     AS sistema
+        FROM audit_logs
+    `,
     db.auditLog.findMany({
       select: {
         id: true, actorType: true, actorUserId: true, actorRole: true,
@@ -201,14 +244,19 @@ export default async function SettingsPage() {
         favorites: serviceFavIds.size,
       }}
       diagnosisStats={{
-        total: diagnosisTotal,
-        active: diagnosisTotal,
-        piRelevant: diagnosisPiRelevant,
-        withSnomed: diagnosisWithSnomed,
+        total: diagnosisCounts[0].total,
+        active: diagnosisCounts[0].total,
+        piRelevant: diagnosisCounts[0].pi,
+        withSnomed: diagnosisCounts[0].snomed,
         favorites: diagnosisFavIds.size,
       }}
       diagnosisUserId={userId}
-      auditKpis={{ total: auditTotal, todayCount: auditToday, humanCount: auditHuman, systemCount: auditSystem }}
+      auditKpis={{
+        total:       auditCounts[0].total,
+        todayCount:  auditCounts[0].hoy,
+        humanCount:  auditCounts[0].humano,
+        systemCount: auditCounts[0].sistema,
+      }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       initialAuditLogs={auditLogs.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })) as any}
     />

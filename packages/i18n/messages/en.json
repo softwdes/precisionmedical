@@ -5651,6 +5651,15 @@
       "chiroFreeText": "Type it and press Enter — the intake form is not modified",
       "showWholeCase": "Show the whole case",
       "colCreatedByCase": "Who created the case"
+    },
+    "online": {
+      "badge": "Online visit",
+      "badgeShort": "Online",
+      "title": "Video call",
+      "copy": "Copy",
+      "copied": "Copied",
+      "open": "Open",
+      "noLink": "No link saved yet — add it by editing the appointment."
     }
   },
   "clinical": {

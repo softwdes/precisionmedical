@@ -88,6 +88,10 @@ function mapAppt(a: ApptWithIncludes) {
     // mostrar "Listo para cobrar": sin esto el asistente tenia que entrar cita
     // por cita para saber si ya podia cerrarla.
     doctorDoneAt: (a as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
+    // Telemedicina: la cola tiene que decir que la visita es por video ANTES de
+    // que el asistente salga a buscar al paciente a la sala de espera.
+    isOnline:    (a as { isOnline?: boolean }).isOnline ?? false,
+    meetingUrl:  (a as { meetingUrl?: string | null }).meetingUrl ?? null,
     notes:       a.notes,
     patient: {
       id:        a.patient.id,

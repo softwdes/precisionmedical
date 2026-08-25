@@ -128,6 +128,9 @@ export async function GET(
         doctorDoneAt:    (appt as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
         // Hora de salida — cierra el reloj de "tiempo en clínica" del Resumen.
         checkedOutAt:    (appt as { checkedOutAt?: Date | null }).checkedOutAt?.toISOString() ?? null,
+        // Telemedicina — el asistente es quien le pasa el enlace al paciente.
+        isOnline:        (appt as { isOnline?: boolean }).isOnline ?? false,
+        meetingUrl:      (appt as { meetingUrl?: string | null }).meetingUrl ?? null,
         triageCorrection,
         patient: {
           id:          appt.patient.id,

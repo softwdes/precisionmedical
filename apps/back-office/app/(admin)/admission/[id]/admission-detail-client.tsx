@@ -22,6 +22,7 @@ import {
   User, ShieldCheck,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
+import { OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
@@ -52,6 +53,9 @@ interface ApptDetail {
   checkedInAt: string | null;
   /** El doctor marcó que terminó con el paciente (portal médico) */
   doctorDoneAt?: string | null;
+  /** Telemedicina — el asistente es quien le pasa el enlace al paciente. */
+  isOnline?: boolean;
+  meetingUrl?: string | null;
   /** Hora de salida — cierra el reloj de tiempo en clínica */
   checkedOutAt?: string | null;
   /** Última corrección de vitales después de que el paciente pasó a sala */
@@ -348,6 +352,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       />
 
       <div className="px-4 sm:px-6 pb-8 space-y-4">
+
+        {/* ── Videollamada ──
+            Arriba de todo, y no en una tarjeta más abajo, porque cambia lo
+            primero que hace el asistente: a un paciente online no lo va a buscar
+            a la sala de espera, le manda el enlace. */}
+        {d.isOnline && <OnlineMeetingBox meetingUrl={d.meetingUrl ?? null} />}
 
         {/* ── Flow diagram ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-bg-2 rounded-lg overflow-hidden">

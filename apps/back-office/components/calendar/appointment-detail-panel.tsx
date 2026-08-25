@@ -32,6 +32,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
+import { OnlineMeetingBox } from '@/components/visit/online-visit';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -913,18 +914,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
                   <div className="space-y-2 text-[12.5px]">
                     <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time} MT`} highlight />
+                    {/* Misma pieza que My Day y Day Admission. Antes era un pill
+                        con emoji y un link truncado a 160px SIN botón de copiar:
+                        el enlace había que seleccionarlo a mano desde un texto
+                        cortado. El emoji además no sigue el tema y se ve distinto
+                        en cada sistema operativo. */}
                     {appt.isOnline && (
-                      <div className="flex items-center gap-2 py-0.5">
-                        <span className="text-text-muted text-[11px] w-24 shrink-0">{t('rowOnline')}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan font-semibold">📹 {t('onlineBadge')}</span>
-                          {appt.meetingUrl && (
-                            <a href={appt.meetingUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-[11px] text-cyan underline truncate max-w-[160px]">
-                              {t('joinMeeting')}
-                            </a>
-                          )}
-                        </div>
+                      <div className="py-0.5">
+                        <OnlineMeetingBox meetingUrl={appt.meetingUrl ?? null} />
                       </div>
                     )}
                     <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />

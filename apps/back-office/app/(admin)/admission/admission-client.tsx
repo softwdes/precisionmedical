@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
+import { OnlineBadge } from '@/components/visit/online-visit';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
 import { PendingNotes } from '@/components/visit/pending-notes';
 import { useLiveSync } from '@/lib/use-live-sync';
@@ -50,6 +51,9 @@ interface AdmissionAppt {
   checkedInAt:     string | null;
   /** El doctor terminó con el paciente — la cita ya se puede cobrar y cerrar. */
   doctorDoneAt:    string | null;
+  /** Telemedicina — la cola tiene que decirlo antes de ir a buscar al paciente. */
+  isOnline:        boolean;
+  meetingUrl:      string | null;
   notes:           string | null;
   patient: { id: string; firstName: string; lastName: string; phone: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
@@ -153,6 +157,10 @@ function ApptCard({
                 {appt.case.caseCode}
               </span>
             )}
+            {/* Antes que los estados: si la visita es por video, el asistente NO
+                sale a buscar al paciente a la sala de espera. Cambia lo que hace
+                con la fila, así que se ve sin leer nada más. */}
+            {appt.isOnline && <OnlineBadge compact />}
             {/* Status badge — "listo para cobrar" va PRIMERO: es el estado que
                 le dice al asistente que tiene algo que hacer con esta fila. */}
             {isReadyForCheckout ? (

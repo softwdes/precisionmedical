@@ -27,6 +27,9 @@ export type { FilterPillProps } from './filter-pill';
 export { IconAction } from './icon-action';
 export type { IconActionProps } from './icon-action';
 
+export { CopyButton } from './copy-button';
+export type { CopyButtonProps } from './copy-button';
+
 export { StatusPill, TagPill } from './status-pill';
 export type { StatusPillProps, TagPillProps, StatusState } from './status-pill';
 

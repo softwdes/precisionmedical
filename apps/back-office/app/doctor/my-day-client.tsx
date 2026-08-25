@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
+import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
@@ -232,12 +233,13 @@ export function MyDayClient({
       {/* Hero — Siguiente paciente (gradiente emerald→cyan del mockup B.17) */}
       {hero ? (
         <div
-          className="rounded-xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+          className="rounded-xl border p-4 sm:p-5 space-y-3"
           style={{
             background: 'linear-gradient(135deg, rgba(16,185,129,0.13), rgba(6,182,212,0.10))',
             borderColor: 'rgba(16,185,129,0.40)',
           }}
         >
+         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           {/* La zona del paciente abre la consulta en lectura aunque no haya
               check-in — el guardrail aplica a ATENDER, no a ver los datos */}
           <Link
@@ -259,7 +261,7 @@ export function MyDayClient({
                 {minsTo > 0 && minsTo < 180 && (
                   <span className="text-emerald font-semibold text-[12px]">{t('inMinutes', { min: minsTo })}</span>
                 )}
-                {hero.isOnline && <Video className="w-3.5 h-3.5 text-cyan" />}
+                {hero.isOnline && <OnlineBadge />}
               </div>
               <div className="text-[11px] text-text-muted mt-0.5 flex items-center gap-2 flex-wrap">
                 <span className={hero.hasTriage ? 'text-emerald' : ''}>{hero.hasTriage ? t('triageDone') : t('triagePendingShort')}</span>
@@ -308,6 +310,12 @@ export function MyDayClient({
               {!heroArrived ? t('guardrailCheckin') : t('guardrailTriage')}
             </div>
           )}
+         </div>
+
+          {/* El enlace va FUERA del <Link> del paciente: tiene un botón y un
+              <a>, y anidarlos dentro de otro <a> es HTML inválido — el clic
+              quedaría peleado entre navegar a la consulta y copiar. */}
+          {hero.isOnline && <OnlineMeetingBox meetingUrl={hero.meetingUrl} />}
         </div>
       ) : (active.length + completed.length === 0) ? (
         <EmptyState.Rich icon={Sun} title={t('emptyDayTitle')} subtitle={t('emptyDaySubtitle')} />
@@ -333,7 +341,10 @@ export function MyDayClient({
                     {a.patientFirstName} {a.patientLastName}
                   </span>
                   <span className="ml-2 font-mono text-[10px] text-cyan hidden sm:inline">{a.caseCode ?? ''}</span>
-                  {a.isOnline && <Video className="w-3 h-3 text-cyan inline ml-1.5 -mt-0.5" />}
+                  {/* Solo la marca: la fila entera es un <Link> y un botón de
+                      copiar adentro sería HTML inválido. El enlace se copia en
+                      el hero o entrando a la consulta. */}
+                  {a.isOnline && <span className="ml-1.5 align-middle inline-flex"><OnlineBadge compact /></span>}
                 </div>
                 {/* Solo lectura: la fila entera es un link y quien corrige la
                     cobertura es recepción o el asistente desde Day Admission.

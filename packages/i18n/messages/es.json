@@ -5651,6 +5651,15 @@
       "chiroFreeText": "Escríbelo y Enter — no modifica el formulario del paciente",
       "showWholeCase": "Ver el caso completo",
       "colCreatedByCase": "Quién creó el caso"
+    },
+    "online": {
+      "badge": "Cita online",
+      "badgeShort": "Online",
+      "title": "Videollamada",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "open": "Abrir",
+      "noLink": "Sin enlace cargado — agregalo al editar la cita."
     }
   },
   "clinical": {

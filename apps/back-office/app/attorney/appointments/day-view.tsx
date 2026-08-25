@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Button } from '@precision/ui';
-import { EmptyState, StatusPill, TagPill } from '@/components/ui-phoenix';
+import { EmptyState, StatusPill, TagPill, DatePicker } from '@/components/ui-phoenix';
 import { ZONA_CLINICA, localeApp } from '@/lib/fechas';
 
 /**
@@ -122,6 +122,19 @@ export function AppointmentsDayView({
           <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
           {t('apptToday')}
         </Button>
+
+        {/* El calendario del sistema, no un `<input type=date>`: con solo las
+            flechas y "Hoy", saltar a una fecha lejana son treinta clics. El
+            `todayKey` va explícito porque "hoy" es el de la CLÍNICA (Denver),
+            no el del dispositivo del abogado. */}
+        <DatePicker
+          value={date}
+          onChange={(d) => go({ date: d })}
+          accent="brand"
+          size="sm"
+          todayLabel={t('apptToday')}
+          todayKey={isoDay(new Date())}
+        />
 
         <span className="text-text-1 font-semibold text-sm mx-2">{title}</span>
 

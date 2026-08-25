@@ -82,7 +82,18 @@ export default async function AttorneyAppointmentsPage({ searchParams }: {
         case:     { select: { caseCode: true } },
       },
     }),
-    db.clinic.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    /**
+     * Sin dirección no es una sede a la que el bufete pueda mandar a su
+     * cliente: "Murray - Surgery" no tiene ni dirección ni foto y solo ensucia
+     * el selector. Mismo criterio —por DATO, no por nombre— que la tarjeta de
+     * oficina de la barra lateral: si algún día se le carga la dirección,
+     * aparece sola.
+     */
+    db.clinic.findMany({
+      where: { address: { not: null } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const appointments: DayAppointment[] = rows

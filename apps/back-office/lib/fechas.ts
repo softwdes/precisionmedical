@@ -136,6 +136,25 @@ export function fechaCalendario(iso: string | Date | null | undefined, locale?: 
 }
 
 /**
+ * Igual que `fechaCalendario` pero en numeros: `24/08/2026`.
+ *
+ * Existe para las grillas densas, donde el mes abreviado ocupa mas y la clinica
+ * lee los numeros (misma razon que el `labelFormat: 'numeric'` del DatePicker).
+ *
+ * ⚠️ Tampoco lleva `ZONA_CLINICA`, por lo mismo que la de arriba: una fecha de
+ * perdida o de nacimiento es una fecha del CALENDARIO, no un instante. Con la
+ * zona puesta, un valor guardado a medianoche UTC muestra el dia anterior.
+ */
+export function fechaCalendarioNum(iso: string | Date | null | undefined, locale?: Locale): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(localeApp(locale), {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC',
+  });
+}
+
+/**
  * Edad en años cumplidos, por calendario.
  *
  * Reemplaza a los seis `Math.floor(diff / (365.25 * 24 * 3600 * 1000))` que

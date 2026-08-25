@@ -52,10 +52,20 @@ const PartialSchema = z.object({
   lienComments: z.string().max(2000).nullable().optional(),
 });
 
-/** "2023-01-28" → Date, o null si no es una fecha válida. */
+/**
+ * "2023-01-28" → Date, o null si no es una fecha válida.
+ *
+ * El dia suelto se ancla a medianoche **UTC**, no a la del servidor.
+ *
+ * `new Date('2023-01-28T00:00:00')` usa la zona de quien ejecuta: en Vercel
+ * (UTC) da el 28, en una maquina al este de Greenwich da el 27. La fecha de
+ * perdida es una fecha de CALENDARIO —no un instante— asi que no puede depender
+ * de donde corre el proceso. Ademas es como estan guardadas las que ya existen
+ * (todas a `T00:00:00.000Z`), y `fechaCalendarioNum` las lee en UTC.
+ */
 function parseDate(raw: string | null | undefined): Date | null {
   if (!raw) return null;
-  const d = new Date(raw.length === 10 ? `${raw}T00:00:00` : raw);
+  const d = new Date(raw.length === 10 ? `${raw}T00:00:00.000Z` : raw);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

@@ -31,10 +31,11 @@ import {
   TableFooter, EmptyState, Autocomplete, type AutoResult,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fechaCalendarioNum, fechaParaInput } from '@/lib/fechas';
 import { ManagersPopover, ManagersSection, type SectionHandle } from './case-managers';
 import { type AnchorRect } from './anchored-panel';
 import { InlineText, InlineCombo } from './inline-edit';
+import { DatePicker } from '@/components/ui-phoenix/date-picker';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
@@ -138,6 +139,14 @@ const DENVER = 'America/Denver';
  */
 const READY_BG = 'var(--row-ready)';
 
+/**
+ * Solo para INSTANTES (la cita, la nota, el archivado): esos si ocurren a una
+ * hora concreta en la clinica.
+ *
+ * Para fechas de CALENDARIO —nacimiento, fecha de perdida— va
+ * `fechaCalendarioNum`. Estan guardadas a medianoche UTC, asi que convertirlas
+ * a Denver muestra el dia ANTERIOR. Ver la nota larga en lib/fechas.ts.
+ */
 function fmtDate(d: string | null): string {
   if (!d) return '';
   return new Date(d).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: DENVER });
@@ -599,7 +608,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
                               <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono shrink-0">
-                                {fmtDate(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
+                                {fechaCalendarioNum(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </span>
                             </div>
                           </div>
@@ -644,7 +653,26 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             </span>
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td><span className="text-text-2 whitespace-nowrap">{row.lossDate ? fmtDate(row.lossDate) : <Empty />}</span></DataTable.Td>
+                        <DataTable.Td>
+                          {archived ? (
+                            <span className="text-text-2 whitespace-nowrap">
+                              {row.lossDate ? fechaCalendarioNum(row.lossDate) : <Empty />}
+                            </span>
+                          ) : (
+                            <DatePicker
+                              size="inline"
+                              accent="amber"
+                              labelFormat="numeric"
+                              alwaysShowDate
+                              value={fechaParaInput(row.lossDate)}
+                              onChange={key => void saveCell(
+                                row.caseId,
+                                { lossDate: `${key}T00:00:00.000Z` },
+                                { lossDate: key },
+                              )}
+                            />
+                          )}
+                        </DataTable.Td>
                         <DataTable.Td>
                           {/*
                             * `w-full` en el contenedor y `flex-1` en el editor.

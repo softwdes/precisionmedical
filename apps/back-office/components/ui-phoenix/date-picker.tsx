@@ -31,8 +31,18 @@ export interface DatePickerProps {
   todayKey?: string;
   /** Clases extra para el botón trigger */
   className?: string;
-  /** Tamaño del trigger: sm (h-7, toolbars) · lg (h-10, táctil/iPad) */
-  size?: 'sm' | 'lg';
+  /**
+   * Tamaño del trigger: sm (h-7, toolbars) · lg (h-10, táctil/iPad) ·
+   * inline (texto pelado dentro de una celda de tabla).
+   *
+   * `inline` existe para la grilla de tracking, donde la fila mide ~20px: un
+   * boton con borde y alto propio la estiraria. Se ve como el resto del texto
+   * de la celda y solo se delata al pasar el mouse, igual que los otros
+   * editores en celda.
+   */
+  size?: 'sm' | 'lg' | 'inline';
+  /** Qué mostrar cuando `value` viene vacío (solo `inline`). */
+  placeholder?: string;
   /**
    * Formato del label del trigger:
    *  · short   "28 jul 2026"
@@ -66,7 +76,7 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—' }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -166,9 +176,13 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
       : labelFormat === 'numeric'
         ? { day: '2-digit', month: '2-digit', year: 'numeric' }
         : { day: 'numeric', month: 'short', year: 'numeric' };
-  const triggerLabel = isTodayValue && !alwaysShowDate
-    ? todayLabel
-    : new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`));
+  // Sin valor no hay nada que formatear: `new Date('T12:00:00')` es Invalid Date
+  // y el trigger salia con "Invalid Date" escrito.
+  const triggerLabel = !value
+    ? placeholder
+    : isTodayValue && !alwaysShowDate
+      ? todayLabel
+      : new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`));
 
   const pick = (k: string): void => { onChange(k); setOpen(false); };
 
@@ -180,10 +194,15 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         className={
           size === 'lg'
             ? `h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold hover:bg-white/5 transition-colors flex items-center gap-2 capitalize ${isTodayValue ? a.text : 'text-text-1'}`
-            : `h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] hover:bg-white/5 transition-colors flex items-center gap-1.5 ${isTodayValue ? `${a.text} font-semibold` : 'text-text-1'}`
+            : size === 'inline'
+              ? `w-full text-left rounded-[3px] px-1 -mx-1 whitespace-nowrap hover:bg-brand/10 hover:ring-1 hover:ring-brand/30 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer ${value ? 'text-text-2' : 'text-text-muted'}`
+              : `h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] hover:bg-white/5 transition-colors flex items-center gap-1.5 ${isTodayValue ? `${a.text} font-semibold` : 'text-text-1'}`
         }
       >
-        <CalendarDays className={`${size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${a.text}`} />
+        {/* En la celda no entra el icono: la fila mide ~20px y la columna es angosta. */}
+        {size !== 'inline' && (
+          <CalendarDays className={`${size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${a.text}`} />
+        )}
         {triggerLabel}
       </button>
 

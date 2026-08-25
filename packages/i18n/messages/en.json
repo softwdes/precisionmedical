@@ -3337,7 +3337,12 @@
       "searchNoMatchTitle": "No one matching “{q}” in today’s list",
       "searchNoMatchSubtitle": "Their appointment may be on another day, or not scheduled yet.",
       "searchAllPatients": "Search all patients",
-      "vitalsOnlineHint": "Online visit: vitals are optional. If you enter them, they will be recorded as patient-reported."
+      "vitalsOnlineHint": "Online visit: vitals are optional. If you enter them, they will be recorded as patient-reported.",
+      "confirmVitalsOnline": "Online visit — no vitals taken in clinic",
+      "connectWithDoctor": "Connect with Dr. {lastName} →",
+      "connectOnline": "Connect the video call →",
+      "confirmPatientReadyOnline": "The patient is ready to connect",
+      "gateReadyTitleOnline": "Patient ready to connect with the doctor"
     },
     "dashboard": {
       "title": "Reception Dashboard",

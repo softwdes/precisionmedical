@@ -3337,7 +3337,12 @@
       "searchNoMatchTitle": "Nadie con «{q}» en la lista de hoy",
       "searchNoMatchSubtitle": "Puede que su cita sea otro día, o que todavía no esté agendada.",
       "searchAllPatients": "Buscar en todos los pacientes",
-      "vitalsOnlineHint": "Visita online: los signos vitales son opcionales. Si los cargás, van a quedar registrados como reportados por el paciente."
+      "vitalsOnlineHint": "Visita online: los signos vitales son opcionales. Si los cargás, van a quedar registrados como reportados por el paciente.",
+      "confirmVitalsOnline": "Visita online — sin vitales en clínica",
+      "connectWithDoctor": "Conectar con Dr. {lastName} →",
+      "connectOnline": "Conectar la videollamada →",
+      "confirmPatientReadyOnline": "El paciente está listo para conectarse",
+      "gateReadyTitleOnline": "Paciente listo para conectarse con el doctor"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

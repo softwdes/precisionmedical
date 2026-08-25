@@ -262,7 +262,18 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const patientName = `${d.patient.firstName} ${d.patient.lastName}`;
   const isAlreadyInRoom = d.status === 'IN_PROGRESS' || d.status === 'COMPLETED';
   const consentsOk = !!d.case?.consentsCompleted;
-  const canAdmit = confirm1 && confirm2 && consentsOk && !isAlreadyInRoom;
+  /**
+   * Visita online: los vitales no se pueden tomar, así que ese check no se le
+   * pide al asistente.
+   *
+   * No es "saltear un paso": era pedirle que AFIRMARA algo falso ("vitales
+   * registrados y guardados") para poder avanzar. Ahora el ítem dice lo que de
+   * verdad pasa y viene cumplido; el segundo check —que el paciente está listo
+   * para pasar con el doctor— se mantiene, porque ese sí es un acto deliberado y
+   * es el que evita mandar a alguien a la sala por accidente.
+   */
+  const sinVitalesPorVideo = d.isOnline ?? false;
+  const canAdmit = (confirm1 || sinVitalesPorVideo) && confirm2 && consentsOk && !isAlreadyInRoom;
 
   // Los vitales quedan SIEMPRE editables (decisión de Erick 2026-07-29): en la
   // clínica el encargado corrige después de que el paciente pasó a sala y no
@@ -432,7 +443,9 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-3 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-emerald/15 flex items-center justify-center text-sm flex-shrink-0">✅</div>
               <div className="flex-1">
-                <div className="font-bold text-emerald text-[13px]">{t('gateReadyTitle')}</div>
+                <div className="font-bold text-emerald text-[13px]">
+                  {(d.isOnline ?? false) ? t('gateReadyTitleOnline') : t('gateReadyTitle')}
+                </div>
                 <div className="text-[11px] text-text-2 mt-0.5">{t('gateReadySub')}</div>
               </div>
             </div>
@@ -622,6 +635,15 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     </div>
                   ))}
                 </div>
+                {/* El enlace, ACÁ además de arriba. El bloque de arriba queda
+                    fuera de pantalla en cuanto el asistente baja a los vitales,
+                    que es justo cuando necesita copiarlo para mandárselo al
+                    paciente. Esta tarjeta es la que sigue a la vista. */}
+                {d.isOnline && (
+                  <div className="mt-3">
+                    <OnlineMeetingBox meetingUrl={d.meetingUrl ?? null} />
+                  </div>
+                )}
               </div>
 
               {/* Coverage */}
@@ -657,8 +679,21 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   {t('confirmBeforeRoom')}
                 </div>
                 {[
-                  { id: 'c1', checked: confirm1, onToggle: () => setConfirm1(v => !v), label: t('confirmVitalsSaved') },
-                  { id: 'c2', checked: confirm2, onToggle: () => setConfirm2(v => !v), label: t('confirmPatientReady') },
+                  {
+                    id: 'c1',
+                    checked: confirm1 || sinVitalesPorVideo,
+                    // Con visita online es un hecho, no una decisión: no se
+                    // desmarca. Dejarlo clickeable sugeriría que hay algo que
+                    // hacer con los vitales, y no hay.
+                    onToggle: sinVitalesPorVideo ? undefined : () => setConfirm1(v => !v),
+                    label: sinVitalesPorVideo ? t('confirmVitalsOnline') : t('confirmVitalsSaved'),
+                  },
+                  {
+                    id: 'c2',
+                    checked: confirm2,
+                    onToggle: () => setConfirm2(v => !v),
+                    label: sinVitalesPorVideo ? t('confirmPatientReadyOnline') : t('confirmPatientReady'),
+                  },
                 ].map(item => (
                   <label
                     key={item.id}
@@ -666,10 +701,14 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                        (canAdmit exige !isAlreadyInRoom), pero seguían siendo
                        clickeables y eso sugería que la acción estaba disponible */
                     onClick={isAlreadyInRoom ? undefined : item.onToggle}
-                    className={`flex items-center gap-3 rounded-md border border-border px-3 py-2.5 transition-colors group mb-2 ${
+                    className={`flex items-center gap-3 rounded-md border px-3 py-2.5 transition-colors group mb-2 ${
                       isAlreadyInRoom
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'cursor-pointer hover:border-emerald/30'
+                        ? 'border-border opacity-50 cursor-not-allowed'
+                        : !item.onToggle
+                          // Cumplido por un hecho, no por un clic: no se ofrece
+                          // como accionable ni con el cursor ni con el hover.
+                          ? 'border-emerald/30 bg-emerald/[0.04] cursor-default'
+                          : 'border-border cursor-pointer hover:border-emerald/30'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
@@ -712,7 +751,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     className="flex items-center gap-2 px-4 py-2 rounded-md bg-emerald text-white text-[12px] font-bold hover:bg-emerald/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {admitting ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />{t('processing')}</> : (
-                      <>{d.provider ? t('passToRoomWithDoctor', { lastName: d.provider.lastName }) : t('passToRoom')}</>
+                      /* En una visita online el paciente no pasa a ninguna
+                         sala: se conecta. Que el botón prometa algo que no va a
+                         ocurrir es de las cosas que hacen dudar de la pantalla. */
+                      <>{sinVitalesPorVideo
+                        ? (d.provider ? t('connectWithDoctor', { lastName: d.provider.lastName }) : t('connectOnline'))
+                        : (d.provider ? t('passToRoomWithDoctor', { lastName: d.provider.lastName }) : t('passToRoom'))}</>
                     )}
                   </button>
                 </div>

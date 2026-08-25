@@ -55,9 +55,49 @@ const DAYS: Array<{ key: string; labelKey: string }> = [
   { key: 'sun', labelKey: 'daySun' },
 ];
 
+/** Cada cuántos ms avanza solo. 5s y no 3: la tarjeta tiene cinco líneas de
+ *  horarios y con 3 no se alcanzan a leer antes del salto. */
+const AUTO_MS = 5000;
+
 export function OfficeCard({ clinics }: { clinics: OfficeClinic[] }): React.ReactElement | null {
   const t = useTranslations('phoenix.attorney');
   const [index, setIndex] = React.useState(0);
+
+  /**
+   * El avance automático se detiene DEFINITIVAMENTE en cuanto alguien toca una
+   * flecha: ahí ya dijo qué clínica quiere ver, y seguir moviéndola es pelearle.
+   * El automático existe para quien no interactúa.
+   */
+  const [manual, setManual] = React.useState(false);
+  const [hovering, setHovering] = React.useState(false);
+
+  /**
+   * `prefers-reduced-motion` no es un detalle de accesibilidad opcional: hay
+   * gente a la que el movimiento automático le produce mareo, y el sistema
+   * operativo ya lo declara. Si está activo, la tarjeta queda quieta.
+   */
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = (): void => setReducedMotion(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  const total = clinics.length;
+  const autoOn = total > 1 && !manual && !hovering && !reducedMotion;
+
+  React.useEffect(() => {
+    if (!autoOn) return;
+    const id = setInterval(() => {
+      // Con la pestaña en segundo plano no tiene sentido rotar: nadie lo ve y al
+      // volver la tarjeta estaría en una clínica cualquiera.
+      if (document.visibilityState !== 'visible') return;
+      setIndex((i) => (i + 1) % total);
+    }, AUTO_MS);
+    return () => clearInterval(id);
+  }, [autoOn, total]);
 
   if (clinics.length === 0) return null;
 
@@ -75,11 +115,21 @@ export function OfficeCard({ clinics }: { clinics: OfficeClinic[] }): React.Reac
   const hours = clinic.hours;
   const hasHours = !!hours && DAYS.some((d) => d.key in hours);
 
-  const move = (delta: number) =>
+  const move = (delta: number): void => {
+    setManual(true);
     setIndex((i) => (i + delta + clinics.length) % clinics.length);
+  };
 
   return (
-    <div className="px-3 pb-3 space-y-2.5">
+    <div
+      className="px-3 pb-3 space-y-2.5"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      // Con foco de teclado tampoco debe moverse: alguien navegando con Tab
+      // está leyendo igual que quien deja el mouse encima.
+      onFocusCapture={() => setHovering(true)}
+      onBlurCapture={() => setHovering(false)}
+    >
       {/* Foto + nombre. Sin foto se muestra solo el nombre — no un recuadro vacío. */}
       {photo && (
         <div className="relative rounded-lg overflow-hidden">
@@ -102,10 +152,14 @@ export function OfficeCard({ clinics }: { clinics: OfficeClinic[] }): React.Reac
           </button>
           <div className="flex items-center gap-1">
             {clinics.map((c, i) => (
-              <span
+              <button
                 key={c.id}
+                type="button"
+                onClick={() => { setManual(true); setIndex(i); }}
+                aria-label={c.name}
+                aria-current={i === Math.min(index, clinics.length - 1)}
                 className={`h-1 rounded-full transition-all ${
-                  i === Math.min(index, clinics.length - 1) ? 'w-4 bg-brand' : 'w-1 bg-white/20'
+                  i === Math.min(index, clinics.length - 1) ? 'w-4 bg-brand' : 'w-1 bg-white/20 hover:bg-white/40'
                 }`}
               />
             ))}

@@ -91,7 +91,15 @@ export async function getChangelog(
     take: 20,
     select: {
       entries: {
-        where: { hidden: false, audiences: { has: toDbAudience(audience) } },
+        // `needsReview` NO se muestra. El script del build publica el release
+        // solo, pero lo que no pudo decidir —scope sin mapear, audiencia
+        // ambigua— espera a que alguien lo apruebe en /settings. Guardar la
+        // entrada en el tab apaga la bandera y ahi si aparece.
+        where: {
+          hidden: false,
+          needsReview: false,
+          audiences: { has: toDbAudience(audience) },
+        },
         orderBy: [{ module: 'asc' }, { sortOrder: 'asc' }],
         select: { id: true, kind: true, module: true, textEs: true, textEn: true },
       },
@@ -250,6 +258,20 @@ export async function publishRelease(
   });
 
   return { ok: true };
+}
+
+/**
+ * Cuantas entradas de un release ya se le mostraron a alguien.
+ *
+ * Es lo que decide si una entrada todavia se puede editar: una nota publicada Y
+ * aprobada ya la leyo gente, y cambiarle el texto seria moverle el piso. Una que
+ * sigue en `needsReview` no se mostro nunca, asi que se edita libremente aunque
+ * el release este publicado.
+ */
+export async function countVisibleEntries(releaseId: string): Promise<number> {
+  return db.releaseEntry.count({
+    where: { releaseId, hidden: false, needsReview: false },
+  });
 }
 
 /** Vuelve un release a borrador — deja de mostrarse en el banner. */

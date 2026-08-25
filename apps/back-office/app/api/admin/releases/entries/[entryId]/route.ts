@@ -47,14 +47,27 @@ export async function PATCH(
 
   const entry = await db.releaseEntry.findUnique({
     where: { id: entryId },
-    select: { id: true, release: { select: { status: true } } },
+    select: {
+      id: true,
+      hidden: true,
+      needsReview: true,
+      release: { select: { status: true } },
+    },
   });
   if (entry === null) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  // Un release publicado ya se le mostró a gente; editarlo cambiaría el texto
-  // bajo los pies de quien lo leyó. Hay que despublicarlo primero.
-  if (entry.release.status === 'PUBLISHED') {
-    return NextResponse.json({ error: 'ALREADY_PUBLISHED' }, { status: 409 });
+  // Lo que decide si se puede editar NO es el estado del release, es si esta
+  // entrada ya se le mostró a alguien.
+  //
+  // Con el auto-publicado, las entradas que esperan revisión viven DENTRO de
+  // releases publicados: bloquear por `status` dejaría la cola de curación
+  // inservible, que es justo la pantalla que existe para destaparlas. Una nota
+  // que sigue en `needsReview` u `hidden` nunca salió, así que se edita libre.
+  const yaSeMostro =
+    entry.release.status === 'PUBLISHED' && !entry.hidden && !entry.needsReview;
+
+  if (yaSeMostro) {
+    return NextResponse.json({ error: 'ALREADY_VISIBLE' }, { status: 409 });
   }
 
   const saved = await db.releaseEntry.update({

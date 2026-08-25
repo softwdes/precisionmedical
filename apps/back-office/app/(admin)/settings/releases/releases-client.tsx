@@ -97,8 +97,8 @@ export function ReleasesClient(): React.ReactElement {
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
         setError(
-          body.error === 'ALREADY_PUBLISHED'
-            ? 'Ese release ya está publicado: despublicalo antes de editarlo.'
+          body.error === 'ALREADY_VISIBLE'
+            ? 'Esa nota ya se mostró: cambiarle el texto ahora le movería el piso a quien la leyó.'
             : 'No se pudo guardar.',
         );
         return;
@@ -164,12 +164,13 @@ export function ReleasesClient(): React.ReactElement {
       )}
 
       {releases?.map((release) => {
-        const visible = release.entries.filter((entry) => !entry.hidden);
+        // Las que la gente REALMENTE ve: ni ocultas ni esperando revisión.
+        const shown = release.entries.filter((entry) => !entry.hidden && !entry.needsReview);
         const review = release.entries.filter((entry) => entry.needsReview).length;
         const published = release.status === 'PUBLISHED';
         // Falta de inglés AVISA, no bloquea: lo único que impide publicar es no
-        // tener ninguna entrada visible.
-        const blocked = visible.length === 0;
+        // tener ninguna entrada que se pueda mostrar.
+        const blocked = shown.length === 0;
 
         return (
           <Section
@@ -177,7 +178,7 @@ export function ReleasesClient(): React.ReactElement {
             icon={published ? Rocket : Wrench}
             tone={published ? 'emerald' : 'amber'}
             title={release.app + ' · ' + release.sha.slice(0, 8)}
-            count={visible.length}
+            count={shown.length}
             collapsible
             defaultOpen={!published}
             action={
@@ -197,8 +198,8 @@ export function ReleasesClient(): React.ReactElement {
                   onClick={() => void togglePublish(release, release.missingEnglish > 0)}
                   disabled={busy === release.id || (!published && blocked)}
                   title={
-                    !published && visible.length === 0
-                      ? 'No hay ninguna entrada visible para publicar'
+                    !published && shown.length === 0
+                      ? 'Ninguna entrada está lista: aprobá alguna con Guardar'
                       : !published && release.missingEnglish > 0
                         ? 'Se publica igual: quien tenga la app en inglés verá esas líneas en español'
                         : undefined
@@ -239,7 +240,10 @@ export function ReleasesClient(): React.ReactElement {
                   key={entry.id}
                   entry={entry}
                   busy={busy === entry.id}
-                  readOnly={published}
+                  // Sólo se congela lo que YA se mostró. Las entradas que
+                  // esperan revisión son editables aunque el release esté
+                  // publicado: son justo las que hay que destapar acá.
+                  readOnly={published && !entry.hidden && !entry.needsReview}
                   onSave={(patch) => void saveEntry(entry.id, patch)}
                 />
               ))}

@@ -162,16 +162,30 @@ const SPECIFIC_RULES: AudienceRule[] = [
   { prefix: 'apps/web/app/', audiences: ['admin'] },
 ];
 
-/** Codigo compartido: decide solo si ninguna regla `specific` matcheo. */
-const BROAD_RULES: AudienceRule[] = [
+/**
+ * Cuerpo de UNA app, sin ruta de portal. La audiencia sigue siendo acotada
+ * —`apps/clinical/**` es de la clinica y del doctor, de nadie mas— asi que NO
+ * pide revision: es un default sano, no una duda.
+ *
+ * Distinguirlo de lo cross-app importa: marcar como dudoso todo lo que tocaba
+ * codigo compartido dejaba 88 de ~200 notas esperando aprobacion, y una cola de
+ * ese tamaño no se atiende.
+ */
+const APP_RULES: AudienceRule[] = [
   { prefix: 'apps/back-office/', audiences: ['admin', 'doctor', 'attorney'] },
   { prefix: 'apps/clinical/', audiences: ['clinic', 'doctor'] },
   { prefix: 'apps/forms/', audiences: ['clinic', 'patient'] },
   { prefix: 'apps/attorney/', audiences: ['attorney'] },
   { prefix: 'apps/timeclock/', audiences: ['timeclock'] },
   { prefix: 'apps/web/', audiences: ['admin'] },
+];
 
-  // Paquetes con comportamiento que se ve: le pegan a todos.
+/**
+ * Paquetes compartidos: le pegan a TODOS. Eso si pide revision — el texto de
+ * un commit de `packages/**` suele estar escrito para quien programa
+ * ("primitivo Section") y no le dice nada a recepcion.
+ */
+const SHARED_RULES: AudienceRule[] = [
   { prefix: 'packages/api/', audiences: [...AUDIENCES] },
   { prefix: 'packages/auth/', audiences: [...AUDIENCES] },
   { prefix: 'packages/ui/', audiences: [...AUDIENCES] },
@@ -199,9 +213,14 @@ export function audiencesForPaths(paths: string[]): {
     return { audiences: AUDIENCES.filter((a) => specific.has(a)), ambiguous: false };
   }
 
-  const broad = collect(paths, BROAD_RULES);
-  if (broad.size > 0) {
-    return { audiences: AUDIENCES.filter((a) => broad.has(a)), ambiguous: true };
+  const app = collect(paths, APP_RULES);
+  if (app.size > 0) {
+    return { audiences: AUDIENCES.filter((a) => app.has(a)), ambiguous: false };
+  }
+
+  const shared = collect(paths, SHARED_RULES);
+  if (shared.size > 0) {
+    return { audiences: AUDIENCES.filter((a) => shared.has(a)), ambiguous: true };
   }
 
   // Solo archivos sin señal (i18n, prisma, configs, docs): no sabemos a quien

@@ -235,11 +235,34 @@ async function main(): Promise<void> {
   const skipped = commits.length - notes.length;
   if (skipped > 0) log(`${skipped} descartados por tipo interno (chore/docs/refactor/style/...)`);
 
+  // AUTO-PUBLICAR. Arranco todo en DRAFT con publicacion a mano y la medicion
+  // fue lapidaria: 6 dias, 33 releases, 0 publicados, y ni UNA entrada habia
+  // necesitado ocultarse. Un gate que hay que atender varias veces por dia no
+  // protege la calidad, apaga la feature.
+  //
+  // Ahora el release sale publicado si trae al menos una entrada que se pueda
+  // mostrar. Lo que el parser no pudo decidir queda con `needsReview` y
+  // `getChangelog` no lo muestra, asi que sigue esperando ojo humano — pero sin
+  // frenar a las demas notas del mismo deploy, que era el otro problema: 23 de
+  // 33 releases tenian alguna marcada y un gate por release las hundia todas.
+  //
+  // Lo sensible sigue intacto: `security`, `permissions` y `cifrado` entran con
+  // `hidden` y nunca se autopublican.
+  const publicables = notes.filter((note) => !note.hidden && !note.needsReview).length;
+  const autoPublicar = publicables > 0;
+
   await db.release.create({
     data: {
       app,
       sha,
       previousSha,
+      ...(autoPublicar
+        ? {
+            status: 'PUBLISHED' as const,
+            publishedAt: new Date(),
+            publishedByName: 'automático',
+          }
+        : {}),
       entries: {
         create: notes.map((note, index) => {
           const { module, mapped } = moduleForScope(note.scope);
@@ -267,7 +290,8 @@ async function main(): Promise<void> {
   const review = notes.filter((note) => note.needsReview).length;
   const hidden = notes.filter((note) => note.hidden).length;
   log(
-    `${app}: DRAFT con ${notes.length} entradas — ${review} para revisar, ` +
+    `${app}: ${autoPublicar ? 'PUBLICADO' : 'DRAFT'} con ${notes.length} entradas — ` +
+      `${publicables} visibles ya, ${review} esperando revision, ` +
       `${hidden} ocultas por sensibles`,
   );
 }

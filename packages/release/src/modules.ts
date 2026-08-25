@@ -56,6 +56,8 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   calendar: 'appointments',
   appointments: 'appointments',
   scheduling: 'appointments',
+  calendario: 'appointments',
+  citas: 'appointments',
 
   // Pacientes y casos
   patients: 'patients',
@@ -65,6 +67,9 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   coverage: 'cases',
   relaciones: 'cases',
   cifrado: 'cases',
+  cobertura: 'cases',
+  consentimientos: 'cases',
+  archivado: 'cases',
   tracking: 'tracking',
 
   // Clinico
@@ -74,8 +79,10 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   nota: 'notes',
   summary: 'notes',
   diag: 'notes',
+  'historial medico': 'notes',
   labs: 'labs',
   triage: 'triage',
+  triaje: 'triage',
   admission: 'admission',
   visita: 'visits',
   clinical: 'clinic',
@@ -88,6 +95,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   pagos: 'billing',
   finanzas: 'billing',
   codes: 'billing',
+  braces: 'billing',
   catalog: 'catalog',
 
   // Comunicacion
@@ -101,10 +109,13 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   'doctor-view': 'doctor',
   'portal medico': 'doctor',
   lawyers: 'attorney',
+  'portal legal': 'attorney',
   forms: 'intake',
 
   // Documentos y reportes
   pdf: 'documents',
+  impresion: 'documents',
+  archivos: 'documents',
   metrics: 'metrics',
   dashboard: 'metrics',
 
@@ -114,6 +125,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   roles: 'access',
   security: 'access',
   accesos: 'access',
+  permisos: 'access',
   activacion: 'access',
 
   // Otras apps
@@ -148,6 +160,10 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   webhook: 'platform',
   build: 'platform',
   'release-notes': 'platform',
+  audit: 'settings',
+  validacion: 'interface',
+  errores: 'platform',
+  fechas: 'platform',
 };
 
 export function moduleLabel(module: string, locale: NoteLocale): string {

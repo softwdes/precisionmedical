@@ -1668,6 +1668,8 @@
       "colProviders": "Proveedores",
       "lienSignHere": "Firmar como abogado",
       "lienPrint": "Imprimir acuerdo",
+      "lienLockedTitle": "Primero hay que firmar",
+      "lienLockedBody": "El acuerdo se puede imprimir recién cuando lo firmes como abogado · tu firma queda estampada en el documento.",
       "roleFirm": "Bufete",
       "roleATTORNEY": "Abogado",
       "roleCASE_MANAGER": "Gestor de casos",

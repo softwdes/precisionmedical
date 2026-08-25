@@ -1668,6 +1668,8 @@
       "colProviders": "Providers",
       "lienSignHere": "Sign as attorney",
       "lienPrint": "Print agreement",
+      "lienLockedTitle": "Sign before printing",
+      "lienLockedBody": "The agreement can only be printed once you sign it as attorney · your signature is stamped on the document.",
       "roleFirm": "Firm",
       "roleATTORNEY": "Attorney",
       "roleCASE_MANAGER": "Case manager",

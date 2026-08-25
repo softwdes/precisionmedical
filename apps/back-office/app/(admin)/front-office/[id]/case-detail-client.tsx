@@ -20,7 +20,7 @@ import {
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
   FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
-  FlaskConical, Briefcase, Bandage, Lock, Printer,
+  FlaskConical, Briefcase, Bandage, Lock,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 // Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
@@ -37,6 +37,7 @@ import { FinanzasTab } from '@/components/cases/finanzas-tab';
 import { CitasTab } from '@/components/cases/citas-tab';
 import { HistorialMedicoTab } from '@/components/cases/historial-medico-tab';
 import { VisitFilter } from '@/components/cases/visit-filter';
+import { LienPrintButton } from '@/app/attorney/cases/lien-print';
 import { VISIT_PARAM, conTab, conVisitaFiltrada, escribirUrl, paramsDelNavegador } from '@/lib/case-modal-url';
 import {
   CaseLabsTab, CaseRxTab, CaseServicesTab, CaseBracesTab, useCaseClinical,
@@ -682,16 +683,13 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                         {ta('lienSignHere')}
                       </Button>
                     )}
-                    {!signatureRequired && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(`/api/attorney/cases/${caseInfo.id}/lien`, '_blank', 'noopener')}
-                      >
-                        <Printer className="w-3.5 h-3.5 mr-1.5" />
-                        {ta('lienPrint')}
-                      </Button>
-                    )}
+                    {/* Imprimir se muestra SIEMPRE, firmado o no. Sin firma abre
+                        la previsualización bloqueada — ver LienPrintButton. */}
+                    <LienPrintButton
+                      caseId={caseInfo.id}
+                      locked={signatureRequired}
+                      onSign={onRequestSign}
+                    />
                   </div>
                 )}
                 {caseInfo.lienSignatures.length > 0 ? (

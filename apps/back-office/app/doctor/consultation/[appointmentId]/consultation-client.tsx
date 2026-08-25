@@ -354,6 +354,7 @@ export function ConsultationClient({
                 <span>{ta('triageDoctorCapture')}</span>
               </div>
               <TriageVitalsForm
+                isOnline={a.isOnline}
                 key={a.id}
                 appointmentId={a.id}
                 initial={null}
@@ -534,6 +535,7 @@ export function ConsultationClient({
       {/* ── Nodo 4: Resumen y salida ── */}
       {view === 4 && (
         <VisitSummary
+          isOnline={a.isOnline}
           appointmentId={a.id}
           note={note}
           triage={a.triage}

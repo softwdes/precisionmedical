@@ -65,6 +65,8 @@ interface Props {
   servicesPanel: React.ComponentProps<typeof AppointmentDetailPanel>['appointment'];
   /** Saldo pendiente, para el panel de pagos */
   billingTotal?: number;
+  /** Visita por videollamada — cambia lo que significa el bloque de vitales. */
+  isOnline?: boolean;
   /** Cobertura del caso — ordena el picker de cargos y se muestra ahí de referencia */
   coverage?: CoverageDTO;
   /** Recarga completa — para después de una acción del usuario (guardar, admitir). */
@@ -78,7 +80,7 @@ interface Props {
 
 export function DoctorStepPanel({
   appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
-  triage, hasTriage, servicesPanel, billingTotal, coverage, onRefresh, onSync,
+  triage, hasTriage, servicesPanel, billingTotal, coverage, onRefresh, onSync, isOnline = false,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
@@ -269,6 +271,7 @@ export function DoctorStepPanel({
           <>
             {tab === 'summary' && (
               <VisitSummary
+                isOnline={isOnline}
                 variant="assistant"
                 appointmentId={appointmentId}
                 appointmentStatus={appointmentStatus}

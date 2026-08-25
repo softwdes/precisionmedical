@@ -2300,7 +2300,11 @@
       "tplReplaceConfirm": "Sí, reemplazar",
       "rxNotOnboardedTryOther": "Para probar la bandeja, elegí a {name} en el selector de doctor de arriba — es el único con alta en ScriptSure.",
       "rxForbiddenTitle": "No podés prescribir en esta cita",
-      "rxForbiddenDesc": "Prescribir exige ser el doctor de la cita (o un administrador): la receta la firma una persona real, y ver el portal como otro médico no alcanza. Que la mande el doctor de la cita, o entrá con una cuenta de administrador."
+      "rxForbiddenDesc": "Prescribir exige ser el doctor de la cita (o un administrador): la receta la firma una persona real, y ver el portal como otro médico no alcanza. Que la mande el doctor de la cita, o entrá con una cuenta de administrador.",
+      "statusReadyOnline": "Lista · online",
+      "triageOnlineNA": "Sin vitales · visita online",
+      "vitalsSelfReported": "Reportados por el paciente — visita online, no tomados en clínica.",
+      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -3332,7 +3336,8 @@
       "searchShowing": "{shown} de {total}",
       "searchNoMatchTitle": "Nadie con «{q}» en la lista de hoy",
       "searchNoMatchSubtitle": "Puede que su cita sea otro día, o que todavía no esté agendada.",
-      "searchAllPatients": "Buscar en todos los pacientes"
+      "searchAllPatients": "Buscar en todos los pacientes",
+      "vitalsOnlineHint": "Visita online: los signos vitales son opcionales. Si los cargás, van a quedar registrados como reportados por el paciente."
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

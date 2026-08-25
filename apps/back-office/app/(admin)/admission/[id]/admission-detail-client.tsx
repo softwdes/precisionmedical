@@ -480,6 +480,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             checkedInAt={d.checkedInAt}
             doctorDoneAt={d.doctorDoneAt ?? null}
             checkedOutAt={d.checkedOutAt ?? null}
+            isOnline={d.isOnline ?? false}
             providerName={d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : null}
             triage={summaryTriage}
             hasTriage={!!d.triageRecord}
@@ -588,6 +589,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   El formulario NO escucha su prop `initial` a proposito — si lo
                   hiciera, un refresco de fondo le borraria a la MA lo tipeado. */}
               <TriageVitalsForm
+                isOnline={d.isOnline ?? false}
                 key={appointmentId}
                 ref={vitalsRef}
                 appointmentId={appointmentId}

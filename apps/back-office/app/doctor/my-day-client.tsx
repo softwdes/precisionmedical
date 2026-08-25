@@ -129,7 +129,17 @@ export function MyDayClient({
   // el wizard de admisión marca el paso de triaje por status, con o sin vitales.
   // La firma de asistencia (B.14.1) aún no existe en el flujo → solo informativa.
   const heroArrived = !!hero && arrived(hero);
-  const heroReady = !!hero && (hero.status === 'IN_PROGRESS' || (arrived(hero) && hero.hasTriage));
+  /**
+   * El triaje NO bloquea una visita online.
+   *
+   * A un paciente por videollamada nadie le puede tomar la presión, el pulso ni
+   * el peso, así que exigir el triaje era pedirle al asistente algo físicamente
+   * imposible y dejar al doctor esperando un dato que no puede existir. El
+   * check-in SÍ se mantiene: es lo que dice que el paciente está del otro lado.
+   */
+  const heroReady = !!hero && (
+    hero.status === 'IN_PROGRESS' || (arrived(hero) && (hero.hasTriage || hero.isOnline))
+  );
   // La consulta vive DENTRO del portal (antes apuntaba a clinical.lienmaster.net,
   // que no está deployado y devolvía error de DNS).
   const consultHref = (apptId: string): string => `/doctor/consultation/${apptId}`;
@@ -153,9 +163,12 @@ export function MyDayClient({
     if (a.doctorDoneAt) return <TagPill label={t('statusDoctorDone')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />;
     if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet-text border-violet/30" />;
     if (arrived(a)) {
-      return a.hasTriage
-        ? <TagPill label={t('triageDone')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
-        : <TagPill label={t('statusWaiting')} colorClass="bg-amber/15 text-amber border-amber/30" />;
+      if (a.hasTriage) return <TagPill label={t('triageDone')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />;
+      // Sin triaje pero online: no está "esperando triaje", está lista para
+      // atender. Decir lo contrario manda al asistente a buscar un dato que no
+      // se puede tomar por video.
+      if (a.isOnline) return <TagPill label={t('statusReadyOnline')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />;
+      return <TagPill label={t('statusWaiting')} colorClass="bg-amber/15 text-amber border-amber/30" />;
     }
     return <TagPill label={t('statusPending')} colorClass="bg-amber/15 text-amber border-amber/30" />;
   };
@@ -264,7 +277,9 @@ export function MyDayClient({
                 {hero.isOnline && <OnlineBadge />}
               </div>
               <div className="text-[11px] text-text-muted mt-0.5 flex items-center gap-2 flex-wrap">
-                <span className={hero.hasTriage ? 'text-emerald' : ''}>{hero.hasTriage ? t('triageDone') : t('triagePendingShort')}</span>
+                <span className={hero.hasTriage ? 'text-emerald' : hero.isOnline ? 'text-cyan' : ''}>
+                  {hero.hasTriage ? t('triageDone') : hero.isOnline ? t('triageOnlineNA') : t('triagePendingShort')}
+                </span>
                 <span>·</span>
                 <span>{hero.attendanceSignedAt ? t('attendanceSigned') : t('attendancePending')}</span>
                 <span>·</span>

@@ -32,7 +32,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Activity, AlertTriangle, Clock, RefreshCw, Save } from 'lucide-react';
+import { Video, Activity, AlertTriangle, Clock, RefreshCw, Save } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { Section, SectionDivider } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
@@ -343,10 +343,20 @@ export interface TriageVitalsFormProps {
   onChange?: (v: VitalsState) => void;
   /** Tras un guardado confirmado. */
   onSaved?: () => void;
+  /**
+   * La visita es por videollamada.
+   *
+   * No cambia qué campos existen —el paciente puede tener tensiómetro o balanza
+   * en casa— pero sí cambia el contrato: los vitales pasan a ser OPCIONALES y,
+   * si se cargan, son **auto-reportados**. Una presión que dictó el paciente por
+   * teléfono no es clínicamente lo mismo que una tomada en la clínica, y el
+   * registro no debería dar a entender que sí.
+   */
+  isOnline?: boolean;
 }
 
 export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageVitalsFormProps>(
-  function TriageVitalsForm({ appointmentId, initial, correction = null, onChange, onSaved }, ref) {
+  function TriageVitalsForm({ appointmentId, initial, correction = null, onChange, onSaved, isOnline = false }, ref) {
     const t = useTranslations('phoenix.admission');
 
     /**
@@ -508,6 +518,15 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
         collapsible
         storageKey="triage-vitals"
       >
+        {/* Visita online: se dice ANTES de los campos, no después de que alguien
+            los deje vacíos y se pregunte si se olvidó. */}
+        {isOnline && (
+          <div className="mb-3 rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 flex items-start gap-2">
+            <Video className="w-3.5 h-3.5 text-cyan shrink-0 mt-0.5" />
+            <p className="text-[11px] text-text-2">{t('vitalsOnlineHint')}</p>
+          </div>
+        )}
+
         {/* fieldset disabled propaga a TODOS los controles internos, así
             no hay que pasarle un prop a cada uno de los ~30 VInput. Los
             inputs matchean :disabled y toman los estilos disabled: */}

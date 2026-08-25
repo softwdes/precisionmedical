@@ -108,6 +108,15 @@ interface Props {
   balanceDue?: number;
   /** Abre el modal real de "Pago del caso" (variant assistant). */
   onCollect?: () => void;
+  /**
+   * La visita fue por videollamada.
+   *
+   * Cambia lo que el bloque de vitales SIGNIFICA: sin vitales no es un olvido
+   * —nadie puede tomar la presión por video— y con vitales son auto-reportados
+   * por el paciente. Dentro de seis meses, un bloque vacío sin esta explicación
+   * se lee como negligencia.
+   */
+  isOnline?: boolean;
   /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
    *  pantallas que los tienen; el caller ignora los que no aplican. */
   onFix: (tab: 'notes' | 'labs' | 'services' | 'braces' | 'rx') => void;
@@ -217,7 +226,7 @@ function Card({
 export function VisitSummary({
   appointmentId, note, triage, hasTriage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
-  balanceDue, onCollect,
+  balanceDue, onCollect, isOnline = false,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** Etiquetas de cargos, compartidas con el tab y el picker. */
@@ -696,9 +705,20 @@ export function VisitSummary({
             existente pero sin ninguno de los seis se muestra `triageNoVitals`,
             que es la verdad: hay triaje, no hay signos vitales cargados. */}
         {vitalLine
-          ? <div className="text-[12.5px] text-text-2 tabular-nums">{vitalLine}</div>
-          : <div className="text-[12px] text-text-muted">
-              {existeTriaje ? t('triageNoVitals') : t('triageEmptyTitle')}
+          ? (
+            <>
+              <div className="text-[12.5px] text-text-2 tabular-nums">{vitalLine}</div>
+              {/* Con visita online, los vitales solo pueden venir del propio
+                  paciente: decirlo es parte del dato, no una nota al pie. */}
+              {isOnline && (
+                <div className="text-[11px] text-cyan mt-1">{t('vitalsSelfReported')}</div>
+              )}
+            </>
+          )
+          : <div className={`text-[12px] ${isOnline ? 'text-cyan' : 'text-text-muted'}`}>
+              {isOnline
+                ? t('vitalsOnlineNone')
+                : existeTriaje ? t('triageNoVitals') : t('triageEmptyTitle')}
             </div>}
         {triage?.chiefComplaint && (
           <div className="text-[12px] text-text-2 mt-2">

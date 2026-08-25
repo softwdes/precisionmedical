@@ -38,6 +38,11 @@ interface Props {
    * regla que en el calendario y en Day Admission.
    */
   hidePayments?: boolean;
+  /**
+   * Portal legal: el bufete VE las citas de su cliente pero no las agenda ni
+   * las toca. Agendar es de la clínica.
+   */
+  readOnly?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -235,7 +240,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false }: Props) {
+export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false, readOnly = false }: Props) {
   const t  = useTranslations('phoenix.caseTabs.citas');
   const tc = useTranslations('phoenix.common');
   /** El vocabulario de la nota clínica vive en `phoenix.doctor`, no acá. */
@@ -389,10 +394,12 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
           </button>
         </div>
 
-        <Button size="sm" onClick={() => setScheduleOpen(true)} className="shrink-0">
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          <span>{tc('newAppointment')}</span>
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => setScheduleOpen(true)} className="shrink-0">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>{tc('newAppointment')}</span>
+          </Button>
+        )}
 
         <button
           onClick={load} disabled={loading}

@@ -440,8 +440,10 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         action={isAttorney ? undefined : <ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
       />
 
-      {/* Next action banner según status */}
-      <NextActionBanner caseInfo={caseInfo} />
+      {/* Next action banner según status — es una instrucción para el STAFF de
+          la clínica ("agendá la primera cita"), no algo que el bufete pueda
+          hacer. Mostrárselo le pide una acción que no tiene. */}
+      {!isAttorney && <NextActionBanner caseInfo={caseInfo} />}
 
       {/* Tabs */}
       <div className="relative -mb-2">
@@ -607,7 +609,10 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             {/* Legal · Bufete + Firmas */}
-            <InfoCard title={t('sectionLegal')} icon={Scale} onEdit={() => { setFirmQuery(''); setLegalOpen(true); }}>
+            {/* Sin lápiz para el bufete: el portal legal es de LECTURA. Y en
+                particular estos dos: el despacho no se edita a sí mismo ni
+                toca los datos del seguro. */}
+            <InfoCard title={t('sectionLegal')} icon={Scale} onEdit={isReadOnly ? undefined : () => { setFirmQuery(''); setLegalOpen(true); }}>
               {caseInfo.lawFirm ? (
                 <>
                   <div className="flex items-center gap-3 mb-3">
@@ -674,7 +679,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             </InfoCard>
 
             {/* Seguros */}
-            <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={() => { setInsQuery(''); setInsOpen(true); }}>
+            <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={isReadOnly ? undefined : () => { setInsQuery(''); setInsOpen(true); }}>
               {caseInfo.primaryInsurance ? (
                 <div className="space-y-3">
                   <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
@@ -733,7 +738,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             {/* Timeline + Notas */}
             <div className="space-y-4">
               <Timeline caseInfo={caseInfo} auditEvents={auditEvents} />
-              <NotesPanel notes={caseInfo.notes} onAddNote={() => setAddNoteOpen(true)} />
+              {/* Las notas internas son de la CLÍNICA. El bufete las lee —le
+                  sirven para entender el caso— pero no escribe en ellas. */}
+              <NotesPanel notes={caseInfo.notes} onAddNote={isReadOnly ? undefined : () => setAddNoteOpen(true)} />
             </div>
           </div>
 
@@ -748,6 +755,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           patient={{ firstName: caseInfo.patient.firstName, lastName: caseInfo.patient.lastName }}
           specialty={caseInfo.specialty}
           hidePayments={isReadOnly}
+          readOnly={isReadOnly}
         />
       )}
 
@@ -791,7 +799,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       {activeTab === 'documentos' && (
         isAttorney && signatureRequired
           ? <DocumentsLocked onSign={onRequestSign} />
-          : <DocumentsTab caseId={caseInfo.id} />
+          : <DocumentsTab caseId={caseInfo.id} readOnly={isReadOnly} />
       )}
 
       {/* Modals */}
@@ -1390,7 +1398,8 @@ const AUDIT_ACTION_CFG: Record<string, {
 
 function NotesPanel({ notes, onAddNote }: {
   notes: CaseInfo['notes'];
-  onAddNote: () => void;
+  /** Sin handler no se dibuja el botón — el portal legal solo lee las notas. */
+  onAddNote?: () => void;
 }) {
   const t = useTranslations('phoenix.caseDetail');
   return (
@@ -1400,9 +1409,11 @@ function NotesPanel({ notes, onAddNote }: {
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionInternalNotes')}</h3>
         <span className="text-text-muted text-xs font-mono ml-auto">{notes.length}</span>
       </div>
-      <Button onClick={onAddNote} variant="outline" size="sm" className="w-full mb-3">
-        <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> {t('btnAddNote')}
-      </Button>
+      {onAddNote && (
+        <Button onClick={onAddNote} variant="outline" size="sm" className="w-full mb-3">
+          <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> {t('btnAddNote')}
+        </Button>
+      )}
       {notes.length === 0 ? (
         <div className="text-text-muted text-xs italic text-center py-4">{t('notesEmpty')}</div>
       ) : (

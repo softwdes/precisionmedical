@@ -234,7 +234,14 @@ function PreviewModal({ item, onClose, onDownload }: {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export function DocumentsTab({ caseId }: { caseId: string }) {
+export function DocumentsTab({ caseId, readOnly = false }: {
+  caseId: string;
+  /**
+   * Portal legal: el bufete descarga los documentos del caso —para eso firma—
+   * pero no sube ni organiza nada. El expediente lo arma la clínica.
+   */
+  readOnly?: boolean;
+}) {
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
   // `handleDownload` hace su propio fetch porque distingue "S3 sin configurar"
@@ -447,14 +454,19 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
             <Button variant="outline" size="sm" onClick={() => load(currentParentId)} disabled={loading}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
-              <FolderPlus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('btnCreateFolder')}</span>
-            </Button>
-            <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
-              <Upload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('uploadTitle')}</span>
-            </Button>
+            {/* Recargar se queda: es lectura. Crear carpeta y subir, no. */}
+            {!readOnly && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
+                  <FolderPlus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('btnCreateFolder')}</span>
+                </Button>
+                <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('uploadTitle')}</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -550,14 +562,18 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleDelete(item)}
-                        disabled={deleting === item.id}
-                        className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
-                        title={tc('delete')}
-                      >
-                        {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      </button>
+                      {/* Descargar SÍ, borrar NO: el bufete se lleva copia del
+                          expediente, pero no lo modifica. */}
+                      {!readOnly && (
+                        <button
+                          onClick={() => handleDelete(item)}
+                          disabled={deleting === item.id}
+                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
+                          title={tc('delete')}
+                        >
+                          {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

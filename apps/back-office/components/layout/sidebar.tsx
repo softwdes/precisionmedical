@@ -27,7 +27,6 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   labelKey: string;
-  mockup?: string;
   disabled?: boolean;
   /** Solo activo con match exacto (para items "home" como /doctor) */
   exact?: boolean;
@@ -44,17 +43,17 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',  mockup: 'B.29',       moduleKey: 'dashboard' },
-      { href: '/patients',   icon: Users,          labelKey: 'patients',   mockup: 'B.4',        moduleKey: 'patients'  },
-      { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11', moduleKey: 'calendar'  },
-      { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15', moduleKey: 'admission' },
-      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31', moduleKey: 'externals' },
+      { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',       moduleKey: 'dashboard' },
+      { href: '/patients',   icon: Users,          labelKey: 'patients',        moduleKey: 'patients'  },
+      { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar', moduleKey: 'calendar'  },
+      { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission', moduleKey: 'admission' },
+      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers', moduleKey: 'externals' },
       // "Intake (Edson)" se retiró: la vista de tracking de /edson lo reemplaza.
       // Las rutas /intake/* siguen vivas (verify-pip sella `pipVerifiedAt`), pero
       // ya no tienen entrada en el menú. Ver docs/plan-vista-edson.md §6.
-      { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24', moduleKey: 'edson' },
-      { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28', moduleKey: 'billing'   },
-      { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+',      moduleKey: 'settings'  },
+      { href: '/edson',      icon: ClipboardList,  labelKey: 'edson', moduleKey: 'edson' },
+      { href: '/billing',    icon: Briefcase,      labelKey: 'billing', moduleKey: 'billing'   },
+      { href: '/settings',   icon: Settings,       labelKey: 'settings',      moduleKey: 'settings'  },
     ],
   },
 ];
@@ -65,7 +64,7 @@ const SECTIONS: NavSection[] = [
  * capacidad `canViewAsDoctor`, que exige un sí explícito.
  */
 const DOCTOR_PORTAL_ITEM: NavItem = {
-  href: '/doctor', icon: Stethoscope, labelKey: 'doctorPortal', mockup: 'B.17–B.18', exact: true,
+  href: '/doctor', icon: Stethoscope, labelKey: 'doctorPortal', exact: true,
 };
 
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
@@ -73,12 +72,12 @@ const DOCTOR_SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      { href: '/doctor',           icon: Sun,          labelKey: 'myDay',      mockup: 'B.17',   exact: true },
+      { href: '/doctor',           icon: Sun,          labelKey: 'myDay',   exact: true },
       { href: '/doctor/calendar',  icon: CalendarDays, labelKey: 'calendar'                                  },
       { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients'                                },
       { href: '/doctor/prescriptions', icon: Pill,     labelKey: 'prescriptions'                             },
       { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats'                                     },
-      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates',  mockup: 'B.17.7'              },
+      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates'              },
       { href: '/doctor/catalog',   icon: FlaskConical, labelKey: 'catalog'                                   },
     ],
   },
@@ -188,7 +187,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             <div className="flex flex-col min-w-0">
               <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
               <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet-text font-semibold' : 'text-text-muted')}>
-                {isDoctor ? t('doctorPortal') : isAttorney ? t('attorneyPortal') : 'LienMaster v3'}
+                {isDoctor ? t('doctorPortal') : isAttorney ? t('attorneyPortal') : t('clinicPortal')}
               </span>
             </div>
           </Link>
@@ -237,7 +236,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
                   href={item.href}
                   icon={item.icon}
                   label={t(item.labelKey)}
-                  mockup={item.mockup}
                   active={item.exact ? pathname === item.href : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                   disabled={item.disabled}
                   onClick={onMobileClose}
@@ -256,22 +254,32 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
         </div>
       )}
 
-      {/* Footer */}
-      <div className={cn('border-t border-border', compact ? 'px-1.5 py-3' : 'px-5 py-4')}>
-        {!compact ? (
-          <div className="text-text-muted text-[10px] leading-relaxed">
-            <div className="text-text-2 font-semibold mb-1">{t('footerStatus')}</div>
-            <div className="mt-2 text-emerald flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
-              phoenix-dev · local
+      {/*
+        * Footer — SOLO fuera de produccion.
+        *
+        * Tenia dos cosas que no van en una pantalla de produccion: el estado del
+        * proyecto ("Phase 1A · Catalogs in progress") y un `phoenix-dev · local`
+        * ESCRITO A MANO, que por estar fijo decia lo mismo corriendo en prod.
+        *
+        * Lo que si valia la pena se conserva: avisar que NO estas en produccion,
+        * para que nadie edite data creyendo que es de prueba. Pero solo cuando es
+        * cierto — `NODE_ENV` se resuelve en build, asi que en prod el bloque
+        * entero desaparece.
+        */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div className={cn('border-t border-border', compact ? 'px-1.5 py-3' : 'px-5 py-4')}>
+          {!compact ? (
+            <div className="text-amber text-[10px] flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse shrink-0" />
+              {t('devEnvironment')}
             </div>
-          </div>
-        ) : (
-          <div className="flex justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex justify-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" title={t('devEnvironment')} />
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
@@ -280,7 +288,6 @@ interface NavItemLinkProps {
   href: string;
   icon: React.ElementType;
   label: string;
-  mockup?: string;
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -288,7 +295,7 @@ interface NavItemLinkProps {
   accent?: 'brand' | 'violet';
 }
 
-function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClick, collapsed, accent = 'brand' }: NavItemLinkProps): React.ReactElement {
+function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, collapsed, accent = 'brand' }: NavItemLinkProps): React.ReactElement {
   if (disabled) {
     return (
       <li>
@@ -328,11 +335,6 @@ function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClic
         {!collapsed && (
           <>
             <span className="flex-1 truncate">{label}</span>
-            {mockup && !active && (
-              <span className="text-text-muted text-[9px] opacity-0 group-hover:opacity-100 transition-opacity font-mono">
-                {mockup}
-              </span>
-            )}
           </>
         )}
       </Link>

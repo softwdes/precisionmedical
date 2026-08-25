@@ -4,12 +4,12 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { MoreHorizontal, Eye, PenLine, History, FileDown, FileText, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Eye, PenLine, History, FileDown, FileText, FileSignature, Loader2 } from 'lucide-react';
 import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter,
 } from '@precision/ui';
-import { DataTable, EmptyState, TagPill } from '@/components/ui-phoenix';
+import { DataTable, EmptyState, TagPill, IconAction } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { fechaHora } from '@/lib/fechas';
@@ -152,25 +152,10 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
       )}
 
       {dialog === 'warn' && (
-        <Dialog open onOpenChange={() => setDialog(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{t('missingSignatureTitle')}</DialogTitle>
-              <DialogDescription>{t('missingSignatureBody')}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setDialog(null)}>
-                {tc('cancel')}
-              </Button>
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => { setDialog(null); openCase(); }}
-              >
-                {t('continueAnyway')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <MissingSignatureDialog
+          onCancel={() => setDialog(null)}
+          onContinue={() => { setDialog(null); openCase(); }}
+        />
       )}
 
       {dialog === 'sign' && (
@@ -188,6 +173,97 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
         <HistoryDialog caseRow={caseRow} onClose={() => setDialog(null)} />
       )}
     </div>
+  );
+}
+
+/**
+ * Las DOS acciones frecuentes como íconos sueltos — el patrón del panel de v2.
+ *
+ * En la lista completa se usa el menú "..." con las tres opciones; acá, donde
+ * solo caben diez filas y el objetivo es destrabar firmas, las dos que importan
+ * quedan a un clic. Comparten los mismos diálogos que el menú, así que el aviso
+ * de firma faltante y el pad se comportan igual en los dos lados.
+ */
+export function CaseRowIcons({ caseRow, canSign, sessionName, onSigned }: Props): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [dialog, setDialog] = React.useState<'warn' | 'sign' | null>(null);
+
+  const needsSignature = !caseRow.hasSigned && !caseRow.signatureExempt;
+
+  function openCase(): void {
+    router.push(conCasoAbierto(pathname, searchParams, caseRow.id), { scroll: false });
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <IconAction
+        icon={Eye}
+        label={t('actionView')}
+        onClick={() => (needsSignature ? setDialog('warn') : openCase())}
+      />
+      {canSign && (
+        <IconAction
+          icon={FileSignature}
+          label={t('actionSign')}
+          // Firmado y exento no ofrecen el botón: re-firmar existe, pero desde
+          // el menú de la lista. Acá el ícono es para destrabar lo pendiente, y
+          // ofrecerlo en todas las filas diluye justo eso.
+          disabled={!needsSignature}
+          onClick={() => setDialog('sign')}
+        />
+      )}
+
+      {dialog === 'warn' && (
+        <MissingSignatureDialog
+          onCancel={() => setDialog(null)}
+          onContinue={() => { setDialog(null); openCase(); }}
+        />
+      )}
+
+      {dialog === 'sign' && (
+        <SignDialog
+          caseRow={caseRow}
+          defaultName={sessionName}
+          onClose={() => setDialog(null)}
+          onSigned={() => { setDialog(null); onSigned(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * El aviso de "falta la firma". Vive aparte porque lo abren los DOS caminos —el
+ * menú de la lista y los íconos del panel— y son el mismo mensaje: duplicarlo
+ * era garantizar que un día dijeran cosas distintas.
+ */
+function MissingSignatureDialog({
+  onCancel, onContinue,
+}: {
+  onCancel: () => void; onContinue: () => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  const tc = useTranslations('phoenix.common');
+  return (
+    <Dialog open onOpenChange={onCancel}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('missingSignatureTitle')}</DialogTitle>
+          <DialogDescription>{t('missingSignatureBody')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="ghost" className="w-full sm:w-auto" onClick={onCancel}>
+            {tc('cancel')}
+          </Button>
+          <Button className="w-full sm:w-auto" onClick={onContinue}>
+            {t('continueAnyway')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

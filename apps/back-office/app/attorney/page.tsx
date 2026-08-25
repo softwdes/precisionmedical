@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { FileSignature, Activity, CheckCircle2, Users, UserPlus, Briefcase, FileDown, ChevronRight } from 'lucide-react';
+import { FileSignature, Activity, CheckCircle2, Users, UserPlus, Briefcase, FileDown } from 'lucide-react';
 import { db } from '@precision-medical/database';
 import {
   PageHeader, KpiCard, DataTable, TagPill, StatusPill, EmptyState,
 } from '@/components/ui-phoenix';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import {
-  lawyerCaseFilter, lawyerMemberFilter, canSeeMenu,
+  lawyerCaseFilter, lawyerMemberFilter, canSeeMenu, canSignLien,
   ACTIVE_STATUSES, CLOSED_STATUSES,
 } from '@/lib/attorney-portal';
+import { CaseRowIcons } from './cases/case-actions';
 import { fecha } from '@/lib/fechas';
 
 /**
@@ -41,8 +43,11 @@ const STATUS_STATE: Record<string, 'active' | 'info' | 'warning' | 'success' | '
   CLOSED: 'neutral', SETTLED: 'success', ARCHIVED: 'neutral', CANCELLED: 'neutral',
 };
 
-export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
-  const [lawyer, t] = await Promise.all([
+export default async function AttorneyPanelPage({ searchParams }: {
+  searchParams: Promise<{ case?: string; tab?: string }>;
+}): Promise<React.ReactElement> {
+  const [{ case: caseId, tab }, lawyer, t] = await Promise.all([
+    searchParams,
     getSessionLawyer(),
     getTranslations('phoenix.attorney'),
   ]);
@@ -69,7 +74,10 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
-        id: true, caseCode: true, status: true, createdAt: true,
+        id: true, caseCode: true, status: true, createdAt: true, signatureExempt: true,
+        // Solo la del abogado: con cualquier firma, un caso firmado por el
+        // paciente saldría como listo y el ícono de firmar se apagaría.
+        lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
         patient: { select: { firstName: true, lastName: true } },
         attorney:       { select: { firstName: true, lastName: true } },
         paralegal:      { select: { firstName: true, lastName: true } },
@@ -82,6 +90,7 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
     p ? (`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || '—') : '—';
 
   const showUsers = canSeeMenu(lawyer, 'users');
+  const sessionName = `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || (lawyer.firmName ?? '');
 
   const quickActions = [
     { href: '/attorney/cases',      icon: Briefcase, title: t('actionCases'),  subtitle: t('actionCasesSub') },
@@ -172,12 +181,21 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
                         <span className="whitespace-nowrap">{fecha(c.createdAt)}</span>
                       </DataTable.Td>
                       <DataTable.Td align="right" sticky="right">
-                        {/* Abre el caso COMO MODAL sobre la lista de casos, el
-                            mismo camino que el menú "..." — no una pantalla
-                            aparte. Ver `lib/case-modal-url.ts`. */}
-                        <Link href={`/attorney/cases?case=${c.id}`} className="text-text-muted hover:text-brand-text inline-flex">
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        {/* Dos íconos, como el panel de v2: ver y firmar. El
+                            caso abre COMO MODAL acá mismo (`?case=`), sin salir
+                            del Home — ver `lib/case-modal-url.ts`. */}
+                        <CaseRowIcons
+                          caseRow={{
+                            id: c.id,
+                            caseCode: c.caseCode,
+                            hasSigned: c.lienSignatures.length > 0,
+                            signatureExempt: c.signatureExempt,
+                            attorneyName: null,
+                          }}
+                          canSign={canSignLien(lawyer)}
+                          sessionName={sessionName}
+                          onSigned={() => { /* el refresh lo dispara el diálogo */ }}
+                        />
                       </DataTable.Td>
                     </DataTable.Row>
                   ))}
@@ -187,6 +205,10 @@ export default async function AttorneyPanelPage(): Promise<React.ReactElement> {
           </DataTable.Card>
         )}
       </section>
+
+      {/* El caso abre sobre el propio Panel, como en v2: el ojo no te saca de
+          la pantalla en la que estabas mirando los números. */}
+      <CaseUrlModal caseId={caseId} tab={tab} variant="attorney" />
     </div>
   );
 }

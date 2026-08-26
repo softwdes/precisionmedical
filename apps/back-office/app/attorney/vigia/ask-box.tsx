@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Sparkles, Loader2, ArrowRight, Lock } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { AnswerDrawer, type Answer } from './answer-drawer';
 
@@ -36,10 +36,12 @@ const SEGUIMIENTOS: Array<{ tool: string; key: string }> = [
   { tool: 'metricas_del_bufete', key: 'vigiaSuggest1' },
 ];
 
-export function AskBox({ sugerencias, alcance }: {
+export function AskBox({ sugerencias, alcance, configurado }: {
   sugerencias: string[];
   /** Cuántos casos alcanza esta sesión — se muestra al pie de la caja. */
   alcance: number;
+  /** ¿Hay clave del modelo en este entorno? Lo resuelve el servidor. */
+  configurado: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const [texto, setTexto] = React.useState('');
@@ -86,6 +88,55 @@ export function AskBox({ sugerencias, alcance }: {
     .filter((s) => !corridas.has(s.tool))
     .slice(0, 2)
     .map((s) => t(s.key));
+
+  /**
+   * Sin clave, la caja se MUESTRA y se explica — no se esconde.
+   *
+   * Y sobre todo: no se deja preguntar. Antes se podía escribir, esperar la
+   * vuelta y recién ahí enterarse de que no estaba configurado; el aviso llegaba
+   * después del esfuerzo. Las sugerencias quedan a la vista en gris porque
+   * cuentan para qué sirve esto cuando se encienda.
+   */
+  if (!configurado) {
+    return (
+      <>
+        <div className="rounded-lg bg-bg-1 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-brand-text" />
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-brand-text">
+              {t('vigiaAskLabel')}
+            </span>
+          </div>
+
+          <div className="rounded-md bg-bg-2/40 px-4 py-3 text-[15px] text-text-muted">
+            {t('vigiaAskPlaceholder')}
+          </div>
+
+          <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-start gap-2">
+            <Lock className="w-3.5 h-3.5 text-amber mt-0.5 shrink-0" />
+            <div className="text-[11px] leading-relaxed">
+              <span className="text-amber font-semibold">{t('vigiaAskLockedTitle')}.</span>{' '}
+              <span className="text-text-2">{t('vigiaAskLockedBody')}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+              {t('vigiaScope', { n: alcance })}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2 opacity-50">
+          {sugerencias.map((s) => (
+            <span key={s} className="text-[12.5px] text-text-muted bg-bg-1 rounded-full px-3.5 py-1.5">
+              {s}
+            </span>
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

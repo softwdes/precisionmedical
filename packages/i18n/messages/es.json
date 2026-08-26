@@ -1554,7 +1554,7 @@
       "vigiaAskLabel": "Preguntale a Vigía",
       "vigiaAskPlaceholder": "Preguntá lo que quieras sobre tus casos…",
       "vigiaAskLockedTitle": "Todavía no responde",
-      "vigiaAskLockedBody": "Vigía ya sabe de qué tablas sale cada dato, pero no está conectado a ningún modelo. Se enciende cuando esté firmado el acuerdo de confidencialidad médica.",
+      "vigiaAskLockedBody": "Falta la clave del modelo en este entorno. El tablero y la cola funcionan igual; las preguntas se habilitan apenas esté configurada.",
       "vigiaApptsToday": "Citas hoy",
       "vigiaApptsTodaySub": "De tus pacientes",
       "vigiaSoon": "Pendiente",

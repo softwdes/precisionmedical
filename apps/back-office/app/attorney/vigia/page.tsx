@@ -144,6 +144,11 @@ export default async function AttorneyVigiaPage({ searchParams }: {
             y así no hay que llevarle el namespace de traducciones entero. */}
         <AskBox
           alcance={alcance}
+          /* Se decide en el SERVIDOR: si no hay clave, la caja se muestra
+             bloqueada desde el arranque en vez de dejar preguntar al vacío y
+             fallar después del clic. La variable nunca cruza al cliente: viaja
+             el booleano, no el valor. */
+          configurado={!!process.env.OPENAI_API_KEY}
           sugerencias={[
             t('vigiaSuggest1'),
             t('vigiaSuggest2'),

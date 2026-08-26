@@ -1554,7 +1554,7 @@
       "vigiaAskLabel": "Ask Vigía",
       "vigiaAskPlaceholder": "Ask anything about your cases…",
       "vigiaAskLockedTitle": "Not answering yet",
-      "vigiaAskLockedBody": "Vigía already knows which tables every number comes from, but it is not wired to a model yet. It turns on once the medical confidentiality agreement is signed.",
+      "vigiaAskLockedBody": "The model key is missing from this environment. The board and the queue work as usual; questions turn on as soon as it is set.",
       "vigiaApptsToday": "Appointments today",
       "vigiaApptsTodaySub": "For your clients",
       "vigiaSoon": "Pending",

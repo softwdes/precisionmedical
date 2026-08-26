@@ -105,6 +105,7 @@ function systemPrompt(lawyer: SessionLawyer, locale: string): string {
     '',
     'REGLAS QUE NO SE ROMPEN:',
     '- Solo usás cifras que devolvieron las herramientas. Si no llamaste a una herramienta, no tenés el dato: decilo.',
+    '- Si para responder necesitás VARIAS herramientas, pedilas TODAS JUNTAS en la misma respuesta. Pedir una, esperar, y después pedir la otra duplica lo que tarda: cada vuelta es un viaje entero. Solo encadená cuando el argumento de la segunda dependa del resultado de la primera.',
     '- Nunca inventes ni estimes un número, una fecha ni un código de caso.',
     '- Te referís a los casos por su CÓDIGO (por ejemplo MVA-2435). Si te nombran a una PERSONA, usá buscar_paciente: es la única herramienta que trabaja con nombres.',
     '- Cuando la búsqueda por nombre traiga varios pacientes, nombralos con su caso al lado para que se distingan. Si trae uno solo, hablá de su caso directamente.',
@@ -225,21 +226,37 @@ export async function preguntarAVigia(
 
     messages.push(msg);
 
-    for (const call of msg.tool_calls) {
-      // El SDK admite otros tipos de llamada; solo ejecutamos funciones.
-      if (call.type !== 'function') continue;
+    /**
+     * Las herramientas de una misma vuelta corren EN PARALELO.
+     *
+     * Antes se hacía `await` una por una: si el modelo pedía dos —resumen del
+     * caso y su facturación, que es lo normal cuando preguntan "cuánto debe"—
+     * la segunda esperaba a que terminara la primera sin necesitarla. Con dos
+     * consultas de ~1 s eso es un segundo entero de regalo en cada pregunta.
+     *
+     * El orden de los resultados NO importa para el modelo, pero sí que cada
+     * `tool_result` lleve su `tool_call_id`: se responde a la llamada, no a la
+     * posición.
+     */
+    const llamadas = msg.tool_calls.filter((c) => c.type === 'function');
 
+    const resultados = await Promise.all(llamadas.map(async (call) => {
       let args: Record<string, unknown> = {};
       try {
         args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
       } catch {
         // Argumentos rotos: se le devuelve el error al modelo en vez de tirar la
         // request. Suele corregirse solo en la vuelta siguiente.
+        return { call, args, result: null };
+      }
+      return { call, args, result: await ejecutarHerramienta(lawyer, call.function.name, args) };
+    }));
+
+    for (const { call, args, result } of resultados) {
+      if (!result) {
         messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: 'ARGUMENTOS_INVALIDOS' }) });
         continue;
       }
-
-      const result = await ejecutarHerramienta(lawyer, call.function.name, args);
 
       toolsUsadas.add(call.function.name);
       result.sources.forEach((s) => sources.add(s));

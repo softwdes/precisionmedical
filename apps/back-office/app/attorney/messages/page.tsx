@@ -3,7 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/ui-phoenix';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
-import { canSeeVigia } from '@/lib/attorney-portal';
+import { canSeeMessages } from '@/lib/attorney-portal';
 import { AttorneyInbox } from './inbox-client';
 
 /**
@@ -23,7 +23,7 @@ export default async function AttorneyMessagesPage(): Promise<React.ReactElement
   if (!lawyer) return <></>;
 
   const isAdminViewer = user?.email ? await canViewAsLawyer(user.email) : false;
-  if (!canSeeVigia(lawyer, isAdminViewer)) redirect('/attorney');
+  if (!canSeeMessages(lawyer, isAdminViewer)) redirect('/attorney');
 
   return (
     <div className="space-y-6">

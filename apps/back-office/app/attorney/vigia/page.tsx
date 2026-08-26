@@ -6,7 +6,7 @@ import { PageHeader, KpiCard, TagPill } from '@/components/ui-phoenix';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
-import { lawyerCaseFilter, canSeeVigia, ACTIVE_STATUSES } from '@/lib/attorney-portal';
+import { lawyerCaseFilter, canSeeVigia, VIGIA_EN_CONSTRUCCION, ACTIVE_STATUSES } from '@/lib/attorney-portal';
 import { ZONA_CLINICA } from '@/lib/fechas';
 import { colaDeAtencion } from '@/lib/vigia/queue';
 import { AskBox } from './ask-box';
@@ -126,7 +126,10 @@ export default async function AttorneyVigiaPage({ searchParams }: {
       <PageHeader
         title={t('vigiaTitle')}
         subtitle={t('vigiaSubtitle', { firm: lawyer.firmName ?? '—' })}
-        action={<TagPill label={t('vigiaBuilding')} colorClass="bg-amber/15 text-amber border-amber/30" />}
+        // El sello sigue a la bandera: si mañana se apaga Vigía, vuelve solo.
+        action={VIGIA_EN_CONSTRUCCION
+          ? <TagPill label={t('vigiaBuilding')} colorClass="bg-amber/15 text-amber border-amber/30" />
+          : undefined}
       />
 
       {/* El saludo y la conversación viven en una COLUMNA ANGOSTA y centrada.

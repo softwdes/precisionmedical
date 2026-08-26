@@ -27,31 +27,41 @@ export const ATTORNEY_MENU_HOME: Record<AttorneyMenu, string> = {
 };
 
 /**
- * Vigía todavía NO se le muestra al bufete.
+ * Vigía ya se le muestra al bufete (Erick, 2026-08-26).
  *
- * El portal está en producción y esta pantalla se está construyendo: mostrarle
- * a Garcia Law un tablero a medio hacer es peor que no mostrarle nada. Mientras
- * esto sea `true` solo la ven los admins, que entran con "ver como bufete" —
- * exactamente el mismo camino por el que se prueban las demás pantallas.
- *
- * Cuando el board esté terminado se pone en `false` y aparece para todos. Es la
- * única línea que hay que tocar: el menú, la ruta y la página ya preguntan por
- * esto (`canSeeVigia`), así que no se puede encender a medias.
+ * Se deja la bandera porque apagarlo tiene que seguir siendo una línea: si algo
+ * sale mal en producción, esto vuelve a `true` y el menú desaparece sin tocar
+ * rutas ni páginas.
  */
-export const VIGIA_EN_CONSTRUCCION = true;
+export const VIGIA_EN_CONSTRUCCION = false;
+
+/**
+ * Mensajes va aparte, y todavía NO.
+ *
+ * Estuvo atado a la misma bandera hasta que se encendió Vigía, y ahí quedó claro
+ * que son dos decisiones: el agente está listo para el bufete y la bandeja no —
+ * cobranza todavía no le escribió a nadie, así que un abogado entraría a una
+ * pantalla vacía sin saber para qué es.
+ *
+ * Se enciende cuando cobranza empiece a escribir.
+ */
+export const MENSAJES_EN_CONSTRUCCION = true;
 
 /**
  * ¿Ve esta persona el menú de Vigía?
  *
  * Va aparte de `canSeeMenu()` porque la pregunta tiene un segundo factor que no
- * sale de la ficha del abogado: si quien mira es un admin de la clínica. Sin
- * ese dato el layout tendría que repetir la condición a mano en cada lugar, y
- * el día que se encienda habría que acordarse de todos.
+ * sale de la ficha del abogado: si quien mira es un admin de la clínica.
  */
 export function canSeeVigia(lawyer: SessionLawyer, isAdminViewer: boolean): boolean {
-  // Vale para Vigía y para Mensajes: son la ida y la vuelta del mismo pedido.
   if (!canSeeMenu(lawyer, 'vigia')) return false;
   return VIGIA_EN_CONSTRUCCION ? isAdminViewer : true;
+}
+
+/** Lo mismo para la bandeja, con su propia bandera. */
+export function canSeeMessages(lawyer: SessionLawyer, isAdminViewer: boolean): boolean {
+  if (!canSeeMenu(lawyer, 'messages')) return false;
+  return MENSAJES_EN_CONSTRUCCION ? isAdminViewer : true;
 }
 
 /**

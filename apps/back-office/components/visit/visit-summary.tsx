@@ -115,6 +115,14 @@ interface Props {
    * —nadie puede tomar la presión por video— y con vitales son auto-reportados
    * por el paciente. Dentro de seis meses, un bloque vacío sin esta explicación
    * se lee como negligencia.
+   *
+   * También habilita que el DOCTOR cierre la cita. En una presencial cierra el
+   * asistente: el paciente camina hasta el mostrador y ese es el disparador. En
+   * una online el paciente cuelga y del lado de la clínica no pasa nada — el
+   * doctor es el único que sabe que la llamada terminó, y su tarjeta de "terminé"
+   * decía "se lo entrego al asistente" sin que hubiera a quién entregárselo.
+   * El camino del asistente NO cambia: sigue cerrándola desde Day Admission
+   * cuando el doctor se olvida, como funcionó siempre (Erick, 25-ago-2026).
    */
   isOnline?: boolean;
   /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
@@ -537,20 +545,39 @@ export function VisitSummary({
         <div className="rounded-lg border border-emerald/30 bg-emerald/[0.07] p-4 flex items-start gap-3 flex-wrap">
           <CheckCircle2 className="w-5 h-5 text-emerald shrink-0 mt-0.5" />
           <div className="flex-1 min-w-[200px]">
-            <div className="text-emerald font-semibold text-sm">{t('sumDoneTitle')}</div>
+            <div className="text-emerald font-semibold text-sm">
+              {isCompleted ? t('sumApptClosedTitle') : t('sumDoneTitle')}
+            </div>
             <div className="text-text-2 text-[12px] mt-0.5">
-              {t('sumDoneAt', { time: fmtTime(doneAt) })} · {t('sumDoneHandoff')}
+              {/* En una online no hay a quién entregarle el paciente: en vez de
+                  "se lo entrego al asistente", se le dice que cierre él. */}
+              {t('sumDoneAt', { time: fmtTime(doneAt) })} · {
+                isCompleted ? t('sumApptClosedHint')
+                : isOnline  ? t('sumDoneOnlineHint')
+                : t('sumDoneHandoff')
+              }
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleReopen()}
-            disabled={saving}
-            className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-            {t('sumReopen')}
-          </button>
+          {/* Cerrar la cita, SOLO en online y solo si no está cerrada ya. El
+              asistente conserva su camino en Day Admission para cuando el doctor
+              se olvida. */}
+          {isOnline && !isCompleted && (
+            <Button onClick={() => void handleCheckout()} disabled={saving} className="h-9 gap-1.5 shrink-0">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+              {t('sumApptCheckout')}
+            </Button>
+          )}
+          {!isCompleted && (
+            <button
+              type="button"
+              onClick={() => void handleReopen()}
+              disabled={saving}
+              className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              {t('sumReopen')}
+            </button>
+          )}
         </div>
       ) : (
         <div className={`rounded-lg border p-4 ${warnings.length === 0 ? 'border-violet/30 bg-violet/[0.06]' : 'border-amber/30 bg-amber/[0.07]'}`}>

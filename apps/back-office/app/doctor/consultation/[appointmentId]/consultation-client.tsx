@@ -536,6 +536,9 @@ export function ConsultationClient({
       {view === 4 && (
         <VisitSummary
           isOnline={a.isOnline}
+          // Solo lo mira el cierre de una visita ONLINE: sin el estado no se
+          // puede distinguir "terminé" de "cita cerrada".
+          appointmentStatus={a.status}
           appointmentId={a.id}
           note={note}
           triage={a.triage}

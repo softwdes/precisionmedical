@@ -2158,6 +2158,7 @@
       "sumDoneTitle": "You're done with this patient",
       "sumDoneAt": "You closed your part at {time}",
       "sumDoneHandoff": "the assistant collects payment and closes the appointment",
+      "sumDoneOnlineHint": "Close the appointment so it leaves the schedule",
       "sumReopen": "Reopen",
       "sumArrived": "Arrived at",
       "sumVisitLeftOpen": "Left open since {date}",

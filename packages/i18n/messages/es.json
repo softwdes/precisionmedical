@@ -2158,6 +2158,7 @@
       "sumDoneTitle": "Terminaste con este paciente",
       "sumDoneAt": "Cerraste tu parte a las {time}",
       "sumDoneHandoff": "el asistente cobra y cierra la cita",
+      "sumDoneOnlineHint": "Cerrá la cita para que salga de la agenda",
       "sumReopen": "Volver a abrir",
       "sumArrived": "Llegó a las",
       "sumVisitLeftOpen": "Sin cerrar desde el {date}",

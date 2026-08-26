@@ -3741,6 +3741,8 @@
       "legendCancelledSameDay": "Cancelled same day",
       "confirmCancelSameDay": "Cancel same day (penalty applies)",
       "legendNoShow": "No show",
+      "legendOnline": "Online",
+      "statOnline": "online",
       "statusCheckedIn": "Checked in",
       "statusCancelled": "Cancelled",
       "rowRegisteredBy": "Registered by:",

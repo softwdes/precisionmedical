@@ -3741,6 +3741,8 @@
       "legendCancelledSameDay": "Cancelada mismo día",
       "confirmCancelSameDay": "Cancelar mismo día (cobra penalidad)",
       "legendNoShow": "No vino",
+      "legendOnline": "En línea",
+      "statOnline": "en línea",
       "statusCheckedIn": "Registrado",
       "statusCancelled": "Cancelada",
       "rowRegisteredBy": "Registrado por:",

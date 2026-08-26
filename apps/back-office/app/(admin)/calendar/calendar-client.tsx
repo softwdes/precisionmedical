@@ -22,7 +22,7 @@ import { APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -323,9 +323,42 @@ function apptTimeShort(iso: string): string {
  * del calendario y se lee bien; en CLARO todas caen a texto oscuro, porque el
  * fondo ya es un tinte de ese color sobre blanco.
  */
-function getEventStyle(appt: CalendarAppointment): {
+type EventStyle = {
   bg: string; border: string; text: string; glow?: string; badge?: string; strike?: boolean;
-} {
+  /** Canto izquierdo de modalidad. Ver `getEventStyle`. */
+  edge?: string;
+};
+
+/** Cyan: es el token de telemedicina en toda la app (el toggle del diálogo de
+ *  cita, el bloque de vitales del Resumen). No es un color nuevo. */
+const ONLINE_EDGE = 'rgba(6,182,212,0.95)';
+
+/**
+ * El estilo de la tarjeta + el canto de modalidad.
+ *
+ * "En línea" es ORTOGONAL a los dos ejes de color de `baseEventStyle` (estado y
+ * tipo), así que no puede pintar el relleno: una MVA online pintada de cyan deja
+ * de leerse como MVA y se pierde más de lo que se gana. Va en otro canal —el
+ * borde izquierdo— y así convive con los ocho colores de la leyenda.
+ *
+ * Es la única señal que sobrevive a la vista MES, donde la tarjeta es una línea
+ * de 9,5px truncada y no cabe ningún icono.
+ */
+function getEventStyle(appt: CalendarAppointment): EventStyle {
+  const base = baseEventStyle(appt);
+  return appt.isOnline ? { ...base, edge: ONLINE_EDGE } : base;
+}
+
+/**
+ * Aplica el canto. Se esparce DESPUÉS de `border` en el objeto de estilo: React
+ * escribe las propiedades en orden, así que `borderLeft*` pisa al `border`
+ * abreviado. Al revés no tiene efecto.
+ */
+function edgeStyle(s: EventStyle): React.CSSProperties | undefined {
+  return s.edge ? { borderLeftWidth: 3, borderLeftStyle: 'solid', borderLeftColor: s.edge } : undefined;
+}
+
+function baseEventStyle(appt: CalendarAppointment): EventStyle {
   const isFirst = appt.visitNumber === 0;
   const isCompleted = appt.status === 'COMPLETED';
   const isPending = appt.status === 'PENDING' || appt.status === 'SCHEDULED';
@@ -517,6 +550,10 @@ function LegendStats({
   const mismoDia   = appointments.filter(a => a.status === 'CANCELLED' && a.cancelledSameDay).length;
   const noShow     = appointments.filter(a => a.status === 'NO_SHOW').length;
   const vivas      = appointments.length - canceladas - mismoDia - noShow;
+  // Solo las vivas, igual que el total: una online cancelada no es una consulta
+  // por video que vaya a pasar.
+  const enLinea    = appointments.filter(a =>
+    a.isOnline && a.status !== 'CANCELLED' && a.status !== 'NO_SHOW').length;
 
   /**
    * Desglose por clínica — SOLO cuando se están viendo todas.
@@ -562,11 +599,26 @@ function LegendStats({
             <span className="text-[12px] text-text-2 font-medium" style={{ textDecoration: item.strike ? 'line-through' : undefined }}>{item.label}</span>
           </div>
         ))}
+        {/* En línea va SEPARADO de los nueve colores: no es otra categoría, es un
+            modificador que se cruza con todas (una MVA puede ser online). Por eso
+            la muestra no es un color de relleno sino las dos señales reales — el
+            canto cyan y el icono. */}
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-2 rounded-sm shrink-0 bg-bg-2"
+            style={{ borderLeft: `3px solid ${ONLINE_EDGE}` }} />
+          <Video className="w-3 h-3 text-cyan shrink-0" />
+          <span className="text-[12px] text-text-2 font-medium">{t('legendOnline')}</span>
+        </div>
       </div>
       <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0 flex-wrap justify-end">
         <span><span className="text-text-1 font-bold">{vivas}</span> {t('statAppointments')}</span>
         {firstVisitCount > 0 && <span className="text-rose font-bold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
         {pendingConfirm  > 0 && <span className="text-amber font-bold">{pendingConfirm} {t('statUnconfirmed')}</span>}
+        {enLinea > 0 && (
+          <span className="text-cyan font-bold flex items-center gap-1">
+            <Video className="w-3 h-3" />{enLinea} {t('statOnline')}
+          </span>
+        )}
         {/* Tachadas, igual que en la leyenda y en la tarjeta: es la señal que las
             distingue de un vistazo. */}
         {canceladas > 0 && (
@@ -1370,10 +1422,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                     className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
-                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined }}>
+                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-xs font-bold" style={{ color: s.text }}>{timeRange}</span>
-                      {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {appt.isOnline && <Video className="w-3.5 h-3.5 text-cyan" aria-label={t('legendOnline')} />}
+                        {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
+                      </span>
                     </div>
                     <div className="text-sm font-semibold" style={{ color: s.text }}>{appt.patient.firstName} {appt.patient.lastName}</div>
                     {(drName || appt.clinic.name) && (
@@ -1460,12 +1515,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                                 onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                                 onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                                 className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-1.5 py-[2px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined }}>
+                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                                 <div className="flex items-baseline gap-1 leading-tight">
                                   <span className="text-[10px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                                     {appt.patient.firstName} {appt.patient.lastName}
                                   </span>
-                                  {appt.isOnline && <span className="text-[8px] opacity-80 shrink-0">📹</span>}
+                                  {appt.isOnline && (
+                                    <Video className="w-3 h-3 shrink-0 text-cyan" aria-label={t('legendOnline')} />
+                                  )}
                                   {s.badge && <span className="text-[11px] leading-none shrink-0">{s.badge}</span>}
                                   <span className="text-[8.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{apptTimeShort(appt.scheduledFor)}</span>
                                 </div>
@@ -1571,6 +1628,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           borderColor: s.border,
                           background: 'repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 6px,transparent 6px 12px)',
                           textDecoration: s.strike ? 'line-through' : undefined,
+                          ...edgeStyle(s),
                         }}>
                         <span className="text-[9.5px] truncate" style={{ color: s.text, opacity: 0.7 }}>
                           ↳ {t('slotContinues', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
@@ -1602,12 +1660,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                         onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                         className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined }}>
+                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                         <div className="flex items-baseline gap-1 leading-tight">
                           <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                             {appt.patient.firstName} {appt.patient.lastName}
                           </span>
-                          {appt.isOnline && <span className="text-[10px] opacity-80 shrink-0">📹</span>}
+                          {appt.isOnline && (
+                            <Video className="w-3.5 h-3.5 shrink-0 text-cyan" aria-label={t('legendOnline')} />
+                          )}
                           {s.badge && <span className="text-[13px] leading-none shrink-0">{s.badge}</span>}
                           <span className="text-[9.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{timeRange}</span>
                         </div>
@@ -1721,7 +1781,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             return (
                               <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                                 className="w-full text-left text-[9.5px] px-1.5 py-[2px] rounded mb-[2px] truncate font-semibold transition-all hover:brightness-110"
-                                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined }}>
+                                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                                 {s.badge && <span className="mr-0.5">{s.badge}</span>}
                                 {appt.patient.firstName} {appt.patient.lastName[0]}.
                               </button>

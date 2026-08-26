@@ -83,14 +83,19 @@ export default async function AttorneyAppointmentsPage({ searchParams }: {
       },
     }),
     /**
-     * Sin dirección no es una sede a la que el bufete pueda mandar a su
-     * cliente: "Murray - Surgery" no tiene ni dirección ni foto y solo ensucia
-     * el selector. Mismo criterio —por DATO, no por nombre— que la tarjeta de
-     * oficina de la barra lateral: si algún día se le carga la dirección,
-     * aparece sola.
+     * MISMA regla que la tarjeta de oficina de la barra lateral: una sede del
+     * portal legal es la que tiene dirección Y foto. Una sola definición para
+     * todo el portal, porque si el selector y la tarjeta discrepan, el bufete ve
+     * una clínica en un lado y no en el otro.
+     *
+     * Deja fuera a "Murray - Surgery" (sin dirección ni foto) y a "Salt Lake
+     * Central Care", que no tiene foto ni una sola cita en toda la base: filtrar
+     * por ella siempre daba una lista vacía.
+     *
+     * Por DATO, no por nombre: cargarles los campos las devuelve solas.
      */
     db.clinic.findMany({
-      where: { address: { not: null } },
+      where: { address: { not: null }, photos: { isEmpty: false } },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),

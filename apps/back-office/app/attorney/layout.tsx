@@ -164,9 +164,8 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
     appointments: menus.includes('appointments'),
   };
 
-  // Tarjeta de oficina (F7). Las 5 clínicas que v2 muestra en el portal legal ya
-  // tienen foto, horarios y web; "Murray - Surgery" no aparece en v2 y quedó sin
-  // cargar a propósito — la tarjeta esconde los bloques vacíos.
+  // Tarjeta de oficina (F7). Son las 5 sedes que v2 muestra en el portal legal:
+  // las que tienen foto, horarios y web cargados.
   const clinicRows = await db.clinic.findMany({
     orderBy: { name: 'asc' },
     select: {
@@ -176,12 +175,19 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
   });
 
   const clinics: OfficeClinic[] = clinicRows
-    // Sin dirección no hay nada que mostrar: la tarjeta existe para decirle al
-    // bufete DÓNDE atienden a su cliente. "Murray - Surgery" no tiene dirección
-    // ni foto y ocupaba un lugar del carrusel con una tarjeta vacía — v2 tampoco
-    // la muestra. El filtro es por dato y no por nombre: si algún día se le
-    // carga la dirección, aparece sola.
-    .filter((c) => !!c.address)
+    // La tarjeta es un CARRUSEL DE FOTOS que le dice al bufete a dónde va su
+    // cliente: sin foto no muestra nada y sin dirección no dice dónde. Las dos
+    // hacen falta para que la tarjeta signifique algo.
+    //
+    // Esto saca a "Murray - Surgery" (sin dirección ni foto) y a "Salt Lake
+    // Central Care", que tiene dirección pero ninguna foto y aparecía como una
+    // tarjeta en blanco — reporte de Erick. Ninguna de las dos está en v2, y
+    // "Salt Lake Central Care" no tiene una sola cita en toda la base: no es una
+    // sede a la que se mande un paciente.
+    //
+    // El filtro es por DATO, no por nombre: el día que se le cargue foto y
+    // dirección, aparece sola.
+    .filter((c) => !!c.address && c.photos.length > 0)
     .map((c) => ({
     id: c.id,
     name: c.name,

@@ -40,8 +40,13 @@ export function mapTwilioStatus(raw: string | null | undefined): 'QUEUED' | 'SEN
     case 'sending':                          return 'SENT';
     case 'queued':
     case 'accepted':
-    case 'scheduled':
-    default:                                 return 'QUEUED';
+    case 'scheduled':                        return 'QUEUED';
+    default:
+      // Un estado que no conocemos NO se hace pasar por "en cola": eso deja la
+      // fila en un pendiente eterno que nadie va a revisar. Se avisa fuerte y
+      // se asume lo pesimista — el webhook ademas lo corrige si hay ErrorCode.
+      console.warn('[sms] estado de Twilio desconocido: %s', raw);
+      return 'QUEUED';
   }
 }
 

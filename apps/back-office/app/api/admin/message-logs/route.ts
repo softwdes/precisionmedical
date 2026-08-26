@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { db, type Prisma } from '@precision-medical/database';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { getSessionUser } from '@/lib/session';
+import { resolveActor } from '@/lib/actor';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { phoneKey } from '@/lib/phone';
 import { findPatientsByPhoneKeys } from '@/lib/patient-phone-lookup';
@@ -37,6 +38,18 @@ const QuerySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+  // ⚠️ El id que hay que comparar es el de `resolveActor`, NO `user.id`.
+  //
+  // `getSessionUser()` devuelve el UUID de Supabase Auth; `sentByUserId` se
+  // escribe con `resolveActor()`, que devuelve el cuid de la tabla users. Son
+  // dos identificadores distintos de la misma persona y nunca coinciden: por
+  // eso "Mis SMS" mostraba cero con mensajes ya entregados en la tabla.
+  //
+  // Es la misma trampa que ya se habia pisado con CallLog.agentUserId. Se usa
+  // el MISMO resolvedor que escribe, para que no puedan volver a divergir.
+  const actor = await resolveActor(req.headers);
+  const myUserId = actor.actorUserId;
 
   let query: z.infer<typeof QuerySchema>;
   try {
@@ -64,7 +77,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const where: Prisma.MessageLogWhereInput = {
     channel: 'SMS',
-    ...(query.scope === 'mine' ? { sentByUserId: user.id } : {}),
+    ...(query.scope === 'mine' && myUserId ? { sentByUserId: myUserId } : {}),
     ...statusWhere,
     ...(query.from || query.to ? { createdAt } : {}),
   };
@@ -86,7 +99,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     }),
     db.messageLog.count({ where }),
-    db.messageLog.count({ where: { channel: 'SMS', sentByUserId: user.id } }),
+    db.messageLog.count({ where: { channel: 'SMS', ...(myUserId ? { sentByUserId: myUserId } : { id: '' }) } }),
     db.messageLog.count({ where: { channel: 'SMS' } }),
     db.messageLog.count({ where: { channel: 'SMS', status: { in: [...NOT_DELIVERED] } } }),
   ]);
@@ -106,13 +119,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const admin = createAdminClient();
     await Promise.all(unresolved.map(async (id) => {
       try {
-        const { data: authUser } = await admin.auth.admin.getUserById(id);
-        const email = authUser?.user?.email;
-        if (!email) return;
+        // Por `id` y no por Auth: `sentByUserId` es el cuid de la tabla users.
         const { data: profile } = await admin
-          .from('users').select('firstName, lastName').eq('email', email).single();
-        const name = profile ? `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() : '';
-        nameByUserId.set(id, name || email.split('@')[0]!);
+          .from('users').select('firstName, lastName, email').eq('id', id).single();
+        if (!profile) return;
+        const name = `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim();
+        nameByUserId.set(id, name || (profile.email as string | null)?.split('@')[0] || id);
       } catch { /* la UI muestra "—" */ }
     }));
   }
@@ -141,7 +153,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       patientMatchCount: matched?.length ?? 0,
       case: r.case ? { id: r.case.id, caseCode: r.case.caseCode } : null,
       sentByName: r.sentByName ?? (r.sentByUserId ? nameByUserId.get(r.sentByUserId) ?? null : null),
-      sentByMe: r.sentByUserId === user.id,
+      sentByMe: !!myUserId && r.sentByUserId === myUserId,
     };
   });
 

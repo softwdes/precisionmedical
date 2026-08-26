@@ -49,8 +49,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const status = form.get('MessageStatus') ?? form.get('SmsStatus');
     if (!sid) return ok();
 
-    const mapped  = mapTwilioStatus(status);
     const errCode = form.get('ErrorCode');
+    let   mapped  = mapTwilioStatus(status);
+
+    // Un mensaje con ErrorCode no esta "en cola" ni "enviado": Twilio ya sabe
+    // que no llego. Paso de verdad — quedo una fila QUEUED con error 30005
+    // (numero inexistente) que en la UI se leia como "todavia esperando".
+    // Un pendiente eterno es peor que un fallo: nadie lo revisa.
+    if (errCode && (mapped === 'QUEUED' || mapped === 'SENT')) {
+      console.warn('[twilio/sms-status] %s traia ErrorCode %s con estado "%s": se marca UNDELIVERED',
+        sid, errCode, status);
+      mapped = 'UNDELIVERED';
+    }
 
     // `updateMany` y no `update`: un SID que no conocemos no es un error. Pasa
     // si el proceso murió entre que Twilio aceptó el mensaje y lo registramos.

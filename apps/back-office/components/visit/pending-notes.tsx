@@ -23,7 +23,7 @@
  */
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from '@precision/ui';
 import {
@@ -51,6 +51,18 @@ interface Props {
   canClose?: boolean;
   /** A dónde llevar al abrir la visita. Cada portal tiene su ruta. */
   hrefFor: (appointmentId: string) => string;
+  /**
+   * Nombre del parámetro de URL que reabre la cola al volver de la visita.
+   *
+   * Sin esto, "Abrir" perdía el lugar: la nota se escribe en la página completa
+   * —que es donde tiene que escribirse, con el panel del paciente y sus labs al
+   * lado— pero el "volver" caía en el portal con la cola cerrada. Con 20
+   * pendientes eran 20 idas y vueltas reabriendo la lista a mano.
+   *
+   * El parámetro se BORRA de la URL en cuanto la cola se abre: si quedara, un
+   * refresh o el botón de atrás la volverían a abrir sin que nadie la pidiera.
+   */
+  reopenParam?: string;
 }
 
 /** Antigüedad → color. Lo que importa no es que haya 40, es que haya una de hace meses. */
@@ -60,12 +72,16 @@ function ageTone(days: number): string {
   return 'bg-white/5 text-text-muted border-border';
 }
 
-export function PendingNotes({ scope, canClose = false, hrefFor }: Props): React.ReactElement | null {
+export function PendingNotes({ scope, canClose = false, hrefFor, reopenParam }: Props): React.ReactElement | null {
   const t = useTranslations('phoenix.pendingNotes');
   const [rows, setRows] = React.useState<PendingNoteRow[]>([]);
   const [total, setTotal] = React.useState(0);
   const [oldestDays, setOldestDays] = React.useState(0);
-  const [open, setOpen] = React.useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const volviendo = !!reopenParam && params.get(reopenParam) === '1';
+  const [open, setOpen] = React.useState(volviendo);
   const [loaded, setLoaded] = React.useState(false);
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -82,6 +98,16 @@ export function PendingNotes({ scope, canClose = false, hrefFor }: Props): React
   }, [scope]);
 
   React.useEffect(() => { void load(); }, [load]);
+
+  // Se limpia el parámetro, no la cola: la lista queda abierta y la URL vuelve a
+  // ser la del portal.
+  React.useEffect(() => {
+    if (!volviendo) return;
+    const q = new URLSearchParams(params.toString());
+    q.delete(reopenParam as string);
+    const s = q.toString();
+    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+  }, [volviendo, reopenParam, params, pathname, router]);
 
   // Nada pendiente: no se dibuja nada. Un bloque verde de "todo en orden" es ruido
   // en una pantalla que ya está llena.

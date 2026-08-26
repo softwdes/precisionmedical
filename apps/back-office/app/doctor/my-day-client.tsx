@@ -409,7 +409,10 @@ export function MyDayClient({
       <PendingNotes
         scope="mine"
         canClose
-        hrefFor={(id) => `/doctor/consultation/${id}`}
+        // `?desde=notas` en la ida es lo que hace que el "volver" de la consulta
+        // traiga la cola abierta, para seguir cerrando la siguiente.
+        hrefFor={(id) => `/doctor/consultation/${id}?desde=notas`}
+        reopenParam="notas"
       />
 
       {/* Acceso rápido al calendario */}

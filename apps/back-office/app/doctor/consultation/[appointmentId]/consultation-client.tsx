@@ -12,7 +12,7 @@ import { localeApp, edad } from '@/lib/fechas';
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, Check, ClipboardList, FlaskConical, FileText, Pill, Briefcase, Bandage,
@@ -146,6 +146,12 @@ export function ConsultationClient({
   /** El vocabulario del triaje vive en `phoenix.admission` — una sola copia. */
   const ta = useTranslations('phoenix.admission');
   const router = useRouter();
+  /**
+   * Se llegó desde la cola de notas sin cerrar de Mi Día. El "volver" tiene que
+   * devolver la cola ABIERTA para seguir con la siguiente; sin esto la nota se
+   * firmaba y había que reabrir la lista a mano, una vez por nota.
+   */
+  const desdeNotas = useSearchParams().get('desde') === 'notas';
 
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
@@ -218,7 +224,7 @@ export function ConsultationClient({
           </div>
         </div>
         <Link
-          href="/doctor"
+          href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
           className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5 shrink-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

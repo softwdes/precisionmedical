@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles, Loader2, ArrowRight, Lock } from 'lucide-react';
 import { Button } from '@precision/ui';
-import { AnswerDrawer, type Answer } from './answer-drawer';
+import { AnswerDrawer, type Answer, type Step } from './answer-drawer';
 import { CaseListDialog, type ListKind } from './case-list-dialog';
 
 /**
@@ -51,6 +51,9 @@ export function AskBox({ sugerencias, alcance, configurado }: {
   const [cargando, setCargando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [res, setRes] = React.useState<Answer | null>(null);
+  /** La respuesta a medio escribir y los pasos que ya terminaron. */
+  const [parcial, setParcial] = React.useState('');
+  const [pasos, setPasos] = React.useState<Step[]>([]);
 
   const preguntar = React.useCallback(async (pregunta: string): Promise<void> => {
     const limpia = pregunta.trim();
@@ -62,6 +65,8 @@ export function AskBox({ sugerencias, alcance, configurado }: {
     setCargando(true);
     setError(null);
     setRes(null);
+    setParcial('');
+    setPasos([]);
 
     try {
       const r = await fetch('/api/attorney/vigia/ask', {
@@ -69,12 +74,48 @@ export function AskBox({ sugerencias, alcance, configurado }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta: limpia }),
       });
-      if (!r.ok) {
+      if (!r.ok || !r.body) {
         // El 503 es el único que tiene una causa que la persona puede entender.
         setError(r.status === 503 ? t('vigiaNotConfigured') : t('vigiaError'));
         return;
       }
-      setRes((await r.json()) as Answer);
+
+      /**
+       * Se lee de a pedazos, no con `.json()`.
+       *
+       * El servidor manda un objeto por línea, y un pedazo puede cortar una
+       * línea por la mitad: lo que sobra queda en `resto` y se pega adelante del
+       * siguiente. Sin eso, un JSON partido rompe el parseo justo cuando la
+       * respuesta es larga — que es cuando el streaming importa.
+       */
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let resto = '';
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        resto += decoder.decode(value, { stream: true });
+        const lineas = resto.split('\n');
+        resto = lineas.pop() ?? '';
+
+        for (const linea of lineas) {
+          if (!linea.trim()) continue;
+          const ev = JSON.parse(linea) as
+            | { type: 'step'; step: Step }
+            | { type: 'delta'; text: string }
+            | { type: 'reset' }
+            | { type: 'done'; answer: Answer }
+            | { type: 'error' };
+
+          if (ev.type === 'delta') setParcial((p) => p + ev.text);
+          else if (ev.type === 'step') setPasos((ps) => [...ps, ev.step]);
+          // Era un preámbulo antes de pedir una herramienta: no es la respuesta.
+          else if (ev.type === 'reset') setParcial('');
+          else if (ev.type === 'done') setRes(ev.answer);
+          else if (ev.type === 'error') setError(t('vigiaError'));
+        }
+      }
     } catch {
       setError(t('vigiaError'));
     } finally {
@@ -208,6 +249,8 @@ export function AskBox({ sugerencias, alcance, configurado }: {
         cargando={cargando}
         error={error}
         res={res}
+        parcial={parcial}
+        pasos={pasos}
         seguimientos={seguimientos}
         onSeguir={(q) => { void preguntar(q); }}
         onCerrar={cerrar}

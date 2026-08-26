@@ -24,7 +24,7 @@ import { Button } from '@precision/ui';
  * respuesta sigue ahí.
  */
 
-interface Step { tool: string; sources: string[]; count?: number }
+export interface Step { tool: string; sources: string[]; count?: number }
 interface Action { key: string; params?: Record<string, string>; href?: string; kind?: string }
 
 export interface Answer {
@@ -54,13 +54,17 @@ const ACCION_KEY: Record<string, string> = {
 };
 
 export function AnswerDrawer({
-  abierto, pregunta, cargando, error, res, seguimientos, onSeguir, onCerrar, onLista,
+  abierto, pregunta, cargando, error, res, parcial, pasos, seguimientos, onSeguir, onCerrar, onLista,
 }: {
   abierto: boolean;
   pregunta: string | null;
   cargando: boolean;
   error: string | null;
   res: Answer | null;
+  /** La respuesta a medio escribir, mientras el modelo la manda. */
+  parcial: string;
+  /** Los pasos que ya terminaron, aunque la respuesta todavía no exista. */
+  pasos: Step[];
   /** Repreguntas ya resueltas a texto por el padre. */
   seguimientos: string[];
   onSeguir: (q: string) => void;
@@ -82,7 +86,15 @@ export function AnswerDrawer({
 
   if (!montado) return null;
 
-  const estado = cargando ? t('vigiaStateReading') : error ? t('vigiaStateFailed') : t('vigiaStateReady');
+  /**
+   * Tres estados y no dos: mientras el modelo escribe ya no está "leyendo", y
+   * decir "listo" con media respuesta en pantalla es mentir por un segundo.
+   */
+  const estado = error
+    ? t('vigiaStateFailed')
+    : cargando
+      ? (parcial ? t('vigiaStateWriting') : t('vigiaStateReading'))
+      : t('vigiaStateReady');
 
   return createPortal(
     <>
@@ -126,10 +138,11 @@ export function AnswerDrawer({
             <p className="text-[15px] font-semibold text-text-1 leading-snug">{pregunta}</p>
           )}
 
-          {/* Lo que hizo, con su procedencia. */}
-          {res && res.steps.length > 0 && (
+          {/* Lo que hizo, con su procedencia. Mientras corre son los pasos que
+              van llegando; al terminar, los definitivos de la respuesta. */}
+          {(res?.steps ?? pasos).length > 0 && (
             <div className="space-y-1">
-              {res.steps.map((s, i) => (
+              {(res?.steps ?? pasos).map((s, i) => (
                 <div key={`${s.tool}-${i}`} className="flex items-start gap-2 text-[11px] text-text-muted font-mono">
                   <Check className="w-3 h-3 text-brand-text mt-0.5 shrink-0" />
                   <span>
@@ -141,11 +154,17 @@ export function AnswerDrawer({
             </div>
           )}
 
-          {cargando && (
+          {cargando && !parcial && (
             <div className="flex items-center gap-2 text-text-muted text-[12px]">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-text" />
               {t('vigiaAsking')}
             </div>
+          )}
+
+          {/* La respuesta a medida que se escribe. Cuando llega `done` la
+              reemplaza el texto definitivo, que es el mismo. */}
+          {!res && parcial && (
+            <p className="text-[15px] text-text-1 leading-relaxed whitespace-pre-line">{parcial}</p>
           )}
 
           {error && (

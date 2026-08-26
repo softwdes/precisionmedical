@@ -60,6 +60,20 @@ export interface VigiaAction {
   kind?: 'stalled' | 'unsigned' | 'active';
 }
 
+/**
+ * Lo que viaja mientras el agente trabaja.
+ *
+ * `reset` existe por un caso raro pero real: el modelo a veces escribe una frase
+ * ANTES de decidir que necesita una herramienta. Esa frase ya se mostró, y
+ * cuando la vuelta termina pidiendo herramientas hay que borrarla — si no, queda
+ * un pedazo de texto huérfano arriba de la respuesta de verdad.
+ */
+export type VigiaEvent =
+  | { type: 'step'; step: VigiaStep }
+  | { type: 'delta'; text: string }
+  | { type: 'reset' }
+  | { type: 'done'; answer: VigiaAnswer };
+
 export interface VigiaAnswer {
   answer: string;
   steps: VigiaStep[];
@@ -180,11 +194,19 @@ async function armarAcciones(
   return acciones.slice(0, 3);
 }
 
-export async function preguntarAVigia(
+/**
+ * El lazo, en streaming.
+ *
+ * Va emitiendo lo que pasa: cada herramienta que termina y cada pedazo de la
+ * respuesta a medida que el modelo la escribe. El total no baja —son las mismas
+ * llamadas— pero la espera percibida sí: el abogado ve la primera palabra a los
+ * ~1,5 s en vez de la respuesta entera a los 4.
+ */
+export async function* preguntarAVigiaStream(
   lawyer: SessionLawyer,
   pregunta: string,
   locale: string,
-): Promise<VigiaAnswer> {
+): AsyncGenerator<VigiaEvent> {
   const client = new OpenAI();
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -199,29 +221,55 @@ export async function preguntarAVigia(
   let prompt = 0, completion = 0;
 
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
-    const res = await client.chat.completions.create({
+    /**
+     * `stream()` y no `create()`: además de los pedazos de texto, el helper
+     * ENSAMBLA las llamadas a herramientas que llegan partidas en fragmentos.
+     * Hacerlo a mano es acumular por índice y es donde se rompen estas cosas.
+     */
+    const corriendo = client.chat.completions.stream({
       model: VIGIA_MODEL,
       messages,
       tools: TOOL_SPECS,
     });
 
+    let escrito = 0;
+    const pedazos: string[] = [];
+    corriendo.on('content.delta', (d: { delta: string }) => { pedazos.push(d.delta); });
+
+    // Se emiten a medida que llegan, sin esperar a que termine la vuelta.
+    for await (const _chunk of corriendo) {
+      while (escrito < pedazos.length) {
+        yield { type: 'delta', text: pedazos[escrito]! };
+        escrito++;
+      }
+    }
+    while (escrito < pedazos.length) { yield { type: 'delta', text: pedazos[escrito]! }; escrito++; }
+
+    const res = await corriendo.finalChatCompletion();
     prompt += res.usage?.prompt_tokens ?? 0;
     completion += res.usage?.completion_tokens ?? 0;
 
     const msg = res.choices[0]?.message;
     if (!msg) break;
 
+    // Escribió algo y ADEMÁS pide herramientas: lo escrito era un preámbulo.
+    if (msg.tool_calls?.length && escrito > 0) yield { type: 'reset' };
+
     // Sin herramientas pedidas: esto ya es la respuesta.
     if (!msg.tool_calls?.length) {
       const actions = await armarAcciones(lawyer, toolsUsadas, casosTocados);
-      return {
-        answer: msg.content?.trim() || sinRespuesta(locale),
-        steps,
-        sources: [...sources],
-        actions,
-        usage: { prompt, completion, total: prompt + completion },
-        model: VIGIA_MODEL,
+      yield {
+        type: 'done',
+        answer: {
+          answer: msg.content?.trim() || sinRespuesta(locale),
+          steps,
+          sources: [...sources],
+          actions,
+          usage: { prompt, completion, total: prompt + completion },
+          model: VIGIA_MODEL,
+        },
       };
+      return;
     }
 
     messages.push(msg);
@@ -260,7 +308,9 @@ export async function preguntarAVigia(
 
       toolsUsadas.add(call.function.name);
       result.sources.forEach((s) => sources.add(s));
-      steps.push({ tool: call.function.name, sources: result.sources, count: result.count });
+      const paso = { tool: call.function.name, sources: result.sources, count: result.count };
+      steps.push(paso);
+      yield { type: 'step', step: paso };
       if (typeof args.caso === 'string') casosTocados.add(args.caso.trim());
 
       /**
@@ -282,12 +332,33 @@ export async function preguntarAVigia(
   }
 
   // Se acabaron las vueltas sin una respuesta final.
-  return {
-    answer: seQuedoSinVueltas(locale),
-    steps,
-    sources: [...sources],
-    actions: await armarAcciones(lawyer, toolsUsadas, casosTocados),
-    usage: { prompt, completion, total: prompt + completion },
-    model: VIGIA_MODEL,
+  yield {
+    type: 'done',
+    answer: {
+      answer: seQuedoSinVueltas(locale),
+      steps,
+      sources: [...sources],
+      actions: await armarAcciones(lawyer, toolsUsadas, casosTocados),
+      usage: { prompt, completion, total: prompt + completion },
+      model: VIGIA_MODEL,
+    },
   };
+}
+
+/**
+ * La versión de una sola respuesta, para quien no necesita el streaming
+ * (scripts de prueba y cualquier consumidor futuro que solo quiera el
+ * resultado). Consume el generador y devuelve lo último.
+ */
+export async function preguntarAVigia(
+  lawyer: SessionLawyer,
+  pregunta: string,
+  locale: string,
+): Promise<VigiaAnswer> {
+  let ultima: VigiaAnswer | null = null;
+  for await (const ev of preguntarAVigiaStream(lawyer, pregunta, locale)) {
+    if (ev.type === 'done') ultima = ev.answer;
+  }
+  if (!ultima) throw new Error('el agente no produjo respuesta');
+  return ultima;
 }

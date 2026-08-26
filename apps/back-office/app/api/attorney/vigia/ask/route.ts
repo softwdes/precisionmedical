@@ -16,7 +16,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
 import { canSeeVigia } from '@/lib/attorney-portal';
-import { preguntarAVigia } from '@/lib/vigia/agent';
+import { preguntarAVigiaStream, type VigiaAnswer } from '@/lib/vigia/agent';
 import { resolveActor } from '@/lib/actor';
 
 // El lazo puede encadenar varias llamadas al modelo; el default de Vercel es corto.
@@ -26,7 +26,7 @@ const AskSchema = z.object({
   pregunta: z.string().min(3).max(500),
 });
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<Response> {
   const [lawyer, user] = await Promise.all([getSessionLawyer(), getSessionUser()]);
   if (!lawyer) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
 
@@ -50,35 +50,63 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const empezo = Date.now();
-  try {
-    // El idioma sale de la sesión (cookie `locale`), no de la pregunta: el
-    // agente tiene que hablar el mismo idioma que el resto de la pantalla.
-    const res = await preguntarAVigia(lawyer, input.pregunta, await getLocale());
+  const locale = await getLocale();
 
-    /**
-     * Auditoría: queda registrada la pregunta, las herramientas que corrió y lo
-     * que consumió. La RESPUESTA no se guarda todavía —eso va a la tabla de
-     * conversaciones cuando exista—; acá interesa el rastro de quién preguntó
-     * qué y cuánto costó.
-     */
-    writeAuditLog(db, {
-      ...(await resolveActor(req.headers)),
-      action: 'VIGIA_ASK',
-      entityType: 'lawyers',
-      entityId: lawyer.id,
-      metadata: {
-        pregunta: input.pregunta,
-        herramientas: res.steps.map((s) => s.tool),
-        modelo: res.model,
-        tokens: res.usage.total,
-        ms: Date.now() - empezo,
-      },
-    }).catch(() => undefined);
+  /**
+   * NDJSON y no SSE: un objeto JSON por línea.
+   *
+   * SSE agrega un protocolo entero (event:, data:, reconexión) para algo que se
+   * lee una vez y no se reconecta. Con una línea por evento, el cliente parte
+   * por `
+` y listo.
+   */
+  const encoder = new TextEncoder();
+  let final: VigiaAnswer | null = null;
 
-    return NextResponse.json(res);
-  } catch (err) {
-    // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
-    console.error('[vigia] fallo la consulta', err);
-    return NextResponse.json({ error: 'FALLO_LA_CONSULTA' }, { status: 502 });
-  }
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const ev of preguntarAVigiaStream(lawyer, input.pregunta, locale)) {
+          if (ev.type === 'done') final = ev.answer;
+          controller.enqueue(encoder.encode(JSON.stringify(ev) + '\n'));
+        }
+      } catch (err) {
+        // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
+        console.error('[vigia] fallo la consulta', err);
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error' }) + '\n'));
+      } finally {
+        controller.close();
+
+        /**
+         * La auditoría se escribe al CERRAR, no antes: solo acá se sabe qué
+         * herramientas corrieron y cuánto costó. Si el abogado abandona a mitad,
+         * `final` queda null y igual queda registro de que preguntó.
+         */
+        writeAuditLog(db, {
+          ...(await resolveActor(req.headers)),
+          action: 'VIGIA_ASK',
+          entityType: 'lawyers',
+          entityId: lawyer.id,
+          metadata: {
+            pregunta: input.pregunta,
+            herramientas: final?.steps.map((s) => s.tool) ?? [],
+            modelo: final?.model ?? null,
+            tokens: final?.usage.total ?? 0,
+            completa: !!final,
+            ms: Date.now() - empezo,
+          },
+        }).catch(() => undefined);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store',
+      // Sin esto, algunos proxies juntan la respuesta y la sueltan al final —
+      // que es exactamente lo que el streaming vino a evitar.
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }

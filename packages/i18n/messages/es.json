@@ -1545,6 +1545,7 @@
       "vigiaListNoSignatures": "sin firmas",
       "vigiaStateReading": "leyendo",
       "vigiaStateReady": "listo",
+      "vigiaStateWriting": "escribiendo",
       "vigiaStateFailed": "no pudo",
       "vigiaScope": "Alcance: {n} casos",
       "vigiaFollowUp": "Preguntar también",

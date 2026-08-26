@@ -10,7 +10,7 @@ import { lawyerCaseFilter, canSeeVigia, VIGIA_EN_CONSTRUCCION, ACTIVE_STATUSES }
 import { ZONA_CLINICA } from '@/lib/fechas';
 import { colaDeAtencion } from '@/lib/vigia/queue';
 import { AskBox } from './ask-box';
-import { QueuePanel } from './queue-panel';
+import { QueuePanel, StalledPanel } from './queue-panel';
 import { AttentionCard } from './attention-card';
 
 /**
@@ -195,8 +195,22 @@ export default async function AttorneyVigiaPage({ searchParams }: {
 
       <QueuePanel
         total={cola.total}
-        abandonados={cola.abandonados}
         filas={cola.filas.map((f) => ({
+          caseId: f.caseId,
+          caseCode: f.caseCode,
+          paciente: f.paciente,
+          motivo: f.motivo,
+          diasSinCita: f.diasSinCita,
+          diasAbierto: f.diasAbierto,
+          sinFirma: f.agravantes.includes('LIEN_SIN_FIRMA'),
+        }))}
+      />
+
+      {/* La cartera parada, en su propia caja y plegada: es limpieza, no el
+          trabajo de hoy. */}
+      <StalledPanel
+        total={cola.abandonados}
+        filas={cola.filasAbandonadas.map((f) => ({
           caseId: f.caseId,
           caseCode: f.caseCode,
           paciente: f.paciente,

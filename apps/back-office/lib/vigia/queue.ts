@@ -108,7 +108,7 @@ const dias = (d: Date): number => Math.floor((Date.now() - d.getTime()) / 86_400
 export async function colaDeAtencion(
   lawyer: SessionLawyer,
   opts?: { diasSinCita?: number; limite?: number },
-): Promise<{ total: number; abandonados: number; filas: FilaAtencion[] }> {
+): Promise<{ total: number; abandonados: number; filas: FilaAtencion[]; filasAbandonadas: FilaAtencion[] }> {
   const scope = lawyerCaseFilter(lawyer);
   const meseta = opts?.diasSinCita ?? DIAS_MESETA;
   const corte = new Date(Date.now() - meseta * 86_400_000);
@@ -131,7 +131,8 @@ export async function colaDeAtencion(
   });
 
   const filas: FilaAtencion[] = [];
-  let abandonados = 0;
+  /** Los de más de 90 días: no son el trabajo de hoy, pero existen. */
+  const abandonadas: FilaAtencion[] = [];
 
   for (const c of candidatos) {
     const ultima = c.appointments[0]?.scheduledFor ?? null;
@@ -147,9 +148,6 @@ export async function colaDeAtencion(
     }
     if (!motivo) continue;
 
-    // Fuera de la ventana sigue siendo un problema, pero no el de hoy.
-    if (parado > DIAS_ABANDONO) { abandonados++; continue; }
-
     const agravantes: Agravante[] = [];
     if (!c.signatureExempt && c.lienSignatures.length === 0) agravantes.push('LIEN_SIN_FIRMA');
 
@@ -157,7 +155,7 @@ export async function colaDeAtencion(
     // por encima de otro.
     const prioridad = PESO[motivo] + parado / 30 + agravantes.length * PESO_AGRAVANTE;
 
-    filas.push({
+    const fila = {
       caseId: c.id,
       caseCode: c.caseCode,
       paciente: `${c.patient?.firstName ?? ''} ${c.patient?.lastName ?? ''}`.trim() || null,
@@ -167,10 +165,29 @@ export async function colaDeAtencion(
       diasSinCita,
       diasAbierto,
       prioridad,
-    });
+    };
+
+    // Fuera de la ventana sigue siendo un problema, pero no el de hoy: va a su
+    // propia lista en vez de perderse en un conteo.
+    if (parado > DIAS_ABANDONO) abandonadas.push(fila);
+    else filas.push(fila);
   }
 
   filas.sort((a, b) => b.prioridad - a.prioridad);
 
-  return { total: filas.length, abandonados, filas: filas.slice(0, opts?.limite ?? 8) };
+  /**
+   * La cartera parada se ordena al REVÉS: los MENOS viejos primero.
+   *
+   * Acá el criterio no es la urgencia sino la posibilidad de rescate. Un caso de
+   * 95 días todavía se llama; uno de 600 ya es papeleo. Ordenarlos por
+   * antigüedad, como la cola de arriba, pondría los más muertos al frente.
+   */
+  abandonadas.sort((a, b) => (a.diasSinCita ?? a.diasAbierto) - (b.diasSinCita ?? b.diasAbierto));
+
+  return {
+    total: filas.length,
+    abandonados: abandonadas.length,
+    filas: filas.slice(0, opts?.limite ?? 8),
+    filasAbandonadas: abandonadas.slice(0, 50),
+  };
 }

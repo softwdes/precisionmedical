@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, ChevronRight, MessageSquarePlus } from 'lucide-react';
+import { AlertCircle, ChevronRight, MessageSquarePlus, Clock } from 'lucide-react';
 import { Section, EmptyState, TagPill, IconAction } from '@/components/ui-phoenix';
 import type { MotivoAtencion } from '@/lib/vigia/queue';
 import { RequestDialog } from './request-dialog';
@@ -42,10 +42,99 @@ const VERBO: Record<MotivoAtencion, { key: string; why: string; tone: string }> 
   },
 };
 
-export function QueuePanel({ filas, total, abandonados }: {
+/**
+ * Una fila. Vive aparte porque la usan las DOS secciones —lo que necesita
+ * atención hoy y la cartera parada— y tienen que verse idénticas: si divergen,
+ * la segunda parece otra cosa y deja de leerse como la continuación de la
+ * primera.
+ */
+function Fila({ f, onPedir }: { f: FilaVista; onPedir: (f: FilaVista) => void }): React.ReactElement {
+  const t = useTranslations('phoenix.attorney');
+  const v = VERBO[f.motivo];
+  const dias = f.diasSinCita ?? f.diasAbierto;
+  // Más allá de la ventana el verbo cambia: a un caso de 600 días no se lo
+  // "empuja", se lo revisa para ver si sigue vivo.
+  const verbo = dias > 90 ? { key: 'vigiaVerbReview', tone: 'bg-bg-2/60 text-text-muted border-transparent' } : v;
+
+  return (
+    <div className="flex items-center gap-3 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors group">
+      <Link href={`/attorney/vigia?case=${f.caseId}`} className="flex items-center gap-3 flex-1 min-w-0 px-5 py-2.5">
+        {/* Anchos FIJOS en las dos primeras columnas: con `min-w` la columna
+            crecía según el largo del nombre y cada descripción arrancaba en una
+            x distinta — el borde izquierdo quedaba dentado. */}
+        <span className="shrink-0 w-[104px]">
+          <span className="block text-sm font-semibold text-text-1">{f.caseCode}</span>
+          {f.paciente && (
+            <span className="block sm:hidden text-[11.5px] text-text-muted truncate">{f.paciente}</span>
+          )}
+        </span>
+        {f.paciente && (
+          <span className="hidden sm:block shrink-0 w-[172px] text-[12.5px] text-text-2 truncate">
+            {f.paciente}
+          </span>
+        )}
+        <span className="text-[12.5px] text-text-muted flex-1 min-w-0 truncate">
+          {t(v.why, { dias })}
+          {f.sinFirma && <span className="text-amber"> · {t('vigiaAlsoUnsigned')}</span>}
+        </span>
+      </Link>
+      <TagPill label={t(verbo.key)} colorClass={verbo.tone} compact />
+      <span className="pr-4 flex items-center gap-1">
+        <IconAction icon={MessageSquarePlus} label={t('vigiaReqCta')} stopPropagation onClick={() => onPedir(f)} />
+        <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * La cartera parada: lo que quedó fuera de la ventana de 90 días.
+ *
+ * Sección propia y PLEGADA. Es un problema distinto —limpieza, no trabajo de
+ * hoy— y mezclarlo con la cola fue justamente el error que arreglamos con la
+ * ventana. Cerrada no estorba; `storageKey` recuerda si la dejaste abierta, así
+ * que a quien le interese la limpieza le aparece así siempre.
+ */
+export function StalledPanel({ filas, total }: { filas: FilaVista[]; total: number }): React.ReactElement | null {
+  const t = useTranslations('phoenix.attorney');
+  const [pidiendo, setPidiendo] = React.useState<FilaVista | null>(null);
+
+  if (total === 0) return null;
+
+  return (
+    <Section
+      icon={Clock}
+      title={t('vigiaStalledTitle')}
+      count={total}
+      collapsible
+      defaultOpen={false}
+      storageKey="vigia-cartera-parada"
+    >
+      <p className="text-[12.5px] text-text-muted px-5 pb-2">{t('vigiaStalledHint')}</p>
+      <div className="-mx-5">
+        {filas.map((f) => (
+          <Fila key={f.caseId} f={f} onPedir={setPidiendo} />
+        ))}
+      </div>
+
+      <RequestDialog
+        caso={pidiendo?.caseCode ?? null}
+        asunto={pidiendo ? t(`vigiaReqSubject_${pidiendo.motivo}`, { caso: pidiendo.caseCode }) : ''}
+        cuerpo={pidiendo
+          ? t(`vigiaReqBody_${pidiendo.motivo}`, {
+              caso: pidiendo.caseCode,
+              dias: pidiendo.diasSinCita ?? pidiendo.diasAbierto,
+            })
+          : ''}
+        onClose={() => setPidiendo(null)}
+      />
+    </Section>
+  );
+}
+
+export function QueuePanel({ filas, total }: {
   filas: FilaVista[];
   total: number;
-  abandonados: number;
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   // El caso sobre el que se está pidiendo algo. Null = diálogo cerrado.
@@ -61,53 +150,10 @@ export function QueuePanel({ filas, total, abandonados }: {
         />
       ) : (
         <div className="-mx-5 -my-2">
-          {filas.map((f) => {
-            const v = VERBO[f.motivo];
-            return (
-              // La fila entera es el link al caso; el ícono de mensaje va
-              // ENCIMA, con `stopPropagation`, para que pedirle algo a la
-              // clínica no te lleve al expediente sin querer.
-              <div
-                key={f.caseId}
-                className="flex items-center gap-3 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors group"
-              >
-                <Link href={`/attorney/vigia?case=${f.caseId}`} className="flex items-center gap-3 flex-1 min-w-0 px-5 py-2.5">
-                  <span className="shrink-0 min-w-[92px]">
-                    <span className="block text-sm font-semibold text-text-1">{f.caseCode}</span>
-                    {f.paciente && (
-                      <span className="block text-[11.5px] text-text-muted truncate">{f.paciente}</span>
-                    )}
-                  </span>
-                  <span className="text-[12.5px] text-text-muted flex-1 min-w-0 truncate">
-                    {t(v.why, { dias: f.diasSinCita ?? f.diasAbierto })}
-                    {f.sinFirma && <span className="text-amber"> · {t('vigiaAlsoUnsigned')}</span>}
-                  </span>
-                </Link>
-                <TagPill label={t(v.key)} colorClass={v.tone} compact />
-                <span className="pr-4 flex items-center gap-1">
-                  <IconAction
-                    icon={MessageSquarePlus}
-                    label={t('vigiaReqCta')}
-                    stopPropagation
-                    onClick={() => setPidiendo(f)}
-                  />
-                  <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </span>
-              </div>
-            );
-          })}
+          {filas.map((f) => (
+            <Fila key={f.caseId} f={f} onPedir={setPidiendo} />
+          ))}
 
-          {/* Lo que la ventana dejó afuera se DICE. Un recorte silencioso hace
-              creer que la cola es todo lo que hay. */}
-          {abandonados > 0 && (
-            <Link
-              href="/attorney/cases?status=active"
-              className="flex items-center gap-2 px-5 py-2.5 text-[12px] text-text-muted hover:text-text-2 transition-colors"
-            >
-              {t('vigiaQueueAbandoned', { n: abandonados })}
-              <ChevronRight className="w-3 h-3" />
-            </Link>
-          )}
         </div>
       )}
       <RequestDialog

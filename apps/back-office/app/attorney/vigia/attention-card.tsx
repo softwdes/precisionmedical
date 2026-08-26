@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { Sparkles } from 'lucide-react';
+import { AttentionActions } from './attention-actions';
 import type { FilaAtencion } from '@/lib/vigia/queue';
 
 /**
@@ -49,12 +49,19 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
         {urgente && ` ${t('vigiaHeroWhyUnsigned')}`}
       </p>
 
-      <Link
+      {/* Dos salidas: ver el caso, o pedirle a la clínica lo que falta. El
+          texto del pedido nace armado con el motivo — el abogado no tiene que
+          escribir de cero lo que Vigía ya sabe. */}
+      <AttentionActions
+        caso={fila.caseCode}
         href={`/attorney/vigia?case=${fila.caseId}`}
-        className={`inline-flex items-center justify-center h-9 px-5 mt-4 rounded font-semibold text-sm text-white transition-opacity hover:opacity-90 ${urgente ? 'bg-rose' : 'bg-amber'}`}
-      >
-        {t('vigiaHeroCta')}
-      </Link>
+        urgente={urgente}
+        asunto={t(`vigiaReqSubject_${fila.motivo}`, { caso: fila.caseCode })}
+        cuerpo={t(`vigiaReqBody_${fila.motivo}`, {
+          caso: fila.caseCode,
+          dias: fila.diasSinCita ?? fila.diasAbierto,
+        })}
+      />
     </div>
   );
 }

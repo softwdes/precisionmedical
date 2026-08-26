@@ -196,14 +196,50 @@ export async function grantLawyerAccess(lawyer: LawyerForAccess): Promise<GrantR
     ? await sendActivationEmail({ to: email, firstName, firmName, link: activationLink })
     : false;
 
-  // Denormalización, NUNCA llave de autorización (ver `get-session-lawyer.ts`).
-  // El id de Phoenix se conoce recién cuando la persona entra por primera vez,
-  // así que acá solo se puede guardar si ya tenía fila.
-  const phoenixUser = await db.user.findFirst({
+  /**
+   * La fila de Phoenix, que hasta ahora NO se creaba.
+   *
+   * Antes esto solo BUSCABA al usuario, y por eso el puente quedó en 0 de 161:
+   * el abogado existía en el directorio Admin pero no en `users` de Phoenix, que
+   * es la tabla contra la que se direccionan los mensajes. Sin esa fila,
+   * cobranza no puede escribirle ni manualmente — no aparece en ningún selector.
+   *
+   * La identidad de mensajería se resuelve por EMAIL (`resolveActor`: email →
+   * `users.id`), así que con la fila creada el abogado participa sin tocar nada
+   * más. El id lo genera Prisma; nunca insertar por REST omitiéndolo.
+   *
+   * Se crea ACTIVE aunque todavía no haya activado su contraseña: el mensaje lo
+   * espera en la bandeja, que es mejor que rebotar por "destinatario inactivo".
+   */
+  let phoenixUser = await db.user.findFirst({
     where: { email: { equals: email, mode: 'insensitive' } },
-    select: { id: true },
+    select: { id: true, role: true },
   });
-  if (phoenixUser) {
+
+  if (!phoenixUser) {
+    phoenixUser = await db.user.create({
+      data: {
+        email, firstName, lastName,
+        role: 'LAWYER',
+        status: 'ACTIVE',
+        preferredLocale: 'en',
+      },
+      select: { id: true, role: true },
+    });
+  } else if (phoenixUser.role === 'LAWYER') {
+    // Pudo haber quedado INACTIVE por una revocación anterior.
+    await db.user.update({ where: { id: phoenixUser.id }, data: { status: 'ACTIVE' } });
+  }
+
+  /**
+   * Solo se enlaza cuando la fila ES de un abogado.
+   *
+   * Hay emails internos con ficha de abogado —Beatriz (EMPLOYEE) y Devin
+   * (DOCTOR)— y apuntar `Lawyer.userId` a un empleado le daría a esa ficha la
+   * identidad de otra persona. Sigue sin ser llave de autorización (ver
+   * `get-session-lawyer.ts`), pero ahora sí es con la que escribe y recibe.
+   */
+  if (phoenixUser.role === 'LAWYER') {
     await db.lawyer
       .update({ where: { id: lawyer.id }, data: { userId: phoenixUser.id } })
       .catch(() => { /* userId es @unique: si ya está tomado, no es fatal */ });
@@ -248,6 +284,18 @@ export async function revokeLawyerAccess(
   await admin.from('users')
     .update({ status: 'INACTIVE', updatedAt: new Date().toISOString() })
     .eq('id', existing.id);
+
+  /**
+   * Y la fila de Phoenix, o el abogado revocado seguiría siendo un destinatario
+   * válido de la mensajería: `resolveRecipientUsers` solo pide `status: ACTIVE`,
+   * y esa fila vive en otra base que el ban de Auth no toca. Alguien de cobranza
+   * lo seguiría viendo en el selector y le escribiría a una cuenta que ya no
+   * puede entrar a leerlo.
+   */
+  await db.user.updateMany({
+    where: { email: { equals: lawyer.email, mode: 'insensitive' }, role: 'LAWYER' },
+    data: { status: 'INACTIVE' },
+  });
 
   return { ok: true, error: null, directoryUserId: existing.id };
 }

@@ -118,7 +118,9 @@ function ui(lang: Lang) {
     successVia:   'Enviado por',
     notSentTitle: 'No se pudo enviar',
     notSentEmail: 'El envío por email todavía no está conectado. Pasale el link de abajo a mano.',
-    notSentSms:   'El SMS no salió. Podés pasarle el link de abajo a mano mientras se resuelve.',
+    notSentSms:   'El SMS no salió. Podés reintentar, o pasarle el link de abajo a mano.',
+    retry:        'Reintentar envío',
+    optedOut:     'Este número respondió STOP y se dio de baja. No se le puede volver a escribir — pasale el link por otra vía.',
     magicLink:    'Magic link generado',
     copied:       '¡Copiado!',
     copy:         'Copiar',
@@ -156,7 +158,9 @@ function ui(lang: Lang) {
     successVia:   'Sent via',
     notSentTitle: 'Could not send',
     notSentEmail: 'Email sending is not wired yet. Share the link below manually.',
-    notSentSms:   'The SMS did not go out. You can share the link below manually meanwhile.',
+    notSentSms:   'The SMS did not go out. You can retry, or share the link below manually.',
+    retry:        'Retry send',
+    optedOut:     'This number replied STOP and opted out. It cannot be messaged again — share the link another way.',
     magicLink:    'Magic link generated',
     copied:       'Copied!',
     copy:         'Copy',
@@ -391,7 +395,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               <p className="text-[11px] text-text-muted mt-1">
                 {result.delivered
                   ? L.successDesc
-                  : result.error === 'EMAIL_NOT_WIRED' ? L.notSentEmail : L.notSentSms}
+                  : result.error === 'EMAIL_NOT_WIRED' ? L.notSentEmail
+                  : result.error === 'OPTED_OUT'       ? L.optedOut
+                  : L.notSentSms}
               </p>
             </DialogHeader>
           </div>
@@ -435,6 +441,20 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           </div>
 
           <div className="px-5 pb-5 flex justify-end">
+            {/* Reintentar solo si tiene sentido. NO se ofrece cuando el numero
+                se dio de baja con STOP: reintentar ahi es ilegal (TCPA), no un
+                problema tecnico. Tampoco en email, que todavia no existe. */}
+            {!result.delivered
+              && result.error !== 'OPTED_OUT'
+              && result.error !== 'EMAIL_NOT_WIRED' && (
+              <Button
+                variant="outline"
+                disabled={sending}
+                onClick={() => { setResult(null); void handleSend(); }}
+              >
+                {sending ? L.sending : L.retry}
+              </Button>
+            )}
             <Button onClick={() => handleCloseSuccess(false)}>{L.close}</Button>
           </div>
         </DialogContent>

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Sparkles, Loader2, ArrowRight, Lock } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { AnswerDrawer, type Answer } from './answer-drawer';
+import { CaseListDialog, type ListKind } from './case-list-dialog';
 
 /**
  * Portal Legal · Vigía · la caja de preguntar.
@@ -82,6 +83,7 @@ export function AskBox({ sugerencias, alcance, configurado }: {
   }, [t]);
 
   const cerrar = React.useCallback(() => { setAbierto(false); }, []);
+  const [lista, setLista] = React.useState<ListKind | null>(null);
 
   const corridas = new Set((res?.steps ?? []).map((s) => s.tool));
   const seguimientos = SEGUIMIENTOS
@@ -209,7 +211,10 @@ export function AskBox({ sugerencias, alcance, configurado }: {
         seguimientos={seguimientos}
         onSeguir={(q) => { void preguntar(q); }}
         onCerrar={cerrar}
+        onLista={(k) => setLista(k as ListKind)}
       />
+
+      <CaseListDialog kind={lista} onClose={() => setLista(null)} />
     </>
   );
 }

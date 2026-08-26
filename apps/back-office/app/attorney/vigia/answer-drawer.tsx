@@ -25,7 +25,7 @@ import { Button } from '@precision/ui';
  */
 
 interface Step { tool: string; sources: string[]; count?: number }
-interface Action { key: string; params?: Record<string, string>; href: string }
+interface Action { key: string; params?: Record<string, string>; href?: string; kind?: string }
 
 export interface Answer {
   answer: string;
@@ -49,11 +49,11 @@ const ACCION_KEY: Record<string, string> = {
   openCase:     'vigiaActionOpenCase',
   pendingLiens: 'vigiaActionPendingLiens',
   caseList:     'vigiaActionCaseList',
-  panel:        'vigiaActionPanel',
+  stalledList:  'vigiaActionStalled',
 };
 
 export function AnswerDrawer({
-  abierto, pregunta, cargando, error, res, seguimientos, onSeguir, onCerrar,
+  abierto, pregunta, cargando, error, res, seguimientos, onSeguir, onCerrar, onLista,
 }: {
   abierto: boolean;
   pregunta: string | null;
@@ -64,6 +64,8 @@ export function AnswerDrawer({
   seguimientos: string[];
   onSeguir: (q: string) => void;
   onCerrar: () => void;
+  /** Abre la lista en un modal encima de Vigía. */
+  onLista: (kind: string) => void;
 }): React.ReactElement | null {
   const t = useTranslations('phoenix.attorney');
   const [montado, setMontado] = React.useState(false);
@@ -158,15 +160,33 @@ export function AnswerDrawer({
 
               {res.actions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {res.actions.map((a, i) => (
-                    // `asChild` para que el botón SEA el link: navegación de Next,
-                    // clic del medio y "abrir en pestaña nueva" siguen andando.
-                    <Button key={a.href} asChild size="sm" variant={i === 0 ? 'default' : 'outline'}>
-                      <Link href={a.href}>
-                        {ACCION_KEY[a.key] ? t(ACCION_KEY[a.key]!, a.params ?? {}) : a.key}
-                      </Link>
-                    </Button>
-                  ))}
+                  {res.actions.map((a, i) => {
+                    const etiqueta = ACCION_KEY[a.key] ? t(ACCION_KEY[a.key]!, a.params ?? {}) : a.key;
+                    const variante = i === 0 ? 'default' : 'outline';
+
+                    // El de un caso navega —abre el expediente en esta misma
+                    // pantalla— y `asChild` deja que siga siendo un link de
+                    // verdad: clic del medio y "abrir en pestaña nueva" andan.
+                    if (a.href) {
+                      return (
+                        <Button key={a.key + a.href} asChild size="sm" variant={variante}>
+                          <Link href={a.href}>{etiqueta}</Link>
+                        </Button>
+                      );
+                    }
+
+                    // Los de lista abren el modal, sin sacar a nadie de acá.
+                    return (
+                      <Button
+                        key={a.key}
+                        size="sm"
+                        variant={variante}
+                        onClick={() => { if (a.kind) onLista(a.kind); }}
+                      >
+                        {etiqueta}
+                      </Button>
+                    );
+                  })}
                 </div>
               )}
 

@@ -46,10 +46,18 @@ export interface VigiaStep {
  * La pantalla traduce con su propio idioma; acá solo se decide CUÁL botón va.
  */
 export interface VigiaAction {
-  key: 'openCase' | 'pendingLiens' | 'caseList' | 'panel';
+  key: 'openCase' | 'pendingLiens' | 'caseList' | 'stalledList';
   /** Valores para la traducción, por ejemplo el código del caso. */
   params?: Record<string, string>;
-  href: string;
+  /** Solo el botón de UN caso navega (abre el expediente en la misma pantalla). */
+  href?: string;
+  /**
+   * Los botones de LISTA no navegan: abren un modal encima de Vigía.
+   *
+   * Mandar al abogado a `/attorney/cases` le hacía perder la respuesta que
+   * acababa de pedir. Ningún botón de Vigía saca de la pantalla.
+   */
+  kind?: 'stalled' | 'unsigned' | 'active';
 }
 
 export interface VigiaAnswer {
@@ -154,13 +162,15 @@ async function armarAcciones(
   }
 
   if (toolsUsadas.has('liens_pendientes')) {
-    acciones.push({ key: 'pendingLiens', href: '/attorney/cases?sig=pending' });
+    acciones.push({ key: 'pendingLiens', kind: 'unsigned' });
   }
-  if (toolsUsadas.has('casos_frenados') || toolsUsadas.has('buscar_casos')) {
-    acciones.push({ key: 'caseList', href: '/attorney/cases?status=active' });
+  if (toolsUsadas.has('casos_frenados')) {
+    acciones.push({ key: 'stalledList', kind: 'stalled' });
   }
-  if (toolsUsadas.has('metricas_del_bufete') && acciones.length === 0) {
-    acciones.push({ key: 'panel', href: '/attorney' });
+  if (toolsUsadas.has('buscar_casos') || toolsUsadas.has('metricas_del_bufete')) {
+    // El panorama termina en la lista de casos abiertos, no en el tablero: es
+    // donde se puede hacer algo.
+    acciones.push({ key: 'caseList', kind: 'active' });
   }
 
   return acciones.slice(0, 3);

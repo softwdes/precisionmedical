@@ -211,7 +211,7 @@ export function ThreadViewDialog({
   useEffect(() => {
     if (!open) { setThread(null); setMode(null); setDraft(''); setFwdTo([]); return; }
     load();
-    fetch('/api/messages/users')
+    fetch('/api/messages/users?withLawyers=1')
       .then((r) => (r.ok ? r.json() : { users: [] }))
       .then((d) => setUsers(d.users ?? []))
       .catch(() => setUsers([]));

@@ -15,11 +15,12 @@ import type { SessionLawyer } from './get-session-lawyer';
  * (menús) y los guards de API del middleware.
  */
 
-export type AttorneyMenu = 'panel' | 'vigia' | 'cases' | 'users' | 'appointments';
+export type AttorneyMenu = 'panel' | 'vigia' | 'messages' | 'cases' | 'users' | 'appointments';
 
 export const ATTORNEY_MENU_HOME: Record<AttorneyMenu, string> = {
   panel:        '/attorney',
   vigia:        '/attorney/vigia',
+  messages:     '/attorney/messages',
   cases:        '/attorney/cases',
   users:        '/attorney/users',
   appointments: '/attorney/appointments',
@@ -48,6 +49,7 @@ export const VIGIA_EN_CONSTRUCCION = true;
  * el día que se encienda habría que acordarse de todos.
  */
 export function canSeeVigia(lawyer: SessionLawyer, isAdminViewer: boolean): boolean {
+  // Vale para Vigía y para Mensajes: son la ida y la vuelta del mismo pedido.
   if (!canSeeMenu(lawyer, 'vigia')) return false;
   return VIGIA_EN_CONSTRUCCION ? isAdminViewer : true;
 }
@@ -60,8 +62,8 @@ export function canSeeVigia(lawyer: SessionLawyer, isAdminViewer: boolean): bool
 // Vigía lo ven todos los del despacho: lo que cambia entre roles es el ALCANCE
 // —un gestor pregunta sobre sus casos, no sobre los del bufete entero— y eso ya
 // lo gobierna `lawyerCaseFilter()`, no el menú.
-const FULL_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'cases', 'users', 'appointments'];
-const STAFF_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'cases'];
+const FULL_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'messages', 'cases', 'users', 'appointments'];
+const STAFF_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'messages', 'cases'];
 
 export function menusFor(lawyer: SessionLawyer): AttorneyMenu[] {
   if (lawyer.isFirmAccount) return FULL_MENUS;

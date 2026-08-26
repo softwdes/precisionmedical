@@ -21,6 +21,7 @@ import {
   Pill,
   Stethoscope,
   Sparkles,
+  Mail,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
@@ -96,6 +97,7 @@ const ATTORNEY_SECTIONS: NavSection[] = [
     items: [
       { href: '/attorney',              icon: BarChart3,    labelKey: 'attorneyPanel',        moduleKey: 'panel', exact: true },
       { href: '/attorney/vigia',        icon: Sparkles,     labelKey: 'attorneyVigia',        moduleKey: 'vigia'        },
+      { href: '/attorney/messages',     icon: Mail,         labelKey: 'attorneyMessages',     moduleKey: 'messages'     },
       { href: '/attorney/cases',        icon: Briefcase,    labelKey: 'attorneyCases',        moduleKey: 'cases'        },
       { href: '/attorney/users',        icon: Users,        labelKey: 'attorneyUsers',        moduleKey: 'users'        },
       { href: '/attorney/appointments', icon: CalendarDays, labelKey: 'attorneyAppointments', moduleKey: 'appointments' },

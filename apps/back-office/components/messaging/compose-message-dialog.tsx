@@ -135,7 +135,8 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     setCaseId(d?.caseId ?? patient?.caseId ?? null);
     setCases([]);
     setPickedPatient(null);
-    fetch('/api/messages/users')
+    // Con abogados: son destinatarios válidos desde que cobranza les escribe.
+    fetch('/api/messages/users?withLawyers=1')
       .then((r) => (r.ok ? r.json() : { users: [] }))
       .then((d2) => setUsers(d2.users ?? []))
       .catch(() => setUsers([]));

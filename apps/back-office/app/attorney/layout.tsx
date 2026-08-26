@@ -157,6 +157,8 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
     panel:        menus.includes('panel'),
     // Vigía tiene su propia puerta mientras se construye — ver `canSeeVigia`.
     vigia:        canSeeVigia(lawyer, canView),
+    // Misma puerta: la bandeja es la vuelta del pedido de Vigía.
+    messages:     canSeeVigia(lawyer, canView),
     cases:        menus.includes('cases'),
     users:        menus.includes('users'),
     appointments: menus.includes('appointments'),

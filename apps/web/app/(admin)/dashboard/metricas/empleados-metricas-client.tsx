@@ -3,8 +3,8 @@
 /**
  * Métricas → tab Empleados — productividad por empleado.
  *
- * Qué hizo cada quien en Clinic: tiempo de uso activo, llamadas hechas y
- * contestadas, pacientes/casos/citas creados, check-ins, triajes, labs,
+ * Qué hizo cada quien en Clinic: tiempo de uso activo, llamadas hechas, SMS
+ * enviados (y cuántos llegaron), pacientes/casos/citas creados, check-ins, triajes, labs,
  * servicios, férulas, pagos, salidas y cierres del doctor. Filtro Hoy / Ayer /
  * 7 días / Este mes / Rango libre (días de America/Denver, el hoy de la
  * clínica). Click en una fila → desglose completo de acciones.
@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@precision/ui';
 import {
-  Activity, Clock, Download, Loader2, Phone,
+  Activity, Clock, Download, Loader2, Phone, MessageSquare,
   UserPlus, CalendarDays, DollarSign, Undo2, X,
 } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
@@ -33,6 +33,8 @@ interface EmployeeRow {
   activeMinutes: number;
   callsMade: number;
   callsAnswered: number;
+  smsSent: number;
+  smsDelivered: number;
   callsDurationSeconds: number;
   patientsCreated: number;
   casesCreated: number;
@@ -54,7 +56,7 @@ interface EmployeeRow {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function totalOf(r: EmployeeRow): number {
-  return r.activeMinutes + r.callsMade + r.callsAnswered +
+  return r.activeMinutes + r.callsMade + r.callsAnswered + r.smsSent +
     Object.values(r.byAction).reduce((a, b) => a + b, 0);
 }
 
@@ -132,6 +134,7 @@ const actionLabel = (a: string): string =>
  */
 const COLUMNS: Array<{ key: keyof EmployeeRow; label: string; tone?: 'warn' }> = [
   { key: 'callsMade',           label: 'Llam.' },
+  { key: 'smsSent',             label: 'SMS' },
   { key: 'patientsCreated',     label: 'Pacientes' },
   { key: 'casesCreated',        label: 'Casos' },
   { key: 'appointmentsCreated', label: 'Citas' },
@@ -182,10 +185,12 @@ export function EmpleadosMetricasClient() {
   );
 
   const totals = useMemo(() => {
-    const base = { activeMinutes: 0, callsMade: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
+    const base = { activeMinutes: 0, callsMade: 0, smsSent: 0, smsDelivered: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
     for (const r of rows ?? []) {
       base.activeMinutes += r.activeMinutes;
       base.callsMade += r.callsMade;
+      base.smsSent += r.smsSent;
+      base.smsDelivered += r.smsDelivered;
       base.patientsCreated += r.patientsCreated;
       base.appointmentsCreated += r.appointmentsCreated;
       base.payments += r.payments;
@@ -224,6 +229,12 @@ export function EmpleadosMetricasClient() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
         <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand-text" />
+        {/* Enviados arriba y entregados abajo, no un total suelto: "mando 40
+            SMS" no dice nada si 30 rebotaron. La brecha entre los dos numeros
+            es lo que delata a quien escribe a numeros malos. */}
+        <KpiCard icon={MessageSquare} label="SMS enviados"    value={totals.smsSent}
+          sub={totals.smsSent > 0 ? `${totals.smsDelivered} entregados` : undefined}
+          color="bg-cyan/10 text-cyan" />
         <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet-text" />
         <KpiCard icon={CalendarDays} label="Citas creadas"   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
         <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-emerald/10 text-emerald" />

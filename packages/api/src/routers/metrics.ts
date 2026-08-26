@@ -84,6 +84,13 @@ export interface EmployeeActivityRow extends EmployeeCounters {
   callsMade: number;
   callsAnswered: number;
   callsDurationSeconds: number;
+  /** SMS que mando esta persona en el periodo. */
+  smsSent: number;
+  /**
+   * De esos, cuantos confirmo el operador. La BRECHA con smsSent es la señal
+   * util: "mando 40" no dice nada si 30 rebotaron por numeros malos.
+   */
+  smsDelivered: number;
   byAction: Record<string, number>;
 }
 
@@ -170,6 +177,8 @@ interface EmployeeMetricsPayload {
   users: Array<{ userId: string; name: string | null; email: string; role: string }>;
   audit: Array<{ userId: string; action: string; n: number }>;
   callsById: Array<{ agentUserId: string; direction: 'INBOUND' | 'OUTBOUND'; n: number; durationSeconds: number }>;
+  /** SMS por usuario. Viene con el cuid de users directo — sin puente. */
+  sms: Array<{ userId: string; sent: number; delivered: number }>;
   callsByName: Array<{ userId: string; direction: 'INBOUND' | 'OUTBOUND'; n: number; durationSeconds: number }>;
   activity: Array<{ userId: string; minutes: number }>;
 }
@@ -212,6 +221,7 @@ export const metricsRouter = router({
           name: u.name ?? u.email,
           role: u.role,
           activeMinutes: 0, callsMade: 0, callsAnswered: 0, callsDurationSeconds: 0,
+          smsSent: 0, smsDelivered: 0,
           byAction: {},
           ...emptyCounters(),
         });
@@ -249,13 +259,23 @@ export const metricsRouter = router({
       for (const g of m.callsById)   addCalls(phoenixIdByAgent.get(g.agentUserId), g);
       for (const g of m.callsByName) addCalls(g.userId, g);
 
+      // SMS: se indexa por el cuid de users directo. Las llamadas necesitan el
+      // puente UUID->email->users.id porque CallLog guarda la identidad de
+      // Twilio; message_logs guarda el actor resuelto, asi que no hace falta.
+      for (const g of m.sms ?? []) {
+        const row = rows.get(g.userId);
+        if (!row) continue;
+        row.smsSent      += g.sent;
+        row.smsDelivered += g.delivered;
+      }
+
       for (const g of m.activity) {
         const row = rows.get(g.userId);
         if (row) row.activeMinutes = g.minutes;
       }
 
       const totalOf = (r: EmployeeActivityRow): number =>
-        r.activeMinutes + r.callsMade + r.callsAnswered +
+        r.activeMinutes + r.callsMade + r.callsAnswered + r.smsSent +
         Object.values(r.byAction).reduce((a, b) => a + b, 0);
 
       const employees = [...rows.values()].sort((a, b) => {

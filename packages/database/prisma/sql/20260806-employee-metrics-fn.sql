@@ -69,6 +69,25 @@ SELECT jsonb_build_object(
       GROUP BY 1, 2
     ) x
   ),
+  -- SMS enviados. A diferencia de las llamadas NO hace falta el puente
+  -- UUID->email->users.id: message_logs."sentByUserId" ya guarda el cuid de
+  -- users, porque lo escribe resolveActor() y no la identidad de Twilio.
+  --
+  -- Se devuelven enviados Y entregados por separado a proposito: "mando 40
+  -- SMS" no dice nada si 30 rebotaron. La brecha entre los dos numeros es la
+  -- señal util — indica que esa persona esta escribiendo a numeros malos.
+  'sms', (
+    SELECT coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) FROM (
+      SELECT m."sentByUserId" AS "userId",
+             count(*)::int AS sent,
+             count(*) FILTER (WHERE m.status = 'DELIVERED')::int AS delivered
+      FROM message_logs m
+      WHERE m."sentByUserId" IS NOT NULL
+        AND m.channel = 'SMS'
+        AND m."createdAt" >= p_from AND m."createdAt" < p_to
+      GROUP BY 1
+    ) x
+  ),
   'activity', (
     SELECT coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) FROM (
       SELECT ua."userId", sum(ua."activeMinutes")::int AS minutes

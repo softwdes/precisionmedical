@@ -15,22 +15,53 @@ import type { SessionLawyer } from './get-session-lawyer';
  * (menús) y los guards de API del middleware.
  */
 
-export type AttorneyMenu = 'panel' | 'cases' | 'users' | 'appointments';
+export type AttorneyMenu = 'panel' | 'vigia' | 'cases' | 'users' | 'appointments';
 
 export const ATTORNEY_MENU_HOME: Record<AttorneyMenu, string> = {
   panel:        '/attorney',
+  vigia:        '/attorney/vigia',
   cases:        '/attorney/cases',
   users:        '/attorney/users',
   appointments: '/attorney/appointments',
 };
 
 /**
+ * Vigía todavía NO se le muestra al bufete.
+ *
+ * El portal está en producción y esta pantalla se está construyendo: mostrarle
+ * a Garcia Law un tablero a medio hacer es peor que no mostrarle nada. Mientras
+ * esto sea `true` solo la ven los admins, que entran con "ver como bufete" —
+ * exactamente el mismo camino por el que se prueban las demás pantallas.
+ *
+ * Cuando el board esté terminado se pone en `false` y aparece para todos. Es la
+ * única línea que hay que tocar: el menú, la ruta y la página ya preguntan por
+ * esto (`canSeeVigia`), así que no se puede encender a medias.
+ */
+export const VIGIA_EN_CONSTRUCCION = true;
+
+/**
+ * ¿Ve esta persona el menú de Vigía?
+ *
+ * Va aparte de `canSeeMenu()` porque la pregunta tiene un segundo factor que no
+ * sale de la ficha del abogado: si quien mira es un admin de la clínica. Sin
+ * ese dato el layout tendría que repetir la condición a mano en cada lugar, y
+ * el día que se encienda habría que acordarse de todos.
+ */
+export function canSeeVigia(lawyer: SessionLawyer, isAdminViewer: boolean): boolean {
+  if (!canSeeMenu(lawyer, 'vigia')) return false;
+  return VIGIA_EN_CONSTRUCCION ? isAdminViewer : true;
+}
+
+/**
  * El abogado titular (y la cuenta del bufete) manejan el despacho entero.
  * Gestores y asistentes solo trabajan casos — no dan de alta gente ni miran la
  * agenda completa.
  */
-const FULL_MENUS: AttorneyMenu[] = ['panel', 'cases', 'users', 'appointments'];
-const STAFF_MENUS: AttorneyMenu[] = ['panel', 'cases'];
+// Vigía lo ven todos los del despacho: lo que cambia entre roles es el ALCANCE
+// —un gestor pregunta sobre sus casos, no sobre los del bufete entero— y eso ya
+// lo gobierna `lawyerCaseFilter()`, no el menú.
+const FULL_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'cases', 'users', 'appointments'];
+const STAFF_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'cases'];
 
 export function menusFor(lawyer: SessionLawyer): AttorneyMenu[] {
   if (lawyer.isFirmAccount) return FULL_MENUS;

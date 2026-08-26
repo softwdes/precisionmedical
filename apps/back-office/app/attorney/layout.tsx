@@ -9,7 +9,7 @@ import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
 import { getSessionUser } from '@/lib/session';
 import { getSessionLawyer, canViewAsLawyer, ATTORNEY_VIEW_COOKIE } from '@/lib/get-session-lawyer';
-import { menusFor } from '@/lib/attorney-portal';
+import { menusFor, canSeeVigia } from '@/lib/attorney-portal';
 import { AttorneyViewBar, type FirmOption } from './attorney-view-bar';
 import { OfficeCard, type OfficeClinic } from './office-card';
 import { cookies } from 'next/headers';
@@ -155,6 +155,8 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
   const menus = menusFor(lawyer);
   const allowedModules: Record<string, boolean> = {
     panel:        menus.includes('panel'),
+    // Vigía tiene su propia puerta mientras se construye — ver `canSeeVigia`.
+    vigia:        canSeeVigia(lawyer, canView),
     cases:        menus.includes('cases'),
     users:        menus.includes('users'),
     appointments: menus.includes('appointments'),

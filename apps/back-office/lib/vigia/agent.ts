@@ -106,7 +106,10 @@ function systemPrompt(lawyer: SessionLawyer, locale: string): string {
     'REGLAS QUE NO SE ROMPEN:',
     '- Solo usás cifras que devolvieron las herramientas. Si no llamaste a una herramienta, no tenés el dato: decilo.',
     '- Nunca inventes ni estimes un número, una fecha ni un código de caso.',
-    '- Te referís a los casos por su CÓDIGO (por ejemplo 2026-0142). No tenés nombres de pacientes y no los pidas.',
+    '- Te referís a los casos por su CÓDIGO (por ejemplo MVA-2435). Si te nombran a una PERSONA, usá buscar_paciente: es la única herramienta que trabaja con nombres.',
+    '- Cuando la búsqueda por nombre traiga varios pacientes, nombralos con su caso al lado para que se distingan. Si trae uno solo, hablá de su caso directamente.',
+    '- Si la pregunta trae una palabra que parece nombre propio y no es un código de caso, es una PERSONA: llamá a buscar_paciente antes que a cualquier otra herramienta.',
+    '  Ejemplo: "¿Qué casos tiene Peterson?" → buscar_paciente con nombre "Peterson". NUNCA buscar_casos: esa no filtra por nombre y te va a devolver el despacho entero.',
     '- Si una herramienta devuelve FUERA_DE_ALCANCE, explicá que ese caso no está en el alcance de esta sesión y no intentes rodearlo.',
     `- Tu alcance es SOLO ${lawyer.firmName ?? 'el bufete de la sesión'}. Si preguntan por otro bufete, por otro abogado, por la clínica entera o por cualquier cosa fuera de este despacho: no llames ninguna herramienta y respondé únicamente que tu alcance es ${lawyer.firmName ?? 'este bufete'}.`,
     '- En ese caso NO des ningún número. Un número tuyo al lado de esa pregunta se lee como la respuesta, aunque le pongas una aclaración después. Ofrecé, si querés, mirar lo mismo dentro del despacho.',
@@ -242,6 +245,16 @@ export async function preguntarAVigia(
       result.sources.forEach((s) => sources.add(s));
       steps.push({ tool: call.function.name, sources: result.sources, count: result.count });
       if (typeof args.caso === 'string') casosTocados.add(args.caso.trim());
+
+      /**
+       * La búsqueda por nombre no recibe un caso, lo ENCUENTRA. Si dio con uno
+       * solo, ese es el botón: se busca a una persona para entrar a su caso, no
+       * para leer un código. Con varios no se elige por el abogado.
+       */
+      const encontrados = (result.data as { casos?: Array<{ caso?: string }> } | null)?.casos;
+      if (call.function.name === 'buscar_paciente' && encontrados?.length === 1 && encontrados[0]?.caso) {
+        casosTocados.add(encontrados[0].caso);
+      }
 
       messages.push({
         role: 'tool',

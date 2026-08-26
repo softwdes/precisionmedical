@@ -18,15 +18,22 @@ import { colaDeAtencion, DIAS_MESETA } from './queue';
  *    propósito — una herramienta que ejecute consultas arbitrarias es la misma
  *    cosa que darle la clínica entera a quien sepa preguntar.
  *
- * 2. **Nunca sale un nombre de paciente.** Todo se identifica por CÓDIGO DE CASO.
- *    Lo que viaja al proveedor del modelo son códigos, fechas, importes y
- *    conteos — nada que identifique a una persona. Los nombres los pone la
- *    pantalla cuando el abogado hace clic en un botón, de este lado, donde ya
- *    sabemos quién está mirando. Es más barato (prompts chicos) y no depende de
- *    ningún papel firmado.
+ * 2. **Los nombres de paciente son la EXCEPCIÓN, no la regla.** Todo se
+ *    identifica por CÓDIGO DE CASO y ninguna herramienta devuelve nombres…
+ *    salvo `buscar_paciente`, que existe porque el abogado piensa en personas,
+ *    no en códigos (Erick, 2026-08-26).
  *
- * Si alguien agrega una herramienta acá, tiene que cumplir las dos. La segunda
- * es fácil de romper sin darse cuenta: basta con un `select` que incluya
+ *    Eso tiene un costo declarado: cuando se busca por nombre, ese nombre viaja
+ *    al proveedor del modelo — en la pregunta y en la respuesta. No hay forma de
+ *    buscar por nombre sin mandarlo. **Depende del BAA con OpenAI**, que estaba
+ *    en trámite cuando esto se escribió.
+ *
+ *    Las otras cinco herramientas siguen sin devolver un solo nombre, así que el
+ *    único camino por el que sale PHI identificable es ése, y es fácil de
+ *    encontrar y de apagar: se borra la herramienta del registro y listo.
+ *
+ * Si alguien agrega una herramienta acá, la primera regla no se negocia. La
+ * segunda es fácil de romper sin querer: basta un `select` que incluya
  * `patient`.
  */
 
@@ -347,6 +354,74 @@ export async function casosFrenados(lawyer: SessionLawyer, args?: { diasSinCita?
   };
 }
 
+// ─── 7 · Buscar por paciente ─────────────────────────────────────────────────
+
+/**
+ * Los casos de una persona, buscando por su nombre.
+ *
+ * Cada palabra tiene que aparecer en el nombre O en el apellido: así "Juan
+ * Pérez" encuentra a Juan Pérez sin traer a todos los Juan ni a todos los Pérez,
+ * y "Perez Juan" funciona igual — el abogado no tiene por qué saber en qué orden
+ * los cargamos.
+ *
+ * El alcance manda igual que siempre: se buscan PACIENTES DE SUS CASOS, no
+ * pacientes de la clínica. Un apellido común no puede convertirse en un padrón.
+ */
+export async function buscarPaciente(lawyer: SessionLawyer, args: { nombre: string }): Promise<ToolResult> {
+  const q = (args.nombre ?? '').trim();
+  if (q.length < 2) {
+    return { data: { error: 'NOMBRE_MUY_CORTO', mensaje: 'Hacen falta al menos dos letras.' }, sources: [] };
+  }
+
+  const palabras = q.split(/\s+/).filter(Boolean).slice(0, 4);
+  const porPalabra: Prisma.CaseWhereInput[] = palabras.map((palabra) => ({
+    patient: {
+      OR: [
+        { firstName: { contains: palabra, mode: 'insensitive' } },
+        { lastName:  { contains: palabra, mode: 'insensitive' } },
+      ],
+    },
+  }));
+
+  const where: Prisma.CaseWhereInput = { AND: [lawyerCaseFilter(lawyer), ...porPalabra] };
+
+  const [total, rows] = await Promise.all([
+    db.case.count({ where }),
+    db.case.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: {
+        caseCode: true, status: true, caseType: true, accidentDate: true, createdAt: true,
+        signatureExempt: true,
+        patient: { select: { firstName: true, lastName: true } },
+        lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
+      },
+    }),
+  ]);
+
+  return {
+    data: {
+      buscado: q,
+      totalQueCoinciden: total,
+      mostrando: rows.length,
+      ...(total > rows.length ? { aviso: `Hay ${total} coincidencias; estas son las ${rows.length} más recientes.` } : {}),
+      casos: rows.map((c) => ({
+        paciente: `${c.patient?.firstName ?? ''} ${c.patient?.lastName ?? ''}`.trim() || null,
+        caso: c.caseCode,
+        estado: c.status,
+        tipo: c.caseType,
+        fechaAccidente: iso(c.accidentDate),
+        abierto: iso(c.createdAt),
+        firmadoPorAbogado: c.lienSignatures.length > 0,
+        exentoDeFirma: c.signatureExempt,
+      })),
+    },
+    sources: ['cases', 'patients'],
+    count: total,
+  };
+}
+
 // ─── Registro ────────────────────────────────────────────────────────────────
 
 /**
@@ -358,6 +433,17 @@ export async function casosFrenados(lawyer: SessionLawyer, args?: { diasSinCita?
  */
 export const VIGIA_TOOLS = [
   {
+    name: 'buscar_paciente',
+    description: 'Encuentra los casos de un paciente por su NOMBRE o apellido. Usala SIEMPRE que la pregunta mencione a una persona, aunque sea solo un apellido o una sola palabra que parezca un nombre propio ("los casos de Peterson", "¿qué tiene Maria?"). Es la única herramienta que busca por nombre. Devuelve el nombre del paciente junto a cada caso.',
+    parameters: {
+      type: 'object',
+      properties: { nombre: { type: 'string', description: 'Nombre, apellido o los dos.' } },
+      required: ['nombre'],
+      additionalProperties: false,
+    },
+    run: (l: SessionLawyer, a: { nombre: string }) => buscarPaciente(l, a),
+  },
+  {
     name: 'metricas_del_bufete',
     description: 'Números generales del despacho: casos activos, cerrados, firmas de abogado pendientes, citas de hoy y saldo total pendiente. Usar para preguntas de panorama.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -365,7 +451,7 @@ export const VIGIA_TOOLS = [
   },
   {
     name: 'buscar_casos',
-    description: 'Lista casos del despacho con su estado, tipo, fecha de accidente y si tienen la firma del abogado. Devuelve como mucho 25.',
+    description: 'Lista casos del despacho con su estado, tipo, fecha de accidente y si tienen la firma del abogado. Devuelve como mucho 25. NO busca por nombre de paciente ni acepta un nombre como filtro: para eso está buscar_paciente.',
     parameters: {
       type: 'object',
       properties: {

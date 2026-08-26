@@ -43,6 +43,7 @@ const PASO_KEY: Record<string, string> = {
   facturacion_de_caso:  'vigiaStepBilling',
   liens_pendientes:     'vigiaStepLiens',
   casos_frenados:       'vigiaStepStalled',
+  buscar_paciente:      'vigiaStepPatient',
 };
 
 const ACCION_KEY: Record<string, string> = {

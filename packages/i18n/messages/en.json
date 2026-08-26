@@ -1506,6 +1506,7 @@
       "vigiaError": "I could not answer. Try again in a moment.",
       "vigiaNotConfigured": "The model key is missing from the environment.",
       "vigiaTokens": "tokens",
+      "vigiaStepPatient": "Looked the client up by name",
       "msgTitle": "Messages",
       "msgSubtitle": "What the clinic wrote to you, and your requests.",
       "msgBack": "Back to inbox",

@@ -26,6 +26,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
+import { buildPortalSms } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
@@ -174,24 +175,14 @@ export async function POST(
   // Al apoderado se le habla de "tu hijo/a" y se lo nombra: si recibiera el
   // mismo texto que el paciente, no entendería de quién es el caso.
   const nombreMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
-  // El texto tiene que PARECERSE a los "sample messages" que se registraron en
-  // la campaña A2P 10DLC — los operadores comparan, y contenido que no encaja
-  // con lo declarado se filtra aunque la campaña esté aprobada. El ejemplo #4
-  // registrado es exactamente este caso: formulario de registro con link seguro.
-  //
-  // Las dos piezas que NO son opcionales:
-  //   · el prefijo "Precision Medical:" — identifica al remitente
-  //   · "STOP para no recibir más mensajes" — es requisito legal (TCPA) y los
-  //     operadores filtran el primer mensaje a un número si no lo lleva.
-  // Twilio maneja el STOP solo: da de baja al número y devuelve el error 21610
-  // en los siguientes intentos (ver lib/sms.ts).
-  const messageBody = parsed.language === 'es'
-    ? paraMenor
-      ? `Precision Medical: Complete el formulario de registro de ${nombreMenor} (caso ${caseRecord.caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
-      : `Precision Medical: Complete su formulario de registro (caso ${caseRecord.caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
-    : paraMenor
-      ? `Precision Medical: Please complete the registration form for ${nombreMenor} (case ${caseRecord.caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`
-      : `Precision Medical: Please complete your registration form (case ${caseRecord.caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`;
+  // El texto vive en lib/portal-message.ts — el mismo que usa la vista previa
+  // del diálogo. Estaba duplicado y se desincronizó apenas se tocó uno.
+  const messageBody = buildPortalSms({
+    lang: parsed.language,
+    caseCode: caseRecord.caseCode,
+    minorName: paraMenor ? nombreMenor : null,
+    portalUrl,
+  });
 
   // Si el paciente ya completó el form y se re-envía, limpiar intakeFormCompletedAt
   // para que el portal lo permita llenar de nuevo.

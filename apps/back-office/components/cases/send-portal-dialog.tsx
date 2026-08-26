@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { buildPortalSms, MAGIC_LINK_PLACEHOLDER, smsSegments } from '@/lib/portal-message';
 import {
   Send, MessageSquare, Mail, AlertCircle, Check,
   Phone, Copy, Clock,
@@ -96,7 +97,7 @@ function ui(lang: Lang) {
     expiresHdr:   'expira en 24h',
     via:          'Enviar por',
     viaTwilio:    'vía Twilio',
-    viaMailgun:   'vía Mailgun',
+    viaMailgun:   'todavía no conectado',
     langLabel:    'Idioma del mensaje',
     subjectLbl:   'Asunto',
     bodyLbl:      'Mensaje',
@@ -134,7 +135,7 @@ function ui(lang: Lang) {
     expiresHdr:   'expires in 24h',
     via:          'Send via',
     viaTwilio:    'via Twilio',
-    viaMailgun:   'via Mailgun',
+    viaMailgun:   'not wired yet',
     langLabel:    'Message language',
     subjectLbl:   'Subject',
     bodyLbl:      'Message',
@@ -174,15 +175,13 @@ function ui(lang: Lang) {
 // llegara el mismo texto que al paciente, no sabría de quién es el caso.
 // El copy del SMS replica el que arma el server en send-portal-link.
 
-function smsTemplate(lang: Lang, firstName: string, caseCode: string, minorName: string | null): string {
-  if (minorName) {
-    return lang === 'es'
-      ? `Hola ${firstName}, soy de Precision Medical. Para completar el intake de ${minorName} (caso ${caseCode}), click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
-      : `Hi ${firstName}, this is Precision Medical. To complete the intake for ${minorName} (case ${caseCode}), click: [magic-link]. Expires in 24h. Questions: (801) 375-2207.`;
-  }
-  return lang === 'es'
-    ? `Hola ${firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseCode}, click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
-    : `Hi ${firstName}, this is Precision Medical. To complete intake for case ${caseCode}, click: [magic-link]. Expires 24h. Questions: (801) 375-2207.`;
+/**
+ * La vista previa arma el MISMO texto que manda el servidor, con un marcador
+ * donde va el link. Antes era una copia local que se desincronizo: mostraba el
+ * texto viejo mientras el servidor ya mandaba el nuevo con el opt-out.
+ */
+function smsTemplate(lang: Lang, _firstName: string, caseCode: string, minorName: string | null): string {
+  return buildPortalSms({ lang, caseCode, minorName, portalUrl: MAGIC_LINK_PLACEHOLDER });
 }
 
 function emailSubject(lang: Lang, fullName: string, minorName: string | null): string {
@@ -227,7 +226,9 @@ function ChannelTab({
   active, disabled, color, icon: Icon, label, sub, badge, onClick,
 }: {
   active: boolean; disabled: boolean; color: 'cyan' | 'brand';
-  icon: React.ElementType; label: string; sub: string; badge: string;
+  icon: React.ElementType; label: string; sub: string;
+  /** Sin badge = el canal existe pero todavia no envia. */
+  badge?: string;
   onClick: () => void;
 }) {
   const activeClass = color === 'cyan'
@@ -255,9 +256,11 @@ function ChannelTab({
         <div className={`text-[12.5px] font-semibold ${textColor}`}>{label}</div>
         <div className={`text-[9.5px] font-medium opacity-70 ${textColor}`}>{sub}</div>
       </div>
-      <span className="absolute top-1 right-1.5 text-[7.5px] font-bold uppercase tracking-wide px-1 py-px rounded bg-emerald/15 text-emerald border border-emerald/25">
-        {badge}
-      </span>
+      {badge && (
+        <span className="absolute top-1 right-1.5 text-[7.5px] font-bold uppercase tracking-wide px-1 py-px rounded bg-emerald/15 text-emerald border border-emerald/25">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -330,7 +333,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   const canSendEmail = !!dest.email && !sendBlocked;
 
   const smsText = smsTemplate(lang, dest.firstName, caseInfo.caseCode, minorName);
-  const smsChars = smsText.replace('[magic-link]', 'https://forms.lienmaster.net/c/pt_xxxxx').length;
+  // Con el link real, no con el marcador: el marcador tiene 12 caracteres y el
+  // link ~50, asi que contar sobre la vista previa subestimaria el costo.
+  const smsInfo = smsSegments(smsText.replace(MAGIC_LINK_PLACEHOLDER, 'https://forms.lienmaster.net/c/pt_m9x2k4a8b3n7q1'));
 
   const handleSend = async () => {
     setError(null);
@@ -518,10 +523,15 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 icon={MessageSquare} label="SMS" sub={L.viaTwilio} badge="Live"
                 onClick={() => setChannel('SMS')}
               />
+              {/* Sin badge "Live" y deshabilitado: el email NO envía nada — el
+                  endpoint devuelve EMAIL_NOT_WIRED. Decía "via Mailgun · Live"
+                  y ni el proveedor era cierto. Se muestra igual, deshabilitado,
+                  para que se vea que el canal existe y está por venir; que
+                  desaparezca haría pensar que no se puede mandar por correo. */}
               <ChannelTab
-                active={channel === 'EMAIL'} disabled={!canSendEmail} color="brand"
-                icon={Mail} label="Email" sub={L.viaMailgun} badge="Live"
-                onClick={() => setChannel('EMAIL')}
+                active={channel === 'EMAIL'} disabled color="brand"
+                icon={Mail} label="Email" sub={L.viaMailgun}
+                onClick={() => { /* deshabilitado hasta cablear el proveedor */ }}
               />
             </div>
           </div>
@@ -557,8 +567,11 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                     <MessageSquare className="w-2.5 h-2.5" />
                     {L.smsPreview}
                   </div>
+                  {/* Segmentos, no "x / 160": el link empuja el mensaje a 2, y
+                      cada segmento se factura aparte. Un "227/160" en rojo no
+                      dice nada util; "2 segmentos" si. */}
                   <span className="text-[10px] text-text-muted tabular-nums">
-                    {smsChars} / 160
+                    {smsInfo.chars} car · {smsInfo.segments} seg
                   </span>
                 </div>
                 {/* Bubble */}

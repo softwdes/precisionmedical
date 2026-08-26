@@ -44,6 +44,15 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
         {t(urgente ? 'vigiaHeroTitleUrgent' : 'vigiaHeroTitle', { caso: fila.caseCode })}
       </h2>
 
+      {/* El paciente debajo del titular y no dentro: el titular habla del CASO,
+          que es lo que se abre y lo que se pide. El nombre es para reconocerlo
+          sin tener que entrar. */}
+      {fila.paciente && (
+        <p className="text-[13px] text-text-muted mt-0.5">
+          {t('vigiaHeroPatient', { paciente: fila.paciente })}
+        </p>
+      )}
+
       <p className="text-text-2 text-sm mt-2 max-w-2xl mx-auto">
         {t(`vigiaHeroWhy_${fila.motivo}`, { dias: fila.diasSinCita ?? fila.diasAbierto })}
         {urgente && ` ${t('vigiaHeroWhyUnsigned')}`}

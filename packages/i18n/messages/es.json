@@ -1574,6 +1574,7 @@
       "vigiaHeroWhy_SIN_NINGUNA_CITA": "El caso está abierto pero el paciente nunca vino a una cita. Sin tratamiento no hay expediente que reclamar.",
       "vigiaHeroWhy_TRATAMIENTO_SIN_MOVIMIENTO": "Hace {dias} días que no hay una cita nueva. Cuando el tratamiento se estanca, el caso pierde valor y cuesta más retomarlo.",
       "vigiaHeroCta": "Abrir el caso",
+      "vigiaHeroPatient": "Paciente: {paciente}",
       "vigiaStepMetrics": "Contó los casos, las firmas y el saldo del despacho",
       "vigiaStepSearch": "Recorrió tus casos",
       "vigiaStepCase": "Leyó el caso completo",

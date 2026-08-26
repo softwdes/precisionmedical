@@ -199,6 +199,7 @@ export default async function AttorneyVigiaPage({ searchParams }: {
         filas={cola.filas.map((f) => ({
           caseId: f.caseId,
           caseCode: f.caseCode,
+          paciente: f.paciente,
           motivo: f.motivo,
           diasSinCita: f.diasSinCita,
           diasAbierto: f.diasAbierto,

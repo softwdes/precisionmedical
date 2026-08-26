@@ -81,6 +81,15 @@ export interface FilaAtencion {
   /** Para el link del portal. NUNCA sale hacia el modelo — ver `tools.ts`. */
   caseId: string;
   caseCode: string;
+  /**
+   * El nombre del paciente, para la PANTALLA.
+   *
+   * El abogado piensa en personas: una lista de códigos lo obliga a abrir cada
+   * caso para saber de quién habla. Esto es de este lado —la herramienta del
+   * agente lo descarta antes de devolver nada— así que no cambia lo que viaja
+   * al proveedor del modelo.
+   */
+  paciente: string | null;
   status: string;
   motivo: MotivoAtencion;
   /** Agravantes encontrados, para el detalle. */
@@ -110,6 +119,7 @@ export async function colaDeAtencion(
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, caseCode: true, status: true, createdAt: true, signatureExempt: true,
+      patient: { select: { firstName: true, lastName: true } },
       lienSignatures: { where: { signerType: 'ATTORNEY' }, select: { id: true }, take: 1 },
       appointments: {
         where: { status: { not: 'CANCELLED' } },
@@ -150,6 +160,7 @@ export async function colaDeAtencion(
     filas.push({
       caseId: c.id,
       caseCode: c.caseCode,
+      paciente: `${c.patient?.firstName ?? ''} ${c.patient?.lastName ?? ''}`.trim() || null,
       status: c.status,
       motivo,
       agravantes,

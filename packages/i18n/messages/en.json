@@ -1574,6 +1574,7 @@
       "vigiaHeroWhy_SIN_NINGUNA_CITA": "The case is open but the client never came to an appointment. With no treatment there is no file to demand on.",
       "vigiaHeroWhy_TRATAMIENTO_SIN_MOVIMIENTO": "There has not been a new appointment in {dias} days. When treatment stalls the case loses value and is harder to restart.",
       "vigiaHeroCta": "Open the case",
+      "vigiaHeroPatient": "Client: {paciente}",
       "vigiaStepMetrics": "Counted cases, signatures and the firm's balance",
       "vigiaStepSearch": "Went through your cases",
       "vigiaStepCase": "Read the full case",

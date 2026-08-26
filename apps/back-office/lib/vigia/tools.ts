@@ -347,7 +347,9 @@ export async function casosFrenados(lawyer: SessionLawyer, args?: { diasSinCita?
         : {}),
       // Se le saca el `caseId`: el modelo trabaja con CÓDIGOS. El id interno lo
       // usa la pantalla para armar el link, de este lado.
-      casos: filas.map(({ caseId: _caseId, prioridad: _prioridad, ...resto }) => resto),
+      // Se le saca el `caseId` Y el `paciente`: el modelo trabaja con CÓDIGOS.
+      // El nombre es para la pantalla; el id lo usa el link, de este lado.
+      casos: filas.map(({ caseId: _id, prioridad: _p, paciente: _pac, ...resto }) => resto),
     },
     sources: ['cases', 'appointments', 'lien_signatures'],
     count: total,

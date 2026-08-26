@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, ChevronRight } from 'lucide-react';
-import { Section, EmptyState, TagPill } from '@/components/ui-phoenix';
+import { AlertCircle, ChevronRight, MessageSquarePlus } from 'lucide-react';
+import { Section, EmptyState, TagPill, IconAction } from '@/components/ui-phoenix';
 import type { MotivoAtencion } from '@/lib/vigia/queue';
+import { RequestDialog } from './request-dialog';
 
 /**
  * Portal Legal · Vigía · la cola de "necesita atención".
@@ -20,6 +22,7 @@ import type { MotivoAtencion } from '@/lib/vigia/queue';
 export interface FilaVista {
   caseId: string;
   caseCode: string;
+  paciente: string | null;
   motivo: MotivoAtencion;
   diasSinCita: number | null;
   diasAbierto: number;
@@ -45,6 +48,8 @@ export function QueuePanel({ filas, total, abandonados }: {
   abandonados: number;
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
+  // El caso sobre el que se está pidiendo algo. Null = diálogo cerrado.
+  const [pidiendo, setPidiendo] = React.useState<FilaVista | null>(null);
 
   return (
     <Section icon={AlertCircle} title={t('vigiaQueueTitle')} count={total} tone="amber">
@@ -59,21 +64,36 @@ export function QueuePanel({ filas, total, abandonados }: {
           {filas.map((f) => {
             const v = VERBO[f.motivo];
             return (
-              <Link
+              // La fila entera es el link al caso; el ícono de mensaje va
+              // ENCIMA, con `stopPropagation`, para que pedirle algo a la
+              // clínica no te lleve al expediente sin querer.
+              <div
                 key={f.caseId}
-                href={`/attorney/vigia?case=${f.caseId}`}
-                className="flex items-center gap-3 px-5 py-2.5 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors group"
+                className="flex items-center gap-3 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors group"
               >
-                <span className="text-sm font-semibold text-text-1 shrink-0 min-w-[92px]">
-                  {f.caseCode}
-                </span>
-                <span className="text-[12.5px] text-text-muted flex-1 min-w-0 truncate">
-                  {t(v.why, { dias: f.diasSinCita ?? f.diasAbierto })}
-                  {f.sinFirma && <span className="text-amber"> · {t('vigiaAlsoUnsigned')}</span>}
-                </span>
+                <Link href={`/attorney/vigia?case=${f.caseId}`} className="flex items-center gap-3 flex-1 min-w-0 px-5 py-2.5">
+                  <span className="shrink-0 min-w-[92px]">
+                    <span className="block text-sm font-semibold text-text-1">{f.caseCode}</span>
+                    {f.paciente && (
+                      <span className="block text-[11.5px] text-text-muted truncate">{f.paciente}</span>
+                    )}
+                  </span>
+                  <span className="text-[12.5px] text-text-muted flex-1 min-w-0 truncate">
+                    {t(v.why, { dias: f.diasSinCita ?? f.diasAbierto })}
+                    {f.sinFirma && <span className="text-amber"> · {t('vigiaAlsoUnsigned')}</span>}
+                  </span>
+                </Link>
                 <TagPill label={t(v.key)} colorClass={v.tone} compact />
-                <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Link>
+                <span className="pr-4 flex items-center gap-1">
+                  <IconAction
+                    icon={MessageSquarePlus}
+                    label={t('vigiaReqCta')}
+                    stopPropagation
+                    onClick={() => setPidiendo(f)}
+                  />
+                  <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </span>
+              </div>
             );
           })}
 
@@ -90,6 +110,17 @@ export function QueuePanel({ filas, total, abandonados }: {
           )}
         </div>
       )}
+      <RequestDialog
+        caso={pidiendo?.caseCode ?? null}
+        asunto={pidiendo ? t(`vigiaReqSubject_${pidiendo.motivo}`, { caso: pidiendo.caseCode }) : ''}
+        cuerpo={pidiendo
+          ? t(`vigiaReqBody_${pidiendo.motivo}`, {
+              caso: pidiendo.caseCode,
+              dias: pidiendo.diasSinCita ?? pidiendo.diasAbierto,
+            })
+          : ''}
+        onClose={() => setPidiendo(null)}
+      />
     </Section>
   );
 }

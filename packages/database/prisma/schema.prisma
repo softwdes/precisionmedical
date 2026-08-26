@@ -2601,6 +2601,20 @@ model Case {
   // Status + flow tracking
   status CaseStatus @default(NEW_REFERRAL)
 
+  /// Cuándo el caso pasó a CLOSED / SETTLED / ARCHIVED. Null = sigue abierto.
+  ///
+  /// Existe porque el estado solo dice DÓNDE está el caso, no CUÁNDO llegó: sin
+  /// esta fecha no hay ciclo mediano, ni tiempo hasta el reclamo, ni forma de
+  /// distinguir un lien sin firmar de un caso que cerró la semana pasada (caro,
+  /// se puede destrabar) de uno que cerró en 2023 (perdido).
+  ///
+  /// La escribe `PATCH /api/admin/cases/[id]` cuando el estado entra a un valor
+  /// cerrado, y la borra si el caso se reabre. NO se rellenó hacia atrás: la
+  /// migración de v2 dejó 2.785 de 2.902 casos en ACTIVE sin importar cómo
+  /// estaban allá, así que no hay una fecha de cierre honesta que recuperar
+  /// hasta que se corrija ese dato en origen.
+  closedAt DateTime?
+
   // Intake tracking (B.3 → B.5-B.9 portal)
   intakeFormSentAt      DateTime?
   intakeFormSentVia     String? // "SMS" | "EMAIL"

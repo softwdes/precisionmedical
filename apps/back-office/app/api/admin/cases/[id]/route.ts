@@ -94,6 +94,28 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     data.accidentDate = accidentDate ? new Date(accidentDate + 'T12:00:00') : null;
   }
 
+  /**
+   * La fecha de cierre se sella acá, cuando el caso ENTRA a un estado cerrado.
+   *
+   * No sale de `updatedAt` —que se mueve con cualquier edición— ni del audit log,
+   * que no guarda cambios de estado. Y se BORRA al reabrir: un caso que vuelve a
+   * abrirse con la fecha vieja pegada envenena el ciclo mediano para siempre, y
+   * nadie se entera hasta que la métrica no cierra.
+   *
+   * Solo se toca en la transición: si el estado ya era cerrado y sigue igual, la
+   * fecha original se conserva. Guardar el último toque en vez del cierre real
+   * convertiría la métrica en "cuándo alguien editó el caso".
+   */
+  if (parsed.data.status !== undefined) {
+    const CERRADOS = ['CLOSED', 'SETTLED', 'ARCHIVED'];
+    const previo = await db.case.findUnique({ where: { id }, select: { status: true, closedAt: true } });
+    const entra = CERRADOS.includes(parsed.data.status);
+    const estaba = previo ? CERRADOS.includes(previo.status) : false;
+
+    if (entra && !estaba) data.closedAt = new Date();
+    else if (!entra && estaba) data.closedAt = null;
+  }
+
   // Merge consentsData JSON with text fields and/or full consents object
   if (chiropractor !== undefined || lawFirmLabel !== undefined || consents !== undefined) {
     const existing = await db.case.findUnique({ where: { id }, select: { consentsData: true } });

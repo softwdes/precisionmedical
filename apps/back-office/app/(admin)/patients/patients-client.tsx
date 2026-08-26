@@ -20,6 +20,7 @@ import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
+import { SmsHistoryDialog } from '@/components/sms/sms-history-dialog';
 import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/messaging/patient-messages-dialog';
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
@@ -1924,6 +1925,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const tCalls  = useTranslations('phoenix.calls');
+  const tSms    = useTranslations('phoenix.sms');
   const tPrices = useTranslations('phoenix.catalog.priceList');
   const tMsg    = useTranslations('phoenix.messaging');
   const router = useRouter();
@@ -2118,6 +2120,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // contador era un cero permanente y su fetch un viaje al servidor por cada
   // carga de la lista de pacientes.
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
+  const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(false);
 
   // ─── Precios (visor de mostrador, solo lectura) ─────────────────────────
   // Vive acá y no en el catálogo completo porque el uso es cotizar en el
@@ -2305,6 +2308,20 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <History className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{tCalls('historyTitle')}</span>
             <span className="sm:hidden">{tCalls('historyShort')}</span>
+          </button>
+
+          {/* Historial de SMS — hermano del de llamadas. Lo que se mira aca es
+              el estado de ENTREGA: un SMS aceptado por Twilio no es un SMS
+              recibido, y esta es la unica pantalla donde se ve la diferencia. */}
+          <button
+            type="button"
+            onClick={() => setSmsHistoryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand-text transition-colors whitespace-nowrap"
+            title={tSms('title')}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{tSms('title')}</span>
+            <span className="sm:hidden">{tSms('short')}</span>
           </button>
 
           {/* Precios — visor de mostrador. Solo lectura y sin costo real: se
@@ -3100,6 +3117,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
       {/* ─── Historial de llamadas ─────────────────────────────────────────── */}
       <CallHistoryDialog open={callHistoryOpen} onOpenChange={setCallHistoryOpen} />
+      <SmsHistoryDialog  open={smsHistoryOpen}  onOpenChange={setSmsHistoryOpen} />
 
       {/* ─── Precios ─────────────────────────────────────────────────────────
           Los datos se piden la primera vez que se abre, no con la lista. */}

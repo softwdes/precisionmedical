@@ -12,6 +12,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { esDesenlaceCobrable, totalCargado } from '@/lib/appointment-outcome';
 
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
@@ -29,6 +30,7 @@ const APPT_INCLUDE = {
       id:                    true,
       caseCode:              true,
       caseType:              true,
+      accidentType:          true,
       pipVerifiedAt:         true,
       intakeFormCompletedAt: true,
       lawFirmId:             true,
@@ -77,6 +79,9 @@ function getTimezoneOffsetMs(tz: string, dateStr: string): number {
 function mapAppt(a: ApptWithIncludes) {
   const isReady = !!(a.case?.lawFirmId || a.case?.attorneyId) && !!a.case?.pipVerifiedAt;
   const hasPending = !isReady && !!a.case;
+  // Cuánto se le cargó a esta cita. Para un desenlace cobrable, cero cargos
+  // significa "la penalidad nunca se asentó" (ver lib/appointment-outcome).
+  const chargedTotal = totalCargado(a.plannedServiceCodes as { fee?: number | null }[] | null);
   return {
     id:          a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -93,6 +98,11 @@ function mapAppt(a: ApptWithIncludes) {
     isOnline:    (a as { isOnline?: boolean }).isOnline ?? false,
     meetingUrl:  (a as { meetingUrl?: string | null }).meetingUrl ?? null,
     notes:       a.notes,
+    // Distingue la cancelación tardía (cobra) de la que avisó (no cobra). La fila
+    // la usa para pintarse igual que en el calendario: ámbar vs rose.
+    cancelledSameDay: (a as { cancelledSameDay?: boolean }).cancelledSameDay ?? false,
+    chargedTotal,
+    hasCharge:   chargedTotal > 0,
     patient: {
       id:        a.patient.id,
       firstName: a.patient.firstName,
@@ -110,6 +120,7 @@ function mapAppt(a: ApptWithIncludes) {
       id:                    a.case.id,
       caseCode:              a.case.caseCode,
       caseType:              a.case.caseType,
+      accidentType:          a.case.accidentType ?? null,
       pipVerifiedAt:         a.case.pipVerifiedAt?.toISOString() ?? null,
       intakeFormCompletedAt: a.case.intakeFormCompletedAt?.toISOString() ?? null,
       isReady,
@@ -131,7 +142,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       scheduledFor: { gte: from, lte: to },
       deletedAt:    undefined as undefined,
       ...(clinicId ? { clinicId } : {}),
-      status: { notIn: ['CANCELLED' as const] },
+      // Las canceladas CON AVISO liberaron la agenda y no dejan nada pendiente:
+      // no entran. Las del MISMO DÍA sí — consumieron el horario y admiten
+      // penalidad, así que recepción tiene que verlas para poder cobrarlas.
+      // Antes se excluían TODAS las canceladas y la mitad de lo cobrable era
+      // invisible en esta pantalla: se veía solo en el calendario.
+      OR: [
+        { status: { notIn: ['CANCELLED' as const] } },
+        { status: 'CANCELLED' as const, cancelledSameDay: true },
+      ],
     };
 
     const appts = await db.appointment.findMany({
@@ -149,15 +168,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const active = mapped.filter(a =>
       a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS',
     );
-    const done = mapped.filter(a =>
-      a.status === 'COMPLETED' || a.status === 'NO_SHOW',
+    // Citas con desenlace. `CANCELLED` acá solo puede ser del mismo día: el
+    // `where` ya descartó las que avisaron.
+    const resolved = mapped.filter(a =>
+      a.status === 'COMPLETED' || a.status === 'NO_SHOW' || a.status === 'CANCELLED',
     );
+    // Consumieron el horario y NO tienen la penalidad asentada. Es la única lista
+    // que representa trabajo sin hacer, no un estado del día — por eso sale de
+    // `done` en vez de convivir con él: si no, la misma cita aparecía dos veces.
+    const unpenalized = resolved.filter(a => esDesenlaceCobrable(a) && !a.hasCharge);
+    const unpenalizedIds = new Set(unpenalized.map(a => a.id));
+    const done = resolved.filter(a => !unpenalizedIds.has(a.id));
 
     const totals = {
       total:     mapped.length,
       checkedIn: active.length + done.filter(a => a.status === 'COMPLETED').length,
       pending:   pending.length,
       inRoom:    active.filter(a => a.status === 'IN_PROGRESS').length,
+      unpenalized: unpenalized.length,
     };
 
     // Fecha Denver para el header
@@ -166,7 +194,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       timeZone: 'America/Denver',
     });
 
-    return NextResponse.json({ ok: true, displayDate, totals, pending, active, done });
+    return NextResponse.json({ ok: true, displayDate, totals, pending, active, done, unpenalized });
   } catch (err) {
     console.error('[GET /api/admin/admission]', err);
     return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });

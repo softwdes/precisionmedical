@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2, ChevronLeft, Tv2, Search, X,
+  Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -27,6 +27,9 @@ import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { getEventStyle } from '@/lib/appointment-style';
+import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 /**
@@ -55,11 +58,18 @@ interface AdmissionAppt {
   isOnline:        boolean;
   meetingUrl:      string | null;
   notes:           string | null;
+  /** Cancelación tardía: consumió el horario y admite penalidad. */
+  cancelledSameDay: boolean;
+  /** Suma de lo cargado a la cita. 0 en un desenlace cobrable = falta la penalidad. */
+  chargedTotal:    number;
+  hasCharge:       boolean;
   patient: { id: string; firstName: string; lastName: string; phone: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
   clinic:   { id: string; name: string };
   case: {
     id: string; caseCode: string; caseType: string;
+    /** Lo usa el estilo compartido: una MVA puede venir por acá y no por el tipo de cita. */
+    accidentType: string | null;
     pipVerifiedAt: string | null; intakeFormCompletedAt: string | null;
     isReady: boolean; hasPending: boolean;
     primaryInsurance: { id: string; name: string; shortCode: string; color: string } | null;
@@ -68,7 +78,12 @@ interface AdmissionAppt {
 
 interface Totals {
   total: number; checkedIn: number; pending: number; inRoom: number;
+  /** Desenlaces cobrables a los que nadie les asentó la penalidad. */
+  unpenalized: number;
 }
+
+/** Vista de la cola. `unpenalized` no es un estado del día: es trabajo sin hacer. */
+type EstadoFiltro = 'all' | 'noShow' | 'cancelledSameDay' | 'unpenalized';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +98,7 @@ function KpiCard({
   label, value, tone, icon: Icon,
 }: {
   label: string; value: number;
-  tone: 'emerald' | 'amber' | 'cyan' | 'violet';
+  tone: 'emerald' | 'amber' | 'cyan' | 'violet' | 'rose';
   icon: React.ElementType;
 }) {
   const colors = {
@@ -91,6 +106,8 @@ function KpiCard({
     amber:   'text-amber   bg-amber/[0.07]',
     cyan:    'text-cyan    bg-cyan/[0.07]',
     violet:  'text-violet-text  bg-violet/[0.07] border border-border',
+    // Los otros cuatro cuentan estados normales del día; este cuenta un problema.
+    rose:    'text-rose    bg-rose/[0.07]',
   };
   return (
     <div className={`rounded-lg p-4 ${colors[tone]}`}>
@@ -105,11 +122,13 @@ function KpiCard({
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
 function ApptCard({
-  appt, onCheckIn, checkingIn,
+  appt, onCheckIn, checkingIn, onNoShow,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
   checkingIn: boolean;
+  /** Marcar que no vino, desde la fila. Solo se pasa donde el paciente aún no llegó. */
+  onNoShow?: (appt: AdmissionAppt) => void;
 }) {
   const router = useRouter();
   const t = useTranslations('phoenix.admission');
@@ -120,7 +139,20 @@ function ApptCard({
     FOLLOW_UP:       t('typeFollowUp'),
     CONSULTATION:    t('typeConsultation'),
   };
-  const isDone      = appt.status === 'COMPLETED' || appt.status === 'NO_SHOW';
+  /**
+   * Mismo idioma visual que la tarjeta del calendario: una cita que NO ocurrió va
+   * TACHADA —esa es la señal fuerte— y el color acompaña. Y las dos cancelaciones
+   * no se ven igual: la del mismo día va ámbar porque consume el horario y cobra;
+   * la que avisó va rose; el no-show va gris, apagado, porque no es una alarma.
+   * Ver `lib/appointment-style` — se comparte para que los dos mapas no se separen.
+   */
+  const estilo    = getEventStyle(appt);
+  const noOcurrio = !!estilo.strike;
+  const cobrable  = esDesenlaceCobrable(appt);
+  /** Consumió el horario y nadie le asentó la penalidad. */
+  const sinPenalidad = cobrable && !appt.hasCharge;
+
+  const isDone      = appt.status === 'COMPLETED' || appt.status === 'NO_SHOW' || appt.status === 'CANCELLED';
   const isCheckedIn = appt.status === 'CHECKED_IN';
   const isInRoom    = appt.status === 'IN_PROGRESS';
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
@@ -138,7 +170,10 @@ function ApptCard({
         : 'border border-border bg-bg-2/20';
 
   return (
-    <div className={`rounded-lg p-4 transition-all ${borderClass}`}>
+    <div
+      className={`rounded-lg p-4 transition-all ${noOcurrio ? '' : borderClass}`}
+      style={noOcurrio ? { background: estilo.bg, border: `1px solid ${estilo.border}` } : undefined}
+    >
       <div className="flex items-start gap-3">
         <PersonAvatar
           firstName={appt.patient.firstName}
@@ -149,7 +184,10 @@ function ApptCard({
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="font-bold text-text-1 text-sm">
+            <span
+              className={`font-bold text-sm ${noOcurrio ? 'line-through' : 'text-text-1'}`}
+              style={noOcurrio ? { color: estilo.text } : undefined}
+            >
               {appt.patient.firstName} {appt.patient.lastName}
             </span>
             {appt.case && (
@@ -176,6 +214,22 @@ function ApptCard({
             )}
             {appt.status === 'NO_SHOW' && (
               <StatusPill label={t('statusNoShow')} state="danger" />
+            )}
+            {/* Las dos cancelaciones se nombran distinto: una cobra y la otra no,
+                y con solo "Cancelada" había que abrir la cita para saber cuál. */}
+            {appt.status === 'CANCELLED' && (
+              <StatusPill
+                label={appt.cancelledSameDay ? t('statusCancelledSameDay') : t('statusCancelled')}
+                state={appt.cancelledSameDay ? 'warning' : 'danger'}
+              />
+            )}
+            {/* Lo que falta no es la plata, es el cargo: la penalidad nunca se
+                asentó. Una vez asentada, la deuda sigue el camino normal del caso. */}
+            {sinPenalidad && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose">
+                <AlertTriangle className="w-2.5 h-2.5" />
+                {t('missingPenalty')}
+              </span>
             )}
             {appt.case?.hasPending && isPending && (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber">
@@ -229,6 +283,22 @@ function ApptCard({
         <div className="flex flex-col items-end gap-2 shrink-0">
           {isPending && (
             <div className="flex gap-2">
+              {/* No show va NEUTRO y antes del primario: no es una alarma —el
+                  paciente no vino y no hay nada que atender— y el gesto evidente
+                  cuando la persona está enfrente sigue siendo Check in.
+                  Cancelar NO va acá: son dos variantes y la diferencia es que una
+                  cobra, así que necesita el confirm que lo explica (está en el
+                  detalle) y no un tercer botón en una fila. */}
+              {onNoShow && (
+                <button
+                  type="button"
+                  onClick={() => onNoShow(appt)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
+                >
+                  <UserX className="w-3 h-3" />
+                  {t('noShow')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => onCheckIn(appt.id)}
@@ -280,13 +350,19 @@ export function AdmissionClient() {
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
   const [done,        setDone]        = useState<AdmissionAppt[]>([]);
-  const [totals,      setTotals]      = useState<Totals>({ total: 0, checkedIn: 0, pending: 0, inRoom: 0 });
+  /** Desenlaces cobrables sin penalidad asentada. No es un estado del día: es trabajo sin hacer. */
+  const [unpenalized, setUnpenalized] = useState<AdmissionAppt[]>([]);
+  const [totals,      setTotals]      = useState<Totals>({ total: 0, checkedIn: 0, pending: 0, inRoom: 0, unpenalized: 0 });
   const [displayDate, setDisplayDate] = useState('');
   const [loading,      setLoading]      = useState(true);
   const [checkingIn,   setCheckingIn]   = useState<string | null>(null);
   const [clinicFilter, setClinicFilter] = useState<string>('all');
   /** Búsqueda de paciente dentro de la lista del día. */
   const [patientQuery, setPatientQuery] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('all');
+  /** Cita a la que se le va a marcar "no vino" — el confirm evita el clic accidental. */
+  const [noShowTarget, setNoShowTarget] = useState<AdmissionAppt | null>(null);
+  const [markingNoShow, setMarkingNoShow] = useState(false);
   const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
@@ -306,6 +382,7 @@ export function AdmissionClient() {
         setPending(data.pending);
         setActive(data.active);
         setDone(data.done);
+        setUnpenalized(data.unpenalized ?? []);
         setTotals(data.totals);
         setDisplayDate(data.displayDate);
       }
@@ -341,6 +418,33 @@ export function AdmissionClient() {
       .then(r => r.json())
       .then(d => setAllClinics(d.clinics ?? []));
   }, []);
+
+  /**
+   * Marcar que no vino, desde la fila. Pega al MISMO endpoint que el panel de la
+   * cita del calendario (`PATCH /api/admin/appointments/:id`): un solo camino
+   * escribe el estado, así que la cola y el calendario no se pueden separar.
+   *
+   * Después NO se cierra nada: se manda al detalle, que es donde se elige el
+   * código de la penalidad. El desenlace y el cargo van juntos o el cargo se
+   * olvida.
+   */
+  async function confirmNoShow() {
+    const appt = noShowTarget;
+    if (!appt) return;
+    setMarkingNoShow(true);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'NO_SHOW' }),
+      });
+      if (!res.ok) return;
+      setNoShowTarget(null);
+      router.push(`/admission/${appt.id}`);
+    } finally {
+      setMarkingNoShow(false);
+    }
+  }
 
   async function handleCheckIn(apptId: string) {
     setCheckingIn(apptId);
@@ -386,13 +490,33 @@ export function AdmissionClient() {
   const awaitingAdmission = active.filter(a => a.status === 'CHECKED_IN');
   const inRoom            = active.filter(a => a.status === 'IN_PROGRESS');
 
-  const filteredPending  = filterAppts(pending);
-  const filteredAwaiting = filterAppts(awaitingAdmission);
-  const filteredInRoom   = filterAppts(inRoom);
-  const filteredDone     = filterAppts(done);
+  /**
+   * El filtro de estado se aplica DESPUÉS del de clínica y la búsqueda: son ejes
+   * distintos y se combinan (ej. "los no-shows de esta sede que se llaman Ted").
+   *
+   * `all` no es "todo lo que existe" sino "la cola del día como siempre" — las
+   * otras tres vistas recortan a un desenlace concreto, y con el selector de
+   * fecha sirven para caminar días atrás y recuperar lo que quedó sin asentar.
+   */
+  const porEstado = <T extends AdmissionAppt>(list: T[]) => {
+    switch (estadoFiltro) {
+      case 'noShow':           return list.filter(a => a.status === 'NO_SHOW');
+      case 'cancelledSameDay': return list.filter(a => a.status === 'CANCELLED' && a.cancelledSameDay);
+      case 'unpenalized':      return list.filter(a => esDesenlaceCobrable(a) && !a.hasCharge);
+      default:                 return list;
+    }
+  };
+  const aplicar = <T extends AdmissionAppt>(list: T[]) => porEstado(filterAppts(list));
+
+  const filteredPending    = aplicar(pending);
+  const filteredAwaiting   = aplicar(awaitingAdmission);
+  const filteredInRoom     = aplicar(inRoom);
+  const filteredDone       = aplicar(done);
+  const filteredUnpenalized = aplicar(unpenalized);
 
   const visibleCount =
-    filteredPending.length + filteredAwaiting.length + filteredInRoom.length + filteredDone.length;
+    filteredPending.length + filteredAwaiting.length + filteredInRoom.length
+    + filteredDone.length + filteredUnpenalized.length;
   /** Se buscó y no hay nada: hay que decirlo, no dejar la pantalla vacía. */
   const sinResultados = patientQuery.trim() !== '' && visibleCount === 0;
 
@@ -539,11 +663,46 @@ export function AdmissionClient() {
 
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* KPI Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label={isToday ? t('kpiAppointmentsToday') : 'Citas del día'} value={totals.total}     tone="cyan"    icon={CalendarDays} />
+        {/* 5 KPIs: en mobile 2 columnas (el quinto queda solo abajo, que es
+            justo donde se nota) y de lg en adelante los cinco en fila. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <KpiCard label={isToday ? t('kpiAppointmentsToday') : t('kpiAppointmentsDay')} value={totals.total}     tone="cyan"    icon={CalendarDays} />
           <KpiCard label={t('kpiCheckedIn')}          value={totals.checkedIn} tone="emerald" icon={CheckCircle2} />
           <KpiCard label={t('kpiInRoom')}              value={totals.inRoom}    tone="violet"  icon={Stethoscope} />
           <KpiCard label={t('kpiPending')}             value={totals.pending}   tone="amber"   icon={Clock} />
+          {/* Lo primero que se mira al abrir la pantalla: un número distinto de
+              cero acá es la alarma más barata que se puede poner. Clickeable —
+              lleva al filtro, que es donde se resuelve. */}
+          <button
+            type="button"
+            onClick={() => setEstadoFiltro(estadoFiltro === 'unpenalized' ? 'all' : 'unpenalized')}
+            className="text-left rounded-lg transition-opacity hover:opacity-80"
+          >
+            <KpiCard label={t('kpiUnpenalized')} value={totals.unpenalized} tone="rose" icon={AlertTriangle} />
+          </button>
+        </div>
+
+        {/* Filtro por desenlace. Se combina con el de clínica y la búsqueda. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {([
+            { id: 'all'              as EstadoFiltro, label: t('filterAll') },
+            { id: 'noShow'           as EstadoFiltro, label: t('filterNoShow') },
+            { id: 'cancelledSameDay' as EstadoFiltro, label: t('filterCancelledSameDay') },
+            { id: 'unpenalized'      as EstadoFiltro, label: t('filterUnpenalized') },
+          ]).map(op => (
+            <button
+              key={op.id}
+              type="button"
+              onClick={() => setEstadoFiltro(op.id)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                estadoFiltro === op.id
+                  ? 'bg-emerald/15 text-emerald'
+                  : 'bg-bg-2 text-text-muted hover:text-text-1'
+              }`}
+            >
+              {op.label}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -617,6 +776,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
+                      onNoShow={setNoShowTarget}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
                     />
@@ -647,7 +807,35 @@ export function AdmissionClient() {
               </section>
             )}
 
-            {/* ── 4. Completados — fondo, opacidad reducida ── */}
+            {/* ── 4. Sin penalidad — desenlaces que consumieron el horario y a
+                 los que nadie les asentó el cargo.
+                 Va ABAJO y no arriba a propósito: no es parte del flujo del día
+                 (un paciente esperando en la sala le gana), es una lista para
+                 perseguir — como "Notas sin cerrar", que ya vive acá.
+                 Y va SIN `opacity`: antes un no-show caía en Completados al 60%,
+                 o sea que lo que debía plata se dibujaba como resuelto. ── */}
+            {filteredUnpenalized.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-4 h-4 text-rose" />
+                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-rose">
+                    {t('sectionUnpenalized', { count: filteredUnpenalized.length })}
+                  </h2>
+                </div>
+                <div className="space-y-2.5">
+                  {filteredUnpenalized.map(a => (
+                    <ApptCard
+                      key={a.id}
+                      appt={a}
+                      onCheckIn={handleCheckIn}
+                      checkingIn={checkingIn === a.id}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── 5. Completados — fondo, opacidad reducida ── */}
             {filteredDone.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
@@ -679,6 +867,24 @@ export function AdmissionClient() {
             />
           </>
         )}
+
+        {/* No show desde la fila: confirm de por medio porque el estado pesa en
+            las métricas del doctor y es un clic al lado de "Check in".
+            Al aceptar NO se queda acá: lleva al detalle, que es donde se elige el
+            código de la penalidad — el desenlace y el cargo van juntos o el cargo
+            se olvida. */}
+        <ConfirmDialog
+          open={!!noShowTarget}
+          variant="warning"
+          title={t('noShowConfirmTitle')}
+          description={noShowTarget
+            ? t('noShowConfirmBody', { name: `${noShowTarget.patient.firstName} ${noShowTarget.patient.lastName}` })
+            : ''}
+          confirmLabel={markingNoShow ? t('noShowMarking') : t('noShowConfirmYes')}
+          cancelLabel={t('noShowConfirmCancel')}
+          onConfirm={() => { void confirmNoShow(); }}
+          onCancel={() => setNoShowTarget(null)}
+        />
       </div>
     </div>
   );

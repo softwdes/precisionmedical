@@ -506,6 +506,32 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   };
 
   /**
+   * Desenlace cobrable sellado: en vez de cerrar el panel, se abre Servicios ahí
+   * mismo para que se elija el codigo de la penalidad.
+   *
+   * Antes los dos handlers terminaban en `onClose()`, y cargar la penalidad
+   * costaba seis pasos: reabrir la cita, Ver caso, Servicios, buscar el codigo.
+   * En la practica se olvidaba. El codigo lo sigue eligiendo la persona (varia
+   * segun el caso); lo que se acorta es el camino hasta el catalogo.
+   *
+   * Cerrar Servicios sin elegir nada es una salida valida: la cita queda en la
+   * lista "Sin penalidad" de Admision del dia para no perderse.
+   */
+  const irAServicios = () => {
+    onRefresh();
+    // Inline (consulta del doctor / detalle de admision): Servicios es un tab
+    // de verdad, se navega ahi mismo sin perder el contexto.
+    if (inline) { setActiveTab('services'); return; }
+    // En el modal del calendario Servicios NO existe: el cobro se entra en el
+    // detalle del caso (decision explicita, ver el comentario del FinanzasTab).
+    // Asi que el encadenado lleva al caso, que es donde se carga el codigo.
+    if (appt.case && onOpenCase) { onOpenCase(appt.case.id, appt.id); return; }
+    // Sin caso no hay donde colgar la deuda (`sync-billing` devuelve `no_case`):
+    // no hay nada que encadenar, se cierra como antes.
+    onClose();
+  };
+
+  /**
    * Marcar que el paciente no vino. Solo se ofrece si TODAVIA no llego: si ya
    * hizo check-in o esta en consulta, decir "no show" seria contradecir un hecho
    * registrado — y ese estado pesa en las metricas del doctor.
@@ -520,7 +546,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
       setNoShowOpen(false);
-      router.refresh(); onRefresh(); onClose();
+      router.refresh();
+      irAServicios();
     } catch (e) {
       setAccionError(e instanceof Error ? e.message : t('errorNoShow'));
     } finally { setNoShowing(false); }
@@ -587,7 +614,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         body: JSON.stringify({ status: 'CANCELLED', cancelledSameDay: mismoDia }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
-      router.refresh(); onRefresh(); onClose();
+      router.refresh();
+      // La del MISMO DIA consumio el horario y cobra: encadena a Servicios igual
+      // que el no-show. La que aviso libero la agenda y no genera nada, asi que
+      // cierra sin mas — mandarla al catalogo seria sugerir un cobro que no toca.
+      if (mismoDia) irAServicios();
+      else { onRefresh(); onClose(); }
     } catch (e) {
       setCancelError(e instanceof Error ? e.message : t('errorCancelAppointment'));
     } finally { setCancelling(false); }

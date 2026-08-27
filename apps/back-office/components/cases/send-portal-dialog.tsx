@@ -97,7 +97,7 @@ function ui(lang: Lang) {
     expiresHdr:   'expira en 24h',
     via:          'Enviar por',
     viaTwilio:    'vía Twilio',
-    viaMailgun:   'todavía no conectado',
+    viaMailgun:   'vía Twilio · en pruebas',
     langLabel:    'Idioma del mensaje',
     subjectLbl:   'Asunto',
     bodyLbl:      'Mensaje',
@@ -137,7 +137,7 @@ function ui(lang: Lang) {
     expiresHdr:   'expires in 24h',
     via:          'Send via',
     viaTwilio:    'via Twilio',
-    viaMailgun:   'not wired yet',
+    viaMailgun:   'via Twilio · testing',
     langLabel:    'Message language',
     subjectLbl:   'Subject',
     bodyLbl:      'Message',
@@ -261,7 +261,11 @@ function ChannelTab({
         <div className={`text-[9.5px] font-medium opacity-70 ${textColor}`}>{sub}</div>
       </div>
       {badge && (
-        <span className="absolute top-1 right-1.5 text-[7.5px] font-bold uppercase tracking-wide px-1 py-px rounded bg-emerald/15 text-emerald border border-emerald/25">
+        <span className={`absolute top-1 right-1.5 text-[7.5px] font-bold uppercase tracking-wide px-1 py-px rounded border ${
+          badge === 'Live'
+            ? 'bg-emerald/15 text-emerald border-emerald/25'
+            : 'bg-amber/15 text-amber border-amber/25'
+        }`}>
           {badge}
         </span>
       )}
@@ -543,15 +547,15 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 icon={MessageSquare} label="SMS" sub={L.viaTwilio} badge="Live"
                 onClick={() => setChannel('SMS')}
               />
-              {/* Sin badge "Live" y deshabilitado: el email NO envía nada — el
-                  endpoint devuelve EMAIL_NOT_WIRED. Decía "via Mailgun · Live"
-                  y ni el proveedor era cierto. Se muestra igual, deshabilitado,
-                  para que se vea que el canal existe y está por venir; que
-                  desaparezca haría pensar que no se puede mandar por correo. */}
+              {/* Badge "Prueba" y no "Live": el correo YA sale por Twilio, pero
+                  su Email API es "Powered by SendGrid" y Twilio no firma BAA
+                  para SendGrid. Hasta contratar un proveedor que lo cubra,
+                  EMAIL_TEST_ALLOWLIST acota los destinos y un envío a alguien
+                  fuera de la lista se rechaza con el motivo. */}
               <ChannelTab
-                active={channel === 'EMAIL'} disabled color="brand"
-                icon={Mail} label="Email" sub={L.viaMailgun}
-                onClick={() => { /* deshabilitado hasta cablear el proveedor */ }}
+                active={channel === 'EMAIL'} disabled={!canSendEmail} color="brand"
+                icon={Mail} label="Email" sub={L.viaMailgun} badge="Prueba"
+                onClick={() => setChannel('EMAIL')}
               />
             </div>
           </div>

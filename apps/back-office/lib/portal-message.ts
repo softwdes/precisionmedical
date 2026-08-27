@@ -60,3 +60,45 @@ export function smsSegments(text: string): { chars: number; segments: number; gs
   const segments = text.length <= single ? 1 : Math.ceil(text.length / multi);
   return { chars: text.length, segments, gsm };
 }
+
+/**
+ * Cuerpo HTML del correo del portal.
+ *
+ * Deliberadamente sobrio: un correo de clínica con gradientes y logos grandes
+ * se parece más a marketing, y los filtros lo tratan peor. Texto claro, un
+ * botón, y el link visible abajo para quien no vea el botón.
+ *
+ * El `text` plano que acompaña es el MISMO cuerpo del SMS. No se duplica el
+ * mensaje: si algún día cambia, cambia en un solo lado.
+ */
+export function portalEmailHtml(
+  body: string,
+  portalUrl: string,
+  lang: PortalMessageLang,
+): string {
+  const cta      = lang === 'es' ? 'Completar el formulario' : 'Complete the form';
+  const fallback = lang === 'es'
+    ? 'Si el botón no funciona, copie este enlace en su navegador:'
+    : 'If the button does not work, copy this link into your browser:';
+
+  // El cuerpo lleva el link al final; en el correo va en el botón, no repetido.
+  const intro = body.replace(portalUrl, '').replace(/\s{2,}/g, ' ').trim();
+
+  return [
+    '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f6f7f9;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">',
+    '<div style="max-width:520px;margin:0 auto;padding:28px 18px;">',
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:26px;">',
+    '<p style="margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;">Precision Medical Care</p>',
+    `<p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#111827;">${escapeHtml(intro)}</p>`,
+    `<p style="margin:0 0 22px;"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">${cta}</a></p>`,
+    `<p style="margin:0;font-size:11px;line-height:1.6;color:#6b7280;">${fallback}<br/><span style="color:#4f46e5;word-break:break-all;">${escapeHtml(portalUrl)}</span></p>`,
+    '</div></div></body></html>',
+  ].join('');
+}
+
+/** El caseCode y el nombre entran al HTML: nunca sin escapar. */
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}

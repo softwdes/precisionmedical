@@ -7,9 +7,11 @@
  * mandaba nada aunque la pantalla dijera "Portal enviado"). Sale por
  * `lib/sms.ts` y queda registrado en `message_logs` con su estado.
  *
- * EMAIL: todavía NO cablea nada. Falta confirmar si el BAA cubre SendGrid, que
- * es un producto aparte de Twilio. Devuelve `error: 'EMAIL_NOT_WIRED'` en vez
- * de fingir que salió.
+ * EMAIL: sale por la Email API nativa de Twilio (comms.twilio.com), con las
+ * mismas credenciales. ⚠️ Ese producto es "Powered by Twilio SendGrid" y
+ * Twilio NO firma BAA para SendGrid, asi que NO puede llevar PHI a pacientes
+ * reales hasta contratar un proveedor que si lo cubra. Mientras tanto
+ * `EMAIL_TEST_ALLOWLIST` acota los destinos a direcciones de prueba.
  *
  * Flujo:
  * 1. Genera el magic token
@@ -26,7 +28,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
-import { buildPortalSms } from '@/lib/portal-message';
+import { sendEmail } from '@/lib/email';
+import { buildPortalSms, portalEmailHtml } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
@@ -219,8 +222,28 @@ export async function POST(
       })
     : null;
 
-  const emailPendiente = parsed.via === 'EMAIL';
-  const enviado = smsResult?.ok ?? false;
+  // El correo sale por la Email API nativa de Twilio, con las mismas
+  // credenciales. Mientras no haya BAA, `EMAIL_TEST_ALLOWLIST` lo acota a
+  // direcciones de prueba: un destino fuera de la lista se rechaza y queda
+  // registrado, en vez de escaparse a un paciente real.
+  const emailResult = parsed.via === 'EMAIL'
+    ? await sendEmail({
+        to: destino.email!,
+        toName: `${destino.firstName} ${destino.lastName ?? ''}`.trim() || null,
+        subject: parsed.language === 'es'
+          ? `Complete su formulario de registro · caso ${caseRecord.caseCode}`
+          : `Complete your registration form · case ${caseRecord.caseCode}`,
+        html: portalEmailHtml(messageBody, portalUrl, parsed.language),
+        text: messageBody,
+        patientId: caseRecord.patient.id,
+        caseId: caseId,
+        sentByUserId: actor.actorUserId,
+        sentByName: actor.actorName,
+      })
+    : null;
+
+  const envio   = smsResult ?? emailResult;
+  const enviado = envio?.ok ?? false;
 
   // Audit log con el resultado REAL, no con la intención
   await writeAuditLog(db, {
@@ -242,9 +265,9 @@ export async function POST(
       previousStatus: caseRecord.status,
       newStatus: updated.status,
       delivered: enviado,
-      messageLogId: smsResult?.messageLogId ?? null,
-      providerMessageId: smsResult?.messageSid ?? null,
-      sendError: smsResult?.error ?? (emailPendiente ? 'EMAIL_NOT_WIRED' : null),
+      messageLogId: envio?.messageLogId ?? null,
+      providerMessageId: smsResult?.messageSid ?? emailResult?.operationId ?? null,
+      sendError: envio?.error ?? null,
     },
   });
 
@@ -262,11 +285,10 @@ export async function POST(
       // Lo que de verdad pasó. `QUEUED` NO es entregado: la confirmación del
       // operador llega después por /api/twilio/sms-status.
       delivered: enviado,
-      status: smsResult?.status ?? null,
-      messageLogId: smsResult?.messageLogId ?? null,
-      error: smsResult?.error ?? (emailPendiente ? 'EMAIL_NOT_WIRED' : null),
-      errorDetail: smsResult?.errorDetail
-        ?? (emailPendiente ? 'El envío por email todavía no está conectado' : null),
+      status: smsResult?.status ?? (emailResult?.ok ? 'queued' : null),
+      messageLogId: envio?.messageLogId ?? null,
+      error: envio?.error ?? null,
+      errorDetail: envio?.errorDetail ?? null,
     },
   });
 }

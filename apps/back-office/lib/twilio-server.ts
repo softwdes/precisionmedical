@@ -8,6 +8,10 @@ export const twilioClient = twilio(
 );
 
 export const TWILIO_ACCOUNT_SID   = process.env.TWILIO_ACCOUNT_SID ?? '';
+// La Email API de Twilio (comms.twilio.com) va por REST con Basic auth, no por
+// el SDK, asi que necesita las API Keys sueltas ademas del cliente de arriba.
+export const TWILIO_API_KEY_SID    = process.env.TWILIO_API_KEY_SID ?? '';
+export const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET ?? '';
 export const TWILIO_PHONE_NUMBER  = process.env.TWILIO_PHONE_NUMBER ?? '';
 export const TWILIO_TWIML_APP_SID = process.env.TWILIO_TWIML_APP_SID ?? '';
 

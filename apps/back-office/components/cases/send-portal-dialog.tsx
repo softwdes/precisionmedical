@@ -117,9 +117,10 @@ function ui(lang: Lang) {
     successDesc:  'El SMS salió por Twilio. La confirmación de entrega llega en unos minutos.',
     successVia:   'Enviado por',
     notSentTitle: 'No se pudo enviar',
-    notSentEmail: 'El envío por email todavía no está conectado. Pasale el link de abajo a mano.',
+    notSentEmail: 'El correo no salió. Podés reintentar, o pasarle el link de abajo a mano.',
     notSentSms:   'El SMS no salió. Podés reintentar, o pasarle el link de abajo a mano.',
     retry:        'Reintentar envío',
+    whyLabel:     'Motivo',
     optedOut:     'Este número respondió STOP y se dio de baja. No se le puede volver a escribir — pasale el link por otra vía.',
     magicLink:    'Magic link generado',
     copied:       '¡Copiado!',
@@ -157,9 +158,10 @@ function ui(lang: Lang) {
     successDesc:  'The SMS was handed to Twilio. Delivery confirmation arrives in a few minutes.',
     successVia:   'Sent via',
     notSentTitle: 'Could not send',
-    notSentEmail: 'Email sending is not wired yet. Share the link below manually.',
+    notSentEmail: 'The email did not go out. You can retry, or share the link below manually.',
     notSentSms:   'The SMS did not go out. You can retry, or share the link below manually.',
     retry:        'Retry send',
+    whyLabel:     'Reason',
     optedOut:     'This number replied STOP and opted out. It cannot be messaged again — share the link another way.',
     magicLink:    'Magic link generated',
     copied:       'Copied!',
@@ -399,14 +401,26 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               <p className="text-[11px] text-text-muted mt-1">
                 {result.delivered
                   ? L.successDesc
-                  : result.error === 'EMAIL_NOT_WIRED' ? L.notSentEmail
-                  : result.error === 'OPTED_OUT'       ? L.optedOut
+                  : result.error === 'OPTED_OUT' ? L.optedOut
+                  : result.via === 'EMAIL'       ? L.notSentEmail
                   : L.notSentSms}
               </p>
             </DialogHeader>
           </div>
 
           <div className="px-5 py-4 space-y-3">
+            {/* El motivo exacto del fallo. Sin esto la pantalla decia "no se
+                pudo enviar" y el unico camino era abrir los logs de Vercel —
+                cuando el backend ya devuelve la causa y como resolverla. */}
+            {!result.delivered && result.errorDetail && (
+              <div className="rounded-md border border-amber/30 bg-amber/5 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-amber mb-1">
+                  {L.whyLabel}
+                </div>
+                <p className="text-[11.5px] text-text-2 leading-relaxed">{result.errorDetail}</p>
+              </div>
+            )}
+
             {/* Via + message */}
             <div className={`rounded-md p-3.5 border ${result.delivered ? 'border-emerald/25 bg-emerald/5' : 'border-amber/25 bg-amber/5'}`}>
               <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-2 ${result.delivered ? 'text-emerald' : 'text-amber'}`}>
@@ -450,7 +464,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 problema tecnico. Tampoco en email, que todavia no existe. */}
             {!result.delivered
               && result.error !== 'OPTED_OUT'
-              && result.error !== 'EMAIL_NOT_WIRED' && (
+              && result.error !== 'NOT_IN_TEST_ALLOWLIST' && (
               <Button
                 variant="outline"
                 disabled={sending}

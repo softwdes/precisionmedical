@@ -27,7 +27,7 @@ import { Button } from '@precision/ui';
 // SIN tab Notes: las notas del doctor viven en el Historial Médico del paciente
 // (decisión de Erick 2026-08-08) — un tab aparte era redundante.
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
-import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
+import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
@@ -234,6 +234,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const toast = useToast();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
 
@@ -867,6 +868,13 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         onOpenChange={setAddNoteOpen}
         caseId={caseInfo.id}
         caseCode={caseInfo.caseCode}
+        // El botón está en el encabezado y se ve desde los nueve tabs, pero las
+        // notas se leen solo en el del caso: sin esto, guardar desde Documentos
+        // dejaba la pantalla idéntica y parecía que no había guardado nada.
+        onSaved={() => {
+          toast.success(t('noteSaved'));
+          if (activeTab !== 'caso') cambiarTab('caso');
+        }}
       />
 
       <AppointmentDialog

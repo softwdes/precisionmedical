@@ -5,8 +5,12 @@
  *   body: { content: string, isPrivate?: boolean }
  *   Crea una nota interna del caso · audit log INSERT_CASE_NOTE.
  *
- * Phase 1A: authorName = "Front Office" placeholder hasta wire auth real.
- * Phase 2: tomar firstName + lastName del usuario logueado.
+ * El autor sale de `resolveActor()`. Estuvo clavado en "Front Office" con un
+ * "Phase 2: tomar del usuario logueado" — pero `resolveActor` ya devuelve
+ * `actorName`, así que toda nota interna decía "Front Office" aunque la hubiera
+ * escrito un doctor o facturación, en un panel que el equipo entero lee.
+ * Se mantiene "Front Office" como respaldo: la nota queda igual, sin dueño, en
+ * vez de perderse.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -45,8 +49,7 @@ export async function POST(
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
 
-  // Phase 1A: authorName placeholder. Phase 2: pull desde user logueado.
-  const authorName = 'Front Office';
+  const authorName = actor.actorName?.trim() || 'Front Office';
 
   const note = await db.caseNote.create({
     data: {

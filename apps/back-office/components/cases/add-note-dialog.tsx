@@ -15,17 +15,28 @@ import {
   Label,
 } from '@precision/ui';
 
-// Front Office · Agregar nota interna al caso.
-// Phase 1A: authorName placeholder "Front Office". Phase 2 toma del user logueado.
+// Agregar nota interna al caso. El autor lo resuelve el servidor con
+// `resolveActor()`; acá no se manda nombre.
 
 interface AddNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   caseId: string;
   caseCode: string;
+  /**
+   * Se llama tras guardar bien.
+   *
+   * Existe porque el botón "Agregar nota" vive en el ENCABEZADO —o sea que se
+   * puede apretar desde cualquiera de los nueve tabs— pero las notas se ven solo
+   * en el tab del caso. Al guardar desde Documentos el diálogo se cerraba y la
+   * pantalla quedaba idéntica: la nota se había guardado y no había una sola
+   * señal de que hubiera pasado algo. El caller usa esto para llevar a donde la
+   * nota SE VE.
+   */
+  onSaved?: () => void;
 }
 
-export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteDialogProps) {
+export function AddNoteDialog({ open, onOpenChange, caseId, caseCode, onSaved }: AddNoteDialogProps) {
   const router = useRouter();
   const t = useTranslations('addNoteDialog');
   const [content, setContent] = useState('');
@@ -57,6 +68,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
       }
       onOpenChange(false);
       router.refresh();
+      onSaved?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('saveError'));
     } finally {

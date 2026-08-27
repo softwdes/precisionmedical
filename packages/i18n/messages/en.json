@@ -4012,6 +4012,7 @@
       "timelineEvents": "events",
       "timelineEmpty": "No events yet.",
       "sectionInternalNotes": "Internal notes",
+      "noteSaved": "Note saved",
       "notesEmpty": "No notes yet.",
       "notePrivate": "Private"
     },

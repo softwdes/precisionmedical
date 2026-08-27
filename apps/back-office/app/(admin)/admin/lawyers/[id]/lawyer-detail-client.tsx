@@ -9,6 +9,7 @@ import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { KpiCard } from '@/components/ui-phoenix/kpi-card';
 import { FormField } from '@/components/ui-phoenix/form-field';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
+import { FloatingPanel } from '@/components/ui-phoenix/floating-panel';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import {
   Button,
@@ -898,6 +899,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                       e.stopPropagation();
                       setOpenMenu(openMenu === c.id ? null : c.id);
                     }}
+                    onMenuClose={() => setOpenMenu(null)}
                     onSign={() => { setOpenMenu(null); setSignCase(c); }}
                     onAssign={patchCase}
                     onToggleExempt={() => { setOpenMenu(null); setConfirmExempt(c); }}
@@ -1038,6 +1040,7 @@ function CaseTableRow({
   members,
   menuOpen,
   onMenuToggle,
+  onMenuClose,
   onSign,
   onAssign,
   onToggleExempt,
@@ -1048,6 +1051,8 @@ function CaseTableRow({
   members: Member[];
   menuOpen: boolean;
   onMenuToggle: (e: React.MouseEvent) => void;
+  /** Lo pide `FloatingPanel` para cerrarse al scrollear. */
+  onMenuClose: () => void;
   onSign: () => void;
   onAssign: (caseId: string, field: 'attorneyId' | 'paralegalId' | 'legalAssistantId', member: CaseMember | null) => void;
   onToggleExempt: () => void;
@@ -1121,10 +1126,20 @@ function CaseTableRow({
         >
           <MoreHorizontal className="w-4 h-4" />
         </button>
-        {menuOpen && (
-          <div className="fixed z-[9999] min-w-[200px] rounded-lg border border-border bg-bg-2 shadow-xl py-1"
-            style={{ top: (btnRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right ?? 0) }}
-          >
+        {/* Por `FloatingPanel`: portalea y VOLTEA si abajo no entra. Antes leía el
+            rect del botón dentro del `style` —o sea en cada render, y con la
+            posición congelada al abrir— y siempre abría hacia abajo, así que en
+            las últimas filas de la tabla el menú se salía de la ventana. */}
+        <FloatingPanel
+          anchorRef={btnRef}
+          open={menuOpen}
+          width={216}
+          align="end"
+          maxHeight={300}
+          onScrollClose={onMenuClose}
+          className="border border-border py-1"
+        >
+          <div>
             <Link
               href={`/front-office/${row.id}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
@@ -1180,7 +1195,7 @@ function CaseTableRow({
               Eliminar de firma
             </button>
           </div>
-        )}
+        </FloatingPanel>
       </td>
     </tr>
   );

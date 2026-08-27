@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
-import { PersonAvatar, TagPill, CaseStageProgress } from '@/components/ui-phoenix';
+import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -1962,7 +1962,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [archivosTarget,     setArchivosTarget]     = useState<PatientRow | null>(null);
   const [medHistoryTarget,   setMedHistoryTarget]   = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  /** El botón de la fila abierta. Se asigna al abrir: hay uno por fila. */
+  const menuAnchor = useRef<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [searchValue,   setSearchValue]   = useState(q ?? '');
 
@@ -2027,28 +2028,20 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
     return () => clearTimeout(timer);
   }, [searchValue, inactiveOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // El cierre al scrollear lo maneja `FloatingPanel` con `onScrollClose`: al
+  // scrollear la fila se va de la vista y el menú deja de tener a qué referirse.
+  // Acá queda solo el clic afuera.
   useEffect(() => {
     if (!openMenuId) return;
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
     };
-    // El menú se posiciona con `position: fixed` calculado una sola vez al
-    // abrir (coordenadas de viewport). Si la página o la tabla scrollean
-    // después, el botón se mueve pero el menú no — queda flotando
-    // desconectado de la fila. Se cierra al primer scroll para no mostrar
-    // un menú "huérfano".
-    const closeOnScroll = () => setOpenMenuId(null);
     document.addEventListener('mousedown', handler);
-    window.addEventListener('scroll', closeOnScroll, true);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      window.removeEventListener('scroll', closeOnScroll, true);
-    };
+    return () => { document.removeEventListener('mousedown', handler); };
   }, [openMenuId]);
 
   const openMenu = (id: string, btn: HTMLButtonElement) => {
-    const r = btn.getBoundingClientRect();
-    setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    menuAnchor.current = btn;
     setOpenMenuId(id);
   };
 
@@ -3269,16 +3262,28 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         />
       )}
 
-      {/* ─── Menú acciones (fixed, escapa overflow-hidden de la tabla) ────────── */}
+      {/* ─── Menú de acciones de la fila ──────────────────────────────────────
+          Va por `FloatingPanel`: portalea (escapa el overflow de la tabla) y
+          además VOLTEA hacia arriba si abajo no entra. Antes se calculaba
+          `top: r.bottom + 4` a mano y siempre abría hacia abajo, así que en las
+          últimas filas de la página el menú se salía de la ventana y cinco de
+          las ocho opciones —incluida Archivar— quedaban inalcanzables: no había
+          volteo, ni alto máximo para scrollear por dentro, y el cierre al
+          scrollear impedía correr la página para verlas. */}
       {openMenuId && (() => {
         const p = localPatients.find(x => x.id === openMenuId);
         if (!p) return null;
         return (
-          <div
-            ref={menuRef}
-            style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
-            className="w-52 rounded-lg border border-border bg-bg-1 shadow-xl py-1 text-sm"
+          <FloatingPanel
+            anchorRef={menuAnchor}
+            open
+            width={208}
+            align="end"
+            maxHeight={340}
+            onScrollClose={() => setOpenMenuId(null)}
+            className="border border-border py-1 text-sm"
           >
+          <div ref={menuRef}>
             <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuEdit')}
@@ -3321,6 +3326,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               </>
             )}
           </div>
+          </FloatingPanel>
         );
       })()}
 

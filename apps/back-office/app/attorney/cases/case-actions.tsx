@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { MoreHorizontal, Eye, PenLine, History, FileDown, FileText, FileSignature, Loader2 } from 'lucide-react';
@@ -9,7 +8,7 @@ import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter,
 } from '@precision/ui';
-import { DataTable, EmptyState, TagPill, IconAction } from '@/components/ui-phoenix';
+import { DataTable, EmptyState, TagPill, IconAction, FloatingPanel } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { fechaHora } from '@/lib/fechas';
@@ -63,34 +62,23 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
    * a la derecha. Es el mismo problema que ya tuvimos con los overlays dentro de
    * un Dialog, y la solución es la misma: sacarlo del árbol.
    */
-  const [menuPos, setMenuPos] = React.useState<{ top: number; right: number } | null>(null);
-  const open = menuPos !== null;
+  // La posición, el portal, el volteo y el cierre al scrollear los resuelve
+  // `FloatingPanel`. Acá queda el estado de abierto y el clic afuera / Escape.
+  const [open, setOpen] = React.useState(false);
 
-  const openMenu = React.useCallback(() => {
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (!r) return;
-    setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
-  }, []);
-
-  // Cerrar al hacer clic afuera, al scrollear y con Escape. El scroll importa
-  // porque la posición es fija: si la tabla se mueve, el menú quedaría flotando
-  // lejos de su fila.
   React.useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
-      setMenuPos(null);
+      setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuPos(null); };
-    const onScroll = () => setMenuPos(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
 
@@ -107,7 +95,7 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
   }
 
   function viewCase(): void {
-    setMenuPos(null);
+    setOpen(false);
     // Sin firma: se avisa primero. Con firma (o exento), directo al caso.
     if (needsSignature) setDialog('warn');
     else openCase();
@@ -118,7 +106,7 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => (open ? setMenuPos(null) : openMenu())}
+        onClick={() => setOpen(v => !v)}
         className="w-8 h-8 rounded-md text-text-muted hover:text-text-1 hover:bg-white/5 inline-flex items-center justify-center"
         aria-label={tc('actions')}
         aria-haspopup="menu"
@@ -127,29 +115,31 @@ export function CaseActionsMenu({ caseRow, canSign, sessionName, onSigned }: Pro
         <MoreHorizontal className="w-3.5 h-3.5" />
       </button>
 
-      {menuPos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={menuRef}
-          role="menu"
-          style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
-          className="z-[60] w-56 rounded-lg bg-bg-1 shadow-xl py-1"
-        >
+      <FloatingPanel
+        anchorRef={triggerRef}
+        open={open}
+        width={224}
+        align="end"
+        maxHeight={200}
+        onScrollClose={() => setOpen(false)}
+        className="py-1"
+      >
+        <div ref={menuRef} role="menu">
           <MenuItem icon={Eye} label={t('menuViewCase')} onClick={viewCase} />
           {canSign && (
             <MenuItem
               icon={PenLine}
               label={t('menuSign')}
-              onClick={() => { setMenuPos(null); setDialog('sign'); }}
+              onClick={() => { setOpen(false); setDialog('sign'); }}
             />
           )}
           <MenuItem
             icon={History}
             label={t('menuHistory')}
-            onClick={() => { setMenuPos(null); setDialog('history'); }}
+            onClick={() => { setOpen(false); setDialog('history'); }}
           />
-        </div>,
-        document.body,
-      )}
+        </div>
+      </FloatingPanel>
 
       {dialog === 'warn' && (
         <MissingSignatureDialog

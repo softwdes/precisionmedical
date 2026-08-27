@@ -1,10 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Check, Loader2 } from 'lucide-react';
-import { TagPill } from '@/components/ui-phoenix';
+import { TagPill, FloatingPanel } from '@/components/ui-phoenix';
 
 /**
  * Selector MÚLTIPLE de asistentes legales — réplica del de v2.
@@ -37,17 +36,16 @@ export function AssistantsSelect({ options, selected, disabled, onChange }: Prop
 
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
-  const [pos, setPos] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  /** Abierto/cerrado. La posición la calcula `FloatingPanel`. */
+  const [pos, setPos] = React.useState<true | null>(null);
   const [query, setQuery] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
   const open = pos !== null;
 
   const openPanel = React.useCallback(() => {
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (!r) return;
     setQuery('');
-    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    setPos(true);
   }, []);
 
   React.useEffect(() => {
@@ -58,14 +56,11 @@ export function AssistantsSelect({ options, selected, disabled, onChange }: Prop
       setPos(null);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPos(null); };
-    const onScroll = () => setPos(null);
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
 
@@ -117,12 +112,18 @@ export function AssistantsSelect({ options, selected, disabled, onChange }: Prop
           : <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />}
       </button>
 
-      {pos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={panelRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: Math.max(pos.width, 240) }}
-          className="z-[60] rounded-lg bg-bg-1 shadow-xl py-1 max-h-72 overflow-y-auto"
-        >
+      {/* Por `FloatingPanel`, que además VOLTEA si abajo no entra: antes abría
+          siempre hacia abajo y en las últimas filas quedaba cortado. Sigue
+          cerrándose al scrollear, como hasta ahora. */}
+      <FloatingPanel
+        anchorRef={triggerRef}
+        open={open}
+        width={240}
+        maxHeight={288}
+        onScrollClose={() => setPos(null)}
+        className="py-1"
+      >
+        <div ref={panelRef}>
           <div className="px-2 py-1.5">
             <input
               autoFocus
@@ -152,9 +153,8 @@ export function AssistantsSelect({ options, selected, disabled, onChange }: Prop
               </button>
             );
           })}
-        </div>,
-        document.body,
-      )}
+        </div>
+      </FloatingPanel>
     </>
   );
 }

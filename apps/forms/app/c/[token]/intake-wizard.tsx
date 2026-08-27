@@ -163,7 +163,7 @@ const STRINGS = {
     caseNumberLabel: 'Número de caso',
     accidentLabel: 'Accidente',
     apptLabel: 'Tu próxima cita',
-    apptWith: 'con Dr.',
+    apptWith: 'con',
     todayStepsLabel: 'Lo que completarás hoy',
     todaySteps: [
       { icon: '👤', label: 'Datos personales' },
@@ -458,7 +458,7 @@ const STRINGS = {
     caseNumberLabel: 'Case number',
     accidentLabel: 'Accident',
     apptLabel: 'Your next appointment',
-    apptWith: 'with Dr.',
+    apptWith: 'with',
     todayStepsLabel: 'What you will complete today',
     todaySteps: [
       { icon: '👤', label: 'Personal information' },

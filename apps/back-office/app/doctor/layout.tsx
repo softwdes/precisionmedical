@@ -79,7 +79,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
       <AdminShell
         variant="doctor"
         userName={`${provider.firstName} ${provider.lastName}`}
-        userRole={viewInfo.isViewAs ? t('viewAsRole') : 'Doctor'}
+        userRole={viewInfo.isViewAs ? t('viewAsRole') : 'Provider'}
         userInitials={initials}
         userEmail={provider.email}
       >

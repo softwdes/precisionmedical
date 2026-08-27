@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { nombreProviderO } from '@/lib/provider-name';
 
 export async function POST(
   req: NextRequest,
@@ -50,9 +51,7 @@ export async function POST(
     data:  data as Parameters<typeof db.appointment.update>[0]['data'],
   });
 
-  const providerName = appt.provider
-    ? `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`
-    : 'Sin proveedor asignado';
+  const providerName = nombreProviderO(appt.provider, 'Sin proveedor asignado');
 
   await writeAuditLog(db, {
     actorType:   actor.actorType,

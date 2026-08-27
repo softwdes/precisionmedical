@@ -1404,7 +1404,7 @@ const AUDIT_ACTION_CFG: Record<string, {
       const clinic = m.clinicName as string | undefined;
       const when = m.scheduledFor as string | undefined;
       const parts: string[] = [];
-      if (provider) parts.push(`Dr. ${provider}`);
+      if (provider) parts.push(provider);
       if (clinic) parts.push(clinic);
       if (when) parts.push(new Date(when).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' }));
       return parts.length > 0 ? parts.join(' · ') : undefined;
@@ -1477,7 +1477,7 @@ function formatRelative(d: Date | string, t: Traductor): string {
 const SIGNER_LABELS: Record<string, string> = {
   PATIENT:  'Paciente',
   ATTORNEY: 'Abogado',
-  DOCTOR:   'Doctor',
+  DOCTOR:   'Provider',
 };
 
 const SIGNER_COLORS: Record<string, string> = {

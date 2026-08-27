@@ -173,7 +173,7 @@ export default async function CaseDetailPage({ params }: Props) {
             {
               label: 'Próxima cita',
               value: nextAppt ? fmtDate(nextAppt.scheduledFor) : 'No agendada',
-              sub:   nextAppt?.provider ? `Dr. ${nextAppt.provider.lastName} · ${nextAppt.clinic?.name ?? ''}` : '',
+              sub:   nextAppt?.provider ? `${nextAppt.provider.lastName} · ${nextAppt.clinic?.name ?? ''}` : '',
               color: '#67e8f9',
             },
             {

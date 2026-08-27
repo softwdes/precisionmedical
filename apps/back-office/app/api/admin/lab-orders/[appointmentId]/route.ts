@@ -19,6 +19,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { syncLabBilling } from '@/lib/lab-billing';
+import { nombreProviderO } from '@/lib/provider-name';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -160,9 +161,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       })
     : null;
   const signer = chosen ?? appt?.provider ?? null;
-  const orderedByName = signer
-    ? `Dr. ${signer.firstName} ${signer.lastName}`.trim()
-    : actor.name;
+  const orderedByName = nombreProviderO(signer, actor.name);
 
   const groupId = randomUUID();
   const sampleDate = body.sampleDate ? new Date(`${body.sampleDate}T12:00:00-06:00`) : null;

@@ -35,6 +35,7 @@ import {
   type TriageRecord, type VitalsState, type TriageVitalsFormHandle,
 } from '@/components/visit/triage-vitals-form';
 import { DoctorStepPanel } from './doctor-step-panel';
+import { nombreProviderO, nombreProviderONull } from '@/lib/provider-name';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ConsentsData {
@@ -494,7 +495,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             doctorDoneAt={d.doctorDoneAt ?? null}
             checkedOutAt={d.checkedOutAt ?? null}
             isOnline={d.isOnline ?? false}
-            providerName={d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : null}
+            providerName={nombreProviderONull(d.provider)}
             triage={summaryTriage}
             hasTriage={!!d.triageRecord}
             servicesPanel={{
@@ -569,7 +570,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     <div className="font-bold text-text-1">{patientName}</div>
                     {d.case && <div className="font-mono text-[11px] text-emerald">{d.case.caseCode}</div>}
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted mt-1">
-                      {d.provider && <span className="flex items-center gap-1"><Stethoscope className="w-3 h-3" />Dr. {d.provider.firstName} {d.provider.lastName}</span>}
+                      {d.provider && <span className="flex items-center gap-1"><Stethoscope className="w-3 h-3" />{d.provider.firstName} {d.provider.lastName}</span>}
                       <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{d.clinic.name}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{fmtTime(d.scheduledFor)} · {d.durationMinutes} min</span>
                     </div>
@@ -624,7 +625,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="space-y-2">
                   {[
                     { k: t('infoType'),    v: TYPE_LABELS[d.type] ?? d.type },
-                    { k: 'Doctor',         v: d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : '—' },
+                    { k: t('infoProvider'), v: nombreProviderO(d.provider, '—') },
                     { k: 'Time',           v: `${fmtTime(d.scheduledFor)} · ${d.durationMinutes} min` },
                     { k: 'Clinic',         v: d.clinic.name },
                     { k: 'Case',           v: d.case?.caseCode },

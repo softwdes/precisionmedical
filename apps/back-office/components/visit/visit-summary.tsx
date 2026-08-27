@@ -642,7 +642,7 @@ export function VisitSummary({
                   <span className="font-semibold">{fmtDayTime(a.scheduledFor)}</span>
                   {a.provider && (
                     <span className="text-text-2">
-                      · Dr. {a.provider.firstName} {a.provider.lastName}
+                      · {a.provider.firstName} {a.provider.lastName}
                     </span>
                   )}
                 </div>

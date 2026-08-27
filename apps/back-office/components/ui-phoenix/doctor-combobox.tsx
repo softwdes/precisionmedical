@@ -33,7 +33,6 @@ interface DoctorComboboxProps {
   loading?: boolean;
   /** Solo para sobreescribir el texto por defecto, que ya viene traducido. */
   placeholder?: string;
-  drPrefix?: string;
 }
 
 export function DoctorCombobox({
@@ -43,7 +42,6 @@ export function DoctorCombobox({
   onChange,
   loading = false,
   placeholder,
-  drPrefix = 'Dr.',
 }: DoctorComboboxProps) {
   // Los textos propios del primitivo salen de `phoenix.common`: lo montan tres
   // pantallas y dos no pasaban `placeholder`, asi que el default en duro
@@ -75,7 +73,7 @@ export function DoctorCombobox({
         <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-[7px] text-sm">
           <PersonAvatar firstName={selected.firstName} lastName={selected.lastName} size={6} gradientClass="bg-gradient-brand" />
           <span className="flex-1 min-w-0 truncate text-text-1 font-medium text-[12.5px]">
-            {drPrefix} {selected.firstName} {selected.lastName}
+            {selected.firstName} {selected.lastName}
           </span>
           <button
             type="button"
@@ -116,7 +114,7 @@ export function DoctorCombobox({
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
                     <div className="min-w-0 flex-1">
                       <div className="text-text-1 text-sm font-medium truncate">
-                        {drPrefix} {p.firstName} {p.lastName}
+                        {p.firstName} {p.lastName}
                       </div>
                       <div className="text-text-muted text-[10px] capitalize truncate">
                         {p.specialty.toLowerCase().replace(/_/g, ' ')}

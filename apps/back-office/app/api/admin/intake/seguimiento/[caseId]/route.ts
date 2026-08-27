@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
+import { nombreProviderO } from '@/lib/provider-name';
 
 /**
  * B.24 — Detalle de seguimiento del caso
@@ -199,9 +200,7 @@ export async function GET(
   for (const a of c.appointments) {
     const note = a.visitNote;
     if (!note) continue;
-    const providerName = a.provider
-      ? `Dr. ${a.provider.firstName} ${a.provider.lastName}`
-      : 'Proveedor';
+    const providerName = nombreProviderO(a.provider, 'Proveedor');
     const isSigned = note.status === 'SIGNED';
     timeline.push({
       id:         a.id,

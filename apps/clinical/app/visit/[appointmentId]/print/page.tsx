@@ -271,7 +271,7 @@ export default async function PrintPage({ params }: Props) {
               <div className="ibt">Proveedor</div>
               {appt.provider ? (
                 <>
-                  <div className="irow"><span className="il">Doctor:</span><span className="iv">Dr. {appt.provider.lastName}, {appt.provider.firstName}</span></div>
+                  <div className="irow"><span className="il">Provider:</span><span className="iv">{appt.provider.lastName}, {appt.provider.firstName}</span></div>
                   <div className="irow"><span className="il">Especialidad:</span><span className="iv">{appt.provider.specialty.replace(/_/g, ' ')}</span></div>
                 </>
               ) : <div className="irow"><span className="il">Sin proveedor</span></div>}

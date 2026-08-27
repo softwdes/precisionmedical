@@ -13,6 +13,7 @@
  */
 
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { nombreProviderONull } from './provider-name';
 
 // ─── El tipo que consume el panel ─────────────────────────────────────────────
 
@@ -158,9 +159,7 @@ export function buildPatientContext(
     referredBy: mh.visitInfo?.referredBy ?? p.referralSource ?? null,
     preferredPharmacy: dec(p.preferredPharmacy) ?? null,
     employer: dec(p.employer) ?? null,
-    providerName: p.providerReferrer
-      ? `Dr. ${p.providerReferrer.firstName} ${p.providerReferrer.lastName}`
-      : null,
+    providerName: nombreProviderONull(p.providerReferrer),
     insurance: {
       primaryName: c?.primaryInsurance?.name ?? null,
       primaryPolicy: c?.primaryPolicyNumber ?? null,

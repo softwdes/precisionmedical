@@ -259,7 +259,7 @@ export function ProvidersClient({ providers, stats }: Props) {
           ))}
         </select>
         <p className="text-[11px] text-text-muted">
-          Solo aparecen empleados con cargo Doctor no vinculados a otro perfil clínico.
+          Solo aparecen empleados con cargo Provider no vinculados a otro perfil clínico.
         </p>
       </div>
 
@@ -272,7 +272,7 @@ export function ProvidersClient({ providers, stats }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Doctores / Providers"
+        title="Providers"
         subtitle={`${stats.active} activos · ${stats.total} total`}
       />
 
@@ -307,7 +307,7 @@ export function ProvidersClient({ providers, stats }: Props) {
         <DataTable.Scroll>
           <DataTable.Table>
             <DataTable.Head>
-              <DataTable.Th>Doctor</DataTable.Th>
+              <DataTable.Th>Provider</DataTable.Th>
               <DataTable.Th>Especialidad</DataTable.Th>
               <DataTable.Th>Contacto</DataTable.Th>
               <DataTable.Th>Licencia</DataTable.Th>
@@ -388,7 +388,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Doctor</DialogTitle>
+            <DialogTitle>Editar Provider</DialogTitle>
           </DialogHeader>
           <FormFields providerId={editing?.id} />
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -404,7 +404,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Eliminar Doctor</DialogTitle>
+            <DialogTitle>Eliminar Provider</DialogTitle>
             <DialogDescription>
               ¿Eliminar a <strong>{deleting?.firstName} {deleting?.lastName}</strong>? Esta acción es reversible desde base de datos.
             </DialogDescription>

@@ -39,7 +39,7 @@ export function VisitFilter({ visits, value, onChange }: {
     const fecha = new Date(v.scheduledFor).toLocaleDateString(undefined, {
       day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Denver',
     });
-    return v.providerName ? `${fecha} · Dr. ${v.providerName}` : fecha;
+    return v.providerName ? `${fecha} · ${v.providerName}` : fecha;
   };
 
   return (

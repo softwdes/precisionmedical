@@ -145,7 +145,7 @@ export function DoctoresMetricasClient() {
             <table className="w-full text-sm min-w-[980px]">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Doctor</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Provider</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Uso sistema</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Consultas</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Duración prom.</th>
@@ -165,7 +165,7 @@ export function DoctoresMetricasClient() {
                   >
                     <td className="px-4 py-3 sticky left-0 bg-surface z-10">
                       <div className="min-w-[170px]">
-                        <div className="font-medium text-text-1 text-[12.5px]">Dr. {r.name}</div>
+                        <div className="font-medium text-text-1 text-[12.5px]">{r.name}</div>
                         {r.specialty && <div className="text-[10px] text-text-3 uppercase tracking-wider">{r.specialty}</div>}
                       </div>
                     </td>
@@ -245,7 +245,7 @@ export function DoctoresMetricasClient() {
                   <h3 className="text-base font-bold text-text-1 truncate">
                     {apptId && detail?.appointment
                       ? `${detail.appointment.patientName}`
-                      : `Dr. ${doctor.name}`}
+                      : doctor.name}
                   </h3>
                   <p className="text-xs text-text-3 mt-0.5">
                     {apptId && detail?.appointment
@@ -323,7 +323,7 @@ export function DoctoresMetricasClient() {
                     {[
                       { label: 'Llegó',       v: fmtClinicTime(detail.appointment?.checkedInAt ?? null) },
                       { label: 'A consulta',  v: fmtClinicTime(detail.appointment?.admittedAt ?? null) },
-                      { label: 'Dr. terminó', v: fmtClinicTime(detail.appointment?.doctorDoneAt ?? null) },
+                      { label: 'Provider terminó', v: fmtClinicTime(detail.appointment?.doctorDoneAt ?? null) },
                       { label: 'Salida',      v: fmtClinicTime(detail.appointment?.checkedOutAt ?? null) },
                       {
                         label: 'Duración',

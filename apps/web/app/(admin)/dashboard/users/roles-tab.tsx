@@ -94,7 +94,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
   admin:       'Admin · Clinic Back-Office · Doctors App · Attorney Portal. Sin configuración.',
   contador:    'Clinic Back-Office · Nómina y Asistencia.',
   employee:    'PM Time Clock · Doctors App.',
-  doctor:      'Portal Médico (Doctors App) · Mi Día, pacientes, calendario, estadísticas.',
+  doctor:      'Portal del Provider (Doctors App) · Mi Día, pacientes, calendario, estadísticas.',
   lawyer:      'Attorney Portal · Métricas de sus casos.',
   provider:    'Doctors App · Métricas de sus propios datos.',
   ia_auditor:  'Agentes IA y Finanzas (solo lectura).',

@@ -23,6 +23,7 @@ import {
 import { DatePicker } from '@/components/ui-phoenix/date-picker';
 import { FloatingPanel } from '@/components/ui-phoenix/floating-panel';
 import type { DiagnosisRow } from './diagnosis-picker';
+import { nombreProvider } from '@/lib/provider-name';
 
 export type LabCategory = 'LABORATORY' | 'IMAGING' | 'CARDIOLOGY';
 
@@ -105,7 +106,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
     fetch('/api/admin/providers?status=ACTIVE&limit=100')
       .then((r) => (r.ok ? r.json() : { providers: [] }))
       .then((d: { providers?: Array<{ id: string; firstName: string; lastName: string }> }) =>
-        setProviders((d.providers ?? []).map((p) => ({ id: p.id, label: `Dr. ${p.firstName} ${p.lastName}` }))))
+        setProviders((d.providers ?? []).map((p) => ({ id: p.id, label: nombreProvider(p) }))))
       .catch(() => undefined);
   }, [open]);
 

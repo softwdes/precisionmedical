@@ -30,6 +30,7 @@ import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { nombreProvider, nombreProviderCorto } from '@/lib/provider-name';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -657,7 +658,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const MONTHS       = Object.values(t.raw('months') as Record<string, string>);
 
   // ─── Etiquetas de doctor ──────────────────────────────────────────────────
-  // Antes era `Dr. ${lastName}` en todos lados. Con dos doctores del mismo
+  // Antes era `Dr. ${lastName}` en todos lados: el prefijo se fue (ninguno de
+  // los providers tiene el titulo) y quedaba el otro problema — con dos del mismo
   // apellido (Barry y Devin Clanton) el label queda ambiguo: el filtro sigue
   // siendo correcto — filtra por id, no por nombre — pero no hay forma de saber
   // a cuál de los dos se está eligiendo, y el día de uno con 27 citas se ve
@@ -666,17 +668,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   // Se desambigua SIEMPRE, no solo cuando hay choque de apellido: si el label
   // dependiera de quién más está activo, el nombre de un doctor cambiaría al dar
   // de alta a otro.
-  /** Dropdowns y filtros, donde hay espacio de sobra: "Dr. Barry Clanton" */
-  const drFull = (p: { firstName: string; lastName: string }) =>
-    `${t('drPrefix')} ${p.firstName} ${p.lastName}`.trim();
+  /** Dropdowns y filtros, donde hay espacio de sobra: "Barry Clanton" */
+  const drFull = nombreProvider;
   /** Tarjetas del grid: las de 15 min ya están apretadas y el nombre completo no
-   *  entra — inicial y apellido alcanzan para distinguir. "Dr. B. Clanton" */
-  const drShort = (p: { firstName: string; lastName: string }) => {
-    const initial = p.firstName.trim().charAt(0);
-    return initial
-      ? `${t('drPrefix')} ${initial}. ${p.lastName}`
-      : `${t('drPrefix')} ${p.lastName}`;
-  };
+   *  entra — inicial y apellido alcanzan para distinguir. "B. Clanton" */
+  const drShort = nombreProviderCorto;
 
   const [weekStart, setWeekStart]       = useState<Date>(() => getMondayOf(new Date()));
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);

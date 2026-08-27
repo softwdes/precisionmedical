@@ -160,7 +160,7 @@ function NowCallingBanner({ data, lang }: { data: NowCalling; lang: 'es' | 'en' 
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 22 }}>→</span>
           <span style={{ fontSize: 16, fontWeight: 600, color: '#10B981' }}>
             {isConsult
-              ? (data.doctorName ? `${data.doctorName} · ${tx(lang, 'Consultorio', "Doctor's Office")}` : tx(lang, 'Consultorio', "Doctor's Office"))
+              ? (data.doctorName ? `${data.doctorName} · ${tx(lang, 'Consultorio', 'Exam Room')}` : tx(lang, 'Consultorio', 'Exam Room'))
               : tx(lang, 'Sala de Triaje', 'Triage Room')}
           </span>
         </div>

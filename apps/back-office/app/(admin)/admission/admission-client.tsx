@@ -200,7 +200,7 @@ function ApptCard({
             {appt.provider && (
               <span className="flex items-center gap-1">
                 <Stethoscope className="w-3 h-3" />
-                Dr. {appt.provider.lastName}
+                {appt.provider.lastName}
               </span>
             )}
             <span>{TYPE_LABELS[appt.type] ?? appt.type}</span>

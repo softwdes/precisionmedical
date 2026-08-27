@@ -276,7 +276,7 @@ export default async function AttorneyDashboard() {
                         {nextAppt && (
                           <span style={{ color: '#67e8f9' }}>
                             {' '}· Próxima: {fmtDate(nextAppt.scheduledFor)}
-                            {nextAppt.provider && ` (Dr. ${nextAppt.provider.lastName})`}
+                            {nextAppt.provider && ` (${nextAppt.provider.lastName})`}
                           </span>
                         )}
                       </div>

@@ -922,7 +922,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <div className="flex items-center gap-1.5">
                         <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
                         <span>{t('successApptLabel')} <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
-                          {successProvider && <> · Dr. {successProvider.firstName} {successProvider.lastName}</>}
+                          {successProvider && <> · {successProvider.firstName} {successProvider.lastName}</>}
                           {successClinic && <> · {successClinic.name}</>}
                         </span>
                       </div>
@@ -1288,7 +1288,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {/* Doctor */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <Label>Doctor</Label>
+                      <Label>Provider</Label>
                       {hasFilteredProviders && filteredProviders.length < providers.length && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
                           className="text-[10px] text-text-muted hover:text-brand-text">
@@ -1436,7 +1436,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                           const s = slotOptions.find((x) => x.iso === slotIso);
                           const p = providers.find((x) => x.id === providerId);
                           const c = clinics.find((x) => x.id === clinicId);
-                          return <><strong>{s?.dayLabel} · {s?.label}</strong> · Dr. <strong>{p?.firstName} {p?.lastName}</strong> · {c?.name}</>;
+                          return <><strong>{s?.dayLabel} · {s?.label}</strong> · <strong>{p?.firstName} {p?.lastName}</strong> · {c?.name}</>;
                         })()}
                       </div>
                       <div className="text-text-muted text-[10px] mt-1 not-italic">{t('confirmBySMS')}</div>

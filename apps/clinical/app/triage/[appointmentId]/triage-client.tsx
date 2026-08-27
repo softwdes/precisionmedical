@@ -445,7 +445,7 @@ export function TriageClient({
   const p      = appt.patient;
   const c      = appt.case;
   const dr     = appt.provider;
-  const drName = dr ? `Dr. ${dr.lastName}` : 'el doctor';
+  const drName = dr ? dr.lastName : 'el Provider';
   const now    = new Date().toISOString();
 
   return (

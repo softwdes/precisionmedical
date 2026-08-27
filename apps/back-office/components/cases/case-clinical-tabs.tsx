@@ -214,7 +214,7 @@ function VisitHeader({ visit, action, dateIso, note }: {
         {fmtVisit(dateIso ?? visit.scheduledFor, locale)}
       </span>
       {visit.providerName && (
-        <span className="text-[11px] text-text-2">· Dr. {visit.providerName}</span>
+        <span className="text-[11px] text-text-2">· {visit.providerName}</span>
       )}
       {note && <span className="text-[11px] text-text-muted">· {note}</span>}
       {action && <div className="ml-auto">{action}</div>}

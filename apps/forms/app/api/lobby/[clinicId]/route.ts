@@ -8,7 +8,7 @@ import { db } from '@precision-medical/database';
  * HIPAA CRÍTICO — esta ruta es PÚBLICA (sin auth, pantalla de TV).
  * NUNCA devuelve: nombre completo, DOB, diagnóstico, aseguradora, bufete.
  * SOLO devuelve: iniciales + 2 dígitos del código de caso ("E.S - 62"),
- *                nombre de pila del doctor, estado, tiempo estimado.
+ *                nombre de pila del especialista, estado, tiempo estimado.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ export async function GET(
       a.case?.caseCode ?? null,
       a.id,
     );
-    const doctorName = a.provider ? `Dr. ${a.provider.firstName}` : null;
+    const doctorName = a.provider ? a.provider.firstName : null;
 
     const base: LobbyPatient = {
       id:           a.id,

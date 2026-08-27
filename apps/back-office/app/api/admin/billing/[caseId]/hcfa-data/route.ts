@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
+import { nombreProviderO } from '@/lib/provider-name';
 
 /**
  * B.26 — HCFA / CMS-1500 data
@@ -306,9 +307,7 @@ export async function GET(
       },
       billingProvider: 'Precision Medical Pain Management and Orthopedics',
 
-      providerName: provider
-        ? `Dr. ${provider.firstName} ${provider.lastName}`
-        : '—',
+      providerName: nombreProviderO(provider, '—'),
       providerNpi,
 
       insurerFax:   c.primaryInsurance?.claimsFax   ?? null,

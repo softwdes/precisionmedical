@@ -8,6 +8,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { nombreProviderApellidoPrimero } from '@/lib/provider-name';
 
 export async function GET(
   _req: NextRequest,
@@ -124,7 +125,7 @@ export async function GET(
           appointmentId: a.id,
           visitNum:      idx + 1,
           scheduledFor:  a.scheduledFor.toISOString(),
-          provider:      a.provider ? `Dr. ${a.provider.lastName}, ${a.provider.firstName}` : null,
+          provider:      nombreProviderApellidoPrimero(a.provider) || null,
           note: a.visitNote ? {
             id:          a.visitNote.id,
             signedAt:    a.visitNote.signedAt?.toISOString() ?? null,

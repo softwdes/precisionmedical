@@ -14,6 +14,7 @@ import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
 import { CaseVisitNotes } from '@/components/visit/case-visit-notes';
 import type { CoverageDTO } from '@/lib/coverage';
+import { nombreProviderO } from '@/lib/provider-name';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
                       {a.provider && (
                         <span className="flex items-center gap-1">
                           <User className="w-3 h-3" />
-                          Dr. {a.provider.firstName} {a.provider.lastName}
+                          {a.provider.firstName} {a.provider.lastName}
                           {a.provider.specialty && <span className="text-text-muted">· {a.provider.specialty}</span>}
                         </span>
                       )}
@@ -182,7 +183,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
               {a.provider && (
                 <span className="text-[11px] text-text-2 flex items-center gap-1">
-                  <User className="w-3 h-3" />Dr. {a.provider.firstName} {a.provider.lastName}
+                  <User className="w-3 h-3" />{a.provider.firstName} {a.provider.lastName}
                 </span>
               )}
               {a.clinic && (
@@ -225,7 +226,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
                 <td className="px-3 py-2.5 text-text-1 whitespace-nowrap">{typeLabels[a.type] ?? a.type}</td>
                 <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{a.clinic?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">
-                  {a.provider ? `Dr. ${a.provider.firstName} ${a.provider.lastName}` : '—'}
+                  {nombreProviderO(a.provider, '—')}
                 </td>
                 <td className="px-3 py-2.5 text-text-muted whitespace-nowrap">{a.durationMinutes} min</td>
                 <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 whitespace-nowrap"><StatusPill status={a.status} labels={statusLabels} /></td>

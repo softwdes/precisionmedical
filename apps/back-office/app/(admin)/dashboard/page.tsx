@@ -1,5 +1,6 @@
 import { db } from '@precision-medical/database';
 import { DashboardClient } from './dashboard-client';
+import { nombreProviderONull } from '@/lib/provider-name';
 
 // B.29 — Dashboard de Recepción
 // Vista panel agregada · KPIs del día · cola por status · alertas · citas · activity feed
@@ -204,7 +205,7 @@ export default async function DashboardPage() {
         status: a.status,
         patientName: `${a.patient.firstName} ${a.patient.lastName}`,
         clinicName: a.clinic.name,
-        providerName: a.provider ? `Dr. ${a.provider.firstName} ${a.provider.lastName}` : null,
+        providerName: nombreProviderONull(a.provider),
         providerSpecialty: a.provider?.specialty ?? null,
         caseId: a.case?.id ?? null,
         caseCode: a.case?.caseCode ?? null,

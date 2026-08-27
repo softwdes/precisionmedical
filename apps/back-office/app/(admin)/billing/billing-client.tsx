@@ -121,7 +121,7 @@ function CaseRow({ item, onHcfa, t }: {
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-text-muted">
             {item.signedByName && (
-              <span>Dr. {item.signedByName.split(' ').at(-1)} firmó · {fmtTime(item.signedAt)}</span>
+              <span>{item.signedByName.split(' ').at(-1)} firmó · {fmtTime(item.signedAt)}</span>
             )}
             {item.cptCount > 0 && (
               <span className="flex items-center gap-1">

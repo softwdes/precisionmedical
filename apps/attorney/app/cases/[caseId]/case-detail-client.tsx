@@ -154,7 +154,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                         </span>
                         {a.provider && (
                           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
-                            · Dr. {a.provider.lastName} {a.provider.firstName}
+                            · {a.provider.lastName} {a.provider.firstName}
                           </span>
                         )}
                       </div>
@@ -356,7 +356,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                         {a.type.replace(/_/g, ' ')}
                         {a.provider && (
                           <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.45)', fontSize: 11, marginLeft: 6 }}>
-                            Dr. {a.provider.lastName}
+                            {a.provider.lastName}
                             {a.clinic ? ` · ${a.clinic.name}` : ''}
                           </span>
                         )}

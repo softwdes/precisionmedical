@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
+import { nombreProvider } from '@/lib/provider-name';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ function useProviders() {
     fetch('/api/admin/providers?status=ACTIVE&limit=100')
       .then(r => r.ok ? r.json() : { providers: [] })
       .then((d: { providers: Array<{ id: string; firstName: string; lastName: string }> }) =>
-        setProviders(d.providers?.map(p => ({ id: p.id, label: `Dr. ${p.firstName} ${p.lastName}` })) ?? [])
+        setProviders(d.providers?.map(p => ({ id: p.id, label: nombreProvider(p) })) ?? [])
       )
       .catch(() => {});
   }, []);
@@ -641,7 +642,7 @@ function LabModal({
 
           {/* Médico — full width dropdown */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Médico</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Provider</label>
             <select
               value={providerId}
               onChange={e => {
@@ -816,7 +817,7 @@ function PrescriptionsSection({ caseId, patientId, readOnly = false }: { caseId:
                 {p.dose && <span className="text-[11px] text-text-2">{p.dose}{p.quantity ? ` · ${p.quantity} ${p.unit ?? ''}`.trim() : ''}</span>}
                 {p.instructions && <span className="text-[11px] text-text-muted italic line-clamp-2">{p.instructions}</span>}
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  {p.prescribedBy && <span className="text-[10px] text-text-muted">{t('drPrefix')} {p.prescribedBy}</span>}
+                  {p.prescribedBy && <span className="text-[10px] text-text-muted">{p.prescribedBy}</span>}
                   {p.startDate && <span className="text-[10px] text-text-muted font-mono">{fmtDate(p.startDate)}</span>}
                   {p.refills != null && <span className="text-[10px] text-text-muted">{p.refills} {t('refillsSuffix')}</span>}
                 </div>

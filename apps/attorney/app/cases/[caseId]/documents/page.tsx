@@ -396,7 +396,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                     </div>
                     {note.signedAt ? (
                       <div className="note-signed">
-                        ✓ Firmada · {note.signedByName ?? 'Médico'} · {fmtDate(note.signedAt)}
+                        ✓ Firmada · {note.signedByName ?? 'Provider'} · {fmtDate(note.signedAt)}
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 10 }}>

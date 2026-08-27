@@ -795,7 +795,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 text-left text-xs space-y-1 mb-6">
               <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">{t('successDetailsLabel')}</div>
               <div><strong className="text-text-1">{t('successPatient')}</strong> {patientName}</div>
-              <div><strong className="text-text-1">{t('successDoctor')}</strong> {t('drPrefix')} {success.providerName}</div>
+              <div><strong className="text-text-1">{t('successDoctor')}</strong> {success.providerName}</div>
               <div><strong className="text-text-1">{t('successClinic')}</strong> {success.clinicName}</div>
               {/* timeZone obligatorio: sin fijarlo se formatea en la zona del
                   navegador y cada persona ve una hora distinta para la misma
@@ -1100,7 +1100,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 value={providerId}
                 onChange={setProviderId}
                 loading={loadingRes}
-                drPrefix={t('drPrefix')}
               />
             </div>
 
@@ -1279,7 +1278,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 <ChevronRight className="w-3 h-3" /> {t('summaryTitle')}
               </div>
               <div className="space-y-0.5 text-text-2">
-                <div>{t('drPrefix')} <strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong></div>
+                <div><strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong></div>
                 <div>{t('summaryAtClinic')} <strong className="text-text-1">{selectedClinic.name}</strong></div>
                 <div className="capitalize">📅 <strong className="text-text-1">{scheduledLabel}</strong></div>
                 <div>{t('summaryDuration')} <strong className="text-text-1">{duration} min</strong> · {t('summaryType')} <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>

@@ -62,7 +62,7 @@ function totalOf(r: EmployeeRow): number {
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Súper Admin', ADMIN: 'Admin', CONTADOR: 'Contador',
-  EMPLOYEE: 'Empleado', FRONT_DESK: 'Recepción', DOCTOR: 'Doctor',
+  EMPLOYEE: 'Empleado', FRONT_DESK: 'Recepción', DOCTOR: 'Provider',
   PROVIDER: 'Proveedor',
 };
 

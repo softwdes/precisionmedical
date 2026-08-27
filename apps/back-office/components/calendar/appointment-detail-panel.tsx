@@ -33,6 +33,7 @@ import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { OnlineMeetingBox } from '@/components/visit/online-visit';
+import { nombreProvider } from '@/lib/provider-name';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -926,7 +927,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     )}
                     <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />
                     <Row label={t('rowClinic')}        value={appt.clinic.name} />
-                    {appt.provider && <Row label={t('rowDoctor')} value={`${t('drPrefix')} ${appt.provider.firstName} ${appt.provider.lastName}`} />}
+                    {appt.provider && <Row label={t('rowDoctor')} value={nombreProvider(appt.provider)} />}
                     {appt.provider?.specialty && <Row label={t('rowSpecialty')} value={SPECIALTY_LABEL[appt.provider.specialty] ?? appt.provider.specialty} />}
                     <Row label={t('rowType')} value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
                     {appt.case?.accidentDate && (

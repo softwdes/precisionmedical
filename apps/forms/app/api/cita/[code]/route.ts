@@ -2,7 +2,7 @@
  * GET /api/cita/[code]
  *
  * Búsqueda pública de cita por código de caso (CASE-1127) o ID de appointment.
- * HIPAA: solo devuelve nombre de pila, clínica, doctor (nombre), fecha/hora.
+ * HIPAA: solo devuelve nombre de pila, clínica, especialista (nombre), fecha/hora.
  * NUNCA: apellido completo, DOB, diagnóstico, aseguradora, número de caso completo.
  */
 
@@ -61,7 +61,7 @@ export async function GET(
   return NextResponse.json({
     ok: true,
     firstName:   appt.patient.firstName,
-    doctorName:  appt.provider ? `Dr. ${appt.provider.firstName}` : null,
+    doctorName:  appt.provider ? appt.provider.firstName : null,
     clinicName:  appt.clinic.name,
     clinicAddr:  appt.clinic.address,
     scheduledFor: scheduledFor.toISOString(),

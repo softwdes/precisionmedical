@@ -26,7 +26,7 @@ const TABS = [
   { key: 'citas',          label: 'Citas',          href: '/dashboard/metricas?tab=citas' },
 ];
 
-const DOCTORES_TAB = { key: 'doctores', label: 'Doctores', href: '/dashboard/metricas?tab=doctores' };
+const DOCTORES_TAB = { key: 'doctores', label: 'Providers', href: '/dashboard/metricas?tab=doctores' };
 
 /** El tab Doctores es supervisión clínica: solo SUPER_ADMIN / ADMIN lo ven. */
 async function isMetricsAdmin(): Promise<boolean> {

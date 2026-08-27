@@ -10,6 +10,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { nombreProvider } from '@/lib/provider-name';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -56,9 +57,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: { id: true, firstName: true, lastName: true },
   });
 
-  const signerName = appt.provider
-    ? `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`
-    : `${dbUser?.firstName ?? ''} ${dbUser?.lastName ?? ''}`.trim() || user.email;
+  const signerName = nombreProvider(appt.provider) || `${dbUser?.firstName ?? ''} ${dbUser?.lastName ?? ''}`.trim() || user.email;
 
   const signedAt = new Date();
   const updated = await db.visitNote.update({

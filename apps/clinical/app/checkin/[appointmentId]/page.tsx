@@ -221,7 +221,7 @@ export default async function CheckinPage({ params }: Props) {
             {[
               { label: 'Hora',    value: fmtTime(appt.scheduledFor) },
               { label: 'Tipo',    value: appt.type.replace(/_/g, ' ') },
-              { label: 'Doctor',  value: appt.provider ? `Dr. ${appt.provider.lastName}, ${appt.provider.firstName}` : '—' },
+              { label: 'Provider', value: appt.provider ? `${appt.provider.lastName}, ${appt.provider.firstName}` : '—' },
               { label: 'Clínica', value: appt.clinic.name },
               { label: 'Caso',    value: appt.case?.caseCode ?? '—' },
               { label: 'Accidente', value: appt.case?.accidentDate ? fmtDate(appt.case.accidentDate) : '—' },

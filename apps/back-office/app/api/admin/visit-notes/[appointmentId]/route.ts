@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
+import { nombreProvider, nombreProviderONull } from '@/lib/provider-name';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -129,9 +130,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (enConsulta && !actorCita.isProviderOwner && !parsed.takeover) {
     return NextResponse.json({
       error: 'NOTE_IN_CONSULT',
-      doctorName: cita?.provider
-        ? `Dr. ${cita.provider.firstName} ${cita.provider.lastName}`.trim()
-        : null,
+      doctorName: nombreProviderONull(cita?.provider),
     }, { status: 409 });
   }
 
@@ -226,7 +225,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         appointmentId,
         takenBy: actorCita.name,
         doctorOnDuty: cita?.provider
-          ? `Dr. ${cita.provider.firstName} ${cita.provider.lastName}`.trim()
+          ? nombreProvider(cita.provider)
           : null,
         sections: Object.keys(sections),
       },

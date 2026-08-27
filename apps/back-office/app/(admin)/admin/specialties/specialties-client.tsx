@@ -493,7 +493,7 @@ function ViewDialog({
               <span className="text-text-muted italic text-xs">Ninguno</span>
             )
           } />
-          <InfoRow label="Doctores"      value={<span className="font-mono text-text-1">{specialty.doctorCount}</span>} />
+          <InfoRow label="Providers"     value={<span className="font-mono text-text-1">{specialty.doctorCount}</span>} />
           <InfoRow label="Estado"        value={
             <StatusPill
               state={specialty.isActive ? 'active' : 'inactive'}

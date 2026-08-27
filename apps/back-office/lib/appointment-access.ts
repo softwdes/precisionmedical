@@ -18,6 +18,7 @@ import { db } from '@precision-medical/database';
 import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
 import { getDbUserByEmail } from './actor';
+import { nombreProvider } from './provider-name';
 
 export interface ApptActor {
   email: string;
@@ -68,7 +69,7 @@ export async function checkAppointmentAccess(
     return {
       actor: {
         email,
-        name: `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`.trim(),
+        name: nombreProvider(appt.provider),
         userId,
         isProviderOwner: true,
         role,

@@ -1584,8 +1584,8 @@ function PatientSidebar({ data, onEditInsurance, onEditLegal }: {
 
       {/* Proveedor */}
       {appt.provider && (
-        <Section id="provider" title="Doctor">
-          <Row label="Nombre"     value={`Dr. ${appt.provider.firstName} ${appt.provider.lastName}`} />
+        <Section id="provider" title="Provider">
+          <Row label="Nombre"     value={`${appt.provider.firstName} ${appt.provider.lastName}`} />
           <Row label="Especialidad" value={appt.provider.specialty ?? undefined} />
         </Section>
       )}
@@ -2400,8 +2400,8 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signedByName: data?.appointment.provider
-          ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
-          : 'Doctor',
+          ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+          : 'Provider',
         }),
       });
       const json = await res.json() as { ok: boolean; error?: string; missing?: string[] };
@@ -2599,7 +2599,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <CheckCircle2 size={16} />
                       <span>
-                        Nota firmada por {signedBy ?? 'Doctor'}{' '}
+                        Nota firmada por {signedBy ?? 'Provider'}{' '}
                         {signedAt ? `el ${new Date(signedAt).toLocaleDateString('es-US', { timeZone: 'America/Denver' })} a las ${new Date(signedAt).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}` : ''}
                       </span>
                     </div>
@@ -2835,8 +2835,8 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             appointmentId={appointmentId}
             diagnoses={diagnoses}
             providerName={data.appointment.provider
-              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
-              : 'Doctor'}
+              ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Provider'}
             patientName={data.appointment.patient
               ? `${data.appointment.patient.lastName.toUpperCase()}, ${data.appointment.patient.firstName}`
               : 'Paciente'}
@@ -2863,8 +2863,8 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             visitNoteId={data.appointment.visitNote?.id ?? null}
             diagnoses={diagnoses}
             providerName={data.appointment.provider
-              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
-              : 'Doctor'}
+              ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Provider'}
             onClose={() => setShowLabModal(false)}
           />
         )}
@@ -2875,8 +2875,8 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             appointmentId={appointmentId}
             visitNoteId={data.appointment.visitNote?.id ?? null}
             providerName={data.appointment.provider
-              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
-              : 'Doctor'}
+              ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Provider'}
             patientName={data.appointment.patient
               ? `${data.appointment.patient.lastName.toUpperCase()}, ${data.appointment.patient.firstName}`
               : 'Paciente'}

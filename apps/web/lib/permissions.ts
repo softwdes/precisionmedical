@@ -94,10 +94,10 @@ export const ROLE_META: Record<Role, RoleMeta> = {
     accesos: 'PM Time Clock · Doctors App',
   },
   doctor: {
-    label: 'Doctor',
+    label: 'Provider',
     color: '#7C3AED',
     dbValue: 'DOCTOR',
-    accesos: 'Portal Médico (Doctors App)',
+    accesos: 'Portal del Provider (Doctors App)',
   },
   lawyer: {
     label: 'Abogado',
@@ -119,7 +119,16 @@ export const ROLE_META: Record<Role, RoleMeta> = {
   },
 };
 
-/** All roles in display order */
+/**
+ * Los roles que se OFRECEN, en orden de aparicion.
+ *
+ * `provider` no esta en la lista a proposito: es un duplicado legado de `doctor`
+ * — mismo acceso (Doctors App), y cero usuarios asignados. Con `doctor` etiquetado
+ * "Provider" quedaban dos opciones que se leen igual y hacen lo mismo, asi que la
+ * muerta no se ofrece mas. El valor `PROVIDER` del enum SI se queda: `ROLE_META` y
+ * `dbRoleToRole` lo siguen resolviendo, para que un usuario viejo con ese rol se
+ * siga viendo bien en vez de caer al default.
+ */
 export const ALL_ROLES: Role[] = [
   'super_admin',
   'admin',
@@ -127,7 +136,6 @@ export const ALL_ROLES: Role[] = [
   'employee',
   'doctor',
   'lawyer',
-  'provider',
   'ia_auditor',
 ];
 

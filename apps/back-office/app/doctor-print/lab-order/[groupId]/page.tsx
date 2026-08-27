@@ -16,6 +16,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
+import { nombreProvider } from '@/lib/provider-name';
 
 type Props = { params: Promise<{ groupId: string }> };
 
@@ -340,7 +341,7 @@ export default async function LabOrderPrintPage({ params }: Props): Promise<Reac
           {/* Firma del médico */}
           <div className="sigb">
             <div className="signame">
-              {head.orderedByName ?? `Dr. ${a.provider?.firstName ?? ''} ${a.provider?.lastName ?? ''}`}
+              {head.orderedByName ?? nombreProvider(a.provider)}
               {' · '}{specialty}
               {a.provider?.licenseNumber ? ` · ${t('prLicense')} ${a.provider.licenseNumber}` : ''}
             </div>

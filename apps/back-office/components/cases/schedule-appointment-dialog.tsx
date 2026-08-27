@@ -210,7 +210,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 text-left text-xs space-y-1 mb-4">
               <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">Detalles</div>
               <div><strong className="text-text-1">Paciente:</strong> {caseInfo.patient.firstName} {caseInfo.patient.lastName}</div>
-              <div><strong className="text-text-1">Doctor:</strong> Dr. {success.providerName}</div>
+              <div><strong className="text-text-1">Provider:</strong> {success.providerName}</div>
               <div><strong className="text-text-1">Clínica:</strong> {success.clinicName}</div>
               <div><strong className="text-text-1">Cuándo:</strong> {new Date(success.scheduledFor).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' })}</div>
             </div>
@@ -279,7 +279,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               <option value="">{loadingResources ? 'Cargando...' : 'Seleccionar doctor...'}</option>
               {providers.map((p) => (
                 <option key={p.id} value={p.id}>
-                  Dr. {p.firstName} {p.lastName} — {SPECIALTY_LABELS[p.specialty] ?? p.specialty}
+                  {p.firstName} {p.lastName} — {SPECIALTY_LABELS[p.specialty] ?? p.specialty}
                 </option>
               ))}
             </select>
@@ -393,7 +393,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                 <ChevronRight className="w-3 h-3" /> Resumen
               </div>
               <div className="space-y-0.5 text-text-2">
-                <div>Dr. <strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong> ({SPECIALTY_LABELS[selectedProvider.specialty]})</div>
+                <div><strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong> ({SPECIALTY_LABELS[selectedProvider.specialty]})</div>
                 <div>en <strong className="text-text-1">{selectedClinic.name}</strong></div>
                 <div className="capitalize">📅 <strong className="text-text-1">{scheduledForLocalLabel}</strong></div>
                 <div>Duración: <strong className="text-text-1">{duration} min</strong> · Tipo: <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>

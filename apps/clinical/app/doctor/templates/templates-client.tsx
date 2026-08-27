@@ -222,7 +222,7 @@ export function TemplatesClient({ doctors }: { doctors: Doctor[] }) {
 
       {/* Doctor selector */}
       <div style={{ marginBottom: 28 }}>
-        <label style={labelStyle}>Doctor</label>
+        <label style={labelStyle}>Provider</label>
         {doctors.length === 0 ? (
           <div style={{ padding: '12px 16px', borderRadius: 9, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', fontSize: 13 }}>
             No hay usuarios con rol PROVIDER activos. Crea un usuario de tipo Provider primero.
@@ -230,7 +230,7 @@ export function TemplatesClient({ doctors }: { doctors: Doctor[] }) {
         ) : (
           <select value={doctorId} onChange={e => setDoctorId(e.target.value)} style={selectStyle}>
             {doctors.map(d => (
-              <option key={d.id} value={d.id}>Dr. {d.lastName}, {d.firstName}</option>
+              <option key={d.id} value={d.id}>{d.lastName}, {d.firstName}</option>
             ))}
           </select>
         )}
@@ -244,7 +244,7 @@ export function TemplatesClient({ doctors }: { doctors: Doctor[] }) {
           </h1>
           {selectedDoctor && (
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', marginTop: 3 }}>
-              Dr. {selectedDoctor.lastName}, {selectedDoctor.firstName} · {templates.length} plantilla{templates.length !== 1 ? 's' : ''}
+              {selectedDoctor.lastName}, {selectedDoctor.firstName} · {templates.length} plantilla{templates.length !== 1 ? 's' : ''}
             </div>
           )}
         </div>
@@ -361,7 +361,7 @@ export function TemplatesClient({ doctors }: { doctors: Doctor[] }) {
                 </div>
                 {selectedDoctor && (
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>
-                    Dr. {selectedDoctor.lastName}, {selectedDoctor.firstName}
+                    {selectedDoctor.lastName}, {selectedDoctor.firstName}
                   </div>
                 )}
               </div>

@@ -19,6 +19,7 @@ import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
+import { nombreProvider } from '@/lib/provider-name';
 
 type Props = { params: Promise<{ appointmentId: string }> };
 
@@ -375,7 +376,7 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
                 <>
                   <div className="irow">
                     <span className="il">{t('prDoctor')}</span>
-                    <span className="iv">Dr. {a.provider.lastName}, {a.provider.firstName}</span>
+                    <span className="iv">{a.provider.lastName}, {a.provider.firstName}</span>
                   </div>
                   <div className="irow"><span className="il">{t('prSpecialty')}</span><span className="iv">{specialty}</span></div>
                   {a.provider.licenseNumber && (
@@ -471,7 +472,7 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
               <div className="sigs">
                 ✓ {t('prSignedStatement', {
                   date: fmtDateTime(note.signedAt, locale),
-                  name: note.signedByName ?? `Dr. ${a.provider?.firstName ?? ''} ${a.provider?.lastName ?? ''}`,
+                  name: note.signedByName ?? nombreProvider(a.provider),
                 })}
                 {a.provider?.licenseNumber ? ` · ${t('prLicense')} ${a.provider.licenseNumber}` : ''}
                 <br />{t('prSignedRecord')}

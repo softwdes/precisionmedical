@@ -317,7 +317,7 @@ function ApptRow({ appt, now, action, dimmed = false, statusLabels }: {
           )}
         </div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {appt.provider && <span>Dr. {appt.provider.lastName}</span>}
+          {appt.provider && <span>{appt.provider.lastName}</span>}
           <span>{appt.clinic.name}</span>
           {appt.case && <span style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.35)' }}>{appt.case.caseCode}</span>}
           {appt.case?.intakeFormCompletedAt && (

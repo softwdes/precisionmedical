@@ -11,6 +11,10 @@ import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
+import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
+import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
+import { etiquetaEstado } from '@/lib/appointment-style';
+import { nombreProvider } from '@/lib/provider-name';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -200,18 +204,21 @@ function formatProgress(prog: ReturnType<typeof calcIntakeProgress>, t: TFunc) {
 }
 
 
-interface AppointmentItem {
-  id: string;
-  scheduledFor: string;
-  durationMinutes: number;
-  type: string;
-  status: string;
-  notes: string | null;
+/**
+ * Una cita del caso, tal como la manda `/api/admin/cases/[id]/appointments`.
+ *
+ * Se tipa contra `CalendarAppointment` a propósito: ese endpoint ya devuelve el
+ * payload completo que consume `AppointmentDetailPanel` (paciente, caso, abogado,
+ * seguro, servicios cargados), y el docblock del panel dice explícitamente que las
+ * "citas del caso" son uno de sus consumidores. Antes acá se declaraban 8 campos
+ * planos: el resto llegaba por la red y se tiraba.
+ */
+type AppointmentItem = CalendarAppointment & {
   checkedInAt: string | null;
+  /** Sella el cierre de la visita. La columna Check-out estaba clavada en '—'. */
+  checkedOutAt: string | null;
   attendanceSignedAt: string | null;
-  clinic: { id: string; name: string };
-  provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
-}
+};
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
@@ -717,19 +724,36 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
   caseId: string; caseCode: string; open: boolean; onClose: () => void;
 }) {
   const t = useTranslations('phoenix.patients');
+  // Las etiquetas de estado viven en el namespace del calendario: ya estaban las
+  // nueve y no tiene sentido duplicarlas acá.
+  const tc = useTranslations('phoenix.calendar');
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [loading, setLoading]           = useState(false);
-  const router = useRouter();
+  const [coverage, setCoverage]         = useState<CoverageDTO | undefined>(undefined);
+  /** Cita abierta en el panel de detalle (el ojo). */
+  const [verAppt, setVerAppt]   = useState<AppointmentItem | null>(null);
+  /** Cita abierta directo en edición (el lápiz), sin pasar por el panel. */
+  const [editAppt, setEditAppt] = useState<AppointmentItem | null>(null);
+  const [page, setPage]         = useState(1);
+  const [perPage, setPerPage]   = useState(10);
+  const [recarga, setRecarga]   = useState(0);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     fetch(`/api/admin/cases/${caseId}/appointments`)
       .then(r => r.json())
-      .then(j => setAppointments(j.appointments ?? []))
+      .then(j => { setAppointments(j.appointments ?? []); setCoverage(j.coverage ?? undefined); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open, caseId]);
+  }, [open, caseId, recarga]);
+
+  // La página vuelve a 1 al reabrir o al cambiar el tamaño: quedarse en la 4 de
+  // una lista que ahora tiene 2 páginas muestra una tabla vacía.
+  useEffect(() => { setPage(1); }, [open, perPage]);
+
+  const totalPages = Math.max(1, Math.ceil(appointments.length / perPage));
+  const pagina = appointments.slice((page - 1) * perPage, page * perPage);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -769,54 +793,60 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {appointments.map(a => (
+                  {pagina.map(a => (
                     <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtApptDate(a.scheduledFor)}</td>
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtTime(a.scheduledFor)}</td>
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{addMinutes(a.scheduledFor, a.durationMinutes)}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <TagPill label={a.status === 'SCHEDULED' ? 'Pending' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
+                        {/* Mostraba el ENUM CRUDO (`CONFIRMED`) y traducía un solo
+                            caso a mano, en inglés y sin pasar por i18n. */}
+                        <TagPill label={etiquetaEstado(a, tc)} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
                       </td>
                       <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
-                        {a.attendanceSignedAt ? <span className="text-emerald">✓ Signed</span> : '—'}
+                        {a.attendanceSignedAt
+                          ? <span className="text-emerald">✓ {t('apptSigned')}</span>
+                          : '—'}
                       </td>
                       <td className="px-3 py-2.5 text-[12px] whitespace-nowrap">
                         {a.checkedInAt ? <span className="text-emerald text-[10px]">✓</span> : <span className="text-text-muted">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">—</td>
+                      <td className="px-3 py-2.5 text-[12px] whitespace-nowrap">
+                        {a.checkedOutAt
+                          ? <span className="text-emerald text-[10px]">✓</span>
+                          : <span className="text-text-muted">—</span>}
+                      </td>
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">
-                        {a.provider ? `${a.provider.firstName} ${a.provider.lastName}` : '—'}
+                        {nombreProvider(a.provider)}
                       </td>
                       <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
                         {a.provider?.specialty ?? '—'}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
+                        {/* Las cuatro acciones estaban rotas: el ojo y el lápiz
+                            hacían el MISMO `router.push('/triage/<id>')` a una
+                            página que no existe —y llamaban `onClose()` antes, así
+                            que cerraban el diálogo y dejaban al usuario en un 404—
+                            y las otras dos no tenían `onClick` en absoluto. */}
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
+                            onClick={() => setVerAppt(a)}
                             className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                            title="View detail"
+                            title={t('apptActionView')}
+                            aria-label={t('apptActionView')}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+                          {/* Atajo: el panel también tiene Editar adentro, pero
+                              cambiar la hora o el doctor es lo más frecuente y no
+                              tiene por qué costar dos pantallas. */}
                           <button
-                            onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
+                            onClick={() => setEditAppt(a)}
                             className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-                            title="Edit / Triage"
+                            title={t('apptActionEdit')}
+                            aria-label={t('apptActionEdit')}
                           >
                             <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                            title="Forms"
-                          >
-                            <CalendarDays className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                            title="Download"
-                          >
-                            <Download className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -828,27 +858,82 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
           )}
         </div>
 
-        {/* Pagination footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-bg-1">
+        {/* Pie de paginación. Era de cartón: el select no tenía estado, "Page 1 of
+            1" estaba escrito a mano y los cuatro botones iban `disabled`, así que
+            con más de 10 citas no había forma de ver las siguientes. */}
+        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-bg-1 flex-wrap gap-2">
           <div className="flex items-center gap-2 text-[11px] text-text-muted">
-            <span>Rows per page</span>
-            <select className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none">
-              <option>10</option>
-              <option>25</option>
+            <span>{t('apptRowsPerPage')}</span>
+            <select
+              value={perPage}
+              onChange={(e) => setPerPage(Number(e.target.value))}
+              className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none"
+            >
+              {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-1 text-[11px] text-text-muted">
-            <span>Page 1 of 1</span>
+            <span>{t('apptPageOf', { page, total: totalPages })}</span>
             <div className="flex gap-1 ml-2">
-              {['«','‹','›','»'].map(s => (
-                <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand-text transition-colors text-xs">
-                  {s}
+              {([
+                { s: '«', to: 1,            off: page === 1 },
+                { s: '‹', to: page - 1,     off: page === 1 },
+                { s: '›', to: page + 1,     off: page === totalPages },
+                { s: '»', to: totalPages,   off: page === totalPages },
+              ]).map(b => (
+                <button key={b.s} type="button" disabled={b.off} onClick={() => setPage(b.to)}
+                  className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 enabled:hover:border-brand enabled:hover:text-brand-text transition-colors text-xs">
+                  {b.s}
                 </button>
               ))}
             </div>
           </div>
         </div>
       </DialogContent>
+
+      {/* El detalle de la cita: el MISMO panel del calendario. El endpoint de
+          esta lista ya devolvía su payload completo —lo ampliaron para eso— y su
+          docblock nombra a las "citas del caso" como consumidor. */}
+      {verAppt && (
+        <AppointmentDetailPanel
+          appointment={verAppt}
+          coverage={coverage}
+          onClose={() => setVerAppt(null)}
+          onRefresh={() => setRecarga(k => k + 1)}
+        />
+      )}
+
+      {/* Edición directa desde la fila. */}
+      {editAppt && (
+        <AppointmentDialog
+          mode="free"
+          open
+          onOpenChange={(o) => { if (!o) setEditAppt(null); }}
+          editAppointment={{
+            id: editAppt.id,
+            scheduledFor: editAppt.scheduledFor,
+            durationMinutes: editAppt.durationMinutes,
+            type: editAppt.type,
+            notes: editAppt.notes,
+            isOnline: editAppt.isOnline,
+            meetingUrl: editAppt.meetingUrl,
+            clinicId: editAppt.clinic.id,
+            clinicName: editAppt.clinic.name,
+            providerId: editAppt.provider?.id ?? null,
+            providerFirstName: editAppt.provider?.firstName,
+            providerLastName: editAppt.provider?.lastName,
+            providerSpecialty: editAppt.provider?.specialty ?? undefined,
+            caseId,
+            caseCode,
+            patient: {
+              id: editAppt.patient.id,
+              firstName: editAppt.patient.firstName,
+              lastName: editAppt.patient.lastName,
+            },
+          }}
+          onSuccess={() => { setEditAppt(null); setRecarga(k => k + 1); }}
+        />
+      )}
     </Dialog>
   );
 }

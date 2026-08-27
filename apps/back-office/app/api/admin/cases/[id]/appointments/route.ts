@@ -57,6 +57,12 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
       type: true,
       status: true,
       notes: true,
+      // El check-out sella el reloj de tiempo en clínica; la lista lo mostraba
+      // clavado en '—' porque nunca se pidió.
+      checkedOutAt: true,
+      // Distingue la cancelación del mismo día (consume horario y cobra
+      // penalidad) de la cancelación con aviso.
+      cancelledSameDay: true,
       isOnline: true,
       meetingUrl: true,
       plannedServiceCodes: true,
@@ -105,6 +111,8 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
     plannedServiceCodes: a.plannedServiceCodes ?? [],
     visitNumber: numeroDeVisita.get(a.id) ?? 0,
     checkedInAt: a.checkedInAt?.toISOString() ?? null,
+    checkedOutAt: a.checkedOutAt?.toISOString() ?? null,
+    cancelledSameDay: a.cancelledSameDay,
     attendanceSignedAt: a.attendanceSignedAt?.toISOString() ?? null,
     clinic: { id: a.clinic.id, name: a.clinic.name, address: a.clinic.address },
     provider: a.provider,

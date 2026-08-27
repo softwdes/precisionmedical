@@ -176,3 +176,40 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
 // El predicado de "desenlace cobrable" vive en `lib/appointment-outcome.ts`: es
 // una regla de negocio, no de estilo, y la necesitan también las rutas de API —
 // que no deben arrastrar este módulo.
+
+// ─── Etiqueta del estado ─────────────────────────────────────────────────────
+
+/**
+ * El estado de la cita, en palabras y traducido.
+ *
+ * Vive acá por la misma razón que el color: había pantallas mostrando el ENUM
+ * CRUDO al usuario —`CONFIRMED`, `NO_SHOW`— y otras traduciendo un solo caso a
+ * mano (`status === 'SCHEDULED' ? 'Pending' : status`), en inglés y sin pasar por
+ * i18n. Las claves ya existían todas en `phoenix.calendar`; lo que faltaba era un
+ * único lugar que las usara.
+ *
+ * `cancelledSameDay` se distingue porque no es lo mismo: consume el horario y
+ * cobra penalidad. Ver `esDesenlaceCobrable` en `appointment-outcome.ts`.
+ *
+ * El traductor entra por parámetro (namespace `phoenix.calendar`): este módulo no
+ * puede usar hooks — lo importan también las rutas de API.
+ */
+export function etiquetaEstado(
+  appt: { status: string; cancelledSameDay?: boolean },
+  t: (key: string) => string,
+): string {
+  switch (appt.status) {
+    case 'SCHEDULED':   return t('statusScheduled');
+    case 'PENDING':     return t('statusPending');
+    case 'CONFIRMED':   return t('statusConfirmed');
+    case 'CHECKED_IN':  return t('statusCheckedIn');
+    case 'IN_PROGRESS': return t('statusInProgress');
+    case 'COMPLETED':   return t('statusCompleted');
+    case 'NO_SHOW':     return t('statusNoShow');
+    case 'CANCELLED':
+      return appt.cancelledSameDay ? t('statusCancelledSameDay') : t('statusCancelled');
+    // Un estado nuevo en la DB no puede quedar sin nombre en pantalla: se
+    // muestra el crudo, que es fea señal pero visible, en vez de un hueco.
+    default: return appt.status;
+  }
+}

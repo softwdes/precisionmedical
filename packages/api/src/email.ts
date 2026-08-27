@@ -76,6 +76,15 @@ export async function sendWelcomeEmail({
         Activar mi cuenta →
       </a>
     </div>
+    <!-- Respaldo en texto plano. El enlace vivia UNICAMENTE dentro del boton de
+         arriba: si el cliente de correo no lo renderiza —Outlook con estilos
+         bloqueados, vista de texto plano, un reenvio— la persona recibia un mail
+         del que era imposible sacar la direccion. Reportado como "me llego el
+         correo pero no el enlace". -->
+    <p style="color:#55556B;font-size:11px;margin:0 0 20px;line-height:1.7;text-align:center;">
+      Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br/>
+      <span style="color:#8888AA;word-break:break-all;">${activationLink}</span>
+    </p>
     <div style="height:1px;background:linear-gradient(90deg,transparent,#1E1E2E,transparent);margin-bottom:16px;"></div>
     <p style="color:#3D3D52;font-size:11px;margin:0;text-align:center;line-height:1.8;">
       Este enlace expira en <strong style="color:#555568;">1 hora</strong>.<br/>
@@ -115,6 +124,15 @@ export async function sendPasswordResetEmail({
         Reset password
       </a>
     </div>
+    <!-- Respaldo en texto plano. El enlace vivia UNICAMENTE dentro del boton de
+         arriba: si el cliente de correo no lo renderiza —Outlook con estilos
+         bloqueados, vista de texto plano, un reenvio— la persona recibia un mail
+         del que era imposible sacar la direccion. Reportado como "me llego el
+         correo pero no el enlace". -->
+    <p style="color:#55556B;font-size:11px;margin:0 0 20px;line-height:1.7;text-align:center;">
+      If the button doesn't work, copy and paste this link into your browser:<br/>
+      <span style="color:#8888AA;word-break:break-all;">${resetLink}</span>
+    </p>
     <p style="color:#3D3D52;font-size:11px;margin:0;text-align:center;line-height:1.6;">
       This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
     </p>

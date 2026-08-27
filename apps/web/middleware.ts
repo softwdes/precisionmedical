@@ -63,6 +63,25 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const isDashboard = pathname.startsWith('/dashboard');
   const isNoAccess = pathname === '/no-access';
 
+  /**
+   * Contraseña temporal: obligar el cambio antes de dejar entrar.
+   *
+   * La marca viaja en el JWT de la sesion (`user_metadata`), no en la DB ni en
+   * una cookie. Dos motivos: se lee de la sesion que el middleware YA tiene, sin
+   * pagar una consulta por request; y se limpia en la misma llamada con la que
+   * la persona cambia la contraseña, asi que no hay ventana de cache que la deje
+   * pegada y la mande a /reset-password en loop.
+   *
+   * Va ANTES del ruteo por rol a proposito: un EMPLOYEE seria desviado al Time
+   * Clock y nunca llegaria a la pantalla donde cambiarla.
+   */
+  if (user && isDashboard && user.user_metadata?.must_change_password === true) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/reset-password';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   if (user && isDashboard && !isNoAccess) {
     // Rol: cookie rápida primero, DB si no hay.
     // La cookie SOLO vale si pertenece al usuario actual — ver el porqué en

@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, superAdminProcedure } from '../trpc';
@@ -47,6 +48,21 @@ const ESTADOS_QUE_BLOQUEAN = new Set(['SUSPENDED', 'INACTIVE']);
  * Falla ruidosamente a proposito: si el baneo no se aplica, el status diria
  * "suspendido" sin serlo, que es exactamente el bug que esto viene a cerrar.
  */
+/**
+ * Contraseña temporal legible: la persona la va a tipear una sola vez, y a mano
+ * —se la pasan por WhatsApp o en el mostrador—. De ahi el formato en grupos y
+ * el alfabeto sin `0/O` ni `1/l/I`, que son los que se dictan mal por telefono.
+ *
+ * `randomInt` es del modulo crypto: `Math.random()` no sirve para esto.
+ */
+function generarPasswordTemporal(): string {
+  const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const grupo = (n: number): string =>
+    Array.from({ length: n }, () => ALFABETO[randomInt(ALFABETO.length)]).join('');
+  // 12 caracteres utiles + los guiones. Comoda de dictar, imposible de adivinar.
+  return `${grupo(4)}-${grupo(4)}-${grupo(4)}`;
+}
+
 async function sincronizarAccesoAuth(userId: string, status: string): Promise<void> {
   const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
     // 'none' levanta el baneo; la duracion larga equivale a indefinido.
@@ -503,6 +519,83 @@ export const usersRouter = router({
 
       const row = data?.[0];
       return { success: true, activated: !!row, role: (row?.role as string | undefined) ?? null };
+    }),
+
+  /**
+   * Fija una contraseña TEMPORAL y deja la cuenta lista para entrar.
+   *
+   * Existe porque el correo de activación falla de tres formas distintas: no
+   * llega, llega sin enlace usable, o el enlace ya venció —los magiclinks de
+   * Supabase son de un solo uso y los escáneres de correo corporativo los queman
+   * antes de que la persona haga clic—. Con esto el admin destraba la cuenta sin
+   * depender del correo.
+   *
+   * Es ÚNICA por persona y de un solo uso: se devuelve una vez, no se guarda en
+   * ningún lado y la persona está obligada a cambiarla al entrar (ver
+   * `must_change_password`). Una contraseña compartida para todos se descartó a
+   * propósito: si se filtra una se filtran todas, y con el admin sabiendo la
+   * clave el audit log deja de probar quién hizo qué — en un sistema con notas
+   * clínicas y firmas eso no es un detalle.
+   */
+  setTemporaryPassword: superAdminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: target } = await supabaseAdmin
+        .from('users')
+        .select('id, email, firstName, lastName, status')
+        .eq('id', input.id)
+        .single();
+
+      if (!target) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      // Una cuenta cortada no se destraba por la puerta de atrás: si está
+      // suspendida sigue baneada en Auth y la contraseña nueva no serviría de
+      // nada. Se avisa en vez de dejar al admin creyendo que la habilitó.
+      if (ESTADOS_QUE_BLOQUEAN.has(target.status as string)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'La cuenta está suspendida o inactiva. Reactivala primero y volvé a intentar.',
+        });
+      }
+
+      const password = generarPasswordTemporal();
+
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(input.id, {
+        password,
+        email_confirm: true, // entra directo: el correo dejo de ser el camino
+        // La marca viaja en el JWT de la sesion, no en una cookie ni en la DB:
+        // el middleware la lee de la sesion que ya tiene y no paga una consulta,
+        // y al cambiar la contraseña se limpia en la MISMA llamada, sin ventana
+        // de cache que la deje pegada.
+        user_metadata: { must_change_password: true },
+      });
+      if (authError) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `No se pudo fijar la contraseña: ${authError.message}` });
+      }
+
+      // PENDING_VERIFICATION = "todavia no puso su propia contraseña". Es el
+      // mismo estado que deja la creacion, asi que la lista lo muestra igual que
+      // a cualquier cuenta sin activar.
+      await supabaseAdmin
+        .from('users')
+        .update({ status: 'PENDING_VERIFICATION', updatedAt: new Date().toISOString() })
+        .eq('id', input.id);
+
+      await insertAuditLog({
+        actorUserId: ctx.user.id,
+        actorRole: ctx.user.role,
+        action: 'user.temporaryPassword',
+        entityType: 'User',
+        entityId: input.id,
+        // La contraseña NO se registra: el log dice que se hizo, no cual es.
+        after: { email: target.email, mustChangePassword: true },
+      });
+
+      return {
+        password,
+        email: target.email as string,
+        name: `${target.firstName as string} ${target.lastName as string}`.trim(),
+      };
     }),
 
   suspend: superAdminProcedure

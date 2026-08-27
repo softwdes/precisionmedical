@@ -86,7 +86,13 @@ export default function ResetPasswordPage(): React.ReactElement {
     setLoading(true);
     try {
       const supabase = createBrowserClient();
-      const { error: authError } = await supabase.auth.updateUser({ password });
+      // El `data` limpia la marca de contraseña temporal EN LA MISMA llamada: la
+      // sesion local queda actualizada al instante, sin esperar un refresh ni
+      // dejar al usuario rebotando contra el candado del middleware.
+      const { error: authError } = await supabase.auth.updateUser({
+        password,
+        data: { must_change_password: false },
+      });
 
       if (authError) {
         setError('Unable to update password. The link may have expired.');

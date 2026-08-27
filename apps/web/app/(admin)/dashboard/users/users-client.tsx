@@ -1258,6 +1258,28 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
     onError: (e) => toast.error(e.message),
   });
 
+  // Salida cuando el correo no alcanza: no llega, llega sin enlace usable, o el
+  // enlace ya se quemo. Vive DENTRO de este dialogo a proposito — es acá donde
+  // el admin ya esta parado cuando el envio no funciono.
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [copiada, setCopiada] = useState(false);
+
+  const tempPass = trpc.users.setTemporaryPassword.useMutation({
+    onSuccess: (r) => setTempPassword(r.password),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const copiar = async (): Promise<void> => {
+    if (!tempPassword) return;
+    try {
+      await navigator.clipboard.writeText(tempPassword);
+      setCopiada(true);
+      setTimeout(() => setCopiada(false), 2000);
+    } catch {
+      toast.error('No se pudo copiar. Seleccionala y copiala a mano.');
+    }
+  };
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
@@ -1287,6 +1309,47 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
               <Mail className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               El enlace expira en 1 hora y solo puede usarse una vez.
             </p>
+          </div>
+
+          {/* ── Salida sin correo ── */}
+          <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+            {tempPassword === null ? (
+              <>
+                <p className="text-sm font-medium text-text-1">¿No le llega el correo?</p>
+                <p className="text-xs text-text-3 leading-relaxed">
+                  Generá una contraseña temporal y pasásela vos. Es única para esta
+                  persona y va a tener que cambiarla al entrar.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  loading={tempPass.isPending}
+                  onClick={() => tempPass.mutate({ id: user.id })}
+                >
+                  Generar contraseña temporal
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-text-1">Contraseña temporal</p>
+                {/* Se muestra UNA vez: no se guarda en ningun lado y no hay forma
+                    de volver a verla. Si se pierde, se genera otra. */}
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded-md bg-bg-1 px-3 py-2 text-sm font-mono tracking-wider text-text-1 select-all">
+                    {tempPassword}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={() => void copiar()}>
+                    {copiada ? <Check className="h-3.5 w-3.5" /> : 'Copiar'}
+                  </Button>
+                </div>
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                    Anotala ahora: no se vuelve a mostrar. Pasásela en persona o por
+                    un canal privado — al entrar el sistema le va a exigir cambiarla.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <DialogFooter className="shrink-0">

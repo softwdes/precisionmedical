@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX,
+  Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX, Ban,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -28,6 +28,9 @@ import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
+import type { CoverageDTO } from '@/lib/coverage';
 import { getEventStyle } from '@/lib/appointment-style';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 
@@ -85,6 +88,26 @@ interface Totals {
 /** Vista de la cola. `unpenalized` no es un estado del día: es trabajo sin hacer. */
 type EstadoFiltro = 'all' | 'noShow' | 'cancelledSameDay' | 'unpenalized';
 
+/**
+ * Cerrar la cita sin atenderla. Los tres escriben la misma columna de estado; lo
+ * que cambia es si el horario se consumió, y con eso si corresponde cobrar:
+ *
+ *  · `noShow`        — no vino. Consumió el horario → cobra.
+ *  · `cancelSameDay` — avisó tarde. Consumió el horario → cobra.
+ *  · `cancel`        — avisó con tiempo. Liberó la agenda → NO cobra.
+ */
+type Desenlace = 'noShow' | 'cancel' | 'cancelSameDay';
+
+/**
+ * La cola no trae la cobertura del caso, y en el picker la cobertura solo ORDENA
+ * qué circuito se muestra primero — nunca esconde el otro. Así que sin responder
+ * es honesto: se ve la lista completa igual.
+ */
+const COVERAGE_UNSET: CoverageDTO = {
+  type: 'UNKNOWN', answered: false, verifyMethod: null, verifiedAt: null,
+  verifiedByName: null, carrierName: null, note: null, suggestion: null, suggestionSource: null,
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtTime(iso: string) {
@@ -122,13 +145,17 @@ function KpiCard({
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
 function ApptCard({
-  appt, onCheckIn, checkingIn, onNoShow,
+  appt, onCheckIn, checkingIn, onDesenlace,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
   checkingIn: boolean;
-  /** Marcar que no vino, desde la fila. Solo se pasa donde el paciente aún no llegó. */
-  onNoShow?: (appt: AdmissionAppt) => void;
+  /**
+   * Cerrar la cita sin atenderla, desde la fila. Solo se pasa donde el paciente
+   * aún no llegó — decirle "no vino" a alguien que ya hizo check-in sería
+   * contradecir un hecho registrado.
+   */
+  onDesenlace?: (appt: AdmissionAppt, tipo: Desenlace) => void;
 }) {
   const router = useRouter();
   const t = useTranslations('phoenix.admission');
@@ -282,22 +309,49 @@ function ApptCard({
         {/* Actions */}
         <div className="flex flex-col items-end gap-2 shrink-0">
           {isPending && (
-            <div className="flex gap-2">
-              {/* No show va NEUTRO y antes del primario: no es una alarma —el
-                  paciente no vino y no hay nada que atender— y el gesto evidente
-                  cuando la persona está enfrente sigue siendo Check in.
-                  Cancelar NO va acá: son dos variantes y la diferencia es que una
-                  cobra, así que necesita el confirm que lo explica (está en el
-                  detalle) y no un tercer botón en una fila. */}
-              {onNoShow && (
-                <button
-                  type="button"
-                  onClick={() => onNoShow(appt)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
-                >
-                  <UserX className="w-3 h-3" />
-                  {t('noShow')}
-                </button>
+            // `flex-wrap` + `justify-end`: son cuatro acciones y en 375px no entran
+            // en una fila. Envuelven en vez de desbordar (Regla #4).
+            <div className="flex flex-wrap justify-end gap-2">
+              {/* Los tres desenlaces van NEUTROS (salvo el ámbar de la cancelación
+                  tardía, que anticipa el color con que se va a pintar la fila) y
+                  antes del primario: ninguno es una alarma, y el gesto evidente
+                  cuando la persona está enfrente sigue siendo Check in. */}
+              {onDesenlace && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onDesenlace(appt, 'noShow')}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
+                  >
+                    <UserX className="w-3 h-3" />
+                    {t('noShow')}
+                  </button>
+                  {/* Las dos cancelaciones son botones SEPARADOS y no una elección
+                      dentro de un confirm (pedido de Erick): la diferencia es que
+                      una cobra y la otra no, y con un solo botón "Cancelar" había
+                      que abrir algo más para elegir cuál. El ámbar de la tardía es
+                      el mismo con que se pinta después la fila y la tarjeta del
+                      calendario. */}
+                  <button
+                    type="button"
+                    onClick={() => onDesenlace(appt, 'cancel')}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
+                  >
+                    <Ban className="w-3 h-3" />
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDesenlace(appt, 'cancelSameDay')}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-amber/40 text-amber text-xs hover:bg-amber/10 transition-colors"
+                  >
+                    <Ban className="w-3 h-3" />
+                    {/* "Canceló el mismo día" no entra en un teléfono al lado de
+                        las otras tres acciones. */}
+                    <span className="hidden sm:inline">{t('cancelSameDay')}</span>
+                    <span className="sm:hidden">{t('cancelSameDayShort')}</span>
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -360,9 +414,16 @@ export function AdmissionClient() {
   /** Búsqueda de paciente dentro de la lista del día. */
   const [patientQuery, setPatientQuery] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('all');
-  /** Cita a la que se le va a marcar "no vino" — el confirm evita el clic accidental. */
-  const [noShowTarget, setNoShowTarget] = useState<AdmissionAppt | null>(null);
-  const [markingNoShow, setMarkingNoShow] = useState(false);
+  /** Desenlace elegido en la fila — el confirm evita el clic accidental. */
+  const [desenlaceTarget, setDesenlaceTarget] = useState<{ appt: AdmissionAppt; tipo: Desenlace } | null>(null);
+  const [sellando, setSellando] = useState(false);
+  /**
+   * Cita a la que hay que ponerle la penalidad. Se abre APENAS se sella el
+   * desenlace cobrable: el cargo y el estado van juntos o el cargo se olvida.
+   */
+  const [cargoTarget, setCargoTarget] = useState<AdmissionAppt | null>(null);
+  const [cargosActuales, setCargosActuales] = useState<PlannedService[]>([]);
+  const [cargoError, setCargoError] = useState<string | null>(null);
   const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
@@ -420,30 +481,59 @@ export function AdmissionClient() {
   }, []);
 
   /**
-   * Marcar que no vino, desde la fila. Pega al MISMO endpoint que el panel de la
+   * Sellar el desenlace desde la fila. Pega al MISMO endpoint que el panel de la
    * cita del calendario (`PATCH /api/admin/appointments/:id`): un solo camino
    * escribe el estado, así que la cola y el calendario no se pueden separar.
    *
-   * Después NO se cierra nada: se manda al detalle, que es donde se elige el
-   * código de la penalidad. El desenlace y el cargo van juntos o el cargo se
-   * olvida.
+   * Si el desenlace consumió el horario (no vino, o avisó tarde) se abre enseguida
+   * el modal de servicios para elegir el código de la penalidad. Esa cita ya no
+   * pasa por triaje ni por el doctor: lo único que le falta es el cargo.
+   *
+   * La cancelación con aviso liberó la agenda y no genera nada, así que ahí no se
+   * abre nada — ofrecerle el catálogo sería sugerir un cobro que no corresponde.
    */
-  async function confirmNoShow() {
-    const appt = noShowTarget;
-    if (!appt) return;
-    setMarkingNoShow(true);
+  async function confirmDesenlace() {
+    const target = desenlaceTarget;
+    if (!target) return;
+    const { appt, tipo } = target;
+    setSellando(true);
     try {
+      const body = tipo === 'noShow'
+        ? { status: 'NO_SHOW' }
+        : { status: 'CANCELLED', cancelledSameDay: tipo === 'cancelSameDay' };
       const res = await fetch(`/api/admin/appointments/${appt.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'NO_SHOW' }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) return;
-      setNoShowTarget(null);
-      router.push(`/admission/${appt.id}`);
+      setDesenlaceTarget(null);
+      await load(selectedDate, true);
+      if (tipo === 'cancel') return;
+      // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
+      setCargosActuales(await leerCargos(appt.id));
+      setCargoError(null);
+      setCargoTarget(appt);
     } finally {
-      setMarkingNoShow(false);
+      setSellando(false);
     }
+  }
+
+  /** Agrega el código elegido y deja la deuda creada (ver lib/charges). */
+  async function onAgregarCargo(item: BillableItem) {
+    const appt = cargoTarget;
+    if (!appt) return;
+    const r = await agregarCargo({
+      appointmentId: appt.id,
+      caseId:        appt.case?.id,
+      item,
+      actuales:      cargosActuales,
+    });
+    setCargosActuales(r.servicios);
+    // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
+    // clic parezca que funcionó (`sync-billing` responde `no_case` y no escribe).
+    setCargoError(r.ok ? null : r.error === 'NO_CASE' ? t('penaltyNoCase') : t('penaltyFailed'));
+    if (r.ok) await load(selectedDate, true);
   }
 
   async function handleCheckIn(apptId: string) {
@@ -776,7 +866,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
-                      onNoShow={setNoShowTarget}
+                      onDesenlace={(a, tipo) => setDesenlaceTarget({ appt: a, tipo })}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
                     />
@@ -868,23 +958,45 @@ export function AdmissionClient() {
           </>
         )}
 
-        {/* No show desde la fila: confirm de por medio porque el estado pesa en
-            las métricas del doctor y es un clic al lado de "Check in".
-            Al aceptar NO se queda acá: lleva al detalle, que es donde se elige el
-            código de la penalidad — el desenlace y el cargo van juntos o el cargo
-            se olvida. */}
+        {/* Confirm de por medio: los tres estados pesan en las métricas del doctor
+            y los botones quedan al lado de "Check in".
+            El texto NO es el mismo para los tres — la diferencia entre cobrar y no
+            cobrar tiene que estar dicha en el momento de decidir, no después. */}
         <ConfirmDialog
-          open={!!noShowTarget}
+          open={!!desenlaceTarget}
           variant="warning"
-          title={t('noShowConfirmTitle')}
-          description={noShowTarget
-            ? t('noShowConfirmBody', { name: `${noShowTarget.patient.firstName} ${noShowTarget.patient.lastName}` })
+          title={desenlaceTarget ? t(`desenlaceTitle_${desenlaceTarget.tipo}` as 'desenlaceTitle_noShow') : ''}
+          description={desenlaceTarget
+            ? t(`desenlaceBody_${desenlaceTarget.tipo}` as 'desenlaceBody_noShow',
+                { name: `${desenlaceTarget.appt.patient.firstName} ${desenlaceTarget.appt.patient.lastName}` })
             : ''}
-          confirmLabel={markingNoShow ? t('noShowMarking') : t('noShowConfirmYes')}
-          cancelLabel={t('noShowConfirmCancel')}
-          onConfirm={() => { void confirmNoShow(); }}
-          onCancel={() => setNoShowTarget(null)}
+          confirmLabel={sellando ? t('desenlaceSealing') : t('desenlaceConfirm')}
+          cancelLabel={t('desenlaceCancel')}
+          onConfirm={() => { void confirmDesenlace(); }}
+          onCancel={() => setDesenlaceTarget(null)}
         />
+
+        {/* El modal de servicios, ahí mismo. Es el MISMO picker que usa el tab de
+            Servicios de la consulta — el encargado elige el código y listo. */}
+        {cargoTarget && (
+          <ChargePickerDialog
+            coverage={COVERAGE_UNSET}
+            /* El picker indexa por `item.key`, que para el circuito de seguro es
+               `s<refId>` (ver `addedCharges` en el panel de la cita). Con la clave
+               mal armada el ítem ya cargado no se marcaría y se agregaría dos
+               veces. No se listan los cargos de efectivo: a un no-show todavía no
+               se le cobró nada, así que no hay ninguno. */
+            added={new Map(cargosActuales.map(c => [`s${c.id}`, 1]))}
+            onClose={() => { setCargoTarget(null); setCargoError(null); }}
+            onAdd={onAgregarCargo}
+          />
+        )}
+        {cargoError && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[60] flex items-start gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl max-w-[min(90vw,32rem)]">
+            <AlertTriangle className="w-4 h-4 text-rose shrink-0 mt-0.5" />
+            <span className="text-rose text-sm font-medium">{cargoError}</span>
+          </div>
+        )}
       </div>
     </div>
   );

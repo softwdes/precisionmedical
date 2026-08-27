@@ -13,7 +13,9 @@ export const metadata = { title: 'Mis Plantillas · Precision Medical' };
 
 export default async function TemplatesPage() {
   const doctors = await db.user.findMany({
-    where: { role: 'PROVIDER', status: 'ACTIVE' },
+    // Los dos roles: nadie tiene PROVIDER (0 usuarios) y este selector salia
+    // vacio. El resto del codigo ya los trata juntos — ver PORTAL_ONLY_ROLES.
+    where: { role: { in: ['DOCTOR', 'PROVIDER'] }, status: 'ACTIVE' },
     select: { id: true, firstName: true, lastName: true, email: true },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   });

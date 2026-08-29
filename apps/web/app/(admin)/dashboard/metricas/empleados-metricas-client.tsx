@@ -21,12 +21,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@precision/ui';
 import {
   Activity, Clock, Download, Loader2, Phone, MessageSquare,
-  UserPlus, CalendarDays, DollarSign, Undo2, X,
+  UserPlus, CalendarDays, DollarSign, Undo2, X, Table2, Trophy,
 } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
 import {
   KpiCard, Num, PeriodFilter, denverDay, fmtMinutes, presetRange, type Preset,
 } from './metricas-shared';
+import { CarreraClient } from './carrera-client';
 
 // ─── Types (espejo de EmployeeActivityRow del router) ────────────────────────
 
@@ -179,16 +180,28 @@ export function EmpleadosMetricasClient() {
   const [to, setTo] = useState(() => denverDay());
   const [onlyActive, setOnlyActive] = useState(true);
   const [detail, setDetail] = useState<EmployeeRow | null>(null);
+  const [view, setView] = useState<'tabla' | 'carrera'>('tabla');
+  const [live, setLive] = useState(false);
 
   const validRange = !!from && !!to && from <= to;
+  // El modo en vivo solo con "Hoy": en un rango pasado no hay nada que avanzar.
+  // 30s y no menos — el latido marca MINUTOS, así que refrescar más seguido
+  // gastaría consultas sin mover ninguna barra.
+  const canGoLive = preset === 'today';
+  const liveOn = live && canGoLive && view === 'carrera';
   const query = api.metrics.employeeActivity.useQuery(
     { from, to },
-    { enabled: validRange, staleTime: 30_000 },
+    {
+      enabled: validRange,
+      staleTime: liveOn ? 0 : 30_000,
+      refetchInterval: liveOn ? 30_000 : false,
+    },
   );
   const rows = (query.data?.employees ?? null) as EmployeeRow[] | null;
 
   const applyPreset = useCallback((p: Preset) => {
     setPreset(p);
+    if (p !== 'today') setLive(false); // sin "Hoy" no hay carrera en vivo
     const r = presetRange(p);
     if (r) { setFrom(r.from); setTo(r.to); }
   }, []);
@@ -283,6 +296,22 @@ export function EmpleadosMetricasClient() {
         </label>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Tabla o carrera: la misma data contada de dos formas. */}
+          <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+            {([['tabla', 'Tabla', Table2], ['carrera', 'Carrera', Trophy]] as const).map(([k, label, Icon]) => (
+              <button
+                key={k}
+                onClick={() => setView(k)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                  view === k ? 'bg-brand text-white' : 'text-text-3 hover:text-text-1',
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
           {query.isFetching && <Loader2 className="w-4 h-4 text-text-3 animate-spin" />}
           <button
             onClick={exportCsv}
@@ -295,6 +324,15 @@ export function EmpleadosMetricasClient() {
         </div>
       </div>
 
+      {view === 'carrera' ? (
+        <CarreraClient
+          rows={visible}
+          live={liveOn}
+          canGoLive={canGoLive}
+          onToggleLive={() => setLive((v) => !v)}
+        />
+      ) : (
+      <>
       {/* Tabla por empleado */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         {query.isLoading ? (
@@ -376,6 +414,8 @@ export function EmpleadosMetricasClient() {
         <p className="text-[11px] text-text-3 text-right">
           {visible.length} de {rows?.length ?? 0} empleados · {from} → {to}
         </p>
+      )}
+      </>
       )}
 
       {/* Desglose por empleado */}

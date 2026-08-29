@@ -100,7 +100,8 @@ export function FloatingPanel({
       // Dentro del diálogo las coordenadas son RELATIVAS a su caja: el
       // DialogContent está `fixed` + `translate`, así que es el bloque
       // contenedor de sus hijos absolutos.
-      const base = enDialogo ? host.getBoundingClientRect() : { left: 0, top: 0 };
+      const hostRect = enDialogo ? host.getBoundingClientRect() : null;
+      const base = hostRect ?? { left: 0, top: 0, bottom: 0 };
       const w = width === 'anchor' ? r.width : width;
       const cabeAbajo = window.innerHeight - r.bottom >= maxHeight + 8;
       // Alineado por el borde que pidan, y sin salirse de la ventana por
@@ -113,9 +114,22 @@ export function FloatingPanel({
         left: izq - base.left,
         width: w,
         visibility: 'visible',
-        top: cabeAbajo
-          ? r.bottom - base.top + 4
-          : r.top - base.top - maxHeight - 4,
+        /**
+         * Volteado, el panel se ancla por su borde INFERIOR (`bottom`), no por el
+         * superior calculado desde `maxHeight`.
+         *
+         * Con `top: r.top - maxHeight` el panel queda colgado a `maxHeight` del
+         * ancla, y eso solo cae bien si el contenido llena ese alto EXACTO. El
+         * menú de pacientes mide ~269px con `maxHeight={340}`: su borde de abajo
+         * terminaba 71px por encima del botón — poco más de una fila — y se leía
+         * como si el menú perteneciera a la fila de arriba. Lo reportó Erick.
+         *
+         * Con `bottom` el panel pega al ancla mida lo que mida, y `maxHeight`
+         * vuelve a ser solo un techo, que es lo que siempre debió ser.
+         */
+        ...(cabeAbajo
+          ? { top: r.bottom - base.top + 4 }
+          : { bottom: (hostRect ? hostRect.bottom : window.innerHeight) - r.top + 4 }),
       });
     };
     compute();

@@ -14,9 +14,40 @@
  * Vive en un módulo aparte porque lo necesitan dos pantallas: el tab de Servicios
  * del panel de la cita y el modal de penalidad de Admisión del día.
  *
- * @todo El panel de la cita todavía tiene su propia copia de esta escritura
- *       (`addBillable`). Migrarlo acá cuando se lo toque — no se hizo en el mismo
- *       cambio para no pisar trabajo en curso de otra sesión en ese archivo.
+ * ─── Deuda conocida: el panel de la cita tiene su propia copia ───────────────
+ *
+ * `appointment-detail-panel.tsx` escribe los cargos por su lado
+ * (`addBillable` → `addService` → `patchServices`). **No lo migres llamando a
+ * `agregarCargo` desde ahí: eso sería una regresión.** El panel hace tres cosas
+ * que esta función no:
+ *
+ *  1. Es optimista con rollback — pinta la lista antes de saber la respuesta y
+ *     vuelve atrás con `previo` si el PATCH falla. Sin eso la pantalla muestra un
+ *     cargo quitado que sigue facturado.
+ *  2. Traduce el rechazo a una frase para el mostrador (`explicarRechazo`): un
+ *     cargo ya cobrado no se puede quitar, y dice cuánto se pagó.
+ *  3. Usa la fila que devuelve el circuito de efectivo para su propia lista; acá
+ *     se descarta.
+ *
+ * Y `patchServices` es el primitivo de **tres** operaciones (agregar, quitar y
+ * editar el fee), no solo de agregar.
+ *
+ * La forma correcta, cuando alguien toque ese archivo por otra razón:
+ *
+ *  · Subir a esta lib el primitivo `guardarCargos(appointmentId, caseId, lista)`
+ *    — el par PATCH + `sync-billing`, que es lo único realmente duplicado.
+ *  · Subir también `explicarRechazo`, para que las dos pantallas den el mismo
+ *    mensaje.
+ *  · `agregarCargo` pasa a ser un envoltorio fino sobre `guardarCargos`.
+ *  · El `patchServices` del panel se queda con lo suyo (optimismo, rollback,
+ *    `savedOk`, `onRefresh`) y solo delega la red.
+ *  · El circuito de efectivo devuelve la fila creada.
+ *
+ * No se hizo aparte porque **no arregla ningún bug vivo** (medido 2026-08-29:
+ * 0 códigos duplicados en el catálogo activo y 0 citas sin caso de 14.631, así
+ * que ni la diferencia de dedupe `id`/`code` ni el `no_case` que el panel se
+ * traga son alcanzables hoy) y toca el camino del dinero. El costo real de ese
+ * cambio es la prueba en navegador de los cuatro caminos, no el código.
  */
 
 /** Una línea de `plannedServiceCodes`. */

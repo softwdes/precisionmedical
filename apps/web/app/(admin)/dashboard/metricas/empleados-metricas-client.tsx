@@ -142,27 +142,35 @@ const actionLabel = (a: string): string =>
  * `voids` va en ámbar al final: no es producción, es retrabajo. `access`
  * (logins, "ver como doctor") queda solo en el detalle: es rastro, no trabajo.
  */
-const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent'; label: string }> = [
-  { key: 'callsMade',     label: 'Llam.' },
-  { key: 'callsAnswered', label: 'Contest.' },
-  { key: 'smsSent',       label: 'SMS' },
+const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent'; label: string; full: string }> = [
+  { key: 'callsMade',     label: 'Llam.',  full: 'Llamadas hechas' },
+  { key: 'callsAnswered', label: 'Cont.',  full: 'Llamadas contestadas' },
+  { key: 'smsSent',       label: 'SMS',    full: 'SMS enviados' },
 ];
 
-const FAMILY_COLUMNS: Array<{ key: string; label: string; tone?: 'warn' }> = [
-  { key: 'patients',     label: 'Pacientes' },
-  { key: 'cases',        label: 'Casos' },
-  { key: 'appointments', label: 'Citas' },
-  { key: 'admission',    label: 'Admisión' },
-  { key: 'clinical',     label: 'Clínico' },
-  { key: 'charges',      label: 'Cobros' },
-  { key: 'portal',       label: 'Portal' },
-  { key: 'externals',    label: 'Bufetes' },
-  { key: 'messages',     label: 'Mensajes' },
-  { key: 'catalogs',     label: 'Catálogos' },
-  { key: 'followup',     label: 'Seguim.' },
-  { key: 'ai',           label: 'Vigía' },
-  { key: 'otros',        label: 'Otros' },
-  { key: 'voids',        label: 'Anulaciones', tone: 'warn' },
+/**
+ * `label` es lo que se ve; `full` el nombre completo, que va en el `title` de
+ * la celda. Se abrevia porque el ancho de la tabla lo fijan los ENCABEZADOS y
+ * no los datos —los números son de 1 a 3 dígitos—, así que con 14 áreas la
+ * tabla pedía 1560px y obligaba a scroll horizontal en cualquier portátil.
+ * Acortar el rótulo no es esconder: el nombre completo está en el tooltip, en
+ * el detalle de la persona y en el CSV.
+ */
+const FAMILY_COLUMNS: Array<{ key: string; label: string; full: string; tone?: 'warn' }> = [
+  { key: 'patients',     label: 'Pac.',   full: 'Pacientes' },
+  { key: 'cases',        label: 'Casos',  full: 'Casos' },
+  { key: 'appointments', label: 'Citas',  full: 'Citas' },
+  { key: 'admission',    label: 'Adm.',   full: 'Admisión del día' },
+  { key: 'clinical',     label: 'Clín.',  full: 'Clínico (labs, notas, recetas)' },
+  { key: 'charges',      label: 'Cobros', full: 'Cobros y facturación' },
+  { key: 'portal',       label: 'Portal', full: 'Envíos al paciente / portal' },
+  { key: 'externals',    label: 'Buf.',   full: 'Bufetes, abogados y aseguradoras' },
+  { key: 'messages',     label: 'Msj.',   full: 'Mensajería interna' },
+  { key: 'catalogs',     label: 'Cat.',   full: 'Catálogos y configuración' },
+  { key: 'followup',     label: 'Seg.',   full: 'Seguimiento y cobranza' },
+  { key: 'ai',           label: 'Vigía',  full: 'Vigía (IA)' },
+  { key: 'otros',        label: 'Otros',  full: 'Otras acciones sin área asignada' },
+  { key: 'voids',        label: 'Anul.',  full: 'Anulaciones (retrabajo)', tone: 'warn' },
 ];
 
 /** Etiquetas de módulo — espejo de `lib/activity-modules.ts` del back-office. */
@@ -353,14 +361,25 @@ export function EmpleadosMetricasClient() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1560px]">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Empleado</th>
                   <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Activo</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Acciones</th>
+                  <th
+                    title="Total de acciones de staff en el período"
+                    className="px-2 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3 whitespace-nowrap"
+                  >
+                    Acc.
+                  </th>
                   {[...CALL_COLUMNS, ...FAMILY_COLUMNS].map((c) => (
-                    <th key={c.key} className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{c.label}</th>
+                    <th
+                      key={c.key}
+                      title={c.full}
+                      className="px-2 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3 whitespace-nowrap cursor-help"
+                    >
+                      {c.label}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -372,30 +391,30 @@ export function EmpleadosMetricasClient() {
                     className="hover:bg-white/[0.02] transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 sticky left-0 bg-surface z-10">
-                      <div className="min-w-[160px]">
+                      <div className="min-w-[130px] max-w-[190px]">
                         <div className="font-medium text-text-1 text-[12.5px]">{r.name}</div>
                         <div className="text-[10px] text-text-3 uppercase tracking-wider">{ROLE_LABELS[r.role] ?? r.role}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 py-3 text-right">
                       <span className={cn('font-mono tabular-nums text-[12px]', r.activeMinutes > 0 ? 'text-emerald' : 'text-text-3')}>
                         {fmtMinutes(r.activeMinutes)}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-right text-[12px]">
+                    <td className="px-2 py-3 text-right text-[12px]">
                       <span className={cn('font-mono tabular-nums font-semibold', r.totalActions > 0 ? 'text-text-1' : 'text-text-3')}>
                         {r.totalActions}
                       </span>
                     </td>
                     {CALL_COLUMNS.map((c) => (
-                      <td key={c.key} className="px-3 py-3 text-right text-[12px]">
+                      <td key={c.key} className="px-2 py-3 text-right text-[12px]">
                         <Num value={r[c.key] ?? 0} />
                       </td>
                     ))}
                     {FAMILY_COLUMNS.map((c) => {
                       const v = r.families?.[c.key] ?? 0;
                       return (
-                        <td key={c.key} className="px-3 py-3 text-right text-[12px]">
+                        <td key={c.key} className="px-2 py-3 text-right text-[12px]">
                           {c.tone === 'warn' && v > 0
                             ? <span className="font-mono tabular-nums text-amber">{v}</span>
                             : <Num value={v} />}

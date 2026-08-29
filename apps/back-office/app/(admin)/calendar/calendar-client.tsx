@@ -22,10 +22,11 @@ import { APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { TimeBlockDialog, type TimeBlock } from '@/components/calendar/time-block-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
@@ -385,6 +386,43 @@ function FilterChip({
   );
 }
 
+/**
+ * Tarjeta de un aviso de agenda.
+ *
+ * Deliberadamente NEUTRA y rayada: sin nombre de paciente y sin color de tipo,
+ * para que nadie la confunda con una consulta. El rayado dice "acá no hay cita"
+ * mejor que cualquier color, y funciona igual en los dos temas porque sale de
+ * tokens, no de un hex.
+ */
+function BlockCard({ block, onClick, compact, providerLabel }: {
+  block: TimeBlock; onClick: () => void; compact?: boolean; providerLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      title={block.label}
+      className={`w-full min-w-0 text-left rounded transition-all hover:brightness-125 ${compact ? 'px-1.5 py-[2px]' : 'px-2 py-1'}`}
+      style={{
+        background: 'repeating-linear-gradient(135deg, var(--bg-3) 0 6px, transparent 6px 12px)',
+        border: '1px dashed var(--border-strong)',
+        color: 'var(--text-2)',
+      }}>
+      <span className={`font-medium truncate block ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+        {block.label}
+      </span>
+      {/* De QUE doctor es. La celda del grid es del DIA y ahi conviven todos los
+          doctores, asi que un "Lunch" suelto no dice a quien pertenece — y ese
+          es justo el dato que hace falta para poder darle esa hora a otro. */}
+      {providerLabel && (
+        <span className={`truncate block opacity-70 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+          {providerLabel}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ─── LegendStats (shared entre las 3 vistas) ─────────────────────────────────
 
 function LegendStats({
@@ -454,6 +492,10 @@ function LegendStats({
           { color: APPT_COLORS.cancelled,   label: t('legendCancelled'), strike: true },
           { color: APPT_COLORS.cancelledSameDay, label: t('legendCancelledSameDay'), strike: true },
           { color: APPT_COLORS.noShow,      label: t('legendNoShow'),    strike: true },
+          // El aviso de agenda no es un estado de cita: se muestra con su rayado
+          // —el mismo de la tarjeta— en vez de un color plano, que lo haria
+          // parecer una categoria mas de la lista.
+          { color: 'repeating-linear-gradient(135deg, var(--bg-3) 0 4px, transparent 4px 8px)', label: t('legendBlock') },
         ] as { color: string; label: string; glow?: boolean; strike?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-4 h-2 rounded-sm shrink-0"
@@ -557,6 +599,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   // Cada vez que cambia weekStart, calView o filtros, el efecto se re-ejecuta.
   // El cleanup cancela la petición anterior a nivel de red (AbortController),
   // imposibilitando que una respuesta stale sobreescriba datos frescos.
+  /**
+   * Avisos de agenda ("Lunch", "el doctor no esta"). Viven aparte de las citas y
+   * NO bloquean nada: son texto para que lo lea una persona.
+   */
+  const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [newApptOpen, setNewApptOpen]     = useState(false);
   const [slotDate,    setSlotDate]        = useState('');
@@ -711,6 +760,20 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       // filterType es el tipo de CASO (MVA/GENERAL), no el tipo de cita —
       // se filtra client-side en visibleAppointments junto con specialty.
     });
+
+    // Los avisos van en su propio pedido: son otra entidad y no deben demorar
+    // ni ensuciar la carga de las citas, que es lo que la pantalla necesita.
+    const paramsBloques = new URLSearchParams({
+      from: from.toISOString(),
+      to:   to.toISOString(),
+      ...(lockedProviderId
+        ? { providerId: lockedProviderId }
+        : filterProvider ? { providerId: filterProvider } : {}),
+    });
+    fetch(`/api/admin/time-blocks?${paramsBloques}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(d => setBlocks(d.blocks ?? []))
+      .catch(() => { /* un aviso que no carga no debe romper el calendario */ });
 
     fetch(`/api/admin/appointments?${params}`, { signal: controller.signal })
       .then(r => r.json())
@@ -875,6 +938,16 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     if (!apptMap[day]) apptMap[day] = {};
     if (!apptMap[day][slot]) apptMap[day][slot] = [];
     apptMap[day][slot].push(appt);
+  }
+
+  // Mismo bucketing que las citas: dia de Denver -> slot -> avisos.
+  const blockMap: Record<string, Record<string, TimeBlock[]>> = {};
+  for (const b of blocks) {
+    const day  = denverDateStr(new Date(b.startsAt));
+    const slot = slotOf(b.startsAt);
+    if (!blockMap[day]) blockMap[day] = {};
+    if (!blockMap[day][slot]) blockMap[day][slot] = [];
+    blockMap[day][slot].push(b);
   }
 
   const firstVisitCount = visibleAppointments.filter(a => a.visitNumber === 0).length;
@@ -1148,6 +1221,16 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             <Plus className="w-3.5 h-3.5" />
             {t('actionNewAppointment')}
           </button>
+          {/* Aviso de agenda — secundario y neutro: se usa mucho menos que
+              agendar, y no debe competir con la accion principal. */}
+          <button
+            type="button"
+            onClick={() => { setEditingBlock(null); setBlockDialogOpen(true); }}
+            className="flex items-center gap-1.5 h-7 px-3 rounded border border-border text-text-2 text-xs font-medium hover:bg-white/5 transition-colors"
+          >
+            <CalendarOff className="w-3.5 h-3.5" />
+            {t('blockNewButton')}
+          </button>
         </div>
 
         {/* View toggle Día / Semana / Mes */}
@@ -1340,6 +1423,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       const dayKey = denverDateStr(day);
                       const isToday = dayKey === todayDenverStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
+                      const cellBlocks = blockMap[dayKey]?.[slot] ?? [];
                       return (
                         <div key={di}
                           onClick={() => openSlot(dayKey, slot)}
@@ -1360,6 +1444,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                               <Plus className="w-2.5 h-2.5 text-cyan/60" />
                             </div>
                           )}
+                          {cellBlocks.map(b => (
+                            <BlockCard key={b.id} block={b} compact
+                              providerLabel={b.providerName}
+                              onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
+                          ))}
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
@@ -1679,6 +1768,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           onRefresh={() => setRefreshKey(k => k + 1)}
         />
       )}
+
+      {/* ─── Aviso en la agenda ("Lunch", "el doctor no esta") ─ */}
+      <TimeBlockDialog
+        open={blockDialogOpen}
+        editing={editingBlock}
+        // `specialty` puede venir null y el combobox la exige: se normaliza acá
+        // en vez de aflojar el tipo del primitivo, que lo comparten 4 pantallas.
+        providers={providers.map(p => ({ ...p, specialty: p.specialty ?? '' }))}
+        defaultProviderId={lockedProviderId ?? filterProvider ?? undefined}
+        onClose={() => { setBlockDialogOpen(false); setEditingBlock(null); }}
+        onSaved={() => setRefreshKey(k => k + 1)}
+      />
 
       {/* ─── Nueva cita libre (B.10 free mode) ───────────────── */}
       <AppointmentDialog

@@ -663,6 +663,7 @@ model Provider {
   referrals    Patient[]     @relation("ProviderReferrer")
   commissions  Commission[]  @relation("ProviderCommission")
   appointments Appointment[]
+  timeBlocks   ProviderTimeBlock[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -893,6 +894,7 @@ model Clinic {
   scriptsurePracticeId String?
 
   appointments Appointment[]
+  timeBlocks   ProviderTimeBlock[]
 
   @@map("clinics")
 }
@@ -4031,4 +4033,46 @@ model ReleaseEntry {
   @@index([releaseId, module, sortOrder])
   @@index([commitSha])
   @@map("release_entries")
+}
+
+/// Aviso en la agenda de un doctor: "Lunch", "se fue temprano", "conferencia".
+///
+/// Copia el comportamiento del v2, donde el staff escribe texto libre en las
+/// filas del dia para que todos sepan que el doctor no va a estar. **NO bloquea
+/// nada** (decision de Erick 2026-08-20): el sugeridor sigue ofreciendo esas
+/// horas y se puede agendar encima sin aviso. Es informacion para que la lea una
+/// persona; si el bloqueo desaparece, la hora vuelve a estar libre y punto.
+///
+/// Por que NO es un `Appointment` con un paciente ficticio: `patientId` es
+/// obligatorio, e inventar un paciente contamina para siempre las listas, las
+/// metricas del doctor, la facturacion y la auditoria. Se veria limpio hoy y
+/// ensuciaria los reportes despues.
+///
+/// El bloqueo es del DOCTOR, no de la sede: su almuerzo lo es en cualquier
+/// clinica donde este ese dia. `clinicId` queda opcional para el caso contrario
+/// —"esta sede cierra por feriado"— sin forzarlo en el caso comun.
+model ProviderTimeBlock {
+  id String @id @default(cuid())
+
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  /// Opcional a proposito — ver la nota del modelo.
+  clinicId String?
+  clinic   Clinic? @relation(fields: [clinicId], references: [id])
+
+  startsAt        DateTime
+  durationMinutes Int
+
+  /// Texto libre, lo que el staff quiera escribir. Es el dato principal.
+  label String
+
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  /// El calendario siempre pregunta por doctor + rango de fechas.
+  @@index([providerId, startsAt])
+  @@index([startsAt])
+  @@map("provider_time_blocks")
 }

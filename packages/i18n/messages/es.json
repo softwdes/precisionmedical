@@ -3887,7 +3887,21 @@
       "rowRegisteredBy": "Registrado por:",
       "rowRegisteredOn": "Fecha de registro:",
       "rowCaseCreatedBy": "Caso creado por:",
-      "registeredByUnknown": "Sin registro (dato migrado del v2)"
+      "registeredByUnknown": "Sin registro (dato migrado del v2)",
+      "blockNewTitle": "Nuevo aviso en la agenda",
+      "blockEditTitle": "Editar aviso",
+      "blockHint": "Es un aviso para el equipo: no bloquea el horario ni impide agendar encima. Para liberarlo, se borra.",
+      "blockFieldDate": "Fecha",
+      "blockFieldFrom": "Desde",
+      "blockFieldLabel": "Texto",
+      "blockLabelPlaceholder": "Ej: Lunch, el doctor no estara, conferencia",
+      "blockSave": "Guardar aviso",
+      "blockDelete": "Borrar",
+      "blockErrorSave": "No se pudo guardar el aviso",
+      "blockErrorDelete": "No se pudo borrar el aviso",
+      "blockNewButton": "Aviso en agenda",
+      "blockDurationMin": "{m} min",
+      "legendBlock": "Aviso en agenda"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

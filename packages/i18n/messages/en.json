@@ -3887,7 +3887,21 @@
       "rowRegisteredBy": "Registered by:",
       "rowRegisteredOn": "Registration date:",
       "rowCaseCreatedBy": "Case created by:",
-      "registeredByUnknown": "Not recorded (migrated from v2)"
+      "registeredByUnknown": "Not recorded (migrated from v2)",
+      "blockNewTitle": "New schedule note",
+      "blockEditTitle": "Edit note",
+      "blockHint": "This is a note for the team: it does not block the slot or prevent booking over it. Delete it to clear the time.",
+      "blockFieldDate": "Date",
+      "blockFieldFrom": "From",
+      "blockFieldLabel": "Text",
+      "blockLabelPlaceholder": "E.g. Lunch, doctor away, conference",
+      "blockSave": "Save note",
+      "blockDelete": "Delete",
+      "blockErrorSave": "Could not save the note",
+      "blockErrorDelete": "Could not delete the note",
+      "blockNewButton": "Schedule note",
+      "blockDurationMin": "{m} min",
+      "legendBlock": "Schedule note"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

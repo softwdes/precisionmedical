@@ -4048,14 +4048,24 @@ model ReleaseEntry {
 /// metricas del doctor, la facturacion y la auditoria. Se veria limpio hoy y
 /// ensuciaria los reportes despues.
 ///
-/// El bloqueo es del DOCTOR, no de la sede: su almuerzo lo es en cualquier
-/// clinica donde este ese dia. `clinicId` queda opcional para el caso contrario
-/// —"esta sede cierra por feriado"— sin forzarlo en el caso comun.
+/// Por defecto el aviso es DEL CALENDARIO: sin doctor y sin clinica, visible para
+/// todos. Los dos vinculos son opcionales y solo se usan para acotar cuando de
+/// verdad corresponde — un doctor puntual que se fue temprano, o una sede que
+/// cierra por feriado.
 model ProviderTimeBlock {
   id String @id @default(cuid())
 
-  providerId String
-  provider   Provider @relation(fields: [providerId], references: [id])
+  /// OPCIONAL: sin doctor, el aviso es del calendario y lo ve todo el mundo.
+  ///
+  /// Nacio obligatorio y estaba MAL (Erick, 2026-08-29): "no funciona, debe ser
+  /// visual en el calendario para que todo el mundo lo vea y no estar
+  /// seleccionando a quien vas a avisar". Un "no hay luz" o el almuerzo general
+  /// no son de una persona; obligar a elegir un doctor forzaba a crear el mismo
+  /// aviso N veces y encima mentia sobre a quien afecta.
+  ///
+  /// Con doctor sigue sirviendo para el caso puntual ("el Dr. X se fue temprano").
+  providerId String?
+  provider   Provider? @relation(fields: [providerId], references: [id])
 
   /// Opcional a proposito — ver la nota del modelo.
   clinicId String?

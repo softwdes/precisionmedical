@@ -3901,7 +3901,10 @@
       "blockErrorDelete": "No se pudo borrar el aviso",
       "blockNewButton": "Aviso en agenda",
       "blockDurationMin": "{m} min",
-      "legendBlock": "Aviso en agenda"
+      "legendBlock": "Aviso en agenda",
+      "blockFieldProvider": "Doctor (opcional)",
+      "blockProviderAll": "Sin doctor: el aviso se ve en todo el calendario.",
+      "blockProviderOne": "Solo para este doctor."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

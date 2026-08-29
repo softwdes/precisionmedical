@@ -8,6 +8,12 @@
  * Liberar la hora es borrarlo, y por eso el botón de borrar vive acá mismo, no
  * escondido en un menú.
  *
+ * El DOCTOR es opcional y va al final. La primera versión lo exigía y estaba mal
+ * (Erick, 2026-08-29): el aviso es del CALENDARIO, para que lo vea todo el mundo,
+ * no un mensaje dirigido a alguien. Un "no hay luz" o el almuerzo general no son
+ * de una persona. Elegir doctor solo acota el caso puntual: "el Dr. X se fue
+ * temprano".
+ *
  * Fecha y hora van con inputs nativos y no con el `WeeklySlotPicker`: ese
  * selector existe para encontrar un hueco LIBRE del doctor, y acá justamente se
  * quiere marcar una hora sin importar si está ocupada.
@@ -24,9 +30,9 @@ export interface TimeBlock {
   startsAt: string;
   durationMinutes: number;
   label: string;
-  providerId: string;
+  providerId: string | null;
   clinicId: string | null;
-  providerName?: string;
+  providerName?: string | null;
 }
 
 interface Props {
@@ -87,7 +93,7 @@ export function TimeBlockDialog({
     setError(null);
     if (editing) {
       const p = isoToDenverParts(editing.startsAt);
-      setProviderId(editing.providerId);
+      setProviderId(editing.providerId ?? '');
       setFecha(p.fecha); setHora(p.hora);
       setDuracion(editing.durationMinutes);
       setLabel(editing.label);
@@ -100,13 +106,14 @@ export function TimeBlockDialog({
     }
   }, [open, editing, defaultDate, defaultTime, defaultProviderId]);
 
-  const puedeGuardar = !!providerId && !!fecha && !!hora && label.trim().length > 0 && !guardando;
+  // Sin doctor tambien se guarda: ese es el caso por defecto.
+  const puedeGuardar = !!fecha && !!hora && label.trim().length > 0 && !guardando;
 
   const guardar = async (): Promise<void> => {
     setError(null); setGuardando(true);
     try {
       const cuerpo = {
-        providerId,
+        providerId: providerId || null,
         startsAt: denverToIso(fecha, hora),
         durationMinutes: duracion,
         label: label.trim(),
@@ -154,13 +161,6 @@ export function TimeBlockDialog({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <p className="text-[11px] text-text-muted">{t('blockHint')}</p>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-text-2 mb-1">
-              {t('fieldDoctor')} <span className="text-rose">*</span>
-            </label>
-            <DoctorCombobox providers={providers} value={providerId} onChange={setProviderId} />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-text-2 mb-1">
@@ -189,7 +189,19 @@ export function TimeBlockDialog({
               {t('blockFieldLabel')} <span className="text-rose">*</span>
             </label>
             <input type="text" value={label} maxLength={120} onChange={(e) => setLabel(e.target.value)}
-              placeholder={t('blockLabelPlaceholder')} className={campo} />
+              placeholder={t('blockLabelPlaceholder')} className={campo} autoFocus />
+          </div>
+
+          {/* El doctor va ULTIMO y es opcional: por defecto el aviso es de todo
+              el calendario, que es el caso comun (almuerzo general, corte de luz). */}
+          <div>
+            <label className="block text-[11px] font-semibold text-text-2 mb-1">
+              {t('blockFieldProvider')}
+            </label>
+            <DoctorCombobox providers={providers} value={providerId} onChange={setProviderId} />
+            <p className="text-[10px] text-text-muted mt-1">
+              {providerId ? t('blockProviderOne') : t('blockProviderAll')}
+            </p>
           </div>
 
           {error && (

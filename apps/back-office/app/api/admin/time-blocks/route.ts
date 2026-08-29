@@ -19,7 +19,8 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 
 const CrearSchema = z.object({
-  providerId:      z.string().min(1),
+  /** Opcional: sin doctor, el aviso es del calendario y lo ve todo el mundo. */
+  providerId:      z.string().min(1).nullable().optional(),
   clinicId:        z.string().min(1).nullable().optional(),
   startsAt:        z.string().datetime(),
   durationMinutes: z.number().int().min(5).max(720),
@@ -38,7 +39,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const blocks = await db.providerTimeBlock.findMany({
     where: {
       startsAt: { gte: new Date(from), lte: new Date(to) },
-      ...(providerId ? { providerId } : {}),
+      // Con filtro de doctor se traen los suyos Y los que no tienen doctor: esos
+      // son del calendario entero, asi que filtrarlos los haria desaparecer justo
+      // cuando alguien mira la agenda de una sola persona.
+      ...(providerId ? { OR: [{ providerId }, { providerId: null }] } : {}),
     },
     orderBy: { startsAt: 'asc' },
     select: {
@@ -57,7 +61,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       label:           b.label,
       providerId:      b.providerId,
       clinicId:        b.clinicId,
-      providerName:    `${b.provider.firstName} ${b.provider.lastName}`.trim(),
+      providerName:    b.provider ? `${b.provider.firstName} ${b.provider.lastName}`.trim() : null,
     })),
   });
 }
@@ -70,17 +74,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   const d = parsed.data;
 
-  const provider = await db.provider.findFirst({
-    where:  { id: d.providerId, deletedAt: null },
-    select: { id: true, firstName: true, lastName: true },
-  });
-  if (!provider) return NextResponse.json({ ok: false, error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
+  // Solo se valida el doctor si vino; sin doctor el aviso es del calendario.
+  const provider = d.providerId
+    ? await db.provider.findFirst({
+        where:  { id: d.providerId, deletedAt: null },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : null;
+  if (d.providerId && !provider) {
+    return NextResponse.json({ ok: false, error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
+  }
 
   const actor = await resolveActor(req.headers);
 
   const block = await db.providerTimeBlock.create({
     data: {
-      providerId:      d.providerId,
+      providerId:      d.providerId ?? null,
       clinicId:        d.clinicId ?? null,
       startsAt:        new Date(d.startsAt),
       durationMinutes: d.durationMinutes,
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata:    {
       label:           block.label,
       providerId:      block.providerId,
-      providerName:    `${provider.firstName} ${provider.lastName}`.trim(),
+      providerName:    provider ? `${provider.firstName} ${provider.lastName}`.trim() : null,
       startsAt:        block.startsAt.toISOString(),
       durationMinutes: block.durationMinutes,
     },

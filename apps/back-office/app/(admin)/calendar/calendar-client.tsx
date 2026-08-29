@@ -605,6 +605,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
    */
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [blockPrefill, setBlockPrefill] = useState<{ date: string; time: string } | null>(null);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [newApptOpen, setNewApptOpen]     = useState(false);
@@ -615,6 +616,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [mobileDate, setMobileDate] = useState<Date>(() => nextWeekday(new Date()));
   type MobileView = 'day' | 'week' | 'month';
   const [mobileView, setMobileView] = useState<MobileView>('day');
+
+  /**
+   * Abre el aviso YA con la fecha y hora de la celda. Sin esto habia que ir al
+   * boton de la barra y volver a tipear un dato que ya estaba en la mano — un
+   * paso de mas que el v2 no tenia, porque ahi se escribe en la fila misma.
+   */
+  const openBlockAt = (date: string, time: string) => {
+    setEditingBlock(null);
+    setBlockPrefill({ date, time });
+    setBlockDialogOpen(true);
+  };
 
   const openSlot = (date: string, time: string) => {
     setSlotDate(date);
@@ -1225,7 +1237,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               agendar, y no debe competir con la accion principal. */}
           <button
             type="button"
-            onClick={() => { setEditingBlock(null); setBlockDialogOpen(true); }}
+            onClick={() => { setEditingBlock(null); setBlockPrefill(null); setBlockDialogOpen(true); }}
             className="flex items-center gap-1.5 h-7 px-3 rounded border border-border text-text-2 text-xs font-medium hover:bg-white/5 transition-colors"
           >
             <CalendarOff className="w-3.5 h-3.5" />
@@ -1435,8 +1447,16 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
                           }`}>
                           {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center py-0.5 w-full">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 py-0.5 w-full">
                               <Plus className="w-2.5 h-2.5 text-cyan/40" />
+                              {/* Segundo acceso: el aviso, con la hora ya cargada.
+                                  El clic de la celda sigue siendo Nueva cita — la
+                                  ruta comun no pierde nada. */}
+                              <button type="button" title={t('blockNewButton')}
+                                onClick={(e) => { e.stopPropagation(); openBlockAt(dayKey, slot); }}
+                                className="text-text-muted hover:text-text-2 transition-colors">
+                                <CalendarOff className="w-2.5 h-2.5" />
+                              </button>
                             </div>
                           )}
                           {dropTarget === `${dayKey}|${slot}` && cellAppts.length === 0 && (
@@ -1446,7 +1466,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           )}
                           {cellBlocks.map(b => (
                             <BlockCard key={b.id} block={b} compact
-                              providerLabel={b.providerName}
+                              providerLabel={b.providerName ?? undefined}
                               onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
                           ))}
                           {cellAppts.map(appt => {
@@ -1541,6 +1561,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
           const renderSlotRow = (slot: string) => {
             const cellAppts = starts[slot] ?? [];
+            const cellBlocks = blockMap[dayKey]?.[slot] ?? [];
             const contAppts = covers[slot] ?? [];
             const isCont    = cellAppts.length === 0 && contAppts.length > 0;
             const isDrop    = dropTarget === `${dayKey}|${slot}`;
@@ -1583,6 +1604,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     );
                   })}
 
+                  {/* Los avisos van primero: contextualizan la fila antes de que
+                      el ojo llegue a la pildora de disponible. La pildora se sigue
+                      mostrando a proposito — el aviso NO bloquea, la hora sigue
+                      libre y se puede agendar. */}
+                  {cellBlocks.map(b => (
+                    <div key={b.id} className="flex-1 min-w-0">
+                      <BlockCard block={b} providerLabel={b.providerName ?? undefined}
+                        onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
+                    </div>
+                  ))}
+
                   {/* Slot libre — la pildora se ve SIEMPRE (no solo en hover):
                       que cada fila tenga la misma caja es lo que hace que la
                       grilla se lea ordenada, igual que v2. */}
@@ -1590,6 +1622,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     <div className="flex-1 min-w-0 flex items-center px-2 rounded border border-dashed border-cyan/[0.18] bg-cyan/[0.02] text-cyan/40 group-hover:border-cyan/40 group-hover:bg-cyan/[0.06] group-hover:text-cyan/70 transition-colors">
                       <Plus className="w-2.5 h-2.5 mr-1 shrink-0" />
                       <span className="text-[10px] font-medium uppercase tracking-wide">{t('slotAvailable')}</span>
+                      {/* El aviso, con la hora de ESTA fila ya cargada. Aparece al
+                          pasar el mouse para no competir con "disponible", que es
+                          la lectura principal de la fila. */}
+                      <button type="button" title={t('blockNewButton')}
+                        onClick={(e) => { e.stopPropagation(); openBlockAt(dayKey, slot); }}
+                        className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-2 transition-opacity">
+                        <CalendarOff className="w-3 h-3" />
+                      </button>
                     </div>
                   )}
 
@@ -1777,7 +1817,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         // en vez de aflojar el tipo del primitivo, que lo comparten 4 pantallas.
         providers={providers.map(p => ({ ...p, specialty: p.specialty ?? '' }))}
         defaultProviderId={lockedProviderId ?? filterProvider ?? undefined}
-        onClose={() => { setBlockDialogOpen(false); setEditingBlock(null); }}
+        defaultDate={blockPrefill?.date}
+        defaultTime={blockPrefill?.time}
+        onClose={() => { setBlockDialogOpen(false); setEditingBlock(null); setBlockPrefill(null); }}
         onSaved={() => setRefreshKey(k => k + 1)}
       />
 

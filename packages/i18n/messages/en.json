@@ -3901,7 +3901,10 @@
       "blockErrorDelete": "Could not delete the note",
       "blockNewButton": "Schedule note",
       "blockDurationMin": "{m} min",
-      "legendBlock": "Schedule note"
+      "legendBlock": "Schedule note",
+      "blockFieldProvider": "Provider (optional)",
+      "blockProviderAll": "No provider: the note shows across the whole calendar.",
+      "blockProviderOne": "Only for this provider."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

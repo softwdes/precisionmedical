@@ -53,9 +53,17 @@ export function useActivityHeartbeat(): void {
     for (const ev of events) window.addEventListener(ev, mark, { passive: true });
 
     // keepalive: si el ping cae justo cuando la persona navega, igual sale.
+    // Se manda la ruta, no el módulo: el mapeo vive en el servidor
+    // (`lib/activity-modules.ts`) para que el cliente no pueda inventarse uno.
+    // `location.pathname` se lee en cada ping, así que cambiar de pantalla
+    // cambia el módulo sin necesidad de re-montar el hook.
     const ping = () => {
-      fetch('/api/activity/heartbeat', { method: 'POST', keepalive: true })
-        .catch(() => undefined);
+      fetch('/api/activity/heartbeat', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: window.location.pathname }),
+      }).catch(() => undefined);
     };
 
     const tick = () => {

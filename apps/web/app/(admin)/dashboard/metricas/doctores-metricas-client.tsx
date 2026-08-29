@@ -34,6 +34,8 @@ interface DoctorRow {
   name: string;
   specialty: string | null;
   activeMinutes: number;
+  /** Minutos por módulo del portal (Mi Día, consulta, recetas…). */
+  minutesByModule: Record<string, number>;
   consultations: number;
   measuredConsultations: number;
   avgConsultSeconds: number;
@@ -44,6 +46,15 @@ interface DoctorRow {
   braces: number;
   services: number;
 }
+
+/** Etiquetas de módulo — espejo de `lib/activity-modules.ts` del back-office. */
+const MODULE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard', patients: 'Pacientes', calendar: 'Calendario',
+  admission: 'Admisión', billing: 'Facturación', edson: 'Bandeja Edson',
+  intake: 'Intake', messages: 'Mensajería', externals: 'Bufetes',
+  settings: 'Configuración', doctor: 'Portal Médico', attorney: 'Portal Legal',
+  vigia: 'Vigía (IA)', other: 'Sin módulo',
+};
 
 const NOTE_LABEL: Record<string, { label: string; color: string }> = {
   SIGNED: { label: 'Firmada',  color: 'text-emerald bg-emerald/10 border-emerald/20' },
@@ -262,6 +273,38 @@ export function DoctoresMetricasClient() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Dónde pasó el tiempo dentro del portal médico. Solo en el nivel 1:
+                en el detalle de una consulta sería ruido. */}
+            {!apptId && Object.keys(doctor.minutesByModule ?? {}).length > 0 && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-emerald" />
+                  Tiempo por módulo
+                </div>
+                <div className="space-y-1">
+                  {Object.entries(doctor.minutesByModule)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([mod, mins]) => {
+                      const top = Math.max(...Object.values(doctor.minutesByModule));
+                      return (
+                        <div key={mod} className="flex items-center gap-2">
+                          <span className="text-[11px] text-text-2 w-28 shrink-0 truncate">
+                            {MODULE_LABELS[mod] ?? mod}
+                          </span>
+                          <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald"
+                              style={{ width: `${top > 0 ? Math.round((mins / top) * 100) : 0}%` }} />
+                          </div>
+                          <span className="font-mono text-[11px] text-text-1 tabular-nums w-12 text-right shrink-0">
+                            {fmtMinutes(mins)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* ── Nivel 1: lista de consultas ── */}
             {!apptId && (

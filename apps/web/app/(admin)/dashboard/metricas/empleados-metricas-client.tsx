@@ -3,11 +3,15 @@
 /**
  * Métricas → tab Empleados — productividad por empleado.
  *
- * Qué hizo cada quien en Clinic: tiempo de uso activo, llamadas hechas, SMS
- * enviados (y cuántos llegaron), pacientes/casos/citas creados, check-ins, triajes, labs,
- * servicios, férulas, pagos, salidas y cierres del doctor. Filtro Hoy / Ayer /
- * 7 días / Este mes / Rango libre (días de America/Denver, el hoy de la
- * clínica). Click en una fila → desglose completo de acciones.
+ * Qué hizo cada quien en Clinic: tiempo de uso activo, llamadas, SMS (enviados
+ * y cuántos llegaron) y las acciones agrupadas por ÁREA de trabajo — pacientes,
+ * casos, citas, admisión, clínico, cobros, portal, bufetes, mensajería,
+ * catálogos, seguimiento, Vigía y anulaciones. Las áreas cubren el 100% del
+ * trabajo registrado; una columna por acción suelta llegaba al 34%.
+ *
+ * Filtro Hoy / Ayer / 7 días / Este mes / Rango libre (días de America/Denver,
+ * el hoy de la clínica). Click en una fila → el reporte de esa persona: en qué
+ * módulos pasó el tiempo y el desglose acción por acción.
  *
  * La data viene de api.metrics.employeeActivity (fn `employee_metrics` en la
  * DB del back-office: AuditLog atribuido + CallLog + user_activity).
@@ -36,28 +40,26 @@ interface EmployeeRow {
   smsSent: number;
   smsDelivered: number;
   callsDurationSeconds: number;
+  /** Números de portada (los KPI de arriba). */
   patientsCreated: number;
   casesCreated: number;
   appointmentsCreated: number;
-  appointmentEdits: number;
-  checkIns: number;
-  triages: number;
-  medicalHistory: number;
-  labs: number;
-  cashServices: number;
-  braces: number;
   payments: number;
-  checkouts: number;
-  messages: number;
   voids: number;
+  /** Acciones de staff del período. */
+  totalActions: number;
+  /** Acciones agrupadas por área — las columnas de la tabla. */
+  families: Record<string, number>;
+  /** Minutos por módulo. Puede sumar MÁS que activeMinutes: un minuto a caballo
+   *  entre dos pantallas cuenta en las dos. Es un reparto, no una partición. */
+  minutesByModule: Record<string, number>;
   byAction: Record<string, number>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function totalOf(r: EmployeeRow): number {
-  return r.activeMinutes + r.callsMade + r.callsAnswered + r.smsSent +
-    Object.values(r.byAction).reduce((a, b) => a + b, 0);
+  return r.activeMinutes + r.callsMade + r.callsAnswered + r.smsSent + r.totalActions;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -128,28 +130,48 @@ const actionLabel = (a: string): string =>
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 /**
- * Columnas del reporte. Las de doctor (firmar nota, "Terminé") viven en el tab
- * Doctores; acá solo trabajo de staff. `voids` va en ámbar al final: no es
- * producción, es retrabajo — mide errores que alguien tuvo que deshacer.
+ * Columnas de la tabla.
+ *
+ * Antes había una por acción suelta y entre todas cubrían el 34% del trabajo:
+ * los otros dos tercios (bufetes, envíos de portal, edición de casos, Vigía)
+ * solo se veían abriendo el detalle. Ahora son ÁREAS, que cubren el 100% y
+ * además coinciden con el tiempo por módulo — la misma fila dice dónde estuvo
+ * la persona y qué hizo ahí.
+ *
+ * `voids` va en ámbar al final: no es producción, es retrabajo. `access`
+ * (logins, "ver como doctor") queda solo en el detalle: es rastro, no trabajo.
  */
-const COLUMNS: Array<{ key: keyof EmployeeRow; label: string; tone?: 'warn' }> = [
-  { key: 'callsMade',           label: 'Llam.' },
-  { key: 'smsSent',             label: 'SMS' },
-  { key: 'patientsCreated',     label: 'Pacientes' },
-  { key: 'casesCreated',        label: 'Casos' },
-  { key: 'appointmentsCreated', label: 'Citas' },
-  { key: 'appointmentEdits',    label: 'Edic. citas' },
-  { key: 'checkIns',            label: 'Check-ins' },
-  { key: 'triages',             label: 'Triajes' },
-  { key: 'medicalHistory',      label: 'Hist. médico' },
-  { key: 'labs',                label: 'Labs' },
-  { key: 'cashServices',        label: 'Servicios' },
-  { key: 'braces',              label: 'Férulas' },
-  { key: 'payments',            label: 'Pagos' },
-  { key: 'checkouts',           label: 'Salidas' },
-  { key: 'messages',            label: 'Mensajes' },
-  { key: 'voids',               label: 'Anulaciones', tone: 'warn' },
+const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent'; label: string }> = [
+  { key: 'callsMade',     label: 'Llam.' },
+  { key: 'callsAnswered', label: 'Contest.' },
+  { key: 'smsSent',       label: 'SMS' },
 ];
+
+const FAMILY_COLUMNS: Array<{ key: string; label: string; tone?: 'warn' }> = [
+  { key: 'patients',     label: 'Pacientes' },
+  { key: 'cases',        label: 'Casos' },
+  { key: 'appointments', label: 'Citas' },
+  { key: 'admission',    label: 'Admisión' },
+  { key: 'clinical',     label: 'Clínico' },
+  { key: 'charges',      label: 'Cobros' },
+  { key: 'portal',       label: 'Portal' },
+  { key: 'externals',    label: 'Bufetes' },
+  { key: 'messages',     label: 'Mensajes' },
+  { key: 'catalogs',     label: 'Catálogos' },
+  { key: 'followup',     label: 'Seguim.' },
+  { key: 'ai',           label: 'Vigía' },
+  { key: 'otros',        label: 'Otros' },
+  { key: 'voids',        label: 'Anulaciones', tone: 'warn' },
+];
+
+/** Etiquetas de módulo — espejo de `lib/activity-modules.ts` del back-office. */
+const MODULE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard', patients: 'Pacientes', calendar: 'Calendario',
+  admission: 'Admisión', billing: 'Facturación', edson: 'Bandeja Edson',
+  intake: 'Intake', messages: 'Mensajería', externals: 'Bufetes',
+  settings: 'Configuración', doctor: 'Portal Médico', attorney: 'Portal Legal',
+  vigia: 'Vigía (IA)', other: 'Sin módulo',
+};
 
 export function EmpleadosMetricasClient() {
   const [preset, setPreset] = useState<Preset>('today');
@@ -201,17 +223,20 @@ export function EmpleadosMetricasClient() {
 
   const exportCsv = useCallback(() => {
     if (!visible.length) return;
-    // `slice(1)` y no `slice(2)`: 'callsMade' es la ÚNICA columna que ya va
-    // listada a mano arriba. Era slice(2) cuando 'callsAnswered' la seguía en
-    // COLUMNS; al quitarla, un slice(2) se comía 'patientsCreated' del CSV.
-    const cols = ['name', 'role', 'activeMinutes', 'callsMade', ...COLUMNS.slice(1).map(c => c.key)] as Array<keyof EmployeeRow>;
-    const header = cols.join(',');
-    const lines = visible.map((r) =>
-      cols.map((c) => {
-        const v = r[c];
-        return typeof v === 'string' ? `"${v.replaceAll('"', '""')}"` : String(v);
-      }).join(','),
-    );
+    // El CSV se arma de las MISMAS listas que la tabla: si mañana se agrega una
+    // familia, sale en los dos lados sin que nadie tenga que acordarse.
+    const header = [
+      'empleado', 'rol', 'minutos_activos', 'acciones',
+      ...CALL_COLUMNS.map(c => c.key),
+      ...FAMILY_COLUMNS.map(c => c.key),
+      ...Object.keys(MODULE_LABELS).map(m => `min_${m}`),
+    ].join(',');
+    const lines = visible.map((r) => [
+      `"${r.name.replaceAll('"', '""')}"`, r.role, r.activeMinutes, r.totalActions,
+      ...CALL_COLUMNS.map(c => r[c.key] ?? 0),
+      ...FAMILY_COLUMNS.map(c => r.families?.[c.key] ?? 0),
+      ...Object.keys(MODULE_LABELS).map(m => r.minutesByModule?.[m] ?? 0),
+    ].join(','));
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -290,12 +315,13 @@ export function EmpleadosMetricasClient() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1340px]">
+            <table className="w-full text-sm min-w-[1560px]">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Empleado</th>
                   <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Activo</th>
-                  {COLUMNS.map((c) => (
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Acciones</th>
+                  {[...CALL_COLUMNS, ...FAMILY_COLUMNS].map((c) => (
                     <th key={c.key} className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{c.label}</th>
                   ))}
                 </tr>
@@ -318,8 +344,18 @@ export function EmpleadosMetricasClient() {
                         {fmtMinutes(r.activeMinutes)}
                       </span>
                     </td>
-                    {COLUMNS.map((c) => {
-                      const v = r[c.key] as number;
+                    <td className="px-3 py-3 text-right text-[12px]">
+                      <span className={cn('font-mono tabular-nums font-semibold', r.totalActions > 0 ? 'text-text-1' : 'text-text-3')}>
+                        {r.totalActions}
+                      </span>
+                    </td>
+                    {CALL_COLUMNS.map((c) => (
+                      <td key={c.key} className="px-3 py-3 text-right text-[12px]">
+                        <Num value={r[c.key] ?? 0} />
+                      </td>
+                    ))}
+                    {FAMILY_COLUMNS.map((c) => {
+                      const v = r.families?.[c.key] ?? 0;
                       return (
                         <td key={c.key} className="px-3 py-3 text-right text-[12px]">
                           {c.tone === 'warn' && v > 0
@@ -376,6 +412,46 @@ export function EmpleadosMetricasClient() {
                 <div className="text-lg font-bold text-brand-text mt-0.5 tabular-nums">{detail.callsMade}</div>
               </div>
             </div>
+
+            {/* En qué módulos se fue el tiempo. Barras y no números sueltos:
+                lo que importa es la proporción, no el minuto exacto. */}
+            {Object.keys(detail.minutesByModule ?? {}).length > 0 && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-emerald" />
+                  Tiempo por módulo
+                </div>
+                <div className="space-y-1">
+                  {Object.entries(detail.minutesByModule)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([mod, mins]) => {
+                      const top = Math.max(...Object.values(detail.minutesByModule));
+                      return (
+                        <div key={mod} className="flex items-center gap-2">
+                          <span className="text-[11px] text-text-2 w-28 shrink-0 truncate">
+                            {MODULE_LABELS[mod] ?? mod}
+                          </span>
+                          <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald"
+                              style={{ width: `${top > 0 ? Math.round((mins / top) * 100) : 0}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-[11px] text-text-1 tabular-nums w-12 text-right shrink-0">
+                            {fmtMinutes(mins)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+                {detail.minutesByModule.other > 0 && (
+                  <p className="text-[10px] text-text-3 mt-1.5">
+                    &quot;Sin módulo&quot; son minutos anteriores al 27 de agosto, cuando todavía
+                    no se registraba en qué pantalla estaba la persona.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">

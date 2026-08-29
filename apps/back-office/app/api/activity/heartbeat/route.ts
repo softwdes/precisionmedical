@@ -17,16 +17,22 @@
  * cuando llegue el primer ping nuevo de esa hora.
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
 import { getDbUserByEmail } from '@/lib/actor';
+import { moduleForPath } from '@/lib/activity-modules';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser();
   if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+  // El navegador manda la ruta; el módulo se decide acá (ver lib/activity-modules).
+  // Un body ilegible no puede tumbar el latido: cae en 'other'.
+  const body = await req.json().catch(() => null) as { path?: unknown } | null;
+  const mod = moduleForPath(typeof body?.path === 'string' ? body.path : null);
 
   // users.id de Phoenix (cuid) — la misma identidad que AuditLog.actorUserId,
   // para que el reporte cruce eventos y tiempo con una sola llave.
@@ -34,15 +40,16 @@ export async function POST(): Promise<NextResponse> {
   if (!dbUser) return NextResponse.json({ error: 'USER_NOT_LINKED' }, { status: 403 });
 
   await db.$executeRaw`
-    INSERT INTO "user_activity" ("userId", "bucketStart", "minutesMask", "activeMinutes", "lastPingAt")
+    INSERT INTO "user_activity" ("userId", "bucketStart", "module", "minutesMask", "activeMinutes", "lastPingAt")
     VALUES (
       ${dbUser.id},
       date_trunc('hour', now()),
+      ${mod},
       (1::bigint << EXTRACT(minute FROM now())::int),
       1,
       now()
     )
-    ON CONFLICT ("userId", "bucketStart") DO UPDATE
+    ON CONFLICT ("userId", "bucketStart", "module") DO UPDATE
     SET "minutesMask"   = "user_activity"."minutesMask" | EXCLUDED."minutesMask",
         "activeMinutes" = GREATEST(
           bit_count(("user_activity"."minutesMask" | EXCLUDED."minutesMask")::bit(64))::int,

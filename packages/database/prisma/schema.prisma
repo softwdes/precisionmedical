@@ -957,6 +957,13 @@ model UserActivityBucket {
   /// que re-bucketear a días locales en la UI es exacto.
   bucketStart DateTime
 
+  /// Módulo donde ocurrieron esos minutos (`lib/activity-modules.ts`).
+  /// '' = filas anteriores al 2026-08-27, cuando no se registraba el módulo.
+  /// El total por usuario NO es la suma de los módulos: un minuto a caballo
+  /// entre dos pantallas queda marcado en las dos, y se resuelve con
+  /// `bit_count(bit_or(minutesMask))`.
+  module String @default("")
+
   /// Bitmap de los 60 minutos de la hora con actividad (bit N = minuto N).
   /// El ping hace OR, así que marcar el mismo minuto dos veces no suma: es lo
   /// que vuelve el conteo inmune a pings repetidos, perdidos o de otra pestaña.
@@ -967,7 +974,7 @@ model UserActivityBucket {
   activeMinutes Int      @default(0)
   lastPingAt    DateTime
 
-  @@id([userId, bucketStart])
+  @@id([userId, bucketStart, module])
   @@index([bucketStart])
   @@map("user_activity")
 }

@@ -3489,7 +3489,9 @@
       "desenlaceSealing": "Guardando…",
       "penaltyNoCase": "Esta cita no tiene caso, así que no hay dónde registrar la deuda. Asignale un caso antes de cargar la penalidad.",
       "penaltyFailed": "No se pudo agregar el cargo. Intentá de nuevo.",
-      "cancelSameDayShort": "Mismo día"
+      "cancelSameDayShort": "Mismo día",
+      "outsideClinics": "+{count} en otro centro",
+      "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas."
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

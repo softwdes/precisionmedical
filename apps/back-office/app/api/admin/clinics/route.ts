@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { SEDE_WHERE } from '@/lib/clinic-sede';
 
 const CLINIC_SELECT = {
   id: true, name: true, address: true, phone: true, cellPhone: true,
@@ -9,8 +10,19 @@ const CLINIC_SELECT = {
   _count: { select: { appointments: true } },
 } as const;
 
-export async function GET(): Promise<NextResponse> {
-  const clinics = await db.clinic.findMany({ orderBy: { name: 'asc' }, select: CLINIC_SELECT });
+/**
+ * @param soloSedes `?soloSedes=1` devuelve solo las sedes propias (ver
+ * lib/clinic-sede). Es opt-in y no el default a proposito: Settings administra
+ * la tabla entera, externos incluidos, y filtrar por defecto le escondería filas
+ * que justamente va a editar.
+ */
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const soloSedes = new URL(req.url).searchParams.get('soloSedes') === '1';
+  const clinics = await db.clinic.findMany({
+    where:   soloSedes ? SEDE_WHERE : undefined,
+    orderBy: { name: 'asc' },
+    select:  CLINIC_SELECT,
+  });
   return NextResponse.json({ clinics });
 }
 

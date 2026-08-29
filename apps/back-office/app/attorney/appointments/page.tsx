@@ -6,6 +6,7 @@ import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { lawyerCaseFilter, canSeeMenu } from '@/lib/attorney-portal';
 import { ZONA_CLINICA } from '@/lib/fechas';
 import { AppointmentsDayView, type DayAppointment, type ClinicOption } from './day-view';
+import { SEDE_WHERE } from '@/lib/clinic-sede';
 
 /**
  * Portal Legal · Citas (SOLO LECTURA)
@@ -95,7 +96,7 @@ export default async function AttorneyAppointmentsPage({ searchParams }: {
      * Por DATO, no por nombre: cargarles los campos las devuelve solas.
      */
     db.clinic.findMany({
-      where: { address: { not: null }, photos: { isEmpty: false } },
+      where: SEDE_WHERE,
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),

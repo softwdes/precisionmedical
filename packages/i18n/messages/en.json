@@ -3489,7 +3489,9 @@
       "desenlaceSealing": "Saving…",
       "penaltyNoCase": "This appointment has no case, so there is nowhere to record the debt. Assign a case before charging the penalty.",
       "penaltyFailed": "Could not add the charge. Please try again.",
-      "cancelSameDayShort": "Same day"
+      "cancelSameDayShort": "Same day",
+      "outsideClinics": "+{count} at another facility",
+      "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All."
     },
     "dashboard": {
       "title": "Reception Dashboard",

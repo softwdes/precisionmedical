@@ -475,7 +475,10 @@ export function AdmissionClient() {
   }
 
   useEffect(() => {
-    fetch('/api/admin/clinics')
+    // `soloSedes`: la tabla tambien tiene centros externos y filas de prueba,
+    // que aparecian como chips con 1-2 citas al lado de las sedes reales.
+    // Ver lib/clinic-sede para la regla y su consecuencia conocida.
+    fetch('/api/admin/clinics?soloSedes=1')
       .then(r => r.json())
       .then(d => setAllClinics(d.clinics ?? []));
   }, []);
@@ -608,6 +611,9 @@ export function AdmissionClient() {
     filteredPending.length + filteredAwaiting.length + filteredInRoom.length
     + filteredDone.length + filteredUnpenalized.length;
   /** Se buscó y no hay nada: hay que decirlo, no dejar la pantalla vacía. */
+  /** Citas del día en un centro que no es sede — no tienen chip propio. */
+  const citasFueraDeSede = allAppts.filter(a => !allClinics.some(c => c.id === a.clinic.id)).length;
+
   const sinResultados = patientQuery.trim() !== '' && visibleCount === 0;
 
   return (
@@ -715,6 +721,33 @@ export function AdmissionClient() {
             {t('searchShowing', { shown: visibleCount, total: allAppts.length })}
           </span>
         )}
+
+        {/* Filtro por desenlace, en la MISMA fila que el buscador: los dos
+            acotan la lista por lo que se está buscando, mientras que la clínica
+            se elige una vez al empezar el turno y no se vuelve a tocar. Estaba
+            debajo de los KPI, separado de su pareja natural y encima empujando
+            la cola hacia abajo. Se combina con la clínica y la búsqueda. */}
+        <div className="flex items-center gap-1.5 flex-wrap sm:ml-auto">
+          {([
+            { id: 'all'              as EstadoFiltro, label: t('filterAll') },
+            { id: 'noShow'           as EstadoFiltro, label: t('filterNoShow') },
+            { id: 'cancelledSameDay' as EstadoFiltro, label: t('filterCancelledSameDay') },
+            { id: 'unpenalized'      as EstadoFiltro, label: t('filterUnpenalized') },
+          ]).map(op => (
+            <button
+              key={op.id}
+              type="button"
+              onClick={() => setEstadoFiltro(op.id)}
+              className={`px-2.5 h-8 rounded-md text-[11px] font-semibold transition-colors ${
+                estadoFiltro === op.id
+                  ? 'bg-emerald/15 text-emerald'
+                  : 'bg-bg-2 text-text-muted hover:text-text-1'
+              }`}
+            >
+              {op.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filtro de clínica */}
@@ -748,6 +781,16 @@ export function AdmissionClient() {
               </button>
             );
           })}
+          {/* Las citas cuya clínica NO es sede se quedan sin chip, pero siguen en
+              "Todas". Sin decirlo, la suma de los chips no da y parece un bug —
+              y la casa ya tiene la regla de que un filtro nunca esconde en
+              silencio. Hoy el caso real es "Murray - Surgery", que es una sede de
+              verdad a la que le falta cargar dirección y foto. */}
+          {citasFueraDeSede > 0 && (
+            <span className="text-[11px] text-text-muted" title={t('outsideClinicsHint')}>
+              {t('outsideClinics', { count: citasFueraDeSede })}
+            </span>
+          )}
         </div>
       )}
 
@@ -770,29 +813,6 @@ export function AdmissionClient() {
           >
             <KpiCard label={t('kpiUnpenalized')} value={totals.unpenalized} tone="rose" icon={AlertTriangle} />
           </button>
-        </div>
-
-        {/* Filtro por desenlace. Se combina con el de clínica y la búsqueda. */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {([
-            { id: 'all'              as EstadoFiltro, label: t('filterAll') },
-            { id: 'noShow'           as EstadoFiltro, label: t('filterNoShow') },
-            { id: 'cancelledSameDay' as EstadoFiltro, label: t('filterCancelledSameDay') },
-            { id: 'unpenalized'      as EstadoFiltro, label: t('filterUnpenalized') },
-          ]).map(op => (
-            <button
-              key={op.id}
-              type="button"
-              onClick={() => setEstadoFiltro(op.id)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                estadoFiltro === op.id
-                  ? 'bg-emerald/15 text-emerald'
-                  : 'bg-bg-2 text-text-muted hover:text-text-1'
-              }`}
-            >
-              {op.label}
-            </button>
-          ))}
         </div>
 
         {loading ? (

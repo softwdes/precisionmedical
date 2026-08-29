@@ -13,6 +13,7 @@ import { menusFor, canSeeVigia, canSeeMessages } from '@/lib/attorney-portal';
 import { AttorneyViewBar, type FirmOption } from './attorney-view-bar';
 import { OfficeCard, type OfficeClinic } from './office-card';
 import { cookies } from 'next/headers';
+import { esSede } from '@/lib/clinic-sede';
 
 /**
  * Portal Legal · Layout
@@ -187,7 +188,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
     //
     // El filtro es por DATO, no por nombre: el día que se le cargue foto y
     // dirección, aparece sola.
-    .filter((c) => !!c.address && c.photos.length > 0)
+    .filter(esSede)
     .map((c) => ({
     id: c.id,
     name: c.name,

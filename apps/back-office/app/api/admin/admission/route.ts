@@ -12,7 +12,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
-import { esDesenlaceCobrable, totalCargado } from '@/lib/appointment-outcome';
+import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
@@ -76,12 +76,19 @@ function getTimezoneOffsetMs(tz: string, dateStr: string): number {
   return -offsetHours * 60 * 60 * 1000;
 }
 
-function mapAppt(a: ApptWithIncludes) {
+/**
+ * @param cargos lo facturado de ESTA cita, ya calculado por el caller.
+ *
+ * NO sale de `plannedServiceCodes`: la plata puede entrar por cuatro caminos
+ * (CPT, efectivo, férulas, laboratorios) y ese JSON solo conoce el primero. La
+ * penalidad además se cobra por el circuito de EFECTIVO —es del paciente, nunca
+ * del seguro (regla de Erick 2026-08-29)—, así que mirando `plannedServiceCodes`
+ * una penalidad ya cobrada seguía contando como "sin penalidad" para siempre.
+ * La fuente correcta es `appointment_billing`, que es donde vive la deuda.
+ */
+function mapAppt(a: ApptWithIncludes, cargos: { total: number; lineas: number }) {
   const isReady = !!(a.case?.lawFirmId || a.case?.attorneyId) && !!a.case?.pipVerifiedAt;
   const hasPending = !isReady && !!a.case;
-  // Cuánto se le cargó a esta cita. Para un desenlace cobrable, cero cargos
-  // significa "la penalidad nunca se asentó" (ver lib/appointment-outcome).
-  const chargedTotal = totalCargado(a.plannedServiceCodes as { fee?: number | null }[] | null);
   return {
     id:          a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -101,8 +108,10 @@ function mapAppt(a: ApptWithIncludes) {
     // Distingue la cancelación tardía (cobra) de la que avisó (no cobra). La fila
     // la usa para pintarse igual que en el calendario: ámbar vs rose.
     cancelledSameDay: (a as { cancelledSameDay?: boolean }).cancelledSameDay ?? false,
-    chargedTotal,
-    hasCharge:   chargedTotal > 0,
+    chargedTotal: cargos.total,
+    // "Le pusieron algo" — cualquier línea facturada cuenta. Para un no-show no
+    // hay otra cosa que cobrarle, así que una línea ES la penalidad.
+    hasCharge:    cargos.lineas > 0,
     patient: {
       id:        a.patient.id,
       firstName: a.patient.firstName,
@@ -159,7 +168,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       orderBy: { scheduledFor: 'asc' },
     });
 
-    const mapped = appts.map(mapAppt);
+    // Lo facturado de las citas del día, en UNA consulta. Sin esto habría que
+    // preguntar por cita y la cola hace hasta 60 en un día normal.
+    const porCita = appts.length
+      ? await db.appointmentBilling.groupBy({
+          by:     ['appointmentId'],
+          where:  { appointmentId: { in: appts.map(a => a.id) } },
+          _count: { _all: true },
+          _sum:   { balanceDue: true },
+        })
+      : [];
+    const cargosPorCita = new Map(
+      porCita.map(g => [g.appointmentId, {
+        total:  Number(g._sum.balanceDue ?? 0),
+        lineas: g._count._all,
+      }]),
+    );
+
+    const mapped = appts.map(a => mapAppt(a, cargosPorCita.get(a.id) ?? { total: 0, lineas: 0 }));
 
     // Agrupar
     const pending = mapped.filter(a =>

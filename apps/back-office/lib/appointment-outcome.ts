@@ -34,22 +34,3 @@ export interface AppointmentOutcome {
 export function esDesenlaceCobrable(appt: AppointmentOutcome): boolean {
   return appt.status === 'NO_SHOW' || (appt.status === 'CANCELLED' && appt.cancelledSameDay === true);
 }
-
-/** Servicio ya cargado a la cita (una línea de `plannedServiceCodes`). */
-export interface ChargedService {
-  fee?: number | null;
-}
-
-/**
- * Suma de lo cargado a la cita. Es lo que convierte "marcaron el no-show" en
- * "además le asentaron la penalidad": si no hay ningún cargo, la penalidad nunca
- * se puso.
- *
- * La definición es "tiene ALGÚN cargo", no "tiene el código X", porque el código
- * lo elige el asistente según el caso y varía. A un no-show no hay otra cosa que
- * cobrarle, así que cualquier cargo es la penalidad.
- */
-export function totalCargado(services: ChargedService[] | null | undefined): number {
-  if (!Array.isArray(services)) return 0;
-  return services.reduce((sum, s) => sum + (Number(s?.fee) || 0), 0);
-}

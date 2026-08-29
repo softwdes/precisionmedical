@@ -186,6 +186,33 @@ export function CarreraClient({
                   )}
                   style={{ width: `${pct}%` }}
                 />
+
+                {/* El caballo va en la PUNTA de la barra, que es donde está el
+                    corredor. Ancla con translate(-100%): en el líder (100%) su
+                    borde derecho coincide con el fin de la pista y no lo recorta
+                    el overflow, y en el último la barra mínima del 4% ya deja
+                    lugar suficiente para que se vea entero.
+
+                    Galopa SOLO en vivo: en una carrera terminada nadie corre, y
+                    una fila de emojis rebotando sobre un reporte estático es
+                    ruido. `motion-safe` respeta a quien pidió menos animación en
+                    su sistema. */}
+                {r.qualified && (
+                  <span
+                    aria-hidden
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-full transition-[left] duration-1000 ease-out pointer-events-none pr-0.5"
+                    style={{ left: `max(18px, ${pct}%)` }}
+                  >
+                    {/* El galope va en un span APARTE: los keyframes de `bounce`
+                        animan `transform`, y en el mismo elemento pisarían al
+                        translate que ancla el caballo a la punta — se iría medio
+                        alto y un ancho a la derecha en cuanto empezara a correr. */}
+                    <span className={cn('block text-[13px] leading-none', live && 'motion-safe:animate-bounce')}>
+                      🏇
+                    </span>
+                  </span>
+                )}
+
                 {!r.qualified && (
                   <span className="absolute inset-0 flex items-center px-3 text-[10px] text-text-3">
                     necesita {MIN_MINUTES} min de uso para clasificar

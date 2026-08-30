@@ -222,7 +222,11 @@ export function CarreraClient({
       <div className="rounded-xl border border-border bg-surface p-4 space-y-2.5">
         {racers.map((r, i) => {
           const pos = r.qualified ? i + 1 : null;
-          const pct = topRate > 0 && r.qualified ? Math.max(4, Math.round((r.rate / topRate) * 100)) : 0;
+          // Tope en 92% y no 100%: el líder también tiene que dejar pista libre
+          // delante para su caballo. Si su barra llegara al final, su jinete
+          // quedaría montado encima del color mientras todos los demás corren
+          // sobre la pista — el único que se vería distinto sería el primero.
+          const pct = topRate > 0 && r.qualified ? Math.max(4, Math.round((r.rate / topRate) * 92)) : 0;
           // Largada lenta y escalonada; después, 1s parejo para los refrescos.
           const anim = introDone
             ? { transitionDuration: '1000ms', transitionDelay: '0ms' }
@@ -248,7 +252,7 @@ export function CarreraClient({
 
               {/* Pista: la barra ES la carrera. La transición larga hace que en
                   vivo se vea avanzar en vez de saltar. */}
-              <div className="flex-1 h-6 rounded-full bg-surface-2 overflow-hidden relative min-w-[80px]">
+              <div className="flex-1 h-7 rounded-full bg-surface-2 overflow-hidden relative min-w-[80px]">
                 <div
                   className={cn(
                     'h-full rounded-full transition-[width] ease-out',
@@ -257,35 +261,46 @@ export function CarreraClient({
                   style={{ width: started ? `${pct}%` : '0%', ...anim }}
                 />
 
-                {/* El caballo va en la PUNTA de la barra, que es donde está el
-                    corredor. Ancla con translate(-100%): en el líder (100%) su
-                    borde derecho coincide con el fin de la pista y no lo recorta
-                    el overflow, y en el último la barra mínima del 4% ya deja
-                    lugar suficiente para que se vea entero.
+                {/* El caballo va DELANTE de la barra, sobre la pista libre:
+                    encima del color se perdía, y adelante se lee como que la
+                    barra es el terreno ya recorrido.
 
-                    Galopa SOLO en vivo: en una carrera terminada nadie corre, y
+                    `clamp` en vez de un translate fijo: sin tope, el líder
+                    (100%) se saldría de la pista y lo recortaría el overflow, y
+                    el último en una pista angosta quedaría pegado al borde
+                    izquierdo. Los dos extremos quedan siempre visibles.
+
+                    Galopa en vivo y durante la largada, que es cuando de verdad
+                    se está corriendo; en una carrera terminada nadie corre, y
                     una fila de emojis rebotando sobre un reporte estático es
-                    ruido. `motion-safe` respeta a quien pidió menos animación en
-                    su sistema. */}
+                    ruido. `motion-safe` respeta a quien pidió menos animación. */}
                 {r.qualified && (
                   <span
                     aria-hidden
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-full transition-[left] ease-out pointer-events-none pr-0.5"
+                    className="absolute top-1/2 -translate-y-1/2 transition-[left] ease-out pointer-events-none"
                     // Mismo tiempo y mismo retraso que su barra: si difieren, el
                     // caballo se despega de la punta durante la largada.
-                    style={{ left: started ? `max(18px, ${pct}%)` : '18px', ...anim }}
+                    style={{
+                      left: started
+                        ? `clamp(2px, calc(${pct}% + 3px), calc(100% - 28px))`
+                        : '2px',
+                      ...anim,
+                    }}
                   >
-                    {/* El galope va en un span APARTE: los keyframes de `bounce`
-                        animan `transform`, y en el mismo elemento pisarían al
-                        translate que ancla el caballo a la punta — se iría medio
-                        alto y un ancho a la derecha en cuanto empezara a correr. */}
+                    {/* Tres capas, una por transform, y no por gusto: los
+                        keyframes de `bounce` REEMPLAZAN el transform del
+                        elemento que animan. Con el galope y el espejo juntos, el
+                        caballo se daba vuelta solo al empezar a correr. */}
                     <span className={cn(
-                      'block text-[13px] leading-none',
-                      // Galopa en vivo y también durante la largada: es
-                      // justo cuando se está corriendo.
+                      'block',
                       (live || !introDone) && 'motion-safe:animate-bounce',
                     )}>
-                      🏇
+                      {/* El emoji del jinete mira a la IZQUIERDA en casi todas
+                          las fuentes, o sea en contra de la carrera. Se espeja
+                          para que corra hacia donde avanza la barra. */}
+                      <span className="block text-[19px] leading-none -scale-x-100">
+                        🏇
+                      </span>
                     </span>
                   </span>
                 )}

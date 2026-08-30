@@ -23,7 +23,7 @@
  * además es la forma más legible de una comparación de una sola dimensión.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@precision/ui';
 import { Crown, Medal, Radio, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { fmtMinutes } from './metricas-shared';
@@ -45,6 +45,17 @@ export interface RacerRow {
  * debajo de un cuarto de hora la tasa no significa nada.
  */
 const MIN_MINUTES = 15;
+
+/** Lo que tarda la largada: las barras salen de cero hasta su posición real. */
+const INTRO_MS = 5000;
+
+/**
+ * Retraso escalonado entre carriles. Que no arranquen todos en el mismo
+ * instante es lo que hace que se lea como una carrera y no como una barra de
+ * progreso; el tope evita que el último salga demasiado tarde.
+ */
+const STAGGER_MS = 60;
+const STAGGER_MAX = 600;
 
 /** Área → etiqueta y emoji de la medalla. */
 const MEDALS: Array<{ key: string; label: string; emoji: string }> = [
@@ -83,6 +94,61 @@ export function CarreraClient({
   /** La carrera en vivo solo tiene sentido con "Hoy": el resto es una foto. */
   canGoLive: boolean;
 }) {
+  /**
+   * Largada. `started` dispara el ancho real y `introDone` devuelve la
+   * transición a 1s, para que un refresco en vivo no tarde cinco segundos en
+   * moverse.
+   *
+   * Se replica en cada carga de la página porque vive en el montaje del
+   * componente: recargar, o volver a entrar a la vista Carrera, corre la
+   * largada de nuevo.
+   */
+  const [started, setStarted] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+
+  // La largada espera a que HAYA corredores: en la primera carga los datos
+  // llegan después del montaje, y disparándola con la lista vacía las barras
+  // aparecían ya llenas — sin carrera.
+  const hasRacers = rows.length > 0;
+
+  useEffect(() => {
+    if (!hasRacers || started) return;
+
+    // Quien pidió menos animación en su sistema no merece esperar 5 segundos
+    // para leer un reporte: va directo al resultado.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setStarted(true);
+      setIntroDone(true);
+      return;
+    }
+
+    // Dos frames: el navegador tiene que PINTAR el 0% antes de que cambie el
+    // ancho. Con un solo frame React agrupa ambos valores en el mismo paint y
+    // no hay transición que animar — las barras aparecerían ya llenas.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setStarted(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [hasRacers, started]);
+
+  /**
+   * El fin de la largada vive en su propio efecto A PROPÓSITO.
+   *
+   * Puesto junto a la largada, `setStarted(true)` reejecutaba ese efecto, su
+   * limpieza cancelaba este temporizador y el nuevo pase salía temprano por el
+   * guard: `introDone` no llegaba nunca y cada refresco en vivo se arrastraba
+   * cinco segundos en lugar de uno.
+   */
+  useEffect(() => {
+    if (!started || introDone) return;
+    const done = setTimeout(() => setIntroDone(true), INTRO_MS + STAGGER_MAX);
+    return () => clearTimeout(done);
+  }, [started, introDone]);
+
   const racers = useMemo<Racer[]>(() => {
     const list = rows.map((r) => {
       const qualified = r.activeMinutes >= MIN_MINUTES;
@@ -157,6 +223,10 @@ export function CarreraClient({
         {racers.map((r, i) => {
           const pos = r.qualified ? i + 1 : null;
           const pct = topRate > 0 && r.qualified ? Math.max(4, Math.round((r.rate / topRate) * 100)) : 0;
+          // Largada lenta y escalonada; después, 1s parejo para los refrescos.
+          const anim = introDone
+            ? { transitionDuration: '1000ms', transitionDelay: '0ms' }
+            : { transitionDuration: `${INTRO_MS}ms`, transitionDelay: `${Math.min(i * STAGGER_MS, STAGGER_MAX)}ms` };
           return (
             <div key={r.userId} className={cn('flex items-center gap-3', !r.qualified && 'opacity-45')}>
               {/* Posición */}
@@ -181,10 +251,10 @@ export function CarreraClient({
               <div className="flex-1 h-6 rounded-full bg-surface-2 overflow-hidden relative min-w-[80px]">
                 <div
                   className={cn(
-                    'h-full rounded-full transition-[width] duration-1000 ease-out',
+                    'h-full rounded-full transition-[width] ease-out',
                     pos && pos <= 3 ? LANE_COLOR[pos - 1] : 'bg-brand',
                   )}
-                  style={{ width: `${pct}%` }}
+                  style={{ width: started ? `${pct}%` : '0%', ...anim }}
                 />
 
                 {/* El caballo va en la PUNTA de la barra, que es donde está el
@@ -200,14 +270,21 @@ export function CarreraClient({
                 {r.qualified && (
                   <span
                     aria-hidden
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-full transition-[left] duration-1000 ease-out pointer-events-none pr-0.5"
-                    style={{ left: `max(18px, ${pct}%)` }}
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-full transition-[left] ease-out pointer-events-none pr-0.5"
+                    // Mismo tiempo y mismo retraso que su barra: si difieren, el
+                    // caballo se despega de la punta durante la largada.
+                    style={{ left: started ? `max(18px, ${pct}%)` : '18px', ...anim }}
                   >
                     {/* El galope va en un span APARTE: los keyframes de `bounce`
                         animan `transform`, y en el mismo elemento pisarían al
                         translate que ancla el caballo a la punta — se iría medio
                         alto y un ancho a la derecha en cuanto empezara a correr. */}
-                    <span className={cn('block text-[13px] leading-none', live && 'motion-safe:animate-bounce')}>
+                    <span className={cn(
+                      'block text-[13px] leading-none',
+                      // Galopa en vivo y también durante la largada: es
+                      // justo cuando se está corriendo.
+                      (live || !introDone) && 'motion-safe:animate-bounce',
+                    )}>
                       🏇
                     </span>
                   </span>

@@ -3491,7 +3491,9 @@
       "penaltyFailed": "No se pudo agregar el cargo. Intentá de nuevo.",
       "cancelSameDayShort": "Mismo día",
       "outsideClinics": "+{count} en otro centro",
-      "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas."
+      "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",
+      "chargePending": "Falta cobrar",
+      "chargePendingHint": "Clic para cobrar en Finanzas del caso"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

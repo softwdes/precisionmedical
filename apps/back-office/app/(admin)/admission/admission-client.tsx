@@ -11,12 +11,12 @@ import { localeApp } from '@/lib/fechas';
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX, Ban,
+  Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX, Ban, DollarSign,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -29,6 +29,7 @@ import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
 import { getEventStyle } from '@/lib/appointment-style';
@@ -145,7 +146,7 @@ function KpiCard({
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
 function ApptCard({
-  appt, onCheckIn, checkingIn, onDesenlace,
+  appt, onCheckIn, checkingIn, onDesenlace, onCobrar,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
@@ -156,6 +157,13 @@ function ApptCard({
    * contradecir un hecho registrado.
    */
   onDesenlace?: (appt: AdmissionAppt, tipo: Desenlace) => void;
+  /**
+   * Cobrar lo que quedó de un desenlace cobrable. Abre el caso en Finanzas,
+   * filtrado a ESA visita — no se ofrece editar ni quitar la penalidad desde
+   * acá: eso vive en Servicios de la cita, con la protección de que un cargo ya
+   * cobrado no se puede quitar. Duplicar esas acciones sería saltearse la regla.
+   */
+  onCobrar?: (appt: AdmissionAppt) => void;
 }) {
   const router = useRouter();
   const t = useTranslations('phoenix.admission');
@@ -185,6 +193,12 @@ function ApptCard({
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
   /** El doctor terminó y la cita sigue abierta: hay que cobrar y cerrar. */
   const isReadyForCheckout = !isDone && !!appt.doctorDoneAt;
+  /**
+   * La penalidad ya está asentada y falta cobrarla. La fila entera se vuelve
+   * clickeable en vez de sumar un botón: es la única acción que queda sobre una
+   * cita que no ocurrió, y la cola ya tiene cuatro botones en las filas de arriba.
+   */
+  const puedeCobrar = cobrable && appt.hasCharge && !!appt.case && !!onCobrar;
 
   const borderClass = isReadyForCheckout
     ? 'border border-emerald/50 bg-emerald/[0.05] ring-1 ring-emerald/20'
@@ -198,8 +212,21 @@ function ApptCard({
 
   return (
     <div
-      className={`rounded-lg p-4 transition-all ${noOcurrio ? '' : borderClass}`}
+      className={`rounded-lg p-4 transition-all ${noOcurrio ? '' : borderClass} ${
+        puedeCobrar ? 'cursor-pointer hover:brightness-125' : ''
+      }`}
       style={noOcurrio ? { background: estilo.bg, border: `1px solid ${estilo.border}` } : undefined}
+      // Fila entera clickeable, no un botón: sobre una cita que no ocurrió cobrar
+      // es la ÚNICA acción que queda, y no hay nada más con que competir.
+      {...(puedeCobrar ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        title: t('chargePendingHint'),
+        onClick: () => onCobrar!(appt),
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCobrar!(appt); }
+        },
+      } : {})}
     >
       <div className="flex items-start gap-3">
         <PersonAvatar
@@ -238,6 +265,14 @@ function ApptCard({
             )}
             {appt.status === 'COMPLETED' && (
               <StatusPill label={t('statusCompleted')} state="success" />
+            )}
+            {/* Dice que hay plata esperando. Sin esto la fila clickeable no anuncia
+                nada y nadie descubre que se puede cobrar desde acá. */}
+            {puedeCobrar && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose/15 text-rose">
+                <DollarSign className="w-2.5 h-2.5" />
+                {t('chargePending')}
+              </span>
             )}
             {appt.status === 'NO_SHOW' && (
               <StatusPill label={t('statusNoShow')} state="danger" />
@@ -400,6 +435,8 @@ function ApptCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 export function AdmissionClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations('phoenix.admission');
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
@@ -521,6 +558,23 @@ export function AdmissionClient() {
       setSellando(false);
     }
   }
+
+  /**
+   * Cobrar lo que quedó de un desenlace cobrable.
+   *
+   * Abre el caso en Finanzas y FILTRADO a esa visita, sobre la URL de esta
+   * pantalla: recargar vuelve a Admisión con el caso encima, no a la página del
+   * caso. Ahí está el servicio, la penalidad, lo pagado y lo que resta.
+   *
+   * No se ofrece editar el monto ni quitar la penalidad desde la fila: eso vive
+   * en Servicios de la cita y tiene una protección propia —un cargo ya cobrado
+   * no se puede quitar, la API responde `ALREADY_PAID` y dice cuánto se pagó—.
+   * Repetir esas acciones acá sería duplicar la regla o saltearla.
+   */
+  const cobrarDesenlace = useCallback((appt: AdmissionAppt) => {
+    if (!appt.case) return;
+    router.push(conCasoAbierto(pathname, searchParams, appt.case.id, 'finanzas', appt.id), { scroll: false });
+  }, [router, pathname, searchParams]);
 
   /** Agrega el código elegido y deja la deuda creada (ver lib/charges). */
   async function onAgregarCargo(item: BillableItem) {
@@ -866,6 +920,7 @@ export function AdmissionClient() {
                       appt={a}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
+                    onCobrar={cobrarDesenlace}
                     />
                   ))}
                 </div>
@@ -889,6 +944,7 @@ export function AdmissionClient() {
                       onDesenlace={(a, tipo) => setDesenlaceTarget({ appt: a, tipo })}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
+                    onCobrar={cobrarDesenlace}
                     />
                   ))}
                 </div>
@@ -911,6 +967,7 @@ export function AdmissionClient() {
                       appt={a}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
+                    onCobrar={cobrarDesenlace}
                     />
                   ))}
                 </div>
@@ -939,6 +996,7 @@ export function AdmissionClient() {
                       appt={a}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
+                    onCobrar={cobrarDesenlace}
                     />
                   ))}
                 </div>
@@ -961,6 +1019,7 @@ export function AdmissionClient() {
                       appt={a}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
+                    onCobrar={cobrarDesenlace}
                     />
                   ))}
                 </div>

@@ -3491,7 +3491,9 @@
       "penaltyFailed": "Could not add the charge. Please try again.",
       "cancelSameDayShort": "Same day",
       "outsideClinics": "+{count} at another facility",
-      "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All."
+      "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",
+      "chargePending": "Payment pending",
+      "chargePendingHint": "Click to charge in the case finances"
     },
     "dashboard": {
       "title": "Reception Dashboard",

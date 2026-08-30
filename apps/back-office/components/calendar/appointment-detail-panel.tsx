@@ -303,8 +303,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     } catch { /* la lista queda como está */ }
   }, [appt.id]);
 
-  useEffect(() => {
-    if (!servicesVisible || svcLoaded) return;
+  /**
+   * Trae lo que la cita YA tiene cargado.
+   *
+   * Es requisito para poder agregar: `addService` arma la lista nueva sobre
+   * `services`, así que abrir el catálogo con ese estado vacío guardaría un
+   * array de un solo elemento y **borraría los CPT que la cita ya tuviera**.
+   * Hasta ahora solo lo llamaba el efecto de abajo, y solo en modo inline.
+   */
+  const cargarServicios = useCallback(async () => {
     // Los cargos en efectivo siempre se piden: viven en su propia tabla y no
     // vienen en el prop del appointment.
     void loadCashCharges();
@@ -314,14 +321,32 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       setSvcLoaded(true);
       return;
     }
-    fetch(`/api/admin/appointments/${appt.id}`)
-      .then(r => r.json())
-      .then(d => {
-        setServices((d.plannedServiceCodes as PlannedService[]) ?? []);
-        setSvcLoaded(true);
-      })
-      .catch(() => setSvcLoaded(true));
-  }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes, loadCashCharges]);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`);
+      const d = await res.json();
+      setServices((d.plannedServiceCodes as PlannedService[]) ?? []);
+    } catch { /* la lista queda vacía y el tab lo muestra */ }
+    setSvcLoaded(true);
+  }, [appt.id, appt.plannedServiceCodes, loadCashCharges]);
+
+  useEffect(() => {
+    if (!servicesVisible || svcLoaded) return;
+    void cargarServicios();
+  }, [servicesVisible, svcLoaded, cargarServicios]);
+
+  /**
+   * Cambió la cita: lo cargado ya no le corresponde.
+   *
+   * El componente no se remonta por sí solo —no lleva `key`— así que sin esto
+   * `svcLoaded` seguía en true y `services` conservaba los cargos de la cita
+   * ANTERIOR. Como agregar construye sobre ese estado, el cargo nuevo se habría
+   * guardado junto con los CPT de otra cita.
+   */
+  useEffect(() => {
+    setSvcLoaded(false);
+    setServices([]);
+    setCashCharges([]);
+  }, [appt.id]);
 
   // ── Service helpers ───────────────────────────────────────────────────────
 
@@ -517,18 +542,27 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
    * Cerrar Servicios sin elegir nada es una salida valida: la cita queda en la
    * lista "Sin penalidad" de Admision del dia para no perderse.
    */
-  const irAServicios = () => {
+  const irAServicios = async () => {
     onRefresh();
     // Inline (consulta del doctor / detalle de admision): Servicios es un tab
     // de verdad, se navega ahi mismo sin perder el contexto.
     if (inline) { setActiveTab('services'); return; }
-    // En el modal del calendario Servicios NO existe: el cobro se entra en el
-    // detalle del caso (decision explicita, ver el comentario del FinanzasTab).
-    // Asi que el encadenado lleva al caso, que es donde se carga el codigo.
-    if (appt.case && onOpenCase) { onOpenCase(appt.case.id, appt.id); return; }
+
     // Sin caso no hay donde colgar la deuda (`sync-billing` devuelve `no_case`):
     // no hay nada que encadenar, se cierra como antes.
-    onClose();
+    if (!appt.case) { onClose(); return; }
+
+    // En el modal del calendario NO hay tab de Servicios, pero el catalogo de
+    // cargos es un modal propio y se abre encima igual. Es el MISMO picker que
+    // usa la cola de Admision del dia, asi que marcar un no-show se resuelve
+    // igual desde las dos pantallas: confirmas y elegis el codigo ahi mismo.
+    // Antes esto llevaba al caso (tab Labs), que es otra pantalla y otro viaje.
+    //
+    // Se espera la carga ANTES de abrir: `addService` construye sobre
+    // `services`, y en el modal ese estado nunca se llena solo — `servicesVisible`
+    // exige inline. Abrir sin esto pisaria los CPT existentes.
+    if (!svcLoaded) await cargarServicios();
+    setCatalogOpen(true);
   };
 
   /**
@@ -547,7 +581,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
       setNoShowOpen(false);
       router.refresh();
-      irAServicios();
+      await irAServicios();
     } catch (e) {
       setAccionError(e instanceof Error ? e.message : t('errorNoShow'));
     } finally { setNoShowing(false); }
@@ -618,7 +652,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       // La del MISMO DIA consumio el horario y cobra: encadena a Servicios igual
       // que el no-show. La que aviso libero la agenda y no genera nada, asi que
       // cierra sin mas — mandarla al catalogo seria sugerir un cobro que no toca.
-      if (mismoDia) irAServicios();
+      if (mismoDia) await irAServicios();
       else { onRefresh(); onClose(); }
     } catch (e) {
       setCancelError(e instanceof Error ? e.message : t('errorCancelAppointment'));
@@ -1302,7 +1336,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
       {/* Picker de cargos — una búsqueda sobre los dos catálogos. Solo se abre
           desde el tab de Servicios (inline: consulta del doctor y Day
-          Admission); el modal del calendario ya no edita cargos. */}
+          Admission), y tambien desde el encadenado de No show / cancelacion del mismo dia
+          en el modal del calendario — por eso vive fuera del branch `inline`. */}
       {catalogOpen && (
         <ChargePickerDialog
           coverage={coverage}

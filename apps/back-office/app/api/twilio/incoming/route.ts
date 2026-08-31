@@ -21,6 +21,7 @@ import twilio from 'twilio';
 import { db } from '@precision-medical/database';
 import { findPatientsByPhone } from '@/lib/patient-phone-lookup';
 import { PRESENCE_TTL_MS } from '@/lib/twilio-presence';
+import { readTwilioWebhook } from '@/lib/twilio-server';
 
 const { VoiceResponse } = twilio.twiml;
 
@@ -42,7 +43,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const res = new VoiceResponse();
 
   try {
-    const form    = await req.formData();
+    // Sin firma válida no entra: este webhook crea un CallLog INBOUND y hace
+    // sonar los teléfonos de todo el staff presente. Falsificarlo es inventar
+    // una llamada de un paciente que nunca llamó.
+    const webhook = await readTwilioWebhook(req, process.env.TWILIO_INCOMING_URL);
+    if (!webhook.ok) return new NextResponse('forbidden', { status: 403 });
+
+    const form    = webhook.form;
     const from    = (form.get('From')    as string | null) ?? '';
     const to      = (form.get('To')      as string | null) ?? '';
     const callSid = (form.get('CallSid') as string | null) ?? '';

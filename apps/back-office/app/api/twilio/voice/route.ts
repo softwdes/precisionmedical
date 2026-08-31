@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
-import { TWILIO_PHONE_NUMBER, userIdFromIdentity } from '@/lib/twilio-server';
+import { TWILIO_PHONE_NUMBER, userIdFromIdentity, readTwilioWebhook } from '@/lib/twilio-server';
 import { db } from '@precision-medical/database';
 import { toE164, phoneKey } from '@/lib/phone';
 
@@ -9,7 +9,15 @@ const { VoiceResponse } = twilio.twiml;
 // Twilio llama este webhook cuando el browser Device inicia una llamada saliente.
 export async function POST(req: NextRequest) {
   try {
-    const form    = await req.formData();
+    // Sin firma válida no se marca. Es el endpoint que INICIA una llamada
+    // saliente contra el número de la clínica: sin este control, un POST desde
+    // afuera marca a cualquier número a nuestra cuenta, y el `From:
+    // client:user-<id>` que `userIdFromIdentity` da por firmado se puede poner
+    // a mano para atribuírsela a otro empleado.
+    const webhook = await readTwilioWebhook(req, process.env.TWILIO_VOICE_URL);
+    if (!webhook.ok) return new NextResponse('forbidden', { status: 403 });
+
+    const form    = webhook.form;
     const to        = form.get('To')        as string | null;
     const callSid   = form.get('CallSid')   as string | null;
     const from      = form.get('From')      as string | null;

@@ -31,6 +31,7 @@ import { sendSms } from '@/lib/sms';
 import { sendEmail } from '@/lib/email';
 import { buildPortalSms, portalEmailHtml } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
+import { generarPortalToken } from '@/lib/portal-token';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
@@ -166,7 +167,7 @@ export async function POST(
   // Generate magic token — CUID-style único por caso
   // Phase 1A: visible en respuesta para testing local
   // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
-  const magicToken = `pt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+  const magicToken = generarPortalToken();
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
   // Phase 1A: localhost · Phase 2: forms.lienmaster.net
   // Ruta /c/[token] = wizard completo (B.5-B.8) · /intake/[token] = legacy 4 pasos

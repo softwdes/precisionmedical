@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { generarPortalToken } from '@/lib/portal-token';
 
 export async function POST(
   req: NextRequest,
@@ -26,7 +27,7 @@ export async function POST(
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
 
-  const magicToken = `pt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+  const magicToken = generarPortalToken();
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const portalBase = process.env.PORTAL_URL ?? 'http://localhost:3004';
   const portalUrl = `${portalBase}/c/${magicToken}`;

@@ -73,3 +73,74 @@ export function userIdFromIdentity(raw: string | null | undefined): string | nul
   if (!identity.startsWith('user-')) return null;
   return identity.slice('user-'.length) || null;
 }
+
+// ─── Autenticidad de los webhooks ────────────────────────────────────────────
+
+/**
+ * Lee el cuerpo de un webhook de Twilio VERIFICANDO que lo haya mandado Twilio.
+ *
+ * Por qué hace falta: `/api/twilio/*` está en la lista de rutas públicas del
+ * middleware (Twilio no trae cookie de sesión), así que sin firma cualquiera
+ * puede POSTear a estos endpoints. Con eso se puede inventar una llamada
+ * entrante, cerrar una ajena con el resultado que uno quiera, o —lo más
+ * concreto— falsificar el `From: client:user-<id>`, que `userIdFromIdentity`
+ * documenta como "no falsificable porque lo firma Twilio". Esa frase solo es
+ * verdad si alguien valida la firma. Acá es donde se valida.
+ *
+ * Devuelve los campos como `URLSearchParams`: `.get()` tiene la misma forma que
+ * el `FormData` que estos handlers usaban, y el cuerpo se lee UNA vez (leerlo
+ * dos tira `Body has already been read`).
+ *
+ * **Sin `TWILIO_AUTH_TOKEN` no rechaza nada**, solo avisa. Es la misma decisión
+ * que ya estaba tomada en `sms-status`: la app autentica con API Keys, que no
+ * sirven para firmar, y dejar la clínica sin teléfono por una variable que
+ * nadie configuró sería peor que el riesgo que se está cerrando. Poner esa
+ * variable es lo que arma el control.
+ *
+ * @param urlOverride URL exacta que Twilio firmó, si la reconstrucción falla.
+ *   Twilio firma la URL tal como está escrita en la consola; detrás de un proxy
+ *   el `req.url` puede no coincidir (protocolo o host reescritos). Cada webhook
+ *   pasa su propia variable de entorno.
+ */
+export type WebhookTwilio =
+  | { ok: true;  form: URLSearchParams }
+  | { ok: false; motivo: 'firma-invalida' };
+
+export async function readTwilioWebhook(
+  req: Request,
+  urlOverride?: string,
+): Promise<WebhookTwilio> {
+  const form = new URLSearchParams(await req.text());
+  const ruta = new URL(req.url).pathname;
+
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.warn('[twilio] %s sin TWILIO_AUTH_TOKEN: no se valida la firma', ruta);
+    return { ok: true, form };
+  }
+
+  const firma = req.headers.get('x-twilio-signature') ?? '';
+  const url   = urlOverride || urlFirmada(req);
+
+  if (!twilio.validateRequest(authToken, firma, url, Object.fromEntries(form.entries()))) {
+    console.error('[twilio] %s firma inválida — descartado (url validada: %s)', ruta, url);
+    return { ok: false, motivo: 'firma-invalida' };
+  }
+
+  return { ok: true, form };
+}
+
+/**
+ * La URL que Twilio firmó, reconstruida desde las cabeceras del proxy.
+ *
+ * `req.url` sale del host interno cuando hay un proxy delante (Vercel), y la
+ * firma se calcula sobre la URL pública: compararlas da inválido siempre. Los
+ * `x-forwarded-*` traen la pública.
+ */
+function urlFirmada(req: Request): string {
+  const { pathname, search, href } = new URL(req.url);
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
+  if (!host) return href;
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+  return `${proto}://${host}${pathname}${search}`;
+}

@@ -71,8 +71,16 @@ const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
  * Deliberadamente FUERA de la lista, porque romperían pantallas de otro módulo:
  *  · `cash-services` → lo consumen `visit-summary` y `appointment-detail-panel`,
  *    que son las vistas de la consulta del doctor.
- *  · `call-logs`     → lo consume la pantalla de Patients, no Externals.
  *  · `templates`, `diagnoses`, `catalog`, `lab-*` → los usa el portal médico.
+ *  · `patients/*`, `cases/*` → NO son "datos del módulo Patients": son la ficha
+ *    compartida de la clínica. `patients/search` lo llama el diálogo de cita
+ *    (Calendar), `patients/autocomplete` el alta de caso y el compositor de
+ *    mensajes, y `cases/[id]/*` lo abre el modal de caso desde Calendar,
+ *    Admisión, Edson y Facturación. Cerrarlos por módulo rompería cuatro
+ *    pantallas para tapar un dato que esas mismas pantallas ya muestran.
+ *    Lo que sí se cerró es el hueco real que tenían: `patients/list` recortaba
+ *    por un `providerId` que mandaba el cliente. Eso se arregló en la ruta,
+ *    resolviéndolo contra la sesión — no acá.
  */
 type ApiGuard = [module: string, pattern: RegExp, scope: 'all' | 'write'];
 
@@ -81,7 +89,55 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['settings',  /^\/api\/admin\/audit-logs(\/|$)/, 'all'],
   ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances|clinics|employees)(\/|$)/, 'write'],
   ['externals', /^\/api\/admin\/lawyers(\/|$)/,    'write'],
+  // Datos de Edson: los consumen `/edson` y `/intake`, y nada más. El menú de
+  // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
+  // MODULE_ROUTES, donde ese par también viaja junto.
+  ['edson',     /^\/api\/admin\/(edson|intake)(\/|$)/, 'all'],
+  // Comunicaciones: el historial de llamadas y el de SMS solo se abren desde la
+  // lista de Patients (`CallHistoryDialog` / `SmsHistoryDialog`). Son el registro
+  // de con quién se habló y qué se le mandó — no es un lookup compartido.
+  ['patients',  /^\/api\/admin\/(call-logs|message-logs)(\/|$)/, 'all'],
+  // Solo la COLECCIÓN (la agenda del día de Admisión). Los subrecursos quedan
+  // fuera a propósito: `[id]/check-in` lo llama el panel de cita del Calendario
+  // y `[id]/admit` / `[id]/triage` el portal médico y la consulta.
+  ['admission', /^\/api\/admin\/admission$/, 'all'],
 ];
+
+/**
+ * Módulos cuya API SÍ consume el portal médico.
+ *
+ * El portal reúsa pantallas administrativas enteras —`/doctor/patients` monta
+ * la misma lista que `/patients`, historiales de llamada y SMS incluidos (ver
+ * el comentario de esos botones en `patients-client.tsx`)—, así que la regla
+ * "un doctor no tiene ningún módulo administrativo" deja de ser cierta apenas
+ * se cierra un módulo que esas pantallas compartidas consultan.
+ *
+ * Sin esta lista, agregar `patients` a MODULE_API_ROUTES apagaba el historial
+ * de llamadas del portal médico con un 403 — un módulo que el doctor no tiene
+ * porque no le corresponde tenerlo, no porque se le haya negado.
+ */
+const DOCTOR_PORTAL_MODULES = new Set(['patients']);
+
+/**
+ * Webhooks de Twilio — las ÚNICAS rutas de `/api/twilio/*` que son públicas.
+ *
+ * Se listan una por una y no por prefijo, que es como estaban. El prefijo
+ * `/api/twilio` cubría también cinco rutas que llama el NAVEGADOR con sesión
+ * —`token`, `presence`, `claim-call`, `incoming-context` y `link-call`—, y las
+ * dejaba abiertas de par en par. Cuatro se salvaban porque revisan la sesión
+ * por dentro; `link-call` no revisaba nada, y es una escritura: reasigna el
+ * paciente y el caso de un `CallLog` a partir de un `CallSid`.
+ *
+ * Estas cuatro sí son de Twilio, que no manda cookie. Se autentican con la
+ * firma `x-twilio-signature` dentro de cada handler (ver `readTwilioWebhook`
+ * en `lib/twilio-server.ts`).
+ */
+const TWILIO_WEBHOOKS = new Set([
+  '/api/twilio/voice',
+  '/api/twilio/incoming',
+  '/api/twilio/call-status',
+  '/api/twilio/sms-status',
+]);
 
 /** Módulo que gobierna esta request de API, o null si no está gobernada. */
 function apiGuardModule(pathname: string, method: string): string | null {
@@ -119,7 +175,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/twilio') ||
+    TWILIO_WEBHOOKS.has(pathname) ||
     pathname.startsWith('/api/scriptsure/webhook'); // DAW → nosotros, Basic Auth propio
 
   if (isPublic) return NextResponse.next();
@@ -248,8 +304,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   if (dbRole === 'DOCTOR' || dbRole === 'PROVIDER') {
     // Los doctores viven en /doctor/* — cualquier página administrativa redirige
     // a su portal. Las APIs pasan, porque las vistas compartidas del portal
-    // consumen /api/admin/* — salvo las gobernadas por un módulo administrativo,
-    // que un doctor no tiene ninguno: no hay pantalla suya que las llame.
+    // consumen /api/admin/* — salvo las gobernadas por un módulo administrativo
+    // que ninguna pantalla suya llame (ver DOCTOR_PORTAL_MODULES).
     if (!isDoctorArea && !isApi) {
       const url = request.nextUrl.clone();
       url.pathname = '/doctor';
@@ -258,7 +314,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
     if (isApi) {
       const guarded = apiGuardModule(pathname, request.method);
-      if (guarded) return forbidden(guarded, response);
+      if (guarded && !DOCTOR_PORTAL_MODULES.has(guarded)) return forbidden(guarded, response);
     }
     return response; // PROVIDER no pasa por el check pm_clinic del back-office
   }

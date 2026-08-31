@@ -60,7 +60,7 @@ function DateInputField({
 }
 
 function InputField({
-  label, required, value, onChange, onBlur, placeholder, type = 'text', autoFocus, hint, maxLength, error, disabled,
+  label, required, value, onChange, onBlur, placeholder, type = 'text', autoFocus, hint, maxLength, error, disabled, inputMode,
 }: Required & {
   label: React.ReactNode;
   value: string;
@@ -74,6 +74,9 @@ function InputField({
   error?: string;
   /** Solo lectura — para datos que vienen de otra ficha y no deben editarse acá */
   disabled?: boolean;
+  /** Teclado del móvil. `decimal` da el pad numérico con punto — la clínica
+   *  carga precios desde el iPad (Regla #4). */
+  inputMode?: 'text' | 'decimal' | 'numeric' | 'tel' | 'email' | 'search' | 'url';
 }) {
   if (type === 'date') {
     return <DateInputField label={label} required={required} value={value} onChange={onChange} hint={hint} error={error} disabled={disabled} />;
@@ -87,6 +90,7 @@ function InputField({
         onBlur={onBlur}
         placeholder={placeholder}
         type={type}
+        inputMode={inputMode}
         autoFocus={autoFocus}
         maxLength={maxLength}
         disabled={disabled}

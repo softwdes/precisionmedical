@@ -65,12 +65,65 @@ const emptyDraft = (kind: CatalogKind): Draft => ({
 
 /** "" → null · "12.5" → 12.5 */
 const toNum = (s: string): number | null => {
-  const t = s.trim();
+  // La coma se acepta como separador decimal: media clinica tipea "12,50".
+  const t = s.trim().replace(',', '.');
   if (!t) return null;
-  const n = Number(t.replace(/[^\d.]/g, ''));
+  const limpio = t.replace(/[^\d.]/g, '');
+  // Sin un solo digito no es cero, es vacio: tipear "abc" no debe dejar 0.00.
+  if (!/\d/.test(limpio)) return null;
+  const n = Number(limpio);
   return Number.isFinite(n) ? n : null;
 };
 const fromNum = (n: number | null): string => (n == null ? '' : String(n));
+
+/**
+ * Campo de precio.
+ *
+ * Existe porque el input controlado NO dejaba escribir decimales: el valor daba
+ * la vuelta por el número en cada tecla, así que al tipear `12.` se parseaba a
+ * `12`, se volvía a pintar como `"12"` y **el punto desaparecía mientras lo
+ * escribías**. Nunca se llegaba a los centavos.
+ *
+ * La solución es que el texto que se ve sea el que la persona tipeó, y que el
+ * número salga de ahí — no al revés. Al salir del campo se normaliza a dos
+ * decimales, que es lo que guarda la columna (`Decimal(10,2)`).
+ */
+function CampoPrecio({
+  label, value, onChange, placeholder, hint,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (n: number | null) => void;
+  placeholder?: string;
+  hint?: string;
+}): React.ReactElement {
+  const [texto, setTexto] = React.useState(() => fromNum(value));
+
+  // Solo se resincroniza cuando el valor cambia DE AFUERA (abrir el diálogo con
+  // otro ítem). Mientras se tipea, `toNum(texto)` y `value` coinciden y no se
+  // pisa lo escrito — que es justamente lo que rompía el campo antes.
+  React.useEffect(() => {
+    if (toNum(texto) !== value) setTexto(fromNum(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <FormField.Input
+      label={label}
+      type="text"
+      inputMode="decimal"
+      value={texto}
+      onChange={(v) => { setTexto(v); onChange(toNum(v)); }}
+      onBlur={() => {
+        const n = toNum(texto);
+        setTexto(n == null ? '' : n.toFixed(2));
+        onChange(n);
+      }}
+      placeholder={placeholder}
+      hint={hint}
+    />
+  );
+}
 
 export function CatalogItemDialog({ open, onClose, item, defaultKind, onSaved }: Props): React.ReactElement {
   const t = useTranslations('phoenix.catalog');
@@ -198,19 +251,19 @@ export function CatalogItemDialog({ open, onClose, item, defaultKind, onSaved }:
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <FormField.Input
-                label={t('field.costPrice')} type="text"
-                value={fromNum(d.costPrice)} onChange={(v) => set('costPrice', toNum(v))}
+              <CampoPrecio
+                label={t('field.costPrice')}
+                value={d.costPrice} onChange={(n) => set('costPrice', n)}
                 placeholder="0.00" hint={t('hint.costPrice')}
               />
-              <FormField.Input
-                label={t('field.publicPrice')} type="text"
-                value={fromNum(d.publicPrice)} onChange={(v) => set('publicPrice', toNum(v))}
+              <CampoPrecio
+                label={t('field.publicPrice')}
+                value={d.publicPrice} onChange={(n) => set('publicPrice', n)}
                 placeholder="0.00" hint={t('hint.publicPrice')}
               />
-              <FormField.Input
-                label={t('field.memberPrice')} type="text"
-                value={fromNum(d.memberPrice)} onChange={(v) => set('memberPrice', toNum(v))}
+              <CampoPrecio
+                label={t('field.memberPrice')}
+                value={d.memberPrice} onChange={(n) => set('memberPrice', n)}
                 placeholder="—" hint={t('hint.memberPrice')}
               />
             </div>
@@ -287,13 +340,13 @@ export function CatalogItemDialog({ open, onClose, item, defaultKind, onSaved }:
               {d.hasReflex && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <FormField.Input
-                      label={t('field.reflexCost')} value={fromNum(d.reflexCost)}
-                      onChange={(v) => set('reflexCost', toNum(v))} placeholder="0.00"
+                    <CampoPrecio
+                      label={t('field.reflexCost')} value={d.reflexCost}
+                      onChange={(n) => set('reflexCost', n)} placeholder="0.00"
                     />
-                    <FormField.Input
-                      label={t('field.reflexPrice')} value={fromNum(d.reflexPrice)}
-                      onChange={(v) => set('reflexPrice', toNum(v))} placeholder="0.00"
+                    <CampoPrecio
+                      label={t('field.reflexPrice')} value={d.reflexPrice}
+                      onChange={(n) => set('reflexPrice', n)} placeholder="0.00"
                     />
                   </div>
                   <FormField.Textarea

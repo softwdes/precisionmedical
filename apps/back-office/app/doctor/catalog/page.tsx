@@ -10,7 +10,7 @@ import { getTranslations } from 'next-intl/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
 import {
-  listCatalog, listInsuranceServices, serializeCatalog, canEditCatalog,
+  listCatalog, listInsuranceServices, serializeCatalog, canEditCatalogFor,
 } from '@/lib/catalog';
 import { CatalogClient } from '@/components/catalog/catalog-client';
 
@@ -26,12 +26,14 @@ export default async function DoctorCatalogPage(): Promise<React.ReactElement> {
     getSessionUser(),
   ]);
   const role = user?.email ? await fetchDbRole(user.email) : 'DOCTOR';
+  // Contempla la capacidad por persona, no solo el rol — ver `canEditCatalogFor`.
+  const puedeEditar = await canEditCatalogFor(user?.email, role);
 
   return (
     <CatalogClient
       items={serializeCatalog(rows)}
       services={services}
-      canEdit={canEditCatalog(role)}
+      canEdit={puedeEditar}
     />
   );
 }

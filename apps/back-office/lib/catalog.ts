@@ -7,6 +7,7 @@
  */
 
 import { db } from '@precision-medical/database';
+import { canViewAsDoctor } from './get-session-provider';
 
 export type CatalogKind = 'LAB' | 'INJECTION' | 'SERVICE' | 'DME';
 export type PriceStatus = 'VERIFIED' | 'UNVERIFIED' | 'UPDATE_REQUESTED';
@@ -92,6 +93,30 @@ const CATALOG_SELECT = `
  */
 export function canEditCatalog(role: string | null | undefined): boolean {
   return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'DOCTOR' || role === 'PROVIDER';
+}
+
+/**
+ * La versión que hay que usar: contempla además la capacidad "ver como doctor".
+ *
+ * `canEditCatalog` mira solo el rol de la fila del usuario, y eso dejaba afuera
+ * a quien opera el portal médico con la capacidad concedida por persona
+ * (`clinicModules.doctor`): entraba al portal, veía el catálogo y le salía de
+ * solo lectura. Si alguien está haciendo el trabajo de un doctor ahí adentro,
+ * mantener el catálogo es parte de ese trabajo — es justamente el punto de
+ * sacarlo del Excel.
+ *
+ * Vive acá y no en cada pantalla porque la regla la aplican DOS lugares —la
+ * página y el endpoint que guarda— y separarlos daría un botón que falla al
+ * apretarlo. `canViewAsDoctor` ya incluye a SUPER_ADMIN/ADMIN y está memorizada
+ * por request, así que no agrega consultas.
+ */
+export async function canEditCatalogFor(
+  email: string | null | undefined,
+  role: string | null | undefined,
+): Promise<boolean> {
+  if (canEditCatalog(role)) return true;
+  if (!email) return false;
+  return canViewAsDoctor(email);
 }
 
 export async function listCatalog(): Promise<CatalogRow[]> {

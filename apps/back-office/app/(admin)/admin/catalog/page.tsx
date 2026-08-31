@@ -9,7 +9,7 @@ import { getTranslations } from 'next-intl/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from '@/lib/session';
 import {
-  listCatalog, listInsuranceServices, serializeCatalog, canEditCatalog,
+  listCatalog, listInsuranceServices, serializeCatalog, canEditCatalogFor,
 } from '@/lib/catalog';
 import { CatalogClient } from '@/components/catalog/catalog-client';
 
@@ -25,12 +25,15 @@ export default async function AdminCatalogPage(): Promise<React.ReactElement> {
     getSessionUser(),
   ]);
   const role = user?.email ? await fetchDbRole(user.email) : null;
+  // Misma regla que el portal y que el endpoint: dividirla por pantalla daria
+  // una vista de solo lectura sobre un permiso que el API si concede.
+  const puedeEditar = await canEditCatalogFor(user?.email, role);
 
   return (
     <CatalogClient
       items={serializeCatalog(rows)}
       services={services}
-      canEdit={canEditCatalog(role)}
+      canEdit={puedeEditar}
     />
   );
 }

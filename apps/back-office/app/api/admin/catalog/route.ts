@@ -17,7 +17,7 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
-import { listCatalog, findCatalogItem, canEditCatalog } from '@/lib/catalog';
+import { listCatalog, findCatalogItem, canEditCatalogFor } from '@/lib/catalog';
 
 const ItemSchema = z.object({
   id: z.number().int().optional(),
@@ -69,7 +69,7 @@ async function requireEditor(): Promise<{ email: string } | NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-  if (!canEditCatalog(await fetchDbRole(user.email))) {
+  if (!(await canEditCatalogFor(user.email, await fetchDbRole(user.email)))) {
     return NextResponse.json({ error: 'FORBIDDEN_EDIT_CATALOG' }, { status: 403 });
   }
   return { email: user.email };

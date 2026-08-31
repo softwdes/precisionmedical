@@ -6,7 +6,7 @@
     "dev:web": "turbo dev --filter=@precision-medical/web",
     "dev:timeclock": "turbo dev --filter=@precision-medical/timeclock",
     "build": "turbo build",
-    "typecheck": "turbo typecheck",
+    "typecheck": "turbo type-check",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,css,json,md}\""
   },

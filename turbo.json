@@ -37,7 +37,7 @@
         "VAPID_PRIVATE_KEY"
       ]
     },
-    "typecheck": {
+    "type-check": {
       "dependsOn": [
         "^build"
       ]

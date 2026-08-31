@@ -3,13 +3,54 @@
  *
  * Versión API del server component de pacientes.
  * Permite búsqueda client-side sin navegación completa de página.
+ *
+ * ⚠️ El recorte del portal médico se decide ACÁ, con la sesión — nunca con lo
+ * que manda el cliente. Ver `alcanceDelProvider()`.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { getSessionProvider, getSessionRole, PORTAL_ONLY_ROLES } from '@/lib/get-session-provider';
 
 const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * A qué provider se limita esta consulta, resuelto contra la SESIÓN.
+ *
+ * `/doctor/patients` reúsa la lista administrativa: el server component la
+ * pinta con `scopeProviderId` (el doctor de sesión), pero apenas el usuario
+ * escribe en el buscador o pasa de página, el cliente refresca por esta API —
+ * y hasta ahora mandaba el id como query param, que esta ruta aceptaba tal
+ * cual. Dos formas de saltearlo, las dos con solo editar la URL:
+ *
+ *   · cambiar el id  → la lista de pacientes de OTRO médico
+ *   · borrar el param → el padrón completo de la clínica
+ *
+ * La primera página se veía recortada, así que el agujero no se notaba.
+ *
+ * Ahora el param solo dice "quiero el modo recortado"; QUIÉN es el provider lo
+ * dice `getSessionProvider()`, que además respeta "ver como otro doctor" (la
+ * cookie solo vale con la capacidad, ver ese helper). Y un rol que vive solo en
+ * el portal queda recortado SIEMPRE, mande o no el param.
+ */
+async function alcanceDelProvider(pedido: string): Promise<
+  { ok: true; providerId: string | null } | { ok: false }
+> {
+  const role       = await getSessionRole();
+  const portalOnly = !!role && PORTAL_ONLY_ROLES.has(role);
+
+  // Staff administrativo que no pidió el modo recortado: lista completa.
+  if (!pedido && !portalOnly) return { ok: true, providerId: null };
+
+  const provider = await getSessionProvider();
+
+  // Sin ficha de Provider no hay nada que recortar. Para un rol del portal eso
+  // es 403 y no "toda la clínica": es exactamente el caso que abría el agujero.
+  if (!provider) return portalOnly ? { ok: false } : { ok: true, providerId: null };
+
+  return { ok: true, providerId: provider.id };
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -22,8 +63,14 @@ export async function GET(req: NextRequest) {
   const PAGE_SIZE = Math.min(50, Math.max(5,
     parseInt(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
   const inactiveOnly = searchParams.get('inactive') === '1';
-  // Portal médico: limita a pacientes con cita del provider indicado
-  const providerId   = searchParams.get('providerId') ?? '';
+
+  // Portal médico. El param es solo la SEÑAL de que se quiere el modo recortado;
+  // el id sale de la sesión.
+  const alcance = await alcanceDelProvider(searchParams.get('providerId') ?? '');
+  if (!alcance.ok) {
+    return NextResponse.json({ error: 'NO_PROVIDER_PROFILE' }, { status: 403 });
+  }
+  const providerId = alcance.providerId;
 
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }

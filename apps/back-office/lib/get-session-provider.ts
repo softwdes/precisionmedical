@@ -47,7 +47,7 @@ const PROVIDER_FIELDS = {
 const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 
 /** Roles que NO tienen back-office: su única casa es el portal medico. */
-const PORTAL_ONLY_ROLES = new Set(['DOCTOR', 'PROVIDER']);
+export const PORTAL_ONLY_ROLES = new Set(['DOCTOR', 'PROVIDER']);
 
 /**
  * Rol de la base Admin, memorizado por request. Detrás hay una llamada de red
@@ -55,6 +55,24 @@ const PORTAL_ONLY_ROLES = new Set(['DOCTOR', 'PROVIDER']);
  * la suya.
  */
 const getRole = cache(async (email: string): Promise<string> => fetchDbRole(email));
+
+/**
+ * Rol de la sesión actual, o null si no hay sesión.
+ *
+ * Sale de `roles_config` en la base **Admin** — la MISMA fuente que consulta el
+ * middleware. Es a propósito: `users.role` de Phoenix se provisiona desde el
+ * directorio y casi siempre coincide, pero cuando no, quien manda es la que
+ * gobierna el ruteo. Una API que decide alcance por rol tiene que estar de
+ * acuerdo con el portero, no con una copia.
+ *
+ * Comparte el `cache()` de `getRole`, así que en un request que ya resolvió
+ * `canViewAsDoctor` o `getSessionProvider` no cuesta una llamada más.
+ */
+export const getSessionRole = cache(async (): Promise<string | null> => {
+  const user = await getSessionUser();
+  if (!user?.email) return null;
+  return getRole(user.email);
+});
 
 /**
  * ¿Puede este usuario abrir el portal de OTRO médico ("ver como")?

@@ -104,11 +104,17 @@ export function rateLimit(
  *
  * Sin ninguna cabecera (local, o un proxy que no las manda) devuelve `local`:
  * todos comparten contador, que es lo correcto cuando no se puede distinguir.
+ *
+ * Acepta una `Request` o directamente sus `Headers`: las páginas (server
+ * components) no tienen `Request`, solo el `headers()` de Next, y sin esto cada
+ * una tendría que reimplementar la regla de la PRIMERA IP de la cadena — que es
+ * justo el detalle que se puede equivocar.
  */
-export function claveDeIp(req: Request, ambito: string): string {
-  const fwd = req.headers.get('x-forwarded-for');
+export function claveDeIp(reqOHeaders: Request | Headers, ambito: string): string {
+  const h = reqOHeaders instanceof Headers ? reqOHeaders : reqOHeaders.headers;
+  const fwd = h.get('x-forwarded-for');
   const ip  = fwd?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')?.trim()
+    || h.get('x-real-ip')?.trim()
     || 'local';
   return `${ambito}:${ip}`;
 }

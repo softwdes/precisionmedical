@@ -1044,6 +1044,16 @@ model Appointment {
   attendanceSignatureSvg  String?   @db.Text // PNG base64 del canvas
   attendanceSignatureHash String? // SHA-256(svg+appointmentId+timestamp)
 
+  /// F1 — Token de la pagina publica de confirmacion de cita (el QR que escanea
+  /// el paciente al llegar, antes del triaje). Vive en la CITA, no en el caso:
+  /// el documento que se firma es de esta visita.
+  ///
+  /// A diferencia de `cases.portalToken`, este VENCE y se valida: la pagina
+  /// muestra la ficha completa (DOB, direccion, seguros), asi que el link no
+  /// puede quedar vivo para siempre. Poner `signToken` en NULL lo revoca.
+  signToken          String?   @unique
+  signTokenExpiresAt DateTime?
+
   // B.16 Triaje — registro de signos vitales capturados por MA
   triageRecord TriageRecord?
 

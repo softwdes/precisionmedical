@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z }  from 'zod';
 import { db, writeAuditLog, nextCaseCode, nextPatientCode } from '@precision-medical/database';
 import { randomBytes }       from 'crypto';
+import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 const BodySchema = z.object({
   firstName: z.string().min(1).max(100).trim(),
@@ -40,6 +41,21 @@ export async function POST(
   ctx: { params: Promise<{ clinicId: string }> },
 ): Promise<NextResponse> {
   const { clinicId } = await ctx.params;
+
+  // Es el único endpoint público que CREA registros: sin freno, un script deja
+  // la base con miles de pacientes y casos fantasma, y de paso quema la serie
+  // de códigos consecutivos, que es global y no se recicla.
+  //
+  // 10 altas cada 15 minutos por IP. El kiosco es una tablet en el mostrador:
+  // toda la recepción comparte esa IP, así que el techo se puso sobre lo que
+  // da un mostrador ocupado, no sobre lo que tipea una persona.
+  const freno = rateLimit(claveDeIp(req, 'walkin'), { max: 10, ventanaMs: 15 * 60_000 });
+  if (!freno.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: cabeceras429(freno) },
+    );
+  }
 
   // Verify clinic exists
   const clinic = await db.clinic.findUnique({ where: { id: clinicId }, select: { id: true } });

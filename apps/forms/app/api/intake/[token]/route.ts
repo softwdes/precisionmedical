@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { decryptFieldOrOriginal, isCipher } from '@/lib/decrypt';
+import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -50,8 +51,24 @@ function parseDateLocal(s: string): Date {
 
 // ─── GET ───────────────────────────────────────────────────────────────────────
 
-export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { token } = await ctx.params;
+
+  // El `portalToken` es la única puerta a la ficha completa del paciente y hoy
+  // se genera con `Date.now()` + `Math.random()` (ver `generate-portal-token` en
+  // el back-office), que no es criptográfico: el tiempo se adivina y el resto es
+  // un generador predecible. Mientras ese token siga así, el freno es lo que
+  // separa "débil" de "se rompe a fuerza bruta".
+  //
+  // 30 cada 10 minutos: el wizard recarga esta ruta unas pocas veces por sesión
+  // —al abrir, al volver de una foto, al reabrir el link— y no se acerca.
+  const freno = rateLimit(claveDeIp(req, 'intake'), { max: 30, ventanaMs: 10 * 60_000 });
+  if (!freno.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: cabeceras429(freno) },
+    );
+  }
 
   const rec = await db.case.findUnique({
     where: { portalToken: token },

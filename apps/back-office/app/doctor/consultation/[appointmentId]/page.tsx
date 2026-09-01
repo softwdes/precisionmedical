@@ -16,6 +16,7 @@ import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { llegadaMarcadaPorElProvider } from '@/lib/appointment-scope';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { ConsultationClient } from './consultation-client';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,13 +26,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function DoctorConsultationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ appointmentId: string }>;
+  /** `?case=&tab=` — el expediente del paciente abierto SOBRE la consulta. */
+  searchParams: Promise<{ case?: string; tab?: string }>;
 }): Promise<React.ReactElement> {
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
   const { appointmentId } = await params;
+  const { case: caseAbierto, tab: caseTab } = await searchParams;
 
   // Las tres queries en paralelo — antes iban en cadena y cada round-trip a la
   // base cuesta ~150 ms.
@@ -154,6 +159,7 @@ export default async function DoctorConsultationPage({
   };
 
   return (
+    <>
     <ConsultationClient
       appointment={{
         id: a.id,
@@ -241,5 +247,10 @@ export default async function DoctorConsultationPage({
       patientContext={patientContext}
       llegadaPropia={llegadaPropia}
     />
+    {/* El expediente del paciente sobre la consulta. El server revalida el
+        alcance: `providerHasCase` ya es a nivel PACIENTE, así que también abre
+        los casos anteriores de este paciente aunque los haya atendido otro. */}
+    <CaseUrlModal caseId={caseAbierto} tab={caseTab} variant="doctor" providerId={provider.id} />
+    </>
   );
 }

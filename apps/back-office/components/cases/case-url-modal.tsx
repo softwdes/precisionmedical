@@ -18,7 +18,7 @@
  */
 
 import { db } from '@precision-medical/database';
-import { getCaseDetailData, providerHasCase } from '@/lib/case-detail-data';
+import { getCaseDetailData, providerHasCase, casesOfPatientByCase } from '@/lib/case-detail-data';
 import { parseCaseTab, TABS_ATTORNEY } from '@/lib/case-tabs';
 import { CaseDetailModal } from '@/components/cases/case-detail-modal';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
@@ -81,6 +81,12 @@ export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId 
   const parsed = parseCaseTab(tab);
   const initialTab = variant === 'attorney' && parsed && !TABS_ATTORNEY.has(parsed) ? undefined : parsed;
 
+  // Los otros casos del paciente, solo para el doctor: es el único que necesita
+  // saltar entre el de hoy y los anteriores sin volver a la lista. En admin la
+  // lista ya queda montada debajo del modal, y en el portal legal el alcance es
+  // del bufete, no del paciente.
+  const patientCases = variant === 'doctor' ? await casesOfPatientByCase(caseId) : [];
+
   return (
     <CaseDetailModal
       caseInfo={data.caseInfo}
@@ -88,6 +94,7 @@ export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId 
       variant={variant}
       initialTab={initialTab}
       signature={signature}
+      patientCases={patientCases}
     />
   );
 }

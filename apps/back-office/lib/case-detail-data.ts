@@ -18,16 +18,64 @@ export interface CaseDetailData {
 }
 
 /**
- * ¿Este doctor puede ver este caso? La regla es la misma de "Mis Pacientes":
- * el caso es suyo si tiene al menos una cita con su Provider. Sin esto,
- * cualquier doctor podría abrir cualquier caso de la clínica por URL.
+ * ¿Este doctor puede ver este caso?
+ *
+ * La regla es la de "Mis Pacientes": **si atendió al PACIENTE**, ve sus casos —
+ * el de hoy y los anteriores, los haya atendido él u otro provider.
+ *
+ * Antes el alcance era por CASO (tenía que tener una cita en ese caso puntual) y
+ * eso contradecía a la ficha del paciente, que ya le lista todos los casos con
+ * la regla de paciente. El resultado era un callejón: veía la lista completa y
+ * ninguno de los ajenos abría. Peor todavía en la consulta, donde está tratando
+ * al paciente AHORA y el antecedente de una lesión anterior es exactamente lo
+ * que necesita leer (Erick, 1-sep-2026).
+ *
+ * No es una puerta nueva: es hacer que la que ya existía lleve a algún lado. El
+ * alcance sigue acotado —un doctor que nunca vio a este paciente no abre nada— y
+ * lo que ve adentro sigue recortado por `variant="doctor"` (Finanzas en solo
+ * lectura, sin acciones de cobro).
  */
 export async function providerHasCase(providerId: string, caseId: string): Promise<boolean> {
+  const c = await db.case.findFirst({
+    where: { id: caseId, deletedAt: null },
+    select: { patientId: true },
+  });
+  if (!c) return false;
+
   const appt = await db.appointment.findFirst({
-    where: { caseId, providerId },
+    where: { patientId: c.patientId, providerId },
     select: { id: true },
   });
   return !!appt;
+}
+
+/**
+ * Los casos de este paciente, para el selector del modal del doctor.
+ *
+ * Ordenados por fecha de creación descendente — el más nuevo primero, que es el
+ * que casi siempre está mirando.
+ */
+export async function casesOfPatientByCase(caseId: string): Promise<Array<{
+  id: string; caseCode: string; caseType: string; status: string; createdAt: string;
+}>> {
+  const c = await db.case.findFirst({
+    where: { id: caseId, deletedAt: null },
+    select: { patientId: true },
+  });
+  if (!c) return [];
+
+  const rows = await db.case.findMany({
+    where: { patientId: c.patientId, deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, caseCode: true, caseType: true, status: true, createdAt: true },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    caseCode: r.caseCode,
+    caseType: String(r.caseType),
+    status: String(r.status),
+    createdAt: r.createdAt.toISOString(),
+  }));
 }
 
 export async function getCaseDetailData(id: string): Promise<CaseDetailData | null> {

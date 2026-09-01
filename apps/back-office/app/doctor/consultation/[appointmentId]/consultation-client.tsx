@@ -12,10 +12,10 @@ import { localeApp, edad } from '@/lib/fechas';
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  ArrowLeft, Check, ClipboardList, FlaskConical, FileText, Pill, Briefcase, Bandage,
+  ArrowLeft, Check, ClipboardList, FlaskConical, FileText, FolderOpen, Pill, Briefcase, Bandage,
   HeartPulse, Video,
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
@@ -31,6 +31,7 @@ import { VisitSummary } from '@/components/visit/visit-summary';
 import { MedicationHistory } from '@/components/visit/medication-history';
 import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
 import { BracesTab } from '@/components/visit/braces-tab';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -156,7 +157,9 @@ export function ConsultationClient({
    * devolver la cola ABIERTA para seguir con la siguiente; sin esto la nota se
    * firmaba y había que reabrir la lista a mano, una vez por nota.
    */
-  const desdeNotas = useSearchParams().get('desde') === 'notas';
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const desdeNotas = searchParams.get('desde') === 'notas';
 
   /** Marcando la llegada desde el nodo 1 — ver el bloque que lo usa. */
   const [marcando, setMarcando] = React.useState(false);
@@ -291,13 +294,37 @@ export function ConsultationClient({
             />
           </div>
         </div>
-        <Link
-          href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
-          className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5 shrink-0"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          {t('consultBack')}
-        </Link>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {/**
+            * El expediente del paciente, sobre la consulta.
+            *
+            * Abre el MISMO modal de caso que ya usan Mis Pacientes, el
+            * calendario y la bandeja, con `?case=` en la URL: recargar vuelve
+            * con la nota y el modal donde estaban. Adentro, el selector de
+            * arriba salta entre este caso y los anteriores del paciente, y el
+            * tab de Historial Médico es de la ficha, no de la visita.
+            *
+            * Va acá y no como página: el doctor lo consulta MIENTRAS escribe. Un
+            * `router.push` a otra ruta le haría perder el lugar en la nota.
+            */}
+          {a.caseId && (
+            <button
+              type="button"
+              onClick={() => router.push(conCasoAbierto(pathname, searchParams, a.caseId!), { scroll: false })}
+              className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              {t('consultOpenCase')}
+            </button>
+          )}
+          <Link
+            href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
+            className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('consultBack')}
+          </Link>
+        </div>
       </div>
 
       {/* Nodos de flujo — navegación LIBRE, estilo Day Admission (clic para ver cada paso).

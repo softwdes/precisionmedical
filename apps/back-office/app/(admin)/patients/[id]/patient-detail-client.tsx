@@ -299,7 +299,12 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
               <CaseRow
                 key={c.id}
                 case={c}
-                onClick={doctorMode ? undefined : () => router.push(`/front-office/${c.id}`)}
+                /* El doctor abre el caso en SU ruta, no en la de front-office
+                   (que su rol ni puede navegar). Antes acá iba `undefined`: veía
+                   la lista completa de casos del paciente y ninguno hacía nada
+                   al tocarlo — un callejón, no una restricción. El alcance lo
+                   pone el server, que ya valida a nivel paciente. */
+                onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)}
               />
             ))}
           </div>

@@ -182,9 +182,23 @@ export function ConsultationClient({
   const age = edad(a.patient.dateOfBirth);
   const tr = a.triage;
 
-  // Paso actual del flujo (mismo criterio que Day Admission).
-  // Si el doctor ya terminó, el paso actual es el Resumen.
-  const currentStep = (a.doctorDoneAt ? 4 : isInRoom || isCompleted || hasTriage ? 3 : 2) as StepView;
+  /**
+   * Paso actual del flujo. Si el doctor ya terminó, el Resumen.
+   *
+   * `isInRoom` NO cuenta para saltar al nodo 3. Contaba, y desde que "Atender"
+   * pasa a sala ANTES de abrir la consulta eso mandaba siempre al área de
+   * trabajo: el doctor solo, que es el que tiene que tomar los signos, aterrizaba
+   * pasado el triaje y el formulario quedaba escondido detrás de un nodo que
+   * nadie tenía motivo para tocar. El triaje se saltaba en silencio.
+   *
+   * Ahora el que manda es el DATO: sin vitales, el paso pendiente es el 2 — esté
+   * el paciente en sala o no. Es también lo que reemplaza al viejo candado de
+   * "no atender sin triaje": en vez de bloquear, se pasa por el mismo lugar.
+   *
+   * Las visitas online van al 3: por video nadie puede tomar la presión, así que
+   * ahí la ausencia de vitales no es un paso pendiente.
+   */
+  const currentStep = (a.doctorDoneAt ? 4 : isCompleted || hasTriage || a.isOnline ? 3 : 2) as StepView;
   // Navegación libre entre nodos — arranca en el paso actual
   const [view, setView] = React.useState<StepView>(currentStep);
   const [tab, setTab] = React.useState<Tab>('notes');

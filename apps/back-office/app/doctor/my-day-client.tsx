@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle, Ban, CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
-  HeartPulse, Hourglass, RefreshCw, Sun, UserX, Video,
+  Hourglass, RefreshCw, Sun, UserX, Video,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -157,7 +157,8 @@ export function MyDayClient({
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
   const [isRefreshing, startRefresh] = React.useTransition();
-  const [attending, setAttending] = React.useState(false);
+  /** id de la cita que se está abriendo — deshabilita solo ESE botón. */
+  const [attending, setAttending] = React.useState<string | null>(null);
 
   // ── Llegada y desenlaces (reflejo de Day Admission) ──
   const [checkingIn, setCheckingIn] = React.useState<string | null>(null);
@@ -207,42 +208,46 @@ export function MyDayClient({
 
   const queue = active.filter(a => a.id !== hero?.id);
   const minsTo = hero ? Math.round((new Date(hero.scheduledFor).getTime() - now) / 60_000) : 0;
-  // Regla de negocio (Erick 2026-07-28): listo para atender = check-in + triaje.
-  // Si el asistente ya lo pasó a sala (IN_PROGRESS), el doctor SIEMPRE puede atender —
-  // el wizard de admisión marca el paso de triaje por status, con o sin vitales.
-  // La firma de asistencia (B.14.1) aún no existe en el flujo → solo informativa.
   const heroArrived = !!hero && arrived(hero);
-  /**
-   * El triaje NO bloquea una visita online.
-   *
-   * A un paciente por videollamada nadie le puede tomar la presión, el pulso ni
-   * el peso, así que exigir el triaje era pedirle al asistente algo físicamente
-   * imposible y dejar al doctor esperando un dato que no puede existir. El
-   * check-in SÍ se mantiene: es lo que dice que el paciente está del otro lado.
-   */
-  const heroReady = !!hero && (
-    hero.status === 'IN_PROGRESS' || (arrived(hero) && (hero.hasTriage || hero.isOnline))
-  );
   // La consulta vive DENTRO del portal (antes apuntaba a clinical.lienmaster.net,
   // que no está deployado y devolvía error de DNS).
   const consultHref = (apptId: string): string => `/doctor/consultation/${apptId}`;
 
-  // Atender: pasa al paciente a sala si hace falta (el asistente lo ve como
-  // "With Dr." en Day Admission) y abre la Consulta DENTRO del portal.
-  const handleAttend = async (): Promise<void> => {
-    if (!hero) return;
-    if (hero.status !== 'IN_PROGRESS') {
-      setAttending(true);
-      try {
-        await fetch(`/api/admin/admission/${hero.id}/admit`, { method: 'POST' });
-      } catch { /* la consulta mostrará el estado real */ }
-      setAttending(false);
-    }
-    router.push(`/doctor/consultation/${hero.id}`);
+  /**
+   * Atender: el único verbo del doctor. "Este paciente pasa conmigo AHORA".
+   *
+   * Hace toda la contabilidad que falte —marca la llegada si nadie la marcó,
+   * pasa a sala— y abre la consulta. El doctor no piensa en check-in: piensa en
+   * a quién atiende.
+   *
+   * Por qué desapareció el candado que exigía triaje (era la regla de Erick del
+   * 28-jul: "listo para atender = check-in + triaje"): esa regla suponía que el
+   * triaje lo hace OTRO y que el doctor tiene que esperarlo. Cuando está solo no
+   * hay a quién esperar, y el candado lo dejaba mirando un cartel. Ahora el que
+   * obliga a pasar por el triaje es el ATERRIZAJE: sin vitales la consulta abre
+   * en el nodo 2, con el formulario adelante. Se pasa por el mismo lugar, pero
+   * pudiendo resolverlo.
+   *
+   * Las dos llamadas van separadas y en este orden a propósito: `admit` rellena
+   * `checkedInAt` solo, pero audita ADMIT_TO_ROOM, no CHECK_IN — y sin la fila
+   * de CHECK_IN con su `source` se pierde la marca de que la llegada la registró
+   * el provider, que es de donde sale el Checkout del Resumen. Las dos son
+   * idempotentes, así que repetirlas no escribe dos veces.
+   */
+  const atender = async (appt: MyDayAppointment): Promise<void> => {
+    setAttending(appt.id);
+    try {
+      if (!arrived(appt)) await marcarLlegada(appt);
+      if (appt.status !== 'IN_PROGRESS') {
+        await fetch(`/api/admin/admission/${appt.id}/admit`, { method: 'POST' });
+      }
+    } catch { /* la consulta mostrará el estado real */ }
+    setAttending(null);
+    router.push(consultHref(appt.id));
   };
 
   /**
-   * Marcar la llegada desde el portal.
+   * Marcar la llegada, sin tomar al paciente.
    *
    * Mismo endpoint que aprieta el mostrador; lo único que agrega es `source`,
    * que deja asentado en el audit log que la llegada la marcó el provider. De
@@ -250,12 +255,19 @@ export function MyDayClient({
    * paciente, tampoco va a haber nadie para cerrarle la visita) y el número de
    * cuántas veces por semana un provider cubre un puesto vacío.
    *
-   * NO se fusiona con "Atender" a propósito: `checkedInAt` es el reloj de espera
-   * y `admittedAt` el de inicio de consulta. Un solo botón haría caer los dos
-   * sellos en el mismo instante y el tiempo de espera se volvería cero, en
-   * silencio, para toda visita atendida sin asistente.
+   * Es la acción SECUNDARIA, y existe para el único caso en que los dos momentos
+   * se separan de verdad: alguien llega mientras el doctor está con otro
+   * paciente y quiere dejarlo anotado sin atenderlo todavía. Cuando los dos
+   * momentos son el mismo —el doctor solo, que abre la puerta y atiende— el
+   * botón es "Atender" y esto va adentro.
+   *
+   * Sobre el reloj de espera: cuando la MISMA persona registra la llegada y
+   * empieza la consulta, la espera es cero de verdad, no un dato que se pierde
+   * (nadie estaba en el mostrador anotando que el paciente llegó a las 9:00).
+   * Las métricas que quieran medir espera real tienen cómo separarlas: los
+   * check-in del portal quedan marcados con `source`.
    */
-  const handleCheckIn = async (appt: MyDayAppointment): Promise<void> => {
+  const marcarLlegada = async (appt: MyDayAppointment): Promise<void> => {
     setCheckingIn(appt.id);
     try {
       await fetch(`/api/admin/admission/${appt.id}/check-in`, {
@@ -476,51 +488,45 @@ export function MyDayClient({
           <div className="shrink-0">
             <CoverageChip caseId={hero.caseId} coverage={hero.coverage} size="md" />
           </div>
-          {/* Tres estados, TRES acciones — ninguno es un cartel muerto.
-              Antes acá había una caja ámbar que informaba ("todavía no hizo
-              check-in en recepción", "falta el triaje") y no ofrecía nada, con el
-              agravante de que en varias clínicas no hay recepción ni asistente y
-              el provider está solo: el camino se terminaba ahí. Es el mismo
-              arreglo que ya se hizo con el triaje dentro de la consulta. */}
-          {heroReady ? (
+          {/* UN verbo: Atender. Y solo mientras el paciente no llegó, las salidas
+              de la cita que no va a ocurrir.
+
+              Antes había tres estados con tres botones distintos —check-in,
+              "tomar triaje", atender— y antes de eso, dos carteles muertos. Los
+              tres pasos siguen existiendo, pero el doctor no tiene que elegir
+              cuál le toca: "Atender" hace la contabilidad que falte y lo deja en
+              el paso pendiente. Cuando está solo, marcar la llegada y tomar al
+              paciente son el MISMO gesto (Erick, 31-ago-2026). */}
+          <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
             <button
               type="button"
-              onClick={() => void handleAttend()}
-              disabled={attending}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold w-full sm:w-auto disabled:opacity-70"
+              onClick={() => void atender(hero)}
+              disabled={attending === hero.id}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-70"
               style={{ background: 'linear-gradient(135deg, #10B981, #14b8a6)', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
             >
               {t('attendNow')} →
             </button>
-          ) : !heroArrived ? (
-            <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => void handleCheckIn(hero)}
-                disabled={checkingIn === hero.id}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-70"
-                style={{ background: 'linear-gradient(135deg, #10B981, #14b8a6)', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {ta('checkIn')}
-              </button>
-              {/* Los tres desenlaces solo mientras el paciente no llegó: una vez
-                  adentro, "no vino" es una contradicción. Igual que la fila del
-                  mostrador, que tampoco los ofrece después del check-in. */}
-              <OutcomeButtons appt={hero} onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
-            </div>
-          ) : (
-            /* Llegó y falta el triaje. Como el doctor puede tomarlo él desde la
-               consulta (nodo 2), esto lo lleva ahí en vez de decirle que espere a
-               alguien que hoy quizá no está. */
-            <Link
-              href={consultHref(hero.id)}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border border-cyan/40 bg-cyan/10 text-cyan text-sm font-bold w-full sm:w-auto hover:bg-cyan/15 transition-colors"
-            >
-              <HeartPulse className="w-4 h-4" />
-              {t('takeTriage')} →
-            </Link>
-          )}
+            {!heroArrived && (
+              <div className="flex items-center gap-1.5 flex-wrap sm:justify-end">
+                {/* Secundario y sin color: es la excepción (llega alguien
+                    mientras el doctor está con otro y lo quiere dejar anotado). */}
+                <button
+                  type="button"
+                  onClick={() => void marcarLlegada(hero)}
+                  disabled={checkingIn === hero.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 hover:text-text-1 transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  {t('markArrival')}
+                </button>
+                {/* Los desenlaces solo mientras el paciente no llegó: una vez
+                    adentro, "no vino" es una contradicción. Igual que la fila del
+                    mostrador, que tampoco los ofrece después del check-in. */}
+                <OutcomeButtons appt={hero} compact onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
+              </div>
+            )}
+          </div>
          </div>
 
           {/* El enlace va FUERA del <Link> del paciente: tiene un botón y un
@@ -584,18 +590,35 @@ export function MyDayClient({
                     justo el caso del provider que al otro día cierra los
                     no-shows que quedaron sueltos. Una restricción que el
                     mostrador no tiene no es un reflejo. */}
-                {!arrived(a) && (
+                {!a.doctorDoneAt && (
                   <div className="shrink-0 flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-end">
+                    {/* Mismo verbo que el hero: el hero cubre a UNO, y un doctor
+                        sin asistente puede tener cuatro esperando. Sin esto la
+                        fila quedaba muerta apenas se marcaba la llegada — pasaba
+                        de cuatro acciones a ninguna, justo cuando el paciente ya
+                        está adentro y lo que sigue es tomarle los signos. */}
                     <button
                       type="button"
-                      onClick={() => void handleCheckIn(a)}
-                      disabled={checkingIn === a.id}
+                      onClick={() => void atender(a)}
+                      disabled={attending === a.id}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 transition-colors disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-3 h-3" />
-                      {ta('checkIn')}
+                      {t('attendNow')} →
                     </button>
-                    <OutcomeButtons appt={a} compact onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
+                    {!arrived(a) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void marcarLlegada(a)}
+                          disabled={checkingIn === a.id}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 hover:text-text-1 transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          {t('markArrival')}
+                        </button>
+                        <OutcomeButtons appt={a} compact onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
+                      </>
+                    )}
                   </div>
                 )}
                 <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet-text shrink-0 transition-colors" />

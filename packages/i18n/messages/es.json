@@ -1813,7 +1813,7 @@
       "attendanceSigned": "Firma asistencia ✓",
       "attendancePending": "Sin firma de asistencia",
       "guardrailTriage": "No se puede atender: el triaje del paciente aún no está completo.",
-      "takeTriage": "Tomar triaje",
+      "markArrival": "Marcar llegada",
       "guardrailCheckin": "El paciente aún no hace check-in en recepción.",
       "vitBP": "PA",
       "vitPulse": "Pulso",

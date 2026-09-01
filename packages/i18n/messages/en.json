@@ -1813,7 +1813,7 @@
       "attendanceSigned": "Attendance signed ✓",
       "attendancePending": "Attendance not signed",
       "guardrailTriage": "Cannot attend: the patient's triage is not complete yet.",
-      "takeTriage": "Take triage",
+      "markArrival": "Mark arrival",
       "guardrailCheckin": "The patient hasn't checked in at reception yet.",
       "vitBP": "BP",
       "vitPulse": "Pulse",

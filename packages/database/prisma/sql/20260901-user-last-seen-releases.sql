@@ -1,0 +1,43 @@
+-- users.lastSeenReleasesAt — hasta dónde leyó cada uno las notas de release.
+--
+-- Por qué: hoy el aviso de "esto cambió" se muestra UNA vez, después de apretar
+-- Actualizar, y se autodestruye — `useReleaseNotes` llama a `clearPendingNotes()`
+-- ANTES de pintar el modal, para que no reaparezca si falla el fetch. Si el
+-- usuario lo cierra sin leer, esa información se perdió para siempre y no hay
+-- ningún lugar en el sistema donde volver a verla. Esta columna es lo que
+-- convierte el aviso efímero en un buzón: el panel de la campana muestra la
+-- historia completa y el contador dice cuánto hay desde la última vez.
+--
+-- Una sola marca por usuario y NO estado por entrada. Lo que se necesita saber
+-- es "desde cuándo contar", y para eso alcanza una fecha: las notas ya vienen
+-- ordenadas por `releases.deployedAt`. Una tabla de leídos por nota serían miles
+-- de filas para responder la misma pregunta.
+--
+-- En Phoenix (kiqlhw…) y no en Admin: los usuarios de los tres portales
+-- —(admin), /doctor y /attorney— viven acá, y acá están `releases` y
+-- `release_entries`. Distinto de `users.crew`, cuyo valor manda desde Admin.
+
+-- NULLABLE y sin backfill, a propósito.
+--
+-- NULL significa "nunca abrió el buzón", y la siembra la hace el LECTOR la
+-- primera vez, con `now() - <ventana de debut>`. Sembrarla acá seria un error de
+-- tiempo: la campana todavia no existe (F3), asi que para cuando se lance esta
+-- marca ya habria quedado semanas atras y el contador mostraria todo igual, que
+-- es justo lo que se quiere evitar.
+--
+-- Medido el 2026-09-01, el corpus entero tiene dos semanas (el sistema de notas
+-- nacio el 19/8), asi que cualquier ventana >= 14 dias es "todo": ADMIN 58 /
+-- DOCTOR 34 / ATTORNEY 35. Con 7 dias son 47/28/29 — sigue siendo un muro. Con
+-- 3 dias, 22/13/6: un resumen que se lee de una sentada el dia del debut. Ese
+-- numero vive en el codigo del lector, no acá, para poder moverlo sin un ALTER.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastSeenReleasesAt" timestamp(3);
+
+-- Sin índice: se lee siempre por la PK del usuario que tiene la sesión abierta,
+-- nunca como filtro sobre la tabla entera.
+
+-- ── Verificación ────────────────────────────────────────────────────────────
+-- Tiene que dar la columna en `timestamp without time zone`, nullable, y todas
+-- las filas en NULL (nadie abrió el buzón todavía).
+--   SELECT count(*) AS usuarios,
+--          count("lastSeenReleasesAt") AS con_marca
+--     FROM users WHERE "deletedAt" IS NULL;

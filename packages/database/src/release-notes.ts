@@ -10,7 +10,7 @@ import { traducirPendientes } from './release-translate';
 import { moduleLabel } from '@precision/release/modules';
 import type { Audience } from '@precision/release/audience';
 import type { NoteLocale, ReleaseModuleGroup } from '@precision/release/types';
-import type { ReleaseAudience } from '@prisma/client';
+import type { ReleaseAudience, ReleaseNoteKind } from '@prisma/client';
 
 /** Las audiencias que nunca reciben notas (el paciente). */
 const SILENT: readonly Audience[] = ['patient'];
@@ -69,45 +69,18 @@ async function resolveFrom(app: string, since: string, bootAt?: string): Promise
   return new Date(last.deployedAt.getTime() - 1);
 }
 
-/** Lo publicado después de que arrancó la pestaña, unificado por módulo. */
-export async function getChangelog(
-  query: ChangelogQuery,
+/**
+ * Entradas sueltas -> grupos por modulo, traduciendo lo que falte.
+ *
+ * Lo comparten `getChangelog` (lo publicado desde que arranco la pestaña) y
+ * `getInbox` (el buzon permanente de la campana). Cambian en QUE releases miran,
+ * no en como se arma la lista: sacarlo aca evita que las dos vistas del mismo
+ * changelog se separen con el tiempo.
+ */
+async function agrupar(
+  entries: Array<{ id: string; kind: ReleaseNoteKind; module: string; textEs: string; textEn: string | null }>,
+  locale: NoteLocale,
 ): Promise<{ modules: ReleaseModuleGroup[]; count: number }> {
-  const { app, since, bootAt, audience, locale } = query;
-
-  if (SILENT.includes(audience)) return { modules: [], count: 0 };
-
-  const from = await resolveFrom(app, since, bootAt);
-  if (from === null) return { modules: [], count: 0 };
-
-  const releases = await db.release.findMany({
-    where: {
-      app,
-      status: 'PUBLISHED',
-      deployedAt: { gt: from },
-      publishedAt: { not: null },
-    },
-    orderBy: { deployedAt: 'desc' },
-    // Techo por si alguien vuelve después de meses sin abrir la app.
-    take: 20,
-    select: {
-      entries: {
-        // `needsReview` NO se muestra. El script del build publica el release
-        // solo, pero lo que no pudo decidir —scope sin mapear, audiencia
-        // ambigua— espera a que alguien lo apruebe en /settings. Guardar la
-        // entrada en el tab apaga la bandera y ahi si aparece.
-        where: {
-          hidden: false,
-          needsReview: false,
-          audiences: { has: toDbAudience(audience) },
-        },
-        orderBy: [{ module: 'asc' }, { sortOrder: 'asc' }],
-        select: { id: true, kind: true, module: true, textEs: true, textEn: true },
-      },
-    },
-  });
-
-  const entries = releases.flatMap((release) => release.entries);
 
   // En inglés, traducir lo que falte — una vez en la vida de cada nota. Los
   // commits están en español y siempre lo van a estar; mostrarle español a
@@ -151,6 +124,147 @@ export async function getChangelog(
   );
 
   return { modules, count };
+}
+
+/** Lo publicado después de que arrancó la pestaña, unificado por módulo. */
+export async function getChangelog(
+  query: ChangelogQuery,
+): Promise<{ modules: ReleaseModuleGroup[]; count: number }> {
+  const { app, since, bootAt, audience, locale } = query;
+
+  if (SILENT.includes(audience)) return { modules: [], count: 0 };
+
+  const from = await resolveFrom(app, since, bootAt);
+  if (from === null) return { modules: [], count: 0 };
+
+  const releases = await db.release.findMany({
+    where: {
+      app,
+      status: 'PUBLISHED',
+      deployedAt: { gt: from },
+      publishedAt: { not: null },
+    },
+    orderBy: { deployedAt: 'desc' },
+    // Techo por si alguien vuelve después de meses sin abrir la app.
+    take: 20,
+    select: {
+      entries: {
+        // `needsReview` NO se muestra. El script del build publica el release
+        // solo, pero lo que no pudo decidir —scope sin mapear, audiencia
+        // ambigua— espera a que alguien lo apruebe en /settings. Guardar la
+        // entrada en el tab apaga la bandera y ahi si aparece.
+        where: {
+          hidden: false,
+          needsReview: false,
+          audiences: { has: toDbAudience(audience) },
+        },
+        orderBy: [{ module: 'asc' }, { sortOrder: 'asc' }],
+        select: { id: true, kind: true, module: true, textEs: true, textEn: true },
+      },
+    },
+  });
+
+  const entries = releases.flatMap((release) => release.entries);
+
+  return agrupar(entries, locale);
+}
+
+
+/**
+ * Cuantos releases mira el buzon hacia atras.
+ *
+ * 60 y no 20: la cadencia real de este repo son ~5 deploys por dia (75 releases
+ * de back-office en las dos semanas que lleva el sistema), asi que 20 serian
+ * cuatro dias de historia y el panel se veria vacio de contenido viejo. Con 60
+ * se cubre practicamente todo lo publicado hasta hoy.
+ */
+const HISTORIAL_RELEASES = 60;
+
+/**
+ * Cuantos dias mira hacia atras quien NUNCA abrio el buzon.
+ *
+ * El corpus entero tiene dos semanas, asi que arrancar en cero le pondria 58
+ * notas encima al admin el primer dia — un muro que nadie lee. Medido el
+ * 2026-09-01: 3 dias dan ADMIN 22 / DOCTOR 13 / ATTORNEY 6, que se lee de una
+ * sentada; 7 dias ya dan 47/28/29.
+ *
+ * Vive aca y no en el DDL a proposito: moverlo no tiene que costar un ALTER.
+ */
+export const DIAS_DEBUT = 3;
+
+export interface InboxQuery {
+  /** App del monorepo — cada deploy consulta lo suyo. */
+  app: string;
+  audience: Audience;
+  locale: NoteLocale;
+  /** Hasta donde leyo el usuario. `null` = nunca abrio el buzon. */
+  seenAt: Date | null;
+}
+
+export interface Inbox {
+  modules: ReleaseModuleGroup[];
+  /** Cuantas notas trae el panel (la historia). */
+  count: number;
+  /** Cuantas de esas son posteriores a `seenAt`. Es lo que cuenta el badge. */
+  unseen: number;
+  /** Desde cuando se conto lo no visto — el debut si la marca estaba en null. */
+  since: Date;
+  /** `true` si esta es la primera vez: quien llama deberia sellar la marca. */
+  debut: boolean;
+}
+
+/**
+ * El buzon permanente de la campana: la historia reciente MAS cuanto hay sin ver.
+ *
+ * Distinto de `getChangelog`, que responde "que cambio desde que arranco esta
+ * pestaña" y se muestra una sola vez despues del reload. Este se abre cuando el
+ * usuario quiere, asi que devuelve la historia completa igual y usa `seenAt` solo
+ * para el contador — cerrar el panel sin leer no destruye nada.
+ *
+ * Una sola consulta para los dos numeros: lo no visto es un subconjunto de la
+ * historia. Si alguien estuvo mas de `HISTORIAL_RELEASES` deploys sin mirar, el
+ * contador queda topado por la historia, que es lo honesto: no se puede anunciar
+ * lo que no se va a mostrar.
+ */
+export async function getInbox(query: InboxQuery): Promise<Inbox> {
+  const { app, audience, locale, seenAt } = query;
+  const debut = seenAt === null;
+  const since = seenAt ?? new Date(Date.now() - DIAS_DEBUT * 24 * 60 * 60 * 1000);
+
+  if (SILENT.includes(audience)) {
+    return { modules: [], count: 0, unseen: 0, since, debut };
+  }
+
+  const releases = await db.release.findMany({
+    where: { app, status: "PUBLISHED", publishedAt: { not: null } },
+    orderBy: { deployedAt: "desc" },
+    take: HISTORIAL_RELEASES,
+    select: {
+      deployedAt: true,
+      entries: {
+        // Mismo filtro que `getChangelog`: lo oculto por sensible y lo que
+        // espera revision no sale por ninguna de las dos puertas.
+        where: {
+          hidden: false,
+          needsReview: false,
+          audiences: { has: toDbAudience(audience) },
+        },
+        orderBy: [{ module: "asc" }, { sortOrder: "asc" }],
+        select: { id: true, kind: true, module: true, textEs: true, textEn: true },
+      },
+    },
+  });
+
+  const unseen = releases
+    .filter((release) => release.deployedAt > since)
+    .reduce((total, release) => total + release.entries.length, 0);
+
+  const { modules, count } = await agrupar(
+    releases.flatMap((release) => release.entries),
+    locale,
+  );
+
+  return { modules, count, unseen, since, debut };
 }
 
 /** Una entrada tal como la ve /admin/releases: con los dos idiomas y las banderas. */

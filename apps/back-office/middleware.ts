@@ -300,7 +300,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // Las APIs pasan porque las vistas del portal consumen /api/attorney/*, que
     // filtra por sesión. NO se le abre /api/admin/*: ahí las consultas asumen
     // admin y devolverían la clínica entera.
-    if (isApi && !pathname.startsWith('/api/attorney/')) {
+    //
+    // `/api/changelog/*` es la excepción: son las notas de release, que por
+    // diseño sirven a las tres audiencias desde la misma ruta y resuelven CUÁL
+    // con `resolverAudiencia()`, contra la sesión — a un LAWYER le devuelve
+    // `attorney` y nada más, pida lo que pida. Sin esto el portal legal recibía
+    // 403 y su modal de novedades no cargó nunca: el banner decía "Actualizar",
+    // el usuario recargaba y no veía qué había cambiado.
+    if (isApi && !pathname.startsWith('/api/attorney/') && !pathname.startsWith('/api/changelog')) {
       return forbidden('attorney', response);
     }
     return response;

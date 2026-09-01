@@ -3,11 +3,12 @@
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Bell, Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
 import { InboxBell } from '@/components/messaging/inbox-bell';
+import { ReleaseBell } from '@/components/release/release-bell';
 import { createClient } from '@precision-medical/auth/client';
 
 // Amber identity color for back-office (single value in tailwind config — no scale)
@@ -218,17 +219,11 @@ export function Topbar({
               a la urgencia clínica: nada debe gritar más que un urgente. */}
           <InboxBell />
 
-          {/* Notificaciones */}
-          <button
-            type="button"
-            className="relative w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
-            aria-label={`${t('notifications')}, ${t('notificationsUnread', { count: 2 })}`}
-          >
-            <Bell className="w-4 h-4" aria-hidden="true" />
-            <span aria-hidden="true" className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center">
-              2
-            </span>
-          </button>
+          {/* Novedades del sistema. Antes habia aca un boton de campana de
+              adorno: sin onClick, sin consultar nada y con un 2 escrito en
+              duro que nadie podia apagar. Los tres portales montan este mismo
+              Topbar, asi que ese 2 fantasma se veia igual en los tres. */}
+          <ReleaseBell />
 
           {/* ─── Preferencias personales: idioma + tema, junto al avatar ────── */}
           {/* Language toggle — ámbar suavizado para no competir con Mensajes */}

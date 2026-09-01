@@ -1414,7 +1414,16 @@
       "title": "Novedades de esta versión",
       "subtitle": "Esto es lo que cambió mientras tenías la app abierta.",
       "dismiss": "Entendido",
-      "count": "{count, plural, one {# cambio} other {# cambios}}"
+      "count": "{count, plural, one {# cambio} other {# cambios}}",
+      "bellLabel": "Novedades del sistema",
+      "bellUnseen": "{count, plural, one {# novedad sin ver} other {# novedades sin ver}}",
+      "bellNone": "Sin novedades sin ver",
+      "panelTitle": "Novedades del sistema",
+      "panelSubtitle": "Lo que fuimos cambiando en tus modulos.",
+      "panelEmpty": "Todavia no hay novedades publicadas para vos.",
+      "panelError": "No se pudieron cargar las novedades.",
+      "seenAll": "Al dia",
+      "panelLoading": "Cargando..."
     },
     "nav": {
       "catalogs": "Catálogos",

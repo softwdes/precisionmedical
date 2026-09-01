@@ -1414,7 +1414,16 @@
       "title": "What's new in this version",
       "subtitle": "These are the changes made while you had the app open.",
       "dismiss": "Got it",
-      "count": "{count, plural, one {# change} other {# changes}}"
+      "count": "{count, plural, one {# change} other {# changes}}",
+      "bellLabel": "What's new",
+      "bellUnseen": "{count, plural, one {# unseen update} other {# unseen updates}}",
+      "bellNone": "No unseen updates",
+      "panelTitle": "What's new",
+      "panelSubtitle": "Changes we shipped in your modules.",
+      "panelEmpty": "Nothing published for you yet.",
+      "panelError": "Could not load the updates.",
+      "seenAll": "All caught up",
+      "panelLoading": "Loading..."
     },
     "nav": {
       "catalogs": "Catalogs",

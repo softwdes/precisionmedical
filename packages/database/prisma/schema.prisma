@@ -51,6 +51,12 @@ model User {
   preferredLocale Locale @default(es)
   preferredTheme  Theme  @default(dark)
 
+  /// Hasta donde leyo las notas de release — alimenta el contador de la campana.
+  /// NULL = nunca abrio el buzon; el lector la siembra la primera vez con una
+  /// ventana corta, para no estrenar la campana con dos semanas de golpe.
+  /// Una fecha y no estado por nota: la pregunta es "desde cuando contar".
+  lastSeenReleasesAt DateTime?
+
   mfaEnabled Boolean @default(false)
   mfaSecret  String?
 

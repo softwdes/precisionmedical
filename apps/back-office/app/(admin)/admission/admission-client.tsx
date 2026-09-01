@@ -328,19 +328,26 @@ function ApptCard({
                     <AlertTriangle className="w-2.5 h-2.5" />
                     {tc('unsignedBadge')}
                   </span>
-                  {/* El QR pegado al chip que lo explica, y CON texto.
-                      Empezó siendo solo el ícono a 12px con `border-border`, que
-                      es casi transparente por diseño: en la fila se leía como un
-                      glifo roto y no como algo que se pueda tocar. Ahora lleva
-                      la palabra ("Firmar" dice el objetivo, el ícono dice el
-                      medio) y va en ÁMBAR como el chip, para que los dos se lean
-                      como una sola cosa: falta la firma → acá está el QR. */}
+                  {/* El QR al lado del chip que lo explica, pero NEUTRO, no ámbar.
+                      Pasó por las tres versiones y las dos primeras fallaron por
+                      motivos distintos:
+                       · Solo ícono a 12px con `border-border` (casi transparente
+                         por diseño) → se leía como un glifo roto.
+                       · Con texto pero en ámbar → la fila quedaba con TRES
+                         pastillas ámbar seguidas ("No firmado", "Firmar",
+                         "Verificación pendiente") y la única tocable se veía
+                         igual que las dos que no lo son.
+                      El ámbar acá significa "falta algo", no "esto es un botón";
+                      los otros controles de la fila (No vino, Cancelar) son
+                      neutros. Neutro = acción secundaria, y de paso contrasta
+                      contra el ámbar de al lado. Lo que hacía ilegible la primera
+                      versión era el tamaño y el borde, no el color. */}
                   {onSignQr && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onSignQr(appt); }}
                       title={tc('actionSignQr')}
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/50 bg-amber/20 text-amber hover:bg-amber/30 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold border border-white/20 bg-white/[0.07] text-text-1 hover:bg-white/[0.14] transition-colors"
                     >
                       <QrCode className="w-2.5 h-2.5" />
                       {tc('actionSignShort')}

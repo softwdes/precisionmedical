@@ -13,6 +13,7 @@ import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
+import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
 export async function GET(
   _req: NextRequest,
@@ -83,6 +84,18 @@ export async function PATCH(
     select: { id: true, status: true, caseId: true, providerId: true, scheduledFor: true, durationMinutes: true },
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+
+  /**
+   * Un doctor solo escribe sobre SUS citas.
+   *
+   * Va despues del `findUnique` para no pagar la consulta del guard cuando la
+   * cita ni existe, y despues del parse para que un payload invalido siga dando
+   * 400 y no un 403 enganoso. El staff del back-office no se recorta: recepcion
+   * sella el desenlace de la cita de cualquier doctor, que es su trabajo.
+   */
+  if (!(await puedeEscribirLaCita(id))) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  }
 
   /**
    * Cancelar algo ya cancelado: se rechaza.

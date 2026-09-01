@@ -14,15 +14,82 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video,
+  AlertTriangle, Ban, CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
+  HeartPulse, Hourglass, RefreshCw, Sun, UserX, Video,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import type { CoverageDTO } from '@/lib/coverage';
+
+/**
+ * Los tres desenlaces de una cita que no se atendió — el MISMO juego que la fila
+ * de Day Admission (`admission-client.tsx`).
+ *
+ * Está acá porque en la clínica pasa seguido que no hay recepcionista ni
+ * asistente y el provider hace todo (Erick, 31-ago-2026). El camino del mostrador
+ * NO cambia: los dos lados pegan al mismo endpoint, así que la cola del asistente
+ * y Mi Día no se pueden separar.
+ */
+type Desenlace = 'noShow' | 'cancel' | 'cancelSameDay';
+
+/** Consumió el horario → corresponde penalidad (ver lib/appointment-outcome). */
+const cobraPenalidad = (tipo: Desenlace): boolean => tipo !== 'cancel';
+
+/**
+ * Los tres desenlaces, en el mismo orden que la fila del mostrador.
+ *
+ * Va a nivel de módulo y NO dentro de `MyDayClient`: un componente definido
+ * adentro de otro cambia de identidad en cada render, así que React desmonta y
+ * vuelve a montar el subárbol entero — es la misma trampa que hacía saltar la
+ * tabla de usuarios. Acá se llevaría puesto el foco del teclado en medio del
+ * pulso de 5 s.
+ */
+function OutcomeButtons({
+  appt, compact = false, onPick,
+}: {
+  appt: MyDayAppointment;
+  compact?: boolean;
+  onPick: (appt: MyDayAppointment, tipo: Desenlace) => void;
+}): React.ReactElement {
+  const ta = useTranslations('phoenix.admission');
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <button
+        type="button"
+        onClick={() => onPick(appt, 'noShow')}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 hover:text-text-1 transition-colors"
+      >
+        <UserX className="w-3 h-3" />
+        {ta('noShow')}
+      </button>
+      <button
+        type="button"
+        onClick={() => onPick(appt, 'cancel')}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 hover:text-text-1 transition-colors"
+      >
+        <Ban className="w-3 h-3" />
+        {ta('cancel')}
+      </button>
+      <button
+        type="button"
+        onClick={() => onPick(appt, 'cancelSameDay')}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-amber/40 text-amber text-xs hover:bg-amber/10 transition-colors"
+      >
+        <Ban className="w-3 h-3" />
+        {/* "Canceló el mismo día" no entra en un teléfono al lado de las otras. */}
+        <span className={compact ? 'hidden' : 'hidden sm:inline'}>{ta('cancelSameDay')}</span>
+        <span className={compact ? 'inline' : 'sm:hidden'}>{ta('cancelSameDayShort')}</span>
+      </button>
+    </div>
+  );
+}
 
 export interface MyDayAppointment {
   id: string;
@@ -80,10 +147,26 @@ export function MyDayClient({
   doctorName, appointments, unsignedTotal, dateKey, isToday, prevDate, nextDate,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  /**
+   * El vocabulario de la llegada y de los desenlaces vive en `phoenix.admission`
+   * — una sola copia para las dos pantallas. Si el mostrador y el portal dijeran
+   * cosas distintas de la misma acción, la primera discusión sobre una penalidad
+   * sería sobre cuál de los dos textos vale. Mismo criterio que la consulta.
+   */
+  const ta = useTranslations('phoenix.admission');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
   const [isRefreshing, startRefresh] = React.useTransition();
   const [attending, setAttending] = React.useState(false);
+
+  // ── Llegada y desenlaces (reflejo de Day Admission) ──
+  const [checkingIn, setCheckingIn] = React.useState<string | null>(null);
+  const [desenlaceTarget, setDesenlaceTarget] = React.useState<{ appt: MyDayAppointment; tipo: Desenlace } | null>(null);
+  const [sellando, setSellando] = React.useState(false);
+  /** Cita a la que le falta la penalidad — abre el picker apenas se sella. */
+  const [cargoTarget, setCargoTarget] = React.useState<MyDayAppointment | null>(null);
+  const [cargosActuales, setCargosActuales] = React.useState<PlannedService[]>([]);
+  const [cargoError, setCargoError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -157,6 +240,89 @@ export function MyDayClient({
     }
     router.push(`/doctor/consultation/${hero.id}`);
   };
+
+  /**
+   * Marcar la llegada desde el portal.
+   *
+   * Mismo endpoint que aprieta el mostrador; lo único que agrega es `source`,
+   * que deja asentado en el audit log que la llegada la marcó el provider. De
+   * ahí sale después el Checkout del resumen (si no hubo nadie para recibir al
+   * paciente, tampoco va a haber nadie para cerrarle la visita) y el número de
+   * cuántas veces por semana un provider cubre un puesto vacío.
+   *
+   * NO se fusiona con "Atender" a propósito: `checkedInAt` es el reloj de espera
+   * y `admittedAt` el de inicio de consulta. Un solo botón haría caer los dos
+   * sellos en el mismo instante y el tiempo de espera se volvería cero, en
+   * silencio, para toda visita atendida sin asistente.
+   */
+  const handleCheckIn = async (appt: MyDayAppointment): Promise<void> => {
+    setCheckingIn(appt.id);
+    try {
+      await fetch(`/api/admin/admission/${appt.id}/check-in`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ source: 'doctor-portal' }),
+      });
+      router.refresh();
+    } finally {
+      setCheckingIn(null);
+    }
+  };
+
+  /**
+   * Sellar el desenlace. Pega al MISMO `PATCH /api/admin/appointments/:id` que
+   * usan la fila de Day Admission y el panel del calendario: un solo camino
+   * escribe el estado.
+   *
+   * Si consumió el horario se abre enseguida el picker de servicios para elegir
+   * el código de la penalidad — encadenarlo es la mitad del punto. Sellar el
+   * desenlace sin el cargo es exactamente lo que llena la sección "Falta la
+   * penalidad" del asistente, y acá no hay asistente que la vacíe después.
+   */
+  const confirmDesenlace = async (): Promise<void> => {
+    const target = desenlaceTarget;
+    if (!target) return;
+    const { appt, tipo } = target;
+    setSellando(true);
+    try {
+      const body = tipo === 'noShow'
+        ? { status: 'NO_SHOW' }
+        : { status: 'CANCELLED', cancelledSameDay: tipo === 'cancelSameDay' };
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+      if (!res.ok) return;
+      setDesenlaceTarget(null);
+      router.refresh();
+      if (!cobraPenalidad(tipo)) return;
+      // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
+      setCargosActuales(await leerCargos(appt.id));
+      setCargoError(null);
+      setCargoTarget(appt);
+    } finally {
+      setSellando(false);
+    }
+  };
+
+  /** Agrega el código elegido y deja la deuda creada (ver lib/charges). */
+  const onAgregarCargo = async (item: BillableItem): Promise<void> => {
+    const appt = cargoTarget;
+    if (!appt) return;
+    const r = await agregarCargo({
+      appointmentId: appt.id,
+      caseId:        appt.caseId ?? undefined,
+      item,
+      actuales:      cargosActuales,
+    });
+    setCargosActuales(r.servicios);
+    // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
+    // clic parezca que funcionó (`sync-billing` responde `no_case`).
+    setCargoError(r.ok ? null : r.error === 'NO_CASE' ? ta('penaltyNoCase') : ta('penaltyFailed'));
+    if (r.ok) router.refresh();
+  };
+
 
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
     // El doctor ya terminó — falta que el asistente cobre y cierre la cita
@@ -310,6 +476,12 @@ export function MyDayClient({
           <div className="shrink-0">
             <CoverageChip caseId={hero.caseId} coverage={hero.coverage} size="md" />
           </div>
+          {/* Tres estados, TRES acciones — ninguno es un cartel muerto.
+              Antes acá había una caja ámbar que informaba ("todavía no hizo
+              check-in en recepción", "falta el triaje") y no ofrecía nada, con el
+              agravante de que en varias clínicas no hay recepción ni asistente y
+              el provider está solo: el camino se terminaba ahí. Es el mismo
+              arreglo que ya se hizo con el triaje dentro de la consulta. */}
           {heroReady ? (
             <button
               type="button"
@@ -320,10 +492,34 @@ export function MyDayClient({
             >
               {t('attendNow')} →
             </button>
-          ) : (
-            <div className="shrink-0 rounded-lg border border-amber/30 bg-amber/10 px-4 py-2.5 text-[11px] text-amber max-w-[220px]">
-              {!heroArrived ? t('guardrailCheckin') : t('guardrailTriage')}
+          ) : !heroArrived ? (
+            <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => void handleCheckIn(hero)}
+                disabled={checkingIn === hero.id}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-70"
+                style={{ background: 'linear-gradient(135deg, #10B981, #14b8a6)', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {ta('checkIn')}
+              </button>
+              {/* Los tres desenlaces solo mientras el paciente no llegó: una vez
+                  adentro, "no vino" es una contradicción. Igual que la fila del
+                  mostrador, que tampoco los ofrece después del check-in. */}
+              <OutcomeButtons appt={hero} onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
             </div>
+          ) : (
+            /* Llegó y falta el triaje. Como el doctor puede tomarlo él desde la
+               consulta (nodo 2), esto lo lleva ahí en vez de decirle que espere a
+               alguien que hoy quizá no está. */
+            <Link
+              href={consultHref(hero.id)}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border border-cyan/40 bg-cyan/10 text-cyan text-sm font-bold w-full sm:w-auto hover:bg-cyan/15 transition-colors"
+            >
+              <HeartPulse className="w-4 h-4" />
+              {t('takeTriage')} →
+            </Link>
           )}
          </div>
 
@@ -344,32 +540,58 @@ export function MyDayClient({
           </div>
           <div className="space-y-1.5">
             {queue.map(a => (
-              <Link
+              /* La fila dejó de ser un <Link> entero para poder llevar acciones:
+                 un <button> dentro de un <a> es HTML inválido y el clic quedaría
+                 peleado entre navegar y sellar. Ahora el link cubre la zona de
+                 datos y los botones viven afuera, en la misma caja. */
+              <div
                 key={a.id}
-                href={consultHref(a.id)}
-                title={t('openConsultation')}
-                className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3 hover:border-violet/40 hover:bg-violet/[0.04] transition-colors group"
+                className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3 flex-wrap hover:border-violet/40 hover:bg-violet/[0.04] transition-colors group"
               >
-                <span className="font-mono text-[11px] text-text-muted w-[64px] shrink-0">{timeLabel(a.scheduledFor)}</span>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-text-1 truncate">
-                    {a.patientFirstName} {a.patientLastName}
+                <Link
+                  href={consultHref(a.id)}
+                  title={t('openConsultation')}
+                  className="flex items-center gap-3 flex-1 min-w-0"
+                >
+                  <span className="font-mono text-[11px] text-text-muted w-[64px] shrink-0">{timeLabel(a.scheduledFor)}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-text-1 truncate">
+                      {a.patientFirstName} {a.patientLastName}
+                    </span>
+                    <span className="ml-2 font-mono text-[10px] text-cyan hidden sm:inline">{a.caseCode ?? ''}</span>
+                    {/* Solo la marca: esta zona es un <Link> y un botón de copiar
+                        adentro sería HTML inválido. El enlace se copia en el hero
+                        o entrando a la consulta. */}
+                    {a.isOnline && <span className="ml-1.5 align-middle inline-flex"><OnlineBadge compact /></span>}
+                  </div>
+                  {/* Solo lectura: quien corrige la cobertura es recepción o el
+                      asistente desde Day Admission. El doctor la resuelve en el
+                      hero o entrando a la consulta. */}
+                  <span className="hidden sm:inline">
+                    <CoverageChip caseId={a.caseId} coverage={a.coverage} editable={false} />
                   </span>
-                  <span className="ml-2 font-mono text-[10px] text-cyan hidden sm:inline">{a.caseCode ?? ''}</span>
-                  {/* Solo la marca: la fila entera es un <Link> y un botón de
-                      copiar adentro sería HTML inválido. El enlace se copia en
-                      el hero o entrando a la consulta. */}
-                  {a.isOnline && <span className="ml-1.5 align-middle inline-flex"><OnlineBadge compact /></span>}
-                </div>
-                {/* Solo lectura: la fila entera es un link y quien corrige la
-                    cobertura es recepción o el asistente desde Day Admission.
-                    El doctor la resuelve en el hero o entrando a la consulta. */}
-                <span className="hidden sm:inline">
-                  <CoverageChip caseId={a.caseId} coverage={a.coverage} editable={false} />
-                </span>
-                {statusPill(a)}
+                  {statusPill(a)}
+                </Link>
+                {/* Mismo juego que la fila del mostrador, y por el mismo motivo:
+                    si no hay asistente, el provider tiene que poder resolver la
+                    cita igual. Solo HOY y solo antes de que el paciente llegue —
+                    en un día pasado esto es historia, no una cola de trabajo. */}
+                {isToday && !arrived(a) && (
+                  <div className="shrink-0 flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void handleCheckIn(a)}
+                      disabled={checkingIn === a.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 transition-colors disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      {ta('checkIn')}
+                    </button>
+                    <OutcomeButtons appt={a} compact onPick={(x, tipo) => setDesenlaceTarget({ appt: x, tipo })} />
+                  </div>
+                )}
                 <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet-text shrink-0 transition-colors" />
-              </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -421,6 +643,48 @@ export function MyDayClient({
           {t('goToCalendar')} →
         </Link>
       </div>
+
+      {/* Confirm de por medio: los tres desenlaces pesan en las métricas del
+          doctor y los botones quedan al lado de "Check-in". El texto NO es el
+          mismo para los tres — la diferencia entre cobrar y no cobrar tiene que
+          estar dicha en el momento de decidir, no después. Son las mismas frases
+          que lee el mostrador. */}
+      <ConfirmDialog
+        open={!!desenlaceTarget}
+        variant="warning"
+        title={desenlaceTarget ? ta(`desenlaceTitle_${desenlaceTarget.tipo}` as 'desenlaceTitle_noShow') : ''}
+        description={desenlaceTarget
+          ? ta(`desenlaceBody_${desenlaceTarget.tipo}` as 'desenlaceBody_noShow',
+              { name: `${desenlaceTarget.appt.patientFirstName} ${desenlaceTarget.appt.patientLastName}` })
+          : ''}
+        confirmLabel={sellando ? ta('desenlaceSealing') : ta('desenlaceConfirm')}
+        cancelLabel={ta('desenlaceCancel')}
+        onConfirm={() => { void confirmDesenlace(); }}
+        onCancel={() => setDesenlaceTarget(null)}
+      />
+
+      {/* El picker de servicios, ahí mismo. Es el MISMO que usa el tab de
+          Servicios de la consulta y la fila del mostrador. La cobertura va la
+          real de la cita —no `UNSET`— porque acá sí la tenemos: decide qué
+          catálogo abre primero. */}
+      {cargoTarget && (
+        <ChargePickerDialog
+          coverage={cargoTarget.coverage}
+          /* El picker indexa por `item.key`, que para el circuito de seguro es
+             `s<refId>`. Con la clave mal armada el ítem ya cargado no se marcaría
+             y se agregaría dos veces. No se listan los de efectivo: a un no-show
+             todavía no se le cobró nada. */
+          added={new Map(cargosActuales.map(c => [`s${c.id}`, 1]))}
+          onClose={() => { setCargoTarget(null); setCargoError(null); }}
+          onAdd={onAgregarCargo}
+        />
+      )}
+      {cargoError && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[60] flex items-start gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl max-w-[min(90vw,32rem)]">
+          <AlertTriangle className="w-4 h-4 text-rose shrink-0 mt-0.5" />
+          <span className="text-rose text-sm font-medium">{cargoError}</span>
+        </div>
+      )}
     </div>
   );
 }

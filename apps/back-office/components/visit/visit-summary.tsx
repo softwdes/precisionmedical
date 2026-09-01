@@ -125,6 +125,21 @@ interface Props {
    * cuando el doctor se olvida, como funcionó siempre (Erick, 25-ago-2026).
    */
   isOnline?: boolean;
+  /**
+   * La llegada de este paciente la marcó el PROPIO provider desde su portal, no
+   * el mostrador.
+   *
+   * Es la mejor señal disponible de "hoy estoy solo": si no hubo nadie para
+   * recibir al paciente, tampoco va a haber nadie para cerrarle la visita. Sin
+   * esto la tarjeta de "terminé" le decía "se lo entrego al asistente" a alguien
+   * que no tiene a quién entregárselo, y la cita quedaba abierta para siempre —
+   * el mismo agujero que se cerró para las online (`d2824599`), en el otro
+   * extremo del día.
+   *
+   * Sale del audit log del check-in, no de una columna nueva: ver
+   * `llegadaMarcadaPorElProvider` en lib/appointment-scope.
+   */
+  llegadaMarcadaPorElProvider?: boolean;
   /** Salta al tab que resuelve lo que falta. `braces`/`rx` solo existen en las
    *  pantallas que los tienen; el caller ignora los que no aplican. */
   onFix: (tab: 'notes' | 'labs' | 'services' | 'braces' | 'rx') => void;
@@ -234,7 +249,7 @@ function Card({
 export function VisitSummary({
   appointmentId, note, triage, hasTriage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
-  balanceDue, onCollect, isOnline = false,
+  balanceDue, onCollect, isOnline = false, llegadaMarcadaPorElProvider = false,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** Etiquetas de cargos, compartidas con el tab y el picker. */
@@ -554,14 +569,17 @@ export function VisitSummary({
               {t('sumDoneAt', { time: fmtTime(doneAt) })} · {
                 isCompleted ? t('sumApptClosedHint')
                 : isOnline  ? t('sumDoneOnlineHint')
+                : llegadaMarcadaPorElProvider ? t('sumDoneSoloHint')
                 : t('sumDoneHandoff')
               }
             </div>
           </div>
-          {/* Cerrar la cita, SOLO en online y solo si no está cerrada ya. El
-              asistente conserva su camino en Day Admission para cuando el doctor
-              se olvida. */}
-          {isOnline && !isCompleted && (
+          {/* Cerrar la cita cuando no hay a quién entregársela: por video (el
+              paciente colgó) o cuando el propio provider marcó la llegada porque
+              hoy no hay mostrador. El asistente conserva su camino en Day
+              Admission para cuando el doctor se olvida, y el endpoint es
+              idempotente, así que si los dos la cierran no se audita dos veces. */}
+          {(isOnline || llegadaMarcadaPorElProvider) && !isCompleted && (
             <Button onClick={() => void handleCheckout()} disabled={saving} className="h-9 gap-1.5 shrink-0">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
               {t('sumApptCheckout')}

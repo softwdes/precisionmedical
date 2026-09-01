@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { nombreProviderO } from '@/lib/provider-name';
+import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
 export async function POST(
   req: NextRequest,
@@ -16,6 +17,11 @@ export async function POST(
 ): Promise<NextResponse> {
   const { id } = await ctx.params;
   const actor  = await resolveActor(req.headers);
+
+  // Un doctor solo pasa a sala SUS pacientes.
+  if (!(await puedeEscribirLaCita(id))) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  }
 
   const appt = await db.appointment.findUnique({
     where:  { id },

@@ -15,6 +15,7 @@ import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
+import { llegadaMarcadaPorElProvider } from '@/lib/appointment-scope';
 import { ConsultationClient } from './consultation-client';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,7 +35,7 @@ export default async function DoctorConsultationPage({
 
   // Las tres queries en paralelo — antes iban en cadena y cada round-trip a la
   // base cuesta ~150 ms.
-  const [a, tplRows, doneRows] = await Promise.all([
+  const [a, tplRows, doneRows, llegadaPropia] = await Promise.all([
     db.appointment.findFirst({
     where: { id: appointmentId, providerId: provider.id },
     select: {
@@ -89,6 +90,10 @@ export default async function DoctorConsultationPage({
     db.$queryRaw<Array<{ doctorDoneAt: Date | null }>>`
       SELECT "doctorDoneAt" FROM appointments WHERE id = ${appointmentId}
     `,
+    // ¿La llegada la marcó el propio provider? De eso depende que el Resumen le
+    // ofrezca el Checkout: si no hubo nadie en el mostrador para recibir al
+    // paciente, tampoco lo va a haber para cerrarle la visita.
+    llegadaMarcadaPorElProvider(appointmentId),
   ]);
 
   if (!a) notFound();
@@ -234,6 +239,7 @@ export default async function DoctorConsultationPage({
       templates={templates}
       userId={provider.userId}
       patientContext={patientContext}
+      llegadaPropia={llegadaPropia}
     />
   );
 }

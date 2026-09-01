@@ -134,13 +134,18 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 }
 
 export function ConsultationClient({
-  appointment: a, note, templates, userId, patientContext,
+  appointment: a, note, templates, userId, patientContext, llegadaPropia = false,
 }: {
   appointment: ConsultationAppointment;
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
   patientContext: PatientContext;
+  /**
+   * La llegada la marcó el propio provider (no el mostrador). Habilita el
+   * Checkout en el Resumen — ver la prop homónima de `VisitSummary`.
+   */
+  llegadaPropia?: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** El vocabulario del triaje vive en `phoenix.admission` — una sola copia. */
@@ -152,6 +157,24 @@ export function ConsultationClient({
    * firmaba y había que reabrir la lista a mano, una vez por nota.
    */
   const desdeNotas = useSearchParams().get('desde') === 'notas';
+
+  /** Marcando la llegada desde el nodo 1 — ver el bloque que lo usa. */
+  const [marcando, setMarcando] = React.useState(false);
+  const marcarLlegada = async (): Promise<void> => {
+    setMarcando(true);
+    try {
+      await fetch(`/api/admin/admission/${a.id}/check-in`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // `source` deja asentado en el audit log que la llegada la marcó el
+        // provider: de eso depende que el Resumen le ofrezca también el Checkout.
+        body:    JSON.stringify({ source: 'doctor-portal' }),
+      });
+      router.refresh();
+    } finally {
+      setMarcando(false);
+    }
+  };
 
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
@@ -311,8 +334,35 @@ export function ConsultationClient({
               value={a.attendanceSignedAt ? timeLabel(a.attendanceSignedAt) : null}
             />
           </div>
+          {/**
+            * Sin llegada marcada, el doctor la marca él.
+            *
+            * Espejo exacto del nodo 2: acá había un cartel ámbar que decía "el
+            * paciente aún no hace check-in en recepción" y no ofrecía nada, con
+            * el paciente ya sentado enfrente. En varias clínicas no hay
+            * recepcionista ni asistente y el provider hace todo (Erick,
+            * 31-ago-2026), así que el cartel señalaba a alguien que no existe.
+            *
+            * Es el MISMO endpoint del mostrador: lo que marque el doctor es la
+            * misma llegada que ve el asistente en Day Admission, no una copia.
+            */}
           {!a.checkedInAt && (
-            <div className="text-[11px] text-amber">{t('guardrailCheckin')}</div>
+            <div className="space-y-2.5">
+              <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber flex items-start gap-1.5">
+                <ClipboardList className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <span>{ta('checkinDoctorCapture')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void marcarLlegada()}
+                disabled={marcando}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-bold disabled:opacity-70"
+                style={{ background: 'linear-gradient(135deg, #10B981, #14b8a6)', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
+              >
+                <Check className="w-4 h-4" />
+                {marcando ? ta('checkinMarking') : ta('checkIn')}
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -542,6 +592,7 @@ export function ConsultationClient({
       {view === 4 && (
         <VisitSummary
           isOnline={a.isOnline}
+          llegadaMarcadaPorElProvider={llegadaPropia}
           // Solo lo mira el cierre de una visita ONLINE: sin el estado no se
           // puede distinguir "terminé" de "cita cerrada".
           appointmentStatus={a.status}

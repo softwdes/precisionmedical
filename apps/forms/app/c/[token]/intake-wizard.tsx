@@ -24,6 +24,7 @@ import * as React from 'react';
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
+import { TEL_CLINICA } from '@/lib/clinica';
 // Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
 // component. Mismo criterio que `@precision-medical/database/age`.
 import { normalizeRelation } from '@precision-medical/database/relations';
@@ -166,18 +167,29 @@ const STRINGS = {
     accidentLabel: 'Accidente',
     apptLabel: 'Tu próxima cita',
     apptWith: 'con',
-    todayStepsLabel: 'Lo que completarás hoy',
-    todaySteps: [
-      { icon: '👤', label: 'Datos personales' },
-      { icon: '📋', label: 'Información adicional' },
-      { icon: '👤', label: 'Persona responsable' },
-      { icon: '🚗', label: 'Detalles del accidente' },
-      { icon: '🏥', label: 'Información de tu seguro' },
-      { icon: '💊', label: 'Historial médico' },
-      { icon: '📸', label: 'Foto de identificación' },
-      { icon: '📋', label: 'Consentimientos médicos' },
-      { icon: '✍️', label: 'Firma del acuerdo de lien' },
-    ],
+    // Nombre de cada paso, POR NÚMERO DE PASO del wizard.
+    //
+    // Antes era un arreglo plano que se pintaba una vez en la portada y se
+    // numeraba desde 1 — corrido respecto de la barra de arriba, que contaba la
+    // portada como paso 1. Indexado por el número real no se puede desalinear:
+    // el nombre sale del mismo número que usa la navegación.
+    //
+    // El paso 5 dice "Motivo de la visita" y ya no "Detalles del accidente":
+    // desde que el tipo de visita se pregunta al principio, ese paso es la
+    // confirmación del motivo y lo ve también una consulta general.
+    pasoNombre: {
+      2:  'Datos personales',
+      3:  'Información adicional',
+      4:  'Persona responsable',
+      5:  'Motivo de la visita',
+      6:  'Información de tu seguro',
+      7:  'Historial médico',
+      8:  'Foto de identificación',
+      9:  'Consentimientos médicos',
+      10: 'Firma del acuerdo',
+    } as Record<number, string>,
+    /** El último paso de un caso sin lien no es una firma, es un envío. */
+    pasoFinalSinLien: 'Enviar registro',
     startBtn: 'Comenzar →',
     secureNote: '🔒 Tu información es confidencial y segura',
     sifoHint1: '¡Hola! Soy Cifo ✨ Te guío en cada paso. Solo toma ~5 minutos.',
@@ -284,7 +296,7 @@ const STRINGS = {
     guardianSection: 'Información de la persona responsable',
     guardianSectionSub: 'Complete la información de la persona responsable del menor.',
     guardianFromClinicNote: 'Datos registrados por la clínica',
-    guardianReadOnlySub: 'Estos datos ya fueron registrados por la clínica. Si hay algún error, comunicate al (801) 375-2207.',
+    guardianReadOnlySub: (tel: string) => `Estos datos ya fueron registrados por la clínica. Si hay algún error, comunicate al ${tel}.`,
     guardianFirstName: 'Nombre',
     guardianLastName: 'Apellido',
     guardianEmail: 'Email',
@@ -485,18 +497,19 @@ const STRINGS = {
     accidentLabel: 'Accident',
     apptLabel: 'Your next appointment',
     apptWith: 'with',
-    todayStepsLabel: 'What you will complete today',
-    todaySteps: [
-      { icon: '👤', label: 'Personal information' },
-      { icon: '📋', label: 'Additional information' },
-      { icon: '👤', label: 'Responsible person' },
-      { icon: '🚗', label: 'Accident details' },
-      { icon: '🏥', label: 'Insurance information' },
-      { icon: '💊', label: 'Medical history' },
-      { icon: '📸', label: 'Photo ID' },
-      { icon: '📋', label: 'Medical consents' },
-      { icon: '✍️', label: 'Medical lien agreement' },
-    ],
+    // Ver el comentario de `pasoNombre` en el diccionario ES.
+    pasoNombre: {
+      2:  'Personal information',
+      3:  'Additional information',
+      4:  'Responsible person',
+      5:  'Reason for visit',
+      6:  'Insurance information',
+      7:  'Medical history',
+      8:  'Photo ID',
+      9:  'Medical consents',
+      10: 'Agreement signature',
+    } as Record<number, string>,
+    pasoFinalSinLien: 'Submit registration',
     startBtn: 'Get started →',
     secureNote: '🔒 Your information is confidential and secure',
     sifoHint1: "Hi! I'm Cifo ✨ I'll guide you through each step. It only takes ~5 minutes.",
@@ -594,7 +607,7 @@ const STRINGS = {
     guardianSection: 'Responsible person information',
     guardianSectionSub: 'Complete the information for the person responsible for the minor.',
     guardianFromClinicNote: 'Information on file from the clinic',
-    guardianReadOnlySub: 'This information was already recorded by the clinic. If anything is incorrect, please call (801) 375-2207.',
+    guardianReadOnlySub: (tel: string) => `This information was already recorded by the clinic. If anything is incorrect, please call ${tel}.`,
     guardianFirstName: 'First name',
     guardianLastName: 'Last name',
     guardianEmail: 'Email',
@@ -1263,6 +1276,43 @@ export function IntakeWizard({
     }
   }, [step]);
 
+  // ── Los pasos que ESTE paciente recorre ────────────────────────────────────
+
+  /**
+   * La lista de pasos del formulario, en orden, para este paciente.
+   *
+   * Es la única fuente de verdad: de acá salen la navegación, el contador y el
+   * indicador de progreso. Antes esas tres cosas se calculaban por separado y no
+   * coincidían:
+   *
+   *  · La navegación tenía el salto del apoderado escrito a mano en dos lugares
+   *    (`goNext` hacia adelante y `goBack` hacia atrás), que había que mantener
+   *    en espejo.
+   *  · El contador decía `10` fijo, para todos. Un adulto con consulta general
+   *    recorre 8 pasos: el contador saltaba del 3 al 5 y terminaba en 8 diciendo
+   *    "de 10". Con la barra de 4px nadie lo notaba; con nodos visibles se lee
+   *    como que el formulario está roto.
+   *  · La lista de la bienvenida recortaba solo el último ítem, así que le
+   *    prometía "Detalles del accidente" a un caso general y "Persona
+   *    responsable" a un adulto que se lo iba a saltear.
+   *
+   * La portada (paso 1) NO está en la lista: es la tapa, no un paso. Por eso el
+   * contador dice "3 de 8" y no "4 de 9" — el paciente no completa nada ahí.
+   *
+   * El paso 5 sí está para todos, incluso en un caso general: ahí quedó la
+   * confirmación del motivo de la visita, que es el único lugar donde se puede
+   * corregir.
+   */
+  const listaDePasos = (esMenor: boolean): Step[] =>
+    [2, 3, ...(esMenor ? [4] : []), 5, 6, 7, 8, 9, 10] as Step[];
+
+  /**
+   * Para render. Dentro de `goNext` se recalcula con `isMinorRef.current`, que
+   * está fresco después del `await` del guardado — el valor del closure puede
+   * ser el de antes de que el paciente escribiera su fecha de nacimiento.
+   */
+  const pasosVisibles = listaDePasos(isMinorPatient);
+
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
     type:         (accident.type === 'MVA' ? 'MVA' : (accident.type === 'GM' || accident.type === 'GENERAL') ? 'GM' : 'MVA') as CaseType,
@@ -1832,26 +1882,28 @@ export function IntakeWizard({
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
-    // Step 3 → saltar step 4 (tutor) si el paciente es mayor de edad
-    // Leer isMinorRef.current (no closure) — siempre fresco tras el await de saveStepData
-    if (fromStep === 3 && !isMinorRef.current) {
-      setStep(5 as Step);
-      window.scrollTo(0, 0);
-      return;
-    }
-    setStep(s => (s + 1) as Step);
+    // El siguiente paso sale de la lista, no de `step + 1`: así el salto del
+    // apoderado (y cualquier paso que se agregue después) se decide en UN solo
+    // lugar y el contador nunca puede estar en desacuerdo con la navegación.
+    // `isMinorRef.current` y no el closure: está fresco después del await.
+    const pasos = listaDePasos(isMinorRef.current);
+    const i = pasos.indexOf(fromStep as Step);
+    const siguiente = i >= 0 ? pasos[i + 1] : undefined;
+
+    // Sin siguiente = último paso. No debería llegar acá (el último tiene su
+    // propio botón de envío), pero no se avanza a un paso que no existe.
+    if (!siguiente) return;
+
+    setStep(siguiente);
     window.scrollTo(0, 0);
   };
 
   const goBack = () => {
     setSaveError('');
-    // Step 5 → saltar step 4 (tutor) hacia atrás si el paciente es mayor de edad
-    if (step === 5 && !isMinorRef.current) {
-      setStep(3 as Step);
-      window.scrollTo(0, 0);
-      return;
-    }
-    setStep(s => (s - 1) as Step);
+    const pasos = listaDePasos(isMinorRef.current);
+    const i = pasos.indexOf(step);
+    // Antes del primer paso está la portada (1), que no es un paso.
+    setStep(i > 0 ? pasos[i - 1]! : (1 as Step));
     window.scrollTo(0, 0);
   };
 
@@ -1935,8 +1987,11 @@ export function IntakeWizard({
   // El servidor vuelve a validar esto con el caseType de la DB — aca es solo
   // para decidir que se muestra.
   const requiresLien  = acc.type === 'MVA';
-  const totalSteps    = 10;
-  const progressSteps = Math.min(step, totalSteps);
+  // Cuántos pasos tiene ESTE formulario y en cuál va. `progressSteps` es 0 en la
+  // portada y en las dos pantallas previas (idioma, tipo de visita): todavía no
+  // completó nada, y decir "1 de 8" ahí era contar una pantalla que no se llena.
+  const totalSteps    = pasosVisibles.length;
+  const progressSteps = pasosVisibles.indexOf(step) + 1;
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
   const deviceInfo    = typeof window !== 'undefined'
     ? (window.innerWidth < 768 ? (lang === 'es' ? 'Móvil' : 'Mobile') : 'Desktop')
@@ -1956,21 +2011,17 @@ export function IntakeWizard({
             fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: CYAN,
           }}>PM</div>
 
-          {/* Progress segments */}
-          <div style={{ display: 'flex', gap: 3, flex: 1 }}>
-            {Array.from({ length: totalSteps }, (_, i) => i + 1).map(s => (
-              <div key={s} style={{
-                height: 4, flex: 1, borderRadius: 2,
-                background: s < progressSteps ? EMERALD : s === progressSteps ? CYAN : 'rgba(255,255,255,0.12)',
-                transition: 'background 0.3s',
-              }} />
-            ))}
-          </div>
+          {/* Los segmentos de progreso se fueron de acá a su propia fila, abajo:
+              eran de 4px de alto y no comunicaban nada. Este hueco mantiene los
+              controles de la derecha pegados a la derecha. */}
+          <div style={{ flex: 1 }} />
 
-          {/* Step counter */}
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', flexShrink: 0 }}>
-            {progressSteps}/{totalSteps}
-          </span>
+          {/* Step counter — oculto mientras no empezó (evita un "0/8") */}
+          {progressSteps > 0 && (
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', flexShrink: 0 }}>
+              {progressSteps}/{totalSteps}
+            </span>
+          )}
 
           {/* Auto-save indicator */}
           {savedLabel && (
@@ -2018,6 +2069,82 @@ export function IntakeWizard({
             }}
           >✕ {lang === 'es' ? 'Salir' : 'Exit'}</button>
         </div>
+
+        {/* ── Nodos de progreso ────────────────────────────────────────────────
+            Fila propia, y no al lado del logo, por una razón de espacio que no
+            tiene vuelta: nueve círculos de 26px son 234px, y en un teléfono de
+            375 no queda lugar para el logo, el idioma y el botón de salir. La
+            alternativa era achicarlos a 18px, que es exactamente lo contrario de
+            lo que se pidió — esto reemplaza a unos segmentos de 4px que nadie
+            veía.
+
+            Aparece desde la portada: ahí los nueve círculos vacíos dicen cuántos
+            pasos son, que era lo único que hacía bien la lista que se quitó.
+
+            Los completados se pueden tocar para volver. Hacia adelante no: ese
+            camino pasa por la validación y el guardado de cada paso. Si parecen
+            botones, algo tienen que hacer — pero solo lo que es seguro. */}
+        {langChosen && caseTypeChosen && (
+          <div style={{
+            maxWidth: 480, margin: '10px auto 0',
+            display: 'flex', alignItems: 'center',
+          }}>
+            {pasosVisibles.map((paso, i) => {
+              const numero    = i + 1;
+              const completado = numero < progressSteps;
+              const actual     = numero === progressSteps;
+              const lado       = actual ? 30 : 24;
+
+              return (
+                <React.Fragment key={paso}>
+                  <button
+                    type="button"
+                    disabled={!completado}
+                    onClick={() => { setStep(paso); window.scrollTo(0, 0); }}
+                    title={t.pasoNombre[paso] ?? ''}
+                    aria-label={`${lang === 'es' ? 'Paso' : 'Step'} ${numero}: ${t.pasoNombre[paso] ?? ''}`}
+                    aria-current={actual ? 'step' : undefined}
+                    style={{
+                      width: lado, height: lado, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'inherit', padding: 0,
+                      fontSize: actual ? 13 : 11,
+                      fontWeight: actual ? 800 : 600,
+                      cursor: completado ? 'pointer' : 'default',
+                      transition: 'all 0.2s',
+                      ...(completado ? {
+                        background: 'rgba(16,185,129,0.18)',
+                        border: `2px solid ${EMERALD}`,
+                        color: EMERALD,
+                      } : actual ? {
+                        background: CYAN,
+                        border: `2px solid ${CYAN}`,
+                        color: '#04121f',
+                        boxShadow: '0 0 0 4px rgba(6,182,212,0.20)',
+                      } : {
+                        background: 'transparent',
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        color: 'rgba(255,255,255,0.35)',
+                      }),
+                    }}
+                  >
+                    {completado ? '✓' : numero}
+                  </button>
+
+                  {/* Conector — se pinta hasta donde llegó el paciente. Es lo que
+                      hace que la fila se lea como un camino y no como puntitos. */}
+                  {i < pasosVisibles.length - 1 && (
+                    <div style={{
+                      flex: 1, height: 2, minWidth: 4,
+                      background: completado ? EMERALD : 'rgba(255,255,255,0.12)',
+                      transition: 'background 0.3s',
+                    }} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={S.container}>
@@ -2136,7 +2263,12 @@ export function IntakeWizard({
                     padding: '20px 28px', borderRadius: 16, cursor: 'pointer',
                     background: acc.type === key ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.04)',
                     border: `2px solid ${acc.type === key ? 'rgba(6,182,212,0.50)' : 'rgba(255,255,255,0.10)'}`,
-                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 190, maxWidth: 240,
+                    // 210 y no 240: el contenedor del wizard mide 480, así que
+                    // dos tarjetas de 240 + el espacio no entraban y se apilaban
+                    // aun habiendo lugar. Con 210 quedan lado a lado en pantalla
+                    // grande, y en un teléfono se apilan solas — que ahí es lo
+                    // que corresponde.
+                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 170, maxWidth: 210,
                   }}
                 >
                   <span style={{ fontSize: 20, fontWeight: 700, color: acc.type === key ? CYAN : 'rgba(255,255,255,0.85)' }}>
@@ -2215,29 +2347,16 @@ export function IntakeWizard({
               )}
             </div>
 
-            {/* Steps checklist */}
-            <div style={{ ...S.card, marginBottom: 24 }}>
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)', marginBottom: 14 }}>
-                {t.todayStepsLabel}
-              </div>
-              {/* El lien es el ultimo item — no se le promete a un caso GM */}
-              {(requiresLien ? t.todaySteps : t.todaySteps.slice(0, -1)).map((item, i, arr) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-                  borderBottom: i < arr.length - 1 ? `1px solid ${CARD_BORDER}` : 'none',
-                }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                    background: 'rgba(6,182,212,0.10)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-                  }}>{item.icon}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
-                    {lang === 'es' ? `Paso ${i + 1} · ` : `Step ${i + 1} · `}{item.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-
+            {/* Acá vivía "Lo que completarás hoy": diez filas con los pasos.
+                Se fue por pedido de Erick, y con razón —solo se leía una vez y
+                costaba una pantalla entera de scroll— pero sobre todo porque
+                MENTÍA: recortaba únicamente el último ítem, así que le prometía
+                "Detalles del accidente" a una consulta general y "Persona
+                responsable" a un adulto que se lo iba a saltear. Y numeraba
+                desde 1 mientras la barra de arriba contaba la portada como paso
+                1, o sea dos numeraciones corridas por uno en la misma página.
+                Lo que hacía bien —decir cuántos pasos son— ahora lo dice el
+                contador, que sí sabe cuántos son para este paciente. */}
             <SifoHint hint={t.sifoHint1} />
             <button type="button" style={{ ...S.btnPrimary, marginTop: 20 }}
               onClick={() => { setStep(2); window.scrollTo(0, 0); }}>
@@ -2627,7 +2746,7 @@ export function IntakeWizard({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <FormSection
                 title={t.guardianSection}
-                sub={guardianFromClinic ? t.guardianReadOnlySub : t.guardianSectionSub}
+                sub={guardianFromClinic ? t.guardianReadOnlySub(TEL_CLINICA) : t.guardianSectionSub}
                 {...(guardianFromClinic ? {
                   accent: 'rgba(16,185,129,0.06)',
                   accentBorder: 'rgba(16,185,129,0.20)',

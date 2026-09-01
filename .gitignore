@@ -57,3 +57,9 @@ apps/web/public/swe-worker-*.js.map
 #   pnpm build --filter=@precision-medical/timeclock
 # then commit any changes to apps/timeclock/public/{sw,workbox-*,swe-worker-*}.js
 # Follow-up: migrate timeclock to @serwist/next (same as apps/web).
+.vercel
+.env*
+!.env.example
+
+# Config local de Claude Code — rutas y permisos de esta maquina, no del repo
+.claude/settings.local.json

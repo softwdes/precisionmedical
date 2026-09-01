@@ -994,8 +994,12 @@ export function VisitSummary({
               )}
             </div>
 
-            {/* Cobrar — solo del lado del asistente (el doctor no cobra, misma
-                regla que `hidePayments`).
+            {/* Cobrar — del asistente, y del provider que recibió él al
+                paciente: si no hubo nadie en el mostrador para recibirlo,
+                tampoco lo va a haber para cobrarle al salir (Erick, 1-sep-2026).
+                Es el mismo motivo por el que ese caso tiene Checkout. Con
+                asistente el reparto normal no se toca: la consulta no le pasa
+                `balanceDue` al doctor y el CTA ni se dibuja.
                 El monto es el SALDO de facturación, no una cuenta propia: antes
                 decía "efectivo + férulas" y mostraba $125 cuando había $367
                 pendientes, porque los CPT sin pagar también se le cobran al
@@ -1003,7 +1007,7 @@ export function VisitSummary({
                 Abre el modal REAL de "Pago del caso" — ahí se distribuye por
                 línea, se aplican descuentos y se pueden dejar líneas sin pagar.
                 El Resumen no es una segunda pantalla de cobro: es la puerta. */}
-            {isAssistant && balanceDue !== undefined && balanceDue > 0 && (
+            {(isAssistant || llegadaMarcadaPorElProvider) && balanceDue !== undefined && balanceDue > 0 && (
               <button
                 type="button"
                 onClick={() => (onCollect ? onCollect() : onFix('services'))}

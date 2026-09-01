@@ -211,11 +211,42 @@ export function ConsultationClient({
   // Va acá y NO en el `onSaved` del editor: con el autoguardado por debounce
   // (2,5 s) eso disparaba un `router.refresh()` cada dos teclas — un re-render
   // del server component entero mientras el doctor escribe.
-  React.useEffect(() => {
-    if (view === 4) router.refresh();
-  }, [view, router]);
+  /**
+   * Saldo de ESTA visita, solo cuando el provider recibió él al paciente.
+   *
+   * Cuando está solo hace el proceso entero, cobranza incluida (Erick,
+   * 1-sep-2026): no hay mostrador donde el paciente pague al salir. Esconderle el
+   * botón no evita que reciba el efectivo — evita que quede registrado, que es
+   * peor. El endpoint de pago ya audita al actor (`REGISTER_BILLING_PAYMENT`),
+   * así que se puede revisar después cuáles cobró el provider sin tocar el
+   * camino del dinero.
+   *
+   * La fórmula es la MISMA que usa el asistente en Day Admission, y el `payer
+   * !== 'INSURANCE'` no es un detalle: los CPT se le cobran al seguro o al
+   * abogado meses después, y pedírselos al paciente sería cobrarle plata que no
+   * le toca (Erick 2026-08-08). Una segunda fórmula acá daría dos montos
+   * distintos para el mismo paciente según quién mire.
+   */
+  const [saldoVisita, setSaldoVisita] = React.useState<number | undefined>(undefined);
+  const cargarSaldo = React.useCallback(async (): Promise<void> => {
+    if (!llegadaPropia || !a.caseId) return;
+    try {
+      const res = await fetch(`/api/admin/cases/${a.caseId}/billing`);
+      const data = await res.json() as { billings?: Array<{ appointmentId: string | null; payer: string; balanceDue: number }> };
+      const total = (data.billings ?? [])
+        .filter((b) => b.appointmentId === a.id && b.payer !== 'INSURANCE')
+        .reduce((s, b) => s + b.balanceDue, 0);
+      setSaldoVisita(total || undefined);
+    } catch { /* sin saldo el Resumen simplemente no ofrece cobrar */ }
+  }, [llegadaPropia, a.caseId, a.id]);
 
-  // Nodos del flujo del doctor — 4 pasos (el cobro sigue siendo del asistente).
+  React.useEffect(() => {
+    if (view === 4) { router.refresh(); void cargarSaldo(); }
+  }, [view, router, cargarSaldo]);
+
+  // Nodos del flujo del doctor — 4 pasos. El cobro es del asistente, salvo
+  // cuando el provider recibió él al paciente: ahí no hay a quién entregárselo
+  // y cierra y cobra él (ver `saldoVisita`).
   // `short` es la etiqueta de mobile: los 4 pasos tienen que entrar en 375px
   // sin scroll horizontal (antes el riel medía 712px y el paso 4 quedaba fuera).
   const steps: Array<{ n: StepView; label: string; short: string; desc: string; done: boolean; current: boolean }> = [
@@ -581,13 +612,15 @@ export function ConsultationClient({
               <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
             </div>
           )}
-          {/* Servicios — mismo panel de Day Admission, SIN botón de pagos
-              (el cobro lo hace el asistente en su lado) */}
+          {/* Servicios — mismo panel de Day Admission. El botón de pagos sale
+              solo cuando el provider recibió él al paciente: ahí no hay
+              mostrador donde cobrar al salir. Con asistente sigue oculto, que es
+              el reparto normal. */}
           {tab === 'services' && (
             <AppointmentDetailPanel
               inline
               noBorder
-              hidePayments
+              hidePayments={!llegadaPropia}
               initialTab="services"
               appointment={a.servicesPanel}
               coverage={a.coverage}
@@ -607,6 +640,12 @@ export function ConsultationClient({
         <VisitSummary
           isOnline={a.isOnline}
           llegadaMarcadaPorElProvider={llegadaPropia}
+          // El monto sale de la facturación, que es la única autoridad. El botón
+          // no cobra acá: lleva al tab de Servicios, donde vive el modal con el
+          // detalle línea por línea. El Resumen es la puerta, no una segunda
+          // pantalla de cobro.
+          balanceDue={saldoVisita}
+          onCollect={() => { setTab('services'); setView(3); }}
           // Solo lo mira el cierre de una visita ONLINE: sin el estado no se
           // puede distinguir "terminé" de "cita cerrada".
           appointmentStatus={a.status}

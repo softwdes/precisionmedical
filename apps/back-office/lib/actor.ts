@@ -17,7 +17,7 @@
 
 import { cache } from 'react';
 import { db, actorFromHeaders, type ActorType, type UserRole } from '@precision-medical/database';
-import { fetchDirectoryUser } from '@precision-medical/auth/v2-apps';
+import { fetchDirectoryUser, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
 
 export interface ResolvedActor {
@@ -65,7 +65,23 @@ const KNOWN_ROLES: readonly UserRole[] = [
  */
 async function provisionFromDirectory(email: string) {
   const dir = await fetchDirectoryUser(email);
-  if (!dir || dir.status !== 'ACTIVE') return null;
+
+  /**
+   * El filtro era `dir.status !== 'ACTIVE'`, y estaba puesto al revés.
+   *
+   * Como NINGUNA app miraba `users.status` para entrar, una cuenta en
+   * `PENDING_VERIFICATION` trabajaba con normalidad pero acá se la rechazaba:
+   * nunca se le creaba la fila de Phoenix, y sin ella no hay audit log, ni
+   * `user_activity`, ni carril en la Carrera. **Podía trabajar y era
+   * invisible**, y lo que hiciera hasta que alguien la activara se perdía sin
+   * dejar rastro (caso Reagin y Rodolfo, 31-ago-2026).
+   *
+   * Ahora el candado vive donde corresponde —el login, ver `isBlockedStatus` en
+   * los middlewares— y acá se provisiona a cualquiera que el directorio no haya
+   * cortado. Si llegó hasta este punto es porque ya autenticó y pasó esa
+   * puerta; negarle identidad no lo frena, solo lo borra del registro.
+   */
+  if (!dir || isBlockedStatus(dir.status)) return null;
   if (!KNOWN_ROLES.includes(dir.role as UserRole)) return null;
 
   try {

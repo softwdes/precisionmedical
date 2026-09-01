@@ -30,3 +30,23 @@ export const ROLE_COOKIE_OPTIONS = {
   maxAge:   3600,
   sameSite: 'lax',
 } as const;
+
+/** `users.status` cacheado, y a quién pertenece (mismo guard que el rol). */
+export const STATUS_COOKIE       = 'pm_status';
+export const STATUS_EMAIL_COOKIE = 'pm_status_email';
+
+/**
+ * 60s, no 1h.
+ *
+ * El rol se cachea una hora porque cambiarlo es raro y no urgente. El ESTADO es
+ * la puerta: una cuenta que se suspende porque alguien se fue o pasó algo tiene
+ * que quedar afuera ya. Una hora de gracia convierte la suspensión en un
+ * trámite. El costo es una consulta por minuto y por usuario activo, y solo
+ * cuando la cookie venció — no por request.
+ */
+export const STATUS_COOKIE_OPTIONS = {
+  httpOnly: true,
+  path:     '/',
+  maxAge:   60,
+  sameSite: 'lax',
+} as const;

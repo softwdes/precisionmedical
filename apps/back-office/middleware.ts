@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
-import { fetchDbRole, fetchRoleClinicAccess, fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
+import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 
 /**
@@ -19,6 +19,7 @@ import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 const ROLE_COOKIE        = 'pm_role';
 const ROLE_EMAIL_COOKIE  = 'pm_role_email'; // a quién pertenece pm_role/pm_clinic/pm_mods
 const CLINIC_COOKIE      = 'pm_clinic';
+const STATUS_COOKIE      = 'pm_status'; // users.status cacheado junto al rol
 const MODULES_COOKIE     = 'pm_mods'; // JSON de pm_clinic_modules ('*' = sin restricción)
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
@@ -227,13 +228,36 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const cookieOwner = request.cookies.get(ROLE_EMAIL_COOKIE)?.value;
   const cookieFresh = !!user.email && cookieOwner === user.email;
 
-  let dbRole = cookieFresh ? request.cookies.get(ROLE_COOKIE)?.value : undefined;
+  let dbRole   = cookieFresh ? request.cookies.get(ROLE_COOKIE)?.value   : undefined;
+  let dbStatus = cookieFresh ? request.cookies.get(STATUS_COOKIE)?.value : undefined;
 
-  if (!dbRole && user.email) {
-    dbRole = await fetchDbRole(user.email);
+  if ((!dbRole || dbStatus === undefined) && user.email) {
+    // Rol y estado salen de la MISMA consulta: son la misma fila.
+    const acceso = await fetchDbUserAccess(user.email);
+    dbRole   = acceso.role;
+    dbStatus = acceso.status ?? '';
     const cookieOpts = { httpOnly: true, path: '/', maxAge: PERMS_CACHE_SECONDS, sameSite: 'lax' as const };
     response.cookies.set(ROLE_COOKIE, dbRole, cookieOpts);
+    response.cookies.set(STATUS_COOKIE, dbStatus, cookieOpts);
     response.cookies.set(ROLE_EMAIL_COOKIE, user.email, cookieOpts);
+  }
+
+  /**
+   * Puerta por ESTADO de la cuenta.
+   *
+   * Va acá, antes de cualquier check por rol o por módulo: una cuenta cortada no
+   * tiene que discutirse menú por menú. Hasta el 2026-08-31 el estado no se
+   * miraba en ninguna app y el único freno era el ban de Supabase Auth que pone
+   * `syncAuthStatus`; marcar a alguien INACTIVE por SQL no cerraba nada.
+   *
+   * `PENDING_VERIFICATION` NO bloquea: significa "todavía no puso su propia
+   * contraseña", que es el estado normal de quien recibió una clave temporal.
+   */
+  if (isBlockedStatus(dbStatus)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/no-access';
+    url.search = `?reason=${dbStatus!.toLowerCase()}`;
+    return NextResponse.redirect(url);
   }
 
   // ── Portal médico (/doctor) — scoping por rol y por host ───────────────────

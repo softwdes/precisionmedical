@@ -92,7 +92,7 @@ export async function fetchUserClinicModules(email: string): Promise<Record<stri
   try {
     const url =
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
-      `?select=clinicModules&email=eq.${encodeURIComponent(email)}&limit=1`;
+      `?select=clinicModules&email=ilike.${encodeURIComponent(email)}&limit=1`;
 
     const res = await fetch(url, {
       headers: {
@@ -110,6 +110,67 @@ export async function fetchUserClinicModules(email: string): Promise<Record<stri
 }
 
 /**
+ * Estados que CORTAN el acceso.
+ *
+ * `PENDING_VERIFICATION` NO está acá a propósito: significa "todavía no puso su
+ * propia contraseña", no "no debería entrar". Bloquearlo dejaría afuera a quien
+ * está trabajando con una contraseña temporal recién emitida, que es un flujo
+ * normal y no un problema de seguridad.
+ *
+ * Es el mismo conjunto que `ESTADOS_QUE_BLOQUEAN` de `users.ts`, que le pone
+ * `ban_duration` en Supabase Auth. Se repite acá porque este paquete es
+ * edge-safe y no puede importar de `packages/api`; si uno cambia, cambiar los
+ * dos.
+ */
+export const BLOCKING_STATUSES = new Set(['INACTIVE', 'SUSPENDED']);
+
+/**
+ * Type guard, no un booleano suelto: dentro del `if` TypeScript ya sabe que
+ * `status` es un string, así que el caller puede usarlo (para el `?reason=`)
+ * sin un `!` que apague el chequeo.
+ */
+export function isBlockedStatus(status: string | null | undefined): status is string {
+  return !!status && BLOCKING_STATUSES.has(status);
+}
+
+/**
+ * Rol Y estado del usuario en una sola consulta.
+ *
+ * Existe porque hasta el 2026-08-31 **ninguna de las apps miraba
+ * `users.status` para entrar**: el único freno era el ban de Supabase Auth que
+ * pone `syncAuthStatus`, así que una cuenta marcada INACTIVE por SQL —sin pasar
+ * por la pantalla de Usuarios— seguía entrando como si nada. El estado se veía
+ * en la lista, no gobernaba nada.
+ *
+ * `status` viene `null` cuando la consulta falla o el email no está en el
+ * directorio, y el caller NO debe bloquear en ese caso: un parpadeo de red no
+ * puede dejar a la clínica entera afuera. El corte es explícito —el directorio
+ * dijo INACTIVE/SUSPENDED— o no es.
+ */
+export async function fetchDbUserAccess(
+  email: string,
+): Promise<{ role: string; status: string | null }> {
+  try {
+    const url =
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
+      `?select=role,status&email=ilike.${encodeURIComponent(email)}&limit=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    });
+
+    if (!res.ok) return { role: 'EMPLOYEE', status: null };
+    const data = (await res.json()) as Array<{ role: string; status: string }>;
+    return { role: data[0]?.role ?? 'EMPLOYEE', status: data[0]?.status ?? null };
+  } catch {
+    return { role: 'EMPLOYEE', status: null };
+  }
+}
+
+/**
  * Fetch del role del usuario desde Supabase REST API.
  * Edge-safe — no usa el SDK de Supabase, solo fetch.
  * Cachear el resultado en cookie (1h) para evitar llamadas repetidas.
@@ -118,7 +179,7 @@ export async function fetchDbRole(email: string): Promise<string> {
   try {
     const url =
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
-      `?select=role&email=eq.${encodeURIComponent(email)}&limit=1`;
+      `?select=role&email=ilike.${encodeURIComponent(email)}&limit=1`;
 
     const res = await fetch(url, {
       headers: {
@@ -160,7 +221,7 @@ export async function fetchDirectoryUser(email: string): Promise<DirectoryUser |
   try {
     const url =
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
-      `?select=email,firstName,lastName,role,status&email=eq.${encodeURIComponent(email)}&limit=1`;
+      `?select=email,firstName,lastName,role,status&email=ilike.${encodeURIComponent(email)}&limit=1`;
 
     const res = await fetch(url, {
       headers: {

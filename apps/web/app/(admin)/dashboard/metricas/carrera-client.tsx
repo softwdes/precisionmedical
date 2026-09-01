@@ -15,9 +15,13 @@
  *   · por acciones/hora se premia trabajar concentrado, que es lo más cercano
  *     a productividad real con los datos que tenemos.
  *
- * Los DOCTORES quedan fuera a propósito: rankearlos por consultas o por
- * duración premia atender rápido, y eso es mala medicina. Su tab mide otras
- * cosas.
+ * Los DOCTORES corren acá igual que todos (decisión de Erick 2026-08-31: Devin
+ * quería verse con su uso). El comentario anterior decía que quedaban fuera,
+ * pero **el filtro nunca existió** — solo la fn SQL descarta LAWYER y
+ * AUDITOR_AI. Que quede dicho por qué no molesta: la vara es acciones por hora
+ * de USO DEL SISTEMA, no consultas ni duración, así que no premia atender
+ * rápido. Rankear la parte clínica sigue siendo mala idea y por eso vive en el
+ * tab Doctores, con sus propias medidas.
  *
  * Sin librería de gráficos: la carrera son barras con `transition` de CSS, que
  * además es la forma más legible de una comparación de una sola dimensión.

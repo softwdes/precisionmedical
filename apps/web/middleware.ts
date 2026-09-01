@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
+import { fetchDbUserAccess, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { dbRoleToRole } from './lib/permissions';
 import { TIMECLOCK_URL, DOCTOR_PORTAL_URL } from './lib/app-urls';
-import { ROLE_COOKIE, ROLE_EMAIL_COOKIE, ROLE_COOKIE_OPTIONS } from './lib/session-cookies';
+import {
+  ROLE_COOKIE, ROLE_EMAIL_COOKIE, ROLE_COOKIE_OPTIONS,
+  STATUS_COOKIE, STATUS_EMAIL_COOKIE, STATUS_COOKIE_OPTIONS,
+} from './lib/session-cookies';
 
 function detectLocaleFromHeader(request: NextRequest): 'es' | 'en' {
   const acceptLanguage = request.headers.get('accept-language') ?? '';
@@ -96,6 +100,39 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       dbRoleStr = await getDbRole(user.email);
       response.cookies.set(ROLE_COOKIE, dbRoleStr, ROLE_COOKIE_OPTIONS);
       response.cookies.set(ROLE_EMAIL_COOKIE, user.email, ROLE_COOKIE_OPTIONS);
+    }
+
+    /**
+     * Puerta por ESTADO de la cuenta.
+     *
+     * Hasta el 2026-08-31 ninguna app miraba `users.status`: el único freno era
+     * el ban de Supabase Auth que pone `syncAuthStatus`, así que marcar a
+     * alguien INACTIVE por SQL —sin pasar por la pantalla de Usuarios— no
+     * cerraba nada. La lista mostraba un estado que no gobernaba el acceso.
+     *
+     * Cookie propia y CORTA (60s) en vez de meterlo en la de rol, que dura una
+     * hora: una suspensión que tarda una hora en aplicar no es una suspensión.
+     * El costo es una consulta por minuto y por usuario activo, y solo cuando la
+     * cookie venció.
+     */
+    if (user.email) {
+      const statusOwner = request.cookies.get(STATUS_EMAIL_COOKIE)?.value;
+      let status = statusOwner === user.email
+        ? request.cookies.get(STATUS_COOKIE)?.value
+        : undefined;
+
+      if (!status) {
+        status = (await fetchDbUserAccess(user.email)).status ?? '';
+        response.cookies.set(STATUS_COOKIE, status, STATUS_COOKIE_OPTIONS);
+        response.cookies.set(STATUS_EMAIL_COOKIE, user.email, STATUS_COOKIE_OPTIONS);
+      }
+
+      if (isBlockedStatus(status)) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/no-access';
+        url.search = `?reason=${status.toLowerCase()}`;
+        return NextResponse.redirect(url);
+      }
     }
 
     const role = dbRoleToRole(dbRoleStr ?? 'EMPLOYEE');

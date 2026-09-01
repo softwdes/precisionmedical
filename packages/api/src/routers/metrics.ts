@@ -161,10 +161,22 @@ const HEADLINE_ACTIONS: Record<string, keyof EmployeeHeadline> = {
   REGISTER_BILLING_PAYMENT:   'payments',
 };
 
+/**
+ * Grupo de trabajo. Separa el ranking de quienes hacen cosas distintas: los
+ * devs prueban módulos enteros y marcan 47 acc/h porque ESE es su trabajo, no
+ * porque le ganen a recepción.
+ *
+ * Sale de `users.crew` del proyecto ADMIN (no de Phoenix): ahí vive el "quién
+ * es quién", y los 25 usuarios de Phoenix existen todos en Admin. `null` = sin
+ * asignar todavía.
+ */
+export type Crew = 'CLINIC' | 'DEV' | 'COMMS';
+
 export interface EmployeeActivityRow extends EmployeeHeadline {
   userId: string;
   name: string;
   role: string;
+  crew: Crew | null;
   /** Total exacto de minutos de uso: un minuto en dos módulos cuenta UNA vez. */
   activeMinutes: number;
   /** Minutos por módulo. Puede sumar más que el total — es un reparto, no una partición. */
@@ -318,6 +330,7 @@ export const metricsRouter = router({
           userId: u.userId,
           name: u.name ?? u.email,
           role: u.role,
+          crew: null,
           activeMinutes: 0, minutesByModule: {},
           callsMade: 0, callsAnswered: 0, callsDurationSeconds: 0,
           smsSent: 0, smsDelivered: 0,
@@ -325,6 +338,27 @@ export const metricsRouter = router({
           ...emptyHeadline(),
         });
       }
+
+      /**
+       * Grupo de trabajo, desde el proyecto ADMIN.
+       *
+       * Va por email y no por id porque son dos proyectos distintos: el id de
+       * `users` de Phoenix no existe en Admin. El mapa `userIdByEmail` que se
+       * armó arriba para las llamadas de Twilio sirve igual acá.
+       *
+       * Si la consulta falla, todos quedan sin grupo y el filtro muestra
+       * "Todos": la métrica no se cae por no poder etiquetar.
+       */
+      try {
+        const { data: crews } = await supabaseAdmin
+          .from('users')
+          .select('email, crew')
+          .not('crew', 'is', null);
+        for (const c of (crews ?? []) as Array<{ email: string; crew: string }>) {
+          const row = rows.get(userIdByEmail.get(c.email.toLowerCase()) ?? '');
+          if (row) row.crew = c.crew as Crew;
+        }
+      } catch { /* sin grupo: el filtro cae a "Todos" */ }
 
       for (const g of m.audit) {
         const row = rows.get(g.userId);

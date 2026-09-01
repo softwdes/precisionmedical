@@ -31,10 +31,35 @@ import { CarreraClient } from './carrera-client';
 
 // ─── Types (espejo de EmployeeActivityRow del router) ────────────────────────
 
+/** Grupo de trabajo — sale de `users.crew` del proyecto Admin. */
+type Crew = 'CLINIC' | 'DEV' | 'COMMS';
+
+/**
+ * Los grupos, en el orden en que se muestran.
+ *
+ * `all` primero porque el default es ver a todos: el filtro está para poder
+ * comparar peras con peras, no para esconder gente.
+ */
+const CREW_FILTERS: Array<[key: 'all' | Crew, label: string]> = [
+  ['all',    'Todos'],
+  ['CLINIC', 'Clínica'],
+  ['DEV',    'Devs'],
+  ['COMMS',  'Comunicaciones'],
+];
+
+/** Etiqueta corta para el chip de cada fila/carril. */
+export const CREW_LABEL: Record<Crew, string> = {
+  CLINIC: 'Clínica',
+  DEV:    'Devs',
+  COMMS:  'Comms',
+};
+
 interface EmployeeRow {
   userId: string;
   name: string;
   role: string;
+  /** Grupo de trabajo. `null` = todavía no se le asignó. */
+  crew: Crew | null;
   activeMinutes: number;
   callsMade: number;
   callsAnswered: number;
@@ -187,6 +212,7 @@ export function EmpleadosMetricasClient() {
   const [from, setFrom] = useState(() => denverDay());
   const [to, setTo] = useState(() => denverDay());
   const [onlyActive, setOnlyActive] = useState(true);
+  const [crew, setCrew] = useState<'all' | Crew>('all');
   const [detail, setDetail] = useState<EmployeeRow | null>(null);
   const [view, setView] = useState<'tabla' | 'carrera'>('tabla');
   const [live, setLive] = useState(false);
@@ -223,13 +249,24 @@ export function EmpleadosMetricasClient() {
   }, [detail]);
 
   const visible = useMemo(
-    () => (rows ?? []).filter((r) => !onlyActive || totalOf(r) > 0),
-    [rows, onlyActive],
+    () => (rows ?? []).filter((r) =>
+      (!onlyActive || totalOf(r) > 0) &&
+      (crew === 'all' || r.crew === crew)),
+    [rows, onlyActive, crew],
   );
 
+  /**
+   * Los KPI de portada salen de `visible`, no de `rows`.
+   *
+   * Antes sumaban a TODOS, así que "41 citas creadas" eran en su mayoría
+   * pruebas de los devs presentadas como producción de la clínica. Cambiarlo a
+   * `visible` no altera nada cuando el único filtro activo es "Solo con
+   * actividad" —quien no hizo nada suma cero—, pero hace que el filtro de grupo
+   * mande en el número de arriba, que es el que la gente lee.
+   */
   const totals = useMemo(() => {
     const base = { activeMinutes: 0, callsMade: 0, smsSent: 0, smsDelivered: 0, patientsCreated: 0, appointmentsCreated: 0, payments: 0, voids: 0 };
-    for (const r of rows ?? []) {
+    for (const r of visible) {
       base.activeMinutes += r.activeMinutes;
       base.callsMade += r.callsMade;
       base.smsSent += r.smsSent;
@@ -240,20 +277,20 @@ export function EmpleadosMetricasClient() {
       base.voids += r.voids;
     }
     return base;
-  }, [rows]);
+  }, [visible]);
 
   const exportCsv = useCallback(() => {
     if (!visible.length) return;
     // El CSV se arma de las MISMAS listas que la tabla: si mañana se agrega una
     // familia, sale en los dos lados sin que nadie tenga que acordarse.
     const header = [
-      'empleado', 'rol', 'minutos_activos', 'acciones',
+      'empleado', 'rol', 'grupo', 'minutos_activos', 'acciones',
       ...CALL_COLUMNS.map(c => c.key),
       ...FAMILY_COLUMNS.map(c => c.key),
       ...Object.keys(MODULE_LABELS).map(m => `min_${m}`),
     ].join(',');
     const lines = visible.map((r) => [
-      `"${r.name.replaceAll('"', '""')}"`, r.role, r.activeMinutes, r.totalActions,
+      `"${r.name.replaceAll('"', '""')}"`, r.role, r.crew ?? '', r.activeMinutes, r.totalActions,
       ...CALL_COLUMNS.map(c => r[c.key] ?? 0),
       ...FAMILY_COLUMNS.map(c => r.families?.[c.key] ?? 0),
       ...Object.keys(MODULE_LABELS).map(m => r.minutesByModule?.[m] ?? 0),
@@ -261,10 +298,12 @@ export function EmpleadosMetricasClient() {
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `metricas-empleados_${from}_${to}.csv`;
+    // El grupo va en el nombre: un CSV filtrado que se llama igual que el
+    // completo es el que después alguien presenta como si fuera todo.
+    a.download = `metricas-empleados${crew === 'all' ? '' : `-${crew.toLowerCase()}`}_${from}_${to}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }, [visible, from, to]);
+  }, [visible, from, to, crew]);
 
   return (
     <div className="p-6 space-y-6">
@@ -302,6 +341,28 @@ export function EmpleadosMetricasClient() {
           />
           Solo con actividad
         </label>
+
+        {/* Grupo de trabajo. Rankear devs contra recepción no compara nada:
+            el dev prueba módulos enteros y su tasa es alta por definición. */}
+        <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
+          {CREW_FILTERS.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setCrew(k)}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                crew === k ? 'bg-brand text-white' : 'text-text-3 hover:text-text-1',
+              )}
+            >
+              {label}
+              {k !== 'all' && (
+                <span className={cn('ml-1.5 tabular-nums', crew === k ? 'text-white/70' : 'text-text-3/70')}>
+                  {(rows ?? []).filter((r) => r.crew === k && (!onlyActive || totalOf(r) > 0)).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           {/* Tabla o carrera: la misma data contada de dos formas. */}
@@ -393,7 +454,10 @@ export function EmpleadosMetricasClient() {
                     <td className="px-4 py-3 sticky left-0 bg-surface z-10">
                       <div className="min-w-[130px] max-w-[190px]">
                         <div className="font-medium text-text-1 text-[12.5px]">{r.name}</div>
-                        <div className="text-[10px] text-text-3 uppercase tracking-wider">{ROLE_LABELS[r.role] ?? r.role}</div>
+                        <div className="text-[10px] text-text-3 uppercase tracking-wider">
+                          {ROLE_LABELS[r.role] ?? r.role}
+                          {r.crew && <span className="text-text-3/60"> · {CREW_LABEL[r.crew]}</span>}
+                        </div>
                       </div>
                     </td>
                     <td className="px-2 py-3 text-right">

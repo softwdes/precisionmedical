@@ -28,10 +28,26 @@ import { cn } from '@precision/ui';
 import { Crown, Medal, Radio, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { fmtMinutes } from './metricas-shared';
 
+export type Crew = 'CLINIC' | 'DEV' | 'COMMS';
+
+/**
+ * El chip de grupo se muestra SIEMPRE, también con el filtro en "Todos".
+ *
+ * Sin él, ver a un dev primero se lee como "le ganó a recepción", cuando en
+ * realidad corren carreras distintas: probar módulos enteros produce acciones
+ * a un ritmo que atender pacientes no puede igualar.
+ */
+const CREW_CHIP: Record<Crew, { label: string; className: string }> = {
+  CLINIC: { label: 'Clínica', className: 'bg-emerald/10 text-emerald' },
+  DEV:    { label: 'Dev',     className: 'bg-violet/10 text-violet'   },
+  COMMS:  { label: 'Comms',   className: 'bg-cyan/10 text-cyan'       },
+};
+
 export interface RacerRow {
   userId: string;
   name: string;
   role: string;
+  crew: Crew | null;
   activeMinutes: number;
   totalActions: number;
   families: Record<string, number>;
@@ -239,7 +255,7 @@ export function CarreraClient({
               </span>
 
               {/* Corredor */}
-              <div className="flex items-center gap-2 w-40 shrink-0 min-w-0">
+              <div className="flex items-center gap-2 w-48 shrink-0 min-w-0">
                 <div className={cn(
                   'w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0',
                   pos && pos <= 3 ? LANE_COLOR[pos - 1] : 'bg-brand',
@@ -247,6 +263,14 @@ export function CarreraClient({
                   {initials(r.name)}
                 </div>
                 <span className="text-[12px] text-text-1 truncate">{r.name}</span>
+                {r.crew && (
+                  <span className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hidden sm:inline',
+                    CREW_CHIP[r.crew].className,
+                  )}>
+                    {CREW_CHIP[r.crew].label}
+                  </span>
+                )}
                 {pos === 1 && <Crown className="w-3.5 h-3.5 text-amber shrink-0" />}
               </div>
 

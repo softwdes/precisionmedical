@@ -41,6 +41,13 @@ model User {
   role   UserRole
   status UserStatus @default(ACTIVE)
 
+  /// Grupo de trabajo: CLINIC | DEV | COMMS. Separa el ranking de Métricas —
+  /// un dev probando módulos marca un ritmo que atender pacientes no iguala.
+  /// El valor que MANDA es el del proyecto Admin; en Phoenix la columna existe
+  /// solo para que `db push` no la borre. `text` con CHECK y no enum: agregar
+  /// un grupo tiene que ser un ALTER, no una migración de tipo.
+  crew String?
+
   preferredLocale Locale @default(es)
   preferredTheme  Theme  @default(dark)
 

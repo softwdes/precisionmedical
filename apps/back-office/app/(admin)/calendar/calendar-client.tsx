@@ -1804,6 +1804,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           coverage={selectedAppt.case?.coverage}
           onOpenCase={openCase}
           suspended={caseModalOpen}
+          /* El QR de firma solo en el calendario de la clínica: es un acto del
+             MOSTRADOR. `lockedProviderId` solo lo manda el portal médico
+             (`/doctor/calendar`), y ahí el paciente ya está adentro. */
+          allowSignQr={!lockedProviderId}
           onClose={() => setSelectedAppt(null)}
           onRefresh={() => setRefreshKey(k => k + 1)}
         />

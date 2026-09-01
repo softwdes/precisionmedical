@@ -125,9 +125,9 @@ export async function POST(
   return NextResponse.json({
     ok:        true,
     signUrl:   `${baseFormsUrl()}/confirmar/${token}`,
+    // El modal calcula lo que falta a partir de esto, no de la ventana de 4 h:
+    // un token reusado se emitio antes y le queda menos.
     expiresAt: expiresAt.toISOString(),
-    // Para que el modal muestre "vence en X" sin recalcular la zona horaria.
-    validezHoras: VALIDEZ_HORAS,
-    reused:       vigente,
+    reused:    vigente,
   });
 }

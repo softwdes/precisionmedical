@@ -167,6 +167,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // penalidad, la cancelacion con aviso no. El panel decide con esto si
       // ofrece entrar al caso.
       cancelledSameDay: appt.cancelledSameDay,
+      // Si el paciente ya firmo la confirmacion de la cita. El panel lo muestra
+      // como sello y con esto decide si ofrece el QR: una cita firmada ya no
+      // necesita link, necesita el impreso.
+      attendanceSignedAt: appt.attendanceSignedAt?.toISOString() ?? null,
       notes:           appt.notes,
       isOnline:        appt.isOnline,
       meetingUrl:      appt.meetingUrl,

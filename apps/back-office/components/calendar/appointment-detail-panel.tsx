@@ -17,7 +17,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
-  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn,
+  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -30,6 +30,7 @@ import { AppointmentDialog, type EditAppointmentData } from './appointment-dialo
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
+import { AppointmentSignQrDialog } from './appointment-sign-qr-dialog';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { OnlineMeetingBox } from '@/components/visit/online-visit';
@@ -47,6 +48,11 @@ export interface CalendarAppointment {
   status: string;
   /** Solo relevante con status CANCELLED: si fue cancelacion del mismo dia. */
   cancelledSameDay?: boolean;
+  /**
+   * Cuando el paciente firmo la confirmacion de la cita (por el QR del
+   * mostrador o en la tablet). `null` = todavia no firmo.
+   */
+  attendanceSignedAt?: string | null;
   notes: string | null;
   visitNumber: number;
   isOnline?: boolean;
@@ -128,6 +134,19 @@ interface Props {
    */
   onOpenCase?: (caseId: string, appointmentId?: string) => void;
   /**
+   * Habilita el boton "QR de cita" — el codigo que el paciente escanea para
+   * revisar sus datos y firmar la confirmacion antes de pasar a triaje.
+   *
+   * Opt-in y apagado por default, igual que `onOpenCase`: este panel lo montan
+   * CUATRO pantallas (calendario, consulta del doctor, Day Admission y
+   * doctor-step-panel) y este es un acto del MOSTRADOR. En la consulta del
+   * doctor el paciente ya esta adentro: ahi el boton sobra.
+   *
+   * El sello Firmado/No firmado, en cambio, se muestra siempre: es informacion,
+   * y al doctor le sirve saber si el paciente firmo.
+   */
+  allowSignQr?: boolean;
+  /**
    * Repliega el modal sin desmontar el componente: se usa mientras el detalle
    * del caso está encima. Al volver, el panel reaparece con su estado intacto
    * (cita seleccionada, llamada en curso, cargos ya cargados). Es lo que evita
@@ -202,7 +221,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, hidePayments = false, coverage = COVERAGE_UNSET, onOpenCase, suspended = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, hidePayments = false, coverage = COVERAGE_UNSET, onOpenCase, suspended = false, allowSignQr = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -228,6 +247,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   } | null>(null);
   const [noShowOpen,    setNoShowOpen]    = useState(false);
   const [noShowing,     setNoShowing]     = useState(false);
+  const [qrOpen,        setQrOpen]        = useState(false);
   const [checkingIn,    setCheckingIn]    = useState(false);
   const [accionError,   setAccionError]   = useState<string | null>(null);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
@@ -625,6 +645,32 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const estaResuelta =
     appt.status === 'CANCELLED' || appt.status === 'NO_SHOW' || appt.status === 'COMPLETED';
 
+  /** El paciente ya firmo la confirmacion de esta cita. */
+  const firmada = !!appt.attendanceSignedAt;
+
+  /**
+   * El QR se ofrece mientras haya algo que firmar.
+   *
+   * Firmada → el boton DESAPARECE (no se deshabilita, como si hacen Cancelar y
+   * Confirmar). Es a proposito y es lo que hace el v2: no es una accion que "ya
+   * no corresponde" sino una que se completo, y en su lugar va el impreso. Un
+   * boton apagado ahi invitaria a preguntarse si hay que volver a firmar.
+   *
+   * Cancelada / no-show tampoco: no se confirma la asistencia a una cita que ya
+   * no va a ocurrir. La API rechaza los dos casos igual, esto solo evita el
+   * viaje.
+   */
+  const puedeOfrecerQr =
+    allowSignQr && !firmada && appt.status !== 'CANCELLED' && appt.status !== 'NO_SHOW';
+
+  /**
+   * Una cita cancelada o no-show que nunca se firmo: el sello se omite. Decir
+   * "No firmado" sobre algo que ya no se va a firmar es ruido, no informacion.
+   * Si SI se firmo y despues se cancelo, el sello queda — ahi el dato importa.
+   */
+  const estaResueltaSinFirma =
+    !firmada && (appt.status === 'CANCELLED' || appt.status === 'NO_SHOW');
+
   /**
    * Entrar al caso desde una cita tiene un solo proposito: cobrar lo que se hizo
    * (o lo que se perdio). Una cancelacion CON AVISO no genera nada, asi que ese
@@ -863,7 +909,21 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <div className="text-text-muted text-xs">{dt.time} <span className="opacity-50 text-[10px]">MT</span> · {appt.durationMinutes} min</div>
                 </div>
               </div>
-              <StatusPill label={statusCfg.label} state={statusCfg.state} />
+              <div className="flex items-center gap-2">
+                {/* Sello de la firma junto al del estado, como en el v2. Va
+                    SIEMPRE (no depende de `allowSignQr`): es informacion, y al
+                    doctor tambien le sirve saber si el paciente firmo.
+                    Solo se omite cuando la cita ya esta cancelada o es un
+                    no-show — ahi "No firmado" seria ruido sobre algo que nunca
+                    se iba a firmar. */}
+                {!estaResueltaSinFirma && (
+                  <StatusPill
+                    label={firmada ? t('signedBadge') : t('unsignedBadge')}
+                    state={firmada ? 'info' : 'danger'}
+                  />
+                )}
+                <StatusPill label={statusCfg.label} state={statusCfg.state} />
+              </div>
             </div>
           )}
 
@@ -1204,6 +1264,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     className="order-2 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
                   </button>
+                  {/* QR de cita: el paciente escanea, revisa sus datos y firma
+                      antes de pasar a triaje. Neutro como Editar — es un paso
+                      del mostrador, no la accion principal de la pantalla. */}
+                  {puedeOfrecerQr && (
+                    <button type="button" onClick={() => setQrOpen(true)}
+                      className="order-5 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
+                      <QrCode className="w-3.5 h-3.5" /> {t('actionSignQr')}
+                    </button>
+                  )}
                   {/* No show / Check in: solo si el paciente TODAVIA no llego.
                       No show va neutro a proposito (no es una alarma: no vino y
                       no hay nada que atender) y Check in en cyan, el accent del
@@ -1313,6 +1382,20 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             },
           }}
           onSuccess={() => { onRefresh(); setEditOpen(false); }}
+        />
+      )}
+
+      {/* QR de cita. Vive fuera del branch `inline` como los demas modales, pero
+          solo se abre desde el pie del modal, que es donde esta el boton.
+          Al cerrar se refresca: si el paciente firmo con el modal abierto, el
+          sello del header tiene que reflejarlo sin recargar la pagina. */}
+      {allowSignQr && (
+        <AppointmentSignQrDialog
+          open={qrOpen}
+          onOpenChange={(v) => { setQrOpen(v); if (!v) onRefresh(); }}
+          appointmentId={appt.id}
+          patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
+          apptLabel={`${dt.dayName} ${dt.date} · ${dt.time}`}
         />
       )}
 

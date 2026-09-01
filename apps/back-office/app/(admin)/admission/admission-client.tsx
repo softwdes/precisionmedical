@@ -328,17 +328,22 @@ function ApptCard({
                     <AlertTriangle className="w-2.5 h-2.5" />
                     {tc('unsignedBadge')}
                   </span>
-                  {/* El QR pegado al chip que lo explica. Solo ícono: la fila ya
-                      tiene mucho texto y la acción se entiende por el contexto. */}
+                  {/* El QR pegado al chip que lo explica, y CON texto.
+                      Empezó siendo solo el ícono a 12px con `border-border`, que
+                      es casi transparente por diseño: en la fila se leía como un
+                      glifo roto y no como algo que se pueda tocar. Ahora lleva
+                      la palabra ("Firmar" dice el objetivo, el ícono dice el
+                      medio) y va en ÁMBAR como el chip, para que los dos se lean
+                      como una sola cosa: falta la firma → acá está el QR. */}
                   {onSignQr && (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onSignQr(appt); }}
                       title={tc('actionSignQr')}
-                      aria-label={tc('actionSignQr')}
-                      className="inline-flex items-center justify-center p-1 rounded-md border border-border text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/50 bg-amber/20 text-amber hover:bg-amber/30 transition-colors"
                     >
-                      <QrCode className="w-3 h-3" />
+                      <QrCode className="w-2.5 h-2.5" />
+                      {tc('actionSignShort')}
                     </button>
                   )}
                 </span>

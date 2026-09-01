@@ -3934,6 +3934,7 @@
       "signedBadge": "Firmado",
       "unsignedBadge": "No firmado",
       "actionSignQr": "QR de cita",
+      "actionSignShort": "Firmar",
       "qrTitle": "Código QR de cita",
       "qrSubtitle": "El paciente escanea este código para revisar sus datos y firmar la confirmación de la cita, antes de pasar a triaje.",
       "qrGenerating": "Generando el código…",

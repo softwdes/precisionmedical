@@ -633,15 +633,18 @@ export function MyDayClient({
                     {/* El QR ANTES de "Atender": es lo que va primero en el
                         flujo — el paciente firma y después pasa. Puesto después
                         del botón verde nadie lo miraría. */}
+                    {/* Con texto y en ámbar, igual que en la cola del mostrador:
+                        solo el ícono se leía como un glifo roto al lado del botón
+                        verde. Ámbar porque es lo que FALTA, no una acción neutra. */}
                     {!a.attendanceSignedAt && (
                       <button
                         type="button"
                         onClick={() => setQrTarget(a)}
                         title={tc('actionSignQr')}
-                        aria-label={tc('actionSignQr')}
-                        className="flex items-center justify-center p-1.5 rounded-md border border-border text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-amber/40 bg-amber/10 text-amber text-xs font-semibold hover:bg-amber/20 transition-colors"
                       >
-                        <QrCode className="w-3.5 h-3.5" />
+                        <QrCode className="w-3 h-3" />
+                        {tc('actionSignShort')}
                       </button>
                     )}
                     <button

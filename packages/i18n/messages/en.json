@@ -3934,6 +3934,7 @@
       "signedBadge": "Signed",
       "unsignedBadge": "Not signed",
       "actionSignQr": "Appointment QR",
+      "actionSignShort": "Sign",
       "qrTitle": "Appointment QR code",
       "qrSubtitle": "The patient scans this code to review their information and sign the appointment confirmation, before going in to triage.",
       "qrGenerating": "Generating the code…",

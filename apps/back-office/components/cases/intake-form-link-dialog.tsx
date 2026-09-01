@@ -29,6 +29,8 @@ interface IntakeFormLinkDialogProps {
       lastName: string;
       phone: string | null;
       email: string | null;
+      /** Idioma registrado del paciente — decide en qué idioma sale el mensaje. */
+      preferredLanguage?: 'es' | 'en';
     };
   } | null;
 }
@@ -271,7 +273,10 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
             lastName:          caseInfo.patient.lastName,
             phone:             caseInfo.patient.phone,
             email:             caseInfo.patient.email,
-            preferredLanguage: 'es',
+            // Estaba en `'es'` escrito a mano: el diálogo de envío sabe abrir en
+            // el idioma del paciente, y este caller se lo pisaba con español sin
+            // importar cómo estuviera registrado.
+            preferredLanguage: caseInfo.patient.preferredLanguage,
           },
         }}
       />

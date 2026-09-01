@@ -35,7 +35,22 @@ import { generarPortalToken } from '@/lib/portal-token';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
-  language:      z.enum(['es', 'en']).default('es'),
+  /**
+   * Idioma del mensaje. **Opcional a propósito**: si no viene, lo resuelve el
+   * servidor con la ficha del paciente.
+   *
+   * Antes era `.default('es')`, y ese respaldo se comía el problema: el idioma
+   * se captura al dar de alta el caso y se guarda bien, pero tres de los cuatro
+   * lugares que abren el diálogo de envío no se lo pasaban —y un cuarto mandaba
+   * `'es'` escrito a mano—, así que todo salía en español. Un paciente dado de
+   * alta en inglés recibía el SMS en español y no había forma de notarlo desde
+   * acá: el `default` hacía que un caller olvidadizo se viera igual que uno
+   * deliberado.
+   *
+   * Resolverlo en el servidor cierra el agujero de raíz: aunque mañana aparezca
+   * un caller nuevo que se olvide, el mensaje sale en el idioma del paciente.
+   */
+  language:      z.enum(['es', 'en']).optional(),
   customMessage: z.string().max(500).optional(),
   subject:       z.string().max(200).optional(),
   body:          z.string().max(2000).optional(),
@@ -45,6 +60,8 @@ const InputSchema = z.object({
 // si divergen, el diálogo gatea los canales con una regla y el envío con otra.
 const PATIENT_WITH_GUARDIAN_SELECT = {
   id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
+  // Para resolver el idioma del mensaje cuando el caller no lo manda.
+  preferredLanguage: true,
   guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
 } as const;
 
@@ -118,6 +135,17 @@ export async function POST(
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
 
+  /**
+   * Idioma del mensaje: lo que eligió quien envía, y si no, el del paciente.
+   *
+   * El español solo queda como último recurso — cuando la ficha no tiene idioma
+   * cargado. Antes era el primer recurso, y por eso un paciente registrado en
+   * inglés recibía todo en español.
+   */
+  const idioma: 'es' | 'en' =
+    parsed.language
+    ?? (caseRecord.patient.preferredLanguage === 'en' ? 'en' : 'es');
+
   // ─── A quién se le manda ───────────────────────────────────────────────
   // Si el paciente es menor y tiene apoderado vinculado, el link va al
   // apoderado: es quien tiene que llenar el intake y firmar los
@@ -182,7 +210,7 @@ export async function POST(
   // El texto vive en lib/portal-message.ts — el mismo que usa la vista previa
   // del diálogo. Estaba duplicado y se desincronizó apenas se tocó uno.
   const messageBody = buildPortalSms({
-    lang: parsed.language,
+    lang: idioma,
     caseCode: caseRecord.caseCode,
     minorName: paraMenor ? nombreMenor : null,
     portalUrl,
@@ -231,10 +259,10 @@ export async function POST(
     ? await sendEmail({
         to: destino.email!,
         toName: `${destino.firstName} ${destino.lastName ?? ''}`.trim() || null,
-        subject: parsed.language === 'es'
+        subject: idioma === 'es'
           ? `Complete su formulario de registro · caso ${caseRecord.caseCode}`
           : `Complete your registration form · case ${caseRecord.caseCode}`,
-        html: portalEmailHtml(messageBody, portalUrl, parsed.language),
+        html: portalEmailHtml(messageBody, portalUrl, idioma),
         text: messageBody,
         patientId: caseRecord.patient.id,
         caseId: caseId,
@@ -258,7 +286,7 @@ export async function POST(
     userAgent: actor.userAgent,
     metadata: {
       via: parsed.via,
-      language: parsed.language,
+      language: idioma,
       recipientLast4: recipient.slice(-4), // No PHI completa en log
       // El token queda fuera del log: es la credencial de acceso al portal.
       expiresAt: expiresIn24h.toISOString(),
@@ -278,7 +306,7 @@ export async function POST(
     sent: {
       via: parsed.via,
       to: recipient,
-      language: parsed.language,
+      language: idioma,
       magicToken,
       portalUrl,
       messageBody,

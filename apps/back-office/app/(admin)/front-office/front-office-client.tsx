@@ -16,6 +16,7 @@ import {
 } from '@/components/ui-phoenix';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { IncomingCallSimulator, IncomingCallToast, type IncomingCallData } from '@/components/cases/incoming-call-simulator';
@@ -40,6 +41,7 @@ interface PhoenixCase {
     phone: string | null;
     email: string | null;
     dateOfBirth: Date | null;
+    preferredLanguage: string | null;
   };
   lawFirm: { firmName: string; paymentSpeed: string | null } | null;
   attorney: { firstName: string | null; lastName: string | null } | null;
@@ -406,6 +408,10 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
             lastName: sendPortalCase.patient.lastName,
             phone: sendPortalCase.patient.phone,
             email: sendPortalCase.patient.email,
+            // El diálogo abre en el idioma del paciente. Sin esto caía a español
+            // siempre, y a un paciente registrado en inglés le llegaba el SMS en
+            // español — reportado por el tester el 2026-09-01.
+            preferredLanguage: normalizarIdioma(sendPortalCase.patient.preferredLanguage),
           },
         } : null}
       />

@@ -62,6 +62,9 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
           referralSource: true,
           referralSourceOther: true,
           communicationPreference: true,
+          // Decide el idioma de la pantalla "ya registrado", que se dibuja antes
+          // de que el paciente pueda elegir idioma. Ver `TEXTOS`.
+          preferredLanguage: true,
           preferredPharmacy: true,
           employer: true,
           race: true,
@@ -115,6 +118,7 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         firstName={rec.patient.firstName}
         caseCode={rec.caseCode}
         token={token}
+        lang={idiomaDe(rec.patient.preferredLanguage)}
       />
     );
   }
@@ -249,6 +253,48 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
 
 // ─── Error states ──────────────────────────────────────────────────────────────
 
+/**
+ * Textos de las dos pantallas que se dibujan ANTES del wizard.
+ *
+ * Estaban escritas en español a secas. No es que eligieran mal el idioma: no
+ * tenían ninguno que elegir — son componentes del servidor que corren antes de
+ * que exista la pantalla de "elegí tu idioma", así que no hay estado de idioma
+ * al que consultar. Un paciente registrado en inglés terminaba leyendo
+ * "¡Ya registrado, Test!" (reportado el 2026-09-01).
+ *
+ * El idioma sale de la ficha del paciente, que es la misma fuente que ahora usa
+ * el SMS. Para el enlace inválido no hay paciente que consultar —justamente
+ * porque el token no resolvió—, así que ahí se muestran los dos idiomas: es la
+ * única pantalla donde no se puede saber a quién se le está hablando.
+ */
+type Idioma = 'es' | 'en';
+
+const TEXTOS = {
+  es: {
+    invalidTitle: 'Enlace no válido',
+    invalidBody:  'Este enlace no es válido o ya expiró. Comunícate con Precision Medical para recibir uno nuevo.',
+    doneTitle:    (n: string) => `¡Ya registrado, ${n}!`,
+    doneBodyPre:  'Tu formulario para el caso',
+    doneBodyPost: 'ya fue completado. El equipo de Precision Medical se comunicará contigo pronto.',
+    reopen:       '📋 Ver / actualizar mi información',
+    questions:    '¿Preguntas?',
+  },
+  en: {
+    invalidTitle: 'Invalid link',
+    invalidBody:  'This link is not valid or has expired. Please contact Precision Medical to get a new one.',
+    doneTitle:    (n: string) => `All set, ${n}!`,
+    doneBodyPre:  'Your form for case',
+    doneBodyPost: 'has already been completed. The Precision Medical team will contact you soon.',
+    reopen:       '📋 View / update my information',
+    questions:    'Questions?',
+  },
+} as const;
+
+/** `preferredLanguage` de la ficha → idioma de la pantalla. */
+function idiomaDe(preferido: string | null | undefined): Idioma {
+  return preferido === 'en' ? 'en' : 'es';
+}
+
 function InvalidToken() {
   return (
     <div style={{
@@ -258,11 +304,17 @@ function InvalidToken() {
     }}>
       <div style={{ maxWidth: 360, textAlign: 'center' }}>
         <div style={{ fontSize: 52, marginBottom: 20 }}>🔗</div>
+        {/* Los dos idiomas: acá no hay paciente al que consultarle el suyo,
+            porque el token no resolvió. Es la única pantalla del portal donde no
+            se puede saber a quién se le habla. */}
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#F43F5E', marginBottom: 12 }}>
-          Enlace no válido
+          {TEXTOS.en.invalidTitle} · {TEXTOS.es.invalidTitle}
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 24 }}>
-          Este enlace no es válido o ya expiró. Comunícate con Precision Medical para recibir uno nuevo.
+        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 10 }}>
+          {TEXTOS.en.invalidBody}
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 13, lineHeight: 1.65, marginBottom: 24 }}>
+          {TEXTOS.es.invalidBody}
         </p>
         {/* En desktop este enlace no marca: lo útil ahí es poder copiar el
             número. Ver `TEL_SELECCIONABLE` en lib/clinica.ts. */}
@@ -284,7 +336,10 @@ function InvalidToken() {
   );
 }
 
-function AlreadyCompleted({ firstName, caseCode, token }: { firstName: string; caseCode: string; token: string }) {
+function AlreadyCompleted({ firstName, caseCode, token, lang }: {
+  firstName: string; caseCode: string; token: string; lang: Idioma;
+}) {
+  const t = TEXTOS[lang];
   return (
     <div style={{
       minHeight: '100vh', background: '#0a1224', color: '#fff',
@@ -300,12 +355,12 @@ function AlreadyCompleted({ firstName, caseCode, token }: { firstName: string; c
           boxShadow: '0 0 40px rgba(16,185,129,0.35)',
         }}>✓</div>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: '#10B981', marginBottom: 12 }}>
-          ¡Ya registrado, {firstName}!
+          {t.doneTitle(firstName)}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 24 }}>
-          Tu formulario para el caso{' '}
+          {t.doneBodyPre}{' '}
           <strong style={{ color: '#A5B4FC', fontFamily: 'monospace' }}>{caseCode}</strong>{' '}
-          ya fue completado. El equipo de Precision Medical se comunicará contigo pronto.
+          {t.doneBodyPost}
         </p>
         <a
           href={`/c/${token}?reopen=1`}
@@ -316,10 +371,10 @@ function AlreadyCompleted({ firstName, caseCode, token }: { firstName: string; c
             textDecoration: 'none', marginBottom: 12, boxSizing: 'border-box',
           }}
         >
-          📋 Ver / actualizar mi información
+          {t.reopen}
         </a>
         <p style={{ color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
-          ¿Preguntas? {TEL_CLINICA}
+          {t.questions} {TEL_CLINICA}
         </p>
       </div>
     </div>

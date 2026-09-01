@@ -22,6 +22,19 @@
 
 export type PortalMessageLang = 'es' | 'en';
 
+/**
+ * `patient.preferredLanguage` (un `string | null` cualquiera) → idioma del mensaje.
+ *
+ * Existe para que cada pantalla no repita el estrechamiento a mano. Devuelve
+ * `undefined` y no `'es'` cuando no hay idioma cargado: quien recibe esto es el
+ * diálogo de envío, y un `'es'` acá volvería a tapar el problema que se está
+ * arreglando —el idioma del paciente reemplazado por español silenciosamente—.
+ * El último recurso lo pone el servidor, en un solo lugar.
+ */
+export function normalizarIdioma(preferido: string | null | undefined): PortalMessageLang | undefined {
+  return preferido === 'en' || preferido === 'es' ? preferido : undefined;
+}
+
 /** Marcador que usa la vista previa donde después va el link real. */
 export const MAGIC_LINK_PLACEHOLDER = '[magic-link]';
 

@@ -29,6 +29,7 @@ import { Button } from '@precision/ui';
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
@@ -75,6 +76,8 @@ interface CaseInfo {
     phone: string | null;
     email: string | null;
     dateOfBirth: Date | null;
+    /** Idioma registrado — decide en qué idioma sale el SMS del portal. */
+    preferredLanguage: string | null;
     patientCode: string | null;
     addressLine1: string | null;
     addressCity: string | null;
@@ -841,6 +844,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             lastName: caseInfo.patient.lastName,
             phone: caseInfo.patient.phone,
             email: caseInfo.patient.email,
+            // Ver el comentario en front-office-client: sin esto el diálogo abre
+            // en español aunque el paciente esté registrado en inglés.
+            preferredLanguage: normalizarIdioma(caseInfo.patient.preferredLanguage),
           },
         }}
       />

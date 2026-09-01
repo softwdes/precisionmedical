@@ -90,6 +90,8 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
           phone: true,
           email: true,
           dateOfBirth: true,
+          // Decide en qué idioma sale el SMS del portal desde el detalle del caso.
+          preferredLanguage: true,
           patientCode: true,
           addressLine1: true,
           addressCity: true,

@@ -74,7 +74,21 @@ function RoleBadge({ dbRole }: { dbRole: string }): React.ReactElement {
 function AccesosText({ dbRole, clinicModules }: { dbRole: string; clinicModules?: Record<string, boolean> | null }): React.ReactElement {
   const role = dbRoleToRole(dbRole);
   const meta = ROLE_META[role];
-  const limitedCount = clinicModules ? Object.values(clinicModules).filter(Boolean).length : null;
+  /**
+   * Solo los MENÚS cuentan como recorte.
+   *
+   * `Object.values(...)` a secas contaba también las capacidades de portal, que
+   * viven en el mismo JSON: alguien con visión completa y el portal médico
+   * encendido guarda `{doctor: true}` y la lista le anunciaba "Back-Office
+   * limitado (1 menús)" — falso, ve los ocho. Con `attorney` en el mapa el error
+   * se repetía igual, así que el conteo se hace contra las llaves reales.
+   */
+  const menuKeys = clinicModules
+    ? CLINIC_MODULES.filter(m => clinicModules[m.key] !== undefined)
+    : [];
+  const limitedCount = menuKeys.length > 0
+    ? menuKeys.filter(m => clinicModules![m.key] === true).length
+    : null;
   return (
     <span className="text-[11px] text-text-muted leading-relaxed">
       {meta.accesos}
@@ -810,6 +824,13 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
  */
 const DOCTOR_VIEW_MODULE = 'doctor';
 
+/**
+ * Lo mismo para el Portal Legal: entrar como un bufete que no es el propio.
+ * Misma regla invertida y mismo motivo. Espejo de
+ * `apps/back-office/lib/attorney-view-module.ts`.
+ */
+const ATTORNEY_VIEW_MODULE = 'attorney';
+
 function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
@@ -821,8 +842,9 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   });
 
   // Menús del Back-Office visibles para ESTE usuario. null = visión completa.
-  // La llave `doctor` viaja en el mismo mapa pero no es un menú: se edita aparte
-  // y no debe contar para decidir si el usuario tiene visión completa.
+  // Las llaves `doctor` y `attorney` viajan en el mismo mapa pero no son menús:
+  // se editan aparte y no deben contar para decidir si el usuario tiene visión
+  // completa (por eso el `every` mira solo las llaves de CLINIC_MODULES).
   const savedModules = (user as { clinicModules?: Record<string, boolean> | null }).clinicModules ?? null;
   const [fullVision, setFullVision] = useState(
     savedModules === null || CLINIC_MODULES.every(m => savedModules[m.key] === undefined),
@@ -831,6 +853,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     Object.fromEntries(CLINIC_MODULES.map(m => [m.key, savedModules ? savedModules[m.key] !== false : true])),
   );
   const [doctorView, setDoctorView] = useState(savedModules?.[DOCTOR_VIEW_MODULE] === true);
+  const [attorneyView, setAttorneyView] = useState(savedModules?.[ATTORNEY_VIEW_MODULE] === true);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
@@ -864,14 +887,20 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    // Los menús y la capacidad comparten columna. `null` = visión completa sin
-    // portal médico; con visión completa y portal, se guarda solo la llave
-    // `doctor` — el resto queda sin definir, que es "visible" para el middleware.
+    // Los menús y las capacidades comparten columna. `null` = visión completa y
+    // ningún portal; con visión completa y algún portal, se guardan solo esas
+    // llaves — el resto queda sin definir, que es "visible" para el middleware.
+    // Las capacidades se guardan solo cuando están en `true`: un `false` diría
+    // lo mismo que su ausencia y dejaría basura en el JSON.
     const menus = fullVision ? null : clinicModules;
+    const portales = {
+      ...(doctorView   ? { [DOCTOR_VIEW_MODULE]:   true } : {}),
+      ...(attorneyView ? { [ATTORNEY_VIEW_MODULE]: true } : {}),
+    };
     const clinicModulesPayload =
-      menus === null && !doctorView
+      menus === null && Object.keys(portales).length === 0
         ? null
-        : { ...(menus ?? {}), ...(doctorView ? { [DOCTOR_VIEW_MODULE]: true } : {}) };
+        : { ...(menus ?? {}), ...portales };
 
     update.mutate({
       id: user.id,
@@ -1000,6 +1029,38 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                   <p className="text-[11px] text-amber-400 leading-relaxed">
                     Todo lo que registre en el portal queda a nombre del médico elegido.
                     Para pruebas, usar un doctor de QA — no uno que esté atendiendo.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Portal Legal: capacidad de "ver como bufete" ── */}
+            {/* Mismo criterio que el médico: sí explícito, nunca por defecto. */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Portal Legal — Ver como bufete</p>
+                  <p className="text-[11px] text-text-muted">
+                    {attorneyView
+                      ? 'Puede abrir el portal y elegir el bufete y la persona que quiere ver.'
+                      : 'Sin acceso al portal legal.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttorneyView(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${attorneyView ? 'bg-indigo-500' : 'bg-border'}`}
+                  title={attorneyView ? 'Con acceso al portal legal' : 'Sin acceso al portal legal'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${attorneyView ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {attorneyView && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <p className="text-[11px] text-amber-400 leading-relaxed">
+                    Ve los casos y firma en nombre del bufete elegido, y lo que registre
+                    queda a nombre de esa ficha. Para pruebas, elegir un despacho de QA.
                   </p>
                 </div>
               )}

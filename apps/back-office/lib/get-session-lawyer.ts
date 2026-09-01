@@ -1,8 +1,11 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { db } from '@precision-medical/database';
-import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { fetchDbRole, fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
+import { ATTORNEY_VIEW_MODULE } from './attorney-view-module';
+
+export { ATTORNEY_VIEW_MODULE };
 
 /**
  * Resuelve el ABOGADO de la sesión actual — espejo de `get-session-provider.ts`.
@@ -93,10 +96,27 @@ export const ATTORNEY_VIEW_COOKIE = 'pm_attorney_view';
 
 const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
 
-/** ¿Puede este usuario abrir el portal de un bufete que no es suyo? */
-export const canViewAsLawyer = cache(async (email: string): Promise<boolean> =>
-  ADMIN_ROLES.has(await fetchDbRole(email)),
-);
+/**
+ * ¿Puede este usuario abrir el portal de un bufete que no es suyo?
+ *
+ * SUPER_ADMIN y ADMIN la tienen por rol (soporte, demos). Cualquier otra cuenta
+ * la recibe por persona, marcando "Portal Legal" en su ficha del admin, que la
+ * guarda en `users.clinicModules.attorney`. Es OPT-IN — ver
+ * `ATTORNEY_VIEW_MODULE`.
+ *
+ * Antes era solo el rol, y eso obligaba a subir a ADMIN a cualquiera que
+ * tuviera que probar la vista del bufete: le daba de paso el back-office
+ * entero. Espejo de `canViewAsDoctor` en `get-session-provider.ts`.
+ *
+ * Memorizado por request: el layout, el selector y cada página del portal la
+ * consultan, y detrás hay dos fetch al proyecto Admin.
+ */
+export const canViewAsLawyer = cache(async (email: string): Promise<boolean> => {
+  if (ADMIN_ROLES.has(await fetchDbRole(email))) return true;
+
+  const modules = await fetchUserClinicModules(email);
+  return modules?.[ATTORNEY_VIEW_MODULE] === true;
+});
 
 const getOwnLawyer = cache(async (email: string): Promise<SessionLawyer | null> => {
   const row = await db.lawyer.findFirst({

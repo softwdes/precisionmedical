@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
 import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
+import { ATTORNEY_VIEW_MODULE } from '@/lib/attorney-view-module';
 
 /**
  * Back-Office middleware.
@@ -282,6 +283,53 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const isApi       = pathname.startsWith('/api/');
   const isAdminRole = dbRole === 'SUPER_ADMIN' || dbRole === 'ADMIN';
 
+  // ── Módulos POR USUARIO (users.clinicModules) ──────────────────────────────
+  //
+  // Se resuelve A DEMANDA y una sola vez, no con un `await` suelto acá arriba:
+  // de este mapa salen las capacidades de los DOS portales, y sus puertas están
+  // muy separadas —la del legal justo abajo, la del médico cien líneas después—.
+  // Resolverlo de entrada le cobraría el fetch a los roles que retornan antes
+  // (LAWYER, DOCTOR) y que nunca miran este mapa.
+  //
+  // null = "Visión completa" (sin restricción de menús). SUPER_ADMIN/ADMIN nunca
+  // se restringen. Se consulta también en /api/*: la cookie es compartida, así
+  // que el fetch real ocurre una vez por minuto y no una por request.
+  let mods: Record<string, boolean> | null = null;
+  let modsResolved = false;
+
+  async function resolveMods(): Promise<Record<string, boolean> | null> {
+    if (modsResolved) return mods;
+    modsResolved = true;
+    if (!dbRole || isAdminRole) return mods;
+
+    let modsRaw = cookieFresh ? request.cookies.get(MODULES_COOKIE)?.value : undefined;
+
+    if (modsRaw === undefined && user!.email) {
+      const fetched = await fetchUserClinicModules(user!.email);
+      modsRaw = fetched ? JSON.stringify(fetched) : '*';
+      response.cookies.set(MODULES_COOKIE, modsRaw, {
+        httpOnly: true, path: '/', maxAge: PERMS_CACHE_SECONDS, sameSite: 'lax',
+      });
+    }
+
+    if (modsRaw && modsRaw !== '*') {
+      try { mods = JSON.parse(modsRaw) as Record<string, boolean>; } catch { /* '*' fallback */ }
+    }
+    return mods;
+  }
+
+  /**
+   * ¿Puede esta cuenta abrir el portal legal sin ser abogado?
+   *
+   * Los admins lo tienen por rol (soporte, demos); el resto lo recibe marcado en
+   * su ficha del panel de Usuarios. OPT-IN, igual que el portal médico: "visión
+   * completa" (mods null) NO lo concede, porque entrar al despacho de otro no
+   * puede caer de la regla "se ve salvo false".
+   */
+  async function canOpenAttorneyPortal(): Promise<boolean> {
+    return isAdminRole || (await resolveMods())?.[ATTORNEY_VIEW_MODULE] === true;
+  }
+
   // ── Portal legal (/attorney) — scoping por rol y por host ─────────────────
   // Mismo patrón que el portal médico de abajo. attorney.lienmaster.net (prod) /
   // attorney.localhost (dev) → solo mundo abogado.
@@ -313,11 +361,12 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response;
   }
 
-  // Por attorney.* solo entra el abogado (ya devuelto arriba) o un admin, que lo
-  // usa para soporte y demos eligiendo un bufete. El resto del staff recibe
-  // "sin acceso" explícito en el mismo dominio, igual que en providers.*.
+  // Por attorney.* entra el abogado (ya devuelto arriba), un admin —que lo usa
+  // para soporte y demos eligiendo un bufete— y el staff con la capacidad
+  // marcada en su ficha. El resto recibe "sin acceso" explícito en el mismo
+  // dominio, igual que en providers.*.
   if (isAttorneyHost) {
-    if (!isAdminRole) {
+    if (!(await canOpenAttorneyPortal())) {
       const url = request.nextUrl.clone();
       url.pathname = '/no-access';
       url.search = '?portal=attorney';
@@ -328,6 +377,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       url.pathname = '/attorney';
       url.search = '';
       return NextResponse.redirect(url);
+    }
+    // Al admin no se le recorta la API: entra por acá a hacer soporte y sigue
+    // teniendo el back-office entero detrás. Al staff que solo tiene la
+    // capacidad SÍ, con la misma lista que el LAWYER de arriba — en este host
+    // no hay más pantallas que el portal, que consume `/api/attorney/*` y nada
+    // más (`/api/changelog` es la excepción de siempre: resuelve la audiencia
+    // contra la sesión). Sin este recorte, la capacidad abriría por el dominio
+    // legal APIs administrativas que su ficha tiene apagadas.
+    if (!isAdminRole && isApi
+        && !pathname.startsWith('/api/attorney/')
+        && !pathname.startsWith('/api/changelog')) {
+      return forbidden('attorney', response);
     }
     return response;
   }
@@ -350,28 +411,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response; // PROVIDER no pasa por el check pm_clinic del back-office
   }
 
-  // ── Módulos POR USUARIO (users.clinicModules) ──────────────────────────────
-  // Se resuelve acá arriba porque de este mismo mapa sale la capacidad de entrar
-  // al portal médico. null = "Visión completa"; SUPER_ADMIN/ADMIN nunca se
-  // restringen. Se consulta también en /api/*: la cookie es compartida, así que
-  // el fetch real ocurre una vez por hora y no una por request.
-  let mods: Record<string, boolean> | null = null;
-
-  if (dbRole && !isAdminRole) {
-    let modsRaw = cookieFresh ? request.cookies.get(MODULES_COOKIE)?.value : undefined;
-
-    if (modsRaw === undefined && user.email) {
-      const fetched = await fetchUserClinicModules(user.email);
-      modsRaw = fetched ? JSON.stringify(fetched) : '*';
-      response.cookies.set(MODULES_COOKIE, modsRaw, {
-        httpOnly: true, path: '/', maxAge: PERMS_CACHE_SECONDS, sameSite: 'lax',
-      });
-    }
-
-    if (modsRaw && modsRaw !== '*') {
-      try { mods = JSON.parse(modsRaw) as Record<string, boolean>; } catch { /* '*' fallback */ }
-    }
-  }
+  // El mapa por usuario ya está declarado arriba (lo necesita la puerta del
+  // portal legal); acá se fuerza su resolución, porque de él salen tanto la
+  // capacidad del portal médico como los checks por menú del final.
+  await resolveMods();
 
   // Capacidad "ver como doctor": los admins la tienen por rol; el resto la recibe
   // marcada en su ficha. Es OPT-IN — "visión completa" (mods null) NO la concede,
@@ -399,6 +442,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   // Staff sin la capacidad no navega el portal médico — pero sí imprime.
   if (isDoctorArea && !isDoctorPrint && !canViewAsDoctor) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  // Y tampoco el legal. Esta puerta faltaba en el host principal: `/attorney` no
+  // está en MODULE_ROUTES, así que cualquiera con acceso al back-office llegaba
+  // al layout del portal y recibía el cartel de "cuenta mal configurada" — un
+  // mensaje falso, porque el problema no es su ficha sino que ese portal no es
+  // suyo. No filtraba datos (el layout corta antes de renderizar nada), pero
+  // ahora la decisión se toma acá, donde se toman las demás.
+  if (isAttorneyArea && !(await canOpenAttorneyPortal())) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

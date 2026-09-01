@@ -19,7 +19,8 @@
     "db:seed": "tsx src/seed.ts",
     "db:seed:calendar": "tsx src/seed-dev-calendar.ts",
     "seed:catalogs": "node prisma/seed-catalogs.mjs",
-    "release:notes": "tsx scripts/build-release-notes.ts"
+    "release:notes": "tsx scripts/build-release-notes.ts",
+    "release:backfill": "tsx scripts/backfill-release-notes.ts"
   },
   "dependencies": {
     "@precision/release": "workspace:*",

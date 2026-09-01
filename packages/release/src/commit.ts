@@ -34,7 +34,26 @@ export function isPublishableType(type: string): boolean {
  * le regala el mapa a cualquiera que lea el banner. No se descartan —quedan en
  * la tabla con `hidden`— para no perder el registro.
  */
-const SENSITIVE_SCOPES = new Set(['security', 'permissions', 'cifrado']);
+const SENSITIVE_SCOPES = new Set([
+  'security',
+  'permissions',
+  'cifrado',
+  // Los commits de este repo se escriben en español, así que la red en inglés
+  // no atrapaba nada: `hidden` estuvo en 0 en toda la tabla. Las ocho notas de
+  // `seguridad` —"cerrar las puertas publicas del back-office", "el alcance del
+  // portal medico sale de la sesion y no de la URL"— quedaron tapadas de
+  // casualidad, porque su scope tampoco estaba en el mapa de modulos. Al
+  // mapearlo se destapaban solas, que es justo lo que este archivo evita.
+  //
+  // `cifrado` ya estaba: la lista nacio traducida a medias.
+  //
+  // NO van aca `auth` ni `activacion`. Son scopes de uso diario ("el login no
+  // recordaba el email") y ocultarlos por las dudas apaga media docena de notas
+  // legitimas. Aca va el equivalente exacto de los tres de arriba, nada mas.
+  'seguridad',
+  'permisos',
+  'accesos',
+]);
 
 /**
  * Red conservadora sobre el asunto, para el commit sensible que no vino con

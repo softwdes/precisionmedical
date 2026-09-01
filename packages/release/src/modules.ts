@@ -58,10 +58,13 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   scheduling: 'appointments',
   calendario: 'appointments',
   citas: 'appointments',
+  'citas del caso': 'appointments',
+  telemedicina: 'appointments',
 
   // Pacientes y casos
   patients: 'patients',
   cases: 'cases',
+  casos: 'cases',
   'case-detail': 'cases',
   'alta de caso': 'cases',
   coverage: 'cases',
@@ -77,6 +80,9 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   recetas: 'prescriptions',
   notes: 'notes',
   nota: 'notes',
+  'nota interna': 'notes',
+  'notas sin cerrar': 'notes',
+  plantillas: 'notes',
   summary: 'notes',
   diag: 'notes',
   'historial medico': 'notes',
@@ -84,7 +90,10 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   triage: 'triage',
   triaje: 'triage',
   admission: 'admission',
+  admision: 'admission',
+  'admision online': 'admission',
   visita: 'visits',
+  'consulta online': 'visits',
   clinical: 'clinic',
   lobby: 'clinic',
   'front-office': 'clinic',
@@ -97,26 +106,36 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   codes: 'billing',
   braces: 'billing',
   catalog: 'catalog',
+  catalogo: 'catalog',
 
   // Comunicacion
   messages: 'communications',
   llamadas: 'communications',
   twilio: 'communications',
+  sms: 'communications',
+  email: 'communications',
+  telefono: 'communications',
+  'envio portal': 'communications',
 
   // Portales
   doctor: 'doctor',
   'doctor-portal': 'doctor',
   'doctor-view': 'doctor',
   'portal medico': 'doctor',
+  'mi dia': 'doctor',
   lawyers: 'attorney',
   'portal legal': 'attorney',
+  'vigía': 'attorney',
+  vigia: 'attorney',
   forms: 'intake',
+  intake: 'intake',
 
   // Documentos y reportes
   pdf: 'documents',
   impresion: 'documents',
   archivos: 'documents',
   metrics: 'metrics',
+  metricas: 'metrics',
   dashboard: 'metrics',
 
   // Acceso
@@ -124,6 +143,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   permissions: 'access',
   roles: 'access',
   security: 'access',
+  seguridad: 'access',
   accesos: 'access',
   permisos: 'access',
   activacion: 'access',
@@ -146,10 +166,13 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   sidebar: 'interface',
   topbar: 'interface',
   menu: 'interface',
+  'menus de fila': 'interface',
+  'panel flotante': 'interface',
 
   // Configuracion y plataforma
   settings: 'settings',
   clinicas: 'settings',
+  providers: 'settings',
   database: 'settings',
   migration: 'settings',
   datos: 'settings',

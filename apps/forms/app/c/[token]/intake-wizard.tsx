@@ -306,6 +306,16 @@ const STRINGS = {
     guardianAddress: 'Dirección',
     sifoHint4: 'El responsable legal debe ser mayor de edad. Esta información queda registrada en el expediente.',
     sifoHint5: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
+    /**
+     * El mismo paso, para quien NO viene por un accidente.
+     *
+     * El aviso de arriba se mostraba SIEMPRE, también en una consulta general:
+     * el paso quedaba hablándole de la fecha de un accidente que ese paciente no
+     * tuvo y que no se le va a pedir nunca. Y no se puede simplemente esconder,
+     * porque entonces la pantalla queda muda — para un caso general este paso es
+     * solo la confirmación del motivo, así que el aviso dice para qué sirve.
+     */
+    sifoHint5Gm: 'Si te equivocaste al elegir, cambialo acá: esto define qué te vamos a preguntar y qué documentos vas a firmar.',
     legalRepsSection: 'Representación legal',
     lawFirm: 'Firma de abogados',
     lawFirmPh: 'Nombre de la firma de abogados que refirió el caso...',
@@ -617,6 +627,8 @@ const STRINGS = {
     guardianAddress: 'Address',
     sifoHint4: 'The legal guardian must be an adult. This information is recorded in the medical file.',
     sifoHint5: 'The exact accident date is key to processing your case correctly.',
+    // Ver el comentario de `sifoHint5Gm` en el diccionario ES.
+    sifoHint5Gm: 'If you picked the wrong one, change it here: this decides what we ask you and which documents you sign.',
     legalRepsSection: 'Legal representation',
     lawFirm: 'Law firm',
     lawFirmPh: 'Name of the law firm that referred the case...',
@@ -874,9 +886,22 @@ const RELATION_OPTIONS_EN = [
 // que TODOS caían en "Otro". Lo resuelve `normalizeRelation` — ver
 // packages/database/src/relations.ts.
 
+/**
+ * Cómo prefiere el paciente que lo contacten.
+ *
+ * `PHONE` dice "Llamada telefónica" y no "Teléfono": en la misma lista está
+ * "Mensaje de texto", que también llega al teléfono. Con "Teléfono" a secas las
+ * dos opciones se solapan y el paciente no puede saber cuál elegir — y quien
+ * después lo llama tampoco sabe qué le pidió.
+ *
+ * El VALOR guardado sigue siendo `PHONE`: esto es solo la etiqueta. Y tiene que
+ * decir lo mismo que `phoenix.patients.comm.PHONE` en `packages/i18n`, que es la
+ * que ve el staff en la ficha del paciente — dos nombres para el mismo dato
+ * guardado es cómo empiezan estas confusiones.
+ */
 const COMM_OPTIONS_ES = [
   { value: '', label: '—' },
-  { value: 'PHONE', label: 'Teléfono' },
+  { value: 'PHONE', label: 'Llamada telefónica' },
   { value: 'EMAIL', label: 'Email' },
   { value: 'TEXT', label: 'Mensaje de texto' },
   { value: 'ANY', label: 'Cualquiera' },
@@ -884,7 +909,7 @@ const COMM_OPTIONS_ES = [
 
 const COMM_OPTIONS_EN = [
   { value: '', label: '—' },
-  { value: 'PHONE', label: 'Phone' },
+  { value: 'PHONE', label: 'Phone call' },
   { value: 'EMAIL', label: 'Email' },
   { value: 'TEXT', label: 'Text message' },
   { value: 'ANY', label: 'Any' },
@@ -2935,7 +2960,10 @@ export function IntakeWizard({
 
             </div>
 
-            <SifoHint hint={t.sifoHint5} />
+            {/* El aviso depende del tipo de visita: el de la fecha del accidente
+                estaba FUERA del bloque de MVA y se le mostraba también a una
+                consulta general, hablándole de un accidente que no tuvo. */}
+            <SifoHint hint={requiresLien ? t.sifoHint5 : t.sifoHint5Gm} />
             <SaveError error={saveError} />
             <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(5 as Step)} t={t} />
           </div>

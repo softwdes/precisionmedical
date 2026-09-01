@@ -4471,7 +4471,7 @@
         "PREFER_NOT_TO_SAY": "Prefer not to answer"
       },
       "comm": {
-        "PHONE": "Phone",
+        "PHONE": "Phone call",
         "EMAIL": "Email",
         "TEXT": "Text message",
         "ANY": "Any"

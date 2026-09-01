@@ -67,6 +67,8 @@ interface PatientData {
 interface AccidentData {
   date: string | null;
   type: string | null;
+  /** El staff ya definió el tipo con respaldo legal — al paciente no se le pregunta. */
+  typeLocked?: boolean;
   notes: string | null;
   location: string | null;
   lawFirm: string | null;
@@ -188,11 +190,31 @@ const STRINGS = {
     phone: 'Teléfono',
     email: 'Correo electrónico',
     preferredLangLabel: 'Idioma preferido',
-    langOptionEs: '🇪🇸 Español',
-    langOptionEn: '🇺🇸 English',
+    // Sin bandera — ver el comentario del selector de idioma (pre-step).
+    langOptionEs: 'Español',
+    langOptionEn: 'English',
     // Información clínica (Step 2)
     clinicalSection: 'Información clínica del paciente',
     clinicalSub: 'Estos datos nos ayudan a brindarle un servicio más personalizado.',
+    // Sección propia del paso 2. Antes reusaba `clinicalSection`, y ahí estaba el
+    // problema de fondo: se titulaba "Información clínica del paciente" pero
+    // contenía la mitad de la dirección, la preferencia de contacto y de dónde
+    // salió el referido — ni un solo dato clínico. Ese título es el motivo por el
+    // que la dirección terminó partida en dos: alguien tuvo que poner
+    // Estado/Ciudad/C.P. en algún lado y cayeron acá.
+    contactSection: 'Preferencias de contacto',
+    contactSub: 'Cómo prefiere que nos comuniquemos con usted.',
+    // Pre-step del tipo de visita. En palabras del paciente: MVA y GM son
+    // códigos internos y nadie llega sabiéndolos.
+    visitKindTitle: '¿Su visita es por un accidente de auto?',
+    visitKindSub: 'Su respuesta define qué le vamos a preguntar y qué documentos va a firmar.',
+    visitKindYes: 'Sí',
+    visitKindYesHint: 'Vengo por un accidente de tránsito',
+    visitKindNo: 'No',
+    visitKindNoHint: 'Es una consulta médica general',
+    visitKindFoot: 'Si no está seguro, recepción lo revisa con usted al llegar.',
+    visitKindConfirm: 'Confirme el motivo de su visita',
+    visitKindConfirmSub: 'Lo eligió al empezar. Si se equivocó, cámbielo acá.',
     howHeard: '¿Cómo se enteró de nosotros?',
     howHeardPh: 'Seleccionar',
     commPref: '¿Cómo le gustaría que se comuniquen?',
@@ -221,7 +243,11 @@ const STRINGS = {
     emergency2RelationPh: 'Ej: Hermano, Vecino...',
     cellPhone: 'Celular',
     cellPhonePh: '(801) 555-0100',
-    addressLine1: 'Dirección',
+    // "Calle y número", no "Dirección": el campo es SOLO la línea de la calle —
+    // el estado, la ciudad y el C.P. van abajo, cada uno en el suyo. El
+    // placeholder ya lo insinuaba y la etiqueta iba a destiempo. Es el
+    // equivalente de "Street Address", que es lo que dice en inglés.
+    addressLine1: 'Calle y número',
     addressLine1Ph: 'Ej: 123 Main St, Apt 4',
     addressCity: 'Ciudad',
     addressCityPh: 'Ej: Provo',
@@ -483,11 +509,26 @@ const STRINGS = {
     phone: 'Phone number',
     email: 'Email address',
     preferredLangLabel: 'Preferred language',
-    langOptionEs: '🇪🇸 Spanish',
-    langOptionEn: '🇺🇸 English',
+    // Sin bandera, y "Español" TAMBIÉN acá. Decía "Spanish": un paciente que
+    // solo lee español no reconoce esa palabra, y este campo es justamente
+    // donde puede estar buscándola. Cada idioma se escribe en el suyo.
+    langOptionEs: 'Español',
+    langOptionEn: 'English',
     // Clinical info (Step 2)
     clinicalSection: 'Clinical patient information',
     clinicalSub: 'This data helps us provide a more personalized service.',
+    // Ver el comentario de `contactSection` en el diccionario ES.
+    contactSection: 'Contact preferences',
+    contactSub: 'How you would like us to reach you.',
+    visitKindTitle: 'Is your visit related to a car accident?',
+    visitKindSub: 'Your answer decides what we ask you and which documents you sign.',
+    visitKindYes: 'Yes',
+    visitKindYesHint: 'I am here because of a traffic accident',
+    visitKindNo: 'No',
+    visitKindNoHint: 'This is a general medical visit',
+    visitKindFoot: 'If you are not sure, our front desk will go over it with you when you arrive.',
+    visitKindConfirm: 'Confirm the reason for your visit',
+    visitKindConfirmSub: 'You chose this at the start. If it is wrong, change it here.',
     howHeard: 'How did you hear about us?',
     howHeardPh: 'Select',
     commPref: 'How would you like to be contacted?',
@@ -516,7 +557,7 @@ const STRINGS = {
     emergency2RelationPh: 'E.g., Brother, Neighbor...',
     cellPhone: 'Cell phone',
     cellPhonePh: '(801) 555-0100',
-    addressLine1: 'Address',
+    addressLine1: 'Street Address',
     addressLine1Ph: 'E.g., 123 Main St, Apt 4',
     addressCity: 'City',
     addressCityPh: 'E.g., Provo',
@@ -1117,6 +1158,23 @@ export function IntakeWizard({
   const [step, setStep]           = useState<Step>(1);
   const [lang, setLang]           = useState<Lang>('en');
   const [langChosen, setLangChosen] = useState(false);
+
+  /**
+   * ¿Ya se resolvió el tipo de visita? Es la segunda pantalla, después del
+   * idioma y antes del formulario.
+   *
+   * Estaba en el paso 5 de 10, y ahí llegaba tarde: es la BIFURCACIÓN del
+   * intake — decide si se piden los datos del accidente, si la fecha del
+   * accidente es obligatoria y si el cierre es firmar el lien o solo enviar el
+   * registro. El paciente llenaba media planilla antes de que se definiera la
+   * forma de la otra mitad. Peor: la lista de "lo que vas a hacer hoy" del
+   * landing ya sumaba o quitaba el paso de la firma según ese valor, o sea que
+   * el wizard prometía un plan armado sobre una respuesta que nadie dio.
+   *
+   * Arranca resuelto cuando el staff ya lo definió con respaldo legal
+   * (`typeLocked`): ahí no hay nada que preguntar.
+   */
+  const [caseTypeChosen, setCaseTypeChosen] = useState(!!accident.typeLocked);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -1672,6 +1730,16 @@ export function IntakeWizard({
         const errJson = await res.json().catch(() => ({})) as { detail?: string };
         throw new Error(errJson.detail ? `${res.status}: ${errJson.detail}` : `HTTP ${res.status}`);
       }
+      // El paso 5 devuelve el tipo de caso VIGENTE, que puede no ser el que se
+      // mandó: el servidor rechaza degradar un MVA con respaldo legal. Se adopta
+      // el suyo — si no, la pantalla sigue en modo GM y el paciente descubre el
+      // lien recién al firmar. Misma razón que en `guardarTipoDeVisita`.
+      if (stepNum === 5) {
+        const json = await res.json().catch(() => ({})) as { caseType?: CaseType };
+        if (json.caseType && json.caseType !== acc.type) {
+          setAcc(a => ({ ...a, type: json.caseType! }));
+        }
+      }
       setLastSaved(new Date());
       return true;
     } catch (err) {
@@ -1785,6 +1853,46 @@ export function IntakeWizard({
     }
     setStep(s => (s - 1) as Step);
     window.scrollTo(0, 0);
+  };
+
+  /**
+   * El paciente respondió si viene por un accidente.
+   *
+   * Se guarda EN EL ACTO y no se espera al paso 5, por dos razones. La lista de
+   * "lo que vas a hacer hoy" del landing —la pantalla siguiente— se arma con
+   * este valor, así que tiene que estar resuelto antes de pintarla. Y si el
+   * paciente abandona el formulario ahí mismo, el caso ya queda con el tipo que
+   * él declaró en vez del que se supuso al darlo de alta.
+   *
+   * El servidor tiene la última palabra: puede rechazar un MVA→GM cuando el
+   * caso tiene bufete o lien firmado (ver el PATCH del paso 5). Si lo rechaza
+   * devuelve el tipo vigente y acá se adopta ese, no el que se pidió — de lo
+   * contrario la pantalla seguiría en modo GM y el paciente se enteraría recién
+   * al final, cuando `/sign` le exija una firma que nadie le pidió.
+   *
+   * Un fallo de red no se le muestra: el paso 5 vuelve a mandar lo mismo.
+   */
+  const guardarTipoDeVisita = async (tipo: CaseType): Promise<void> => {
+    try {
+      const res = await fetch(`/api/intake/${token}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ step: 5, data: { accident: { type: tipo } } }),
+      });
+      if (!res.ok) return;
+      const json = await res.json() as { caseType?: CaseType };
+      if (json.caseType && json.caseType !== tipo) {
+        setAcc(a => ({ ...a, type: json.caseType! }));
+      }
+    } catch {
+      /* silencio a propósito — el paso 5 lo reintenta */
+    }
+  };
+
+  const elegirTipoDeVisita = (tipo: CaseType): void => {
+    setAcc(a => ({ ...a, type: tipo }));
+    setCaseTypeChosen(true);
+    void guardarTipoDeVisita(tipo);
   };
 
   const submitSignature = async () => {
@@ -1934,25 +2042,42 @@ export function IntakeWizard({
               Selecciona tu idioma preferido
             </p>
 
+            {/* Sin banderas — la palabra ES la opción.
+                Tenía 🇺🇸 y 🇲🇽 arriba del nombre, y eso fallaba de dos maneras.
+                La visible: Windows no trae fuente de banderas, así que Chrome
+                cae a dibujar los dos indicadores regionales como letras y la
+                pantalla mostraba "US" y "MX" — un aspecto que nadie diseñó, y
+                que aparecía solo en Windows (en iPhone, iPad, Android y Mac se
+                veían las banderas de verdad).
+                La de fondo: una bandera nombra un PAÍS, no un idioma. Los
+                pacientes hispanohablantes de la clínica son puertorriqueños,
+                cubanos, salvadoreños, colombianos — la bandera de México sobre
+                "Español" le dice a un salvadoreño que esa opción no es la suya.
+                Y como primera pantalla de un intake que después pide ID, seguro
+                y tutor, dos banderas nacionales se leen como "¿de qué país
+                sos?", que no es lo que se está preguntando.
+                Cada idioma va escrito en su propio idioma, que es la convención
+                y lo que ya hacía el `<select>` del paso 2. */}
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
               {([
-                { l: 'en' as const, flag: '🇺🇸', label: 'English' },
-                { l: 'es' as const, flag: '🇲🇽', label: 'Español' },
-              ]).map(({ l, flag, label }) => (
+                { l: 'en' as const, label: 'English' },
+                { l: 'es' as const, label: 'Español' },
+              ]).map(({ l, label }) => (
                 <button
                   key={l}
                   type="button"
                   onClick={() => { setLang(l); setLangChosen(true); }}
                   style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                    padding: '24px 40px', borderRadius: 16, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    // Sin la bandera la tarjeta alta quedaba con una palabra
+                    // flotando en el medio: se achica para que el texto la llene.
+                    padding: '20px 36px', borderRadius: 16, cursor: 'pointer',
                     background: lang === l ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.04)',
                     border: `2px solid ${lang === l ? 'rgba(6,182,212,0.50)' : 'rgba(255,255,255,0.10)'}`,
-                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 140,
+                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 160,
                   }}
                 >
-                  <span style={{ fontSize: 40 }}>{flag}</span>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: lang === l ? '#06B6D4' : 'rgba(255,255,255,0.85)' }}>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: lang === l ? '#06B6D4' : 'rgba(255,255,255,0.85)' }}>
                     {label}
                   </span>
                 </button>
@@ -1965,8 +2090,73 @@ export function IntakeWizard({
           </div>
         )}
 
+        {/* ══════ TIPO DE VISITA (pre-step) ═══════════════════════════════════
+            Segunda pantalla: idioma → esto → formulario.
+
+            Es la misma decisión que antes vivía en el paso 5 ("MVA (Motor
+            vehicle accident)" vs "GM (General medical visit)"), pero preguntada
+            en el idioma del paciente. Esas siglas son nomenclatura interna: en
+            el paso 5 se sostenían porque debajo estaban los campos del
+            accidente dándoles contexto; solas en la segunda pantalla, alguien
+            que chocó pero viene a un control de seguimiento no sabe cuál es la
+            suya. La pregunta que sí puede contestar cualquiera es si viene por
+            un accidente. MVA y GM siguen siendo los códigos internos.
+
+            No aparece si `typeLocked`: ese caso ya lo definió el staff. */}
+        {langChosen && !caseTypeChosen && (
+          <div style={{ paddingTop: 60, paddingBottom: 40, textAlign: 'center' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 32,
+              padding: '6px 14px', borderRadius: 20,
+              background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.25)',
+            }}>
+              <span style={{ color: CYAN, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em' }}>
+                PRECISION MEDICAL
+              </span>
+            </div>
+
+            <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, lineHeight: 1.2 }}>
+              {t.visitKindTitle}
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginBottom: 40 }}>
+              {t.visitKindSub}
+            </p>
+
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {([
+                { key: 'MVA' as CaseType, label: t.visitKindYes, hint: t.visitKindYesHint },
+                { key: 'GM'  as CaseType, label: t.visitKindNo,  hint: t.visitKindNoHint  },
+              ]).map(({ key, label, hint }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => elegirTipoDeVisita(key)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                    padding: '20px 28px', borderRadius: 16, cursor: 'pointer',
+                    background: acc.type === key ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `2px solid ${acc.type === key ? 'rgba(6,182,212,0.50)' : 'rgba(255,255,255,0.10)'}`,
+                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 190, maxWidth: 240,
+                  }}
+                >
+                  <span style={{ fontSize: 20, fontWeight: 700, color: acc.type === key ? CYAN : 'rgba(255,255,255,0.85)' }}>
+                    {label}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.4 }}>
+                    {hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p style={{ marginTop: 40, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+              {t.visitKindFoot}
+            </p>
+          </div>
+        )}
+
         {/* ══════ STEP 1 · Landing (B.5) ══════════════════════════════════════ */}
-        {langChosen && step === 1 && (
+        {langChosen && caseTypeChosen && step === 1 && (
           <div style={{ paddingTop: 40 }}>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{
@@ -2115,34 +2305,24 @@ export function IntakeWizard({
                   </Field>
                 </div>
 
-                {/* Dirección */}
+                {/* ── Dirección, completa y de corrido ─────────────────────────
+                    Calle · Estado + Ciudad · C.P.
+
+                    Estaba PARTIDA en dos secciones: la calle acá y el resto en la
+                    de abajo, que encima se titulaba "Información clínica del
+                    paciente" (un código postal no es un dato clínico). Entre las
+                    dos mitades quedaba el "Idioma preferido", que era el campo
+                    parado en la costura y lo que hacía notar el problema.
+
+                    El orden importa y no es cosmético: elegir Estado habilita
+                    Ciudad, y elegir Ciudad autocompleta el C.P. — por eso el
+                    código postal va último. */}
                 <Field label={t.addressLine1}>
                   <input type="text" style={S.input} value={personal.addressLine1}
                     placeholder={t.addressLine1Ph}
                     onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
                 </Field>
 
-                <Field label={t.preferredLangLabel}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {(['es', 'en'] as Lang[]).map(l => (
-                      <button key={l} type="button" onClick={() => setLang(l)} style={{
-                        padding: '11px 8px', borderRadius: 10,
-                        border: lang === l ? '1px solid rgba(6,182,212,0.55)' : '1px solid rgba(255,255,255,0.10)',
-                        background: lang === l ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
-                        color: lang === l ? CYAN : 'rgba(255,255,255,0.55)',
-                        fontSize: 13, fontWeight: lang === l ? 700 : 400,
-                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.2s',
-                      }}>
-                        {l === 'es' ? t.langOptionEs : t.langOptionEn}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-              </FormSection>
-
-              {/* ── Sección 2: Información clínica ── */}
-              <FormSection title={t.clinicalSection} sub={t.clinicalSub}>
-                {/* Estado + Ciudad + C.P. */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.addressState}>
                     <select
@@ -2181,7 +2361,15 @@ export function IntakeWizard({
                     placeholder="84601" maxLength={10}
                     onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
                 </Field>
+              </FormSection>
 
+              {/* ── Sección 2: preferencias de contacto ──────────────────────
+                  Se quedó con lo que de verdad va junto: por dónde quiere que lo
+                  contactemos y de dónde salió el referido. El título decía
+                  "Información clínica del paciente" y no tenía un solo dato
+                  clínico adentro — el clínico de verdad es el del paso 3, que
+                  sigue usando `clinicalSection`. */}
+              <FormSection title={t.contactSection} sub={t.contactSub}>
                 {/* ¿Cómo se enteró? + ¿Cómo prefiere comunicación? */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.commPref}>
@@ -2527,8 +2715,17 @@ export function IntakeWizard({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Tipo de caso — MVA vs GM */}
-              <FormSection title={t.accidentTypeLabel} sub={lang === 'es' ? 'Cuéntenos detalladamente por qué nos visita hoy.' : 'Tell us in detail why you are visiting us today.'}>
+              {/* Tipo de caso — MVA vs GM.
+                  Ya NO es la primera vez que se pregunta: la decisión se toma en
+                  la segunda pantalla del wizard, antes del formulario. Esto
+                  queda como CONFIRMACIÓN, y es a propósito que siga estando:
+                  · la pregunta del arranque se contesta rápido y sin contexto, y
+                    esta decide si el paciente firma un lien — merece una segunda
+                    mirada donde sí hay contexto (los campos del accidente
+                    quedan acá abajo);
+                  · sin esto, un GM llegaría a un paso 5 completamente vacío;
+                  · y es el único lugar del formulario donde se puede corregir. */}
+              <FormSection title={t.visitKindConfirm} sub={t.visitKindConfirmSub}>
                 <Field label={t.accidentTypeLabel}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {(['MVA', 'GM'] as CaseType[]).map(key => (

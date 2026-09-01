@@ -248,11 +248,16 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
       <h1 style={style.title}>{c.title}</h1>
       <p style={style.subtitle}>{c.sub}</p>
 
-      {/* Language toggle */}
+      {/* Language toggle — sin banderas, igual que el wizard de intake.
+          Tenía 🇲🇽 y 🇺🇸: en la tablet del mostrador (Windows) se dibujaban como
+          las letras "MX" y "US", porque el sistema no trae fuente de banderas.
+          Y aunque se vieran, una bandera nombra un país y no un idioma: la de
+          México sobre "Español" excluye a la mitad de los pacientes que hablan
+          español acá. Ver el comentario largo en `c/[token]/intake-wizard.tsx`. */}
       <div style={style.langToggle}>
         {(['es', 'en'] as const).map(l => (
           <button key={l} type="button" style={style.langBtn(lang === l)} onClick={() => setLang(l)}>
-            {l === 'es' ? '🇲🇽 Español' : '🇺🇸 English'}
+            {l === 'es' ? 'Español' : 'English'}
           </button>
         ))}
       </div>

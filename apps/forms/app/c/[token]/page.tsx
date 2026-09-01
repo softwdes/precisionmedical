@@ -9,6 +9,7 @@
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { IntakeWizard } from './intake-wizard';
+import { TEL_CLINICA, TEL_CLINICA_E164, TEL_SELECCIONABLE } from '@/lib/clinica';
 
 type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ reopen?: string }> };
 
@@ -263,16 +264,20 @@ function InvalidToken() {
         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 24 }}>
           Este enlace no es válido o ya expiró. Comunícate con Precision Medical para recibir uno nuevo.
         </p>
+        {/* En desktop este enlace no marca: lo útil ahí es poder copiar el
+            número. Ver `TEL_SELECCIONABLE` en lib/clinica.ts. */}
         <a
-          href="tel:+18013752207"
+          href={`tel:${TEL_CLINICA_E164}`}
+          draggable={false}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '12px 22px', borderRadius: 10,
             background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.30)',
             color: '#06B6D4', fontSize: 15, fontWeight: 700, textDecoration: 'none',
+            ...TEL_SELECCIONABLE.style,
           }}
         >
-          📞 (801) 375-2207
+          📞 {TEL_CLINICA}
         </a>
       </div>
     </div>
@@ -314,7 +319,7 @@ function AlreadyCompleted({ firstName, caseCode, token }: { firstName: string; c
           📋 Ver / actualizar mi información
         </a>
         <p style={{ color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
-          ¿Preguntas? (801) 375-2207
+          ¿Preguntas? {TEL_CLINICA}
         </p>
       </div>
     </div>

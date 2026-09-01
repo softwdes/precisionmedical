@@ -1,9 +1,11 @@
 /**
  * Portal · Home
  *
- * Los pacientes llegan SIEMPRE via magic link → /intake/[token]
+ * Los pacientes llegan SIEMPRE via magic link → /c/[token]
  * Esta página solo se ve si alguien navega directo a la raíz del portal.
  */
+
+import { TEL_CLINICA, TEL_CLINICA_E164, TEL_SELECCIONABLE } from '@/lib/clinica';
 
 export default function PortalHomePage() {
   return (
@@ -66,14 +68,18 @@ export default function PortalHomePage() {
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>
             ¿Preguntas? · Questions?
           </div>
+          {/* Ver `TEL_SELECCIONABLE` en lib/clinica.ts: en desktop el `tel:` no
+              marca, así que lo que importa es que se pueda copiar. */}
           <a
-            href="tel:+18013752207"
+            href={`tel:${TEL_CLINICA_E164}`}
+            draggable={false}
             style={{
               color: '#06B6D4', fontSize: 16, fontWeight: 700,
               textDecoration: 'none', letterSpacing: '0.02em',
+              ...TEL_SELECCIONABLE.style,
             }}
           >
-            (801) 375-2207
+            {TEL_CLINICA}
           </a>
         </div>
       </div>

@@ -12,6 +12,7 @@
 
 import { db } from '@precision-medical/database';
 import { CloseWindowButton } from './close-window-button';
+import { TEL_CLINICA, TEL_CLINICA_E164, TEL_SELECCIONABLE } from '@/lib/clinica';
 
 type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ lang?: string }> };
 
@@ -35,7 +36,9 @@ const T = {
     step3Sub:      'Trae tu licencia de conducir y tarjeta de seguro a tu primera visita. Te cuidamos.',
     downloadBtn:   '📄 Descargar copia del acuerdo (Próximamente)',
     downloadTitle: 'Disponible en Fase 2',
-    questions:     '¿Preguntas?',
+    // El número entra por parámetro y no escrito acá: sale de `lib/clinica.ts`,
+    // que es el único lugar donde vive — el `href` del `tel:` usa el mismo.
+    questions:     (tel: string) => `¿Tienes preguntas? Llámanos a la oficina al ${tel}.`,
     cifoFarewell:  (n: string) => `¡Excelente trabajo, ${n}! Estás en buenas manos. Si tienes dudas antes de tu primera visita, no dudes en llamarnos. 💙`,
     fallbackName:  'Paciente',
   },
@@ -55,7 +58,7 @@ const T = {
     step3Sub:      "Bring your driver's license and insurance card to your first visit. We'll take care of you.",
     downloadBtn:   '📄 Download a copy of the agreement (Coming soon)',
     downloadTitle: 'Available in Phase 2',
-    questions:     'Questions?',
+    questions:     (tel: string) => `Have questions? Give our office a call at ${tel}.`,
     cifoFarewell:  (n: string) => `Great job, ${n}! You're in good hands. If anything comes up before your first visit, just give us a call. 💙`,
     fallbackName:  'Patient',
   },
@@ -216,17 +219,34 @@ export default async function DonePage({ params, searchParams }: Props) {
             </button>
           )}
 
-          {/* Call button */}
+          {/* Teléfono de la clínica.
+              En el celular se toca y abre el discador; en una computadora un
+              enlace `tel:` no hace nada, asi que ahi el trabajo es que el numero
+              se pueda seleccionar y copiar. Dos cosas hacen falta para eso:
+
+               · `userSelect: 'text'` — un enlace no se selecciona por defecto.
+               · `draggable={false}` — los navegadores hacen arrastrables los
+                 enlaces, asi que arrastrar para marcar el numero movia el enlace
+                 en vez de seleccionar el texto. Sin esto lo primero se queda sin
+                 efecto: se puede seleccionar con doble clic pero no arrastrando,
+                 que es como lo intenta cualquiera.
+
+              Este boton genero un reporte de "no funciona": decia
+              "(801) 375-2207 · Questions?", que se leia como un boton, y en
+              desktop el clic no hacia nada. El texto nuevo lo dice como frase,
+              no como promesa de accion. */}
           <a
-            href="tel:+18013752207"
+            href={`tel:${TEL_CLINICA_E164}`}
+            draggable={false}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '12px 20px', borderRadius: 12,
               background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)',
               color: '#06B6D4', fontSize: 14, fontWeight: 600, textDecoration: 'none',
+              ...TEL_SELECCIONABLE.style,
             }}
           >
-            📞 (801) 375-2207 · {t.questions}
+            📞 {t.questions(TEL_CLINICA)}
           </a>
         </div>
 

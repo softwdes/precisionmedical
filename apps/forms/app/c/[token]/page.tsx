@@ -30,6 +30,11 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       primaryPolicyNumber: true,
       intakeFormCompletedAt: true,
       consentsData: true,
+      // Respaldo legal del caso — decide si al paciente se le pregunta el tipo
+      // de visita o si ya está resuelto. Ver `accident.typeLocked` abajo.
+      lawFirmId: true, attorneyId: true, attorneyNameRaw: true,
+      paralegalId: true, legalAssistantId: true,
+      _count: { select: { lienSignatures: true } },
       // Próxima cita para mostrar en el landing (B.5)
       appointments: {
         where: { scheduledFor: { gte: new Date() } },
@@ -168,6 +173,23 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         // del step 5. Antes se pasaba `accidentType` (AUTO/FALL/...) y por eso
         // un caso GM arrancaba como MVA y al guardar sobreescribia su caseType.
         type:         rec.caseType === 'GENERAL' ? 'GM' : 'MVA',
+        /**
+         * El tipo ya está decidido y el paciente no lo elige.
+         *
+         * Un MVA con bufete, abogado, paralegal, asistente legal o un lien ya
+         * firmado no es una suposición del alta: lo armó el staff con el
+         * referido y el reporte del accidente, y puede haber un despacho
+         * trabajándolo. A ese paciente no se le hace la pregunta — preguntar
+         * algo cuya respuesta se va a ignorar es peor que no preguntarlo.
+         *
+         * El freno real vive en el PATCH del paso 5; esto solo decide la
+         * pantalla.
+         */
+        typeLocked:   rec.caseType === 'MVA' && (
+          rec._count.lienSignatures > 0 ||
+          !!rec.lawFirmId || !!rec.attorneyId || !!rec.attorneyNameRaw ||
+          !!rec.paralegalId || !!rec.legalAssistantId
+        ),
         notes:        rec.accidentNotes ?? null,
         location:     rec.accidentLocation ?? null,
         lawFirm:      (cd.lawFirm as string) ?? null,

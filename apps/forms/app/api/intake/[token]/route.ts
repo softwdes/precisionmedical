@@ -43,6 +43,26 @@ function protegerCifrados(
   }
 }
 
+/**
+ * ¿Este caso ya tiene respaldo legal como MVA?
+ *
+ * Es la pregunta que decide si el paciente puede degradarlo a visita general.
+ * Un MVA con bufete, abogado, paralegal, asistente legal o una firma de lien ya
+ * registrada NO es una opinión: alguien del staff lo armó a partir del referido
+ * y del reporte del accidente, y puede haber un despacho trabajándolo.
+ *
+ * Alcanza con UNA de esas señales. Ninguna aparece sola por accidente.
+ */
+function tieneRespaldoLegal(c: {
+  lawFirmId: string | null; attorneyId: string | null; attorneyNameRaw: string | null;
+  paralegalId: string | null; legalAssistantId: string | null;
+  _count: { lienSignatures: number };
+}): boolean {
+  return c._count.lienSignatures > 0
+    || !!c.lawFirmId || !!c.attorneyId || !!c.attorneyNameRaw
+    || !!c.paralegalId || !!c.legalAssistantId;
+}
+
 // Parsea "YYYY-MM-DD" como fecha local (noon) para evitar el off-by-one de UTC midnight
 function parseDateLocal(s: string): Date {
   const [y, m, d] = s.split('-').map(Number);
@@ -79,6 +99,10 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       primaryPolicyNumber: true,
       intakeFormCompletedAt: true,
       consentsData: true,
+      // Evidencia de respaldo legal — para `accident.typeLocked`.
+      lawFirmId: true, attorneyId: true, attorneyNameRaw: true,
+      paralegalId: true, legalAssistantId: true,
+      _count: { select: { lienSignatures: true } },
       patient: {
         select: {
           id: true, firstName: true, lastName: true,
@@ -161,6 +185,15 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       // de `accidentType` — otra columna, que guarda AUTO/FALL/etc — y por eso
       // un caso GM se reabria siempre como MVA y arrastraba el lien.
       type:         rec.caseType === 'GENERAL' ? 'GM' : 'MVA',
+      /**
+       * true cuando el tipo ya está decidido y el paciente no puede cambiarlo:
+       * un MVA con bufete, abogado o lien firmado. El wizard lo usa para NO
+       * hacer la pregunta — preguntar algo cuya respuesta se va a ignorar es
+       * peor que no preguntarlo, porque el paciente cree que eligió.
+       *
+       * El freno de verdad está en el PATCH; esto es solo para la pantalla.
+       */
+      typeLocked:   rec.caseType === 'MVA' && tieneRespaldoLegal(rec),
       // Mecanismo real del accidente, por si se necesita mas adelante.
       mechanism:    rec.accidentType,
       location:     rec.accidentLocation,
@@ -216,6 +249,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     where: { portalToken: token },
     select: {
       id: true, caseCode: true,
+      // Para el freno de `caseType` del paso 5 — ver `tieneRespaldoLegal()`.
+      caseType: true,
+      lawFirmId: true, attorneyId: true, attorneyNameRaw: true,
+      paralegalId: true, legalAssistantId: true,
+      _count: { select: { lienSignatures: true } },
       patient: {
         select: {
           id: true, email: true,
@@ -370,28 +408,101 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
+  /**
+   * Tipo de caso que quedó vigente después del paso 5.
+   *
+   * Viaja en la respuesta para que el wizard adopte lo que el servidor decidió
+   * y no lo que el paciente pidió. Sin esto, un pedido bloqueado dejaba a las
+   * dos mitades en desacuerdo: la pantalla seguía en modo GM y cerraba con
+   * "Enviar registro", mientras `/sign` —que lee la DB— seguía exigiendo el
+   * lien. El paciente llegaba al final del formulario y ahí recibía un error,
+   * que es el peor lugar posible para enterarse.
+   */
+  let caseTypeEfectivo: 'MVA' | 'GM' | null = null;
+
   if (step === 5 && data.accident) {
     const a = data.accident;
     const caseData: Record<string, unknown> = {};
-    // 'MVA' → caseType=MVA, 'GM' → caseType=GENERAL (CaseTypeWorkflow enum)
-    if (a.type)     caseData.caseType         = a.type === 'GM' ? 'GENERAL' : 'MVA';
+    /** Parches al JSON `consentsData`. Se juntan acá y se aplican de una sola
+     *  vez sobre lo guardado: escribirlos por separado hace que el último pise
+     *  a los anteriores, porque cada escritura reemplaza el JSON entero. */
+    const consents: Record<string, unknown> = {};
+
+    if (a.type) {
+      // 'MVA' → caseType=MVA, 'GM' → caseType=GENERAL (CaseTypeWorkflow enum)
+      const pedido = a.type === 'GM' ? 'GENERAL' : 'MVA';
+
+      /**
+       * El paciente NO puede degradar un MVA con respaldo legal.
+       *
+       * Antes esta línea era `caseData.caseType = …` a secas, y ese era el
+       * agujero más caro del intake: un toque en "GM" reescribía la columna, y
+       * como `/sign` decide el lien leyendo esa misma columna —bien, para que
+       * no se pueda falsear desde el body— el lien simplemente dejaba de
+       * pedirse. El control del servidor era real contra un flag manipulado,
+       * pero no contra el paciente habiendo reescrito la columna un paso antes.
+       *
+       * El sentido contrario (GM → MVA) sí pasa: solo AGREGA requisitos, nunca
+       * saca uno. Y un MVA sin nada legal encima todavía es una suposición del
+       * alta, así que el paciente puede corregirla.
+       *
+       * Cuando se bloquea no se pierde: queda declarado en `consentsData` y en
+       * el audit log, para que Edson resuelva la discrepancia con el paciente
+       * delante. Mismo criterio que los seguros: entra como declarado, no pisa.
+       */
+      const degrada = rec.caseType === 'MVA' && pedido === 'GENERAL';
+
+      if (degrada && tieneRespaldoLegal(rec)) {
+        consents.caseTypeDeclarado = {
+          valor:       'GM',
+          declaradoEn: new Date().toISOString(),
+          motivo:      'El paciente declaró visita general en un MVA con respaldo legal',
+        };
+        await writeAuditLog(db, {
+          actorType:   'SYSTEM',
+          actorUserId: null,
+          action:      'INTAKE_CASE_TYPE_DECLARADO',
+          // 'cases', NO 'Case'. En la tabla conviven las tres grafías —'cases'
+          // (34 escrituras), 'case' (7) y 'Case' (7)— y la única vista que lee
+          // historial de un caso filtra por 'cases'. Escribirlo como 'Case'
+          // deja el registro guardado pero invisible, que para una discrepancia
+          // que alguien tiene que resolver es lo mismo que no guardarlo.
+          entityType:  'cases',
+          entityId:    rec.id,
+          metadata: {
+            caseCode:    rec.caseCode,
+            enLaDb:      rec.caseType,
+            declarado:   pedido,
+            aplicado:    false,
+            lienFirmado: rec._count.lienSignatures > 0,
+            tieneBufete: !!rec.lawFirmId || !!rec.attorneyId || !!rec.attorneyNameRaw,
+            token:       token.slice(0, 8) + '…',
+          },
+        }).catch(() => undefined);
+      } else {
+        caseData.caseType = pedido;
+      }
+    }
+
     if (a.date)     caseData.accidentDate     = parseDateLocal(a.date);
     if (a.notes)    caseData.accidentNotes    = a.notes;
 
-    if (a.lawFirm !== undefined || a.attorney !== undefined || a.chiropractor !== undefined) {
+    if (a.lawFirm      !== undefined) consents.lawFirm      = a.lawFirm || null;
+    if (a.attorney     !== undefined) consents.attorney     = a.attorney || null;
+    if (a.chiropractor !== undefined) consents.chiropractor = a.chiropractor || null;
+
+    if (Object.keys(consents).length > 0) {
       const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
       const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
-      caseData.consentsData = {
-        ...prev,
-        ...(a.lawFirm      !== undefined ? { lawFirm:      a.lawFirm || null }      : {}),
-        ...(a.attorney     !== undefined ? { attorney:     a.attorney || null }      : {}),
-        ...(a.chiropractor !== undefined ? { chiropractor: a.chiropractor || null }  : {}),
-      };
+      caseData.consentsData = { ...prev, ...consents };
     }
 
     if (Object.keys(caseData).length > 0) {
       await db.case.update({ where: { id: rec.id }, data: caseData });
     }
+
+    const vigente = (caseData.caseType as string | undefined) ?? rec.caseType;
+    caseTypeEfectivo = vigente === 'MVA' ? 'MVA' : 'GM';
   }
 
   if (step === 6 && data.insurances !== undefined) {
@@ -462,7 +573,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     metadata:     { step, token: token.slice(0, 8) + '…' },
   }).catch(() => undefined);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...(caseTypeEfectivo ? { caseType: caseTypeEfectivo } : {}) });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

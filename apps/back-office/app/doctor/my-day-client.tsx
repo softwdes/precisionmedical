@@ -574,9 +574,17 @@ export function MyDayClient({
                 </Link>
                 {/* Mismo juego que la fila del mostrador, y por el mismo motivo:
                     si no hay asistente, el provider tiene que poder resolver la
-                    cita igual. Solo HOY y solo antes de que el paciente llegue —
-                    en un día pasado esto es historia, no una cola de trabajo. */}
-                {isToday && !arrived(a) && (
+                    cita igual.
+
+                    SIN condicionar por fecha, igual que Day Admission: ahí
+                    `isToday` gobierna el pulso en vivo y la etiqueta del KPI, no
+                    las acciones de la fila (salen con `isPending`, en cualquier
+                    día). Nació con un `isToday &&` de más y el resultado fue que
+                    en cualquier día que no fuera hoy no había un solo botón —
+                    justo el caso del provider que al otro día cierra los
+                    no-shows que quedaron sueltos. Una restricción que el
+                    mostrador no tiene no es un reflejo. */}
+                {!arrived(a) && (
                   <div className="shrink-0 flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-end">
                     <button
                       type="button"

@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
-  FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
+  Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
   Stethoscope, Unlock,
 } from 'lucide-react';
 import { RichTextEditor, TagPill } from '@/components/ui-phoenix';
@@ -177,6 +177,8 @@ export function VisitNoteEditor({
    * pregunta antes, en vez de borrar en silencio.
    */
   const [tplPorConfirmar, setTplPorConfirmar] = React.useState<PickableTemplate | null>(null);
+  /** Confirmación de "Clear all" — ver `limpiarNota`. */
+  const [confirmClear, setConfirmClear] = React.useState(false);
   const [dxPickerMode, setDxPickerMode] = React.useState<'ICD10' | 'SNOMED' | null>(null);
   const [confirmSign, setConfirmSign] = React.useState(false);
   const [signing, setSigning] = React.useState(false);
@@ -437,6 +439,44 @@ export function VisitNoteEditor({
     SECTIONS.some(({ field }) => (content[field] ?? '').replace(/<[^>]*>/g, '').trim().length > 0);
 
   /**
+   * Deja la nota EN CERO: las seis secciones, los diagnósticos y la marca de
+   * plantilla.
+   *
+   * Para cuando el doctor cargó la plantilla equivocada —o la del paciente
+   * anterior— y quiere arrancar de nuevo: borrar sección por sección son seis
+   * operaciones, y los diagnósticos uno por uno (Erick, 1-sep-2026).
+   *
+   * Se lleva los diagnósticos A PROPÓSITO. Si dice "all", tiene que ser all: una
+   * plantilla también trae ICD-10, y dejarlos colgando de una nota vacía son
+   * diagnósticos del cuadro equivocado. Elegir otra plantilla los reemplaza solo
+   * si la nueva trae los suyos, así que sin esto el error sobrevivía a "empezar
+   * de cero". El costo asumido es que un diagnóstico cargado a mano DESPUÉS de
+   * la plantilla también se va — el mismo riesgo que ya tiene "Cargar plantilla
+   * completa", y por eso el confirm los enumera.
+   *
+   * Los tres se marcan como TOCADOS aunque queden vacíos. Sin eso el guardado
+   * —que solo manda lo tocado— no enviaría nada: la nota se vería limpia en
+   * pantalla y volvería entera al recargar.
+   *
+   * No hay deshacer, y es a conciencia: los autoguardados no se auditan (ver el
+   * PUT de visit-notes), así que una vez guardado esto no está en ningún lado.
+   * De ahí que el confirm sea `danger` y lo diga.
+   */
+  const limpiarNota = (): void => {
+    const next = { ...content };
+    for (const { field } of SECTIONS) {
+      next[field] = '';
+      tocadas.current.add(field);
+    }
+    setContent(next);
+    setDx([]);
+    dxTocado.current = true;
+    setTemplateId(null);
+    tplTocado.current = true;
+    setDirty(true);
+  };
+
+  /**
    * Aplica una plantilla COMPLETA: pisa cada seccion que la plantilla traiga y
    * REEMPLAZA los diagnosticos por los suyos.
    *
@@ -552,6 +592,22 @@ export function VisitNoteEditor({
           {patientId && <MedicalHistoryButton patientId={patientId} />}
           {!soloLectura && (
             <>
+              {/* Va PRIMERO y separado del grupo de la derecha: es destructivo y
+                  no puede quedar pegado a "Finish note". `ghost` con el rose solo
+                  en hover — se lee como peligroso al apuntarlo, sin gritar desde
+                  el reposo. Deshabilitado con la nota vacía: no hay nada que
+                  limpiar, y esconderlo parecería que la pantalla está rota.
+                  La guarda es `notaTieneContenido`, que INCLUYE los diagnósticos:
+                  ahora "Clear all" también se los lleva, así que con la nota sin
+                  texto pero con un ICD-10 cargado el botón sigue sirviendo. */}
+              <Button
+                variant="ghost"
+                onClick={() => setConfirmClear(true)}
+                disabled={!notaTieneContenido()}
+                className="h-9 gap-1.5 text-text-2 hover:text-rose disabled:opacity-40"
+              >
+                <Eraser className="w-3.5 h-3.5" /> {t('noteClearAll')}
+              </Button>
               {/* `ghost`, no un borde violeta a mano: un borde de color se lee
                   como aviso, y en el sistema el borde queda solo donde ES el
                   significado o donde no hay fondo que defina al control. */}
@@ -803,6 +859,23 @@ export function VisitNoteEditor({
           userId={userId}
           onClose={() => setDxPickerMode(null)}
           onPick={addDx}
+        />
+      )}
+      {/* El confirm ENUMERA lo que se lleva —texto, diagnósticos y plantilla— en
+          vez de preguntar "¿borrar todo?". Los diagnósticos son la parte que
+          sorprende: son chips de otra lista y bien podrían haberse cargado a
+          mano, así que nombrarlos es lo que separa un borrado aceptado de uno
+          descubierto después. Y avisa que no hay vuelta atrás, porque no la hay:
+          los autoguardados no se auditan, así que esto no queda en ningún lado. */}
+      {confirmClear && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={t('noteClearTitle')}
+          description={t('noteClearBody')}
+          confirmLabel={t('noteClearConfirm')}
+          onConfirm={() => { limpiarNota(); setConfirmClear(false); }}
+          onCancel={() => setConfirmClear(false)}
         />
       )}
       {tplPorConfirmar && (

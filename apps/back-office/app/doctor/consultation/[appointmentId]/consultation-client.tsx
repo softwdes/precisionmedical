@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  ArrowLeft, Check, ClipboardList, FlaskConical, FileText, FolderOpen, Pill, Briefcase, Bandage,
+  ArrowLeft, Check, ChevronRight, ClipboardList, FlaskConical, FileText, FolderOpen, Pill, Briefcase, Bandage,
   HeartPulse, Video,
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
@@ -302,21 +302,39 @@ export function ConsultationClient({
                     * médico (Regla #5).
                     */}
                   {a.caseCode && a.caseId && (
+                    /**
+                     * Tiene que leerse como CONTROL, no como chip.
+                     *
+                     * Primero fue solo el código con un ícono, y no se notaba que
+                     * se podía tocar (Erick): esta fila es la de las etiquetas de
+                     * estado —`In consultation`, la cobertura— y el ojo ya
+                     * aprendió que acá las cosas se leen, no se aprietan. Un chip
+                     * en la fila de los chips se lee como chip.
+                     *
+                     * Tres señales lo sacan de esa categoría, y hacen falta las
+                     * tres: el VERBO ("Ver caso" promete que algo va a pasar,
+                     * "GM-3153" solo nombra), la FLECHA (te lleva a algún lado) y
+                     * la ALTURA (`py-1` contra los chips planos de al lado).
+                     *
+                     * El verbo se esconde en mobile y queda el código, que es lo
+                     * que identifica — Regla #4.
+                     */
                     <button
                       type="button"
                       onClick={() => router.push(conCasoAbierto(pathname, searchParams, a.caseId!), { scroll: false })}
-                      title={t('consultOpenCase')}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-violet/40 bg-violet/10 text-violet-text hover:bg-violet/20 hover:border-violet/60 transition-colors"
+                      className="group/case inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-violet/50 bg-violet/[0.14] text-violet-text hover:bg-violet/25 hover:border-violet/70 transition-colors"
                     >
-                      <FolderOpen className="w-3 h-3 shrink-0" />
-                      <span className="font-mono text-[11px] font-semibold">{a.caseCode}</span>
+                      <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                      <span className="hidden sm:inline text-[11px] font-semibold">{t('consultOpenCase')}</span>
+                      <span className="font-mono text-[11px] font-semibold opacity-90">{a.caseCode}</span>
                       {/* Cuántos antecedentes tiene, sin abrir nada. Con un solo
                           caso no se dibuja: "+0" no informa. */}
                       {casosDelPaciente > 1 && (
-                        <span className="text-[10px] font-semibold opacity-80">
+                        <span className="text-[10px] font-bold rounded bg-violet/25 px-1 py-px">
                           +{casosDelPaciente - 1}
                         </span>
                       )}
+                      <ChevronRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover/case:translate-x-0.5" />
                     </button>
                   )}
                   {/* Sin caso vinculado no hay expediente que abrir. */}

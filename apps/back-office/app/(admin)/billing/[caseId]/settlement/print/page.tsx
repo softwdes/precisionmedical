@@ -7,6 +7,7 @@ import { localeApp } from '@/lib/fechas';
  */
 
 import { getTranslations } from 'next-intl/server';
+import { PrintButton } from '@/components/ui-phoenix/print-button';
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import type { Metadata } from 'next';
@@ -117,14 +118,13 @@ export default async function SettlementPrintPage({ params }: Props) {
         }
       `}</style>
 
-      <div className="no-print" style={{ background: '#f1f5f9', padding: '12px 48px', borderBottom: '1px solid #e2e8f0' }}>
-        <button
-          onClick={() => window.print()}
-          style={{ background: '#0f172a', color: '#fff', padding: '8px 20px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px' }}
-        >
-          Imprimir / Guardar PDF
-        </button>
-      </div>
+      {/* Esto era un `<button onClick={() => window.print()}>` acá mismo, en un
+          server component: React no puede serializar una función a un elemento
+          del DOM en RSC, así que la página reventaba al renderizar — con `tsc`
+          limpio. El botón vive ahora en un client component chico y compartido.
+          La etiqueta queda en español, como estaba: el cuerpo de esta página no
+          tiene `t` (su i18n es deuda previa) y traerla sería otro cambio. */}
+      <PrintButton label="Imprimir / Guardar PDF" />
 
       <div className="page">
         {/* Header */}

@@ -17,7 +17,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
-  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode,
+  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode, Printer,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -31,6 +31,7 @@ import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 import { AppointmentSignQrDialog } from './appointment-sign-qr-dialog';
+import { AppointmentPrintDialog } from './appointment-print-dialog';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { OnlineMeetingBox } from '@/components/visit/online-visit';
@@ -248,6 +249,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [noShowOpen,    setNoShowOpen]    = useState(false);
   const [noShowing,     setNoShowing]     = useState(false);
   const [qrOpen,        setQrOpen]        = useState(false);
+  const [printOpen,     setPrintOpen]     = useState(false);
   const [checkingIn,    setCheckingIn]    = useState(false);
   const [accionError,   setAccionError]   = useState<string | null>(null);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
@@ -922,6 +924,20 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     state={firmada ? 'info' : 'danger'}
                   />
                 )}
+                {/* El impreso, pegado al sello que lo habilita — como en el v2.
+                    Va siempre que haya firma, no solo donde se ofrece el QR: el
+                    documento es evidencia y también le sirve al doctor. */}
+                {firmada && (
+                  <button
+                    type="button"
+                    onClick={() => setPrintOpen(true)}
+                    title={t('printTitle')}
+                    aria-label={t('printTitle')}
+                    className="shrink-0 p-1.5 rounded-md border border-border text-text-2 hover:bg-white/5 transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <StatusPill label={statusCfg.label} state={statusCfg.state} />
               </div>
             </div>
@@ -1396,6 +1412,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           appointmentId={appt.id}
           patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
           apptLabel={`${dt.dayName} ${dt.date} · ${dt.time}`}
+        />
+      )}
+
+      {/* Impreso de la confirmación firmada. Se monta solo cuando hay firma: sin
+          ella el documento no existe y la ruta lo dice. */}
+      {firmada && (
+        <AppointmentPrintDialog
+          open={printOpen}
+          onOpenChange={setPrintOpen}
+          appointmentId={appt.id}
+          patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
         />
       )}
 

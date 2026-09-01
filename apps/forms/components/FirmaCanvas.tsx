@@ -21,6 +21,67 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const ALTO = 170;
 
+/** Margen alrededor de la tinta al recortar, en píxeles del canvas. */
+const MARGEN_RECORTE = 10;
+
+/**
+ * Devuelve el PNG recortado al rectángulo que ocupa la tinta.
+ *
+ * Sin esto se guarda TODO el recuadro, y como casi nadie firma usando el ancho
+ * completo, el trazo queda pegado a la izquierda con un desierto a la derecha.
+ * En el impreso eso se ve como una firma corrida respecto de su línea, aunque la
+ * imagen esté perfectamente centrada: lo que está descentrado es la tinta dentro
+ * de la imagen.
+ *
+ * Recorta en píxeles de dispositivo (los reales del canvas, ya escalados por
+ * `devicePixelRatio`), así que el recorte no pierde resolución para imprimir.
+ * Devuelve `null` si no hay un solo píxel pintado — ahí decide quien llama.
+ */
+function recortarATinta(canvas: HTMLCanvasElement): string | null {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  let datos: ImageData;
+  try {
+    datos = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  } catch {
+    // Un canvas "sucio" (tainted) no se puede leer. No pasa acá porque solo se
+    // dibujan trazos, pero si pasara vale más la firma sin recortar que nada.
+    return null;
+  }
+
+  const { data, width, height } = datos;
+  let minX = width, minY = height, maxX = -1, maxY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // Solo el canal alfa: el trazo es opaco y el resto transparente.
+      if (data[(y * width + x) * 4 + 3]! > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < 0) return null; // nada dibujado
+
+  const margen = Math.round(MARGEN_RECORTE * (window.devicePixelRatio || 1));
+  const x0 = Math.max(0, minX - margen);
+  const y0 = Math.max(0, minY - margen);
+  const ancho = Math.min(width, maxX + margen) - x0;
+  const alto  = Math.min(height, maxY + margen) - y0;
+
+  const recorte = document.createElement('canvas');
+  recorte.width  = ancho;
+  recorte.height = alto;
+  const rctx = recorte.getContext('2d');
+  if (!rctx) return null;
+  rctx.drawImage(canvas, x0, y0, ancho, alto, 0, 0, ancho, alto);
+  return recorte.toDataURL('image/png');
+}
+
 interface Props {
   /** Recibe el PNG en data URL, o `null` cuando se limpia. */
   onChange: (dataUrl: string | null) => void;
@@ -48,13 +109,17 @@ export function FirmaCanvas({ onChange, color = '#111827', labels }: Props) {
 
   // ── Tamaño real del canvas (DPI) ────────────────────────────────────────────
   useEffect(() => {
+    /** Último ancho aplicado, para no redibujar por cambios de 0px. */
+    let anchoAplicado = 0;
+
     const ajustar = () => {
       const wrap = wrapRef.current, canvas = canvasRef.current;
       if (!wrap || !canvas) return;
 
       const dpr   = window.devicePixelRatio || 1;
       const ancho = wrap.clientWidth;
-      if (!ancho) return;
+      if (!ancho || ancho === anchoAplicado) return;
+      anchoAplicado = ancho;
 
       canvas.style.width  = `${ancho}px`;
       canvas.style.height = `${ALTO}px`;
@@ -74,8 +139,25 @@ export function FirmaCanvas({ onChange, color = '#111827', labels }: Props) {
     };
 
     ajustar();
+
+    /**
+     * `ResizeObserver` y no solo `window.resize`.
+     *
+     * Con `resize` a secas, si el componente monta dentro de un contenedor que
+     * todavía mide 0 de ancho (una pestaña oculta, un modal que abre), `ajustar`
+     * sale temprano y el canvas se queda con su tamaño POR DEFECTO — 300x150 y
+     * sin la escala del DPI. La ventana nunca cambia de tamaño, así que nadie
+     * vuelve a intentarlo: la firma se captura en un espacio de coordenadas que
+     * no es el que se ve. Pasó al probar con el panel del navegador oculto.
+     */
+    const obs = new ResizeObserver(ajustar);
+    if (wrapRef.current) obs.observe(wrapRef.current);
     window.addEventListener('resize', ajustar);
-    return () => window.removeEventListener('resize', ajustar);
+
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('resize', ajustar);
+    };
   }, []);
 
   // Termina el trazo aunque el puntero salga del recuadro.
@@ -130,7 +212,7 @@ export function FirmaCanvas({ onChange, color = '#111827', labels }: Props) {
     dibujando.current = false;
     const canvas = canvasRef.current;
     if (!canvas || !dibujado.current) return;
-    const data = canvas.toDataURL('image/png');
+    const data = recortarATinta(canvas) ?? canvas.toDataURL('image/png');
     ultimo.current = data;
     onChange(data);
   }, [onChange]);

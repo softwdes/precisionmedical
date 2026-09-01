@@ -136,6 +136,7 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 
 export function ConsultationClient({
   appointment: a, note, templates, userId, patientContext, llegadaPropia = false,
+  casosDelPaciente = 1,
 }: {
   appointment: ConsultationAppointment;
   note: VisitNoteData | null;
@@ -147,6 +148,11 @@ export function ConsultationClient({
    * Checkout en el Resumen — ver la prop homónima de `VisitSummary`.
    */
   llegadaPropia?: boolean;
+  /**
+   * Cuántos casos tiene este paciente en total. Dibuja el "+N" del chip del
+   * expediente — el doctor sabe si hay antecedentes sin abrir nada.
+   */
+  casosDelPaciente?: number;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** El vocabulario del triaje vive en `phoenix.admission` — una sola copia. */
@@ -279,7 +285,42 @@ export function ConsultationClient({
               title={`${a.patient.firstName} ${a.patient.lastName}`}
               subtitle={
                 <span className="flex items-center gap-2 flex-wrap">
-                  {a.caseCode && <span className="font-mono text-[11px] text-cyan">{a.caseCode}</span>}
+                  {/**
+                    * El código del caso ES el botón del expediente.
+                    *
+                    * Nació como un botón neutro arriba a la derecha, al lado de
+                    * "Volver": ahí se leía como chrome de la pantalla y no como
+                    * una herramienta, y encima quedaba lejos del nombre, que es
+                    * donde el doctor está mirando. Acá el gesto es obvio —el
+                    * código del caso lleva al caso— y no hace falta inventar una
+                    * etiqueta.
+                    *
+                    * Violet y no verde: en esta pantalla el emerald ya significa
+                    * "hecho/confirmado" (check-in, pasos completados, Atender).
+                    * Un expediente en verde competiría con la acción principal y
+                    * diría algo que no es. Violet es la identidad del portal
+                    * médico (Regla #5).
+                    */}
+                  {a.caseCode && a.caseId && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(conCasoAbierto(pathname, searchParams, a.caseId!), { scroll: false })}
+                      title={t('consultOpenCase')}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-violet/40 bg-violet/10 text-violet-text hover:bg-violet/20 hover:border-violet/60 transition-colors"
+                    >
+                      <FolderOpen className="w-3 h-3 shrink-0" />
+                      <span className="font-mono text-[11px] font-semibold">{a.caseCode}</span>
+                      {/* Cuántos antecedentes tiene, sin abrir nada. Con un solo
+                          caso no se dibuja: "+0" no informa. */}
+                      {casosDelPaciente > 1 && (
+                        <span className="text-[10px] font-semibold opacity-80">
+                          +{casosDelPaciente - 1}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {/* Sin caso vinculado no hay expediente que abrir. */}
+                  {a.caseCode && !a.caseId && <span className="font-mono text-[11px] text-cyan">{a.caseCode}</span>}
                   <span>{timeLabel(a.scheduledFor)} · {a.durationMinutes} min</span>
                   {age != null && <span>· {age} {t('yearsShort')}</span>}
                   {a.patient.sex && <span>· {a.patient.sex}</span>}
@@ -294,37 +335,16 @@ export function ConsultationClient({
             />
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          {/**
-            * El expediente del paciente, sobre la consulta.
-            *
-            * Abre el MISMO modal de caso que ya usan Mis Pacientes, el
-            * calendario y la bandeja, con `?case=` en la URL: recargar vuelve
-            * con la nota y el modal donde estaban. Adentro, el selector de
-            * arriba salta entre este caso y los anteriores del paciente, y el
-            * tab de Historial Médico es de la ficha, no de la visita.
-            *
-            * Va acá y no como página: el doctor lo consulta MIENTRAS escribe. Un
-            * `router.push` a otra ruta le haría perder el lugar en la nota.
-            */}
-          {a.caseId && (
-            <button
-              type="button"
-              onClick={() => router.push(conCasoAbierto(pathname, searchParams, a.caseId!), { scroll: false })}
-              className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 hover:text-text-1 transition-colors flex items-center gap-1.5"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              {t('consultOpenCase')}
-            </button>
-          )}
-          <Link
-            href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
-            className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            {t('consultBack')}
-          </Link>
-        </div>
+        {/* El expediente NO va acá: vive en el chip del código de caso, bajo el
+            nombre. Dos puertas a lo mismo son ruido, y en esta esquina se leía
+            como chrome. */}
+        <Link
+          href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
+          className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5 shrink-0"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {t('consultBack')}
+        </Link>
       </div>
 
       {/* Nodos de flujo — navegación LIBRE, estilo Day Admission (clic para ver cada paso).

@@ -105,6 +105,19 @@ export default async function DoctorConsultationPage({
 
   const doctorDoneAt = doneRows[0]?.doctorDoneAt ?? null;
 
+  /**
+   * Cuántos casos tiene este paciente. Alimenta el "+N" del chip del expediente:
+   * sin ese número, saber si hay antecedentes obligaba a abrir el modal para
+   * descubrir que no había nada. El selector de adentro es el que deja saltar;
+   * esto es lo que dice que vale la pena entrar.
+   *
+   * Va después del `findFirst` a propósito: necesita el `patientId`, y no vale
+   * una consulta más en el Promise.all de arriba por un COUNT.
+   */
+  const casosDelPaciente = await db.case.count({
+    where: { patientId: a.patient.id, deletedAt: null },
+  });
+
   const templates = tplRows.map((tpl) => ({
     id: tpl.id,
     title: tpl.title,
@@ -246,6 +259,7 @@ export default async function DoctorConsultationPage({
       userId={provider.userId}
       patientContext={patientContext}
       llegadaPropia={llegadaPropia}
+      casosDelPaciente={casosDelPaciente}
     />
     {/* El expediente del paciente sobre la consulta. El server revalida el
         alcance: `providerHasCase` ya es a nivel PACIENTE, así que también abre

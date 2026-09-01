@@ -64,3 +64,8 @@ export {
 } from './components/table';
 
 export { cn } from './lib/utils';
+
+export {
+  CarreraClient, carreraLabels, CARRERA_MIN_MINUTES,
+  type RacerRow, type Crew, type CarreraLabels,
+} from './components/carrera';

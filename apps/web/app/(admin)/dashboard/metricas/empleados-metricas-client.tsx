@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
 import {
   Activity, Clock, Download, Loader2, Phone, MessageSquare,
@@ -27,7 +28,9 @@ import { api } from '@/lib/trpc/client';
 import {
   KpiCard, Num, PeriodFilter, denverDay, fmtMinutes, presetRange, type Preset,
 } from './metricas-shared';
-import { CarreraClient } from './carrera-client';
+// La Carrera vive en `packages/ui`: la comparten este tab y `/carrera` del
+// back-office, que la abre a toda la clínica.
+import { CarreraClient, carreraLabels } from '@precision/ui';
 
 // ─── Types (espejo de EmployeeActivityRow del router) ────────────────────────
 
@@ -208,6 +211,14 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 export function EmpleadosMetricasClient() {
+  /**
+   * Solo para la Carrera. El resto de este tab tiene las strings en duro y
+   * quedó así de antes — deuda propia, no de este cambio. La pista SÍ pasa por
+   * i18n porque el mismo componente lo usa el back-office, que es bilingüe:
+   * cuando tenía los textos adentro, cambiar a inglés no cambiaba nada.
+   */
+  const tCarrera = useTranslations('phoenix.carrera');
+
   const [preset, setPreset] = useState<Preset>('today');
   const [from, setFrom] = useState(() => denverDay());
   const [to, setTo] = useState(() => denverDay());
@@ -395,6 +406,7 @@ export function EmpleadosMetricasClient() {
 
       {view === 'carrera' ? (
         <CarreraClient
+          labels={carreraLabels(tCarrera)}
           rows={visible}
           live={liveOn}
           canGoLive={canGoLive}

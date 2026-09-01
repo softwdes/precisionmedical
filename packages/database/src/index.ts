@@ -36,3 +36,11 @@ export type {
   GuardianInput, GuardianRelation, GuardianAction, GuardianResolution,
   ResolveGuardianOptions,
 } from './guardian';
+
+// Acción del audit log → área de trabajo. Compartido: el tab Métricas de
+// apps/web y `/carrera` del back-office cuentan lo mismo con la misma tabla.
+export {
+  ACTION_FAMILY, NOT_STAFF_WORK, HEADLINE_ACTIONS,
+  emptyFamilies, emptyHeadline,
+} from './action-families';
+export type { ActionFamily, EmployeeHeadline } from './action-families';

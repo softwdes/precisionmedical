@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
@@ -24,6 +24,7 @@ import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
+import { CarreraDialog } from '@/components/patients/carrera-dialog';
 import { SmsHistoryDialog } from '@/components/sms/sms-history-dialog';
 import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/messaging/patient-messages-dialog';
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
@@ -2012,6 +2013,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const tCalls  = useTranslations('phoenix.calls');
   const tSms    = useTranslations('phoenix.sms');
   const tPrices = useTranslations('phoenix.catalog.priceList');
+  const tCarrera = useTranslations('phoenix.carrera');
   const tMsg    = useTranslations('phoenix.messaging');
   const router = useRouter();
   const searchParamsHook = useSearchParams();
@@ -2199,6 +2201,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // carga de la lista de pacientes.
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
   const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(false);
+  const [carreraOpen,     setCarreraOpen]     = useState(false);
 
   // ─── Precios (visor de mostrador, solo lectura) ─────────────────────────
   // Vive acá y no en el catálogo completo porque el uso es cotizar en el
@@ -2400,6 +2403,25 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <MessageSquare className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{tSms('title')}</span>
             <span className="sm:hidden">{tSms('short')}</span>
+          </button>
+
+          {/* Carrera — el ritmo de trabajo del equipo, abierto a todos con
+              nombres completos (decisión de Erick, 31-ago-2026: "es una carrera
+              entre todos"). Va acá, entre los historiales y Precios, y con la
+              misma mecánica: un botón que abre un diálogo sin sacar a nadie de
+              la lista.
+
+              Lo que la hace segura de compartir es lo que su API NO devuelve:
+              ni llamadas, ni SMS, ni desglose acción por acción, ni un solo
+              dato de paciente — ver `lib/carrera.ts`. */}
+          <button
+            type="button"
+            onClick={() => setCarreraOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand-text transition-colors whitespace-nowrap"
+            title={tCarrera('subtitle')}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            {tCarrera('title')}
           </button>
 
           {/* Precios — visor de mostrador. Solo lectura y sin costo real: se
@@ -3195,6 +3217,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
       {/* ─── Historial de llamadas ─────────────────────────────────────────── */}
       <CallHistoryDialog open={callHistoryOpen} onOpenChange={setCallHistoryOpen} />
+      <CarreraDialog open={carreraOpen} onOpenChange={setCarreraOpen} />
       <SmsHistoryDialog  open={smsHistoryOpen}  onOpenChange={setSmsHistoryOpen} />
 
       {/* ─── Precios ─────────────────────────────────────────────────────────

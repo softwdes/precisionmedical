@@ -1,7 +1,13 @@
 'use client';
 
 /**
- * Métricas → Empleados → vista "Carrera".
+ * Vista "Carrera" — el ranking de trabajo como competencia.
+ *
+ * Vive en `packages/ui` porque la consumen DOS apps con fuentes distintas:
+ *   · apps/web       → Métricas → Empleados (tRPC `metrics.employeeActivity`)
+ *   · apps/back-office → /carrera, abierta a toda la clínica
+ *     (`/api/metrics/carrera`, que llama a la misma fn `employee_metrics`)
+ * Duplicarlo eran 360 líneas que en un mes ya no iban a ser iguales.
  *
  * El mismo período y la misma data de la tabla, contados como competencia: una
  * pista con barras que avanzan, podio, medallas por área y premio a la mejora.
@@ -28,9 +34,17 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { cn } from '@precision/ui';
 import { Crown, Medal, Radio, TrendingUp, Trophy, Zap } from 'lucide-react';
-import { fmtMinutes } from './metricas-shared';
+import { cn } from '../lib/utils';
+
+/** "1h 24m" · "43m" · "—". Copiado de metricas-shared para no atar este
+ *  componente compartido a una pantalla de apps/web. */
+function fmtMinutes(min: number): string {
+  if (min <= 0) return '—';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
 
 export type Crew = 'CLINIC' | 'DEV' | 'COMMS';
 
@@ -41,11 +55,102 @@ export type Crew = 'CLINIC' | 'DEV' | 'COMMS';
  * realidad corren carreras distintas: probar módulos enteros produce acciones
  * a un ritmo que atender pacientes no puede igualar.
  */
-const CREW_CHIP: Record<Crew, { label: string; className: string }> = {
-  CLINIC: { label: 'Clínica', className: 'bg-emerald/10 text-emerald' },
-  DEV:    { label: 'Dev',     className: 'bg-violet/10 text-violet'   },
-  COMMS:  { label: 'Comms',   className: 'bg-cyan/10 text-cyan'       },
+const CREW_TONE: Record<Crew, string> = {
+  CLINIC: 'bg-emerald/10 text-emerald',
+  DEV:    'bg-violet/10 text-violet',
+  COMMS:  'bg-cyan/10 text-cyan',
 };
+
+/**
+ * Todos los textos, por prop y OBLIGATORIOS.
+ *
+ * `packages/ui` no depende de next-intl y no debería: es un paquete de
+ * primitivos. Pero cuando este componente tenía las strings en duro y se lo
+ * llevó al back-office —que sí es bilingüe— pasó lo previsible: el usuario
+ * cambió a inglés y la pista siguió en español.
+ *
+ * Sin `?` a propósito. Con defaults en español, un consumidor nuevo que se
+ * olvide de traducir no ve ningún error: ve español, que es exactamente el bug
+ * que esto viene a cerrar. Obligatorio significa que el compilador lo pide.
+ */
+export interface CarreraLabels {
+  /** "Ritmo de trabajo" */
+  heading: string;
+  /** "acciones por hora activa" */
+  headingHint: string;
+  /** Botón de refresco, encendido y apagado. */
+  live: string;
+  goLive: string;
+  /** Vacío. Recibe el piso de minutos ya interpolado. */
+  empty: string;
+  /** Por debajo del piso, dentro del carril. Recibe los minutos interpolados. */
+  needsMinutes: string;
+  /** "Mejor de cada área" */
+  bestPerArea: string;
+  /** Abreviatura de acciones en el marcador: "16 acc · 17m" */
+  actionsShort: string;
+  /** Nota al pie sobre qué mide y qué no mide la vara. */
+  footnote: string;
+  /** Nombre de cada área (las llaves de `MEDALS`). */
+  areas: Record<string, string>;
+  /** Nombre corto de cada grupo, para el chip del carril. */
+  crews: Record<Crew, string>;
+}
+
+/**
+ * Piso para entrar a la carrera. Exportado para que el consumidor lo interpole
+ * en sus propios textos (`empty`, `needsMinutes`) y no haya dos números.
+ *
+ * Sin esto, quien entró 2 minutos e hizo 3 cosas corre a 90 acciones/hora y
+ * gana la jornada sin haber trabajado. No es una barrera de mérito: es que por
+ * debajo de un cuarto de hora la tasa no significa nada.
+ */
+export const CARRERA_MIN_MINUTES = 15;
+
+/**
+ * Arma los `labels` desde un traductor, sin que este paquete conozca next-intl.
+ *
+ * Recibe la función `t` ya apuntada al namespace `phoenix.carrera`, así que el
+ * consumidor solo escribe `carreraLabels(useTranslations('phoenix.carrera'))` y
+ * no repite 30 líneas de mapeo en cada app. Es pura: nada de hooks acá.
+ *
+ * `min` va interpolado desde `CARRERA_MIN_MINUTES`, para que el piso viva en un
+ * solo lugar y no haya un 15 escrito a mano en los textos.
+ */
+export function carreraLabels(
+  t: (key: string, values?: Record<string, string | number>) => string,
+): CarreraLabels {
+  return {
+    heading:      t('heading'),
+    headingHint:  t('headingHint'),
+    live:         t('live'),
+    goLive:       t('goLive'),
+    empty:        t('empty',        { min: CARRERA_MIN_MINUTES }),
+    needsMinutes: t('needsMinutes', { min: CARRERA_MIN_MINUTES }),
+    bestPerArea:  t('bestPerArea'),
+    actionsShort: t('actionsShort'),
+    footnote:     t('footnote'),
+    areas: {
+      patients:     t('areaPatients'),
+      cases:        t('areaCases'),
+      appointments: t('areaAppointments'),
+      admission:    t('areaAdmission'),
+      charges:      t('areaCharges'),
+      portal:       t('areaPortal'),
+      externals:    t('areaExternals'),
+      messages:     t('areaMessages'),
+      clinical:     t('areaClinical'),
+      followup:     t('areaFollowup'),
+      catalogs:     t('areaCatalogs'),
+      ai:           t('areaAi'),
+    },
+    crews: {
+      CLINIC: t('chipClinic'),
+      DEV:    t('chipDev'),
+      COMMS:  t('chipComms'),
+    },
+  };
+}
 
 export interface RacerRow {
   userId: string;
@@ -57,14 +162,7 @@ export interface RacerRow {
   families: Record<string, number>;
 }
 
-/**
- * Piso para entrar a la carrera.
- *
- * Sin esto, quien entró 2 minutos e hizo 3 cosas corre a 90 acciones/hora y
- * gana la jornada sin haber trabajado. No es una barrera de mérito: es que por
- * debajo de un cuarto de hora la tasa no significa nada.
- */
-const MIN_MINUTES = 15;
+const MIN_MINUTES = CARRERA_MIN_MINUTES;
 
 /** Lo que tarda la largada: las barras salen de cero hasta su posición real. */
 const INTRO_MS = 5000;
@@ -78,19 +176,19 @@ const STAGGER_MS = 60;
 const STAGGER_MAX = 600;
 
 /** Área → etiqueta y emoji de la medalla. */
-const MEDALS: Array<{ key: string; label: string; emoji: string }> = [
-  { key: 'patients',     label: 'Pacientes',   emoji: '🧑‍⚕️' },
-  { key: 'cases',        label: 'Casos',       emoji: '📁' },
-  { key: 'appointments', label: 'Citas',       emoji: '📅' },
-  { key: 'admission',    label: 'Admisión',    emoji: '🚪' },
-  { key: 'charges',      label: 'Cobros',      emoji: '💵' },
-  { key: 'portal',       label: 'Portal',      emoji: '✉️' },
-  { key: 'externals',    label: 'Bufetes',     emoji: '⚖️' },
-  { key: 'messages',     label: 'Mensajes',    emoji: '💬' },
-  { key: 'clinical',     label: 'Clínico',     emoji: '🧪' },
-  { key: 'followup',     label: 'Seguimiento', emoji: '📞' },
-  { key: 'catalogs',     label: 'Catálogos',   emoji: '🗂️' },
-  { key: 'ai',           label: 'Vigía',       emoji: '🤖' },
+const MEDALS: Array<{ key: string; emoji: string }> = [
+  { key: 'patients', emoji: '🧑‍⚕️' },
+  { key: 'cases', emoji: '📁' },
+  { key: 'appointments', emoji: '📅' },
+  { key: 'admission', emoji: '🚪' },
+  { key: 'charges', emoji: '💵' },
+  { key: 'portal', emoji: '✉️' },
+  { key: 'externals', emoji: '⚖️' },
+  { key: 'messages', emoji: '💬' },
+  { key: 'clinical', emoji: '🧪' },
+  { key: 'followup', emoji: '📞' },
+  { key: 'catalogs', emoji: '🗂️' },
+  { key: 'ai', emoji: '🤖' },
 ];
 
 interface Racer extends RacerRow {
@@ -106,9 +204,10 @@ const initials = (name: string): string =>
 const LANE_COLOR = ['bg-amber', 'bg-text-3', 'bg-[#b06a2c]'] as const;
 
 export function CarreraClient({
-  rows, live, onToggleLive, canGoLive,
+  rows, live, onToggleLive, canGoLive, labels,
 }: {
   rows: RacerRow[];
+  labels: CarreraLabels;
   live: boolean;
   onToggleLive: () => void;
   /** La carrera en vivo solo tiene sentido con "Hoy": el resto es una foto. */
@@ -196,18 +295,14 @@ export function CarreraClient({
         if (n > bestN) { bestN = n; best = r; }
       }
       return best && bestN > 0 ? { ...m, winner: best.name, n: bestN } : null;
-    }).filter(Boolean) as Array<{ key: string; label: string; emoji: string; winner: string; n: number }>;
+    }).filter(Boolean) as Array<{ key: string; emoji: string; winner: string; n: number }>;
   }, [rows]);
 
   if (inRace.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-surface p-12 text-center">
         <Trophy className="w-8 h-8 text-text-3 mx-auto mb-3" />
-        <p className="text-sm text-text-3">
-          Todavía no hay corredores en este período. Entran quienes acumulen al menos{' '}
-          {MIN_MINUTES} minutos de uso activo — por debajo de eso el ritmo por hora no
-          significa nada.
-        </p>
+        <p className="text-sm text-text-3">{labels.empty}</p>
       </div>
     );
   }
@@ -219,8 +314,8 @@ export function CarreraClient({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber" />
-          <span className="text-sm font-semibold text-text-1">Ritmo de trabajo</span>
-          <span className="text-[11px] text-text-3">acciones por hora activa</span>
+          <span className="text-sm font-semibold text-text-1">{labels.heading}</span>
+          <span className="text-[11px] text-text-3">{labels.headingHint}</span>
         </div>
         {canGoLive && (
           <button
@@ -233,7 +328,7 @@ export function CarreraClient({
             )}
           >
             <Radio className={cn('w-3.5 h-3.5', live && 'animate-pulse')} />
-            {live ? 'En vivo' : 'Seguir en vivo'}
+            {live ? labels.live : labels.goLive}
           </button>
         )}
       </div>
@@ -270,9 +365,9 @@ export function CarreraClient({
                 {r.crew && (
                   <span className={cn(
                     'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hidden sm:inline',
-                    CREW_CHIP[r.crew].className,
+                    CREW_TONE[r.crew],
                   )}>
-                    {CREW_CHIP[r.crew].label}
+                    {labels.crews[r.crew]}
                   </span>
                 )}
                 {pos === 1 && <Crown className="w-3.5 h-3.5 text-amber shrink-0" />}
@@ -335,7 +430,7 @@ export function CarreraClient({
 
                 {!r.qualified && (
                   <span className="absolute inset-0 flex items-center px-3 text-[10px] text-text-3">
-                    necesita {MIN_MINUTES} min de uso para clasificar
+                    {labels.needsMinutes}
                   </span>
                 )}
               </div>
@@ -347,7 +442,7 @@ export function CarreraClient({
                   {r.qualified ? `${r.rate.toFixed(1)}/h` : '—'}
                 </span>
                 <div className="text-[10px] text-text-3 tabular-nums">
-                  {r.totalActions} acc · {fmtMinutes(r.activeMinutes)}
+                  {r.totalActions} {labels.actionsShort} · {fmtMinutes(r.activeMinutes)}
                 </div>
               </div>
             </div>
@@ -361,13 +456,13 @@ export function CarreraClient({
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
             <Medal className="w-3.5 h-3.5 text-amber" />
-            Mejor de cada área
+            {labels.bestPerArea}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {medals.map((m) => (
               <div key={m.key} className="rounded-lg bg-surface-2 border border-border px-3 py-2">
                 <div className="text-[10px] text-text-3 flex items-center gap-1">
-                  <span aria-hidden>{m.emoji}</span> {m.label}
+                  <span aria-hidden>{m.emoji}</span> {labels.areas[m.key] ?? m.key}
                 </div>
                 <div className="text-[12px] text-text-1 truncate mt-0.5">{m.winner}</div>
                 <div className="text-[10px] text-text-3 font-mono tabular-nums">{m.n}</div>
@@ -379,11 +474,7 @@ export function CarreraClient({
 
       <p className="text-[10px] text-text-3 flex items-start gap-1.5">
         <TrendingUp className="w-3 h-3 mt-0.5 shrink-0" />
-        <span>
-          El ritmo mide acciones registradas por hora de uso activo. No todas las
-          acciones cuestan lo mismo — sirve para ver quién está trabando o
-          descargado, no para comparar personas con tareas distintas.
-        </span>
+        <span>{labels.footnote}</span>
       </p>
     </div>
   );

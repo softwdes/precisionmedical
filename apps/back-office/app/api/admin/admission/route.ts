@@ -108,6 +108,10 @@ function mapAppt(a: ApptWithIncludes, cargos: { total: number; lineas: number })
     // Distingue la cancelación tardía (cobra) de la que avisó (no cobra). La fila
     // la usa para pintarse igual que en el calendario: ámbar vs rose.
     cancelledSameDay: (a as { cancelledSameDay?: boolean }).cancelledSameDay ?? false,
+    // Si el paciente ya firmó la confirmación de su cita. Esta pantalla es la de
+    // la LLEGADA, así que es donde el dato importa más: la firma va antes del
+    // triaje, y sin esto había que entrar cita por cita para saber quién falta.
+    attendanceSignedAt: (a as { attendanceSignedAt?: Date | null }).attendanceSignedAt?.toISOString() ?? null,
     chargedTotal: cargos.total,
     // "Le pusieron algo" — cualquier línea facturada cuenta. Para un no-show no
     // hay otra cosa que cobrarle, así que una línea ES la penalidad.

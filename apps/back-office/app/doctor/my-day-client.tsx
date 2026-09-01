@@ -15,10 +15,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle, Ban, CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
-  Hourglass, RefreshCw, Sun, UserX, Video,
+  Hourglass, QrCode, RefreshCw, Sun, UserX, Video,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
@@ -154,9 +155,20 @@ export function MyDayClient({
    * sería sobre cuál de los dos textos vale. Mismo criterio que la consulta.
    */
   const ta = useTranslations('phoenix.admission');
+  /** Las palabras de la firma nacieron en el panel de la cita; una sola copia. */
+  const tc = useTranslations('phoenix.calendar');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
   const [isRefreshing, startRefresh] = React.useTransition();
+  /**
+   * Cita cuyo QR de firma está abierto.
+   *
+   * El provider reparte el QR cuando está SOLO: sin nadie en el mostrador, la
+   * firma de la confirmación tiene que salir de acá o el paciente pasa a consulta
+   * sin firmar. Decisión de Erick (2026-08-31) — misma razón por la que esta
+   * pantalla ya ofrece los desenlaces que normalmente hace recepción.
+   */
+  const [qrTarget, setQrTarget] = React.useState<MyDayAppointment | null>(null);
   /** id de la cita que se está abriendo — deshabilita solo ESE botón. */
   const [attending, setAttending] = React.useState<string | null>(null);
 
@@ -507,6 +519,19 @@ export function MyDayClient({
             >
               {t('attendNow')} →
             </button>
+            {/* El QR del hero va FUERA del `!heroArrived`: la firma hace falta
+                igual después de marcarle la llegada — lo que la cierra es pasar a
+                consulta, no haber llegado. */}
+            {!hero.attendanceSignedAt && (
+              <button
+                type="button"
+                onClick={() => setQrTarget(hero)}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md border border-white/25 bg-white/10 text-white text-xs font-semibold hover:bg-white/15 transition-colors"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                {tc('actionSignQr')}
+              </button>
+            )}
             {!heroArrived && (
               <div className="flex items-center gap-1.5 flex-wrap sm:justify-end">
                 {/* Secundario y sin color: es la excepción (llega alguien
@@ -577,6 +602,14 @@ export function MyDayClient({
                     <CoverageChip caseId={a.caseId} coverage={a.coverage} editable={false} />
                   </span>
                   {statusPill(a)}
+                  {/* Solo cuando FALTA la firma. Al revés que la cola del
+                      mostrador, que muestra los dos lados: acá el estado
+                      accionable es "todavía no firmó", y un "Firmado" verde en
+                      cada fila duplicaría las pastillas sin agregar una decisión.
+                      El hero, arriba, sí dice las dos cosas. */}
+                  {!a.doctorDoneAt && !a.attendanceSignedAt && (
+                    <TagPill label={tc('unsignedBadge')} colorClass="bg-amber/15 text-amber border-amber/30" />
+                  )}
                 </Link>
                 {/* Mismo juego que la fila del mostrador, y por el mismo motivo:
                     si no hay asistente, el provider tiene que poder resolver la
@@ -597,6 +630,20 @@ export function MyDayClient({
                         fila quedaba muerta apenas se marcaba la llegada — pasaba
                         de cuatro acciones a ninguna, justo cuando el paciente ya
                         está adentro y lo que sigue es tomarle los signos. */}
+                    {/* El QR ANTES de "Atender": es lo que va primero en el
+                        flujo — el paciente firma y después pasa. Puesto después
+                        del botón verde nadie lo miraría. */}
+                    {!a.attendanceSignedAt && (
+                      <button
+                        type="button"
+                        onClick={() => setQrTarget(a)}
+                        title={tc('actionSignQr')}
+                        aria-label={tc('actionSignQr')}
+                        className="flex items-center justify-center p-1.5 rounded-md border border-border text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => void atender(a)}
@@ -693,6 +740,18 @@ export function MyDayClient({
         onConfirm={() => { void confirmDesenlace(); }}
         onCancel={() => setDesenlaceTarget(null)}
       />
+
+      {/* QR de firma. Al cerrar se refresca: si el paciente firmó con el modal
+          abierto, el chip de su fila tiene que irse sin recargar la pantalla. */}
+      {qrTarget && (
+        <AppointmentSignQrDialog
+          open
+          onOpenChange={(v) => { if (!v) { setQrTarget(null); router.refresh(); } }}
+          appointmentId={qrTarget.id}
+          patientName={`${qrTarget.patientFirstName} ${qrTarget.patientLastName}`}
+          apptLabel={timeLabel(qrTarget.scheduledFor)}
+        />
+      )}
 
       {/* El picker de servicios, ahí mismo. Es el MISMO que usa el tab de
           Servicios de la consulta y la fila del mostrador. La cobertura va la

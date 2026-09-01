@@ -17,6 +17,7 @@ import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
   Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX, Ban, DollarSign,
+  QrCode, Check,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -28,6 +29,7 @@ import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
 import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
@@ -64,6 +66,8 @@ interface AdmissionAppt {
   notes:           string | null;
   /** Cancelación tardía: consumió el horario y admite penalidad. */
   cancelledSameDay: boolean;
+  /** Cuándo firmó el paciente la confirmación de su cita. `null` = todavía no. */
+  attendanceSignedAt: string | null;
   /** Suma de lo cargado a la cita. 0 en un desenlace cobrable = falta la penalidad. */
   chargedTotal:    number;
   hasCharge:       boolean;
@@ -146,7 +150,7 @@ function KpiCard({
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
 function ApptCard({
-  appt, onCheckIn, checkingIn, onDesenlace, onCobrar,
+  appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onSignQr,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
@@ -164,9 +168,22 @@ function ApptCard({
    * cobrado no se puede quitar. Duplicar esas acciones sería saltearse la regla.
    */
   onCobrar?: (appt: AdmissionAppt) => void;
+  /**
+   * Mostrar el QR para que el paciente firme la confirmación de su cita.
+   *
+   * Va junto a los CHIPS de estado y no con los botones de la derecha, que son
+   * los desenlaces (no vino / cancelar / registrar ingreso). El QR no resuelve
+   * la cita: la prepara, y es un paso ANTES del triaje. Metido entre los
+   * desenlaces se leería como una cuarta forma de cerrarla — y además esa fila
+   * ya tiene cuatro botones que en 375px envuelven.
+   */
+  onSignQr?: (appt: AdmissionAppt) => void;
 }) {
   const router = useRouter();
-  const t = useTranslations('phoenix.admission');
+  const t  = useTranslations('phoenix.admission');
+  // Las etiquetas de la firma viven en `phoenix.calendar`, donde nacieron: son
+  // las MISMAS palabras que el panel de la cita y no se duplican por namespace.
+  const tc = useTranslations('phoenix.calendar');
   const TYPE_LABELS: Record<string, string> = {
     AUTO_ACCIDENT:   t('typeAutoAccident'),
     FAMILY_PRACTICE: t('typeFamilyPractice'),
@@ -292,6 +309,40 @@ function ApptCard({
                 <AlertTriangle className="w-2.5 h-2.5" />
                 {t('missingPenalty')}
               </span>
+            )}
+            {/* Firma de la confirmación. Se muestran los DOS lados —firmado y sin
+                firmar— igual que "Verification pending" / "Ready to collect": en
+                una cola de nueve filas, la ausencia de chip no se puede leer como
+                "ya firmó".
+                Solo mientras la visita está en pie: sobre una cancelada o un
+                no-show, "Sin firmar" es ruido sobre algo que nunca se iba a firmar. */}
+            {!noOcurrio && appt.status !== 'COMPLETED' && (
+              appt.attendanceSignedAt ? (
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-cyan/30 bg-cyan/10 text-cyan">
+                  <Check className="w-2.5 h-2.5" />
+                  {tc('signedBadge')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber">
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    {tc('unsignedBadge')}
+                  </span>
+                  {/* El QR pegado al chip que lo explica. Solo ícono: la fila ya
+                      tiene mucho texto y la acción se entiende por el contexto. */}
+                  {onSignQr && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onSignQr(appt); }}
+                      title={tc('actionSignQr')}
+                      aria-label={tc('actionSignQr')}
+                      className="inline-flex items-center justify-center p-1 rounded-md border border-border text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors"
+                    >
+                      <QrCode className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              )
             )}
             {appt.case?.hasPending && isPending && (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber">
@@ -453,6 +504,8 @@ export function AdmissionClient() {
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('all');
   /** Desenlace elegido en la fila — el confirm evita el clic accidental. */
   const [desenlaceTarget, setDesenlaceTarget] = useState<{ appt: AdmissionAppt; tipo: Desenlace } | null>(null);
+  /** Cita cuyo QR de firma está abierto. Uno solo a la vez, como el confirm. */
+  const [qrTarget, setQrTarget] = useState<AdmissionAppt | null>(null);
   const [sellando, setSellando] = useState(false);
   /**
    * Cita a la que hay que ponerle la penalidad. Se abre APENAS se sella el
@@ -921,6 +974,8 @@ export function AdmissionClient() {
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
+                      /* Llegó y todavía no pasó: es la ventana exacta de la firma. */
+                      onSignQr={setQrTarget}
                     />
                   ))}
                 </div>
@@ -945,6 +1000,9 @@ export function AdmissionClient() {
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
+                      /* Todavía no llegó, pero recepción puede tener el QR listo
+                         —o mandárselo— antes de que entre por la puerta. */
+                      onSignQr={setQrTarget}
                     />
                   ))}
                 </div>
@@ -1054,6 +1112,19 @@ export function AdmissionClient() {
           onConfirm={() => { void confirmDesenlace(); }}
           onCancel={() => setDesenlaceTarget(null)}
         />
+
+        {/* QR de firma. Al cerrarlo se refresca la cola: si el paciente firmó
+            mientras el modal estaba abierto, el chip de su fila tiene que
+            cambiar sin que nadie recargue la pantalla. */}
+        {qrTarget && (
+          <AppointmentSignQrDialog
+            open
+            onOpenChange={(v) => { if (!v) { setQrTarget(null); void load(); } }}
+            appointmentId={qrTarget.id}
+            patientName={`${qrTarget.patient.firstName} ${qrTarget.patient.lastName}`}
+            apptLabel={fmtTime(qrTarget.scheduledFor)}
+          />
+        )}
 
         {/* El modal de servicios, ahí mismo. Es el MISMO picker que usa el tab de
             Servicios de la consulta — el encargado elige el código y listo. */}

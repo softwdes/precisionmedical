@@ -29,6 +29,7 @@ import { randomBytes } from 'crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
 /** Ventana de validez del link. El v2 usa 4 h y alcanza: se firma en el mostrador. */
 const VALIDEZ_HORAS = 4;
@@ -44,6 +45,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  /**
+   * El token que emite esta ruta abre una página PÚBLICA con la ficha completa
+   * del paciente (DOB, dirección, seguros) — el propio encabezado lo dice. Sin
+   * guard, cualquier sesión con back-office podía emitirlo para CUALQUIER cita:
+   * un doctor se leía el expediente de un paciente ajeno sin tocar una sola
+   * pantalla que se lo ofreciera.
+   *
+   * Emitir el link no es "leer la cita", es abrirle la puerta a un tercero, así
+   * que se gobierna con el guard de escritura y no con el de lectura.
+   */
+  if (!(await puedeEscribirLaCita(id))) {
+    return NextResponse.json({ ok: false, error: 'FORBIDDEN' }, { status: 403 });
+  }
+
   const actor = await resolveActor(req.headers);
 
   const appt = await db.appointment.findUnique({

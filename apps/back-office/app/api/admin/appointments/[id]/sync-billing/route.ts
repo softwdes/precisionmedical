@@ -20,6 +20,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { randomUUID } from 'crypto';
+import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
 export async function POST(
   req: NextRequest,
@@ -27,6 +28,20 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
+
+    /**
+     * Esta ruta BORRA y reescribe filas de `appointment_billing` — es una
+     * escritura sobre la plata de la visita, y no tenía ningún chequeo.
+     *
+     * El middleware no la cubre: `/api/admin/appointments/*` queda fuera de
+     * `MODULE_API_ROUTES` a propósito, porque el portal médico consume varias de
+     * sus rutas. La consecuencia era que cualquier sesión con back-office —un
+     * doctor incluido— podía resincronizar el cobro de la cita de OTRO doctor
+     * con un `fetch` a mano. Mismo guard que ya usan `checkout` y `doctor-done`.
+     */
+    if (!(await puedeEscribirLaCita(id))) {
+      return NextResponse.json({ ok: false, error: 'FORBIDDEN' }, { status: 403 });
+    }
 
     let bodyJson: { caseId?: string } = {};
     try { bodyJson = await req.json(); } catch { /* no body */ }

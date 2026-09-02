@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
 export async function PUT(
   req: NextRequest,
@@ -16,6 +17,19 @@ export async function PUT(
   const { id } = await ctx.params;
 
   try {
+    /**
+     * Los vitales son un dato clínico firmado por quien lo toma, y esta ruta los
+     * sobrescribe. `resolveActor` dice QUIÉN escribe pero no decide si puede:
+     * era la única de las tres escrituras de Admisión sin guard (`check-in` y
+     * `admit` ya lo tenían), así que un doctor podía cargar o corregir el triaje
+     * de la cita de otro doctor. Recepción y los asistentes siguen pasando —
+     * tomar vitales de cualquier cita es su trabajo; el que se limita es el rol
+     * que vive encerrado en el portal médico.
+     */
+    if (!(await puedeEscribirLaCita(id))) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+    }
+
     const body = await req.json() as Record<string, unknown>;
 
     // Verify appointment exists

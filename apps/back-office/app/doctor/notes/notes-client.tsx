@@ -19,6 +19,7 @@ import {
 } from '@/components/ui-phoenix';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import { localeApp } from '@/lib/fechas';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 import type { EstadoNota } from '@/lib/notes-audit';
 import type { NotesSummary } from '@/lib/notes-summary';
 
@@ -29,6 +30,7 @@ export interface NotesRow {
   patientName: string;
   caseId: string | null;
   caseCode: string | null;
+  providerId: string | null;
   providerName: string;
   providerUserId: string | null;
   clinicName: string;
@@ -163,6 +165,17 @@ export function NotesClient({
     }
   };
 
+  /**
+   * Abre el expediente del paciente SOBRE la lista, con `?case=` en la URL.
+   *
+   * No pasa por `setParam`: ese borra la página al cambiar un filtro, y abrir un
+   * caso no es filtrar — al cerrarlo hay que volver a la misma página de la
+   * misma lista. `conCasoAbierto` conserva todo lo demás tal cual.
+   */
+  const abrirExpediente = (caseId: string): void => {
+    startNav(() => router.push(conCasoAbierto(pathname, sp, caseId), { scroll: false }));
+  };
+
   /** Exporta LO QUE SE ESTÁ VIENDO: se le pasan los mismos searchParams. */
   const urlExport = `/api/admin/notes/export?${sp.toString()}`;
 
@@ -284,93 +297,101 @@ export function NotesClient({
         </DataTable.Card>
       )}
 
-      {/* Filtros. `flex-wrap` obligatorio: son siete controles (Regla #4). */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {(['none', 'draft', 'signed'] as EstadoNota[]).map((e) => (
-          <FilterPill
-            key={e}
-            label={t(`estado_${e}`)}
-            active={estados.includes(e)}
-            onClick={() => toggleEstado(e)}
-          />
-        ))}
-
-        <span className="w-px h-6 bg-border mx-1 hidden sm:block" />
-
-        <select
-          value={sp.get('provider') ?? ''}
-          onChange={(ev) => setParam({ provider: ev.target.value || null })}
-          aria-label={t('filterProvider')}
-          className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
-        >
-          <option value="">{t('allProviders')}</option>
-          {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-
-        <select
-          value={sp.get('clinica') ?? ''}
-          onChange={(ev) => setParam({ clinica: ev.target.value || null })}
-          aria-label={t('filterClinic')}
-          className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
-        >
-          <option value="">{t('allClinics')}</option>
-          {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-
-        {/* La antigüedad NO es el rango de fechas: es el filtro de riesgo. Un
-            admin pregunta "qué lleva más de un mes", no "qué pasó en julio". */}
-        <select
-          value={sp.get('antiguedad') ?? '0'}
-          onChange={(ev) => setParam({ antiguedad: ev.target.value === '0' ? null : ev.target.value })}
-          aria-label={t('filterAge')}
-          className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
-        >
-          {ANTIGUEDADES.map((d) => (
-            <option key={d} value={d}>{d === 0 ? t('anyAge') : t('olderThan', { days: d })}</option>
-          ))}
-        </select>
-
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="search"
-            value={q}
-            onChange={(ev) => setQ(ev.target.value)}
-            placeholder={t('searchPlaceholder')}
-            aria-label={t('searchPlaceholder')}
-            className="h-9 w-[200px] rounded-md border border-border bg-bg-2 pl-8 pr-2.5 text-xs font-medium text-text-1 placeholder:text-text-muted"
-          />
-        </div>
-      </div>
-
-      {/* El total y, al lado, cuántas no tienen NADA escrito. El segundo número
-          es el que distingue un borrador a medio hacer de una visita que nadie
-          documentó, y es el que hay que perseguir. */}
-      <div className="flex items-center gap-2 flex-wrap text-[12px]">
-        <span className="text-text-2 font-semibold">{t('countVisits', { count: total })}</span>
-        {sinNota > 0 && (
-          <TagPill label={t('countNone', { count: sinNota })} colorClass={ESTADO_STYLE.none} />
-        )}
-        {/* Exportar lo FILTRADO, no todo: el archivo tiene que ser la pantalla.
-            Es la única acción que saca datos del sistema, así que la ruta la
-            audita — ver el comentario en `notes/export/route.ts`. */}
-        {total > 0 && (
-          <a
-            href={urlExport}
-            className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-text-2 text-[11px] font-semibold hover:bg-white/5 hover:text-text-1 transition-colors"
-          >
-            <Download className="w-3 h-3" />
-            {t('export')}
-          </a>
-        )}
-      </div>
-      {errorEnvio && (
-        <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
-          {errorEnvio}
-        </div>
-      )}
-
+      {/* ── La lista, con sus filtros ADENTRO ──────────────────────────────
+          Los filtros van dentro de esta tarjeta y no sueltos entre las dos
+          tablas: ahí quedaban pegados al pie del resumen por provider y se
+          leían como si lo filtraran a él, cuando recortan la lista de abajo
+          (Erick, 1-sep-2026). Una barra de filtros tiene que estar tocando lo
+          que filtra. */}
       <DataTable.Card>
+        <div className="px-4 py-3 border-b border-border flex flex-col gap-2.5">
+        {/* Filtros. `flex-wrap` obligatorio: son siete controles (Regla #4). */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {(['none', 'draft', 'signed'] as EstadoNota[]).map((e) => (
+            <FilterPill
+              key={e}
+              label={t(`estado_${e}`)}
+              active={estados.includes(e)}
+              onClick={() => toggleEstado(e)}
+            />
+          ))}
+
+          <span className="w-px h-6 bg-border mx-1 hidden sm:block" />
+
+          <select
+            value={sp.get('provider') ?? ''}
+            onChange={(ev) => setParam({ provider: ev.target.value || null })}
+            aria-label={t('filterProvider')}
+            className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
+          >
+            <option value="">{t('allProviders')}</option>
+            {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+
+          <select
+            value={sp.get('clinica') ?? ''}
+            onChange={(ev) => setParam({ clinica: ev.target.value || null })}
+            aria-label={t('filterClinic')}
+            className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
+          >
+            <option value="">{t('allClinics')}</option>
+            {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          {/* La antigüedad NO es el rango de fechas: es el filtro de riesgo. Un
+              admin pregunta "qué lleva más de un mes", no "qué pasó en julio". */}
+          <select
+            value={sp.get('antiguedad') ?? '0'}
+            onChange={(ev) => setParam({ antiguedad: ev.target.value === '0' ? null : ev.target.value })}
+            aria-label={t('filterAge')}
+            className="h-9 rounded-md border border-border bg-bg-2 px-2.5 text-xs font-medium text-text-1"
+          >
+            {ANTIGUEDADES.map((d) => (
+              <option key={d} value={d}>{d === 0 ? t('anyAge') : t('olderThan', { days: d })}</option>
+            ))}
+          </select>
+
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="search"
+              value={q}
+              onChange={(ev) => setQ(ev.target.value)}
+              placeholder={t('searchPlaceholder')}
+              aria-label={t('searchPlaceholder')}
+              className="h-9 w-[200px] rounded-md border border-border bg-bg-2 pl-8 pr-2.5 text-xs font-medium text-text-1 placeholder:text-text-muted"
+            />
+          </div>
+        </div>
+
+        {/* El total y, al lado, cuántas no tienen NADA escrito. El segundo número
+            es el que distingue un borrador a medio hacer de una visita que nadie
+            documentó, y es el que hay que perseguir. */}
+        <div className="flex items-center gap-2 flex-wrap text-[12px]">
+          <span className="text-text-2 font-semibold">{t('countVisits', { count: total })}</span>
+          {sinNota > 0 && (
+            <TagPill label={t('countNone', { count: sinNota })} colorClass={ESTADO_STYLE.none} />
+          )}
+          {/* Exportar lo FILTRADO, no todo: el archivo tiene que ser la pantalla.
+              Es la única acción que saca datos del sistema, así que la ruta la
+              audita — ver el comentario en `notes/export/route.ts`. */}
+          {total > 0 && (
+            <a
+              href={urlExport}
+              className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-text-2 text-[11px] font-semibold hover:bg-white/5 hover:text-text-1 transition-colors"
+            >
+              <Download className="w-3 h-3" />
+              {t('export')}
+            </a>
+          )}
+        </div>
+        {errorEnvio && (
+          <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
+            {errorEnvio}
+          </div>
+        )}
+        </div>
+
         <DataTable.Scroll>
           <DataTable.Table className="min-w-[900px]">
             <DataTable.Head>
@@ -391,7 +412,15 @@ export function NotesClient({
                   </td>
                 </tr>
               ) : rows.map((r) => (
-                <DataTable.Row key={r.appointmentId}>
+                <DataTable.Row
+                  key={r.appointmentId}
+                  /* La fila entera abre el EXPEDIENTE del paciente: era inerte y
+                     en 64 de 120 filas ni siquiera "Ver nota" hacía algo, así
+                     que la mayoría no reaccionaba al clic (Erick, 1-sep-2026).
+                     Sin caso vinculado no hay expediente que abrir, y ahí la
+                     fila se queda quieta en vez de fingir que responde. */
+                  onClick={r.caseId ? () => abrirExpediente(r.caseId!) : undefined}
+                >
                   <DataTable.Td sticky="left">
                     <div className="whitespace-nowrap font-medium">{fechaCorta(r.scheduledFor)}</div>
                     {r.signedAt && (
@@ -408,11 +437,22 @@ export function NotesClient({
                   </DataTable.Td>
                   <DataTable.Td>
                     {r.caseCode
-                      ? <span className="font-mono text-[11px] text-cyan">{r.caseCode}</span>
+                      ? <span className="font-mono text-[11px] text-cyan group-hover:underline">{r.caseCode}</span>
                       : <span className="text-text-muted">—</span>}
                   </DataTable.Td>
                   <DataTable.Td>
-                    <span className="text-text-2 whitespace-nowrap">{r.providerName}</span>
+                    {/* El provider filtra la lista por él — el mismo gesto que
+                        la fila del resumen de arriba. `stopPropagation` porque
+                        la fila ahora abre el expediente: sin eso, filtrar por un
+                        provider abriría además el caso de esa visita. */}
+                    <button
+                      type="button"
+                      onClick={(ev) => { ev.stopPropagation(); setParam({ provider: r.providerId }); }}
+                      title={t('filterByProvider', { name: r.providerName })}
+                      className="text-text-2 whitespace-nowrap hover:text-violet-text hover:underline transition-colors text-left"
+                    >
+                      {r.providerName}
+                    </button>
                   </DataTable.Td>
                   <DataTable.Td>
                     <span className="text-text-muted">{r.clinicName}</span>
@@ -424,7 +464,7 @@ export function NotesClient({
                     <Antiguedad dias={r.ageDays} label={t('days', { count: r.ageDays })} />
                   </DataTable.Td>
                   <DataTable.Td align="right" sticky="right">
-                    <div className="flex items-center gap-1.5 justify-end">
+                    <div className="flex items-center gap-1.5 justify-end" onClick={(ev) => ev.stopPropagation()}>
                       {/* Sin nota no hay nada que abrir. Se muestra deshabilitado
                           y con su motivo: escondido parecería que la fila está
                           rota o que a esa visita le falta un permiso. */}

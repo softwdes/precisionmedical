@@ -19,6 +19,7 @@
 
 import { db } from '@precision-medical/database';
 import { getCaseDetailData, providerHasCase, casesOfPatientByCase } from '@/lib/case-detail-data';
+import { canAuditNotes } from '@/lib/notes-audit-access';
 import { parseCaseTab, TABS_ATTORNEY } from '@/lib/case-tabs';
 import { CaseDetailModal } from '@/components/cases/case-detail-modal';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
@@ -39,8 +40,19 @@ export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId 
   if (!caseId) return null;
 
   if (variant === 'doctor') {
-    if (!providerId) return null;
-    if (!(await providerHasCase(providerId, caseId))) return null;
+    /**
+     * El supervisor de notas (`/doctor/notes`) abre el caso de CUALQUIER
+     * paciente, y no es una excepción cómoda: su pantalla lista las visitas de
+     * todos los providers, así que exigirle `providerHasCase` —"¿atendió a este
+     * paciente?"— lo dejaría con una lista donde ninguna fila abre. Es el mismo
+     * callejón que ya tuvimos con la vista de impresión.
+     *
+     * Para el médico tratante no cambia nada: sigue el guard de siempre.
+     */
+    if (!(await canAuditNotes())) {
+      if (!providerId) return null;
+      if (!(await providerHasCase(providerId, caseId))) return null;
+    }
   }
 
   // Portal legal: el bufete solo abre casos DENTRO de su alcance, y con el mismo

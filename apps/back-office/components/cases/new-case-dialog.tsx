@@ -185,6 +185,30 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [insurance, setInsurance]   = useState<AutoResult | null>(null);
   const [policyNumber, setPolicyNumber] = useState('');
 
+  /**
+   * Cambiar el tipo de caso LIMPIA lo legal y el seguro PIP.
+   *
+   * La sección legal y la de seguro solo se dibujan cuando el tipo es MVA, pero
+   * su estado sobrevivía al cambio y viajaba en el payload igual. Elegir MVA,
+   * marcar "busca abogado" y después pasar a GENERAL dejaba un caso general con
+   * la nota "🔍 Paciente busca abogado · Edson revisar" y —peor— la cita con la
+   * instrucción "Edson debe contactar para asignar bufete antes de la cita".
+   * Una tarea inventada, asignada a una persona: ya había pasado en 8 citas.
+   *
+   * Se limpia en los dos sentidos, no solo al salir de MVA: volver a entrar con
+   * los datos del intento anterior a medio llenar es el mismo tipo de sorpresa.
+   */
+  const cambiarTipoDeCaso = (nuevo: CaseType) => {
+    if (nuevo === caseType) return;
+    setCaseType(nuevo);
+    setLawyerStatus('HAS');
+    setLawFirm(null);
+    setAttorney(null);
+    setChiropractor('');
+    setInsurance(null);
+    setPolicyNumber('');
+  };
+
   // ─── Section 3: Schedule appointment ──────────────────────────────────
   const [specialtyId, setSpecialtyId] = useState('');
   const [scheduleNow, setScheduleNow] = useState(true);
@@ -1143,9 +1167,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {/* Tipo de caso */}
               <InfoCard title={t('sectionCaseType')} icon={Car} number={1}>
                 <div className="grid grid-cols-2 gap-2">
-                  <SelectableCard selected={caseType === 'MVA'} onClick={() => setCaseType('MVA')}
+                  <SelectableCard selected={caseType === 'MVA'} onClick={() => cambiarTipoDeCaso('MVA')}
                     icon="🚗" title={t('caseMVA')} subtitle={t('caseMVADesc')} />
-                  <SelectableCard selected={caseType === 'GENERAL'} onClick={() => setCaseType('GENERAL')}
+                  <SelectableCard selected={caseType === 'GENERAL'} onClick={() => cambiarTipoDeCaso('GENERAL')}
                     icon="🩺" title={t('caseGM')} subtitle={t('caseGMDesc')} />
                 </div>
               </InfoCard>

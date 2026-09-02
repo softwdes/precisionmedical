@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import { buildPortalSms, MAGIC_LINK_PLACEHOLDER, smsSegments } from '@/lib/portal-message';
 import {
   Send, MessageSquare, Mail, AlertCircle, Check,
@@ -293,7 +294,21 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   // vinculado) — lo resuelve el server con la misma regla que usa al enviar.
   const { recipient: resolved, loading: resolvingDest } = usePortalRecipient(caseInfo?.id, open);
 
-  const L = ui(lang);
+  /**
+   * La PANTALLA va en el idioma del staff · el MENSAJE en el del paciente.
+   *
+   * Eran la misma variable: `ui(lang)`, donde `lang` es el idioma del SMS. El
+   * resultado era que un paciente registrado en español volvía todo el diálogo
+   * al español —"Portal enviado", "Expira", "Enviado por SMS"— para una
+   * recepcionista que tiene la app en inglés. Y el toggle de al lado dice
+   * "Idioma del mensaje", así que el propio diálogo ya declaraba que ese valor
+   * era del mensaje y no de la interfaz.
+   *
+   * Reportado el 2026-09-02: el tester leyó el diálogo entero en español con la
+   * app en inglés.
+   */
+  const localeStaff: Lang = useLocale() === 'es' ? 'es' : 'en';
+  const L = ui(localeStaff);
   const fullName = caseInfo ? `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}` : '';
 
   // Mientras el GET no llegó (o falló), se gatea con los datos del paciente —

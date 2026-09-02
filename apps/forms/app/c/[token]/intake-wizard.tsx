@@ -25,6 +25,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import { TEL_CLINICA } from '@/lib/clinica';
+import { comprimirImagen } from '@/lib/comprimir-imagen';
 // Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
 // component. Mismo criterio que `@precision-medical/database/age`.
 import { normalizeRelation } from '@precision-medical/database/relations';
@@ -415,9 +416,6 @@ const STRINGS = {
     insCardBack: 'Tarjeta de seguro (Posterior)',
     insCardBtn: 'Foto de tu tarjeta de seguro',
     phase1Note: '📋 Fase de Registro: Tus fotos serán revisadas en tu primera visita. No se almacenan en el sistema hasta completar el protocolo de seguridad HIPAA.',
-    cantPhotoTitle: '¿No puedes tomar las fotos ahora?',
-    takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
-    clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
     continueToSign: 'Continuar →',
     sifoHint8: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
     // Step 7 — Photo capture guidance
@@ -738,9 +736,6 @@ const STRINGS = {
     insCardBack: 'Insurance card (Back)',
     insCardBtn: 'Photo of your insurance card',
     phase1Note: '📋 Registration Phase: Your photos will be reviewed at your first visit. They are not stored until the HIPAA security protocol is complete.',
-    cantPhotoTitle: "Can't take photos right now?",
-    takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
-    clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
     continueToSign: 'Continue →',
     sifoHint8: 'We need your ID to verify your identity. Your photos are secure 🔒',
     // Step 7 — Photo capture guidance
@@ -1534,7 +1529,6 @@ export function IntakeWizard({
     insuranceCardBack:  savedPhotos?.insuranceCardBack  ?? null,
     dlFront:            savedPhotos?.dlFront            ?? null,
   });
-  const [takeAtClinic, setTakeAtClinic] = useState(false);
 
   // ── Law firms (Step 4) ──────────────────────────────────────────────────────
   const [lawFirms, setLawFirms] = useState<{ id: string; firmName: string }[]>([]);
@@ -1766,12 +1760,25 @@ export function IntakeWizard({
 
   const handlePhotoConfirm = (type: keyof typeof photoUrls) => async (file: File) => {
     setPhotoUploadError(null);
+
+    /**
+     * Se comprime ANTES de subir. Sin esto, una foto de teléfono de 5-12 MB
+     * moría en el borde de Vercel (límite de 4.5 MB por request) sin llegar a
+     * nuestra ruta: sin validación que lo explicara y sin log. El paciente veía
+     * el error genérico y creía que se había guardado.
+     *
+     * Va acá y no dentro de `PhotoCaptureCard` porque este es el único punto por
+     * el que pasan los DOS caminos —la cámara propia y el selector de archivos—
+     * y es el de la galería el que trae los archivos grandes.
+     */
+    const paraSubir = await comprimirImagen(file);
+
     // Optimistic preview: show blob URL immediately
-    const blobUrl = URL.createObjectURL(file);
+    const blobUrl = URL.createObjectURL(paraSubir);
     setPhotoUrls(p => ({ ...p, [type]: blobUrl }));
 
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', paraSubir);
     fd.append('photoType', type);
     try {
       const res = await fetch(`/api/intake/${token}/upload-photo`, { method: 'POST', body: fd });
@@ -3535,8 +3542,28 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="📸" title={t.idTitle} sub={t.idSub} />
 
-            {!takeAtClinic ? (
-              <>
+            {/**
+              * Acá había un botón "📋 Lo tomo en la clínica el día de mi cita"
+              * que escondía todo el paso, y su pantalla de confirmación.
+              *
+              * Se retiró (decisión de Erick, 2026-09-02). El paso sigue siendo
+              * OPCIONAL —el botón Continuar nunca exigió una foto y sigue sin
+              * exigirla— pero ya no se ofrece la alternativa como una opción
+              * equivalente. Una salida explícita, con el mismo peso visual y un
+              * texto que tranquiliza ("El equipo te ayudará con las fotos"),
+              * convierte el camino fácil en el default.
+              *
+              * Los números que lo motivaron: de 133 intakes completados desde
+              * que existe este paso, 12 (9%) tienen alguna foto y solo 5 (4%)
+              * tienen la tarjeta de seguro; en total **6 pacientes** subieron
+              * algo por el portal. Sin la foto del seguro antes de la visita no
+              * se puede verificar la cobertura, que es el punto de pedirla acá.
+              *
+              * ⚠️ El botón tampoco dejaba rastro: `takeAtClinic` era estado
+              * local del navegador —nunca se guardó ni se envió—, así que la
+              * clínica no podía distinguir a quien eligió traer los documentos
+              * de quien abandonó el paso. Los dos se veían igual: sin fotos.
+              */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
                   {/* 1 · Foto del paciente (selfie) */}
@@ -3625,41 +3652,6 @@ export function IntakeWizard({
                     <span style={{ fontSize: 12, color: 'rgba(245,158,11,0.85)', lineHeight: 1.55 }}>{t.phase1Note}</span>
                   </div>
                 </div>
-
-                {/* "Lo tomo en la clínica" fallback */}
-                <div style={{
-                  marginTop: 16, padding: '14px 16px', borderRadius: 12,
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-                }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 10, fontWeight: 600 }}>
-                    {t.cantPhotoTitle}
-                  </div>
-                  <button type="button" onClick={() => setTakeAtClinic(true)} style={{
-                    width: '100%', padding: '12px 16px', borderRadius: 10,
-                    background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.28)',
-                    color: '#A5B4FC', fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-                  }}>{t.takeAtClinicBtn}</button>
-                </div>
-              </>
-            ) : (
-              <div style={{
-                ...S.card, marginBottom: 20, textAlign: 'center',
-                background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.25)',
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#A5B4FC', marginBottom: 8 }}>
-                  {t.clinicSelectedMsg}
-                </div>
-                <button type="button" onClick={() => setTakeAtClinic(false)} style={{
-                  marginTop: 8, padding: '8px 16px', borderRadius: 8,
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'rgba(255,255,255,0.50)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-                }}>
-                  {lang === 'es' ? '← Volver y tomar fotos' : '← Go back and take photos'}
-                </button>
-              </div>
-            )}
 
             <SifoHint hint={t.sifoHint8} />
             <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>

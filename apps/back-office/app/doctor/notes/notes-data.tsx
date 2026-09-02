@@ -77,6 +77,7 @@ export async function NotesData({ filtros }: { filtros: NotesQuery }): Promise<R
     patientName: `${dec(a.patient.firstName) ?? ''} ${dec(a.patient.lastName) ?? ''}`.trim(),
     caseId: a.case?.id ?? null,
     caseCode: a.case?.caseCode ?? null,
+    providerId: a.provider?.id ?? null,
     providerName: nombreProviderO(a.provider, '—'),
     providerUserId: a.provider?.userId ?? null,
     clinicName: a.clinic?.name ?? '—',

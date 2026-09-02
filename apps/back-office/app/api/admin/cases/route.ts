@@ -25,6 +25,29 @@ import {
   casePrefixFor, resolveGuardian, GuardianIsSelfError,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import {
+  construirNotaLlamadaInicial, llevaBufeteYPip, type Idioma,
+} from '@/lib/nota-llamada-inicial';
+
+/**
+ * Idioma en el que se escribe la nota interna del alta.
+ *
+ * Sale de la cookie `locale` —la misma que lee `i18n/request.ts`— y NO de un
+ * campo del payload. Es el mismo criterio que el idioma del SMS del portal:
+ * resolverlo en el servidor cierra el agujero de raíz, porque los TRES diálogos
+ * que postean acá (`new-case-dialog`, `quick-register-dialog`,
+ * `case-wizard-dialog`) tendrían que acordarse de mandarlo, y uno nuevo que se
+ * olvide reintroduce el bug sin que se note.
+ *
+ * El default es `en`, igual que `i18n/request.ts`: el back-office arranca en
+ * inglés. La nota salía en español fijo y por eso un tester con la pantalla en
+ * inglés leía el cuerpo en español.
+ */
+async function idiomaDelStaffDesdeLaCookie(): Promise<Idioma> {
+  const { cookies } = await import('next/headers');
+  const store = await cookies();
+  return store.get('locale')?.value === 'es' ? 'es' : 'en';
+}
 
 const InputSchema = z.object({
   // Patient
@@ -142,6 +165,9 @@ const InputSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
+  // Se resuelve acá y no dentro de la transacción: `cookies()` no tiene nada que
+  // ver con la DB y no hay razón para tenerlo adentro del lock.
+  const idiomaDelStaff = await idiomaDelStaffDesdeLaCookie();
 
   let parsed;
   try {
@@ -445,7 +471,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           status: 'SCHEDULED',
           notes: [
             parsed.appointment.notes?.trim() || null,
-            parsed.legal.lawyerStatus === 'SEEKING'
+            /**
+             * El aviso para Edson SOLO en casos que llevan bufete.
+             *
+             * Antes bastaba `lawyerStatus === 'SEEKING'`, y como el diálogo no
+             * limpia ese estado al cambiar de MVA a GENERAL, la cita de un caso
+             * general terminaba con la instrucción "asignar bufete antes de la
+             * cita" — una tarea que no existe, asignada a una persona. Ya había
+             * pasado en 8 citas de casos GENERAL. El predicado es compartido con
+             * la nota interna (`llevaBufeteYPip`) para que no se arregle uno y
+             * quede el otro.
+             */
+            llevaBufeteYPip(parsed.caseType) && parsed.legal.lawyerStatus === 'SEEKING'
               ? '⚠ Paciente sin abogado · Edson debe contactar para asignar bufete antes de la cita'
               : null,
           ].filter(Boolean).join('\n') || null,
@@ -453,39 +490,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Crear nota interna con el resumen de la llamada
-    const callDurationLabel = parsed.callDurationSeconds
-      ? `${Math.floor(parsed.callDurationSeconds / 60)}m ${parsed.callDurationSeconds % 60}s`
-      : 'desconocido';
-
-    const lawyerInfo = parsed.legal.lawyerStatus === 'HAS'
-      ? `Bufete: ${parsed.legal.lawFirmId ? 'asignado' : 'sin asignar'}${parsed.legal.caseManagerName ? ` · CM: ${parsed.legal.caseManagerName}` : ''}`
-      : parsed.legal.lawyerStatus === 'SEEKING'
-        ? '🔍 Paciente busca abogado · Edson revisar'
-        : '⚠ Sin abogado · cash o seguro propio';
-
+    /**
+     * Nota interna con el resumen de la llamada.
+     *
+     * El texto lo arma `lib/nota-llamada-inicial.ts`: ahí está por qué omite
+     * bufete y PIP cuando el caso no es MVA, y por qué se escribe en el idioma
+     * de quien da el alta en vez de en español fijo.
+     */
     await tx.caseNote.create({
       data: {
-        caseId: newCase.id,
-        content: [
-          `Llamada inicial · ${callDurationLabel}`,
-          `Tipo de caso: ${parsed.caseType}`,
-          `Referido por: ${parsed.source}`,
-          lawyerInfo,
-          parsed.insurance.primaryInsuranceId ? 'Seguro PIP: capturado' : 'Seguro PIP: pendiente',
-          parsed.appointment
-            ? `Cita agendada: ${new Date(parsed.appointment.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}`
-            : 'Cita: pendiente de agendar',
-          parsed.formDelivery?.sendEmail && parsed.formDelivery?.sendSms
-            ? 'Formulario enviado por email y SMS'
-            : parsed.formDelivery?.sendEmail
-            ? 'Formulario enviado por email'
-            : parsed.formDelivery?.sendSms
-            ? 'Formulario enviado por SMS'
-            : parsed.formDelivery === null
-            ? 'Formulario: tablet en clínica al llegar'
-            : 'Formulario: sin definir',
-        ].join('\n'),
+        caseId:  newCase.id,
+        content: construirNotaLlamadaInicial({
+          caseType:            parsed.caseType,
+          source:              parsed.source,
+          callDurationSeconds: parsed.callDurationSeconds,
+          legal:               parsed.legal,
+          insurance:           parsed.insurance,
+          appointment:         parsed.appointment,
+          formDelivery:        parsed.formDelivery,
+        }, idiomaDelStaff),
         isPrivate: true,
         authorUserId: actor.actorUserId,
         authorName: 'Front Office (llamada inicial)',
@@ -532,7 +555,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       existingPatient: !!parsed.existingPatientId,
       source: parsed.source,
       caseType: parsed.caseType,
-      lawyerStatus: parsed.legal.lawyerStatus,
+      // `null` cuando el caso no lleva bufete: el esquema tiene `.default('HAS')`
+      // y los tres diálogos que postean acá lo mandan fijo, así que un caso
+      // GENERAL quedaba auditado como "tiene abogado" sin que nadie lo dijera.
+      lawyerStatus: llevaBufeteYPip(parsed.caseType) ? parsed.legal.lawyerStatus : null,
       lawFirmId: parsed.legal.lawFirmId,
       caseManagerName: parsed.legal.caseManagerName ?? null,
       primaryInsuranceId: parsed.insurance.primaryInsuranceId,

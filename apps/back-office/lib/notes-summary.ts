@@ -93,6 +93,22 @@ export async function getNotesSummary(alcance: AlcanceResumen): Promise<NotesSum
     // cambia acá — es la única copia y está a propósito al lado.
     `a."status"::text NOT IN ('CANCELLED','NO_SHOW')`,
     `(a."checkedInAt" IS NOT NULL OR a."status"::text IN ('IN_PROGRESS','COMPLETED'))`,
+    /**
+     * Solo providers ACTIVOS, y no es un detalle: el selector de "Provider" de
+     * los filtros ya listaba solo los activos (`db.provider.findMany` con
+     * `status: 'ACTIVE'`), pero esta tabla arrancaba desde las citas y traía a
+     * cualquiera que tuviera una. Los dos se contradecían — aparecían en el
+     * ranking providers que después no se podían elegir para filtrar.
+     *
+     * De paso saca del ranking a los de prueba dados de baja. Los que siguen
+     * ACTIVOS (los "(PRUEBA)") NO se resuelven acá: son providers activos de
+     * verdad en producción y esconderlos con un filtro por nombre se rompe con
+     * el primero que se cree sin esa palabra. Se arreglan en el dato —
+     * marcándolos INACTIVE en Configuración → Doctores— y ahí desaparecen de
+     * esta pantalla, del calendario y de las métricas a la vez.
+     */
+    `p."status"::text = 'ACTIVE'`,
+    `p."deletedAt" IS NULL`,
   ];
 
   if (alcance.clinicId) { params.push(alcance.clinicId); cond.push(`a."clinicId" = $${params.length}`); }

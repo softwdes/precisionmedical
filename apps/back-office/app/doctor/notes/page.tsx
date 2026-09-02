@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { canAuditNotes } from '@/lib/notes-audit-access';
 import { ESTADOS_PENDIENTES, type EstadoNota } from '@/lib/notes-audit';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { NotesData } from './notes-data';
 import { NotesSkeleton } from './loading';
 
@@ -31,6 +32,8 @@ export default async function NotesPage({
   searchParams: Promise<{
     estado?: string; provider?: string; clinica?: string;
     desde?: string; hasta?: string; antiguedad?: string; q?: string; page?: string;
+    /** El expediente abierto SOBRE la lista — ver `CaseUrlModal`. */
+    case?: string; tab?: string;
   }>;
 }): Promise<React.ReactElement> {
   // A `/doctor`, no a `/dashboard`: quien entra acá vive en el portal y un rol
@@ -72,8 +75,15 @@ export default async function NotesPage({
     // La `key` fuerza a Suspense a mostrar el skeleton en CADA cambio de filtro.
     // Sin ella React reusa el árbol y la tabla se queda con los datos viejos,
     // quieta, hasta que llega la consulta nueva — parece que el filtro no tomó.
-    <Suspense key={JSON.stringify(filtros)} fallback={<NotesSkeleton />}>
-      <NotesData filtros={filtros} />
-    </Suspense>
+    <>
+      <Suspense key={JSON.stringify(filtros)} fallback={<NotesSkeleton />}>
+        <NotesData filtros={filtros} />
+      </Suspense>
+      {/* El expediente del paciente, sobre la lista. Va con `?case=` para que
+          recargar vuelva con los filtros Y el caso abierto. Sin `providerId`:
+          quien supervisa no es el médico tratante de estos pacientes, y el
+          propio modal ya lo contempla con `canAuditNotes` — ver su guard. */}
+      <CaseUrlModal caseId={sp.case} tab={sp.tab} variant="doctor" />
+    </>
   );
 }

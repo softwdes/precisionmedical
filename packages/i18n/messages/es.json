@@ -1365,6 +1365,8 @@
   },
   "phoenix": {
     "notesAudit": {
+      "filterByProvider": "Ver solo las visitas de {name}",
+      "kpiPending": "Pendientes",
       "export": "Exportar CSV",
       "kpiNoNote": "Sin ninguna nota",
       "kpiOldest": "La más vieja",
@@ -4122,6 +4124,8 @@
       "claimsLabel": "Reclamos:",
       "caseModalTitle": "Detalle del caso {code}",
       "patientCasesLabel": "{count} casos de este paciente",
+      "docsMissing": "Faltan documentos",
+      "docsMissingAction": "Cargar",
       "editPatient": "Editar paciente",
       "tabPatient": "Paciente",
       "tabAppointments": "Citas",

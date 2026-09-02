@@ -242,6 +242,22 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   const [addNoteOpen, setAddNoteOpen] = useState(false);
   /** Fotos de identificación — se abre desde el avatar del paciente. */
   const [archivosOpen, setArchivosOpen] = useState(false);
+
+  /**
+   * Los documentos de identidad que todavía no están, con su nombre traducido.
+   *
+   * Las etiquetas salen de `phoenix.patients` —las mismas que muestra el diálogo
+   * de carga— para que recepción lea el mismo nombre en los dos lugares.
+   */
+  const tp = useTranslations('phoenix.patients');
+  const documentosFaltantes = ([
+    ['selfie',             'photoSlotSelfie'],
+    ['insuranceCardFront', 'photoSlotInsCardFront'],
+    ['insuranceCardBack',  'photoSlotInsCardBack'],
+    ['dlFront',            'photoSlotDlFront'],
+  ] as const)
+    .filter(([clave]) => !caseInfo?.patient.fotos?.[clave])
+    .map(([, etiqueta]) => tp(etiqueta));
   const toast = useToast();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
@@ -555,6 +571,39 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   </Link>
                 )}
               </div>
+
+              {/**
+                * Qué documentos faltan, y un clic para cargarlos.
+                *
+                * El paciente ya no puede elegir "los llevo a la cita" en el
+                * intake (se retiró el 2026-09-02), pero el paso sigue siendo
+                * opcional: hoy 91% de los intakes completados llegan sin una
+                * sola foto y solo 4% con la tarjeta de seguro. Sin esa tarjeta
+                * antes de la visita no se puede verificar la cobertura, que es
+                * el punto de pedirla.
+                *
+                * Antes esto no se veía en ninguna parte: "sin fotos" no era una
+                * señal, era la ausencia de una. Acá queda en la tarjeta que
+                * recepción ya mira, con el diálogo de carga a un clic — no en
+                * una pantalla aparte que hay que acordarse de abrir.
+                *
+                * Solo para el staff: el doctor y el abogado leen la ficha.
+                */}
+              {!isReadOnly && documentosFaltantes.length > 0 && (
+                <div className="mb-3 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-start gap-2 flex-wrap">
+                  <span className="text-[11px] text-amber leading-relaxed flex-1 min-w-[160px]">
+                    {t('docsMissing')}: {documentosFaltantes.join(' · ')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setArchivosOpen(true)}
+                    className="shrink-0 rounded-md border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] font-semibold text-amber hover:bg-amber/20 transition-colors"
+                  >
+                    {t('docsMissingAction')}
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-0">
                 {caseInfo.patient.dateOfBirth && (
                   <InfoRow label={t('rowDob')} value={

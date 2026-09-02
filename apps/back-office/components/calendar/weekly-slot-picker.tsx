@@ -102,9 +102,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     const toDate   = addDays(weekStart, 5).toISOString();
     // `limitPerDay` y NO `limit`: el techo global recortaba la semana ya ordenada
     // por fecha, así que lunes a jueves se comían los 200 cupos y el viernes
-    // salía vacío — se leía como "el doctor no atiende ese día". 60 cubre el
-    // máximo real de un día (56 slots, con la duración mínima de 15 min sobre
-    // una jornada de 8:00 a 22:00).
+    // salía vacío — se leía como "el doctor no atiende ese día". 60 cubre de sobra
+    // el máximo real de un día: con la jornada de 08:00 a 18:00 y citas de 15 min
+    // son 40 slots.
     const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
     if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId);
 

@@ -10,11 +10,30 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
+import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 type Ctx = { params: Promise<{ token: string }> };
 
+/**
+ * Freno por IP.
+ *
+ * El lien se firma UNA vez por caso, así que el techo puede ser bajo: lo que
+ * queda cubierto es el sondeo de tokens (cada POST dice si el token existe con
+ * un 404 contra un 200) y el reintento automatizado. Su gemela de confirmación
+ * de cita —`confirmar/[token]/sign`— ya tenía freno; esta se había quedado sin.
+ */
+const LIMITE = { max: 10, ventanaMs: 10 * 60 * 1000 };
+
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { token } = await ctx.params;
+
+  const freno = rateLimit(claveDeIp(req, 'intake-sign'), LIMITE);
+  if (!freno.ok) {
+    return NextResponse.json(
+      { error: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: cabeceras429(freno) },
+    );
+  }
 
   // Validate token
   const rec = await db.case.findUnique({

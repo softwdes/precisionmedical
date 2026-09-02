@@ -103,6 +103,7 @@ export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId 
     <CaseDetailModal
       caseInfo={data.caseInfo}
       auditEvents={data.auditEvents}
+      currentUserId={data.currentUserId}
       variant={variant}
       initialTab={initialTab}
       signature={signature}

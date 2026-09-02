@@ -35,6 +35,17 @@ interface Row {
   pacienteFirmo?: boolean;
 }
 
+/**
+ * Motivo → qué dice la línea de abajo.
+ *
+ * Los dos motivos de tratamiento se leen bien con los días ("21 días sin cita
+ * nueva"); el del lien en un caso cerrado no: ahí los días son desde el CIERRE,
+ * y decir "sin cita nueva" sería contar otra cosa con el número de esta.
+ */
+const MOTIVO_LINEA: Record<string, string> = {
+  LIEN_SIN_FIRMA_CASO_CERRADO: 'vigiaWhyLienClosed',
+};
+
 const TITULO: Record<ListKind, string> = {
   stalled:  'vigiaListStalledTitle',
   unsigned: 'vigiaListUnsignedTitle',
@@ -116,7 +127,9 @@ export function CaseListDialog({ kind, onClose }: {
                 {r.caseCode}
               </span>
               <span className="text-[12.5px] text-text-muted flex-1 min-w-0 truncate">
-                {typeof r.dias === 'number' ? t('vigiaListDays', { dias: r.dias }) : r.estado}
+                {r.motivo && MOTIVO_LINEA[r.motivo]
+                  ? t(MOTIVO_LINEA[r.motivo]!)
+                  : typeof r.dias === 'number' ? t('vigiaListDays', { dias: r.dias }) : r.estado}
                 {r.sinFirma && <span className="text-amber"> · {t('vigiaAlsoUnsigned')}</span>}
                 {r.pacienteFirmo && <span className="text-emerald"> · {t('vigiaListPatientSigned')}</span>}
               </span>

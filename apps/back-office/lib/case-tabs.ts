@@ -13,7 +13,7 @@
 
 export type ActiveTab =
   | 'caso' | 'citas' | 'historial' | 'labs' | 'rx'
-  | 'servicios' | 'braces' | 'finanzas' | 'documentos';
+  | 'servicios' | 'braces' | 'finanzas' | 'documentos' | 'mensajes';
 
 const CASE_TABS: ActiveTab[] = [
   'caso', 'citas', 'historial', 'labs', 'rx',

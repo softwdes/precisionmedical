@@ -127,14 +127,38 @@ export function CloseWindowButton({
             border: '1px solid rgba(16,185,129,0.22)',
             borderRadius: 16, padding: '22px 24px', marginBottom: 22,
           }}>
-            <div style={{ fontSize: 22, marginBottom: 12 }}>📲</div>
+            {/**
+              * Acá decía "Puedes entregar la tablet al personal de la clínica".
+              *
+              * Se cambió (reporte de Erick, 2026-09-02) porque no era cierto en
+              * la mayoría de los casos: el formulario se llena mucho más desde
+              * el teléfono del paciente —el link llega por SMS— que desde la
+              * tablet del mostrador, y a alguien en su casa esa instrucción no
+              * le dice nada.
+              *
+              * No se intentó adivinar el dispositivo. El candidato era
+              * `intakeFormSentVia`, pero no alcanza: cuando el link se genera
+              * sin enviarlo (el QR) el paciente igual lo escanea con SU
+              * teléfono, así que "no se envió" no significa "es la tablet". Una
+              * instrucción equivocada es peor que ninguna, y lo que el paciente
+              * necesita saber acá es solo que su formulario llegó.
+              */}
+            <div style={{ fontSize: 22, marginBottom: 12 }}>✅</div>
             <p style={{
               fontSize: 17, fontWeight: 700, color: '#fff',
               lineHeight: 1.45, margin: 0,
             }}>
               {es
-                ? <>Puedes entregar la tablet<br />al personal de la clínica.</>
-                : <>Please hand the tablet back<br />to our clinic staff.</>}
+                ? <>Tu formulario se envió<br />correctamente.</>
+                : <>Your form was submitted<br />successfully.</>}
+            </p>
+            <p style={{
+              fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.55)',
+              lineHeight: 1.5, margin: '10px 0 0',
+            }}>
+              {es
+                ? 'El equipo de Precision Medical lo revisará antes de tu cita.'
+                : 'The Precision Medical team will review it before your appointment.'}
             </p>
           </div>
 
@@ -148,8 +172,11 @@ export function CloseWindowButton({
             ))}
           </div>
 
+          {/* "El equipo te atenderá en unos momentos" daba por sentado que el
+              paciente está en la clínica. Desde el teléfono, en su casa, no
+              significa nada — es la misma suposición que la de la tablet. */}
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.22)', marginBottom: 20, lineHeight: 1.6 }}>
-            {es ? 'El equipo te atenderá en unos momentos.' : 'Our team will assist you shortly.'}
+            {es ? 'Ya puedes cerrar esta ventana.' : 'You can close this window now.'}
           </p>
 
           {/* ── Countdown ─────────────────────────────────────────────── */}

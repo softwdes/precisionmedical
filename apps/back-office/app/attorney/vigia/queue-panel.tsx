@@ -26,6 +26,8 @@ export interface FilaVista {
   motivo: MotivoAtencion;
   diasSinCita: number | null;
   diasAbierto: number;
+  /** Días desde el cierre. Solo viene con `LIEN_SIN_FIRMA_CASO_CERRADO`. */
+  diasCerrado: number | null;
   /** El lien sin firmar no crea la fila, pero se marca cuando además falta. */
   sinFirma: boolean;
 }
@@ -40,6 +42,12 @@ const VERBO: Record<MotivoAtencion, { key: string; why: string; tone: string }> 
     key: 'vigiaVerbPush', why: 'vigiaWhyStalled',
     tone: 'bg-amber/15 text-amber border-amber/30',
   },
+  // El único en rojo: acá no hay nada que empujar, lo que falta es la firma de
+  // quien está mirando la pantalla.
+  LIEN_SIN_FIRMA_CASO_CERRADO: {
+    key: 'vigiaVerbSign', why: 'vigiaWhyLienClosed',
+    tone: 'bg-rose/15 text-rose border-rose/30',
+  },
 };
 
 /**
@@ -51,10 +59,14 @@ const VERBO: Record<MotivoAtencion, { key: string; why: string; tone: string }> 
 function Fila({ f, onPedir }: { f: FilaVista; onPedir: (f: FilaVista) => void }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const v = VERBO[f.motivo];
-  const dias = f.diasSinCita ?? f.diasAbierto;
+  // Misma cadena que `diasDeLaFila()` del servidor — cada motivo tiene su reloj.
+  const dias = f.diasCerrado ?? f.diasSinCita ?? f.diasAbierto;
   // Más allá de la ventana el verbo cambia: a un caso de 600 días no se lo
-  // "empuja", se lo revisa para ver si sigue vivo.
-  const verbo = dias > 90 ? { key: 'vigiaVerbReview', tone: 'bg-bg-2/60 text-text-muted border-transparent' } : v;
+  // "empuja", se lo revisa para ver si sigue vivo. La firma es la excepción:
+  // sigue faltando igual, y firmar no se vuelve "revisar" con el tiempo.
+  const verbo = dias > 90 && f.motivo !== 'LIEN_SIN_FIRMA_CASO_CERRADO'
+    ? { key: 'vigiaVerbReview', tone: 'bg-bg-2/60 text-text-muted border-transparent' }
+    : v;
 
   return (
     <div className="flex items-center gap-3 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors group">
@@ -123,7 +135,7 @@ export function StalledPanel({ filas, total }: { filas: FilaVista[]; total: numb
         cuerpo={pidiendo
           ? t(`vigiaReqBody_${pidiendo.motivo}`, {
               caso: pidiendo.caseCode,
-              dias: pidiendo.diasSinCita ?? pidiendo.diasAbierto,
+              dias: pidiendo.diasCerrado ?? pidiendo.diasSinCita ?? pidiendo.diasAbierto,
             })
           : ''}
         onClose={() => setPidiendo(null)}
@@ -162,7 +174,7 @@ export function QueuePanel({ filas, total }: {
         cuerpo={pidiendo
           ? t(`vigiaReqBody_${pidiendo.motivo}`, {
               caso: pidiendo.caseCode,
-              dias: pidiendo.diasSinCita ?? pidiendo.diasAbierto,
+              dias: pidiendo.diasCerrado ?? pidiendo.diasSinCita ?? pidiendo.diasAbierto,
             })
           : ''}
         onClose={() => setPidiendo(null)}

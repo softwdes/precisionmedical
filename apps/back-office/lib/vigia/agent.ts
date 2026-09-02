@@ -14,9 +14,11 @@ import { VIGIA_TOOLS, ejecutarHerramienta } from './tools';
  *
  * Tres decisiones que valen la pena explicar:
  *
- * · **Sin streaming, por ahora.** Las respuestas son de dos o tres frases y
- *   tardan unos segundos; el streaming agrega un protocolo entero para ganar
- *   poco. Cuando haya respuestas largas se agrega, y solo acá.
+ * · **En streaming, y contenido acá.** El lazo es un generador que emite lo que
+ *   pasa —cada herramienta que termina, cada pedazo de la respuesta— y la ruta
+ *   lo pasa a NDJSON. El total no baja, son las mismas llamadas; lo que baja es
+ *   la espera percibida: la primera palabra a ~1,5 s en vez de todo a los 4.
+ *   `preguntarAVigia()` sigue existiendo para quien solo quiera el resultado.
  *
  * · **Los botones NO los elige el modelo.** Se derivan de qué herramientas
  *   corrieron. Un modelo inventando URLs es un modelo mandando gente a páginas

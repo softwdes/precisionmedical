@@ -19,6 +19,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments } from '@/lib/messaging';
+import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
 
 const PAGE_SIZE = 15;
 
@@ -242,6 +243,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       cc: ccUsers.map((u) => u.name),
     },
   }).catch(() => undefined);
+
+  /**
+   * Lo que se adjuntó pasa al expediente del caso — ver `messaging-documents`.
+   *
+   * Se espera (no es fire-and-forget) para que el tab Documentos ya lo tenga
+   * cuando la pantalla se refresque después del envío; y no puede tumbar la
+   * respuesta, así que va con `.catch`. El mensaje ya está creado y su adjunto
+   * se sigue leyendo desde el hilo pase lo que pase acá.
+   */
+  await archivarAdjuntosDelHilo(thread.id, actor.actorUserId)
+    .catch((e) => { console.error('[messages] archivado de adjuntos:', e); });
 
   return NextResponse.json({ id: thread.id }, { status: 201 });
 }

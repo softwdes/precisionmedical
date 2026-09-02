@@ -17,7 +17,7 @@ import { db, type Prisma } from '@precision-medical/database';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
 import { lawyerCaseFilter, canSeeVigia, ACTIVE_STATUSES } from '@/lib/attorney-portal';
-import { colaDeAtencion } from '@/lib/vigia/queue';
+import { colaDeAtencion, diasDeLaFila } from '@/lib/vigia/queue';
 
 const MAX = 50;
 
@@ -43,7 +43,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         id: f.caseId,
         caseCode: f.caseCode,
         motivo: f.motivo,
-        dias: f.diasSinCita ?? f.diasAbierto,
+        // Cada motivo se mide contra su propio reloj — ver `diasDeLaFila()`.
+        dias: diasDeLaFila(f),
         sinFirma: f.agravantes.includes('LIEN_SIN_FIRMA'),
       })),
     });

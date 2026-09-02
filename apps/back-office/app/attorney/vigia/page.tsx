@@ -202,6 +202,7 @@ export default async function AttorneyVigiaPage({ searchParams }: {
           motivo: f.motivo,
           diasSinCita: f.diasSinCita,
           diasAbierto: f.diasAbierto,
+          diasCerrado: f.diasCerrado,
           sinFirma: f.agravantes.includes('LIEN_SIN_FIRMA'),
         }))}
       />
@@ -217,6 +218,7 @@ export default async function AttorneyVigiaPage({ searchParams }: {
           motivo: f.motivo,
           diasSinCita: f.diasSinCita,
           diasAbierto: f.diasAbierto,
+          diasCerrado: f.diasCerrado,
           sinFirma: f.agravantes.includes('LIEN_SIN_FIRMA'),
         }))}
       />

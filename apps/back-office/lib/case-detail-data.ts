@@ -1,6 +1,8 @@
 import { db } from '@precision-medical/database';
 import type { ComponentProps } from 'react';
 import type { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-detail-client';
+import { getSessionUser } from '@/lib/session';
+import { getDbUserByEmail } from '@/lib/actor';
 
 /**
  * Carga del detalle de caso — compartida por las CUATRO superficies que lo
@@ -15,6 +17,8 @@ type CaseDetailClientProps = ComponentProps<typeof CaseDetailClient>;
 export interface CaseDetailData {
   caseInfo: CaseDetailClientProps['caseInfo'];
   auditEvents: CaseDetailClientProps['auditEvents'];
+  /** `users.id` de quien mira — para el tab de Mensajes. Ver abajo. */
+  currentUserId: string | null;
 }
 
 /**
@@ -280,5 +284,21 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
       createdAt: e.createdAt,
       metadata: e.metadata as Record<string, unknown> | null,
     })),
+    /**
+     * Quién está mirando — lo necesita el tab de Mensajes (qué entradas son
+     * mías, qué puedo editar).
+     *
+     * Va acá y no como prop de cada página porque hay TRES lugares que montan
+     * `CaseDetailClient` (front-office, el portal médico y el modal de caso), y
+     * este loader es el único punto por el que pasan los tres. Threadearlo por
+     * separado garantizaba que uno se quedara sin el dato y el tab se rompiera
+     * solo ahí.
+     */
+    currentUserId: await (async () => {
+      const user = await getSessionUser();
+      if (!user?.email) return null;
+      const dbUser = await getDbUserByEmail(user.email);
+      return dbUser?.id ?? null;
+    })(),
   };
 }

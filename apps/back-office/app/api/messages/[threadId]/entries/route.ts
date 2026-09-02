@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, reviveThread, sanitizeAttachments, type AttachmentInput } from '@/lib/messaging';
+import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
 
 type Ctx = { params: Promise<{ threadId: string }> };
 
@@ -109,6 +110,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       addedRecipients: [...newTo, ...newCc].map((u) => u.name),
     },
   }).catch(() => undefined);
+
+  // Los adjuntos de esta respuesta también pasan al expediente. La función es
+  // idempotente (se salta los que ya tienen `patientDocumentId`), así que no
+  // vuelve a copiar lo de las entradas anteriores del hilo.
+  await archivarAdjuntosDelHilo(threadId, actor.actorUserId)
+    .catch((e) => { console.error('[messages/entries] archivado de adjuntos:', e); });
 
   return NextResponse.json({ id: entry.id }, { status: 201 });
 }

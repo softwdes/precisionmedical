@@ -25,6 +25,7 @@ export default async function CaseDetailPage({ params, searchParams }: PageProps
     <CaseDetailClient
       caseInfo={data.caseInfo}
       auditEvents={data.auditEvents}
+      currentUserId={data.currentUserId}
       initialTab={parseCaseTab(tab)}
     />
   );

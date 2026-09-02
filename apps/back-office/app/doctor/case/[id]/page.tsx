@@ -42,6 +42,7 @@ export default async function DoctorCasePage({
     <CaseDetailClient
       caseInfo={data.caseInfo}
       auditEvents={data.auditEvents}
+      currentUserId={data.currentUserId}
       variant="doctor"
       initialTab={parseCaseTab(tab)}
     />

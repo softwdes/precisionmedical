@@ -15,11 +15,12 @@ import { CaseListDialog, type ListKind } from './case-list-dialog';
  * funciona: la respuesta empuja el tablero entero, y con la segunda pregunta la
  * pantalla ya no se parece a la que el abogado abrió.
  *
- * Una decisión sobre honestidad: **mientras piensa no inventamos progreso**. No
- * hay streaming todavía, así que no sabemos en qué paso va; se muestra
- * "consultando" y listo. Los pasos aparecen DESPUÉS, con las herramientas que de
- * verdad corrieron y las tablas que leyeron — es lo que hace auditable la
- * respuesta: el número viene con su procedencia.
+ * Una decisión sobre honestidad: **no inventamos progreso**. Los pasos que se
+ * ven son las herramientas que DE VERDAD corrieron, cada una al terminar, con
+ * las tablas que leyó; nada de una barra que avanza sola ni de pasos anunciados
+ * antes de existir. Eso es lo que hace auditable la respuesta: el número viene
+ * con su procedencia. Después llega el texto, palabra por palabra, y al final el
+ * `done` con la respuesta completa y sus botones — el parcial se descarta ahí.
  */
 
 /**

@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-apps';
 import { getSessionUser } from './session';
+import { canAuditNotesFor } from './notes-audit-access';
 import { getDbUserByEmail } from './actor';
 import { nombreProvider } from './provider-name';
 
@@ -79,6 +80,30 @@ export async function checkAppointmentAccess(
 
   // 2 — Admins
   if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+    return { actor: { email, name: staffName, userId, isProviderOwner: false, role } };
+  }
+
+  /**
+   * 2b — El médico administrador que supervisa las notas (`/doctor/notes`).
+   *
+   * Su rol es DOCTOR/PROVIDER, así que no entra por la rama de admins ni por la
+   * del staff —`fetchRoleClinicAccess` no le da back-office, y con razón: no
+   * trabaja ahí—. Sin esta rama ve la lista de notas de todos y recibe 403 al
+   * abrir cualquiera, que es el mismo callejón que ya hubo que destapar en la
+   * vista de impresión y en el modal de caso.
+   *
+   * `isProviderOwner: false` a propósito: NO hereda el turno de la nota. Si el
+   * doctor está en la consulta con el paciente, al supervisor le sigue tocando
+   * el 409 de `NOTE_IN_CONSULT` y tiene que tomarla explícitamente — y esa toma
+   * queda auditada.
+   *
+   * Y respeta `requireProvider`, que es lo que separa supervisar de PRESCRIBIR:
+   * con esa opción entran el widget y las renovaciones de ScriptSure. Sin este
+   * `!opts.requireProvider` la rama abría el recetario de la cita de otro médico
+   * a quien solo vino a mirar notas — que no es un permiso de más, es otro
+   * trabajo.
+   */
+  if (!opts.requireProvider && await canAuditNotesFor(email)) {
     return { actor: { email, name: staffName, userId, isProviderOwner: false, role } };
   }
 

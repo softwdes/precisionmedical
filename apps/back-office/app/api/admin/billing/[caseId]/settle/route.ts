@@ -93,6 +93,20 @@ export async function POST(
       where: { id: caseId },
       data: {
         status: 'SETTLED',
+        /**
+         * La fecha de cierre, que hasta hoy este camino no sellaba.
+         *
+         * El docstring de arriba decía "status SETTLED + closedAt" desde que se
+         * escribió, pero la columna quedaba en null: `PATCH /api/admin/cases`
+         * la sellaba y la liquidación no, que es justo el camino por el que
+         * cierran los casos de lesiones. Sin esta línea, la regla del lien sin
+         * firmar en caso cerrado (`lib/vigia/queue.ts`) nunca podía disparar —
+         * exige `closedAt` no nulo a propósito.
+         *
+         * Va sin condición porque más arriba se rechaza el caso que YA está
+         * SETTLED o CLOSED: acá siempre es la transición.
+         */
+        closedAt: new Date(),
       },
     });
 

@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Sparkles } from 'lucide-react';
 import { AttentionActions } from './attention-actions';
-import type { FilaAtencion } from '@/lib/vigia/queue';
+import { diasDeLaFila, type FilaAtencion } from '@/lib/vigia/queue';
 
 /**
  * Portal Legal · Vigía · la tarjeta proactiva.
@@ -27,9 +27,20 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
   if (!fila || fila.prioridad < UMBRAL) return null;
 
   const t = await getTranslations('phoenix.attorney');
+
+  /**
+   * El caso ya cerró y el lien nunca se firmó: es su propio titular.
+   *
+   * No entra por `urgente` como los otros porque el texto es distinto en las dos
+   * frases: acá la firma que falta ES el motivo, así que el "encima le falta tu
+   * firma" de abajo sobraría, y "está parado" sería falso — el caso no está
+   * parado, está cerrado.
+   */
+  const cerradoSinFirma = fila.motivo === 'LIEN_SIN_FIRMA_CASO_CERRADO';
+
   // Lo que hace grave a una fila es que además le falte la firma: el caso está
   // parado Y sin asegurar.
-  const urgente = fila.agravantes.includes('LIEN_SIN_FIRMA');
+  const urgente = cerradoSinFirma || fila.agravantes.includes('LIEN_SIN_FIRMA');
 
   return (
     <div className={`rounded-lg p-6 text-center ${urgente ? 'bg-rose/[0.07]' : 'bg-amber/[0.07]'}`}>
@@ -41,7 +52,10 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
       </div>
 
       <h2 className="text-text-1 text-xl font-bold">
-        {t(urgente ? 'vigiaHeroTitleUrgent' : 'vigiaHeroTitle', { caso: fila.caseCode })}
+        {t(
+          cerradoSinFirma ? 'vigiaHeroTitleClosed' : urgente ? 'vigiaHeroTitleUrgent' : 'vigiaHeroTitle',
+          { caso: fila.caseCode },
+        )}
       </h2>
 
       {/* El paciente debajo del titular y no dentro: el titular habla del CASO,
@@ -54,8 +68,8 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
       )}
 
       <p className="text-text-2 text-sm mt-2 max-w-2xl mx-auto">
-        {t(`vigiaHeroWhy_${fila.motivo}`, { dias: fila.diasSinCita ?? fila.diasAbierto })}
-        {urgente && ` ${t('vigiaHeroWhyUnsigned')}`}
+        {t(`vigiaHeroWhy_${fila.motivo}`, { dias: diasDeLaFila(fila) })}
+        {urgente && !cerradoSinFirma && ` ${t('vigiaHeroWhyUnsigned')}`}
       </p>
 
       {/* Dos salidas: ver el caso, o pedirle a la clínica lo que falta. El
@@ -68,7 +82,7 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
         asunto={t(`vigiaReqSubject_${fila.motivo}`, { caso: fila.caseCode })}
         cuerpo={t(`vigiaReqBody_${fila.motivo}`, {
           caso: fila.caseCode,
-          dias: fila.diasSinCita ?? fila.diasAbierto,
+          dias: diasDeLaFila(fila),
         })}
       />
     </div>

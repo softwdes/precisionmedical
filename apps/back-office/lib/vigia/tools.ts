@@ -339,7 +339,13 @@ export async function casosFrenados(lawyer: SessionLawyer, args?: { diasSinCita?
 
   return {
     data: {
-      criterio: `${args?.diasSinCita ?? DIAS_MESETA} días sin cita nueva`,
+      // Los dos relojes, explícitos: el modelo repite el criterio cuando le
+      // preguntan "¿por qué está frenado?", y con uno solo contestaba que era
+      // por las citas incluso en las filas que son por el lien.
+      criterio: {
+        tratamiento: `${args?.diasSinCita ?? DIAS_MESETA} días sin cita nueva`,
+        lien: 'caso ya cerrado y sin la firma del abogado en el lien',
+      },
       totalFrenados: total,
       mostrando: filas.length,
       ...(total > filas.length
@@ -495,7 +501,7 @@ export const VIGIA_TOOLS = [
   },
   {
     name: 'casos_frenados',
-    description: 'Casos abiertos que están detenidos, con el motivo: tratamiento sin movimiento, sin ninguna cita, o lien sin firma. Ordenados por el que lleva más tiempo parado.',
+    description: 'Casos que necesitan atención, con el motivo: tratamiento sin movimiento, sin ninguna cita, o el lien sin firmar en un caso QUE YA CERRÓ. Ordenados por urgencia. No incluye los liens sin firmar de casos abiertos: para esos está liens_pendientes.',
     parameters: {
       type: 'object',
       properties: { diasSinCita: { type: 'number', description: 'Cuántos días sin cita cuentan como frenado. Por defecto 21.' } },

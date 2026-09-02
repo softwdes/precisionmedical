@@ -361,17 +361,17 @@ const STRINGS = {
     insEffectiveDate: 'Fecha efectiva',
     insCopay: 'Copago',
     insDeductible: 'Deducible',
-    insLossDate: 'Fecha de pérdida',
-    insPip: 'PIP está disponible?',
-    insClaimNum: 'N° de reclamo',
+    insLossDate: 'Fecha del accidente',
+    insPip: '¿Tu seguro de auto cubre gastos médicos?',
+    insClaimNum: 'N° de reclamo con tu seguro',
     insAdjusterName: 'Nombre de ajustador',
     insAdjusterPhone: 'Teléfono de ajustador',
     insAdjusterFax: 'Fax de ajustador',
     insAdjusterPhone2: 'Otro teléfono de ajustador',
     insAdjusterEmail: 'Correo de ajustador',
     insComments: 'Comentarios',
-    insFullLien: 'Caso tratado bajo Full Lien autorizado por el abogado',
-    insLienComments: 'Si el caso se tratará mediante un Lien (gravamen), por favor explique brevemente el motivo en este cuadro de comentarios.',
+    insFullLien: 'Mi abogado acordó que la clínica cobre del acuerdo del caso (lien)',
+    insLienComments: 'Si sabes por qué se acordó así, cuéntanos brevemente. Si no estás seguro, déjalo en blanco.',
     insCreate: 'Crear seguro',
     insCancel: 'Cancelar',
     pipTitle: '¿Qué es el PIP?',
@@ -684,17 +684,17 @@ const STRINGS = {
     insEffectiveDate: 'Effective date',
     insCopay: 'Copay',
     insDeductible: 'Deductible',
-    insLossDate: 'Date of loss',
-    insPip: 'PIP available?',
-    insClaimNum: 'Claim N°',
+    insLossDate: 'Date of the accident',
+    insPip: 'Does your auto insurance cover medical expenses?',
+    insClaimNum: 'Claim number with your insurance',
     insAdjusterName: 'Adjuster name',
     insAdjusterPhone: 'Adjuster phone',
     insAdjusterFax: 'Adjuster fax',
     insAdjusterPhone2: 'Other adjuster phone',
     insAdjusterEmail: 'Adjuster email',
     insComments: 'Comments',
-    insFullLien: 'Case treated under Full Lien authorized by attorney',
-    insLienComments: 'If the case will be treated under a Lien (lien), please briefly explain the reason in this comments box.',
+    insFullLien: 'My attorney agreed the clinic will be paid from the case settlement (lien)',
+    insLienComments: 'If you know why it was set up this way, tell us briefly. If you are not sure, leave it blank.',
     insCreate: 'Create insurance',
     insCancel: 'Cancel',
     pipTitle: 'What is PIP?',
@@ -1799,15 +1799,15 @@ export function IntakeWizard({
         setPhotoUploadError(
           error === 'FILE_TOO_LARGE'
             ? (lang === 'es'
-                ? '⚠️ La foto pesa más de 10 MB. Sacala de nuevo o elegí una más liviana.'
+                ? '⚠️ La foto pesa más de 10 MB. Tómala de nuevo o elige una más liviana.'
                 : '⚠️ The photo is over 10 MB. Retake it or pick a smaller one.')
           : error === 'INVALID_FILE_TYPE'
             ? (lang === 'es'
-                ? '⚠️ Ese archivo no es una foto. Usá la cámara o elegí una imagen (JPG o PNG).'
+                ? '⚠️ Ese archivo no es una foto. Usa la cámara o elige una imagen (JPG o PNG).'
                 : '⚠️ That file is not a photo. Use the camera or pick an image (JPG or PNG).')
           : error === 'TOO_MANY_REQUESTS'
             ? (lang === 'es'
-                ? '⚠️ Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.'
+                ? '⚠️ Demasiados intentos seguidos. Espera un minuto e intenta de nuevo.'
                 : '⚠️ Too many attempts in a row. Wait a minute and try again.')
           : (lang === 'es'
                 ? '⚠️ No se pudo guardar la foto. Se mostrará en esta sesión pero no se guardará al reabrir.'

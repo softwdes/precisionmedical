@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BarChart3, Users, CalendarDays, ClipboardCheck, Menu, Sun, Briefcase } from 'lucide-react';
+import { BarChart3, Users, CalendarDays, ClipboardCheck, Menu, Sun, Briefcase, Sparkles } from 'lucide-react';
 import { cn } from '@precision/ui';
 
 const NAV_LINKS = [
@@ -22,10 +22,17 @@ const DOCTOR_NAV_LINKS = [
 ] as const;
 
 // Portal Legal — mismo acento brand que el back-office
+//
+// Vigía va en la barra y Usuarios no. Con cinco links más el botón de menú, cada
+// slot baja de 63px y "Appointments" ya no entra en una línea; hubo que elegir, y
+// Vigía es la única pantalla que dice qué hacer hoy —lo que más se mira desde el
+// teléfono— mientras dar de alta gente del despacho es trabajo de escritorio.
+// Usuarios no se esconde: sigue a un tap, en el cajón del menú, con el orden
+// completo del sidebar.
 const ATTORNEY_NAV_LINKS = [
   { href: '/attorney',              icon: BarChart3,    key: 'attorneyPanel',        exact: true,  moduleKey: 'panel'        },
+  { href: '/attorney/vigia',        icon: Sparkles,     key: 'attorneyVigia',        exact: false, moduleKey: 'vigia'        },
   { href: '/attorney/cases',        icon: Briefcase,    key: 'attorneyCases',        exact: false, moduleKey: 'cases'        },
-  { href: '/attorney/users',        icon: Users,        key: 'attorneyUsers',        exact: false, moduleKey: 'users'        },
   { href: '/attorney/appointments', icon: CalendarDays, key: 'attorneyAppointments', exact: false, moduleKey: 'appointments' },
 ] as const;
 

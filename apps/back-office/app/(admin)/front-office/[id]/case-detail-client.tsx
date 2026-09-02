@@ -1,5 +1,5 @@
 'use client';
-import { localeApp, fecha, fechaCalendario, edad } from '@/lib/fechas';
+import { localeApp, fecha, fechaHora, fechaCalendario, edad } from '@/lib/fechas';
 
 /**
  * El traductor cuando viaja por parámetro.
@@ -20,7 +20,7 @@ import {
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
   FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
-  FlaskConical, Briefcase, Bandage, Lock,
+  FlaskConical, Briefcase, Bandage, Lock, MessagesSquare,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 // Los tabs clínicos son ESPEJO de la consulta del doctor (mismo orden e íconos).
@@ -29,6 +29,7 @@ import { Button } from '@precision/ui';
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { CaseMessagesTab } from '@/components/messaging/case-messages-tab';
 import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
 import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
@@ -192,9 +193,11 @@ interface Props {
    * empieza la conversación de cuánto se le va a cobrar al paciente.
    */
   initialTab?: ActiveTab;
+  /** `users.id` de quien mira — lo pide el tab de Mensajes. */
+  currentUserId?: string | null;
 }
 
-export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inModal = false, onClose, initialTab, signatureRequired = false, onRequestSign }: Props) {
+export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inModal = false, onClose, initialTab, signatureRequired = false, onRequestSign, currentUserId = null }: Props) {
   const isDoctor = variant === 'doctor';
   const isAttorney = variant === 'attorney';
   /** Ni el doctor ni el abogado editan desde acá — cada uno por su motivo. */
@@ -475,7 +478,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             )}
           </span>
         }
-        action={isAttorney ? undefined : <ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
+        action={isAttorney ? undefined : <ActionButtons status={caseInfo.status} caseId={caseInfo.id} yaAgendada={!!citaYaAgendada(caseInfo)} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
       />
 
       {/* Next action banner según status — es una instrucción para el STAFF de
@@ -496,6 +499,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             { id: 'braces',         label: td('tabBraces'),      labelShort: td('tabBraces'),      icon: Bandage },
             { id: 'finanzas',       label: t('tabFinance'),      labelShort: t('tabFinance'),      icon: DollarSign },
             { id: 'documentos',     label: t('tabDocuments'),    labelShort: t('tabDocumentsShort'), icon: FolderOpen },
+            { id: 'mensajes',       label: t('tabMessages'),     labelShort: t('tabMessages'),     icon: MessagesSquare },
           ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[])
             // El bufete ve las cuatro pestañas de v2. Las cinco clínicas
             // (historial, labs, rx, servicios, férulas) son del equipo médico y
@@ -788,18 +792,34 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                             <AlertTriangle className="w-3 h-3 text-amber" />
                           )}
                         </div>
-                        <div className="text-text-muted text-[11px]">Primary · {caseInfo.primaryInsurance.type}</div>
+                        <div className="text-text-muted text-[11px]">
+                          Primary{etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t)}` : ''}
+                        </div>
                       </div>
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
                       {caseInfo.primaryPolicyNumber && (
                         <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
                       )}
-                      {caseInfo.primaryInsurance.claimsPhone && (
+                      {/**
+                        * El teléfono de reclamos y el pre-auth son datos de
+                        * FACTURACIÓN: sirven para perseguir el pago y para saber
+                        * si hay que pedir autorización antes de atender. El
+                        * bufete no hace ninguna de las dos cosas, así que en su
+                        * portal solo agregan ruido a una ficha que además puede
+                        * ser de un seguro de salud que no tiene que ver con su
+                        * caso. (Decisión de Erick, 2026-09-02.)
+                        *
+                        * Acá también estaba `HCFA: <canal>`, que se retiró para
+                        * TODOS: es el canal por el que Brunella manda el
+                        * CMS-1500, y ya vive donde se usa — el catálogo de
+                        * aseguradoras (`/admin/insurances`) y el módulo de
+                        * facturación. En la ficha del caso no lo lee nadie.
+                        */}
+                      {!isAttorney && caseInfo.primaryInsurance.claimsPhone && (
                         <div><span className="text-text-muted">{t('claimsLabel')}</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
                       )}
-                      <div><span className="text-text-muted">HCFA:{/* nombre del formulario, no se traduce */}</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
-                      {caseInfo.primaryInsurance.preauthRequired && (
+                      {!isAttorney && caseInfo.primaryInsurance.preauthRequired && (
                         <div className="text-amber">⚠ {t('preauthRequired')}</div>
                       )}
                     </div>
@@ -817,7 +837,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                         <EntityAvatar code={caseInfo.secondaryInsurance.shortCode} color={caseInfo.secondaryInsurance.color} />
                         <div className="min-w-0 flex-1">
                           <div className="text-text-1 font-semibold truncate text-sm">{caseInfo.secondaryInsurance.name}</div>
-                          <div className="text-text-muted text-[11px]">Secondary · {caseInfo.secondaryInsurance.type}</div>
+                          <div className="text-text-muted text-[11px]">
+                            Secondary{etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t)}` : ''}
+                          </div>
                         </div>
                       </div>
                       {caseInfo.secondaryPolicyNumber && (
@@ -896,6 +918,34 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         isAttorney && signatureRequired
           ? <DocumentsLocked onSign={onRequestSign} />
           : <DocumentsTab caseId={caseInfo.id} readOnly={isReadOnly} />
+      )}
+
+      {/**
+        * Los hilos de mensajería de este caso. El bufete no llega acá —
+        * `TABS_ATTORNEY` no incluye 'mensajes'— así que no hace falta gatear por
+        * `isAttorney`; el guard es la lista de tabs.
+        *
+        * Sin `currentUserId` no se monta: el hilo necesita saber quién mira para
+        * decidir qué entradas son suyas. Se muestra el aviso en vez de esconder
+        * el tab, para que quede claro que es un dato que falta y no una pantalla
+        * vacía (la regla de no esconder la acción bloqueada).
+        */}
+      {activeTab === 'mensajes' && (
+        currentUserId ? (
+          <CaseMessagesTab
+            patientId={caseInfo.patient.id}
+            patientName={`${caseInfo.patient.lastName}, ${caseInfo.patient.firstName}`}
+            caseId={caseInfo.id}
+            currentUserId={currentUserId}
+            isAdmin={!isReadOnly}
+          />
+        ) : (
+          <div className="rounded-lg bg-bg-1 p-5">
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+              {t('messagesNoUser')}
+            </div>
+          </div>
+        )
       )}
 
       {/* Modals */}
@@ -1132,9 +1182,12 @@ function ActionButtons({
   onAddNote,
   onSimulateIntake,
   isMarkingIntake,
+  yaAgendada,
 }: {
   status: CaseStatus;
   caseId: string;
+  /** El caso ya tiene una cita no cancelada — ver `citaYaAgendada`. */
+  yaAgendada: boolean;
   onSendPortal: () => void;
   onConfirm: () => void;
   onSchedule: () => void;
@@ -1179,9 +1232,15 @@ function ActionButtons({
       )}
       {status === 'CONFIRMED' && (
         <>
-          <Button onClick={onSchedule} size="sm">
-            <CalendarCheck className="w-3.5 h-3.5 mr-1" /> {t('btnScheduleFirst')}
-          </Button>
+          {/* "Agendar primera cita" solo cuando no hay ninguna. Con la cita ya
+              puesta el botón proponía como acción principal algo ya hecho, y el
+              tab Citas —a un clic— ya la muestra. Agendar otra sale del
+              calendario, que es donde se ve la agenda entera. */}
+          {!yaAgendada && (
+            <Button onClick={onSchedule} size="sm">
+              <CalendarCheck className="w-3.5 h-3.5 mr-1" /> {t('btnScheduleFirst')}
+            </Button>
+          )}
           <Button onClick={onSendPortal} variant="outline" size="sm">
             <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
           </Button>
@@ -1196,14 +1255,73 @@ function ActionButtons({
 
 // ─── Next action banner ────────────────────────────────────────────────────────
 
+/**
+ * El tipo de aseguradora, en palabras — o `null` cuando no dice nada.
+ *
+ * La tarjeta mostraba el enum crudo: "Primary · OTHER". Y no es un caso raro:
+ * de los 953 casos con aseguradora primaria, **636 son `OTHER`** (218 de las 303
+ * aseguradoras del catálogo quedaron con ese tipo). O sea que la etiqueta más
+ * frecuente de esa línea era literalmente la palabra "otro".
+ *
+ * `OTHER` devuelve `null` y la línea queda solo con "Primary": decir "Otro" no
+ * agrega nada, y peor, disfraza de dato lo que es un campo sin llenar.
+ *
+ * ── Por qué esto NO se le pregunta al paciente ──────────────────────────────
+ *
+ * El tipo vive en `InsuranceCarrier.type`, no en el caso: es una propiedad de la
+ * COMPAÑÍA (State Farm es de auto, Select Health es de salud), se carga una vez
+ * en el catálogo (`/admin/insurances`) y vale para todos los casos que la usen.
+ * Nadie tiene que saber qué es PIP para que esta etiqueta salga bien — y menos
+ * el paciente, que nunca ve ni toca este campo.
+ *
+ * Los 636 en `OTHER` son entonces un problema de carga del catálogo, no de la
+ * pantalla. Esta función los deja MÁS visibles (la línea queda corta), que es lo
+ * que corresponde: es un dato que falta, no un dato que existe.
+ */
+function etiquetaTipoSeguro(tipo: string, t: (k: string) => string): string | null {
+  switch (tipo) {
+    case 'PIP':     return t('insTypePip');
+    case 'MED_PAY': return t('insTypeMedPay');
+    case 'HEALTH':  return t('insTypeHealth');
+    case 'WORKERS': return t('insTypeWorkers');
+    default:        return null; // OTHER, y cualquier valor nuevo del enum
+  }
+}
+
+/**
+ * La cita ya agendada de un caso, si tiene alguna.
+ *
+ * Se descartan las CANCELADAS: una cita cancelada no ocupa la agenda ni cuenta
+ * como agendada — mismo criterio que el resto del sistema (ver la regla de
+ * archivar paciente). Se devuelve la más próxima en el tiempo.
+ *
+ * Existe porque el banner y los botones de acción se decidían SOLO por
+ * `case.status`, sin mirar las citas. Con status CONFIRMED siempre decían
+ * "agendá la primera cita", incluso en un caso que ya tenía una agendada con
+ * provider, clínica y horario — que es como suele quedar, porque el alta desde
+ * la llamada agenda la cita en el mismo paso. Reportado el 2026-09-02.
+ */
+function citaYaAgendada(caseInfo: CaseInfo): { scheduledFor: Date } | null {
+  const vivas = caseInfo.appointments
+    .filter((a) => a.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+  return vivas[0] ?? null;
+}
+
 function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
   const t = useTranslations('phoenix.caseDetail');
+  const locale = localeApp();
+  const cita = citaYaAgendada(caseInfo);
 
   const cfg: Record<CaseStatus, { title: string; message: string; tone: 'rose' | 'amber' | 'cyan' | 'emerald' | 'brand' } | null> = {
     NEW_REFERRAL:     { title: t('bannerNewReferralTitle'), message: t('bannerNewReferralMsg'), tone: 'rose' },
     INTAKE_PENDING:   { title: t('bannerIntakePendingTitle'), message: t('bannerIntakePendingMsg'), tone: 'amber' },
     INTAKE_COMPLETED: { title: t('bannerIntakeCompletedTitle'), message: t('bannerIntakeCompletedMsg'), tone: 'cyan' },
-    CONFIRMED:        { title: t('bannerConfirmedTitle'), message: t('bannerConfirmedMsg'), tone: 'emerald' },
+    // Con la cita ya puesta, "agendá la primera cita" es una instrucción para
+    // algo que ya está hecho. Se dice qué hay y cuál es el paso que sigue.
+    CONFIRMED:        cita
+      ? { title: t('bannerScheduledTitle'), message: t('bannerScheduledMsg', { cuando: fechaHora(cita.scheduledFor, locale) }), tone: 'emerald' }
+      : { title: t('bannerConfirmedTitle'), message: t('bannerConfirmedMsg'), tone: 'emerald' },
     ACTIVE:           { title: t('bannerActiveTitle'), message: t('bannerActiveMsg'), tone: 'brand' },
     MMI:              null,
     CLOSED:           null,

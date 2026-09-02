@@ -30,6 +30,7 @@ import { SmsHistoryDialog } from '@/components/sms/sms-history-dialog';
 import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/messaging/patient-messages-dialog';
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
+import { progresoIntake, type MissingKey } from '@/lib/intake-progreso';
 import QRCode from 'qrcode';
 
 function fmtPhone(raw: string): string {
@@ -68,14 +69,12 @@ const CASE_TYPE_LABEL: Record<string, string> = {
   NURSING_HOME: 'Nursing Home',
 };
 
-type MissingKey =
-  | 'missingPersonal'
-  | 'missingEmergency'
-  | 'missingDemographics'
-  | 'missingAccident'
-  | 'missingInsurance'
-  | 'missingMedicalHistory'
-  | 'missingConsents';
+/**
+ * `MissingKey` y el cálculo de qué falta salieron de este archivo a
+ * `lib/intake-progreso.ts` (importado arriba): los comparte el centinela del
+ * dashboard, que corre en el SERVIDOR y no puede llamar a un componente de
+ * cliente. Acá quedan solo los colores, que son decisión de esta pantalla.
+ */
 
 function MissingTooltip({ items, pct, missingLabel }: { items: string[]; pct?: number; missingLabel: string }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -120,44 +119,25 @@ function MissingTooltip({ items, pct, missingLabel }: { items: string[]; pct?: n
   );
 }
 
+/**
+ * El progreso de esta pantalla: la cuenta la hace `lib/intake-progreso.ts` y
+ * acá se le ponen los colores.
+ *
+ * El corte en 57% no es arbitrario: son 4 de las 7 secciones. Vive de este lado
+ * porque es cómo ESTA tabla decide pintar la barra, no parte de la definición
+ * de qué falta — el centinela del dashboard usa la misma cuenta con otra escala.
+ */
 function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   pct: number; missingKeys: MissingKey[]; colorClass: string; barClass: string;
 } {
-  if (c.intakeFormCompletedAt) {
-    return { pct: 100, missingKeys: [], colorClass: 'bg-emerald/10 text-emerald border-emerald/20', barClass: 'bg-emerald' };
-  }
-  const cd = (c.consentsData ?? {}) as Record<string, unknown>;
-  const missingKeys: MissingKey[] = [];
-
-  // 1. Info personal — dirección + fecha de nacimiento
-  if (!p.addressLine1 || !p.addressCity || !p.dateOfBirth) missingKeys.push('missingPersonal');
-  // 2. Contacto de emergencia
-  if (!p.emergencyContactName) missingKeys.push('missingEmergency');
-  // 3. Demografía — raza, sexo, estado civil
-  if (!p.race || !p.sex || !p.maritalStatus) missingKeys.push('missingDemographics');
-  // 4. Info del accidente — fecha registrada en el caso
-  if (!c.accidentDate && !c.accidentType) missingKeys.push('missingAccident');
-  // 5. Seguros — los MEDICAL siguen en consentsData, el de auto vive en su
-  //    propia tabla (`case_auto_insurances`). Cuenta cualquiera de los dos.
-  const ins = cd.insurances;
-  const tieneMedical = Array.isArray(ins) && ins.length > 0;
-  if (!tieneMedical && !c.hasAutoInsurance) missingKeys.push('missingInsurance');
-  // 6. Historia médica — IntakeSubmission creado
-  if (!c.hasIntakeSubmission) missingKeys.push('missingMedicalHistory');
-  // 7. Consentimientos + firma
-  const hasConsents = cd.hipaa && cd.treatment && cd.financial && cd.financialSignatureSvg;
-  if (!hasConsents) missingKeys.push('missingConsents');
-
-  const total = 7;
-  const done  = total - missingKeys.length;
-  const pct   = Math.round((done / total) * 100);
+  const { pct, faltan } = progresoIntake(c, p);
 
   const colorClass = pct === 100 ? 'bg-emerald/10 text-emerald border-emerald/20'
     : pct >= 57  ? 'bg-amber/10 text-amber border-amber/20'
     : 'bg-rose/10 text-rose border-rose/20';
   const barClass = pct === 100 ? 'bg-emerald' : pct >= 57 ? 'bg-amber' : 'bg-rose';
 
-  return { pct, missingKeys, colorClass, barClass };
+  return { pct, missingKeys: faltan, colorClass, barClass };
 }
 
 type TFunc = ReturnType<typeof useTranslations<'phoenix.patients'>>;

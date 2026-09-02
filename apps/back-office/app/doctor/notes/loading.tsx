@@ -1,9 +1,13 @@
 import { Skeleton } from '@/components/ui-phoenix';
 
 /**
- * El mismo esqueleto sirve para la carga de la ruta (`loading.tsx`) y para el
- * Suspense de cada cambio de filtro — por eso va exportado además del default.
- * Dos versiones distintas harían que filtrar se vea diferente de entrar.
+ * El mismo esqueleto sirve para la carga de la ruta y para el Suspense de cada
+ * cambio de alcance — por eso va exportado además del default. Dos versiones
+ * distintas harían que filtrar se vea diferente de entrar.
+ *
+ * Dibuja lo que la pantalla tiene AHORA: KPIs + la única tabla, la de
+ * providers. Cuando había una segunda tabla de visitas, este esqueleto la
+ * prometía y el ojo la esperaba.
  */
 export function NotesSkeleton(): React.ReactElement {
   return (
@@ -13,20 +17,24 @@ export function NotesSkeleton(): React.ReactElement {
         <Skeleton className="h-4 w-72" />
       </div>
 
-      {/* Barra de filtros: tres pills + tres selects + el buscador */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-9 w-36" />
-        <Skeleton className="h-9 w-36" />
-        <Skeleton className="h-9 w-[200px]" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[86px] w-full" />)}
       </div>
 
-      <Skeleton className="h-4 w-40" />
-
       <div className="rounded-lg bg-bg-1 overflow-hidden">
+        {/* Encabezado con los filtros */}
+        <div className="px-4 py-3 space-y-2.5">
+          <Skeleton className="h-4 w-52" />
+          <div className="flex gap-2 flex-wrap">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-9 w-36" />
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-[180px]" />
+          </div>
+        </div>
         <Skeleton className="h-9 w-full rounded-none" />
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-none mt-px" />

@@ -28,9 +28,12 @@ type ClientProps = React.ComponentProps<typeof CaseDetailClient>;
 
 export function CaseDetailModal({
   caseInfo, auditEvents, variant = 'admin', initialTab, signature = null, patientCases = [],
+  currentUserId = null,
 }: {
   caseInfo: ClientProps['caseInfo'];
   auditEvents: ClientProps['auditEvents'];
+  /** Pasa derecho a `CaseDetailClient` — lo pide el tab de Mensajes. */
+  currentUserId?: string | null;
   variant?: ClientProps['variant'];
   initialTab?: ClientProps['initialTab'];
   /**
@@ -137,6 +140,7 @@ export function CaseDetailModal({
           <CaseDetailClient
             caseInfo={caseInfo}
             auditEvents={auditEvents}
+            currentUserId={currentUserId}
             variant={variant}
             initialTab={initialTab}
             inModal

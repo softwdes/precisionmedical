@@ -1782,9 +1782,30 @@ export function IntakeWizard({
           return p[type] === blobUrl ? { ...p, [type]: url } : p;
         });
       } else {
-        setPhotoUploadError(lang === 'es'
-          ? '⚠️ No se pudo guardar la foto. Se mostrará en esta sesión pero no se guardará al reabrir.'
-          : '⚠️ Could not save photo. It will show this session but not persist on reopen.');
+        /**
+         * El motivo importa. Un archivo rechazado por pesado o por no ser una
+         * imagen se arregla sacando la foto de nuevo — decirle al paciente "se
+         * mostrará en esta sesión" lo deja creyendo que ya está y que solo se
+         * pierde al reabrir, que es otra cosa y no tiene arreglo de su lado.
+         */
+        const { error } = await res.json().catch(() => ({ error: null })) as { error: string | null };
+        setPhotoUploadError(
+          error === 'FILE_TOO_LARGE'
+            ? (lang === 'es'
+                ? '⚠️ La foto pesa más de 10 MB. Sacala de nuevo o elegí una más liviana.'
+                : '⚠️ The photo is over 10 MB. Retake it or pick a smaller one.')
+          : error === 'INVALID_FILE_TYPE'
+            ? (lang === 'es'
+                ? '⚠️ Ese archivo no es una foto. Usá la cámara o elegí una imagen (JPG o PNG).'
+                : '⚠️ That file is not a photo. Use the camera or pick an image (JPG or PNG).')
+          : error === 'TOO_MANY_REQUESTS'
+            ? (lang === 'es'
+                ? '⚠️ Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.'
+                : '⚠️ Too many attempts in a row. Wait a minute and try again.')
+          : (lang === 'es'
+                ? '⚠️ No se pudo guardar la foto. Se mostrará en esta sesión pero no se guardará al reabrir.'
+                : '⚠️ Could not save photo. It will show this session but not persist on reopen.'),
+        );
       }
     } catch {
       setPhotoUploadError(lang === 'es'

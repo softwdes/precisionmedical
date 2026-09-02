@@ -1,3 +1,4 @@
+import type { Audience } from './audience';
 import type { NoteLocale } from './types';
 
 /**
@@ -188,6 +189,76 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   errores: 'platform',
   fechas: 'platform',
 };
+
+/**
+ * Modulo → quien lo VE en pantalla.
+ *
+ * El clasificador saca la audiencia de los paths, y eso funciona mientras el
+ * commit toque una ruta de portal. Pero la mitad del trabajo del back-office
+ * vive en `lib/`, `components/` y `app/api/`, que no son de ningun portal: esos
+ * caian en la regla de la app (`apps/back-office/` → admin + doctor + attorney)
+ * y UN push aparecia como novedad en los TRES portales. En la tabla eran 51 de
+ * 273 entradas exactamente con esa terna.
+ *
+ * Este mapa es el segundo filtro: los paths ponen el TECHO —a quien pudo
+ * afectarle— y el modulo recorta dentro de ese techo. Nunca agrega: si el
+ * commit no toco nada del portal legal, decir que el modulo se ve ahi no se lo
+ * muestra igual.
+ *
+ * **Un modulo que no esta en este mapa no recorta nada**, y eso es a proposito:
+ * `interface`, `platform` y `other` le pegan a cualquiera, y `other` ademas es
+ * "no supimos clasificarlo" — inventarle una audiencia ahi esconderia la nota
+ * de quien si tenia que leerla. El default es mostrar de mas, no de menos.
+ *
+ * Sale de los menus reales de cada portal (sidebar del back-office, del portal
+ * medico y del legal). Si un portal gana una pantalla, se agrega acá.
+ */
+export const MODULE_AUDIENCES: Record<string, Audience[]> = {
+  // Solo el back-office administrativo.
+  tracking: ['admin'],
+  billing: ['admin'],
+  settings: ['admin'],
+  access: ['admin'],
+
+  // El portal medico tiene su propio menu de estos.
+  prescriptions: ['admin', 'doctor'],
+  notes: ['admin', 'doctor'],
+  labs: ['admin', 'doctor'],
+  metrics: ['admin', 'doctor'],
+  // `catalog` NO es solo del admin: el portal medico tiene su menu de catalogo.
+  catalog: ['admin', 'doctor'],
+
+  // Mostrador y clinica.
+  triage: ['clinic', 'doctor'],
+  admission: ['admin', 'clinic'],
+  visits: ['admin', 'clinic', 'doctor'],
+  patients: ['admin', 'clinic', 'doctor'],
+  clinic: ['admin', 'clinic'],
+  intake: ['admin', 'clinic', 'patient'],
+
+  // El bufete tiene agenda, casos y bandeja propios.
+  appointments: ['admin', 'attorney', 'clinic', 'doctor'],
+  cases: ['admin', 'attorney', 'clinic', 'doctor'],
+  communications: ['admin', 'attorney', 'doctor'],
+  documents: ['admin', 'attorney', 'doctor'],
+
+  // Los portales, como modulo: la ficha del bufete la administra el admin desde
+  // Externals, asi que `attorney` tambien le toca.
+  doctor: ['doctor'],
+  attorney: ['admin', 'attorney'],
+
+  timeclock: ['timeclock'],
+};
+
+/**
+ * Audiencias del modulo, o `null` cuando el modulo no tiene opinion.
+ *
+ * `null` y `[]` no son lo mismo y por eso no se devuelve una lista vacia: `[]`
+ * se leeria como "este modulo no lo ve nadie" y apagaria la nota.
+ */
+export function audiencesForModule(module: string): Audience[] | null {
+  return MODULE_AUDIENCES[module] ?? null;
+}
 
 export function moduleLabel(module: string, locale: NoteLocale): string {
   return MODULE_LABELS[module]?.[locale] ?? MODULE_LABELS[FALLBACK_MODULE][locale];

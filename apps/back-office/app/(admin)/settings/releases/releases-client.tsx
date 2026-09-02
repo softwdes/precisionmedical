@@ -21,7 +21,7 @@ import {
   AlertTriangle, Check, EyeOff, Loader2, PackageCheck, Rocket, Undo2, Wrench,
 } from 'lucide-react';
 import { AUDIENCES, type Audience } from '@precision/release/audience';
-import { MODULE_LABELS } from '@precision/release/modules';
+import { MODULE_LABELS, audiencesForModule } from '@precision/release/modules';
 import { EmptyState, Section } from '@/components/ui-phoenix';
 
 interface Entry {
@@ -271,6 +271,28 @@ function EntryRow({
   const [module, setModule] = useState(entry.module);
   const [audiences, setAudiences] = useState<Audience[]>(entry.audiences);
 
+  /**
+   * Cambiar el modulo reacomoda las audiencias.
+   *
+   * Antes eran dos controles sueltos: se elegia "Facturacion" y los chips
+   * seguian en ADMIN+DOCTOR+ATTORNEY, asi que la misma nota salia en los tres
+   * portales salvo que uno se acordara de apagar dos a mano en CADA entrada.
+   * Elegir el modulo ES decir donde se ve, y esto lo hace valer.
+   *
+   * Se recorta contra lo que ya tenia, nunca se agrega: los paths del commit
+   * decidieron a quien pudo afectarle y el modulo no puede ampliar eso. Si el
+   * cruce queda vacio —el modulo no se ve en ninguna de las audiencias que
+   * tocaba el commit— se dejan las que estaban, porque una entrada sin
+   * audiencias no la lee nadie. Los chips siguen siendo editables a mano.
+   */
+  const cambiarModulo = (nuevo: string): void => {
+    setModule(nuevo);
+    const visibles = audiencesForModule(nuevo);
+    if (visibles === null) return;
+    const cruce = audiences.filter((a) => visibles.includes(a));
+    if (cruce.length > 0) setAudiences(cruce);
+  };
+
   const dirty =
     textEs !== entry.textEs ||
     textEn !== (entry.textEn ?? '') ||
@@ -327,7 +349,7 @@ function EntryRow({
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={module}
-          onChange={(event) => setModule(event.target.value)}
+          onChange={(event) => cambiarModulo(event.target.value)}
           disabled={readOnly}
           className="rounded-md bg-bg-1 px-2 py-1 text-[11px] text-text-1 outline-none disabled:opacity-60"
         >

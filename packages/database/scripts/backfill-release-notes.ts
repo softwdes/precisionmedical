@@ -92,7 +92,10 @@ function reclasificar(fila: Fila): {
   if (paths === null) return null;
 
   const { module, mapped } = moduleForScope(fila.commitScope);
-  const { audiences, ambiguous } = audiencesForPaths(paths);
+  // El modulo va como segundo argumento: recorta la audiencia dentro de lo que
+  // permitieron los paths, que es lo que evita que un commit de `lib/` del
+  // back-office salga en los tres portales. Misma formula que `toNote()`.
+  const { audiences, ambiguous } = audiencesForPaths(paths, module);
   const hidden = isSensitive(fila.commitScope, fila.textEs);
 
   return {

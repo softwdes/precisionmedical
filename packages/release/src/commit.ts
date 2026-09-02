@@ -1,5 +1,6 @@
 import type { Audience } from './audience';
 import { AUDIENCES } from './audience';
+import { audiencesForModule, moduleForScope } from './modules';
 
 /**
  * Parseo de commits → notas de release.
@@ -223,23 +224,65 @@ function collect(paths: string[], rules: AudienceRule[]): Set<Audience> {
   return found;
 }
 
-export function audiencesForPaths(paths: string[]): {
+/**
+ * Recorte por modulo: los paths dijeron a QUIEN pudo afectarle, y el modulo
+ * dice DONDE se ve. Se queda la interseccion.
+ *
+ * Nunca agrega audiencias — si el commit no toco el portal legal, que el modulo
+ * se vea ahi no lo convierte en una novedad para el bufete. Y nunca vacia la
+ * lista: si el modulo y los paths no se cruzan, mandan los paths y la entrada
+ * queda `needsReview`. Un cruce vacio significa que uno de los dos esta mal, y
+ * de las dos respuestas posibles la unica que no pierde informacion es mostrar
+ * de mas.
+ */
+function narrowByModule(
+  audiences: Audience[],
+  module: string | undefined,
+): { audiences: Audience[]; narrowed: boolean; conflict: boolean } {
+  if (module === undefined) return { audiences, narrowed: false, conflict: false };
+
+  const visible = audiencesForModule(module);
+  if (visible === null) return { audiences, narrowed: false, conflict: false };
+
+  const cruce = audiences.filter((a) => visible.includes(a));
+  if (cruce.length === 0) return { audiences, narrowed: false, conflict: true };
+
+  return { audiences: cruce, narrowed: cruce.length < audiences.length, conflict: false };
+}
+
+/**
+ * @param module Clave de modulo (`moduleForScope(scope).module`). Opcional: sin
+ *   ella el resultado es el de siempre, solo por paths.
+ */
+export function audiencesForPaths(
+  paths: string[],
+  module?: string,
+): {
   audiences: Audience[];
   ambiguous: boolean;
 } {
   const specific = collect(paths, SPECIFIC_RULES);
   if (specific.size > 0) {
+    // Una ruta de portal es la señal mas fuerte que hay: el commit vive ahi
+    // dentro. No se recorta por modulo — seria discutirle al dato duro.
     return { audiences: AUDIENCES.filter((a) => specific.has(a)), ambiguous: false };
   }
 
   const app = collect(paths, APP_RULES);
   if (app.size > 0) {
-    return { audiences: AUDIENCES.filter((a) => app.has(a)), ambiguous: false };
+    const techo = AUDIENCES.filter((a) => app.has(a));
+    const { audiences, conflict } = narrowByModule(techo, module);
+    return { audiences, ambiguous: conflict };
   }
 
   const shared = collect(paths, SHARED_RULES);
   if (shared.size > 0) {
-    return { audiences: AUDIENCES.filter((a) => shared.has(a)), ambiguous: true };
+    const techo = AUDIENCES.filter((a) => shared.has(a));
+    const { audiences } = narrowByModule(techo, module);
+    // Codigo compartido sigue pidiendo ojo humano aunque el modulo lo haya
+    // acotado: lo dudoso ahi no es a quien le llega, es que el texto del commit
+    // suele estar escrito para quien programa.
+    return { audiences, ambiguous: true };
   }
 
   // Solo archivos sin señal (i18n, prisma, configs, docs): no sabemos a quien
@@ -252,7 +295,8 @@ export function toNote(commit: ParsedCommit): CommitNote | null {
   const kind = PUBLISHABLE_TYPES[commit.type];
   if (kind === undefined) return null;
 
-  const { audiences, ambiguous } = audiencesForPaths(commit.paths);
+  const { module } = moduleForScope(commit.scope);
+  const { audiences, ambiguous } = audiencesForPaths(commit.paths, module);
   const hidden = isSensitive(commit.scope, commit.subject);
 
   return {

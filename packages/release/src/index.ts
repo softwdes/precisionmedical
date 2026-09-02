@@ -10,8 +10,10 @@ export type {
 
 export {
   FALLBACK_MODULE,
+  MODULE_AUDIENCES,
   MODULE_LABELS,
   SCOPE_TO_MODULE,
+  audiencesForModule,
   moduleForScope,
   moduleLabel,
 } from './modules';

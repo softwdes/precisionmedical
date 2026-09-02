@@ -333,6 +333,21 @@ const STRINGS = {
     insEmpty: 'No hay seguros activos',
     insEmptySub: 'Agrega un seguro para comenzar',
     insModalTitle: 'Nuevo seguro',
+    // ── Paso de seguros: el formulario arranca abierto ──────────────────────
+    // El paciente saltaba este paso casi siempre, y el botón "Agregar seguro"
+    // era la CUARTA razón. Las tres primeras: se lo decíamos nosotros ("puedes
+    // continuar sin agregar seguro"), son nueve campos, y varios no se los sabe
+    // de memoria. Estos textos atacan las tres.
+    insFormTitle: 'Tu seguro',
+    insFormSub: 'Completá lo que sepas. Con la compañía y el número de póliza ya nos alcanza para empezar.',
+    insSaveBtn: 'Guardar seguro',
+    insPorFotoBtn: '📷 Prefiero mandar una foto de mi tarjeta',
+    insSinSeguroBtn: 'No tengo seguro',
+    insCambiar: 'Cambiar',
+    // Elegido "por foto": es verdad, la foto se pide dos pasos más adelante.
+    insPorFotoOk: 'Listo — más adelante te vamos a pedir una foto de la tarjeta, frente y dorso.',
+    insSinSeguroOk: 'Anotado: sin seguro. Lo revisamos con vos cuando llegues.',
+    insAddOtro: '+ Agregar otro seguro',
     insTypeMedical: 'Seguro médico',
     insTypeAuto: 'Seguro de auto',
     insCarrier: 'Compañía de seguro',
@@ -364,7 +379,10 @@ const STRINGS = {
     carrierPh: 'Ej: State Farm, Progressive, GEICO...',
     policyNum: 'Número de póliza',
     policyNumPh: 'Ej: POL-123456789',
-    sifoHint6: 'Agrega todos los seguros activos. Si no tienes seguro activo, puedes continuar.',
+    // Decía "si no tienes seguro activo, puedes continuar" — o sea, le
+    // ofrecíamos saltear el paso antes de que lo pensara. La libertad es la
+    // misma; lo que cambia es que ahora sabe qué está en juego.
+    sifoHint6: 'Si tienes seguro, cargarlo ahora nos deja facturarle directamente. Si no lo cargas, la visita puede quedar a tu nombre.',
     // Step 6 — Historial médico
     healthTitle: 'Historial médico',
     healthSub: 'Tu información es confidencial. Nos ayuda a darte el mejor cuidado.',
@@ -646,6 +664,16 @@ const STRINGS = {
     insEmpty: 'No active insurances',
     insEmptySub: 'Add an insurance to get started',
     insModalTitle: 'New insurance',
+    // Ver el comentario de este bloque en el diccionario ES.
+    insFormTitle: 'Your insurance',
+    insFormSub: 'Fill in what you know. The company and the policy number are enough to get us started.',
+    insSaveBtn: 'Save insurance',
+    insPorFotoBtn: "📷 I'd rather send a photo of my card",
+    insSinSeguroBtn: "I don't have insurance",
+    insCambiar: 'Change',
+    insPorFotoOk: "Got it — in a moment we'll ask you for a photo of the card, front and back.",
+    insSinSeguroOk: "Noted: no insurance. We'll go over it with you when you arrive.",
+    insAddOtro: '+ Add another insurance',
     insTypeMedical: 'Medical insurance',
     insTypeAuto: 'Auto insurance',
     insCarrier: 'Insurance company',
@@ -677,7 +705,7 @@ const STRINGS = {
     carrierPh: 'E.g., State Farm, Progressive, GEICO...',
     policyNum: 'Policy number',
     policyNumPh: 'E.g., POL-123456789',
-    sifoHint6: 'Add all active insurance policies. You can continue without adding insurance.',
+    sifoHint6: 'If you have insurance, adding it now lets us bill it directly. If you skip it, the visit may be billed to you.',
     // Step 6
     healthTitle: 'Medical history',
     healthSub: 'Your information is confidential. It helps us provide the best care.',
@@ -1329,7 +1357,26 @@ export function IntakeWizard({
    * corregir.
    */
   const listaDePasos = (esMenor: boolean): Step[] =>
-    [2, 3, ...(esMenor ? [4] : []), 5, 6, 7, 8, 9, 10] as Step[];
+    // El historial médico (7) va ANTEPENÚLTIMO, después de los consentimientos
+    // y justo antes de la firma. Estaba a mitad de camino, y el orden de un
+    // formulario decide qué se pierde cuando alguien lo abandona:
+    //
+    //   antes  → abandonar ahí perdía el historial, las fotos, los
+    //            consentimientos Y la firma del lien
+    //   ahora  → pierde solo el historial
+    //
+    // De todo eso, el historial es lo ÚNICO que la clínica repone sola: tiene
+    // su pestaña editable en la ficha del caso y se pregunta en el triaje. La
+    // firma del lien no se repone preguntando — hay que reenviar el link y
+    // esperar. Se puso lo más caro de conseguir antes de lo más fácil de
+    // reemplazar.
+    //
+    // Es un canje, no una ganancia limpia: quien abandone en las fotos ahora se
+    // va sin historial, cuando antes ya lo había llenado. Se aceptó porque el
+    // valor no es simétrico.
+    //
+    // No va DESPUÉS de la firma: ese paso cierra el intake y lo marca completo.
+    [2, 3, ...(esMenor ? [4] : []), 5, 6, 8, 9, 7, 10] as Step[];
 
   /**
    * Para render. Dentro de `goNext` se recalcula con `isMinorRef.current`, que
@@ -1376,9 +1423,44 @@ export function IntakeWizard({
     (savedInsurances as InsuranceEntry[]).map(i => ({ ...blankInsurance(i.insType ?? 'MEDICAL'), ...i }))
   );
   const [showInsModal, setShowInsModal] = useState(false);
-  const [insModalEntry, setInsModalEntry] = useState<InsuranceEntry>(blankInsurance('AUTO'));
+
+  /**
+   * Qué tipo de seguro se ofrece primero.
+   *
+   * Antes abría siempre en "Seguro médico", incluso viniendo de un accidente de
+   * auto — que es justo el caso donde la que paga es la aseguradora del auto.
+   * No se podía hacer mejor porque a esta altura no se sabía el tipo de caso;
+   * ahora se pregunta en la segunda pantalla, así que el default puede acertar.
+   */
+  const tipoDeSeguroInicial: InsuranceType = acc.type === 'MVA' ? 'AUTO' : 'MEDICAL';
+
+  const [insModalEntry, setInsModalEntry] = useState<InsuranceEntry>(blankInsurance(tipoDeSeguroInicial));
   const [insErrors, setInsErrors] = useState<Record<string, string>>({});
   const openInsModal = (insType: InsuranceType) => { setInsModalEntry(blankInsurance(insType)); setInsErrors({}); setShowInsModal(true); };
+
+  /**
+   * Qué eligió el paciente en el paso de seguros cuando todavía no cargó ninguno.
+   *
+   * `formulario` es el arranque: los campos se ven ABIERTOS, sin tener que tocar
+   * "Agregar seguro". El paso se salteaba casi siempre y ese botón era una de
+   * las razones — la más chica, pero la más fácil de sacar.
+   *
+   * Las otras dos son salidas EXPLÍCITAS, y existen a propósito: un formulario
+   * abierto sin salida no es "no tiene opción", es "no tiene salida", y produce
+   * campos con "N/A" o gente que abandona. Un paciente de accidente muchas veces
+   * no tiene seguro médico —paga la aseguradora del auto— y eso es una respuesta
+   * válida, no un descuido.
+   */
+  type ModoSeguro = 'formulario' | 'porFoto' | 'sinSeguro';
+  const [modoSeguro, setModoSeguro] = useState<ModoSeguro>('formulario');
+
+  /**
+   * El formulario de seguro se dibuja UNA sola vez y sirve para los dos modos:
+   * en la página cuando es el primero, y como diálogo cuando ya hay uno cargado
+   * y se agrega otro. Duplicar el JSX era garantizar que un día se arreglara un
+   * campo en una copia y no en la otra — el formulario tiene 20 campos.
+   */
+  const formSeguroInline = insurances.length === 0 && modoSeguro === 'formulario';
   const removeIns = (id: string) => setInsurances(prev => prev.filter(i => i.id !== id));
 
   const isMoneyField = (v: string) => !v || /^\$?\d{1,7}(\.\d{0,2})?$/.test(v.trim());
@@ -1422,6 +1504,12 @@ export function IntakeWizard({
     setInsurances(prev => [...prev, insModalEntry]);
     setShowInsModal(false);
     setInsErrors({});
+    // Dejar la entrada en blanco para la próxima. Antes lo hacía `openInsModal`
+    // al abrir el diálogo, y alcanzaba porque la única forma de cargar un seguro
+    // era esa. Ahora el primero se carga en el formulario de la página, que
+    // nunca pasa por ahí: sin esto, el segundo abriría con los datos del primero
+    // ya escritos y el paciente cargaría dos veces la misma póliza sin notarlo.
+    setInsModalEntry(blankInsurance(tipoDeSeguroInicial));
   };
 
   const [health, setHealth] = useState({
@@ -2984,7 +3072,13 @@ export function IntakeWizard({
               ℹ {t.insMultiHint}
             </div>
 
-            {/* Lista de seguros */}
+            {/* Lista de seguros — SOLO cuando ya hay al menos uno.
+                Antes esta tarjeta se mostraba siempre, y con cero seguros era un
+                estado vacío ("No hay seguros activos") con un botón al lado. Ese
+                vacío no pedía nada: era el camino de menor esfuerzo hacia
+                Continuar. Ahora, sin seguros, en su lugar va el formulario ya
+                abierto. */}
+            {insurances.length > 0 && (
             <div style={{ ...S.card, marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
@@ -2992,23 +3086,17 @@ export function IntakeWizard({
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>{t.insActiveSub}</div>
                 </div>
                 <button type="button"
-                  onClick={() => openInsModal('MEDICAL')}
+                  onClick={() => openInsModal(tipoDeSeguroInicial)}
                   style={{
                     padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
                     background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.45)',
                     color: CYAN, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
                   }}>
-                  {t.insAddBtn}
+                  {t.insAddOtro}
                 </button>
               </div>
 
-              {insurances.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🛡</div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>{t.insEmpty}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)', marginTop: 4 }}>{t.insEmptySub}</div>
-                </div>
-              ) : (
+              {(
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {insurances.map(ins => (
                     <div key={ins.id} style={{
@@ -3037,31 +3125,46 @@ export function IntakeWizard({
                 </div>
               )}
             </div>
+            )}
+            {/* ── Formulario de seguro ──────────────────────────────────────
+                En la PÁGINA cuando es el primero (abierto, sin tener que tocar
+                "Agregar seguro") y como DIÁLOGO cuando ya hay uno y se agrega
+                otro. Es el mismo JSX: solo cambia el envoltorio.
 
-            <SifoHint hint={t.sifoHint6} />
-            <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
-          </div>
-        )}
-
-        {/* ── Insurance modal ─────────────────────────────────────────────────── */}
-        {showInsModal && (
-          <div style={{
+                Como diálogo se superpone con `position: fixed`, así que dónde
+                está en el árbol no importa; en línea sí, y por eso el bloque
+                vive acá adentro del paso y no suelto al final del componente. */}
+            {(showInsModal || formSeguroInline) && (
+          <div style={showInsModal ? {
             position: 'fixed', inset: 0, zIndex: 999,
             background: 'rgba(0,0,0,0.75)', display: 'flex',
             alignItems: 'flex-start', justifyContent: 'center',
             overflowY: 'auto', padding: '24px 16px',
-          }}>
-            <div style={{
+          } : { marginBottom: 12 }}>
+            <div style={showInsModal ? {
               width: '100%', maxWidth: 480, borderRadius: 16,
               background: '#0f1827', border: '1px solid rgba(255,255,255,0.10)',
               padding: '20px 20px 24px', position: 'relative',
-            }}>
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>{t.insModalTitle}</div>
-                <button type="button" onClick={() => setShowInsModal(false)}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+            } : { ...S.card }}>
+              {/* Header — en línea no lleva ✕: no hay nada que cerrar, y una X
+                  sobre un formulario que ya estaba abierto invita a descartarlo
+                  sin leerlo. La salida en ese modo son los dos botones de abajo,
+                  que dicen qué significan. */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
+                    {showInsModal ? t.insModalTitle : t.insFormTitle}
+                  </div>
+                  {!showInsModal && (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 3, lineHeight: 1.5 }}>
+                      {t.insFormSub}
+                    </div>
+                  )}
+                </div>
+                {showInsModal && (
+                  <button type="button" onClick={() => setShowInsModal(false)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+                )}
               </div>
 
               {/* Tabs: tipo */}
@@ -3223,16 +3326,72 @@ export function IntakeWizard({
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                <button type="button" onClick={() => setShowInsModal(false)}
-                  style={{
-                    flex: '0 0 auto', padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-                    color: 'rgba(255,255,255,0.50)', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
-                  }}>{t.insCancel}</button>
+                {showInsModal && (
+                  <button type="button" onClick={() => setShowInsModal(false)}
+                    style={{
+                      flex: '0 0 auto', padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
+                      background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                      color: 'rgba(255,255,255,0.50)', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                    }}>{t.insCancel}</button>
+                )}
                 <button type="button" onClick={saveInsEntry}
-                  style={{ ...S.btnPrimary, flex: 1 }}>{t.insCreate}</button>
+                  style={{ ...S.btnPrimary, flex: 1 }}>
+                  {showInsModal ? t.insCreate : t.insSaveBtn}
+                </button>
               </div>
+
+              {/* Las dos salidas, dentro del formulario y no escondidas.
+                  Un formulario abierto sin salida no es "no tiene opción", es
+                  "no tiene salida": ahí es donde aparecen los campos con "N/A" y
+                  la gente que abandona. La diferencia con el botón "Agregar
+                  seguro" de antes es que ahora saltear es una ELECCIÓN con
+                  nombre, no el camino de menor esfuerzo. */}
+              {!showInsModal && (
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14,
+                  paddingTop: 14, borderTop: `1px solid ${CARD_BORDER}`,
+                }}>
+                  <button type="button" onClick={() => setModoSeguro('porFoto')}
+                    style={{
+                      flex: '1 1 180px', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                      background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)',
+                      color: CYAN, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    }}>{t.insPorFotoBtn}</button>
+                  <button type="button" onClick={() => setModoSeguro('sinSeguro')}
+                    style={{
+                      flex: '1 1 120px', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                      background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
+                      color: 'rgba(255,255,255,0.50)', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                    }}>{t.insSinSeguroBtn}</button>
+                </div>
+              )}
             </div>
+          </div>
+            )}
+
+
+            {/* Sin ningún seguro cargado: o el formulario abierto, o la salida
+                que el paciente eligió — nunca un vacío neutro. */}
+            {insurances.length === 0 && modoSeguro !== 'formulario' && (
+              <div style={{ ...S.card, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>
+                  {modoSeguro === 'porFoto' ? '📷' : 'ℹ️'}
+                </span>
+                <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.5 }}>
+                  {modoSeguro === 'porFoto' ? t.insPorFotoOk : t.insSinSeguroOk}
+                </div>
+                <button type="button" onClick={() => setModoSeguro('formulario')}
+                  style={{
+                    flexShrink: 0, padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
+                  }}>{t.insCambiar}</button>
+              </div>
+            )}
+
+            <SifoHint hint={t.sifoHint6} />
+            <SaveError error={saveError} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
           </div>
         )}
 
@@ -3486,8 +3645,14 @@ export function IntakeWizard({
               <button type="button" style={{ ...S.btnOutline, flex: '0 0 auto' }} onClick={goBack}>
                 {t.back}
               </button>
+              {/* Este paso arma sus botones a mano en vez de usar `NavButtons`,
+                  y el "siguiente" estaba escrito como `setStep(9)`. Funcionaba
+                  de casualidad —9 venía después de 8— y era el único lugar del
+                  recorrido que no pasaba por la lista de pasos: al reordenar el
+                  historial médico, este botón habría seguido yendo al que él
+                  creía que era el próximo. Ahora pregunta como todos. */}
               <button type="button" style={{ ...S.btnPrimary, flex: 1 }}
-                onClick={() => { setStep(9); window.scrollTo(0, 0); }}>
+                onClick={() => { void goNext(8 as Step); }}>
                 {t.continueToSign}
               </button>
             </div>

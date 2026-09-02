@@ -94,7 +94,7 @@ export function usePortalRecipient(caseId: string | null | undefined, open: bool
 function ui(lang: Lang) {
   const es = {
     title:        'Enviar portal al paciente',
-    expiresHdr:   'expira en 24h',
+    expiresHdr:   'el link no vence hasta revocarlo',
     via:          'Enviar por',
     viaTwilio:    'vía Twilio',
     viaMailgun:   'vía Twilio · en pruebas',
@@ -109,7 +109,7 @@ function ui(lang: Lang) {
     sendSms:      'Enviar por SMS',
     sendEmail:    'Enviar por Email',
     cancel:       'Cancelar',
-    expiresFooter:'Link expira en 24h',
+    expiresFooter:'El link vale hasta que se lo revoque',
     sending:      'Enviando...',
     noPhone:      '(sin teléfono)',
     noEmail:      '(sin email)',
@@ -125,7 +125,7 @@ function ui(lang: Lang) {
     magicLink:    'Magic link generado',
     copied:       '¡Copiado!',
     copy:         'Copiar',
-    expires:      '⏱ Expira:',
+    expires:      '🔗 Es el link del caso — el mismo que ya se le haya enviado.',
     close:        'Cerrar',
     statusUpdate: 'Estado actualizado a',
     guardianBadge:    'Responsable legal',
@@ -135,7 +135,7 @@ function ui(lang: Lang) {
   };
   const en: typeof es = {
     title:        'Send portal to patient',
-    expiresHdr:   'expires in 24h',
+    expiresHdr:   'link stays valid until revoked',
     via:          'Send via',
     viaTwilio:    'via Twilio',
     viaMailgun:   'via Twilio · testing',
@@ -150,7 +150,7 @@ function ui(lang: Lang) {
     sendSms:      'Send via SMS',
     sendEmail:    'Send via Email',
     cancel:       'Cancel',
-    expiresFooter:'Link expires in 24h',
+    expiresFooter:'Link stays valid until revoked',
     sending:      'Sending...',
     noPhone:      '(no phone)',
     noEmail:      '(no email)',
@@ -166,7 +166,7 @@ function ui(lang: Lang) {
     magicLink:    'Magic link generated',
     copied:       'Copied!',
     copy:         'Copy',
-    expires:      '⏱ Expires:',
+    expires:      '🔗 This is the case link — the same one already sent, if any.',
     close:        'Close',
     statusUpdate: 'Status updated to',
     guardianBadge:    'Legal guardian',
@@ -448,8 +448,16 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                   {copied ? L.copied : L.copy}
                 </button>
               </div>
+              {/**
+                * Antes decía "⏱ Expira: <fecha>" con el `expiresAt` que devuelve
+                * el server. Esa fecha nunca fue real: `cases.portalToken` no
+                * tiene columna de expiración y nadie la valida. Y ahora que el
+                * token se REUSA en vez de re-emitirse, lo que el staff necesita
+                * saber es otra cosa: que este es el mismo link de siempre, no
+                * uno nuevo que reemplace al anterior.
+                */}
               <p className="mt-1.5 text-[10px] text-text-muted">
-                {L.expires} {new Date(result.expiresAt).toLocaleString()}
+                {L.expires}
               </p>
             </div>
 

@@ -14,11 +14,16 @@
  * `EMAIL_TEST_ALLOWLIST` acota los destinos a direcciones de prueba.
  *
  * Flujo:
- * 1. Genera el magic token
- * 2. Actualiza Case.intakeFormSentAt + intakeFormSentVia + portalToken
+ * 1. Toma el magic token del caso — REUSA el que ya existe (ver más abajo)
+ * 2. Actualiza Case.intakeFormSentAt + intakeFormSentVia
  * 3. Case.status: NEW_REFERRAL → INTAKE_PENDING
  * 4. Manda el SMS y lo registra
  * 5. Audit log con el RESULTADO (no con la intención)
+ *
+ * ⚠️ Reenviar el link NO invalida el anterior: es el MISMO. Antes cada envío
+ * emitía un token nuevo y el paciente que ya tenía el SMS se quedaba afuera sin
+ * que nadie se enterara. Para cortar de verdad un link entregado está
+ * `generate-portal-token` con `{ regenerar: true }`.
  *
  * ⚠️ `delivered: true` en la respuesta significa que Twilio lo aceptó, no que
  * el paciente lo recibió. Eso lo confirma /api/twilio/sms-status.
@@ -31,7 +36,7 @@ import { sendSms } from '@/lib/sms';
 import { sendEmail } from '@/lib/email';
 import { buildPortalSms, portalEmailHtml } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
-import { generarPortalToken } from '@/lib/portal-token';
+import { obtenerPortalToken } from '@/lib/portal-token';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
@@ -192,15 +197,25 @@ export async function POST(
     }, { status: 400 });
   }
 
-  // Generate magic token — CUID-style único por caso
-  // Phase 1A: visible en respuesta para testing local
-  // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
-  const magicToken = generarPortalToken();
+  /**
+   * El magic token del caso. **Se reusa si ya hay uno** — no se re-emite.
+   *
+   * Antes emitía uno nuevo en cada envío, y eso mataba el link anterior: el
+   * paciente que ya tenía el SMS se quedaba sin acceso apenas alguien reenviaba,
+   * o apenas se mandaba por los DOS canales a la vez (`new-case-dialog` los
+   * dispara en un `Promise.all`, así que cada llamada pisaba a la otra y una de
+   * las dos personas recibía un link muerto). Ver `lib/portal-token.ts`.
+   *
+   * Phase 1A: visible en respuesta para testing local
+   * Phase 2: hash almacenado + Supabase Auth magic links después de BAA
+   */
+  const emitido = await obtenerPortalToken(caseId);
+  if (!emitido) {
+    return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
+  }
+  const magicToken = emitido.token;
+  const portalUrl  = emitido.portalUrl;
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  // Phase 1A: localhost · Phase 2: forms.lienmaster.net
-  // Ruta /c/[token] = wizard completo (B.5-B.8) · /intake/[token] = legacy 4 pasos
-  const portalBase = process.env.PORTAL_URL ?? 'http://localhost:3004';
-  const portalUrl = `${portalBase}/c/${magicToken}`;
 
   // SMS template
   const recipient = parsed.via === 'SMS' ? destino.phone! : destino.email!;
@@ -220,13 +235,14 @@ export async function POST(
   // para que el portal lo permita llenar de nuevo.
   const isResend = caseRecord.status === 'INTAKE_COMPLETED';
 
-  // Update case — persiste el token en DB para que el portal lo pueda verificar
+  // `portalToken` ya lo dejó escrito `obtenerPortalToken` (de forma atómica,
+  // para que dos envíos simultáneos no emitan cada uno el suyo). Acá solo queda
+  // lo que sí es de ESTE envío.
   const updated = await db.case.update({
     where: { id: caseId },
     data: {
       intakeFormSentAt: new Date(),
       intakeFormSentVia: parsed.via,
-      portalToken: magicToken,
       status: (caseRecord.status === 'NEW_REFERRAL' || isResend) ? 'INTAKE_PENDING' : caseRecord.status,
       ...(isResend ? { intakeFormCompletedAt: null } : {}),
     },

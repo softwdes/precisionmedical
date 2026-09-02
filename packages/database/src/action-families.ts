@@ -68,7 +68,7 @@ export const ACTION_FAMILY: Record<string, ActionFamily> = {
   HCFA_GENERATED: 'charges', BILLING_NOTE_ADDED: 'charges',
 
   // Envíos al paciente / portal
-  SEND_PORTAL_LINK: 'portal', GENERATE_PORTAL_TOKEN: 'portal',
+  SEND_PORTAL_LINK: 'portal', GENERATE_PORTAL_TOKEN: 'portal', REVOKE_PORTAL_TOKEN: 'portal',
   ATTORNEY_SIGN_LIEN: 'portal',
 
   // Bufetes, abogados y aseguradoras

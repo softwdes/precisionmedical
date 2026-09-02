@@ -4,9 +4,13 @@
  * IntakeFormLinkDialog — muestra el QR + link del formulario de intake.
  *
  * Usado desde B.15 cuando el paciente no ha firmado consentimientos.
- * Genera el token vía POST /api/admin/cases/[id]/generate-portal-token,
- * muestra el link con opción de copiar, el QR escaneable y botón para descargarlo.
+ * Pide el link vía POST /api/admin/cases/[id]/generate-portal-token, lo muestra
+ * con opción de copiar, el QR escaneable y botón para descargarlo.
  * Opcionalmente abre SendPortalDialog para enviar por SMS/Email.
+ *
+ * ⚠️ Abrir este diálogo NO emite un token nuevo — devuelve el que ya está vivo.
+ * Cuando sí lo emitía, mirar el QR de un caso invalidaba el SMS que el paciente
+ * ya tenía en la mano. Ver `lib/portal-token.ts`.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -42,6 +46,10 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
   const [copied,     setCopied]     = useState(false);
   const [qrDataUrl,  setQrDataUrl]  = useState<string>('');
   const [sendOpen,   setSendOpen]   = useState(false);
+  /** `true` = es el link que el paciente ya puede tener en su SMS. */
+  const [esElMismo,       setEsElMismo]       = useState(false);
+  /** Revocar corta el acceso de alguien que ya tiene el link: se confirma. */
+  const [confirmarRevoca, setConfirmarRevoca] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // "Also send via" se gatea con los datos del DESTINATARIO real (el tutor si
@@ -54,8 +62,9 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
     setPortalUrl(null);
     setQrDataUrl('');
     setError(null);
-    generateToken();
-  }, [open, caseInfo?.id]);   // re-genera si cambia el caso
+    setConfirmarRevoca(false);
+    cargarLink();
+  }, [open, caseInfo?.id]);   // recarga si cambia el caso
 
   useEffect(() => {
     if (!portalUrl) return;
@@ -66,19 +75,34 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
     }).then(setQrDataUrl).catch(() => {});
   }, [portalUrl]);
 
-  async function generateToken() {
+  /**
+   * Trae el link del caso.
+   *
+   * **Abrir este diálogo ya NO emite un token nuevo.** Antes sí, y por eso solo
+   * mirar el QR de un caso mataba el link que el paciente ya tenía en su SMS
+   * (caso real: MVA-3316, SMS a las 13:41, alguien abrió esto a las 16:53).
+   * Ahora el servidor devuelve el que está vivo; emitir otro es `regenerar`, y
+   * eso lo pide el staff a propósito.
+   */
+  async function cargarLink(regenerar = false) {
     if (!caseInfo) return;
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`/api/admin/cases/${caseInfo.id}/generate-portal-token`, { method: 'POST' });
-      const data = await res.json() as { ok?: boolean; portalUrl?: string; error?: string };
+      const res  = await fetch(`/api/admin/cases/${caseInfo.id}/generate-portal-token`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ regenerar }),
+      });
+      const data = await res.json() as { ok?: boolean; portalUrl?: string; reused?: boolean; error?: string };
       if (!data.ok || !data.portalUrl) throw new Error(data.error ?? 'Error generating link');
       setPortalUrl(data.portalUrl);
+      setEsElMismo(data.reused ?? false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setLoading(false);
+      setConfirmarRevoca(false);
     }
   }
 
@@ -156,7 +180,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
               {error && (
                 <div className="rounded-md border border-rose/30 bg-rose/5 px-3 py-2 text-[11px] text-rose flex items-center justify-between gap-2">
                   <span>{error}</span>
-                  <button type="button" onClick={generateToken} className="underline text-[10px] shrink-0">Retry</button>
+                  <button type="button" onClick={() => cargarLink()} className="underline text-[10px] shrink-0">Retry</button>
                 </div>
               )}
               {portalUrl && !loading && (
@@ -236,9 +260,51 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
               </p>
             )}
 
-            <p className="text-[10px] text-text-muted flex items-center gap-1.5">
-              ⏱ Link expires in 24 hours
-            </p>
+            {/**
+              * Antes decía "⏱ Link expires in 24 hours" y no era cierto:
+              * `cases.portalToken` no tiene columna de expiración y nadie la
+              * valida — el link vive hasta que se lo revoca. Prometerle al staff
+              * un vencimiento que no existe es peor que no decir nada, porque
+              * deja de revocar creyendo que se cierra solo.
+              */}
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <p className="text-[10px] text-text-muted leading-relaxed flex-1 min-w-[180px]">
+                {esElMismo
+                  ? 'This is the same link already sent to the patient. It stays valid until revoked.'
+                  : 'This link stays valid until revoked.'}
+              </p>
+
+              {portalUrl && !loading && (
+                confirmarRevoca ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-amber">Old link stops working</span>
+                    <button
+                      type="button"
+                      onClick={() => cargarLink(true)}
+                      className="px-2 py-1 rounded-md border border-rose/40 bg-rose/10 text-[10px] font-semibold text-rose hover:bg-rose/20 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmarRevoca(false)}
+                      className="text-[10px] text-text-muted hover:text-text-1 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmarRevoca(true)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[10px] text-text-muted hover:border-rose/40 hover:text-rose transition-colors shrink-0"
+                    title="Issue a new link and invalidate the current one"
+                  >
+                    <RefreshCw className="w-3 h-3" /> New link
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
           {/* Footer */}

@@ -45,6 +45,7 @@ export function AdminShell({
   variant      = 'admin',
   allowedModules = null,
   canViewAsDoctor = false,
+  canAuditNotes = false,
   sidebarBelowNav = null,
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -76,6 +77,7 @@ export function AdminShell({
             variant={variant}
             allowedModules={allowedModules}
             canViewAsDoctor={canViewAsDoctor}
+            canAuditNotes={canAuditNotes}
             belowNav={sidebarBelowNav}
           />
 

@@ -160,12 +160,22 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
         items: s.items.filter((i) => !i.moduleKey || allowedModules[i.moduleKey] !== false),
       }))
     : baseSections;
-  // El Portal Médico cierra el menú administrativo. Se agrega a la última sección
-  // en vez de abrir una nueva: la lista se renderiza con `titleKey` como key de
-  // React y todas las secciones de acá comparten el título vacío.
-  const sections = !isDoctor && !isAttorney && canViewAsDoctor
+  // Los dos ítems por CAPACIDAD cierran el menú administrativo. Se agregan a la
+  // última sección en vez de abrir una nueva: la lista se renderiza con
+  // `titleKey` como key de React y todas las secciones de acá comparten el
+  // título vacío.
+  //
+  // Notas clínicas va antes del Portal Médico: es una pantalla de trabajo del
+  // back-office, y el portal es la puerta de salida a otro mundo.
+  const extras = !isDoctor && !isAttorney
+    ? [
+        ...(canAuditNotes ? [NOTES_AUDIT_ITEM] : []),
+        ...(canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : []),
+      ]
+    : [];
+  const sections = extras.length
     ? visibleSections.map((s, i) =>
-        i === visibleSections.length - 1 ? { ...s, items: [...s.items, DOCTOR_PORTAL_ITEM] } : s,
+        i === visibleSections.length - 1 ? { ...s, items: [...s.items, ...extras] } : s,
       )
     : visibleSections;
   const homeHref = isDoctor ? '/doctor' : isAttorney ? '/attorney' : '/dashboard';

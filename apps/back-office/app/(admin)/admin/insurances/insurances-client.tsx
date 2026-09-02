@@ -617,7 +617,7 @@ function ViewDialog({
           <InfoRow label="Claims fax"
             value={insurance.claimsFax ? <span className="font-mono">{insurance.claimsFax}</span> : <Empty />} />
           <InfoRow label="Portal"
-            value={insurance.portalUrl ? <a href={insurance.portalUrl} target="_blank" rel="noopener" className="text-cyan hover:text-white truncate inline-block max-w-[280px]">{insurance.portalUrl}</a> : <Empty />} />
+            value={insurance.portalUrl ? <a href={insurance.portalUrl} target="_blank" rel="noopener" className="text-cyan hover:text-text-1 truncate inline-block max-w-[280px]">{insurance.portalUrl}</a> : <Empty />} />
           <InfoRow label="HCFA channel" value={<HcfaChannelPill channel={insurance.hcfaChannel} />} />
           <InfoRow label="Avg respuesta" value={<ResponseDaysCell days={insurance.avgResponseDays} speed={insurance.responseSpeed} />} />
           <InfoRow label="Pre-auth req?" value={insurance.preauthRequired ? <span className="text-amber">⚠ Sí</span> : <span className="text-text-2">No</span>} />

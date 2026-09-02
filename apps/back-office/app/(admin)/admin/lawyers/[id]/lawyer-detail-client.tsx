@@ -87,7 +87,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
   return (
     <div className="space-y-6">
       {/* Breadcrumb + back */}
-      <Link href="/admin/lawyers" className="inline-flex items-center gap-1.5 text-text-2 hover:text-white text-sm transition-colors">
+      <Link href="/admin/lawyers" className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors">
         <ArrowLeft className="w-4 h-4" />
         <span>Volver a Bufetes</span>
       </Link>
@@ -100,7 +100,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-white">{firm.firmName}</h1>
+              <h1 className="text-2xl font-bold text-text-1">{firm.firmName}</h1>
               <StatusPill status={firm.status} />
               <PaymentSpeedPill speed={firm.paymentSpeed} />
             </div>
@@ -108,7 +108,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
               {firm.email && (
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-text-muted" />
-                  <a href={`mailto:${firm.email}`} className="hover:text-white transition-colors">{firm.email}</a>
+                  <a href={`mailto:${firm.email}`} className="hover:text-text-1 transition-colors">{firm.email}</a>
                 </div>
               )}
               {firm.phone && (
@@ -212,8 +212,8 @@ function TabButton({
         disabled
           ? 'text-text-muted cursor-not-allowed'
           : active
-            ? 'text-white'
-            : 'text-text-2 hover:text-white'
+            ? 'text-text-1'
+            : 'text-text-2 hover:text-text-1'
       }`}
     >
       {children}
@@ -241,7 +241,7 @@ function SummaryTab({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
         <Card title="Información de contacto">
-          <InfoRow label="Email principal" value={firm.email ? <a href={`mailto:${firm.email}`} className="text-cyan hover:text-white">{firm.email}</a> : undefined} />
+          <InfoRow label="Email principal" value={firm.email ? <a href={`mailto:${firm.email}`} className="text-cyan hover:text-text-1">{firm.email}</a> : undefined} />
           <InfoRow label="Teléfono"        value={firm.phone ?? <Empty />} mono />
           <InfoRow label="Dirección"       value={firm.address ?? <Empty />} />
           <InfoRow label="Ciudad / Estado" value={[firm.city, firm.state].filter(Boolean).join(', ') || <Empty />} />
@@ -266,7 +266,7 @@ function SummaryTab({
       <div className="space-y-4">
         <Card title="Miembros del bufete">
           <div className="text-center py-4">
-            <div className="text-4xl font-bold text-white">{members.length}</div>
+            <div className="text-4xl font-bold text-text-1">{members.length}</div>
             <div className="text-text-muted text-xs uppercase tracking-wider mt-1">Total miembros</div>
           </div>
           <div className="space-y-2 pt-3 border-t border-border">
@@ -353,7 +353,7 @@ function MemberGroup({
     <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
       <div className="px-5 py-3 border-b border-border bg-bg-2/50 flex items-center gap-2">
         <Icon className="w-4 h-4 text-brand-text" />
-        <span className="text-white font-semibold text-sm">{title}</span>
+        <span className="text-text-1 font-semibold text-sm">{title}</span>
         <span className="text-text-muted text-xs font-mono">· {members.length}</span>
       </div>
       <div className="divide-y divide-row-sep">
@@ -514,12 +514,12 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
         {(member.firstName?.[0] ?? '?') + (member.lastName?.[0] ?? '')}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-white font-semibold text-sm">{fullName}</div>
+        <div className="text-text-1 font-semibold text-sm">{fullName}</div>
         <div className="flex items-center gap-x-3 gap-y-0.5 text-xs text-text-2 flex-wrap mt-0.5">
           {member.email && (
             <span className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-text-muted" />
-              <a href={`mailto:${member.email}`} className="hover:text-white truncate max-w-[200px]" title={member.email}>{member.email}</a>
+              <a href={`mailto:${member.email}`} className="hover:text-text-1 truncate max-w-[200px]" title={member.email}>{member.email}</a>
             </span>
           )}
           {member.phone && (
@@ -547,7 +547,7 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
       </div>
       <div className="flex items-center gap-1">
         <MemberAccessControl member={member} onChanged={onDeleted} />
-        <button onClick={() => onEdit(member)} className="w-8 h-8 rounded-md text-text-muted hover:text-white hover:bg-white/5" title="Editar">
+        <button onClick={() => onEdit(member)} className="w-8 h-8 rounded-md text-text-muted hover:text-text-1 hover:bg-white/5" title="Editar">
           <Pencil className="w-3.5 h-3.5 mx-auto" />
         </button>
         <button onClick={handleDelete} disabled={deleting} className="w-8 h-8 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 disabled:opacity-50" title="Eliminar">
@@ -604,7 +604,7 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full bg-bg-2 border border-border rounded-md px-4 py-3 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[200px]"
+        className="w-full bg-bg-2 border border-border rounded-md px-4 py-3 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[200px]"
         placeholder="Escribí las notas internas aquí..."
       />
       <div className="flex items-center justify-between">
@@ -1122,7 +1122,7 @@ function CaseTableRow({
         <button
           ref={btnRef}
           onClick={onMenuToggle}
-          className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted hover:text-white hover:bg-white/5 transition-colors"
+          className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted hover:text-text-1 hover:bg-white/5 transition-colors"
         >
           <MoreHorizontal className="w-4 h-4" />
         </button>
@@ -1346,7 +1346,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   return (
     <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
       <div className="px-5 py-3 border-b border-border bg-bg-2/50">
-        <div className="text-white font-semibold text-sm">{title}</div>
+        <div className="text-text-1 font-semibold text-sm">{title}</div>
       </div>
       <div className="p-5 space-y-1">{children}</div>
     </div>
@@ -1357,7 +1357,7 @@ function InfoRow({ label, value, mono }: { label: string; value: React.ReactNode
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3 items-start sm:items-center py-2 border-b border-border/20 last:border-0">
       <div className="text-text-muted text-xs uppercase tracking-wider font-semibold">{label}</div>
-      <div className={`sm:col-span-2 text-sm text-white ${mono ? 'font-mono' : ''}`}>{value}</div>
+      <div className={`sm:col-span-2 text-sm text-text-1 ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
   );
 }
@@ -1366,7 +1366,7 @@ function SummaryStatRow({ label, count }: { label: string; count: number }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-text-2">{label}</span>
-      <span className="text-white font-mono font-semibold">{count}</span>
+      <span className="text-text-1 font-mono font-semibold">{count}</span>
     </div>
   );
 }
@@ -1577,7 +1577,7 @@ function FirmDialog({
               id="fd-notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Notas privadas: paga lento, prefiere email, etc."
             />
           </div>
@@ -1754,7 +1754,7 @@ function MemberDialog({
               id="memberRole"
               value={memberRole ?? 'ATTORNEY'}
               onChange={(e) => setMemberRole(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {MEMBER_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>

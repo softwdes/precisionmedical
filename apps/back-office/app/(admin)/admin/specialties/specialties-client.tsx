@@ -358,7 +358,7 @@ function SpecialtyDialog({
               id="description"
               value={description ?? ''}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Descripción opcional del service line..."
             />
           </div>
@@ -388,7 +388,7 @@ function SpecialtyDialog({
                 id="workflowType"
                 value={workflowType}
                 onChange={(e) => setWorkflowType(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {WORKFLOW_TYPES.map((w) => (
                   <option key={w.value} value={w.value}>{w.label}</option>
@@ -401,7 +401,7 @@ function SpecialtyDialog({
                 id="caseType"
                 value={caseType}
                 onChange={(e) => setCaseType(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {CASE_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>

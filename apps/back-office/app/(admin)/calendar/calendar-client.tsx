@@ -138,12 +138,24 @@ function prevWeekday(date: Date): Date {
   return shift === 0 ? noonUtc : new Date(Date.UTC(y, m - 1, d + shift, 12, 0, 0));
 }
 
-const TIME_SLOTS = [
-  '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
-  '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
-  '16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
-  '20:00','20:30','21:00','21:30',
-];
+/**
+ * Horario de atención de la clínica: 08:00 a 18:00, lunes a viernes.
+ *
+ * Es el rango POR DEFECTO de las tres superficies (semana, día y el selector al
+ * crear la cita), no un techo rígido en las dos primeras. Antes la grilla llegaba
+ * hasta las 21:30 y dibujaba cuatro filas de 20:00-21:30 todos los días para
+ * 21 citas en tres años, mientras las 534 citas reales de las 07:00 quedaban
+ * INVISIBLES: `slotOf()` las manda a un slot `'07:00'` que no era ninguna fila.
+ *
+ * El selector sí lo trata como techo — ver `WORK_HOUR_END` en
+ * `api/appointments/available-slots`: ofrecer un horario en el que la clínica
+ * está cerrada es un error, esconder una cita que ya existe también.
+ */
+const OPEN_MIN  = 8 * 60;   // 08:00
+const CLOSE_MIN = 18 * 60;  // 18:00 (exclusivo → última fila 17:30 en la semana)
+
+/** Paso de la grilla de semana/mes, en minutos. */
+const WEEK_SLOT_MIN = 30;
 
 /** Returns "8 AM" for on-the-hour slots, "8:30" for half-hour slots */
 function slotLabel(slot: string): string {
@@ -238,11 +250,12 @@ function slotOf(isoString: string): string {
 // La vista de día usa slots de 15 min (no 30 como semana/mes) porque el 75% de
 // las citas dura 15 min y ~880 empiezan a los :15 o :45 — con 30 min se
 // dibujaban en la hora equivocada y dos citas consecutivas parecian chocar.
-// semana/mes siguen con slotOf()/TIME_SLOTS de 30 min, sin cambios.
+// La semana sigue con slotOf() y su grilla de 30 min (weekSlots).
 
 const DAY_SLOT_MIN     = 15;
-const DAY_DEFAULT_FROM = 7 * 60;   // 07:00
-const DAY_DEFAULT_TO   = 22 * 60;  // 22:00 (exclusivo → ultimo slot 21:45)
+/** Mismo horario de atención que la semana; se estira si el día tiene algo afuera. */
+const DAY_DEFAULT_FROM = OPEN_MIN;   // 08:00
+const DAY_DEFAULT_TO   = CLOSE_MIN;  // 18:00 (exclusivo → último slot 17:45)
 
 function slotToMin(slot: string): number {
   const [h, m] = slot.split(':').map(Number) as [number, number];
@@ -252,6 +265,21 @@ function slotToMin(slot: string): number {
 function minToSlot(min: number): string {
   const h = Math.floor(min / 60), m = min % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Minutos EXACTOS desde medianoche en Denver — sin bucketear.
+ *
+ * `slotOf`/`slotOf15` redondean, y para decidir si la grilla se estira hace falta
+ * el minuto real: una cita de 15 min a las 17:45 termina a las 18:00 justo, y con
+ * el bucket de 30 (`'17:30'`) el cálculo del cierre se quedaba corto.
+ */
+function minOf(isoString: string): number {
+  const t = new Date(isoString).toLocaleTimeString(localeApp(), {
+    timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
+  });
+  const [rawH, m] = t.split(':').map(Number) as [number, number];
+  return (rawH % 24) * 60 + m; // en-US + hour12:false devuelve "24:00" a medianoche
 }
 
 /** Igual que slotOf() pero redondeando a bloques de 15 min. */
@@ -962,6 +990,37 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     blockMap[day][slot].push(b);
   }
 
+  /**
+   * Filas de la vista semana: 08:00-17:30 por defecto, estirado a la hora en
+   * punto si ESTA semana tiene algo afuera.
+   *
+   * Antes era una constante de 08:00 a 21:30. Eso hacía dos daños a la vez:
+   * dibujaba cuatro filas muertas (20:00-21:30 sirven a 21 citas en tres años) y
+   * escondía sin aviso las 534 citas de las 07:00, porque su slot `'07:00'` no
+   * existía como fila. Misma solución que ya tenía la vista de día.
+   *
+   * Se mira también `blocks`: un aviso de agenda ("el doctor no está") fuera del
+   * horario tiene que verse igual, o el hueco queda tapado.
+   */
+  const weekSlots = useMemo(() => {
+    let from = OPEN_MIN;
+    let to   = CLOSE_MIN;
+
+    const estirar = (inicioIso: string, minutos: number) => {
+      const s = minOf(inicioIso);
+      const e = s + Math.max(WEEK_SLOT_MIN, minutos);
+      if (s < from) from = Math.floor(s / 60) * 60;
+      if (e > to)   to   = Math.ceil(e / 60) * 60;
+    };
+
+    for (const a of visibleAppointments) estirar(a.scheduledFor, a.durationMinutes);
+    for (const b of blocks)              estirar(b.startsAt, b.durationMinutes);
+
+    const slots: string[] = [];
+    for (let m = from; m < to; m += WEEK_SLOT_MIN) slots.push(minToSlot(m));
+    return slots;
+  }, [visibleAppointments, blocks]);
+
   const firstVisitCount = visibleAppointments.filter(a => a.visitNumber === 0).length;
   const pendingConfirm  = visibleAppointments.filter(a => a.status === 'SCHEDULED').length;
 
@@ -1426,7 +1485,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     <Clock className="w-4 h-4 animate-spin text-text-2" />
                   </div>
                 )}
-                {TIME_SLOTS.map(slot => (
+                {weekSlots.map(slot => (
                   <div key={slot} className="grid grid-cols-[58px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[26px]">
                     <div className="border-r border-white/[0.04] flex items-center justify-end pr-2">
                       <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[13px] text-text-1 font-bold' : 'text-[11px] text-text-2 font-semibold'}`}>{slotLabel(slot)}</span>

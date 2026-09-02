@@ -13,7 +13,9 @@
  *   limit            — max slots a devolver (default: 12)
  *
  * Lógica:
- *   1. Genera candidatos cada 30 min dentro de horario laboral (8:00-17:00 MT, L-V)
+ *   1. Genera candidatos dentro del horario de atención (8:00-18:00 MT, L-V), cada
+ *      `durationMinutes` si es ≤ 30 y cada 30 si es mayor; la cita tiene que
+ *      TERMINAR antes del cierre
  *   2. Consulta appointments existentes del provider en ese rango (no CANCELLED)
  *   3. Filtra candidatos que traslapen con citas existentes
  *   4. Devuelve los primeros N disponibles
@@ -25,8 +27,20 @@ import { db } from '@precision-medical/database';
 import { isWeekendInDenver } from '@/lib/scheduling-rules';
 
 const TIMEZONE = 'America/Denver';
-const WORK_HOUR_START = 8;   // 8:00 AM MT
-const WORK_HOUR_END   = 22;  // 10:00 PM MT (allows last slot at 9:30 PM + 30 min)
+
+/**
+ * Horario de atención de la clínica, en minutos desde medianoche (hora de Denver).
+ *
+ * Estaba en 8-22 con la nota "allows last slot at 9:30 PM": el selector ofrecía
+ * turnos hasta las 21:30 para un horario que cierra a las 18:00. En tres años de
+ * datos hay 21 citas después de las 20:00 y ninguna después de las 22:00.
+ *
+ * Acá el cierre SÍ es un techo duro, a diferencia de la grilla del calendario
+ * —que estira el rango para no esconder una cita que ya existe—: ofrecer un
+ * horario con la clínica cerrada es un error, mostrar lo que ya está agendado no.
+ */
+const OPEN_MIN  = 8 * 60;   //  8:00 AM MT
+const CLOSE_MIN = 18 * 60;  //  6:00 PM MT
 
 const QuerySchema = z.object({
   clinicId:        z.string().min(1),
@@ -51,14 +65,21 @@ const QuerySchema = z.object({
   excludeAppointmentId: z.string().optional(),
 });
 
-/** Devuelve el número de hora local en America/Denver para una fecha UTC */
-function mtHour(date: Date): number {
-  return parseInt(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE, hour: 'numeric', hour12: false,
-    }).format(date),
-    10,
-  );
+/**
+ * Minutos desde medianoche en America/Denver — con los MINUTOS, no solo la hora.
+ *
+ * Antes esto era `mtHour()`, que devolvía la hora truncada (17 para las 17:45), y
+ * el chequeo de cierre comparaba `h + duración/60 <= FIN`. Con el cierre en las
+ * 22:00 el redondeo no se notaba; al bajarlo a las 18:00 muerde justo en el
+ * borde: una cita de 45 min a las 17:45 daba `17 + 0.75 = 17.75 <= 18` y se
+ * ofrecía, terminando a las 18:30 — media hora después de cerrar.
+ */
+function mtMinutes(date: Date): number {
+  const t = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+  const [h, m] = t.split(':').map(Number) as [number, number];
+  return (h % 24) * 60 + m;
 }
 
 /** Fecha civil en America/Denver (`YYYY-MM-DD`) — la clave para agrupar por día. */
@@ -85,11 +106,14 @@ function limitarPorDia(slots: Date[], porDia: number): Date[] {
   return salida;
 }
 
-/** ¿El timestamp UTC cae en horario laboral MT? (L-V, dentro del rango de horas) */
+/**
+ * ¿El timestamp UTC cae en horario de atención? (L-V, y la cita TERMINA antes del
+ * cierre — si cierran a las 18:00, una cita de 45 min no puede arrancar 17:45).
+ */
 function isBusinessSlot(date: Date, durationMinutes: number): boolean {
   if (isWeekendInDenver(date)) return false;
-  const h = mtHour(date);
-  return h >= WORK_HOUR_START && h + durationMinutes / 60 <= WORK_HOUR_END;
+  const inicio = mtMinutes(date);
+  return inicio >= OPEN_MIN && inicio + durationMinutes <= CLOSE_MIN;
 }
 
 /** Genera candidatos cada `durationMinutes` min (máx 30) en el rango dado */

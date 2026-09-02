@@ -222,6 +222,19 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
       updatedAt: caseRecord.updatedAt,
       patient: {
         ...caseRecord.patient,
+        /**
+         * Las cuatro fotos de identificación del caso (selfie, tarjeta de
+         * seguro frente y dorso, licencia). Van enteras y no solo el selfie
+         * porque el diálogo que las administra se abre desde esta pantalla y
+         * necesita saber cuáles ya existen para no mostrarlas como vacías.
+         *
+         * ⚠️ Viven en `Case.consentsData`, no en el paciente: `Patient` no tiene
+         * columna de foto. Un paciente con dos casos tiene las de ESTE caso.
+         */
+        fotos: (() => {
+          const cd = caseRecord.consentsData as Record<string, unknown> | null;
+          return (cd?.photos as Record<string, string> | undefined) ?? {};
+        })(),
         photoUrl: (() => {
           const cd = caseRecord.consentsData as Record<string, unknown> | null;
           const photos = cd?.photos as Record<string, string> | undefined;

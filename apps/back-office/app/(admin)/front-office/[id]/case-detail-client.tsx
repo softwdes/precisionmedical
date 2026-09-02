@@ -29,6 +29,7 @@ import { Button } from '@precision/ui';
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
 import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
@@ -85,6 +86,8 @@ interface CaseInfo {
     addressZip: string | null;
     socialSecurityNumber: string | null;
     photoUrl: string | null;
+    /** Las cuatro fotos de identificación del caso — ver `case-detail-data.ts`. */
+    fotos: Record<string, string>;
   };
   lawFirm: {
     id: string;
@@ -237,6 +240,8 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
+  /** Fotos de identificación — se abre desde el avatar del paciente. */
+  const [archivosOpen, setArchivosOpen] = useState(false);
   const toast = useToast();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
@@ -409,7 +414,17 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       <PageHeader
         title={
           <span className="flex items-center gap-3 flex-wrap">
-            <PersonAvatar firstName={caseInfo.patient.firstName} lastName={caseInfo.patient.lastName} size={12} gradientClass="bg-gradient-cyan" />
+            {/* El avatar es el botón para subir la foto — ver `PersonAvatar`.
+                Solo para el staff: el doctor y el abogado leen, no cargan. */}
+            <PersonAvatar
+              firstName={caseInfo.patient.firstName}
+              lastName={caseInfo.patient.lastName}
+              size={12}
+              gradientClass="bg-gradient-cyan"
+              photoUrl={caseInfo.patient.photoUrl}
+              onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}
+              editLabel={t('photoEdit')}
+            />
             <span>
               <span className="block">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</span>
               <span className="block text-text-muted text-xs font-normal font-mono mt-1">
@@ -507,6 +522,8 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   size={12}
                   gradientClass="bg-gradient-cyan"
                   photoUrl={caseInfo.patient.photoUrl}
+                  onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}
+                  editLabel={t('photoEdit')}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-text-1 font-bold text-base leading-tight">
@@ -833,6 +850,17 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       )}
 
       {/* Modals */}
+      {/* Fotos de identificación — lo abre el avatar del paciente */}
+      {archivosOpen && (
+        <ArchivosDialog
+          patientId={caseInfo.patient.id}
+          firstName={caseInfo.patient.firstName}
+          lastName={caseInfo.patient.lastName}
+          fotos={caseInfo.patient.fotos}
+          onClose={() => setArchivosOpen(false)}
+        />
+      )}
+
       <SendPortalDialog
         open={sendPortalOpen}
         onOpenChange={setSendPortalOpen}

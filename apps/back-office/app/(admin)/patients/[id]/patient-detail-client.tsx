@@ -14,6 +14,7 @@ import { fecha, fechaCalendario, edad } from '@/lib/fechas';
  * o (futuro) clic en nombre de paciente en la queue.
  */
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 // El diálogo de edición es el mismo que usa la lista de pacientes. Había una
@@ -22,6 +23,7 @@ import { useRouter } from 'next/navigation';
 // formularios para la misma tabla garantizaba que cada arreglo se hiciera en uno
 // solo — es la duplicación que ya nos pasó con calcAge y los generadores de código.
 import { PatientEditDialog } from '../patient-edit-dialog';
+import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -59,6 +61,12 @@ interface PatientCase {
   specialty: { id: string; name: string; color: string } | null;
   primaryInsurance: { id: string; name: string; shortCode: string; color: string } | null;
   _count: { notes: number; appointments: number };
+  /**
+   * Donde viven las fotos de identificación del paciente — `Patient` no tiene
+   * columna de foto. El `include` de la página ya trae todos los escalares del
+   * caso; solo faltaba declararlo acá. Ver `components/patients/archivos-dialog`.
+   */
+  consentsData?: unknown;
 }
 
 type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
@@ -129,6 +137,17 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
 
   const age = edad(patient.dateOfBirth);
 
+  /**
+   * Fotos de identificación — las abre el propio avatar.
+   *
+   * Salen del caso MÁS RECIENTE porque ahí las guarda el endpoint (`Patient` no
+   * tiene columna de foto). `patient.cases` ya viene ordenado por `createdAt`
+   * descendente desde la página.
+   */
+  const [archivosOpen, setArchivosOpen] = useState(false);
+  const casoReciente = patient.cases[0] ?? null;
+  const fotos = fotosDelCaso(casoReciente?.consentsData);
+
   const patientStatusColors = PATIENT_STATUS_COLORS[patient.status];
   const PATIENT_STATUS_LABEL_KEYS: Record<PatientStatus, string> = {
     NEW:        t('patientStatus.NEW'),
@@ -146,11 +165,16 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
       <PageHeader
         title={
           <div className="flex items-center gap-3 flex-wrap">
+            {/* El avatar es el botón para subir la foto — ver `PersonAvatar`.
+                En el portal médico no: el doctor mira la ficha, no la carga. */}
             <PersonAvatar
               firstName={patient.firstName}
               lastName={patient.lastName}
               size={10}
               gradientClass="bg-gradient-brand"
+              photoUrl={fotos.selfie ?? null}
+              onEditPhoto={doctorMode ? undefined : () => setArchivosOpen(true)}
+              editLabel={t('photoEdit')}
             />
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -198,6 +222,18 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
           </div>
         }
       />
+
+      {/* Fotos de identificación — lo abre el avatar del encabezado */}
+      {archivosOpen && (
+        <ArchivosDialog
+          patientId={patient.id}
+          firstName={patient.firstName}
+          lastName={patient.lastName}
+          fotos={fotos}
+          tieneCaso={!!casoReciente}
+          onClose={() => setArchivosOpen(false)}
+        />
+      )}
 
       {/* KPIs strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

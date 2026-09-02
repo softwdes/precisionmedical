@@ -36,6 +36,20 @@ import {
  * usuario quiere. Es la misma informacion y tiene que verse igual en los dos
  * lados; duplicar el markup era garantizar que se separaran con el tiempo.
  */
+/**
+ * La lista de notas, agrupada por modulo. Sin dialogo alrededor.
+ *
+ * La usa SOLO el dialogo post-reload: ahi son las notas de UN deploy, la fecha
+ * es la misma para todas y lo unico que las diferencia es donde se ven, asi que
+ * agrupar por modulo es lo correcto.
+ *
+ * La campana NO la usa. Alli conviven varios dias y el eje que importa es el
+ * tiempo, no el modulo — ver `components/release/release-timeline.tsx`, que
+ * explica por que el acordeon por modulo fue un error.
+ *
+ * NEGRITA = todavia no lo viste, el mismo lenguaje que la bandeja de mensajes.
+ * En este dialogo son todas nuevas, asi que salen todas en negrita.
+ */
 export function ReleaseNotesContent({
   modules,
   className = 'max-h-[60vh] overflow-y-auto px-4 sm:px-6 py-2 space-y-4',
@@ -58,7 +72,13 @@ export function ReleaseNotesContent({
                 ) : (
                   <Wrench className="w-3 h-3 text-violet shrink-0 mt-1" />
                 )}
-                <p className="text-[12.5px] text-text-1 leading-relaxed">{note.text}</p>
+                <p
+                  className={`text-[12.5px] leading-relaxed ${
+                    note.isNew ? 'text-text-1 font-semibold' : 'text-text-2'
+                  }`}
+                >
+                  {note.text}
+                </p>
               </div>
             ))}
           </div>

@@ -20,10 +20,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Sparkles } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@precision/ui';
-import type { ReleaseModuleGroup } from '@precision/release/types';
-import { ReleaseNotesContent } from '@/components/ui-phoenix/release-notes-dialog';
+import { Bell, Check } from 'lucide-react';
+import { SideDrawer } from '@/components/ui-phoenix';
+import type { ReleaseNote } from '@precision/release/types';
+import { ReleaseTimeline } from './release-timeline';
 
 /**
  * Cada cuanto se vuelve a preguntar.
@@ -39,7 +39,7 @@ interface InboxResponse {
   audience: string;
   unseen: number;
   count: number;
-  modules: ReleaseModuleGroup[];
+  notes: ReleaseNote[];
   debut: boolean;
 }
 
@@ -65,6 +65,14 @@ export function ReleaseBell(): React.ReactElement {
   const [data, setData] = useState<InboxResponse | null>(null);
   const [fallo, setFallo] = useState(false);
   const [open, setOpen] = useState(false);
+  /**
+   * "Al dia" con la historia escondida detras de un boton.
+   *
+   * Sin esto, alguien que ya leyo todo abre el panel y ve quince modulos
+   * plegados de cosas que ya vio: tecnicamente ordenado, pero no se siente
+   * limpio. Con nada nuevo, el panel no deberia tener nada que mostrar.
+   */
+  const [verHistorial, setVerHistorial] = useState(false);
 
   const cargar = useCallback(async (): Promise<void> => {
     try {
@@ -86,14 +94,17 @@ export function ReleaseBell(): React.ReactElement {
 
   useEffect(() => {
     void cargar();
-    const id = setInterval(() => void cargar(), POLL_MS);
-    const onFocus = (): void => void cargar();
+    // Con el panel ABIERTO no se vuelve a consultar. La marca ya se sello al
+    // abrir, asi que una respuesta nueva traeria todo como visto y las negritas
+    // se apagarian delante del usuario, justo mientras las esta leyendo.
+    const id = setInterval(() => { if (!open) void cargar(); }, POLL_MS);
+    const onFocus = (): void => { if (!open) void cargar(); };
     window.addEventListener('focus', onFocus);
     return () => {
       clearInterval(id);
       window.removeEventListener('focus', onFocus);
     };
-  }, [cargar]);
+  }, [cargar, open]);
 
   /**
    * Se sella al ABRIR, no al cerrar.
@@ -113,6 +124,12 @@ export function ReleaseBell(): React.ReactElement {
   };
 
   const unseen = data?.unseen ?? 0;
+  /**
+   * Sale de las banderas de las notas y NO de `unseen`, que se pone en cero
+   * apenas se abre el panel: si dependiera de el, "Al dia" aparecia de golpe
+   * tapando lo que el usuario acababa de abrir para leer.
+   */
+  const hayNuevas = (data?.notes ?? []).some((n) => n.isNew);
   const etiqueta = unseen > 0 ? t('bellUnseen', { count: unseen }) : t('bellNone');
 
   return (
@@ -124,54 +141,75 @@ export function ReleaseBell(): React.ReactElement {
         title={etiqueta}
         className="relative w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
       >
-        <Sparkles className="w-4 h-4" aria-hidden="true" />
+        <Bell className="w-4 h-4" aria-hidden="true" />
         {/*
-          El contador NO es rojo y no se anima.
-          El rojo de esta barra es del sobre de mensajes, y ahi significa
-          "alguien espera una respuesta". Una nota de release no exige nada:
-          avisa. Si las dos gritan igual, la que importa deja de leerse — es la
-          regla que ya esta escrita en `InboxBell`: si todo parpadea, nada
-          parpadea.
+          El contador va en rojo, igual que el del admin.
+
+          Al principio lo puse apagado para no competir con el sobre de
+          Mensajes, pero ese razonamiento estaba mal: el sobre es un SOBRE y
+          esto es una CAMPANA, asi que ya no compiten por color sino que se
+          distinguen por forma. Lo que SI queda reservado para lo urgente es
+          el MOVIMIENTO: el sobre entero pulsa cuando hay un urgente sin leer,
+          este nunca. Rojo quieto contra rojo que late si es una jerarquia que
+          se lee de un vistazo.
         */}
         {unseen > 0 && (
           <span
             aria-hidden="true"
-            className="absolute top-1 right-1 min-w-[15px] h-[15px] px-[3px] rounded-full bg-brand/25 border border-brand/40 text-brand-text text-[9px] font-bold flex items-center justify-center tabular-nums"
+            className="absolute top-1 right-1 min-w-[15px] h-[15px] px-[3px] rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center tabular-nums"
           >
             {unseen > 9 ? '9+' : unseen}
           </span>
         )}
       </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg p-0">
-          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
-            <DialogTitle className="flex items-center gap-2 text-text-1">
-              <Sparkles className="w-4 h-4 text-brand shrink-0" />
-              {t('panelTitle')}
-            </DialogTitle>
-            <DialogDescription className="text-[12px] text-text-2">
-              {t('panelSubtitle')}
-            </DialogDescription>
-          </DialogHeader>
+      <SideDrawer
+        open={open}
+        onClose={() => { setOpen(false); setVerHistorial(false); }}
+        title={t('panelTitle')}
+        icon={<Bell className="h-4 w-4 text-text-2 shrink-0" />}
+        closeLabel={t('panelClose')}
+        /*
+          El pie lleva el total y no un boton. El admin tiene ahi "marcar
+          todas como leidas", pero aca seria un adorno: el panel sella la
+          marca solo al abrirse, asi que ese boton no tendria nada que hacer.
+        */
+        footer={
+          <span className="text-[11px] text-text-muted">
+            {data === null ? '' : t('count', { count: data.count })}
+          </span>
+        }
+      >
+        <p className="px-4 pt-3 pb-1 text-[12px] text-text-2">{t('panelSubtitle')}</p>
 
-          {fallo ? (
-            <div className="px-4 sm:px-6 py-6 text-[12.5px] text-text-2">{t('panelError')}</div>
-          ) : data === null ? (
-            <div className="px-4 sm:px-6 py-6 text-[12.5px] text-text-muted">{t('panelLoading')}</div>
-          ) : data.modules.length === 0 ? (
-            <div className="px-4 sm:px-6 py-6 text-[12.5px] text-text-2">{t('panelEmpty')}</div>
-          ) : (
-            <ReleaseNotesContent modules={data.modules} />
-          )}
-
-          <div className="flex items-center px-4 sm:px-6 pb-4 sm:pb-6 pt-2">
-            <span className="text-[11px] text-text-muted">
-              {data === null ? '' : t('count', { count: data.count })}
-            </span>
+        {fallo ? (
+          <div className="px-4 py-6 text-[12.5px] text-text-2">{t('panelError')}</div>
+        ) : data === null ? (
+          <div className="px-4 py-6 text-[12.5px] text-text-muted">{t('panelLoading')}</div>
+        ) : data.notes.length === 0 ? (
+          <div className="px-4 py-6 text-[12.5px] text-text-2">{t('panelEmpty')}</div>
+        ) : hayNuevas || verHistorial ? (
+          <ReleaseTimeline
+            notes={data.notes}
+            labels={{ today: t('today'), yesterday: t('yesterday') }}
+          />
+        ) : (
+          <div className="px-4 py-8 flex flex-col items-center gap-3 text-center">
+            <Check className="w-7 h-7 text-emerald opacity-70" aria-hidden="true" />
+            <div>
+              <p className="text-[13px] font-semibold text-text-1">{t('seenAll')}</p>
+              <p className="text-[11.5px] text-text-muted mt-0.5">{t('panelUpToDateHint')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVerHistorial(true)}
+              className="text-[11.5px] font-semibold text-brand-text hover:underline"
+            >
+              {t('panelSeeRecent')}
+            </button>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </SideDrawer>
     </>
   );
 }

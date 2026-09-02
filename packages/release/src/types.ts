@@ -10,6 +10,30 @@ export interface ReleaseNote {
   text: string;
   /** Para el icono. Los tipos internos nunca llegan aca. */
   kind: 'FEAT' | 'FIX';
+  /**
+   * Publicada DESPUES de la ultima vez que este usuario miro el buzon.
+   *
+   * Se marca en negrita, el mismo lenguaje que usa la bandeja de mensajes para
+   * lo no leido. Sin esto, 58 notas se leen todas iguales y no hay forma de
+   * saber cual es la que todavia no viste.
+   *
+   * En el modal post-reload viene siempre `true`: ahi todo es, por definicion,
+   * lo que acaba de salir.
+   */
+  isNew: boolean;
+  /**
+   * Instante del deploy que la trajo (ISO).
+   *
+   * La campana ordena y agrupa por DIA, no por modulo: un changelog es
+   * cronologico por naturaleza y agrupar por modulo dejaba lo mas nuevo
+   * enterrado en el grupo doce, en orden alfabetico.
+   *
+   * El agrupado se hace en el CLIENTE, que es quien conoce la zona de la
+   * clinica (`ZONA_CLINICA`). Aca solo viaja el instante.
+   */
+  date: string;
+  /** Etiqueta del modulo, ya traducida. En la vista cronologica es un chip. */
+  moduleLabel: string;
 }
 
 /** Un grupo de notas del mismo modulo. */

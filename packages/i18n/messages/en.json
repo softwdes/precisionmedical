@@ -1469,7 +1469,12 @@
       "panelEmpty": "Nothing published for you yet.",
       "panelError": "Could not load the updates.",
       "seenAll": "All caught up",
-      "panelLoading": "Loading..."
+      "panelLoading": "Loading...",
+      "panelClose": "Close",
+      "panelSeeRecent": "See recent",
+      "panelUpToDateHint": "Nothing new since you last looked.",
+      "today": "Today",
+      "yesterday": "Yesterday"
     },
     "nav": {
       "clinicalNotes": "Clinical notes",
@@ -4394,6 +4399,7 @@
       "btnDownloadQr": "Download QR",
       "btnCopyLink": "Copy link",
       "archivosSubtitle": "Photos and personal files for this patient.",
+      "photoEdit": "Change patient photo",
       "photoSlotSelfie": "Patient photo",
       "photoSlotInsCardFront": "Insurance card (Front)",
       "photoSlotInsCardBack": "Insurance card (Back)",

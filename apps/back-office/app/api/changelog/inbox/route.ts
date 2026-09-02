@@ -52,7 +52,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       audience,
       unseen: inbox.unseen,
       count: inbox.count,
-      modules: inbox.modules,
+      notes: inbox.notes,
       debut: inbox.debut,
       since: inbox.since.toISOString(),
     },

@@ -9,7 +9,7 @@ import { db } from './index';
 import { traducirPendientes } from './release-translate';
 import { moduleLabel } from '@precision/release/modules';
 import type { Audience } from '@precision/release/audience';
-import type { NoteLocale, ReleaseModuleGroup } from '@precision/release/types';
+import type { NoteLocale, ReleaseModuleGroup, ReleaseNote } from '@precision/release/types';
 import type { ReleaseAudience, ReleaseNoteKind } from '@prisma/client';
 
 /** Las audiencias que nunca reciben notas (el paciente). */
@@ -77,11 +77,23 @@ async function resolveFrom(app: string, since: string, bootAt?: string): Promise
  * no en como se arma la lista: sacarlo aca evita que las dos vistas del mismo
  * changelog se separen con el tiempo.
  */
-async function agrupar(
-  entries: Array<{ id: string; kind: ReleaseNoteKind; module: string; textEs: string; textEn: string | null }>,
-  locale: NoteLocale,
-): Promise<{ modules: ReleaseModuleGroup[]; count: number }> {
+type EntradaCruda = {
+  id: string;
+  kind: ReleaseNoteKind;
+  module: string;
+  textEs: string;
+  textEn: string | null;
+  isNew: boolean;
+  date: string;
+};
 
+/**
+ * Entradas crudas -> notas listas para mostrar, traduciendo lo que falte.
+ *
+ * Separado de los agrupadores porque las DOS vistas lo necesitan igual y ninguna
+ * de las dos tiene que saber como se resuelve el idioma.
+ */
+async function resolverNotas(entries: EntradaCruda[], locale: NoteLocale): Promise<ReleaseNote[]> {
   // En inglés, traducir lo que falte — una vez en la vida de cada nota. Los
   // commits están en español y siempre lo van a estar; mostrarle español a
   // alguien con la app en inglés se veía roto. Si no hay proveedor o falla,
@@ -95,35 +107,44 @@ async function agrupar(
         )
       : new Map<string, string>();
 
-  // Un solo grupo por módulo, aunque las notas vengan de varios deploys.
-  const groups = new Map<string, ReleaseModuleGroup>();
-  let count = 0;
+  return entries.map((entry) => ({
+    id: entry.id,
+    kind: entry.kind,
+    isNew: entry.isNew,
+    date: entry.date,
+    moduleLabel: moduleLabel(entry.module, locale),
+    // Si falta el inglés cae al español antes que mostrar un hueco.
+    text:
+      locale === 'en'
+        ? (entry.textEn ?? traducidas.get(entry.id) ?? entry.textEs)
+        : entry.textEs,
+  }));
+}
 
-  for (const entry of entries) {
-    const group = groups.get(entry.module) ?? {
-      module: entry.module,
-      moduleLabel: moduleLabel(entry.module, locale),
-      notes: [],
-    };
-    group.notes.push({
-      id: entry.id,
-      kind: entry.kind,
-      // Si falta el inglés cae al español antes que mostrar un hueco.
-      text:
-        locale === 'en'
-          ? (entry.textEn ?? traducidas.get(entry.id) ?? entry.textEs)
-          : entry.textEs,
-    });
-    groups.set(entry.module, group);
-    count += 1;
+/**
+ * Notas -> grupos por modulo. Lo usa SOLO el modal post-reload.
+ *
+ * Ahi el agrupado por modulo si sirve: son las notas de UN deploy, asi que la
+ * fecha es la misma para todas y lo unico que las diferencia es donde se ven.
+ */
+function agruparPorModulo(
+  notas: ReleaseNote[],
+  entries: EntradaCruda[],
+): ReleaseModuleGroup[] {
+  const claves = new Map(entries.map((e) => [e.id, e.module]));
+  const groups = new Map<string, ReleaseModuleGroup>();
+
+  for (const nota of notas) {
+    const clave = claves.get(nota.id) ?? 'other';
+    const group = groups.get(clave) ?? { module: clave, moduleLabel: nota.moduleLabel, notes: [] };
+    group.notes.push(nota);
+    groups.set(clave, group);
   }
 
   // `other` último: es el cajón de lo que el mapa de scopes no reconoció.
-  const modules = [...groups.values()].sort((a, b) =>
+  return [...groups.values()].sort((a, b) =>
     a.module === 'other' ? 1 : b.module === 'other' ? -1 : a.moduleLabel.localeCompare(b.moduleLabel),
   );
-
-  return { modules, count };
 }
 
 /** Lo publicado después de que arrancó la pestaña, unificado por módulo. */
@@ -148,6 +169,7 @@ export async function getChangelog(
     // Techo por si alguien vuelve después de meses sin abrir la app.
     take: 20,
     select: {
+      deployedAt: true,
       entries: {
         // `needsReview` NO se muestra. El script del build publica el release
         // solo, pero lo que no pudo decidir —scope sin mapear, audiencia
@@ -164,21 +186,44 @@ export async function getChangelog(
     },
   });
 
-  const entries = releases.flatMap((release) => release.entries);
+  // El modal post-reload solo muestra lo publicado desde que arranco la pestaña:
+  // ahi todo es nuevo, no hay nada viejo con que contrastarlo.
+  const entries = releases.flatMap((release) =>
+    release.entries.map((entry) => ({
+      ...entry,
+      isNew: true,
+      date: release.deployedAt.toISOString(),
+    })),
+  );
 
-  return agrupar(entries, locale);
+  const notas = await resolverNotas(entries, locale);
+  return { modules: agruparPorModulo(notas, entries), count: notas.length };
 }
 
 
 /**
- * Cuantos releases mira el buzon hacia atras.
+ * Cuanta historia muestra el buzon, EN DIAS.
  *
- * 60 y no 20: la cadencia real de este repo son ~5 deploys por dia (75 releases
- * de back-office en las dos semanas que lleva el sistema), asi que 20 serian
- * cuatro dias de historia y el panel se veria vacio de contenido viejo. Con 60
- * se cubre practicamente todo lo publicado hasta hoy.
+ * Antes era un tope de 60 releases, y ese numero mentia: expresado en deploys,
+ * su significado en TIEMPO se mueve con la cadencia del equipo. Medido el
+ * 2026-09-01, back-office lleva 7.6 deploys por dia activo con picos de 18 — un
+ * dia cargado se come tres dias de tope y una semana tranquila lo estira a dos
+ * meses. Nadie podia predecir que iba a ver. Y ya estaba saturado: 61 releases
+ * contra un tope de 60, asi que el mas viejo se caia por el borde en silencio.
+ *
+ * Una fecha no cambia de significado. 30 dias y no menos porque la pantalla de
+ * Configuracion -> Releases, que es el archivo completo, es SOLO ADMIN: para un
+ * provider o un abogado esta campana es el unico lugar donde existe la historia.
+ * Bajarlo pide darles antes una pantalla propia.
  */
-const HISTORIAL_RELEASES = 60;
+export const DIAS_HISTORIAL = 30;
+
+/**
+ * Techo duro de filas, por las dudas. No es la politica —la politica es la
+ * ventana de arriba— sino un seguro contra una consulta enorme si algun dia se
+ * despliega cientos de veces en un mes.
+ */
+const TOPE_RELEASES = 400;
 
 /**
  * Cuantos dias mira hacia atras quien NUNCA abrio el buzon.
@@ -202,7 +247,8 @@ export interface InboxQuery {
 }
 
 export interface Inbox {
-  modules: ReleaseModuleGroup[];
+  /** Las notas, de la mas nueva a la mas vieja. El cliente las agrupa por dia. */
+  notes: ReleaseNote[];
   /** Cuantas notas trae el panel (la historia). */
   count: number;
   /** Cuantas de esas son posteriores a `seenAt`. Es lo que cuenta el badge. */
@@ -232,13 +278,22 @@ export async function getInbox(query: InboxQuery): Promise<Inbox> {
   const since = seenAt ?? new Date(Date.now() - DIAS_DEBUT * 24 * 60 * 60 * 1000);
 
   if (SILENT.includes(audience)) {
-    return { modules: [], count: 0, unseen: 0, since, debut };
+    return { notes: [], count: 0, unseen: 0, since, debut };
   }
 
+  // El borde de la ventana. Lo mas viejo que esto no se muestra — sigue en la
+  // base y en Configuracion -> Releases, solo no satura la campana.
+  const desde = new Date(Date.now() - DIAS_HISTORIAL * 24 * 60 * 60 * 1000);
+
   const releases = await db.release.findMany({
-    where: { app, status: "PUBLISHED", publishedAt: { not: null } },
+    where: {
+      app,
+      status: "PUBLISHED",
+      publishedAt: { not: null },
+      deployedAt: { gte: desde },
+    },
     orderBy: { deployedAt: "desc" },
-    take: HISTORIAL_RELEASES,
+    take: TOPE_RELEASES,
     select: {
       deployedAt: true,
       entries: {
@@ -259,12 +314,22 @@ export async function getInbox(query: InboxQuery): Promise<Inbox> {
     .filter((release) => release.deployedAt > since)
     .reduce((total, release) => total + release.entries.length, 0);
 
-  const { modules, count } = await agrupar(
-    releases.flatMap((release) => release.entries),
-    locale,
+  // La bandera se decide por RELEASE y no por nota: lo que hace nueva a una
+  // linea es el deploy que la trajo. Dentro de un mismo deploy son todas igual
+  // de nuevas.
+  const entries = releases.flatMap((release) =>
+    release.entries.map((entry) => ({
+      ...entry,
+      isNew: release.deployedAt > since,
+      date: release.deployedAt.toISOString(),
+    })),
   );
 
-  return { modules, count, unseen, since, debut };
+  // Ya vienen del mas nuevo al mas viejo: `orderBy` de arriba es `desc` y
+  // `flatMap` respeta ese orden. El cliente agrupa por dia con `claveDia()`.
+  const notes = await resolverNotas(entries, locale);
+
+  return { notes, count: notes.length, unseen, since, debut };
 }
 
 /** Una entrada tal como la ve /admin/releases: con los dos idiomas y las banderas. */

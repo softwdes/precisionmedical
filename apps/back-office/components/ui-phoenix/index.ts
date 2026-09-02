@@ -27,6 +27,9 @@ export type { FilterPillProps } from './filter-pill';
 export { IconAction } from './icon-action';
 export type { IconActionProps } from './icon-action';
 
+export { SideDrawer } from './side-drawer';
+export type { SideDrawerProps } from './side-drawer';
+
 export { CopyButton } from './copy-button';
 export type { CopyButtonProps } from './copy-button';
 

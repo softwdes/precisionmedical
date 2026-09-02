@@ -1469,7 +1469,12 @@
       "panelEmpty": "Todavia no hay novedades publicadas para vos.",
       "panelError": "No se pudieron cargar las novedades.",
       "seenAll": "Al dia",
-      "panelLoading": "Cargando..."
+      "panelLoading": "Cargando...",
+      "panelClose": "Cerrar",
+      "panelSeeRecent": "Ver lo reciente",
+      "panelUpToDateHint": "Nada nuevo desde la ultima vez que miraste.",
+      "today": "Hoy",
+      "yesterday": "Ayer"
     },
     "nav": {
       "clinicalNotes": "Notas clínicas",
@@ -4394,6 +4399,7 @@
       "btnDownloadQr": "Descargar QR",
       "btnCopyLink": "Copiar enlace",
       "archivosSubtitle": "Fotos y archivos personales del paciente.",
+      "photoEdit": "Cambiar la foto del paciente",
       "photoSlotSelfie": "Foto del paciente",
       "photoSlotInsCardFront": "Tarjeta de seguro (Frontal)",
       "photoSlotInsCardBack": "Tarjeta de seguro (Posterior)",

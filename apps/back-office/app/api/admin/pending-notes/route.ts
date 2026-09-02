@@ -26,6 +26,7 @@ import { db, Prisma } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { wherePendientes, antiguedadEnDias } from '@/lib/notes-audit';
 
 /** Tope de la lista. El conteo total va aparte y sin tope. */
 const LIMIT = 200;
@@ -61,26 +62,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     providerId = provider.id;
   }
 
+  // El criterio vive en `lib/notes-audit.ts` y NO acá: lo comparten esta cola, el
+  // KPI de Mi Día y la pantalla de supervisión del admin. Escrito a mano en cada
+  // una, "pendiente" se separa en el primer cambio y el doctor termina viendo un
+  // número distinto al de su admin sobre exactamente los mismos datos.
   const where: Prisma.AppointmentWhereInput = {
-    // Una cita cancelada o a la que el paciente no vino no debe nota.
-    status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-    AND: [
-      // Atendida: llegó, o el flujo avanzó. Las citas futuras no cuentan.
-      {
-        OR: [
-          { checkedInAt: { not: null } },
-          { status: { in: ['IN_PROGRESS', 'COMPLETED'] } },
-        ],
-      },
-      // Sin nota, o con la nota abierta.
-      {
-        OR: [
-          { visitNote: { is: null } },
-          { visitNote: { status: 'DRAFT' } },
-        ],
-      },
-    ],
-    ...(providerId ? { providerId } : {}),
+    AND: [wherePendientes(), ...(providerId ? [{ providerId }] : [])],
   };
 
   const [rows, total] = await Promise.all([
@@ -100,9 +87,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     db.appointment.count({ where }),
   ]);
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
   const notes: PendingNoteRow[] = rows.map((a) => ({
     appointmentId: a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -113,9 +97,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     providerName: a.provider ? `${a.provider.firstName} ${a.provider.lastName}`.trim() : null,
     providerUserId: a.provider?.userId ?? null,
     hasDraft: !!a.visitNote,
-    // Días desde la visita, contra el inicio de HOY: una visita de esta mañana
-    // da 0 y no "0,3 días".
-    ageDays: Math.max(0, Math.floor((startOfToday.getTime() - a.scheduledFor.getTime()) / 86_400_000)),
+    // La fórmula también sale del helper: dos versiones daban antigüedades
+    // distintas para la misma visita según qué pantalla la mostrara.
+    ageDays: antiguedadEnDias(a.scheduledFor),
   }));
 
   return NextResponse.json({

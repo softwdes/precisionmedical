@@ -65,6 +65,16 @@ const SECTIONS: NavSection[] = [
  * no se filtra con el resto de los menús (que se ven salvo `false`) sino con la
  * capacidad `canViewAsDoctor`, que exige un sí explícito.
  */
+/**
+ * Supervisión de notas. Igual que el Portal Médico, NO lleva `moduleKey`: no se
+ * filtra con el resto de los menús (que se ven salvo `false`) sino con la
+ * capacidad `canAuditNotes`, que exige un sí explícito. La pantalla lista al
+ * paciente de todos los providers.
+ */
+const NOTES_AUDIT_ITEM: NavItem = {
+  href: '/notes', icon: FileText, labelKey: 'clinicalNotes',
+};
+
 const DOCTOR_PORTAL_ITEM: NavItem = {
   href: '/doctor', icon: Stethoscope, labelKey: 'doctorPortal', exact: true,
 };
@@ -117,12 +127,14 @@ interface SidebarProps {
   allowedModules?: Record<string, boolean> | null;
   /** Capacidad "ver como doctor" — agrega el Portal Médico al menú administrativo. */
   canViewAsDoctor?: boolean;
+  /** Capacidad "supervisión de notas" — agrega Notas clínicas. También opt-in. */
+  canAuditNotes?: boolean;
   /** Bloque libre entre el menú y el footer. Lo usa el Portal Legal para la
    *  tarjeta de oficina; se oculta con la barra colapsada, donde no hay ancho. */
   belowNav?: React.ReactNode;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, belowNav = null }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, belowNav = null }: SidebarProps): React.ReactElement {
   /*
    * Colapsada, la barra se abre sola al pasar el mouse y se vuelve a cerrar al
    * salir — como Gmail. El boton de la barra superior es lo que la FIJA abierta.

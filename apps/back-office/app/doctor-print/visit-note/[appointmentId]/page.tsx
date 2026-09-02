@@ -18,6 +18,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
+import { canAuditNotesFor } from '@/lib/notes-audit-access';
 import { getSessionUser } from '@/lib/session';
 import { nombreProvider } from '@/lib/provider-name';
 
@@ -92,8 +93,16 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
   // El perfil se lee con `getOwnSessionProvider`: el propio, sin la cookie de
   // "ver como otro". Esa cookie vale solo dentro de /doctor — si acá se colara,
   // un admin que revisó el portal del Dr. X no podría imprimir nada de nadie más.
+  //
+  // Vale CUALQUIERA de las dos capacidades. Quien supervisa las notas
+  // (`/notes`) puede no tener el Portal Médico —son cosas distintas: una es
+  // suplantar a un médico, la otra es auditar lo que escribió— y sin esto veía
+  // la lista completa y no podía abrir una sola nota. Un callejón, no un
+  // permiso.
   const user = await getSessionUser();
-  const esStaff = user?.email ? await canViewAsDoctor(user.email) : false;
+  const esStaff = user?.email
+    ? (await canViewAsDoctor(user.email)) || (await canAuditNotesFor(user.email))
+    : false;
   const propio = esStaff ? null : await getOwnSessionProvider();
   // Ni staff ni ficha de doctor: no hay nada que pueda imprimir. Sin esto el
   // `propio` en null abriría la consulta a cualquier cita — el caso vacío no

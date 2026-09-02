@@ -30,6 +30,8 @@ interface AdminShellProps {
   /** Capacidad "ver como doctor": agrega el Portal Médico al menú. Va aparte de
    *  `allowedModules` porque ahí null significa "ve todo" y esta es opt-in. */
   canViewAsDoctor?: boolean;
+  /** Capacidad "supervisión de notas": agrega Notas clínicas al menú. Opt-in. */
+  canAuditNotes?: boolean;
   /** Bloque libre al pie del menú lateral (Portal Legal: tarjeta de oficina). */
   sidebarBelowNav?: React.ReactNode;
 }

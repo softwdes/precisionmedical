@@ -4,6 +4,7 @@ import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
+import { NOTES_AUDIT_MODULE } from '@/lib/notes-audit-module';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
@@ -44,6 +45,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // es "se ve salvo false" y un mapa nulo significa "ve todo", regla que no puede
   // regalar la suplantación de un médico. Acá solo cuenta el sí explícito.
   let canViewAsDoctor = false;
+  // Misma disciplina que arriba: la supervisión de notas lista al paciente de
+  // TODOS los providers, así que tampoco puede salir de un mapa nulo.
+  let canAuditNotes = false;
 
   try {
     const admin = createAdminClient();
@@ -63,6 +67,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         allowedModules = await fetchUserClinicModules(user.email);
       }
       canViewAsDoctor = isAdminRole || allowedModules?.[DOCTOR_VIEW_MODULE] === true;
+      canAuditNotes   = isAdminRole || allowedModules?.[NOTES_AUDIT_MODULE] === true;
     }
   } catch {
     // fallback: inicial del email
@@ -85,6 +90,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userEmail={user.email ?? ''}
         allowedModules={allowedModules}
         canViewAsDoctor={canViewAsDoctor}
+        canAuditNotes={canAuditNotes}
       >
         {children}
       </AdminShell>

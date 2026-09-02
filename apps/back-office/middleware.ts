@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
 import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
+import { NOTES_AUDIT_MODULE } from '@/lib/notes-audit-module';
 import { ATTORNEY_VIEW_MODULE } from '@/lib/attorney-view-module';
 
 /**
@@ -420,6 +421,29 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // marcada en su ficha. Es OPT-IN — "visión completa" (mods null) NO la concede,
   // porque suplantar a un médico no puede caer de la regla "se ve salvo false".
   const canViewAsDoctor = isAdminRole || mods?.[DOCTOR_VIEW_MODULE] === true;
+
+  /**
+   * Supervisión de notas (`/notes`). Mismo criterio opt-in y por el mismo
+   * motivo: la pantalla lista al paciente de TODOS los providers, así que no
+   * puede caer de "se ve salvo false".
+   *
+   * Se cierra acá ADEMÁS de en la página. El menú solo esconde, y una ruta que
+   * el middleware no conozca entra igual — la página es su propia puerta, pero
+   * cerrar el prefijo evita que una ruta nueva bajo /notes nazca abierta.
+   */
+  const canAuditNotes = isAdminRole || mods?.[NOTES_AUDIT_MODULE] === true;
+  const isNotesArea =
+    pathname === '/notes' ||
+    pathname.startsWith('/notes/') ||
+    // La API va en el MISMO candado: la exportación saca PHI del sistema y
+    // esconder el menú no cierra una URL.
+    pathname.startsWith('/api/admin/notes/');
+  if (isNotesArea && !canAuditNotes) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
 
   // Por providers.* solo entra quien tiene el portal médico. El resto del staff
   // recibe "sin acceso" explícito en el mismo dominio — no se lo rebota en silencio.

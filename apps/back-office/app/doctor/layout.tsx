@@ -6,6 +6,7 @@ import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { getSessionProvider, getDoctorViewInfo } from '@/lib/get-session-provider';
+import { canAuditNotes } from '@/lib/notes-audit-access';
 import { getSessionUser } from '@/lib/session';
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
 import { DoctorViewBar } from './doctor-view-bar';
@@ -21,11 +22,15 @@ import { DoctorViewBar } from './doctor-view-bar';
 export default async function DoctorLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
   // Ambas están memorizadas por request (lib/session.ts) — el usuario se
   // resuelve una sola vez para todo el árbol, no una por componente.
-  const [user, provider, viewInfo, t] = await Promise.all([
+  const [user, provider, viewInfo, t, puedeAuditarNotas] = await Promise.all([
     getSessionUser(),
     getSessionProvider(),
     getDoctorViewInfo(),
     getTranslations('phoenix.doctor'),
+    // "Notas clínicas" en el menú: es la pantalla del médico ADMINISTRADOR, el
+    // que supervisa a los providers y no entra al back-office. Un médico común
+    // no la ve — es opt-in, ver `canAuditNotes`.
+    canAuditNotes(),
   ]);
   if (!user) redirect('/login');
 
@@ -82,6 +87,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
         userRole={viewInfo.isViewAs ? t('viewAsRole') : 'Provider'}
         userInitials={initials}
         userEmail={provider.email}
+        canAuditNotes={puedeAuditarNotas}
       >
         {/* La barra sale con la CAPACIDAD, no con la suplantación: quien puede
             elegir médico tiene que poder hacerlo también cuando está en su propia

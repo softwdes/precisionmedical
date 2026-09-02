@@ -432,13 +432,12 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
    * cerrar el prefijo evita que una ruta nueva bajo /notes nazca abierta.
    */
   const canAuditNotes = isAdminRole || mods?.[NOTES_AUDIT_MODULE] === true;
-  const isNotesArea =
-    pathname === '/notes' ||
-    pathname.startsWith('/notes/') ||
-    // La API va en el MISMO candado: la exportación saca PHI del sistema y
-    // esconder el menú no cierra una URL.
-    pathname.startsWith('/api/admin/notes/');
-  if (isNotesArea && !canAuditNotes) {
+  // La PANTALLA vive en `/doctor/notes` y se cierra sola: acá no se puede,
+  // porque los roles del portal (DOCTOR/PROVIDER) ya salieron por su rama, más
+  // arriba, antes de que `mods` se resuelva. La API sí se cierra para el staff
+  // del back-office, que es quien llega hasta esta línea — la exportación saca
+  // PHI y esconder un menú no cierra una URL.
+  if (pathname.startsWith('/api/admin/notes/') && !canAuditNotes) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     url.search = '';

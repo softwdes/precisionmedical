@@ -66,13 +66,18 @@ const SECTIONS: NavSection[] = [
  * capacidad `canViewAsDoctor`, que exige un sí explícito.
  */
 /**
- * Supervisión de notas. Igual que el Portal Médico, NO lleva `moduleKey`: no se
- * filtra con el resto de los menús (que se ven salvo `false`) sino con la
- * capacidad `canAuditNotes`, que exige un sí explícito. La pantalla lista al
- * paciente de todos los providers.
+ * Supervisión de notas — vive en el PORTAL MÉDICO, no en el back-office.
+ *
+ * Quien la usa es un médico administrador: supervisa a los providers y **no
+ * entra al back-office**, ahí no tiene nada que hacer (Erick, 1-sep-2026).
+ *
+ * NO lleva `moduleKey`: no se filtra con el resto de los menús (que se ven salvo
+ * `false`) sino con la capacidad `canAuditNotes`, que exige un sí explícito. La
+ * pantalla lista al paciente de TODOS los providers, y acá importa el doble: el
+ * resto de este menú es el de un médico común, que no debe verla.
  */
 const NOTES_AUDIT_ITEM: NavItem = {
-  href: '/notes', icon: FileText, labelKey: 'clinicalNotes',
+  href: '/doctor/notes', icon: FileText, labelKey: 'clinicalNotes',
 };
 
 const DOCTOR_PORTAL_ITEM: NavItem = {
@@ -160,19 +165,15 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
         items: s.items.filter((i) => !i.moduleKey || allowedModules[i.moduleKey] !== false),
       }))
     : baseSections;
-  // Los dos ítems por CAPACIDAD cierran el menú administrativo. Se agregan a la
-  // última sección en vez de abrir una nueva: la lista se renderiza con
-  // `titleKey` como key de React y todas las secciones de acá comparten el
-  // título vacío.
+  // Los ítems por CAPACIDAD cierran el menú. Se agregan a la última sección en
+  // vez de abrir una nueva: la lista se renderiza con `titleKey` como key de
+  // React y todas las secciones de acá comparten el título vacío.
   //
-  // Notas clínicas va antes del Portal Médico: es una pantalla de trabajo del
-  // back-office, y el portal es la puerta de salida a otro mundo.
-  const extras = !isDoctor && !isAttorney
-    ? [
-        ...(canAuditNotes ? [NOTES_AUDIT_ITEM] : []),
-        ...(canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : []),
-      ]
-    : [];
+  // Uno por portal, y no se cruzan: Notas clínicas es del médico administrador y
+  // vive en el PORTAL; la puerta al portal es del staff y vive en el back-office.
+  const extras = isDoctor
+    ? (canAuditNotes ? [NOTES_AUDIT_ITEM] : [])
+    : !isAttorney && canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : [];
   const sections = extras.length
     ? visibleSections.map((s, i) =>
         i === visibleSections.length - 1 ? { ...s, items: [...s.items, ...extras] } : s,

@@ -11,8 +11,12 @@
 
 ## 1. Qué es
 
-Una pantalla de **supervisión de notas clínicas** para quien administra a los
-providers. Responde, en este orden, las tres preguntas que se hace:
+Una pantalla de **supervisión de notas clínicas** dentro del **PORTAL MÉDICO**
+(`/doctor/notes`), no del back-office. Quien la usa es un **médico
+administrador**: supervisa a los providers y no entra al back-office, ahí no
+tiene nada que hacer (Erick, 1-sep-2026).
+
+Para quien administra a los providers. Responde, en este orden, las tres preguntas que se hace:
 
 1. **¿Quién está atrasado?** — deuda por provider.
 2. **¿Qué falta exactamente?** — la lista de visitas sin nota o con la nota abierta.
@@ -117,19 +121,19 @@ como en Pacientes: recargar reproduce la vista y el link se puede pasar por chat
 |---|---|
 | `apps/back-office/lib/notes-audit-module.ts` | La llave de la capacidad. **Sin imports** — la comparten el middleware (Edge) y los server components (Node), igual que `doctor-view-module.ts` |
 | `apps/back-office/lib/notes-audit.ts` | El **where compartido**: qué cita califica y cómo se deriva el estado. Lo consumen la pantalla nueva Y `/api/admin/pending-notes` |
-| `apps/back-office/app/(admin)/notes/page.tsx` | Server component: lee searchParams, arma los filtros |
-| `apps/back-office/app/(admin)/notes/notes-data.tsx` | La query + paginación + los conteos. Espejo de `patients-data.tsx` |
-| `apps/back-office/app/(admin)/notes/notes-client.tsx` | Barra de filtros + tabla + resumen por provider |
-| `apps/back-office/app/(admin)/notes/loading.tsx` | Regla #1 |
+| `apps/back-office/app/doctor/notes/page.tsx` | Server component: lee searchParams, arma los filtros |
+| `apps/back-office/app/doctor/notes/notes-data.tsx` | La query + paginación + los conteos. Espejo de `patients-data.tsx` |
+| `apps/back-office/app/doctor/notes/notes-client.tsx` | Barra de filtros + tabla + resumen por provider |
+| `apps/back-office/app/doctor/notes/loading.tsx` | Regla #1 |
 
 ### Modificados
 
 | Archivo | Cambio |
 |---|---|
-| `app/(admin)/layout.tsx` | Resolver `canAuditNotes` junto a `canViewAsDoctor` (~línea 65) y pasarlo al shell |
+| `app/doctor/layout.tsx` | Resolver `canAuditNotes` y pasarlo al shell. **El layout del PORTAL, no el del back-office** |
 | `components/layout/admin-shell.tsx` | Nueva prop, como `canViewAsDoctor` |
-| `components/layout/sidebar.tsx` | Ítem nuevo con el patrón de `DOCTOR_PORTAL_ITEM` — **sin `moduleKey`**, ver §7 |
-| `middleware.ts` | Cerrar `/notes` y `/api/admin/notes*` con la capacidad. El menú solo esconde, no cierra |
+| `components/layout/sidebar.tsx` | Ítem nuevo en `DOCTOR_SECTIONS`, sin `moduleKey` — ver §7 |
+| `middleware.ts` | Cerrar `/api/admin/notes/*`. La PANTALLA no se puede cerrar ahí: los roles del portal salen por su rama antes de que `mods` se resuelva, así que la cierra la página |
 | `app/api/admin/pending-notes/route.ts` | Pasar a usar el where de `lib/notes-audit.ts`. **Sin esto hay dos definiciones de "pendiente" y se separan** |
 | `app/doctor-print/visit-note/[appointmentId]/page.tsx` | Aceptar también la capacidad nueva — ver §7 |
 | `packages/i18n/messages/{es,en}.json` | Claves nuevas |

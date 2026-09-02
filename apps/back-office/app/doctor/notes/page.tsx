@@ -33,7 +33,10 @@ export default async function NotesPage({
     desde?: string; hasta?: string; antiguedad?: string; q?: string; page?: string;
   }>;
 }): Promise<React.ReactElement> {
-  if (!(await canAuditNotes())) redirect('/dashboard');
+  // A `/doctor`, no a `/dashboard`: quien entra acá vive en el portal y un rol
+  // DOCTOR/PROVIDER no tiene back-office — el middleware lo devolvería igual, y
+  // un rebote en dos saltos se ve como una pantalla rota.
+  if (!(await canAuditNotes())) redirect('/doctor');
 
   const sp = await searchParams;
 

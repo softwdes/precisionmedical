@@ -829,14 +829,22 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
  */
 const DOCTOR_MENU_PREFIX = 'doctor:';
 
+/**
+ * Las etiquetas son las del SIDEBAR del portal, no las que suenen bien acá: si
+ * el admin desmarca "Calendario" y al provider le desaparece un menú que dice
+ * "Citas", el que configura no puede saber qué apagó. Salen de
+ * `packages/i18n` (`phoenix.doctor.nav.*`) — dos ya se habían escrito mal:
+ * `calendar` es **Citas** (no "Calendario") y `catalog` es **Laboratorios**
+ * (no "Catálogo").
+ */
 const DOCTOR_MODULES: Array<{ key: string; label: string; emoji: string }> = [
-  { key: 'myday',         label: 'Mi Día',       emoji: '☀️' },
-  { key: 'calendar',      label: 'Calendario',   emoji: '📅' },
+  { key: 'myday',         label: 'Mi Día',        emoji: '☀️' },
+  { key: 'calendar',      label: 'Citas',         emoji: '📅' },
   { key: 'patients',      label: 'Mis Pacientes', emoji: '👥' },
-  { key: 'prescriptions', label: 'Recetas',      emoji: '💊' },
-  { key: 'stats',         label: 'Estadísticas', emoji: '📈' },
-  { key: 'templates',     label: 'Plantillas',   emoji: '📄' },
-  { key: 'catalog',       label: 'Catálogo',     emoji: '🧪' },
+  { key: 'prescriptions', label: 'Recetas',       emoji: '💊' },
+  { key: 'stats',         label: 'Estadísticas',  emoji: '📈' },
+  { key: 'templates',     label: 'Plantillas',    emoji: '📄' },
+  { key: 'catalog',       label: 'Laboratorios',  emoji: '🧪' },
 ];
 
 const doctorMenuKey = (key: string): string => `${DOCTOR_MENU_PREFIX}${key}`;
@@ -866,10 +874,16 @@ const ATTORNEY_VIEW_MODULE = 'attorney';
  * medias — y puede abrirlas.
  *
  * Misma regla invertida que las dos de arriba, y acá importa más que en ninguna:
- * si esta llave viviera en el bloque de menús —donde vale "se ve salvo que esté
- * apagado"— se le abriría sola a cada empleado nuevo, con nombre de paciente y
- * contenido clínico adentro. Solo cuenta un `true` explícito. Espejo de
- * `apps/back-office/lib/notes-audit-module.ts`.
+ * si valiera "se ve salvo que esté apagado" como los otros siete menús del
+ * portal, se le abriría sola a cada provider —hoy 9, ninguno la tiene— con
+ * nombre de paciente y contenido clínico adentro. Solo cuenta un `true`
+ * explícito. Espejo de `apps/back-office/lib/notes-audit-module.ts`.
+ *
+ * OJO al leer la pantalla: la casilla SE DIBUJA dentro de la tarjeta "Portal
+ * Médico — Visibilidad", junto a los menús, porque es un menú del portal y
+ * buscarlo en otra tarjeta no tenía sentido (Erick, 1-sep). Pero está fuera de
+ * la grilla y con su propia línea divisoria, y la llave sigue siendo
+ * `notesAudit` y no `doctor:notes` — la mudanza fue visual, la regla no cambió.
  *
  * Los ADMIN y SUPER_ADMIN NO la necesitan: `canAuditNotes()` se la da por rol.
  * Esta casilla es para dársela a alguien que no es admin — típicamente un
@@ -1126,6 +1140,71 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                   </p>
                 </div>
               )}
+
+              {/* ── Notas clínicas: el octavo menú, pero al revés ──
+                  Vive en esta tarjeta porque es un menú del portal y configurarlo
+                  en otro lado obligaba a buscarlo. Pero NO entra en la grilla de
+                  arriba y por eso se dibuja aparte, con su línea:
+
+                  · Los otros siete son "se ve salvo que lo desmarques". Este es
+                    "no se ve salvo que lo marques" — adentro están los pacientes
+                    y las notas de TODOS los providers, y eso no puede caer de un
+                    default. Hoy hay 9 cuentas de provider y ninguna lo tiene.
+                  · Se muestra SIEMPRE, también con "Visión completa" encendida.
+                    Si dependiera de la grilla, la visión completa lo escondería y
+                    no habría forma de dárselo a nadie sin antes recortarle menús.
+
+                  La llave sigue siendo `notesAudit`, no `doctor:notes`: así
+                  `canAuditNotes()` y el gate de la página siguen igual. Esto es
+                  una mudanza de la casilla, no un cambio de las reglas. */}
+              <div className="pt-1 border-t border-border/60 space-y-2">
+                <label className="flex items-start gap-2.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-surface transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={notesAudit}
+                    onChange={() => setNotesAudit(v => !v)}
+                    className="mt-0.5 h-3.5 w-3.5 accent-violet-500"
+                  />
+                  <span className="text-[11px] w-4 text-center">🗂️</span>
+                  <span className="min-w-0">
+                    <span className="block text-[12.5px] text-text-2">Notas clínicas</span>
+                    <span className="block text-[11px] text-text-muted">
+                      Supervisión. No se da por defecto: hay que marcarlo.
+                    </span>
+                  </span>
+                </label>
+
+                {notesAudit && (
+                  <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2">
+                    {/**
+                      * El texto va con `text-text-2` y no con un ámbar fijo: esta
+                      * pantalla tiene tema claro y `amber-400` da 1.54:1 ahí — el
+                      * aviso que explica qué acceso estás dando quedaba ilegible
+                      * justo donde hay que leerlo. `text-2` da 9.58 en claro y
+                      * 11.29 en oscuro. El ámbar se queda en el borde y el fondo,
+                      * que es lo que carga el significado de advertencia.
+                      *
+                      * (Análisis original de otra sesión, conservado al mudar la
+                      * casilla. El borde y el fondo sí cambiaron de `amber-500/30`
+                      * a `amber/30`: la clave plana del preset hace que la forma
+                      * numerada no emita CSS y el aviso salía sin color.)
+                      */}
+                    <p className="text-[11px] text-text-2 leading-relaxed">
+                      Ve las notas clínicas de TODOS los providers, con nombre de paciente, y
+                      puede editar los borradores — firmarlas no, eso es del médico. Si su rol
+                      es Doctor o Provider tampoco puede sellar desenlaces de citas ajenas: el
+                      botón le aparece bloqueado con el motivo.
+                    </p>
+                  </div>
+                )}
+
+                {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+                  <p className="px-2 text-[11px] text-text-muted leading-relaxed">
+                    Esta cuenta ya la tiene por su rol de administrador — la casilla no le
+                    agrega nada.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* ── Portal Médico: capacidad de "ver como doctor" ── */}
@@ -1134,11 +1213,16 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Portal Médico — Ver como doctor</p>
+                  {/* Sin el prefijo "Portal Médico —": con el bloque de menús
+                      arriba quedaban DOS tarjetas que empezaban igual y se leían
+                      como la misma cosa repetida. Y el prefijo era justo lo que
+                      hacía pensar que este switch daba el portal — la palabra que
+                      importa es OTRO. */}
+                  <p className="text-sm font-medium text-text-1">Ver como OTRO doctor</p>
                   <p className="text-[11px] text-text-muted">
                     {doctorView
-                      ? 'Puede abrir el portal y elegir el médico que quiere ver.'
-                      : 'Sin acceso al portal médico.'}
+                      ? 'Puede entrar al portal de cualquier otro médico y trabajar a su nombre.'
+                      : 'Solo su propio portal (si es provider). No suplanta a nadie.'}
                   </p>
                 </div>
                 <button
@@ -1166,11 +1250,11 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Portal Legal — Ver como bufete</p>
+                  <p className="text-sm font-medium text-text-1">Ver como OTRO bufete</p>
                   <p className="text-[11px] text-text-muted">
                     {attorneyView
-                      ? 'Puede abrir el portal y elegir el bufete y la persona que quiere ver.'
-                      : 'Sin acceso al portal legal.'}
+                      ? 'Puede entrar al portal de cualquier bufete y trabajar a su nombre.'
+                      : 'Solo su propio despacho (si es abogado). No suplanta a nadie.'}
                   </p>
                 </div>
                 <button
@@ -1193,67 +1277,6 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
               )}
             </div>
 
-            {/* ── Supervisión de notas clínicas ── */}
-            {/* Tercera capacidad opt-in, por el mismo motivo que las dos de arriba
-                y con más razón: adentro hay contenido clínico de todos. */}
-            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-text-1">Supervisión de notas clínicas</p>
-                  <p className="text-[11px] text-text-muted">
-                    {notesAudit
-                      ? 'Ve las notas de todos los providers y puede abrirlas.'
-                      : 'Sin acceso a la supervisión de notas.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNotesAudit(v => !v)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${notesAudit ? 'bg-cyan-500' : 'bg-border'}`}
-                  title={notesAudit ? 'Con acceso a la supervisión de notas' : 'Sin acceso a la supervisión de notas'}
-                >
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${notesAudit ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {notesAudit && (
-                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                  {/**
-                    * El texto va con `text-text-2` y no con `text-amber-400` como los
-                    * dos avisos de arriba: `amber-400` es un hex fijo y esta pantalla
-                    * tiene tema claro. Medido sobre este mismo fondo, `amber-400` da
-                    * 10:1 en oscuro pero **1.54:1 en claro** — el aviso que explica qué
-                    * acceso estás dando queda ilegible justo donde hay que leerlo.
-                    *
-                    * Ningún ámbar fijo sirve para los dos temas (amber-700 llega a 4.65
-                    * en claro y cae a 3.34 en oscuro), y `amber` no tiene variante
-                    * `-text` variable como `brand` y `violet`. `text-2` sí la tiene:
-                    * 9.58 en claro y 11.29 en oscuro. El ámbar sigue en el borde y el
-                    * fondo, que es lo que carga el significado de advertencia.
-                    *
-                    * En este mismo archivo hay un tercer patrón —`text-amber-600
-                    * dark:text-amber-400`, en las líneas 710 y 1481— que sí es
-                    * consciente del tema y es mejor que el ámbar pelado. No lo usé
-                    * porque `amber-600` sobre este fondo da 2.95:1 en claro: mejora
-                    * mucho el 1.54, pero sigue debajo del 4.5 que hace falta para leer
-                    * un párrafo.
-                    */}
-                  <p className="text-[11px] text-text-2 leading-relaxed">
-                    Ve las notas clínicas de TODOS los providers, con nombre de paciente, y
-                    puede editar los borradores — firmarlas no, eso es del médico. Si su rol
-                    es Doctor o Provider tampoco puede sellar desenlaces de citas ajenas: el
-                    botón le aparece bloqueado con el motivo.
-                  </p>
-                </div>
-              )}
-
-              {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
-                <p className="text-[11px] text-text-muted leading-relaxed">
-                  Esta cuenta ya la tiene por su rol de administrador — la casilla no le
-                  agrega nada.
-                </p>
-              )}
-            </div>
 
             {/* ── Empleado vinculado ── */}
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2">

@@ -21,6 +21,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button,
 } from '@precision/ui';
+import {
+  ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
+} from '@/components/patients/contacto-compartido-dialog';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -479,6 +482,10 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
   // UI state
   const [saving,      setSaving]      = useState(false);
+  /** Contacto ya en uso: abre el diálogo que pregunta el parentesco. */
+  const [candidatosContacto, setCandidatosContacto] = useState<CandidatoContacto[]>([]);
+  /** El modo del intento que chocó — el reintento tiene que repetirlo. */
+  const modoPendiente = useRef<SaveMode>('exit');
   const [error,       setError]       = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
@@ -522,8 +529,17 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
     setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
   }
 
-  async function handleSave(mode: SaveMode) {
+  /**
+   * @param contacto Respuesta del diálogo de contacto compartido. Solo viaja en
+   *   el reintento; con ella el servidor deja de frenar porque el contacto ya lo
+   *   revisó una persona.
+   */
+  async function handleSave(mode: SaveMode, contacto?: { vinculo: VinculoElegido | null }) {
     if (!validate()) return;
+    // El reintento del diálogo tiene que repetir el MISMO modo (guardar / enviar
+    // formulario / QR): si no, elegir "es un familiar" cambiaba lo que el botón
+    // iba a hacer.
+    modoPendiente.current = mode;
     setSaving(true);
     setError('');
 
@@ -535,6 +551,8 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Solo en el reintento — ver `handleSave`.
+          ...(contacto ? { contactoYaRevisado: true, contactLink: contacto.vinculo } : {}),
           patient: {
             firstName:         firstName.trim(),
             lastName:          lastName.trim(),
@@ -570,6 +588,15 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
+        /**
+         * El contacto ya lo usa alguien. Mismo diálogo que en el alta de caso
+         * completa — una familia que comparte el correo del papá no puede
+         * quedarse afuera solo porque entró por el alta rápida.
+         */
+        if (Array.isArray(json.candidatos) && json.candidatos.length > 0) {
+          setCandidatosContacto(json.candidatos as CandidatoContacto[]);
+          return;
+        }
         if (json.error === 'INVALID_PAYLOAD' && json.details?.fieldErrors) {
           const fields = json.details.fieldErrors as Record<string, string[]>;
           const msgs = Object.entries(fields)
@@ -903,6 +930,32 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
         )}
 
       </DialogContent>
+
+      {/* El contacto ya lo usa alguien — mismo diálogo que en el alta completa. */}
+      <ContactoCompartidoDialog
+        open={candidatosContacto.length > 0}
+        onClose={() => { setCandidatosContacto([]); setSaving(false); }}
+        candidatos={candidatosContacto}
+        nombreNuevo={[firstName.trim(), lastName.trim()].filter(Boolean).join(' ')}
+        emailNuevo={email.trim() || null}
+        telefonoNuevo={phone.trim() || null}
+        onUsarExistente={(id) => {
+          // Acá no se puede "seguir con el que existe": este diálogo SIEMPRE crea
+          // un caso nuevo. Se lleva a la ficha del paciente, que es donde se abre
+          // un caso para alguien que ya está en el sistema.
+          setCandidatosContacto([]);
+          setSaving(false);
+          router.push(`/patients/${id}`);
+        }}
+        onVincular={(v) => {
+          setCandidatosContacto([]);
+          void handleSave(modoPendiente.current, { vinculo: v });
+        }}
+        onCrearSuelto={() => {
+          setCandidatosContacto([]);
+          void handleSave(modoPendiente.current, { vinculo: null });
+        }}
+      />
     </Dialog>
   );
 }

@@ -3,13 +3,15 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall, UserPlus } from 'lucide-react';
+import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall, UserPlus, Users } from 'lucide-react';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 // Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
 // component. Mismo criterio que `@precision-medical/database/age`.
-import { normalizeRelation as normalizeRelationShared } from '@precision-medical/database/relations';
+import {
+  normalizeRelation as normalizeRelationShared, RELATION_CODES,
+} from '@precision-medical/database/relations';
 import {
   Button,
   Dialog,
@@ -80,6 +82,19 @@ export interface EditablePatient {
     firstName: string; lastName: string;
     email: string | null; phone: string | null;
   } | null;
+  /**
+   * Vínculo de contacto compartido en familia — se corrige desde este diálogo.
+   * OTRA cosa que el tutor de arriba: el tutor firma por un menor, esto es
+   * "usa el teléfono del papá".
+   */
+  contactOwnerId?:             string | null;
+  contactRelation?:            string | null;
+  sharesEmail?:                boolean;
+  sharesPhone?:                boolean;
+  contactOwner?: {
+    firstName: string; lastName: string;
+    email: string | null; phone: string | null;
+  } | null;
 }
 
 interface Props {
@@ -134,6 +149,11 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [confirmExit,  setConfirmExit]  = useState(false);
   const [emailError,   setEmailError]   = useState('');
   const [phoneError,   setPhoneError]   = useState('');
+
+  /** Corrección del vínculo de contacto compartido — ver la sección del form. */
+  const [vinculoRelacion,   setVinculoRelacion]   = useState(patient.contactRelation ?? 'SPOUSE');
+  const [vinculoAutorizado, setVinculoAutorizado] = useState(false);
+  const [vinculoQuitado,    setVinculoQuitado]    = useState(false);
   const [referralSourceOther,      setReferralSourceOther]      = useState(patient.referralSourceOther ?? '');
   const [emergency1RelationOther,  setEmergency1RelationOther]  = useState(
     () => normalizeRelation(patient.emergencyContactRelation ?? '').otherVal
@@ -336,6 +356,20 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
         body:    JSON.stringify({
           ...form,
           ...(guardianPayload !== undefined ? { guardian: guardianPayload } : {}),
+          /**
+           * El vínculo solo viaja si este paciente TIENE uno: la clave ausente
+           * significa "no lo toques", y mandarla siempre haría que cualquier
+           * edición de un paciente sin vínculo escribiera nulls encima.
+           */
+          ...(patient.contactOwner && patient.contactOwnerId ? {
+            contactLink: vinculoQuitado ? null : {
+              contactOwnerId:  patient.contactOwnerId,
+              contactRelation: vinculoRelacion,
+              sharesEmail:     patient.sharesEmail ?? false,
+              sharesPhone:     patient.sharesPhone ?? false,
+              autorizado:      vinculoAutorizado,
+            },
+          } : {}),
           sex:                     form.sex                     || null,
           maritalStatus:           form.maritalStatus           || null,
           communicationPreference: form.communicationPreference || null,
@@ -655,6 +689,67 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                 <FormField.Select label={t('fieldMarital')} value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
               </div>
             </div>
+
+            {/**
+              * ══ Contacto compartido en familia ══
+              *
+              * Solo aparece cuando el vínculo YA existe: se crea en el alta,
+              * cuando el choque de contacto pregunta el parentesco. Acá se
+              * corrige, que es lo que faltaba — un vínculo que se puede crear y
+              * nunca arreglar se pudre solo (el parentesco se equivoca, un
+              * divorcio deja de ser cónyuge, o se eligió a la persona errónea).
+              *
+              * NO es la sección del tutor legal de abajo, y por eso está
+              * separada: el tutor es quien firma por un menor.
+              */}
+            {patient.contactOwner && (
+              <div className="rounded-lg border border-cyan/30 bg-cyan/5 p-5 space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-cyan/20">
+                  <Users className="w-4 h-4 text-cyan" />
+                  <h3 className="text-sm font-semibold text-cyan">{t('linkContactSectionTitle')}</h3>
+                </div>
+
+                <p className="text-[12px] text-text-2">
+                  {t('linkContactEditing', {
+                    dueño: `${patient.contactOwner.firstName} ${patient.contactOwner.lastName}`,
+                    canal: patient.sharesEmail && patient.sharesPhone ? t('linkContactBoth')
+                         : patient.sharesEmail ? t('linkContactByEmail') : t('linkContactByPhone'),
+                  })}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField.Select
+                    label={t('linkContactRelationShort')}
+                    value={vinculoRelacion}
+                    onChange={setVinculoRelacion}
+                    options={RELATION_CODES.map((c) => ({ value: c, label: t(`relation.${c}`) }))}
+                  />
+                  <div className="flex items-end">
+                    <label className="flex items-start gap-2 text-[11.5px] text-text-2 cursor-pointer pb-2">
+                      <input
+                        type="checkbox"
+                        checked={vinculoAutorizado}
+                        onChange={(e) => setVinculoAutorizado(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 accent-emerald shrink-0"
+                      />
+                      {t('linkContactAuthorizeShort')}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Desvincular se MUESTRA y se explica, no se esconde: es la
+                    salida cuando el vínculo está mal, y esconderla obliga a
+                    convivir con un dato falso. */}
+                <button
+                  type="button"
+                  onClick={() => setVinculoQuitado(true)}
+                  disabled={vinculoQuitado}
+                  className="text-[11px] text-rose hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {vinculoQuitado ? t('linkContactWillUnlink') : t('linkContactUnlink')}
+                </button>
+              </div>
+            )}
 
             {/* ══ Legal guardian (minors only) ══ */}
             {isMinor && (

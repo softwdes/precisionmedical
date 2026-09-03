@@ -7,6 +7,40 @@
   50%       { opacity: 0; }
 }
 
+/* ─── El latido del centinela ──────────────────────────────────────────────────
+ *
+ * Un anillo que se expande sobre un punto que NUNCA se apaga, a diferencia de
+ * `blink` de arriba. Tres razones concretas para no usar un parpadeo duro en el
+ * panel de intake del dashboard:
+ *   · un punto que desaparece deja la fila sin señal la mitad del tiempo;
+ *   · el dashboard está abierto todo el día y a los pocos segundos molesta;
+ *   · con el movimiento apagado el parpadeo se va entero y no queda nada.
+ *
+ * La versión lenta es para las citas de mañana: la misma señal, un paso más
+ * abajo, para que la de HOY siga siendo la más fuerte.
+ *
+ * El rgba va en duro porque `rose` es un hex fijo del preset (no cambia por
+ * tema), y en un `box-shadow` no lleva texto encima: no hay riesgo de contraste.
+ */
+@keyframes latido {
+  0%   { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+.animate-latido        { animation: latido 1.9s ease-out infinite; }
+.animate-latido-lento  { animation: latido 3.2s ease-out infinite; }
+
+/* Nadie pierde la señal por apagar el movimiento: el latido se vuelve un anillo
+   fijo, que es la misma información sin animación. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-latido,
+  .animate-latido-lento {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.30);
+  }
+}
+
 /* ============================================
    Phoenix · Back Office · Design Tokens
    Shared with apps/web admin (consistent identity)

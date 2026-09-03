@@ -31,6 +31,7 @@ import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/com
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CaseMessagesTab } from '@/components/messaging/case-messages-tab';
 import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
+import { ContactoCompartidoNota } from '@/components/patients/contacto-compartido-nota';
 import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
@@ -89,6 +90,17 @@ interface CaseInfo {
     photoUrl: string | null;
     /** Las cuatro fotos de identificación del caso — ver `case-detail-data.ts`. */
     fotos: Record<string, string>;
+    /** Contacto compartido en familia — alimenta el cartel bajo el correo/teléfono. */
+    contactRelation: string | null;
+    sharesEmail: boolean;
+    sharesPhone: boolean;
+    contactAuthorizedAt: Date | string | null;
+    contactOwner: {
+      firstName: string;
+      lastName: string;
+      email: string | null;
+      phone: string | null;
+    } | null;
   };
   lawFirm: {
     id: string;
@@ -552,16 +564,28 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   {caseInfo.patient.patientCode && (
                     <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseInfo.patient.patientCode}</div>
                   )}
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                  {/**
+                    * El correo y el teléfono, cada uno con su cartel si es
+                    * compartido — "es el correo de Luis · su esposo". Van en
+                    * columna y no en fila para que el cartel quede pegado al
+                    * canal que explica; en fila se leía como si fuera del otro.
+                    */}
+                  <div className="flex flex-col gap-1.5 mt-2">
                     {caseInfo.patient.email && (
-                      <a href={`mailto:${caseInfo.patient.email}`} className="inline-flex items-center gap-1 text-cyan text-xs hover:text-text-1">
-                        <Mail className="w-3 h-3" /> {caseInfo.patient.email}
-                      </a>
+                      <div>
+                        <a href={`mailto:${caseInfo.patient.email}`} className="inline-flex items-center gap-1 text-cyan text-xs hover:text-text-1">
+                          <Mail className="w-3 h-3" /> {caseInfo.patient.email}
+                        </a>
+                        <ContactoCompartidoNota patient={caseInfo.patient} canal="EMAIL" />
+                      </div>
                     )}
                     {caseInfo.patient.phone && (
-                      <a href={`tel:${caseInfo.patient.phone}`} className="inline-flex items-center gap-1 text-emerald text-xs font-mono hover:text-text-1">
-                        <Phone className="w-3 h-3" /> {caseInfo.patient.phone}
-                      </a>
+                      <div>
+                        <a href={`tel:${caseInfo.patient.phone}`} className="inline-flex items-center gap-1 text-emerald text-xs font-mono hover:text-text-1">
+                          <Phone className="w-3 h-3" /> {caseInfo.patient.phone}
+                        </a>
+                        <ContactoCompartidoNota patient={caseInfo.patient} canal="PHONE" />
+                      </div>
                     )}
                   </div>
                 </div>

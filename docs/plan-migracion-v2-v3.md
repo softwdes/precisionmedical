@@ -18,6 +18,9 @@
 Confundirlos es el error más caro posible. Verificar el `DATABASE_URL` antes de
 cada script.
 
+⚠️ **Y antes de la corrida real, leer §10 (idempotencia).** La corrida anterior
+se ejecutó dos veces sobre `appointments` y dejó el 43 % de la tabla duplicada.
+
 ⚠️ **Nunca hacer `vercel env pull .env.local`** — arrastra el `DATABASE_URL` de
 producción y podés escribir en la base equivocada. Usar
 `vercel env pull .env.vercel-temp --environment=production` y copiar a mano solo
@@ -241,3 +244,50 @@ Sin estos tres, esta parte no arranca.
 - Scripts temporales de inspección: borrarlos al terminar (patrón `_tmp-*.mjs`).
 - Preferir **cancelar / marcar** antes que **borrar** cuando hay dinero o PHI
   de por medio — ver el caso del pago de $500 en §6.
+
+---
+
+## 10. 🔴 Idempotencia — la corrida anterior duplicó el 43 % de las citas
+
+**Medido en `phoenix-dev` el 2026-09-02.** No hay que arreglarlo sobre esta data
+—es de prueba y se borra (decisión de Erick, 2-sep)— pero el script SÍ tiene que
+evitarlo en la corrida real.
+
+| | |
+|---|---|
+| Citas totales | 14.835 |
+| Grupos duplicados (mismo paciente + horario + provider + caso) | 5.956 |
+| Filas sobrantes | **6.438 — el 43 % de la tabla** |
+
+El lote grande se creó el **2025-08-05 21:16: 4.308 filas en un minuto**, y los
+`id` vienen en dos familias (`cmrjh…`/`cmrje…` contra `cmrjl…`/`cmrjq…`): son
+**dos corridas del mismo script**, sin `ON CONFLICT` sobre `appointments`.
+
+**Qué hacer en el script:**
+
+- Índice único natural sobre `(patientId, scheduledFor, providerId, caseId)`, o
+  un `externalId` de v2 con `ON CONFLICT DO NOTHING`. El resto de las entidades
+  ya usa `idMap` (§7); las citas quedaron fuera de esa red.
+- Correr el conteo de duplicados DESPUÉS de cada corrida, antes de seguir con la
+  entidad siguiente. Es una sola consulta y detecta el problema en el momento, no
+  meses después y desde una pantalla nueva:
+
+```sql
+SELECT COUNT(*) AS grupos, SUM(n - 1) AS sobrantes FROM (
+  SELECT COUNT(*) AS n FROM appointments
+  GROUP BY "patientId", "scheduledFor", COALESCE("providerId",''), COALESCE("caseId",'')
+  HAVING COUNT(*) > 1
+) t;
+```
+
+**Y si alguna vez hay que limpiar datos REALES duplicados, no se borra por `id`:**
+la nota clínica queda colgada de UNO de los gemelos. En la medición: 5.637 grupos
+sin nota en ninguno, **317 con la nota en uno solo** y 2 con nota en varios.
+Quedarse con el id más bajo borraría 317 notas. Además de `visit_notes`, de la
+cita cuelgan `triage_records`, `appointment_billing`, `cash_services`,
+`appointment_braces`, `lab_orders` y `prescriptions`: el superviviente se elige
+por contenido, no por id.
+
+**Consecuencia mientras tanto:** todo conteo de citas está inflado hasta el doble
+— los KPIs de `/doctor/notes`, las métricas por doctor y el calendario (dos
+tarjetas encima en el mismo horario). No son bugs de esas pantallas.

@@ -22,7 +22,10 @@ import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderO } from '@/lib/provider-name';
 import { resolveActor } from '@/lib/actor';
 import { canAuditNotes } from '@/lib/notes-audit-access';
-import { filtrosDesdeParams, whereNotas, antiguedadEnDias, estadoDeLaNota } from '@/lib/notes-audit';
+import {
+  filtrosDesdeParams, whereNotas, antiguedadEnDias, estadoDeLaNota, etapaDeLaVisita,
+  type EtapaVisita,
+} from '@/lib/notes-audit';
 
 /**
  * Tope duro. Sin él, un filtro amplio sobre 14.000 citas arma el archivo entero
@@ -32,6 +35,24 @@ const MAX_FILAS = 5_000;
 
 const ESTADO_CSV: Record<string, string> = {
   none: 'Sin nota', draft: 'Borrador', signed: 'Firmada', voided: 'Anulada',
+};
+
+/**
+ * Hasta dónde llegó la visita — la misma columna que la pantalla.
+ *
+ * Va al CSV porque este archivo es justamente el que se usa para repartir el
+ * reclamo, y sin esto las 20 que quedaron trabadas en recepción llegan al
+ * médico como si fueran notas que no escribió.
+ *
+ * En castellano y sin i18n, igual que el resto de los encabezados de este
+ * archivo: la ruta no tiene locale. Es una inconsistencia conocida — si algún
+ * día el CSV se traduce, se traduce entero, no esta columna sola.
+ */
+const ETAPA_CSV: Record<EtapaVisita, string> = {
+  sinLlegada:   'Sin registro de llegada',
+  llegoSinSala: 'Llego, nunca paso a sala',
+  enSala:       'En consulta, sin cerrar',
+  atendida:     'Visita completa',
 };
 
 /** Una celda de CSV: comillas dobladas y entrecomillada si hace falta. */
@@ -56,6 +77,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     select: {
       id: true,
       scheduledFor: true,
+      status: true,
+      checkedInAt: true,
+      admittedAt: true,
+      doctorDoneAt: true,
       patient: { select: { firstName: true, lastName: true } },
       case: { select: { caseCode: true } },
       provider: { select: { firstName: true, lastName: true } },
@@ -69,7 +94,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const encabezado = [
     'Fecha de la visita', 'Paciente', 'Caso', 'Provider', 'Clinica',
-    'Estado', 'Dias', 'Firmada el', 'Firmada por',
+    'Estado', 'Hasta donde llego', 'Dias', 'Firmada el', 'Firmada por',
   ];
 
   const cuerpo = rows.map((a) => [
@@ -79,6 +104,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     nombreProviderO(a.provider, ''),
     a.clinic?.name ?? '',
     ESTADO_CSV[estadoDeLaNota(a.visitNote?.status)] ?? '',
+    ETAPA_CSV[etapaDeLaVisita(a)],
     antiguedadEnDias(a.scheduledFor),
     fecha(a.visitNote?.signedAt),
     a.visitNote?.signedByName ?? '',

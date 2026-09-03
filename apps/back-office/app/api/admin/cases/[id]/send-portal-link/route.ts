@@ -67,6 +67,10 @@ const PATIENT_WITH_GUARDIAN_SELECT = {
   id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
   // Para resolver el idioma del mensaje cuando el caller no lo manda.
   preferredLanguage: true,
+  // Deciden si el mensaje tiene que NOMBRAR al paciente: con el canal
+  // compartido, "completá tu formulario" no le dice a la mamá de cuál hijo es.
+  sharesEmail: true,
+  sharesPhone: true,
   guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
 } as const;
 
@@ -106,7 +110,7 @@ export async function GET(
       email:            destino.email,
       forGuardian:      !!apoderado,
       guardianRequired: esMenor && !apoderado,
-      minorName:        apoderado
+      nombrePaciente: apoderado
         ? `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim()
         : null,
     },
@@ -221,13 +225,33 @@ export async function POST(
   const recipient = parsed.via === 'SMS' ? destino.phone! : destino.email!;
   // Al apoderado se le habla de "tu hijo/a" y se lo nombra: si recibiera el
   // mismo texto que el paciente, no entendería de quién es el caso.
-  const nombreMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
+  const nombrePaciente = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
+
+  /**
+   * ¿Hay que NOMBRAR al paciente en el mensaje?
+   *
+   * Sí en dos situaciones, y por la misma razón: **el canal no es solo suyo.**
+   *
+   *  · Menor con apoderado — ya estaba resuelto: el tutor recibe el link.
+   *  · **Contacto compartido en familia** — nuevo. Si el teléfono de la mamá le
+   *    llega a cinco pacientes, un SMS que dice "completá tu formulario" la deja
+   *    sin saber de cuál hijo se trata. Con el nombre adentro, el mensaje se
+   *    explica solo.
+   *
+   * El canal se mira según la vía: comparte el correo no implica compartir el
+   * teléfono, y mandarle el nombre a alguien cuyo canal es propio es exponer
+   * datos del paciente sin motivo.
+   */
+  const canalCompartido = parsed.via === 'SMS'
+    ? caseRecord.patient.sharesPhone
+    : caseRecord.patient.sharesEmail;
+
   // El texto vive en lib/portal-message.ts — el mismo que usa la vista previa
   // del diálogo. Estaba duplicado y se desincronizó apenas se tocó uno.
   const messageBody = buildPortalSms({
     lang: idioma,
     caseCode: caseRecord.caseCode,
-    minorName: paraMenor ? nombreMenor : null,
+    nombrePaciente: (paraMenor || canalCompartido) ? nombrePaciente : null,
     portalUrl,
   });
 

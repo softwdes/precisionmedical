@@ -41,6 +41,13 @@ export default async function PatientDetailPage({
       guardianPatient: {
         select: { id: true, patientCode: true, firstName: true, lastName: true, email: true, phone: true },
       },
+      /**
+       * El dueño del contacto compartido. Los escalares (`contactRelation`,
+       * `sharesEmail`…) ya vienen con el `include`; la relación hay que pedirla.
+       */
+      contactOwner: {
+        select: { firstName: true, lastName: true, email: true, phone: true },
+      },
       cases: {
         include: {
           lawFirm: {

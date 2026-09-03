@@ -42,16 +42,16 @@ export function buildPortalSms(args: {
   lang: PortalMessageLang;
   caseCode: string;
   /** Nombre del menor cuando el destinatario es el apoderado. */
-  minorName?: string | null;
+  nombrePaciente?: string | null;
   /** El link real, o `MAGIC_LINK_PLACEHOLDER` para la vista previa. */
   portalUrl: string;
 }): string {
-  const { lang, caseCode, minorName, portalUrl } = args;
+  const { lang, caseCode, nombrePaciente, portalUrl } = args;
 
-  if (minorName) {
+  if (nombrePaciente) {
     return lang === 'es'
-      ? `Precision Medical: Complete el formulario de registro de ${minorName} (caso ${caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
-      : `Precision Medical: Please complete the registration form for ${minorName} (case ${caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`;
+      ? `Precision Medical: Complete el formulario de registro de ${nombrePaciente} (caso ${caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
+      : `Precision Medical: Please complete the registration form for ${nombrePaciente} (case ${caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`;
   }
 
   return lang === 'es'

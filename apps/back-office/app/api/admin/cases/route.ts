@@ -26,6 +26,9 @@ import {
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import {
+  quienUsaEsteContacto, probableMismaPersona, type PacienteConEseContacto,
+} from '@/lib/contactos-compartidos';
+import {
   construirNotaLlamadaInicial, llevaBufeteYPip, type Idioma,
 } from '@/lib/nota-llamada-inicial';
 
@@ -125,6 +128,25 @@ const InputSchema = z.object({
   // ─── Paciente existente (desde PreCallStep · evita duplicados) ─────
   existingPatientId: z.string().cuid().nullable().optional(),
 
+  /**
+   * `true` cuando el contacto compartido ya se revisó CON UNA PERSONA en el
+   * diálogo. Sin esto no se puede distinguir "nadie miró" de "recepción vio a la
+   * familia y decidió", y el servidor tiene que frenar por las dudas.
+   */
+  contactoYaRevisado: z.boolean().optional(),
+
+  /**
+   * El vínculo que eligió recepción. `null` = revisó y es una coincidencia (se
+   * crea suelto). Solo se aplica cuando `contactoYaRevisado` es true.
+   */
+  contactLink: z.object({
+    contactOwnerId:  z.string().cuid(),
+    contactRelation: z.string().max(40),
+    sharesEmail:     z.boolean().default(false),
+    sharesPhone:     z.boolean().default(false),
+    autorizado:      z.boolean().default(false),
+  }).nullable().optional(),
+
   // ─── Métrica de la llamada ──────────────────────────────────────────
   callDurationSeconds: z.number().int().min(0).max(7200).optional(),
   twilioCallSid: z.string().nullable().optional(),
@@ -210,43 +232,81 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // no se puede enviar y la vía es la tablet en clínica. El UI lo refleja
   // apagando los canales que no se pueden usar, sin impedir el guardado.
 
-  // ─── Validaciones de unicidad (solo pacientes nuevos) ───────────────
-  if (!parsed.existingPatientId) {
-    const checks = await Promise.all([
-      // Email único
-      parsed.patient.email
-        ? db.patient.findUnique({ where: { email: parsed.patient.email }, select: { id: true, firstName: true, lastName: true } })
-        : null,
-      // Duplicado: mismo nombre + teléfono
-      db.patient.findFirst({
-        where: {
-          firstName: { equals: parsed.patient.firstName, mode: 'insensitive' },
-          lastName:  { equals: parsed.patient.lastName,  mode: 'insensitive' },
-          phone:     parsed.patient.phone,
-        },
-        select: { id: true, patientCode: true, firstName: true, lastName: true },
-      }),
-    ]);
+  /**
+   * A quiénes MÁS les llega el contacto de este paciente.
+   *
+   * Se llena cuando el alta pasa igual (familia que comparte el teléfono) y
+   * viaja en la respuesta del 201, para que el diálogo pueda ofrecer registrar
+   * el parentesco sin volver a consultar.
+   */
+  let contactoCompartidoCon: PacienteConEseContacto[] = [];
 
-    const emailOwner    = checks[0];
-    const duplicatePatient = checks[1];
+  // ─── Contacto ya en uso (solo pacientes nuevos) ─────────────────────
+  //
+  // Antes eran dos chequeos separados y los dos terminaban en un callejón:
+  // `findUnique` por email y un `findFirst` por nombre + teléfono comparando el
+  // STRING exacto. Ese segundo se perdía los números escritos con otro formato
+  // —36 en el padrón— así que dejaba pasar duplicados reales.
+  //
+  // Ahora se pregunta UNA vez "¿quién más usa este contacto?" con el teléfono
+  // normalizado, y la respuesta viaja a la pantalla: una familia que comparte el
+  // número del papá no es un error que haya que frenar, es un vínculo que hay que
+  // registrar. Ver `lib/contactos-compartidos.ts`.
+  if (!parsed.existingPatientId && !parsed.contactoYaRevisado) {
+    const candidatos = await quienUsaEsteContacto({
+      phone: parsed.patient.phone,
+      email: parsed.patient.email,
+    });
 
-    if (emailOwner) {
-      return NextResponse.json({
-        error: 'EMAIL_TAKEN',
-        message: `Este email ya pertenece a ${emailOwner.firstName} ${emailOwner.lastName}.`,
-        existingPatientId: emailOwner.id,
-      }, { status: 409 });
-    }
+    const mismaPersona = probableMismaPersona(
+      candidatos, parsed.patient.firstName, parsed.patient.lastName,
+    );
 
-    if (duplicatePatient) {
+    /**
+     * Mismo nombre + mismo contacto: se frena, como antes. Es el caso que el
+     * chequeo viejo cubría bien y sigue siendo un duplicado, no una familia.
+     * `existingPatientId` se conserva porque el diálogo de alta ya lo usa para
+     * ofrecer "usar el paciente que ya existe".
+     */
+    if (mismaPersona) {
       return NextResponse.json({
         error: 'DUPLICATE_PATIENT',
-        message: `Ya existe un paciente con ese nombre y teléfono: ${duplicatePatient.firstName} ${duplicatePatient.lastName} (${duplicatePatient.patientCode}).`,
-        existingPatientId: duplicatePatient.id,
-        existingPatientCode: duplicatePatient.patientCode,
+        message: `Ya existe un paciente con ese nombre y contacto: ${mismaPersona.firstName} ${mismaPersona.lastName} (${mismaPersona.patientCode}).`,
+        existingPatientId: mismaPersona.id,
+        existingPatientCode: mismaPersona.patientCode,
+        candidatos,
       }, { status: 409 });
     }
+
+    /**
+     * El correo, en cambio, todavía frena por la restricción `@unique` de la
+     * base: sin sacarla no se puede crear un segundo paciente con la dirección
+     * de la mamá, y el insert moriría con un P2002 más abajo. Se corta acá para
+     * dar un mensaje útil en vez de un error de Prisma — y se devuelven los
+     * candidatos para que la pantalla pueda ofrecer abrir esa ficha.
+     *
+     * ⚠️ Este bloque es el que se va cuando se aplique el vínculo familiar: el
+     * caso "es un familiar, comparte el correo" es exactamente lo que hoy es
+     * imposible. Ver el plan en el pendiente de contactos compartidos.
+     */
+    const dueñoDelCorreo = candidatos.find((c) => c.canales.includes('EMAIL'));
+    if (dueñoDelCorreo) {
+      return NextResponse.json({
+        error: 'EMAIL_TAKEN',
+        message: `Este email ya pertenece a ${dueñoDelCorreo.firstName} ${dueñoDelCorreo.lastName} (${dueñoDelCorreo.patientCode}).`,
+        existingPatientId: dueñoDelCorreo.id,
+        candidatos,
+      }, { status: 409 });
+    }
+
+    /**
+     * Queda el caso de la familia que comparte el TELÉFONO con nombres
+     * distintos. Eso ya pasaba antes —el chequeo viejo pedía que el nombre
+     * coincidiera también— y sigue pasando: no se frena. La diferencia es que
+     * ahora sabemos a quiénes les llega ese número, y eso viaja en la respuesta
+     * del alta para que la pantalla pueda ofrecer registrar el parentesco.
+     */
+    contactoCompartidoCon = candidatos;
   }
 
   // ─── El correo del apoderado no puede ser el del propio menor ───────
@@ -397,6 +457,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             ...(guardianPatientId ? {
               guardianPatientId,
               guardianRelation: parsed.guardian?.relation ?? null,
+            } : {}),
+            /**
+             * El contacto compartido en familia. Va SEPARADO del tutor a
+             * propósito: el tutor es la relación legal de un menor con quien
+             * firma el lien; esto es "comparte el teléfono del papá". Un mismo
+             * paciente puede tener las dos, o ninguna.
+             *
+             * `contactAuthorizedAt` solo se sella si recepción marcó la casilla:
+             * el parentesco no es el consentimiento, y un canal compartido sin
+             * autorización es PHI de una persona llegando a otra.
+             */
+            ...(parsed.contactLink ? {
+              contactOwnerId:  parsed.contactLink.contactOwnerId,
+              contactRelation: parsed.contactLink.contactRelation,
+              sharesEmail:     parsed.contactLink.sharesEmail,
+              sharesPhone:     parsed.contactLink.sharesPhone,
+              ...(parsed.contactLink.autorizado ? {
+                contactAuthorizedByUserId: actor.actorUserId,
+                contactAuthorizedAt:       new Date(),
+              } : {}),
             } : {}),
           },
         });
@@ -563,6 +643,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       caseManagerName: parsed.legal.caseManagerName ?? null,
       primaryInsuranceId: parsed.insurance.primaryInsuranceId,
       initialStatus,
+      /**
+       * El vínculo de contacto compartido, si se registró. Queda auditado porque
+       * es una decisión de una persona sobre datos de OTRA: quién dijo que este
+       * paciente comparte el canal de aquel, y si el dueño lo autorizó. Sin
+       * esto, "¿por qué le llegan los mensajes de su hijo al teléfono de la
+       * mamá?" no tiene respuesta.
+       */
+      contactLink: parsed.contactLink ? {
+        ownerId:    parsed.contactLink.contactOwnerId,
+        relation:   parsed.contactLink.contactRelation,
+        canales:    [
+          ...(parsed.contactLink.sharesEmail ? ['EMAIL'] : []),
+          ...(parsed.contactLink.sharesPhone ? ['PHONE'] : []),
+        ],
+        autorizado: parsed.contactLink.autorizado,
+      } : null,
       // 'created' = se abrió una ficha de paciente nueva para el apoderado.
       guardianAction:    result.guardian.action,
       guardianPatientId: result.guardian.guardianPatientId,
@@ -633,6 +729,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         id: result.appointment.id,
         scheduledFor: result.appointment.scheduledFor,
       } : null,
+      /**
+       * Otros pacientes a los que les llega el mismo teléfono. Vacío en el caso
+       * normal. Cuando trae gente, el alta se hizo igual (es una familia, no un
+       * duplicado) y la pantalla puede ofrecer registrar el parentesco.
+       */
+      contactoCompartidoCon,
     },
     { status: 201 },
   );

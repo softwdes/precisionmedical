@@ -26,6 +26,25 @@ const PatchSchema = z.object({
   phone2:                    z.string().nullable().optional().or(empty),
   dateOfBirth:               z.string().nullable().optional().or(empty),
   status:                    z.enum(['NEW', 'ACTIVE', 'COMPLETED', 'DISCHARGED', 'INACTIVE']).optional(),
+
+  /**
+   * Corrección del vínculo de contacto compartido en familia.
+   *
+   * `null` DESVINCULA — es la salida cuando alguien se equivocó de persona o el
+   * parentesco cambió (un divorcio deja de ser `SPOUSE`). Sin esto el vínculo
+   * era de una sola vía: se podía crear y nunca corregir, que es exactamente lo
+   * que convierte un dato en basura con el tiempo.
+   *
+   * `undefined` (la clave ausente) no toca nada — el diálogo de edición manda
+   * muchos campos y no todos los formularios conocen este.
+   */
+  contactLink: z.object({
+    contactOwnerId:  z.string().cuid(),
+    contactRelation: z.string().max(40),
+    sharesEmail:     z.boolean().default(false),
+    sharesPhone:     z.boolean().default(false),
+    autorizado:      z.boolean().default(false),
+  }).nullable().optional(),
   preferredLanguage:         z.string().nullable().optional().or(empty),
   sex:                       z.enum(['MALE','FEMALE','NON_BINARY','OTHER','PREFER_NOT_TO_SAY']).nullable().optional(),
   maritalStatus:             z.enum(['SINGLE','MARRIED','DIVORCED','WIDOWED','SEPARATED','OTHER']).nullable().optional(),
@@ -147,9 +166,34 @@ export async function PATCH(
         if (d.guardian) guardianData.guardianRelation = d.guardian.relation;
       }
 
+      /**
+       * El vínculo de contacto compartido. Tres estados, no dos:
+       *  · ausente  → no se toca (el formulario no lo maneja).
+       *  · `null`   → se DESVINCULA y se limpia todo, autorización incluida.
+       *  · objeto   → se reemplaza. La autorización se re-sella solo si la
+       *    casilla vino marcada: cambiar el parentesco no arrastra un
+       *    consentimiento viejo, porque puede ser de otra persona.
+       */
+      const vinculoData =
+        d.contactLink === undefined ? {}
+        : d.contactLink === null ? {
+            contactOwnerId: null, contactRelation: null,
+            sharesEmail: false, sharesPhone: false,
+            contactAuthorizedByUserId: null, contactAuthorizedAt: null,
+          }
+        : {
+            contactOwnerId:  d.contactLink.contactOwnerId,
+            contactRelation: d.contactLink.contactRelation,
+            sharesEmail:     d.contactLink.sharesEmail,
+            sharesPhone:     d.contactLink.sharesPhone,
+            contactAuthorizedByUserId: d.contactLink.autorizado ? actor.actorUserId : null,
+            contactAuthorizedAt:       d.contactLink.autorizado ? new Date() : null,
+          };
+
       return tx.patient.update({
         where: { id },
         data: {
+          ...vinculoData,
           firstName: d.firstName,
           lastName:  d.lastName,
           ...(d.email                    !== undefined && { email:                    d.email }),

@@ -102,6 +102,18 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
           addressState: true,
           addressZip: true,
           socialSecurityNumber: true,
+          /**
+           * El contacto compartido en familia — para el cartel "es el correo de
+           * X · su esposo" debajo del campo. Se trae el VÍNCULO, no una copia:
+           * `email`/`phone` de arriba siguen siendo los propios del paciente.
+           */
+          contactRelation: true,
+          sharesEmail: true,
+          sharesPhone: true,
+          contactAuthorizedAt: true,
+          contactOwner: {
+            select: { firstName: true, lastName: true, email: true, phone: true },
+          },
         },
       },
       lawFirm: {

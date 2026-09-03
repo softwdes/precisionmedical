@@ -15,12 +15,16 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
-import { ArrowLeft, Bell, Check, Download, FileText, Loader2, Printer, Search } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, Bell, Check, Download, FileText, Loader2, Printer, Search, UserX } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
 import { DataTable, EmptyState, TagPill, PersonAvatar, FilterPill } from '@/components/ui-phoenix';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { localeApp } from '@/lib/fechas';
-import type { EstadoNota } from '@/lib/notes-audit';
+import type { EstadoNota, EtapaVisita } from '@/lib/notes-audit';
 import type { ProviderNotesRow } from '@/lib/notes-summary';
 import type { VisitaDelProvider } from '@/app/api/admin/notes/provider/[providerId]/route';
 
@@ -34,6 +38,48 @@ const ESTADO_STYLE: Record<EstadoNota, string> = {
   voided: 'bg-bg-3 text-text-muted border-border',
 };
 
+/**
+ * El desenlace, con el MISMO vocabulario que Mi Día y Day Admission — y las
+ * mismas claves de i18n (`phoenix.admission`). Tres pantallas que sellan el
+ * estado de una cita no pueden llamarlo de tres maneras.
+ */
+type Desenlace = 'noShow' | 'cancel' | 'cancelSameDay';
+
+/** Consumió el horario → corresponde penalidad (ver lib/appointment-outcome). */
+const cobraPenalidad = (tipo: Desenlace): boolean => tipo !== 'cancel';
+
+/**
+ * Dónde SE OFRECE sellar el desenlace: solo donde hay duda de que el paciente
+ * llegara a atenderse.
+ *
+ * `enSala` y `atendida` quedan afuera a propósito. Si la cita tiene
+ * `admittedAt`, el paciente estuvo en el consultorio: ofrecer ahí "no vino"
+ * sería ofrecer registrar algo falso —y cobrarle una penalidad por una visita
+ * que sí ocurrió—. Lo que falta en esas es cerrar la visita y firmar, no
+ * cambiarle el estado.
+ */
+const ETAPAS_EN_DUDA = new Set<EtapaVisita>(['llegoSinSala', 'sinLlegada']);
+
+/**
+ * Hasta dónde llegó la visita.
+ *
+ * "Sin nota" a secas acusa al médico y esconde lo que de verdad pasó: de las 37
+ * sin nota que hay hoy, 31 son visitas cuyo flujo quedó trabado a mitad de
+ * camino —el paciente llegó y nadie lo pasó a sala, o la consulta se abrió y no
+ * se cerró— y solo 6 son el caso clásico de "falta escribirla". Cada una le
+ * habla a una persona distinta, y sin esto las tres se leen igual.
+ *
+ * `atendida` NO se dibuja: es el camino feliz, y repetirlo en cada fila sería
+ * ruido sobre la mitad de la tabla. Acá se muestra la ANOMALÍA; adentro, al
+ * abrir una visita sin nota, se explican las cuatro.
+ */
+const ETAPA_STYLE: Record<EtapaVisita, string> = {
+  sinLlegada:   'text-amber',
+  llegoSinSala: 'text-amber',
+  enSala:       'text-cyan',
+  atendida:     'text-text-muted',
+};
+
 export function ProviderNotesDialog({
   provider, categoriaInicial, onClose,
 }: {
@@ -43,6 +89,7 @@ export function ProviderNotesDialog({
   onClose: () => void;
 }): React.ReactElement {
   const t = useTranslations('phoenix.notesAudit');
+  const router = useRouter();
 
   const [cats, setCats] = React.useState<Set<Categoria>>(
     () => new Set(categoriaInicial ? [categoriaInicial] : CATEGORIAS),
@@ -52,6 +99,8 @@ export function ProviderNotesDialog({
   const [error, setError] = React.useState('');
   /** La visita abierta — nivel 2. null = la lista. */
   const [visita, setVisita] = React.useState<VisitaDelProvider | null>(null);
+  /** ¿Esta sesión puede sellar el desenlace de una cita ajena? Lo dice el server. */
+  const [puedeSellar, setPuedeSellar] = React.useState(false);
 
   /**
    * Las visitas se piden UNA vez, sin los filtros: son pocas por provider y
@@ -64,8 +113,8 @@ export function ProviderNotesDialog({
       try {
         const res = await fetch(`/api/admin/notes/provider/${provider.providerId}?estado=none,draft,signed`);
         if (!res.ok) { if (vivo) setError(t('errLoad')); return; }
-        const d = await res.json() as { visitas: VisitaDelProvider[] };
-        if (vivo) setVisitas(d.visitas);
+        const d = await res.json() as { visitas: VisitaDelProvider[]; puedeSellar?: boolean };
+        if (vivo) { setVisitas(d.visitas); setPuedeSellar(d.puedeSellar === true); }
       } catch { if (vivo) setError(t('errLoad')); }
     })();
     return () => { vivo = false; };
@@ -78,6 +127,24 @@ export function ProviderNotesDialog({
       cats.has(v.estado as Categoria)
       && (!texto || `${v.patientName} ${v.caseCode ?? ''}`.toLowerCase().includes(texto)));
   }, [visitas, cats, q]);
+
+  /**
+   * La cita sellada se va de la lista, en el acto.
+   *
+   * `CITA_CALIFICA` excluye CANCELLED y NO_SHOW, así que después del PATCH esa
+   * visita ya no debe nota: dejarla en la tabla mostraría una deuda que acaba
+   * de dejar de existir. Se saca del arreglo en vez de volver a pedir todo,
+   * para no tirar la búsqueda ni los chips que el supervisor venía usando.
+   *
+   * El `router.refresh()` es por la pantalla de ATRÁS: los números de la fila
+   * del provider y los KPIs salen del server, y sin esto el modal diría 19 y la
+   * lista de abajo seguiría diciendo 20.
+   */
+  const onSellada = React.useCallback((appointmentId: string): void => {
+    setVisitas((prev) => prev?.filter((v) => v.appointmentId !== appointmentId) ?? prev);
+    setVisita(null);
+    router.refresh();
+  }, [router]);
 
   const toggle = (c: Categoria): void => {
     const next = new Set(cats);
@@ -157,7 +224,8 @@ export function ProviderNotesDialog({
         {/* ── Cuerpo ── */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {visita
-            ? <NotaDeLaVisita visita={visita} providerName={provider.providerName} />
+            ? <NotaDeLaVisita visita={visita} providerName={provider.providerName}
+                puedeSellar={puedeSellar} onSellada={onSellada} />
             : <ListaDeVisitas
                 visitas={visitas} filtradas={filtradas} error={error}
                 onAbrir={setVisita} />}
@@ -231,6 +299,11 @@ function ListaDeVisitas({ visitas, filtradas, error, onAbrir }: {
               <DataTable.Td><span className="text-text-muted">{v.clinicName}</span></DataTable.Td>
               <DataTable.Td>
                 <TagPill label={t(`estado_${v.estado}`)} colorClass={ESTADO_STYLE[v.estado]} />
+                {v.etapa !== 'atendida' && (
+                  <div className={`mt-1 text-[10.5px] whitespace-nowrap ${ETAPA_STYLE[v.etapa]}`}>
+                    {t(`etapa_${v.etapa}`)}
+                  </div>
+                )}
               </DataTable.Td>
               <DataTable.Td align="right"><Antiguedad dias={v.ageDays} label={t('days', { count: v.ageDays })} /></DataTable.Td>
               <DataTable.Td align="right" sticky="right">
@@ -247,6 +320,169 @@ function ListaDeVisitas({ visitas, filtradas, error, onAbrir }: {
 }
 
 /**
+ * Sellar el desenlace de una visita trabada, desde la supervisión.
+ *
+ * ─── Por qué acá y no un campo de "motivo" ──────────────────────────────────
+ *
+ * Erick preguntó si convenía explicar por qué una visita no tiene nota, porque
+ * alguien podría estar persiguiendo la nota de una cita a la que el paciente
+ * nunca vino. La respuesta NO es un texto libre: para "no vino" el sistema ya
+ * tiene un desenlace de verdad, que saca la cita de esta lista y **cobra la
+ * penalidad**. Un campo que dijera "no vino" competiría con ese estado y
+ * dejaría la plata sin cobrar (2-sep-2026).
+ *
+ * ─── El mismo camino que las otras dos pantallas ────────────────────────────
+ *
+ * Pega al MISMO `PATCH /api/admin/appointments/:id` que Mi Día, la fila de Day
+ * Admission y el panel del calendario, con las mismas claves de i18n. Un solo
+ * camino escribe el estado de una cita; si algún día cambia la regla, cambia en
+ * un lugar. Y el picker de la penalidad se encadena igual: sellar sin el cargo
+ * es exactamente lo que llena la sección "Falta la penalidad" del asistente.
+ *
+ * ─── El botón bloqueado se MUESTRA ──────────────────────────────────────────
+ *
+ * `puedeSellar` lo decide el server con la misma condición del PATCH. Cuando es
+ * false el botón sigue visible y explica por qué no se puede: esconderlo haría
+ * pensar que la función no existe o que la pantalla está rota.
+ */
+function SellarDesenlace({ visita, puedeSellar, onSellada }: {
+  visita: VisitaDelProvider;
+  puedeSellar: boolean;
+  onSellada: (appointmentId: string) => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.notesAudit');
+  /** Las claves del desenlace son las MISMAS de Mi Día — no se duplican. */
+  const ta = useTranslations('phoenix.admission');
+
+  const [tipo, setTipo] = React.useState<Desenlace | null>(null);
+  const [sellando, setSellando] = React.useState(false);
+  const [fallo, setFallo] = React.useState('');
+  /** Abierto el picker = ya se selló y falta elegir el código de la penalidad. */
+  const [cobrando, setCobrando] = React.useState(false);
+  const [cargosActuales, setCargosActuales] = React.useState<PlannedService[]>([]);
+  const [cargoError, setCargoError] = React.useState<string | null>(null);
+
+  const confirmar = async (): Promise<void> => {
+    if (!tipo) return;
+    setSellando(true);
+    setFallo('');
+    try {
+      const body = tipo === 'noShow'
+        ? { status: 'NO_SHOW' }
+        : { status: 'CANCELLED', cancelledSameDay: tipo === 'cancelSameDay' };
+      const res = await fetch(`/api/admin/appointments/${visita.appointmentId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+      // Un 403 acá es el caso de `puedeSellar` falso que igual se intentó (cache
+      // vieja, otra pestaña). Se dice; no se deja el clic en la nada.
+      if (!res.ok) { setFallo(res.status === 403 ? t('outcomeBlocked') : ta('penaltyFailed')); return; }
+
+      const conPenalidad = cobraPenalidad(tipo);
+      setTipo(null);
+      if (!conPenalidad) { onSellada(visita.appointmentId); return; }
+
+      // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
+      setCargosActuales(await leerCargos(visita.appointmentId));
+      setCargoError(null);
+      setCobrando(true);
+    } catch {
+      setFallo(ta('penaltyFailed'));
+    } finally {
+      setSellando(false);
+    }
+  };
+
+  /** Agrega el código elegido y deja la deuda creada (ver lib/charges). */
+  const onAgregarCargo = async (item: BillableItem): Promise<void> => {
+    const r = await agregarCargo({
+      appointmentId: visita.appointmentId,
+      caseId:        visita.caseId ?? undefined,
+      item,
+      actuales:      cargosActuales,
+    });
+    setCargosActuales(r.servicios);
+    // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
+    // clic parezca que funcionó (`sync-billing` responde `no_case`).
+    setCargoError(r.ok ? null : r.error === 'NO_CASE' ? ta('penaltyNoCase') : ta('penaltyFailed'));
+  };
+
+  const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-[12px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
+  return (
+    <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 space-y-2.5">
+      <div className="text-[12px] text-text-2 font-semibold">{t('outcomeTitle')}</div>
+      <p className="text-[11.5px] text-text-muted leading-relaxed">{t('outcomeHelp')}</p>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <button type="button" disabled={!puedeSellar} onClick={() => setTipo('noShow')}
+          className={`${btn} border-border text-text-2 hover:bg-white/5 hover:text-text-1`}>
+          <UserX className="w-3.5 h-3.5" /> {ta('noShow')}
+        </button>
+        <button type="button" disabled={!puedeSellar} onClick={() => setTipo('cancel')}
+          className={`${btn} border-border text-text-2 hover:bg-white/5 hover:text-text-1`}>
+          <Ban className="w-3.5 h-3.5" /> {ta('cancel')}
+        </button>
+        <button type="button" disabled={!puedeSellar} onClick={() => setTipo('cancelSameDay')}
+          className={`${btn} border-amber/40 text-amber hover:bg-amber/10`}>
+          <Ban className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{ta('cancelSameDay')}</span>
+          <span className="sm:hidden">{ta('cancelSameDayShort')}</span>
+        </button>
+      </div>
+
+      {!puedeSellar && (
+        <div className="flex items-start gap-1.5 text-[11px] text-amber">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span>{t('outcomeBlocked')}</span>
+        </div>
+      )}
+      {fallo && (
+        <div className="flex items-start gap-1.5 text-[11px] text-rose">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span>{fallo}</span>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!tipo}
+        variant="warning"
+        title={tipo ? ta(`desenlaceTitle_${tipo}` as 'desenlaceTitle_noShow') : ''}
+        description={tipo
+          ? ta(`desenlaceBody_${tipo}` as 'desenlaceBody_noShow', { name: visita.patientName })
+          : ''}
+        confirmLabel={sellando ? ta('desenlaceSealing') : ta('desenlaceConfirm')}
+        cancelLabel={ta('desenlaceCancel')}
+        onConfirm={() => { void confirmar(); }}
+        onCancel={() => setTipo(null)}
+      />
+
+      {/* El picker de servicios, el MISMO del tab de Servicios y de Mi Día. Al
+          cerrarlo se saca la visita de la lista: el desenlace ya quedó sellado
+          aunque el supervisor no haya elegido ningún código. */}
+      {cobrando && (
+        <ChargePickerDialog
+          coverage={visita.coverage}
+          /* El picker indexa por `item.key`, que para el circuito de seguro es
+             `s<refId>`. Con la clave mal armada el ítem ya cargado no se marcaría
+             y se agregaría dos veces. */
+          added={new Map(cargosActuales.map((c) => [`s${c.id}`, 1]))}
+          onClose={() => { setCobrando(false); setCargoError(null); onSellada(visita.appointmentId); }}
+          onAdd={onAgregarCargo}
+        />
+      )}
+      {cargoError && (
+        <div className="flex items-start gap-1.5 text-[11px] text-rose">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+          <span>{cargoError}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * La nota, en sus tres estados. Cada uno es una cosa distinta y por eso no
  * comparten pantalla:
  *
@@ -258,8 +494,11 @@ function ListaDeVisitas({ visitas, filtradas, error, onAbrir }: {
  *  · FIRMADA   — solo lectura. Una nota cerrada es inmutable por HIPAA y el PUT
  *    responde 409; mostrar un editor sería prometer algo que el server niega.
  */
-function NotaDeLaVisita({ visita, providerName }: {
-  visita: VisitaDelProvider; providerName: string;
+function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada }: {
+  visita: VisitaDelProvider;
+  providerName: string;
+  puedeSellar: boolean;
+  onSellada: (appointmentId: string) => void;
 }): React.ReactElement {
   const t = useTranslations('phoenix.notesAudit');
   const [nota, setNota] = React.useState<VisitNoteData | null | undefined>(undefined);
@@ -297,10 +536,39 @@ function NotaDeLaVisita({ visita, providerName }: {
           <FileText className="w-4 h-4 text-rose shrink-0 mt-px" />
           <span>{t('noNoteBody', { name: providerName })}</span>
         </div>
-        <button type="button"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 hover:text-text-1 transition-colors">
-          <Bell className="w-3.5 h-3.5" /> {t('remind')}
-        </button>
+
+        {/**
+          * Qué pasó con la visita, antes del botón de recordar.
+          *
+          * Va ARRIBA del recordatorio a propósito: en 31 de cada 37 el problema
+          * no es el médico, y perseguirlo por una visita que quedó trabada en
+          * recepción es mandar el reclamo a la persona equivocada. Acá sí se
+          * muestran las cuatro etapas —incluida `atendida`— porque esta es la
+          * pantalla donde se decide qué hacer, y "la visita se completó, solo
+          * falta escribirla" es la que justifica el recordatorio.
+          */}
+        <div className="rounded-md bg-bg-2/40 px-3 py-2.5 space-y-1">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+            {t('whatHappened')}
+          </div>
+          <div className={`text-[12px] font-semibold ${ETAPA_STYLE[visita.etapa]}`}>
+            {t(`etapa_${visita.etapa}`)}
+          </div>
+          <p className="text-[11.5px] text-text-muted leading-relaxed">
+            {t(`etapaHelp_${visita.etapa}`)}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 hover:text-text-1 transition-colors">
+            <Bell className="w-3.5 h-3.5" /> {t('remind')}
+          </button>
+        </div>
+
+        {ETAPAS_EN_DUDA.has(visita.etapa) && (
+          <SellarDesenlace visita={visita} puedeSellar={puedeSellar} onSellada={onSellada} />
+        )}
       </div>
     );
   }

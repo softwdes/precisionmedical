@@ -182,6 +182,49 @@ export function antiguedadEnDias(scheduledFor: Date): number {
   return Math.max(0, Math.floor((inicioDeHoy().getTime() - scheduledFor.getTime()) / 86_400_000));
 }
 
+/**
+ * DÓNDE QUEDÓ la visita — el paso del flujo en el que se detuvo.
+ *
+ * Existe porque "Sin nota" a secas acusa al médico y esconde lo que de verdad
+ * pasó. Medido el 2-sep-2026 sobre las 53 visitas que deben nota de los
+ * providers reales (los que tienen ficha de empleado):
+ *
+ *                    sin nota   borrador   firmada
+ *   llegoSinSala        20          —          —
+ *   enSala               9          4          —
+ *   atendida             6          8          —
+ *   sinLlegada           2          2          2
+ *
+ * O sea que de las 37 sin nota, 31 no son un doctor olvidadizo: son flujos
+ * abandonados a mitad de camino, y cada uno le habla a una persona distinta.
+ * "Llegó y no pasó a sala" es un mensaje para recepción, no para el médico
+ * (Erick, 2-sep-2026). Los 4 borradores `enSala` explican por qué la nota quedó
+ * a medias, y las 2 firmadas `sinLlegada` son registro incompleto, no un
+ * problema de la nota.
+ *
+ * Ninguna de estas es "no vino": ese caso lo excluye `CITA_CALIFICA`, y para él
+ * el sistema ya tiene el desenlace NO_SHOW, que además cobra la penalidad. Un
+ * campo de texto libre que dijera "no vino" competiría con ese estado y dejaría
+ * la penalidad sin cobrar.
+ */
+export type EtapaVisita = 'sinLlegada' | 'llegoSinSala' | 'enSala' | 'atendida';
+
+export function etapaDeLaVisita(a: {
+  status: string;
+  checkedInAt: Date | null;
+  admittedAt: Date | null;
+  doctorDoneAt: Date | null;
+}): EtapaVisita {
+  if (a.doctorDoneAt || a.status === 'COMPLETED') {
+    // `COMPLETED` sin llegada registrada no es una visita completa: es un estado
+    // que alguien puso —o que arrastró la migración— sin que el flujo ocurriera.
+    return a.checkedInAt ? 'atendida' : 'sinLlegada';
+  }
+  if (a.admittedAt) return 'enSala';
+  if (a.checkedInAt) return 'llegoSinSala';
+  return 'sinLlegada';
+}
+
 /** El estado que ve el admin, derivado de la nota (o de su ausencia). */
 export function estadoDeLaNota(status: string | null | undefined): EstadoNota {
   if (!status) return 'none';

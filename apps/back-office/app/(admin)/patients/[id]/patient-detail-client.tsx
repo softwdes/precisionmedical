@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 // solo — es la duplicación que ya nos pasó con calcAge y los generadores de código.
 import { PatientEditDialog } from '../patient-edit-dialog';
 import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
+import { ContactoCompartidoNota } from '@/components/patients/contacto-compartido-nota';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -100,6 +101,20 @@ interface PatientData {
   } | null;
   lawyerReferrer: { id: string; firmName: string | null } | null;
   providerReferrer: { id: string; firstName: string; lastName: string } | null;
+  /**
+   * Contacto compartido en familia — alimenta el cartel bajo el correo y el
+   * teléfono. Es OTRA cosa que `guardianPatient`: el tutor es la relación legal
+   * de un menor con quien firma; esto es "usa el teléfono del papá".
+   */
+  contactOwnerId: string | null;
+  contactRelation: string | null;
+  sharesEmail: boolean;
+  sharesPhone: boolean;
+  contactAuthorizedAt: Date | string | null;
+  contactOwner: {
+    firstName: string; lastName: string;
+    email: string | null; phone: string | null;
+  } | null;
   cases: PatientCase[];
 }
 
@@ -260,11 +275,16 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
                 : <span className="text-text-muted italic">{t('dobNotRegistered')}</span>
             }
           />
+          {/* El cartel del contacto compartido va DENTRO del value, pegado al
+              canal que explica — ver `ContactoCompartidoNota`. */}
           <InfoRow
             label={t('fieldPhone')}
             value={
               patient.phone
-                ? <a href={`tel:${patient.phone}`} className="text-brand-text hover:underline font-mono text-[12.5px]">{patient.phone}</a>
+                ? <>
+                    <a href={`tel:${patient.phone}`} className="text-brand-text hover:underline font-mono text-[12.5px]">{patient.phone}</a>
+                    <ContactoCompartidoNota patient={patient} canal="PHONE" />
+                  </>
                 : <span className="text-text-muted italic">—</span>
             }
           />
@@ -272,7 +292,10 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
             label={t('fieldEmail')}
             value={
               patient.email
-                ? <a href={`mailto:${patient.email}`} className="text-brand-text hover:underline text-[12.5px] break-all">{patient.email}</a>
+                ? <>
+                    <a href={`mailto:${patient.email}`} className="text-brand-text hover:underline text-[12.5px] break-all">{patient.email}</a>
+                    <ContactoCompartidoNota patient={patient} canal="EMAIL" />
+                  </>
                 : <span className="text-text-muted italic">—</span>
             }
           />

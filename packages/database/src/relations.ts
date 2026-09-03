@@ -22,8 +22,20 @@
  */
 
 /** Catálogo canónico. `EMPLOYER`/`NEIGHBOR` solo los ofrece el wizard de forms. */
+/**
+ * `GRANDPARENT`, `GRANDCHILD`, `COUSIN`, `NEPHEW` y `IN_LAW` se agregaron el
+ * 2026-09-02 para el vínculo de contacto compartido: en una familia que usa el
+ * teléfono del papá aparecen abuelos, primos y sobrinos, y meterlos en `OTHER`
+ * pierde justo el dato que el vínculo viene a capturar.
+ *
+ * No se agregan al catálogo del contacto de emergencia por gusto: es el MISMO
+ * catálogo a propósito. Tener dos listas es de donde salieron las divergencias
+ * que este archivo vino a arreglar.
+ */
 export const RELATION_CODES = [
-  'SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'FRIEND', 'EMPLOYER', 'NEIGHBOR', 'OTHER',
+  'SPOUSE', 'PARENT', 'CHILD', 'SIBLING',
+  'GRANDPARENT', 'GRANDCHILD', 'COUSIN', 'NEPHEW', 'IN_LAW',
+  'FRIEND', 'EMPLOYER', 'NEIGHBOR', 'OTHER',
 ] as const;
 
 export type RelationCode = typeof RELATION_CODES[number];
@@ -68,6 +80,34 @@ const SINONIMOS: Record<string, RelationCode> = {
   sibling: 'SIBLING', brother: 'SIBLING', sister: 'SIBLING',
   hermano: 'SIBLING', hermana: 'SIBLING',
   btother: 'SIBLING', brofher: 'SIBLING',
+
+  // ── GRANDPARENT / GRANDCHILD ──────────────────────────────────────────────
+  // Los agrega el vínculo de contacto compartido (2026-09-02). No salieron de
+  // la data del v2 como los de arriba: son los que Erick nombró al describir el
+  // caso — "una familia completa, papá, mamá, todos los hijos o hasta los
+  // abuelos".
+  grandparent: 'GRANDPARENT', grandmother: 'GRANDPARENT', grandfather: 'GRANDPARENT',
+  grandma: 'GRANDPARENT', grandpa: 'GRANDPARENT',
+  abuelo: 'GRANDPARENT', abuela: 'GRANDPARENT', abuelos: 'GRANDPARENT',
+  grandchild: 'GRANDCHILD', grandson: 'GRANDCHILD', granddaughter: 'GRANDCHILD',
+  nieto: 'GRANDCHILD', nieta: 'GRANDCHILD',
+
+  // ── COUSIN / NEPHEW ───────────────────────────────────────────────────────
+  cousin: 'COUSIN', primo: 'COUSIN', prima: 'COUSIN',
+  nephew: 'NEPHEW', niece: 'NEPHEW',
+  sobrino: 'NEPHEW', sobrina: 'NEPHEW',
+  // `NEPHEW` cubre los dos géneros igual que `PARENT` cubre madre y padre: el
+  // código es el vínculo, no la persona.
+
+  // ── IN_LAW ────────────────────────────────────────────────────────────────
+  // La familia política comparte contacto tanto como la de sangre, y meterla en
+  // `OTHER` borra el vínculo. Un solo código para todas: la ficha del paciente
+  // no necesita saber si es suegra o cuñado.
+  'in law': 'IN_LAW', 'mother in law': 'IN_LAW', 'father in law': 'IN_LAW',
+  'son in law': 'IN_LAW', 'daughter in law': 'IN_LAW',
+  'brother in law': 'IN_LAW', 'sister in law': 'IN_LAW',
+  suegro: 'IN_LAW', suegra: 'IN_LAW', yerno: 'IN_LAW', nuera: 'IN_LAW',
+  cuñado: 'IN_LAW', cuñada: 'IN_LAW', cunado: 'IN_LAW', cunada: 'IN_LAW',
 
   // ── FRIEND ────────────────────────────────────────────────────────────────
   friend: 'FRIEND', friends: 'FRIEND',

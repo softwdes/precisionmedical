@@ -66,7 +66,7 @@ export interface PortalRecipient {
   /** true → menor sin tutor vinculado: el envío está bloqueado por el server */
   guardianRequired: boolean;
   /** nombre del menor cuando forGuardian */
-  minorName: string | null;
+  nombrePaciente: string | null;
 }
 
 export function usePortalRecipient(caseId: string | null | undefined, open: boolean) {
@@ -187,26 +187,26 @@ function ui(lang: Lang) {
  * donde va el link. Antes era una copia local que se desincronizo: mostraba el
  * texto viejo mientras el servidor ya mandaba el nuevo con el opt-out.
  */
-function smsTemplate(lang: Lang, _firstName: string, caseCode: string, minorName: string | null): string {
-  return buildPortalSms({ lang, caseCode, minorName, portalUrl: MAGIC_LINK_PLACEHOLDER });
+function smsTemplate(lang: Lang, _firstName: string, caseCode: string, nombrePaciente: string | null): string {
+  return buildPortalSms({ lang, caseCode, nombrePaciente, portalUrl: MAGIC_LINK_PLACEHOLDER });
 }
 
-function emailSubject(lang: Lang, fullName: string, minorName: string | null): string {
-  if (minorName) {
+function emailSubject(lang: Lang, fullName: string, nombrePaciente: string | null): string {
+  if (nombrePaciente) {
     return lang === 'es'
-      ? `Recordatorio: completa el formulario de ${minorName}`
-      : `Reminder: complete the information form for ${minorName}`;
+      ? `Recordatorio: completa el formulario de ${nombrePaciente}`
+      : `Reminder: complete the information form for ${nombrePaciente}`;
   }
   return lang === 'es'
     ? `Recordatorio: completa tu formulario, ${fullName}`
     : `Reminder: complete your information form, ${fullName}`;
 }
 
-function emailBody(lang: Lang, fullName: string, minorName: string | null): string {
-  if (minorName) {
+function emailBody(lang: Lang, fullName: string, nombrePaciente: string | null): string {
+  if (nombrePaciente) {
     return lang === 'es'
-      ? `Hola ${fullName},\n\nComo responsable legal de ${minorName}, tu clínica te recuerda completar su formulario de información antes de la próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar el registro.\n\nGracias,\nPrecision Medical`
-      : `Hello ${fullName},\n\nAs the legal guardian of ${minorName}, your clinic is reminding you to complete their information form before the next visit.\n\nUse the secure link that will follow to complete the registration.\n\nThank you,\nPrecision Medical`;
+      ? `Hola ${fullName},\n\nComo responsable legal de ${nombrePaciente}, tu clínica te recuerda completar su formulario de información antes de la próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar el registro.\n\nGracias,\nPrecision Medical`
+      : `Hello ${fullName},\n\nAs the legal guardian of ${nombrePaciente}, your clinic is reminding you to complete their information form before the next visit.\n\nUse the secure link that will follow to complete the registration.\n\nThank you,\nPrecision Medical`;
   }
   return lang === 'es'
     ? `Hola ${fullName},\n\nTu clínica te recuerda completar tu formulario de información antes de tu próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar tu registro.\n\nGracias,\nPrecision Medical`
@@ -320,10 +320,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
     email:     caseInfo.patient.email,
     forGuardian: false,
     guardianRequired: false,
-    minorName: null,
+    nombrePaciente: null,
   } : null);
   const destName  = dest ? `${dest.firstName} ${dest.lastName}` : '';
-  const minorName = dest?.forGuardian ? dest.minorName : null;
+  const nombrePaciente = dest?.forGuardian ? dest.nombrePaciente : null;
 
   // Reset on open
   useEffect(() => {
@@ -347,9 +347,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   // Sync email subject/body when lang or recipient changes
   useEffect(() => {
     if (!caseInfo || !destName) return;
-    setSubject(emailSubject(lang, destName, minorName));
-    setBody(emailBody(lang, destName, minorName));
-  }, [lang, destName, minorName, caseInfo]);
+    setSubject(emailSubject(lang, destName, nombrePaciente));
+    setBody(emailBody(lang, destName, nombrePaciente));
+  }, [lang, destName, nombrePaciente, caseInfo]);
 
   if (!caseInfo || !dest) return null;
 
@@ -357,7 +357,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   const canSendSms   = !!dest.phone  && !sendBlocked;
   const canSendEmail = !!dest.email && !sendBlocked;
 
-  const smsText = smsTemplate(lang, dest.firstName, caseInfo.caseCode, minorName);
+  const smsText = smsTemplate(lang, dest.firstName, caseInfo.caseCode, nombrePaciente);
   // Con el link real, no con el marcador: el marcador tiene 12 caracteres y el
   // link ~50, asi que contar sobre la vista previa subestimaria el costo.
   const smsInfo = smsSegments(smsText.replace(MAGIC_LINK_PLACEHOLDER, 'https://forms.lienmaster.net/c/pt_m9x2k4a8b3n7q1'));
@@ -545,7 +545,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               </div>
               {dest.forGuardian && (
                 <div className="text-[10px] text-text-muted mt-0.5">
-                  {L.guardianReceives} <span className="text-text-2 font-medium">{minorName}</span>
+                  {L.guardianReceives} <span className="text-text-2 font-medium">{nombrePaciente}</span>
                 </div>
               )}
               <div className="flex flex-col gap-0.5 mt-1">

@@ -1,6 +1,7 @@
 import { db } from '@precision-medical/database';
 import { DashboardClient } from './dashboard-client';
 import { nombreProviderONull } from '@/lib/provider-name';
+import { colaIntake } from '@/lib/cola-intake';
 
 // B.29 — Dashboard de Recepción
 // Vista panel agregada · KPIs del día · cola por status · alertas · citas · activity feed
@@ -174,8 +175,46 @@ export default async function DashboardPage() {
   });
   const caseMap = new Map(cases.map((c) => [c.id, c]));
 
+  /**
+   * La cola del centinela.
+   *
+   * Los bordes del día los resuelve `colaIntake()` con `ZONA_CLINICA`, NO con el
+   * `startOfToday` de arriba: ese usa la zona del SERVIDOR (`new Date(y, m, d)`)
+   * y con eso una cita de las 7 de la mañana cae en el bucket equivocado media
+   * parte del año. El resto de esta página sigue con el cálculo viejo hasta que
+   * se migre — está marcado ahí arriba desde antes.
+   */
+  const intake = await colaIntake();
+  const aVista = (f: (typeof intake.filas)[number]) => ({
+    caseId: f.caseId,
+    caseCode: f.caseCode,
+    paciente: f.paciente,
+    nombre: f.nombre,
+    apellido: f.apellido,
+    email: f.email,
+    ...(f.idioma ? { idioma: f.idioma } : {}),
+    // Las fechas cruzan como ISO: el panel las formatea con la zona de la
+    // clínica, no con la del navegador de quien mira.
+    cita: f.cita.toISOString(),
+    provider: f.provider,
+    diasHasta: f.diasHasta,
+    pct: f.pct,
+    faltan: f.faltan as string[],
+    telefono: f.telefono,
+    bloqueoEnvio: f.bloqueoEnvio,
+    esMenor: f.esMenor,
+    ultimoContacto: f.ultimoContacto
+      ? { canal: f.ultimoContacto.canal, cuando: f.ultimoContacto.cuando.toISOString() }
+      : null,
+  });
+
   return (
     <DashboardClient
+      intake={{
+        filas: intake.filas.map(aVista),
+        yaLlegaron: intake.yaLlegaron.map(aVista),
+        citasEnVentana: intake.citasEnVentana,
+      }}
       kpis={{
         casesCreatedToday,
         portalsSentToday,

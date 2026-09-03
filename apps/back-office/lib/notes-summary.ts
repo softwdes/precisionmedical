@@ -109,6 +109,31 @@ export async function getNotesSummary(alcance: AlcanceResumen): Promise<NotesSum
      */
     `p."status"::text = 'ACTIVE'`,
     `p."deletedAt" IS NULL`,
+    /**
+     * Solo providers que son STAFF DE LA CLÍNICA — los que tienen ficha de
+     * empleado. Los de prueba (los devs) no la tienen y encabezaban el ranking:
+     * "Wilfredo Villarroel (PRUEBA)" con 18 sin nota era el #1, y con datos
+     * falsos arriba la pantalla no sirve para decidir a quién perseguir
+     * (Erick, 2-sep-2026).
+     *
+     * El criterio es el VÍNCULO, no la palabra "PRUEBA" en el nombre: filtrar
+     * por el nombre se rompe con el primer provider de prueba que alguien cree
+     * sin esa palabra. Y se mantiene solo — un provider aparece acá cuando
+     * RR.HH. le crea la ficha, que es exactamente cuando empieza a ser alguien a
+     * quien supervisar.
+     *
+     * Medido el 2-sep: los ocho providers del staff (Justin Loder, Barry
+     * Clanton, Nathaniel Gay, Cassie Broadhead, Andrew Nielsen, David Miller,
+     * Scott Rigdon, Mark Stouffer) tienen empleado en "Medical Staff" con cargo
+     * DOCTOR; los siete de prueba, ninguno.
+     *
+     * CONSECUENCIA CONOCIDA: `Devin Clanton` queda fuera. Tiene correo
+     * corporativo, 88 citas y es la única cuenta de alta en ScriptSure, pero no
+     * tiene ficha de empleado. Si tiene que aparecer, la solución es vincularlo
+     * a su Employee desde Configuración → Doctores — el dato correcto, y no una
+     * excepción en esta consulta.
+     */
+    `p."employeeId" IS NOT NULL`,
   ];
 
   if (alcance.clinicId) { params.push(alcance.clinicId); cond.push(`a."clinicId" = $${params.length}`); }

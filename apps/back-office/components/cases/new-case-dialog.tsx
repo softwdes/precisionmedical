@@ -30,6 +30,9 @@ import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-ste
 import { calcAge, isMinor } from '@precision-medical/database/age';
 import { ActiveCallBar } from './active-call-bar';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
+import {
+  ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
+} from '@/components/patients/contacto-compartido-dialog';
 
 // B.2 — Contacto inicial del paciente · llamada + apertura caso + agendamiento
 //
@@ -227,6 +230,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
+
+  /**
+   * El contacto ya lo usa alguien: en vez del muro, se abre el diálogo que
+   * pregunta si es la misma persona, un familiar o una coincidencia.
+   *
+   * `vinculo` guarda la respuesta y se manda en el reintento — el alta se
+   * dispara de nuevo, ahora con el parentesco, y el servidor deja de frenar por
+   * el correo repetido. Ver `contacto-compartido-dialog`.
+   */
+  const [candidatosContacto, setCandidatosContacto] = useState<CandidatoContacto[]>([]);
+  const [vinculo, setVinculo] = useState<VinculoElegido | null>(null);
   const [success, setSuccess] = useState<{
     caseCode: string;
     caseId: string;
@@ -484,7 +498,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   }
 
   // ─── Submit ────────────────────────────────────────────────────────────
-  const handleSubmit = async (action: 'finalize' | 'pause') => {
+  /**
+   * @param contacto Respuesta del diálogo de contacto compartido. `undefined` en
+   *   el primer intento; con valor en el reintento, y ahí el servidor deja de
+   *   frenar porque el contacto ya se revisó con una persona.
+   */
+  const handleSubmit = async (
+    action: 'finalize' | 'pause',
+    contacto?: { vinculo: VinculoElegido | null },
+  ) => {
     setError(null);
     setSaving(true);
     try {
@@ -492,6 +514,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Solo viaja en el reintento. `contactLink` con valor = es familiar;
+          // en null = es coincidencia, se crea suelto. En los dos casos el
+          // contacto ya lo revisó alguien, así que no se vuelve a frenar.
+          ...(contacto ? {
+            contactoYaRevisado: true,
+            contactLink: contacto.vinculo,
+          } : {}),
           patient: {
             firstName: firstName.trim(), lastName: lastName.trim(),
             // Vacío se manda vacío. Antes caía a '0000000000' como placeholder,
@@ -555,6 +584,16 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        /**
+         * Con candidatos, el choque abre el diálogo en vez de dejar el aviso
+         * ámbar y nada más. El "usar el paciente que ya existe" sigue vivo —
+         * ahora es una de las tres respuestas, y la primera.
+         */
+        if (Array.isArray(data.candidatos) && data.candidatos.length > 0) {
+          setCandidatosContacto(data.candidatos as CandidatoContacto[]);
+          setSaving(false);
+          return;
+        }
         if ((data.error === 'DUPLICATE_PATIENT' || data.error === 'EMAIL_TAKEN') && data.existingPatientId) {
           setDuplicateId(data.existingPatientId);
         }
@@ -1713,6 +1752,36 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   </Button>
                 </div>
               )}
+
+              {/**
+                * El contacto ya lo usa alguien. Reemplaza al muro: pregunta si
+                * es la misma persona, un familiar o una coincidencia, y en los
+                * tres casos hay salida. Ver `contacto-compartido-dialog`.
+                */}
+              <ContactoCompartidoDialog
+                open={candidatosContacto.length > 0}
+                onClose={() => setCandidatosContacto([])}
+                candidatos={candidatosContacto}
+                nombreNuevo={[firstName.trim(), lastName.trim()].filter(Boolean).join(' ')}
+                emailNuevo={email.trim() || null}
+                telefonoNuevo={phone.trim() || null}
+                onUsarExistente={(id) => {
+                  // No se crea ficha nueva: el caso se abre sobre la que existe.
+                  setExistingPatientId(id);
+                  setCandidatosContacto([]);
+                  setError(null);
+                }}
+                onVincular={(v) => {
+                  setVinculo(v);
+                  setCandidatosContacto([]);
+                  void handleSubmit('finalize', { vinculo: v });
+                }}
+                onCrearSuelto={() => {
+                  setVinculo(null);
+                  setCandidatosContacto([]);
+                  void handleSubmit('finalize', { vinculo: null });
+                }}
+              />
             </>
           )}
 

@@ -13,6 +13,7 @@ import { Button } from '@precision/ui';
 import {
   PageHeader, KpiCard, TagPill, PersonAvatar, EmptyState,
 } from '@/components/ui-phoenix';
+import { IntakePanel, type FilaVista } from './intake-panel';
 
 // B.29 — Dashboard de Recepción · vista panel agregada
 
@@ -76,6 +77,8 @@ interface Props {
   upcomingAppointments: UpcomingAppointment[];
   recentActivity: ActivityEvent[];
   todayBoundary: { start: Date; end: Date; tomorrowStart: Date };
+  /** La cola del centinela — ver `intake-panel.tsx`. */
+  intake: { filas: FilaVista[]; yaLlegaron: FilaVista[]; citasEnVentana: number };
 }
 
 export function DashboardClient({
@@ -85,6 +88,7 @@ export function DashboardClient({
   upcomingAppointments,
   recentActivity,
   todayBoundary,
+  intake,
 }: Props) {
   const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
@@ -109,6 +113,18 @@ export function DashboardClient({
             <span>· {t('subtitle')} · {formatDate(new Date())}</span>
           </span>
         }
+      />
+
+      {/* ───── El centinela ─────────────────────────────────────────────────
+          Va PRIMERO, arriba de los números, y eso es la decisión de producto:
+          el dashboard es el felpudo del sistema (lo cruzan 12 de 12 personas,
+          ~6 minutos cada una) y en un lugar de paso un número no dispara
+          ninguna acción — una lista de nombres con un botón al lado, sí.
+          Los números quedan debajo, que es donde Erick los pidió. */}
+      <IntakePanel
+        filas={intake.filas}
+        yaLlegaron={intake.yaLlegaron}
+        citasEnVentana={intake.citasEnVentana}
       />
 
       {/* ───── KPIs del día ───────────────────────────────────────────────── */}

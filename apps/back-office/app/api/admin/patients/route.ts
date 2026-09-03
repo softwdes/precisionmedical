@@ -9,6 +9,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, Prisma, nextPatientCode } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import {
+  quienUsaEsteContacto, probableMismaPersona,
+} from '@/lib/contactos-compartidos';
 
 const empty = z.literal('').transform(() => null);
 
@@ -43,6 +46,17 @@ const CreateSchema = z.object({
   guardianPhone:           z.string().nullable().optional().or(empty),
   guardianRelation:        z.enum(['FATHER','MOTHER','LEGAL_GUARDIAN','OTHER']).nullable().optional(),
   providerReferrerId:      z.string().cuid().nullable().optional().or(empty),
+
+  /** El contacto compartido ya se revisó en el diálogo — ver el POST. */
+  contactoYaRevisado:      z.boolean().optional(),
+  /** `null` = se revisó y es coincidencia. Con valor = es familiar. */
+  contactLink: z.object({
+    contactOwnerId:  z.string().cuid(),
+    contactRelation: z.string().max(40),
+    sharesEmail:     z.boolean().default(false),
+    sharesPhone:     z.boolean().default(false),
+    autorizado:      z.boolean().default(false),
+  }).nullable().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -70,6 +84,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const d = parsed.data;
+
+  /**
+   * ¿Ese contacto ya lo usa alguien? Misma pregunta que en el alta de caso, y
+   * misma respuesta: no se bloquea, se devuelven los candidatos para que la
+   * pantalla pregunte si es la misma persona, un familiar o una coincidencia.
+   *
+   * Antes acá no había chequeo previo: el duplicado se descubría cuando Prisma
+   * tiraba P2002 por el `@unique` del email. Esa restricción ya no existe, así
+   * que sin esto el alta rápida creaba fichas repetidas en silencio — el
+   * problema opuesto al que teníamos.
+   */
+  if (!d.contactoYaRevisado) {
+    const candidatos = await quienUsaEsteContacto({ phone: d.phone, email: d.email });
+    if (candidatos.length > 0) {
+      const mismaPersona = probableMismaPersona(candidatos, d.firstName, d.lastName);
+      return NextResponse.json({
+        ok: false,
+        error: mismaPersona ? 'DUPLICATE_PATIENT' : 'CONTACT_SHARED',
+        message: mismaPersona
+          ? `Ya existe un paciente con ese nombre y contacto: ${mismaPersona.firstName} ${mismaPersona.lastName} (${mismaPersona.patientCode}).`
+          : 'Ese contacto ya lo usa otro paciente.',
+        existingPatientId: mismaPersona?.id ?? candidatos[0]!.id,
+        candidatos,
+      }, { status: 409 });
+    }
+  }
 
   let patient;
   try {
@@ -109,6 +149,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(d.guardianRelation      !== undefined && { guardianRelation:      d.guardianRelation }),
         ...(d.providerReferrerId    !== undefined && { providerReferrerId:    d.providerReferrerId }),
         ...(d.dateOfBirth ? { dateOfBirth: new Date(d.dateOfBirth) } : {}),
+        /**
+         * El vínculo de contacto compartido, si recepción respondió "es un
+         * familiar". `contactAuthorizedAt` solo se sella con la casilla marcada:
+         * el parentesco no es el consentimiento.
+         */
+        ...(d.contactLink ? {
+          contactOwnerId:  d.contactLink.contactOwnerId,
+          contactRelation: d.contactLink.contactRelation,
+          sharesEmail:     d.contactLink.sharesEmail,
+          sharesPhone:     d.contactLink.sharesPhone,
+          ...(d.contactLink.autorizado ? { contactAuthorizedAt: new Date() } : {}),
+        } : {}),
       },
       select: { id: true, patientCode: true, firstName: true, lastName: true },
     }));

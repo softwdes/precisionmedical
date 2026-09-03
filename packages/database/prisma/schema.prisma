@@ -723,7 +723,24 @@ model Patient {
 
   firstName   String
   lastName    String
-  email       String?   @unique
+  /// ⚠️ **YA NO es `@unique`** (Erick, 2026-09-02).
+  ///
+  /// Era una restricción que describía mal la realidad: una familia entera usa
+  /// el correo del papá o de la mamá, y el sistema no las dejaba existir. Peor
+  /// todavía, no las frenaba de verdad — se las saltaba INVENTANDO direcciones:
+  /// al medirlo había **1.005 correos secuenciales `@lienmaster.net`** puestos
+  /// por la migración del v2 y **143 `@no-email.lienmaster.local`** del kiosco
+  /// de walk-in. O sea ~20% del padrón con contacto falso, solo para satisfacer
+  /// este `@unique`.
+  ///
+  /// Un correo es un CANAL por el que se llega a alguien, no la identidad de
+  /// nadie. La identidad es `patientCode` + nombre + fecha de nacimiento.
+  ///
+  /// Que dos pacientes compartan correo ahora es un hecho que se registra —ver
+  /// `contactOwnerId` más abajo— y no un error que se bloquea. El índice queda
+  /// para que la búsqueda por correo siga siendo barata.
+  email       String?
+
   phone       String?
   dateOfBirth DateTime?
 
@@ -785,6 +802,41 @@ model Patient {
   guardianPhone     String?
   guardianRelation  String?
 
+  // ─── Contacto compartido en familia ──────────────────────────────────────
+  //
+  // Una familia entera —papá, mamá, hijos, a veces los abuelos— usa el mismo
+  // teléfono y el mismo correo. Antes eso se trataba como duplicado y se
+  // bloqueaba, y el dato del parentesco —que la recepcionista sabe en ese
+  // momento— se perdía. Ahora el choque PREGUNTA, y lo que responde se guarda
+  // acá (decisión de Erick, 2026-09-02).
+  //
+  // ⚠️ NO es lo mismo que `guardianPatient`, y no hay que mezclarlos. El tutor
+  // es una relación LEGAL: quien firma el lien y los consentimientos de un
+  // menor. Una esposa que comparte el teléfono no es tutelada de nadie.
+  //
+  // **Se guarda el VÍNCULO, no una copia del contacto.** La alternativa era
+  // copiar el correo del esposo al campo `email` de la esposa, y eso pierde
+  // para siempre la pregunta "¿ella tiene correo propio?" y obliga a tocar N
+  // filas cuando el dueño cambia de dirección. La pantalla igual muestra el
+  // correo con "este es el correo del esposo" debajo — renderizado de acá.
+  contactOwnerId String?
+  contactOwner   Patient?  @relation("PatientContactOwner", fields: [contactOwnerId], references: [id])
+  contactSharers Patient[] @relation("PatientContactOwner")
+
+  /// Parentesco con el dueño del contacto — catálogo `RELATION_CODES`.
+  contactRelation String?
+
+  /// Qué canal comparte. Puede ser uno, el otro, o los dos.
+  sharesEmail Boolean @default(false)
+  sharesPhone Boolean @default(false)
+
+  /// Quién registró que el dueño autoriza recibir la información de este
+  /// paciente en su canal, y cuándo. El parentesco NO es el consentimiento:
+  /// un SMS que dice "tu cita" viajando al teléfono de la mamá es PHI de otra
+  /// persona llegando a un canal compartido, y eso se autoriza, no se deduce.
+  contactAuthorizedByUserId String?
+  contactAuthorizedAt       DateTime?
+
   // ─── EMR / Historial médico (JSON blob, Phase 1A) ───────────────────────
   medicalHistory Json?
 
@@ -805,6 +857,8 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([email])
+  @@index([contactOwnerId])
   @@index([lawyerReferrerId])
   @@index([providerReferrerId])
   @@index([status])

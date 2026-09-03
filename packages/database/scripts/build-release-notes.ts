@@ -278,8 +278,25 @@ async function main(): Promise<void> {
             // El ingles hay que escribirlo: los commits estan en español.
             textEn: null,
             hidden: note.hidden,
-            // `!mapped` = el scope no esta en SCOPE_TO_MODULE y cayo en `other`.
-            needsReview: note.needsReview || !mapped,
+            // Un scope sin mapear YA NO tapa la nota.
+            //
+            // Lo hacia, y funcionaba como un borrado silencioso: nadie cura, asi
+            // que todo lo que caia en `other` no lo veia nadie nunca. Medido el
+            // 2026-09-02: de los 3 deploys del ultimo dia salieron 3 notas y CERO
+            // visibles, porque el equipo empezo a usar scopes nuevos y compuestos
+            // (`fotos`, `tema claro`, `centinela + contactos compartidos + notas`).
+            // La campana marcaba 0 y estaba en lo cierto: no habia nada que mostrar.
+            //
+            // El error era de concepto. `!mapped` significa "no se bajo que titulo
+            // agruparla", no "es peligrosa". Lo unico que decide a quien se le
+            // muestra es la AUDIENCIA, y esa sale de los paths del commit, que son
+            // confiables. El modulo `other` existe justamente para esto — su propio
+            // comentario dice "el cajon de lo que el mapa de scopes no reconocio" —
+            // y despues lo escondiamos igual.
+            //
+            // `needsReview` queda para lo que SI pide una persona: sensible,
+            // audiencia ambigua (solo toco `packages/`), o sin audiencia.
+            needsReview: note.needsReview,
             sortOrder: index,
           };
         }),

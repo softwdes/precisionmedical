@@ -81,6 +81,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   recetas: 'prescriptions',
   notes: 'notes',
   nota: 'notes',
+  'notas clinicas': 'notes',
   'nota interna': 'notes',
   'notas sin cerrar': 'notes',
   plantillas: 'notes',
@@ -123,19 +124,24 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   'doctor-portal': 'doctor',
   'doctor-view': 'doctor',
   'portal medico': 'doctor',
+  consulta: 'visits',
   'mi dia': 'doctor',
   lawyers: 'attorney',
   'portal legal': 'attorney',
+  centinela: 'attorney',
   'vigía': 'attorney',
   vigia: 'attorney',
   forms: 'intake',
+  portal: 'intake',
   intake: 'intake',
 
   // Documentos y reportes
   pdf: 'documents',
   impresion: 'documents',
   archivos: 'documents',
+  fotos: 'documents',
   metrics: 'metrics',
+  carrera: 'metrics',
   metricas: 'metrics',
   dashboard: 'metrics',
 
@@ -154,6 +160,8 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
 
   // Interfaz
   ui: 'interface',
+  'tema claro': 'interface',
+  'tema oscuro': 'interface',
   'ui-phoenix': 'interface',
   layout: 'interface',
   a11y: 'interface',
@@ -184,6 +192,7 @@ export const SCOPE_TO_MODULE: Record<string, string> = {
   webhook: 'platform',
   build: 'platform',
   'release-notes': 'platform',
+  novedades: 'platform',
   audit: 'settings',
   validacion: 'interface',
   errores: 'platform',
@@ -264,13 +273,28 @@ export function moduleLabel(module: string, locale: NoteLocale): string {
   return MODULE_LABELS[module]?.[locale] ?? MODULE_LABELS[FALLBACK_MODULE][locale];
 }
 
+/**
+ * Scope crudo -> clave de modulo.
+ *
+ * Acepta scopes COMPUESTOS: en este repo se usa el scope como titulo de tanda
+ * —`fix(notas clinicas + alta de caso + fotos del intake): tanda de dos
+ * sesiones`— y eso no mapea contra nada. Se parte por `+` y gana la primera
+ * parte que si mapee, que es la que encabeza el commit.
+ *
+ * `mapped: false` significa "no se en que modulo va", NO "esta mal". La
+ * audiencia sale de los PATHS y no de esto; el modulo solo decide bajo que
+ * titulo se agrupa. Ver el comentario de `needsReview` en build-release-notes.
+ */
 export function moduleForScope(scope: string | null): {
   module: string;
   mapped: boolean;
 } {
   if (scope === null) return { module: FALLBACK_MODULE, mapped: false };
-  const module = SCOPE_TO_MODULE[scope.toLowerCase()];
-  return module === undefined
-    ? { module: FALLBACK_MODULE, mapped: false }
-    : { module, mapped: true };
+
+  for (const parte of scope.split('+')) {
+    const module = SCOPE_TO_MODULE[parte.trim().toLowerCase()];
+    if (module !== undefined) return { module, mapped: true };
+  }
+
+  return { module: FALLBACK_MODULE, mapped: false };
 }

@@ -102,9 +102,10 @@ function reclasificar(fila: Fila): {
     module,
     audiences: audiences.map((a) => a.toUpperCase() as ReleaseAudience),
     hidden,
-    // Misma formula que el build: `toNote()` mas el `|| !mapped` que agrega
-    // build-release-notes al guardar.
-    needsReview: ambiguous || hidden || audiences.length === 0 || !mapped,
+    // Misma formula que el build. `!mapped` NO entra: un scope sin mapear solo
+    // dice que no sabemos bajo que titulo agrupar la nota, no que haya que
+    // esconderla. Ver el comentario largo en build-release-notes.ts.
+    needsReview: ambiguous || hidden || audiences.length === 0,
   };
 }
 

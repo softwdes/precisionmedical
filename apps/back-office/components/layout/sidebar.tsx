@@ -89,13 +89,16 @@ const DOCTOR_SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      { href: '/doctor',           icon: Sun,          labelKey: 'myDay',   exact: true },
-      { href: '/doctor/calendar',  icon: CalendarDays, labelKey: 'calendar'                                  },
-      { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients'                                },
-      { href: '/doctor/prescriptions', icon: Pill,     labelKey: 'prescriptions'                             },
-      { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats'                                     },
-      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates'              },
-      { href: '/doctor/catalog',   icon: FlaskConical, labelKey: 'catalog'                                   },
+      // Los `moduleKey` van prefijados con `doctor:` — `patients` y `calendar`
+      // existen tambien en el back-office y NO son la misma pantalla. Ver
+      // `lib/doctor-menu-modules.ts`.
+      { href: '/doctor',           icon: Sun,          labelKey: 'myDay',   exact: true, moduleKey: 'doctor:myday' },
+      { href: '/doctor/calendar',  icon: CalendarDays, labelKey: 'calendar',             moduleKey: 'doctor:calendar' },
+      { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients',           moduleKey: 'doctor:patients' },
+      { href: '/doctor/prescriptions', icon: Pill,     labelKey: 'prescriptions',        moduleKey: 'doctor:prescriptions' },
+      { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats',                moduleKey: 'doctor:stats' },
+      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates',            moduleKey: 'doctor:templates' },
+      { href: '/doctor/catalog',   icon: FlaskConical, labelKey: 'catalog',              moduleKey: 'doctor:catalog' },
     ],
   },
 ];

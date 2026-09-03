@@ -816,11 +816,40 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
 ];
 
 /**
+ * Menús del PORTAL MÉDICO gobernables por usuario (mismo orden que su sidebar).
+ *
+ * Van prefijados con `doctor:` porque conviven con los del back-office en el
+ * mismo JSON y tres nombres chocan: `patients` y `calendar` existen de los dos
+ * lados y NO son la misma pantalla. Espejo de
+ * `apps/back-office/lib/doctor-menu-modules.ts` — si se agrega un menú allá,
+ * agregarlo acá.
+ *
+ * Misma regla que los del back-office: se ven salvo que estén en `false`. Un
+ * provider recién creado entra y ve su portal completo sin configurar nada.
+ */
+const DOCTOR_MENU_PREFIX = 'doctor:';
+
+const DOCTOR_MODULES: Array<{ key: string; label: string; emoji: string }> = [
+  { key: 'myday',         label: 'Mi Día',       emoji: '☀️' },
+  { key: 'calendar',      label: 'Calendario',   emoji: '📅' },
+  { key: 'patients',      label: 'Mis Pacientes', emoji: '👥' },
+  { key: 'prescriptions', label: 'Recetas',      emoji: '💊' },
+  { key: 'stats',         label: 'Estadísticas', emoji: '📈' },
+  { key: 'templates',     label: 'Plantillas',   emoji: '📄' },
+  { key: 'catalog',       label: 'Catálogo',     emoji: '🧪' },
+];
+
+const doctorMenuKey = (key: string): string => `${DOCTOR_MENU_PREFIX}${key}`;
+
+/**
  * Capacidad "ver como doctor", guardada en el mismo JSON que los menús pero con
  * la regla invertida: un menú se ve salvo que esté en `false`, así que "Visión
  * completa" (mapa nulo) los concede todos. Entrar al portal de un médico no puede
  * caer de esa regla — solo cuenta un `true` explícito, y por eso su switch vive
  * fuera del bloque de menús. Espejo de `apps/back-office/lib/doctor-view-module.ts`.
+ *
+ * OJO: `'doctor'` (la capacidad) y `'doctor:patients'` (un menú) son llaves
+ * distintas y no se pisan.
  */
 const DOCTOR_VIEW_MODULE = 'doctor';
 
@@ -873,6 +902,21 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const [attorneyView, setAttorneyView] = useState(savedModules?.[ATTORNEY_VIEW_MODULE] === true);
   const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
 
+  /**
+   * Menús del portal médico. Mismo par visión-completa/selección que arriba,
+   * pero con su propio estado: el back-office y el portal se recortan por
+   * separado — un provider no tiene back-office y un recepcionista no tiene
+   * portal, y mezclarlos obligaba a tocar checkboxes que no le aplican.
+   */
+  const [fullDoctorVision, setFullDoctorVision] = useState(
+    savedModules === null || DOCTOR_MODULES.every(m => savedModules[doctorMenuKey(m.key)] === undefined),
+  );
+  const [doctorModules, setDoctorModules] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      DOCTOR_MODULES.map(m => [m.key, savedModules ? savedModules[doctorMenuKey(m.key)] !== false : true]),
+    ),
+  );
+
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
     EMPLOYEE: t('users.roles.EMPLOYEE'), DOCTOR: t('users.roles.DOCTOR'), LAWYER: t('users.roles.LAWYER'),
@@ -911,15 +955,20 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     // Las capacidades se guardan solo cuando están en `true`: un `false` diría
     // lo mismo que su ausencia y dejaría basura en el JSON.
     const menus = fullVision ? null : clinicModules;
+    // Los del portal médico van prefijados para no pisar a los de arriba
+    // (`patients` y `calendar` existen en los dos menús).
+    const menusDoctor = fullDoctorVision
+      ? null
+      : Object.fromEntries(DOCTOR_MODULES.map(m => [doctorMenuKey(m.key), doctorModules[m.key] !== false]));
     const portales = {
       ...(doctorView   ? { [DOCTOR_VIEW_MODULE]:   true } : {}),
       ...(attorneyView ? { [ATTORNEY_VIEW_MODULE]: true } : {}),
       ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
     };
     const clinicModulesPayload =
-      menus === null && Object.keys(portales).length === 0
+      menus === null && menusDoctor === null && Object.keys(portales).length === 0
         ? null
-        : { ...(menus ?? {}), ...portales };
+        : { ...(menus ?? {}), ...(menusDoctor ?? {}), ...portales };
 
     update.mutate({
       id: user.id,
@@ -992,7 +1041,12 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                 <button
                   type="button"
                   onClick={() => setFullVision(v => !v)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullVision ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                  // `bg-emerald`/`bg-amber` y no `-500`: en el preset esos cuatro
+                  // colores son una clave PLANA, y una clave plana reemplaza la
+                  // escala — `bg-emerald-500` no emite CSS y el toggle salia sin
+                  // color (se veia en la captura de Erick, 1-sep). `violet` no
+                  // sufre esto porque ahi si se hace spread de la escala.
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullVision ? 'bg-emerald' : 'bg-amber'}`}
                   title={fullVision ? 'Visión completa' : 'Menús seleccionados'}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${fullVision ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1016,6 +1070,60 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                       </label>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Portal Médico: qué menús ve ── */}
+            {/* Va aparte del recorte del Back-Office: son dos sidebars distintos
+                y la misma persona casi nunca tiene los dos. Misma regla, eso sí:
+                todos marcados salvo los que se desmarquen. */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Portal Médico — Visibilidad</p>
+                  <p className="text-[11px] text-text-muted">
+                    {fullDoctorVision
+                      ? 'Visión completa: ve todos los menús de su portal.'
+                      : 'Solo ve los menús marcados.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFullDoctorVision(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullDoctorVision ? 'bg-emerald' : 'bg-amber'}`}
+                  title={fullDoctorVision ? 'Visión completa' : 'Menús seleccionados'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${fullDoctorVision ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {!fullDoctorVision && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 border-t border-border/60">
+                  {DOCTOR_MODULES.map(mod => {
+                    const on = doctorModules[mod.key] !== false;
+                    return (
+                      <label key={mod.key} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-surface transition-colors" style={{ opacity: on ? 1 : 0.55 }}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => setDoctorModules(m => ({ ...m, [mod.key]: !(m[mod.key] !== false) }))}
+                          className="h-3.5 w-3.5 accent-violet-500"
+                        />
+                        <span className="text-[11px] w-4 text-center">{mod.emoji}</span>
+                        <span className="text-[12.5px] text-text-2">{mod.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!fullDoctorVision && DOCTOR_MODULES.every(m => doctorModules[m.key] === false) && (
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2">
+                  <p className="text-[11px] text-amber leading-relaxed">
+                    Sin ningún menú marcado no le queda portal: al entrar va a recibir
+                    &quot;sin acceso&quot;. Dejá al menos uno.
+                  </p>
                 </div>
               )}
             </div>

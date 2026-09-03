@@ -5,7 +5,7 @@ import { Stethoscope } from 'lucide-react';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
-import { getSessionProvider, getDoctorViewInfo } from '@/lib/get-session-provider';
+import { getSessionProvider, getDoctorViewInfo, getDoctorMenus } from '@/lib/get-session-provider';
 import { canAuditNotes } from '@/lib/notes-audit-access';
 import { getSessionUser } from '@/lib/session';
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
@@ -22,7 +22,7 @@ import { DoctorViewBar } from './doctor-view-bar';
 export default async function DoctorLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
   // Ambas están memorizadas por request (lib/session.ts) — el usuario se
   // resuelve una sola vez para todo el árbol, no una por componente.
-  const [user, provider, viewInfo, t, puedeAuditarNotas] = await Promise.all([
+  const [user, provider, viewInfo, t, puedeAuditarNotas, menusPortal] = await Promise.all([
     getSessionUser(),
     getSessionProvider(),
     getDoctorViewInfo(),
@@ -31,6 +31,10 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
     // que supervisa a los providers y no entra al back-office. Un médico común
     // no la ve — es opt-in, ver `canAuditNotes`.
     canAuditNotes(),
+    // Menús del portal apagados para ESTA persona (llaves `doctor:*` de
+    // `clinicModules`). null = los ve todos, que es el default de un provider
+    // recién creado: nadie tiene que configurarle nada para que entre.
+    getDoctorMenus(),
   ]);
   if (!user) redirect('/login');
 
@@ -88,6 +92,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
         userInitials={initials}
         userEmail={provider.email}
         canAuditNotes={puedeAuditarNotas}
+        allowedModules={menusPortal}
       >
         {/* La barra sale con la CAPACIDAD, no con la suplantación: quien puede
             elegir médico tiene que poder hacerlo también cuando está en su propia

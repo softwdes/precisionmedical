@@ -92,6 +92,29 @@ export const canViewAsDoctor = cache(async (email: string): Promise<boolean> => 
   return modules?.[DOCTOR_VIEW_MODULE] === true;
 });
 
+/**
+ * Menús del portal médico visibles para la sesión actual.
+ *
+ * `null` = sin restricción (ve todos). Es el mismo mapa `clinicModules` del que
+ * salen los menús del back-office y las capacidades; acá interesan solo las
+ * llaves `doctor:*`, y la regla es la de los menús —se ve salvo un `false`
+ * explícito—, no la de las capacidades. Ver `lib/doctor-menu-modules.ts`.
+ *
+ * A los ADMIN no se les recorta nada, igual que en el back-office: entran al
+ * portal para soporte y demos, y un menú escondido ahí es una llamada de
+ * "no me aparece".
+ *
+ * Devuelve el mapa COMPLETO y no una lista ya filtrada porque el sidebar espera
+ * un `Record<string, boolean>` y filtra él con `!== false`.
+ */
+export const getDoctorMenus = cache(async (): Promise<Record<string, boolean> | null> => {
+  const user = await getSessionUser();
+  if (!user?.email) return null;
+
+  if (ADMIN_ROLES.has(await getRole(user.email))) return null;
+  return fetchUserClinicModules(user.email);
+});
+
 /** Perfil propio del usuario logueado (null si no es doctor). */
 const getOwnProvider = cache(async (email: string): Promise<SessionProvider | null> =>
   db.provider.findFirst({

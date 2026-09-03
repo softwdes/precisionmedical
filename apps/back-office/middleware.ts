@@ -4,6 +4,7 @@ import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlo
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 import { NOTES_AUDIT_MODULE } from '@/lib/notes-audit-module';
 import { ATTORNEY_VIEW_MODULE } from '@/lib/attorney-view-module';
+import { DOCTOR_MENUS, doctorMenuForPath, seesDoctorMenu } from '@/lib/doctor-menu-modules';
 
 /**
  * Back-Office middleware.
@@ -331,6 +332,34 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return isAdminRole || (await resolveMods())?.[ATTORNEY_VIEW_MODULE] === true;
   }
 
+  /**
+   * Puerta por MENÚ dentro del portal médico.
+   *
+   * Devuelve la ruta a la que hay que mandar a esta persona, o `null` si la
+   * puede ver. Esconder el ítem del sidebar no alcanza: la URL se escribe a
+   * mano, y `/doctor/prescriptions` seguía abriendo para alguien con Recetas
+   * desmarcado.
+   *
+   * Solo gobierna PÁGINAS del portal. Las APIs quedan afuera a propósito: las
+   * pantallas del portal consumen `/api/admin/*` compartido con la consulta y
+   * con el detalle del caso —`templates`, `catalog`, `scriptsure` y
+   * `lab-catalog` los llama también el editor de la nota—, así que cerrarlas
+   * por menú rompería pantallas que la persona SÍ tiene. Y no es un agujero de
+   * datos: esas rutas ya devuelven lo del provider de la sesión, no la clínica
+   * entera. Esto es alcance de NAVEGACIÓN, no una frontera de datos.
+   */
+  async function doctorMenuRedirect(path: string): Promise<string | null> {
+    const menu = doctorMenuForPath(path);
+    if (menu === null) return null; // no es un menú (p. ej. /doctor-print/*)
+
+    const mapa = await resolveMods();
+    if (seesDoctorMenu(mapa, menu)) return null;
+
+    // Al primer menú que sí tenga. Sin ninguno, el portal no es su lugar.
+    const primero = DOCTOR_MENUS.find((m) => seesDoctorMenu(mapa, m.key));
+    return primero?.href ?? '/no-access';
+  }
+
   // ── Portal legal (/attorney) — scoping por rol y por host ─────────────────
   // Mismo patrón que el portal médico de abajo. attorney.lienmaster.net (prod) /
   // attorney.localhost (dev) → solo mundo abogado.
@@ -409,6 +438,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       const guarded = apiGuardModule(pathname, request.method);
       if (guarded && !DOCTOR_PORTAL_MODULES.has(guarded)) return forbidden(guarded, response);
     }
+    const fueraDeMenu = await doctorMenuRedirect(pathname);
+    if (fueraDeMenu !== null) {
+      const url = request.nextUrl.clone();
+      url.pathname = fueraDeMenu;
+      url.search = '';
+      return url.pathname === pathname ? response : NextResponse.redirect(url);
+    }
     return response; // PROVIDER no pasa por el check pm_clinic del back-office
   }
 
@@ -434,7 +470,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const canAuditNotes = isAdminRole || mods?.[NOTES_AUDIT_MODULE] === true;
   // La PANTALLA vive en `/doctor/notes` y se cierra sola: acá no se puede,
   // porque los roles del portal (DOCTOR/PROVIDER) ya salieron por su rama, más
-  // arriba, antes de que `mods` se resuelva. La API sí se cierra para el staff
+  // arriba, y nunca llegan a esta línea. La API sí se cierra para el staff
   // del back-office, que es quien llega hasta esta línea — la exportación saca
   // PHI y esconder un menú no cierra una URL.
   if (pathname.startsWith('/api/admin/notes/') && !canAuditNotes) {
@@ -460,6 +496,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       url.search = '';
       return NextResponse.redirect(url);
     }
+    const fueraDeMenu = await doctorMenuRedirect(pathname);
+    if (fueraDeMenu !== null && fueraDeMenu !== pathname) {
+      const url = request.nextUrl.clone();
+      url.pathname = fueraDeMenu;
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
     return response;
   }
 
@@ -468,6 +511,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
+  }
+
+  // Y el staff que SÍ tiene la capacidad se rige por los mismos menús del portal
+  // que un provider: la ficha es una sola. `/doctor-print/*` queda afuera —no es
+  // un menú y ya tiene su puerta arriba.
+  if (isDoctorArea && !isDoctorPrint) {
+    const fueraDeMenu = await doctorMenuRedirect(pathname);
+    if (fueraDeMenu !== null && fueraDeMenu !== pathname) {
+      const url = request.nextUrl.clone();
+      url.pathname = fueraDeMenu;
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
   }
 
   // Y tampoco el legal. Esta puerta faltaba en el host principal: `/attorney` no

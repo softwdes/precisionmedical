@@ -831,6 +831,23 @@ const DOCTOR_VIEW_MODULE = 'doctor';
  */
 const ATTORNEY_VIEW_MODULE = 'attorney';
 
+/**
+ * Supervisión de notas clínicas: la pantalla del portal médico donde el admin de
+ * los doctores ve, de TODOS los providers, qué notas faltan y cuáles quedaron a
+ * medias — y puede abrirlas.
+ *
+ * Misma regla invertida que las dos de arriba, y acá importa más que en ninguna:
+ * si esta llave viviera en el bloque de menús —donde vale "se ve salvo que esté
+ * apagado"— se le abriría sola a cada empleado nuevo, con nombre de paciente y
+ * contenido clínico adentro. Solo cuenta un `true` explícito. Espejo de
+ * `apps/back-office/lib/notes-audit-module.ts`.
+ *
+ * Los ADMIN y SUPER_ADMIN NO la necesitan: `canAuditNotes()` se la da por rol.
+ * Esta casilla es para dársela a alguien que no es admin — típicamente un
+ * provider que supervisa a los demás.
+ */
+const NOTES_AUDIT_MODULE = 'notesAudit';
+
 function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
@@ -854,6 +871,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   );
   const [doctorView, setDoctorView] = useState(savedModules?.[DOCTOR_VIEW_MODULE] === true);
   const [attorneyView, setAttorneyView] = useState(savedModules?.[ATTORNEY_VIEW_MODULE] === true);
+  const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
@@ -896,6 +914,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     const portales = {
       ...(doctorView   ? { [DOCTOR_VIEW_MODULE]:   true } : {}),
       ...(attorneyView ? { [ATTORNEY_VIEW_MODULE]: true } : {}),
+      ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
     };
     const clinicModulesPayload =
       menus === null && Object.keys(portales).length === 0
@@ -1063,6 +1082,68 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     queda a nombre de esa ficha. Para pruebas, elegir un despacho de QA.
                   </p>
                 </div>
+              )}
+            </div>
+
+            {/* ── Supervisión de notas clínicas ── */}
+            {/* Tercera capacidad opt-in, por el mismo motivo que las dos de arriba
+                y con más razón: adentro hay contenido clínico de todos. */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Supervisión de notas clínicas</p>
+                  <p className="text-[11px] text-text-muted">
+                    {notesAudit
+                      ? 'Ve las notas de todos los providers y puede abrirlas.'
+                      : 'Sin acceso a la supervisión de notas.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNotesAudit(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${notesAudit ? 'bg-cyan-500' : 'bg-border'}`}
+                  title={notesAudit ? 'Con acceso a la supervisión de notas' : 'Sin acceso a la supervisión de notas'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${notesAudit ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {notesAudit && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  {/**
+                    * El texto va con `text-text-2` y no con `text-amber-400` como los
+                    * dos avisos de arriba: `amber-400` es un hex fijo y esta pantalla
+                    * tiene tema claro. Medido sobre este mismo fondo, `amber-400` da
+                    * 10:1 en oscuro pero **1.54:1 en claro** — el aviso que explica qué
+                    * acceso estás dando queda ilegible justo donde hay que leerlo.
+                    *
+                    * Ningún ámbar fijo sirve para los dos temas (amber-700 llega a 4.65
+                    * en claro y cae a 3.34 en oscuro), y `amber` no tiene variante
+                    * `-text` variable como `brand` y `violet`. `text-2` sí la tiene:
+                    * 9.58 en claro y 11.29 en oscuro. El ámbar sigue en el borde y el
+                    * fondo, que es lo que carga el significado de advertencia.
+                    *
+                    * En este mismo archivo hay un tercer patrón —`text-amber-600
+                    * dark:text-amber-400`, en las líneas 710 y 1481— que sí es
+                    * consciente del tema y es mejor que el ámbar pelado. No lo usé
+                    * porque `amber-600` sobre este fondo da 2.95:1 en claro: mejora
+                    * mucho el 1.54, pero sigue debajo del 4.5 que hace falta para leer
+                    * un párrafo.
+                    */}
+                  <p className="text-[11px] text-text-2 leading-relaxed">
+                    Ve las notas clínicas de TODOS los providers, con nombre de paciente, y
+                    puede editar los borradores — firmarlas no, eso es del médico. Si su rol
+                    es Doctor o Provider tampoco puede sellar desenlaces de citas ajenas: el
+                    botón le aparece bloqueado con el motivo.
+                  </p>
+                </div>
+              )}
+
+              {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  Esta cuenta ya la tiene por su rol de administrador — la casilla no le
+                  agrega nada.
+                </p>
               )}
             </div>
 

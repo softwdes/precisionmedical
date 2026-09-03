@@ -100,6 +100,27 @@ interface Props {
    * esto es la CARA de la regla, no la regla.
    */
   turno?: { enConsulta: boolean; doctorName: string | null };
+  /**
+   * Avisa si AHORA MISMO se puede escribir en la nota — lo consume la tarjeta de
+   * mensajes del caso para habilitar o bloquear "Citar en la nota".
+   *
+   * Va como callback y no como cuenta del padre porque `soloLectura` depende de
+   * `tomadaUi`, que vive acá adentro: el asistente que aprieta "Tomar la nota"
+   * pasa a poder escribir sin que el padre se enterara.
+   */
+  onPuedeEscribirChange?: (puede: boolean) => void;
+}
+
+/** Lo que el padre puede pedirle al editor desde afuera. */
+export interface VisitNoteEditorHandle {
+  /**
+   * Agrega HTML al final del HPI, como si lo hubiera tecleado quien mira.
+   *
+   * Es la MITAD del puente con la mensajería: la otra mitad es que alguien
+   * aprete el botón. La nota se firma, así que nada entra al cuerpo sin que una
+   * persona lo decida — acá no hay auto-inyección de nada.
+   */
+  citarEnHpi: (html: string) => void;
 }
 
 /** Campo de la nota ↔ sectionKey de la plantilla */
@@ -145,9 +166,10 @@ function parseDx(content: string): NoteDx[] {
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export function VisitNoteEditor({
+export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(function VisitNoteEditor({
   appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange, turno,
-}: Props): React.ReactElement {
+  onPuedeEscribirChange,
+}: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
 
@@ -432,6 +454,28 @@ export function VisitNoteEditor({
     tocadas.current.add(field);
     setDirty(true);
   };
+
+  // ── El puente con la mensajería ───────────────────────────────────────────
+
+  React.useEffect(() => { onPuedeEscribirChange?.(!soloLectura); }, [soloLectura, onPuedeEscribirChange]);
+
+  React.useImperativeHandle(refExterno, () => ({
+    citarEnHpi: (html: string): void => {
+      /* El servidor rechaza igual, pero acá el botón ya venía bloqueado: si
+         llegó una llamada con la nota en solo lectura es un bug de arriba, y
+         tragarlo en silencio es mejor que escribir sobre una nota firmada. */
+      if (soloLectura) return;
+      // Del ref y no del estado: dos citas seguidas con el mismo render
+      // perderían la primera.
+      const actual = latest.current.content.hpi ?? '';
+      setSection('hpi', actual ? `${actual}${html}` : html);
+      // El HPI puede estar fuera de la pantalla y la cita se agrega al final:
+      // sin esto el botón parece no haber hecho nada.
+      requestAnimationFrame(() => {
+        document.getElementById('nota-hpi')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    },
+  }), [soloLectura]);
 
   /** Hay algo que se pueda perder? (texto en cualquier seccion, o diagnosticos) */
   const notaTieneContenido = (): boolean =>
@@ -729,7 +773,8 @@ export function VisitNoteEditor({
 
       {/* Secciones SOAP */}
       {SECTIONS.map(({ field, key }) => (
-        <div key={field} className="space-y-1.5">
+        /* El `id` del HPI es el ancla a la que salta `citarEnHpi`. */
+        <div key={field} id={field === 'hpi' ? 'nota-hpi' : undefined} className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
               {t(`sec_${key}`)}
@@ -901,4 +946,4 @@ export function VisitNoteEditor({
       )}
     </div>
   );
-}
+});

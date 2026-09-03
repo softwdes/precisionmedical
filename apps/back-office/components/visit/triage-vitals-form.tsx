@@ -36,6 +36,7 @@ import { Video, Activity, AlertTriangle, Clock, RefreshCw, Save } from 'lucide-r
 import { Button } from '@precision/ui';
 import { Section, SectionDivider } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
+import { AlertaVitales } from './alerta-vitales';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,22 @@ function val(s: string): number | null {
   return isNaN(n) || n <= 0 ? null : n;
 }
 
+/**
+ * Lo mismo pero ACEPTANDO el cero y los negativos, para la evaluación de rangos.
+ *
+ * `val()` descarta `<= 0` porque una altura de 0 no existe. Para las alertas eso
+ * no sirve: un dolor de 0 es un dato válido y una sistólica de 0 o de -5 es
+ * justo el error de carga que hay que marcar, no algo que haya que ignorar.
+ */
+function numero(s: string): number | null {
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function entero(s: string): number | null {
+  const n = parseInt(s, 10);
+  return isNaN(n) ? null : n;
+}
+
 function fToC(f: string): string {
   const v = parseFloat(f);
   if (isNaN(v)) return '';
@@ -146,13 +163,29 @@ function cToF(c: string): string {
  * pantalla. Los cm son el valor real, así que el par sale derivado de ellos y
  * ninguno de los dos miente.
  */
+/**
+ * ⚠️ El redondeo del resto TIENE que acarrear.
+ *
+ * `Math.round(totalIn % 12)` devuelve 12 cuando el resto pasa de 11.5, y eso
+ * guardaba **"5 ft 12 in"** — que no existe. Pasaba en cuatro bandas de 1,26 cm:
+ * 120,65-121,91 · 151,14-152,40 · **181,62-182,88** · 212,10-213,36. La tercera
+ * es un adulto de 5'11½"-6'0", o sea de las más comunes que hay.
+ *
+ * No era teórico: al encontrarlo había **4 de 86 registros con `heightIn` ≥ 12 y
+ * 20 con `weightOz` ≥ 16** ya guardados. Y este par lo leen la nota IMPRESA, el
+ * triaje de `apps/clinical` (el v2, todavía en uso) y el SQL de métricas de
+ * doctores — así que hay notas impresas que dicen "5 ft 12 in".
+ *
+ * Se redondea el TOTAL primero y después se reparte: así el acarreo sale solo y
+ * no hay forma de que el resto llegue al tope.
+ */
 function cmToPar(cm: number): { ft: number; inches: number } {
-  const totalIn = cm / CM_POR_PULGADA;
-  return { ft: Math.floor(totalIn / 12), inches: Math.round(totalIn % 12) };
+  const totalIn = Math.round(cm / CM_POR_PULGADA);
+  return { ft: Math.floor(totalIn / 12), inches: totalIn % 12 };
 }
 function kgToPar(kg: number): { lbs: number; oz: number } {
-  const totalOz = kg * OZ_POR_KG;
-  return { lbs: Math.floor(totalOz / 16), oz: Math.round(totalOz % 16) };
+  const totalOz = Math.round(kg * OZ_POR_KG);
+  return { lbs: Math.floor(totalOz / 16), oz: totalOz % 16 };
 }
 
 export function triageToState(tr: TriageRecord | null): VitalsState {
@@ -335,6 +368,14 @@ export interface TriageVitalsFormHandle {
 
 export interface TriageVitalsFormProps {
   appointmentId: string;
+  /**
+   * Años cumplidos del paciente — para evaluar los rangos.
+   *
+   * Va como prop y no se busca acá: los umbrales son de ADULTO y en un menor no
+   * aplican (un pulso de 120 es normal a los 2 años). `null` = no se sabe, y ahí
+   * la alerta lo dice en vez de suponer que es adulto.
+   */
+  edadPaciente?: number | null;
   /** Triaje ya cargado, o null si nadie lo tomó todavía. */
   initial: TriageRecord | null;
   /** Última corrección, para el chip ámbar de trazabilidad. */
@@ -356,7 +397,7 @@ export interface TriageVitalsFormProps {
 }
 
 export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageVitalsFormProps>(
-  function TriageVitalsForm({ appointmentId, initial, correction = null, onChange, onSaved, isOnline = false }, ref) {
+  function TriageVitalsForm({ appointmentId, initial, correction = null, onChange, onSaved, isOnline = false, edadPaciente = null }, ref) {
     const t = useTranslations('phoenix.admission');
 
     /**
@@ -526,6 +567,29 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
             <p className="text-[11px] text-text-2">{t('vitalsOnlineHint')}</p>
           </div>
         )}
+
+        {/* Fuera de rango, EN VIVO mientras se carga.
+            Va acá arriba y no abajo de los 30 campos: quien toma los vitales es
+            el primero que puede corregir un 500 mal tecleado, y el doctor que
+            abre el bloque lo ve sin scrollear. Con todo normal no se dibuja. */}
+        <AlertaVitales
+          className="mb-3"
+          edad={edadPaciente}
+          vitales={{
+            systolicMmhg:     entero(vitals.systolicMmhg),
+            diastolicMmhg:    entero(vitals.diastolicMmhg),
+            pulseBpm:         entero(vitals.pulseBpm),
+            respiratoryRate:  entero(vitals.respiratoryRate),
+            tempFahrenheit:   numero(vitals.tempFahrenheit),
+            o2Saturation:     entero(vitals.o2Saturation),
+            painScale:        entero(vitals.painScale),
+            systolicMmhg2:    entero(vitals.systolicMmhg2),
+            diastolicMmhg2:   entero(vitals.diastolicMmhg2),
+            pulseBpm2:        entero(vitals.pulseBpm2),
+            respiratoryRate2: entero(vitals.respiratoryRate2),
+            tempFahrenheit2:  numero(vitals.tempFahrenheit2),
+          }}
+        />
 
         {/* fieldset disabled propaga a TODOS los controles internos, así
             no hay que pasarle un prop a cada uno de los ~30 VInput. Los

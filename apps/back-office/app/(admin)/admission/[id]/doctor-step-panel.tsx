@@ -17,9 +17,11 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, FileText, FlaskConical, Stethoscope, Bandage, Pill, CreditCard, Loader2 } from 'lucide-react';
+import { ClipboardList, FileText, FlaskConical, Stethoscope, Bandage, Pill, CreditCard, FolderOpen, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
-import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
+import { VisitNoteEditor, type VisitNoteData, type VisitNoteEditorHandle } from '@/components/visit/visit-note-editor';
+import { useMensajesDelCaso, MensajesDelCasoCard, MensajeUrgenteStrip } from '@/components/visit/mensajes-del-caso';
+import { edadEnAnios } from '@/lib/vitales-alerta';
 import { LabsTab } from '@/components/visit/labs-tab';
 import { BracesTab } from '@/components/visit/braces-tab';
 import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
@@ -29,12 +31,13 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
+import { DocumentsTab } from '@/components/cases/documents-tab';
 import { EmptyState } from '@/components/ui-phoenix';
 import type { CoverageDTO } from '@/lib/coverage';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 
-type Tab = 'notes' | 'labs' | 'rx' | 'services' | 'braces' | 'summary' | 'pay';
+type Tab = 'notes' | 'documentos' | 'labs' | 'rx' | 'services' | 'braces' | 'summary' | 'pay';
 
 interface Props {
   appointmentId: string;
@@ -44,6 +47,11 @@ interface Props {
    * menciona en el mostrador) y en Pacientes ya la edita hoy.
    */
   patientId: string;
+  /**
+   * Quién está mirando — lo necesitan los mensajes del caso: el "sin leer" es
+   * por persona y el diálogo del hilo no se puede montar sin saber quién es.
+   */
+  currentUserId: string | null;
   /**
    * Contexto clínico para el panel izquierdo — el MISMO que ve el doctor.
    * `null` mientras la pantalla todavía no cargó el detalle de la cita.
@@ -79,10 +87,19 @@ interface Props {
 }
 
 export function DoctorStepPanel({
-  appointmentId, patientId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
+  appointmentId, patientId, currentUserId, patientContext, appointmentStatus, checkedInAt, doctorDoneAt, checkedOutAt, providerName,
   triage, hasTriage, servicesPanel, billingTotal, coverage, onRefresh, onSync, isOnline = false,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+
+  // ── Mensajes del caso ─────────────────────────────────────────────────────
+  const mensajes = useMensajesDelCaso(patientId, servicesPanel.case?.id ?? null);
+  const notaRef = React.useRef<VisitNoteEditorHandle>(null);
+  /**
+   * Lo dice el EDITOR, no esta pantalla: `soloLectura` depende de si el
+   * asistente tomó la nota, y eso vive adentro del editor.
+   */
+  const [puedeEscribirNota, setPuedeEscribirNota] = React.useState(false);
 
   /** Abre en la nota, igual que la consulta del doctor. */
   const [tab, setTab] = React.useState<Tab>('notes');
@@ -193,6 +210,22 @@ export function DoctorStepPanel({
    */
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'notes', label: t('tabNotes'), icon: FileText },
+    /**
+     * Documentos va SEGUNDO, pegado a la nota, y no al final de la fila.
+     *
+     * Los otros seis tabs son la secuencia de lo que se HACE en la visita; este
+     * es lo que se CONSULTA mientras se hace, y lo que se consulta se usa casi
+     * siempre escribiendo la nota (el reporte del accidente, los records de
+     * antes, la identificación). Al final de la fila quedaría separado del único
+     * tab con el que se usa, y además detrás de Resumen y Pagar, que son el
+     * cierre — nadie busca un documento después de cobrar.
+     *
+     * Es un tab y no el botón "Ver caso" por pedido de la clínica (Erick,
+     * 2026-09-03): el expediente completo abre TODO —todas las citas, todos los
+     * labs, la facturación— y acá lo único que quieren es leer los archivos sin
+     * salir de la cita.
+     */
+    { id: 'documentos', label: t('tabDocuments'), icon: FolderOpen },
     { id: 'labs', label: t('tabLabs'), icon: FlaskConical },
     { id: 'rx', label: t('tabRx'), icon: Pill },
     { id: 'services', label: t('tabServices'), icon: Stethoscope },
@@ -258,8 +291,17 @@ export function DoctorStepPanel({
         {/* Solo en la nota, igual que la consulta del doctor: en los otros tabs el
             contenido son tablas y el ancho es el recurso escaso. */}
         {patientContext && tab === 'notes' && (
-          <div className="lg:sticky lg:top-4">
+          <div className="lg:sticky lg:top-4 space-y-2">
             <PatientContextPanel patient={patientContext} />
+            {/* Los mensajes del caso van DEBAJO del contexto y como hermano, no
+                adentro: en mobile ese panel se pliega entero y un aviso
+                escondido detrás de un tap no es un aviso. */}
+            <MensajesDelCasoCard
+              datos={mensajes}
+              currentUserId={currentUserId}
+              onCitar={puedeEscribirNota ? (html) => notaRef.current?.citarEnHpi(html) : null}
+              motivoBloqueo={t('quoteBlockedTurn')}
+            />
           </div>
         )}
         <div className="min-w-0">
@@ -272,6 +314,7 @@ export function DoctorStepPanel({
             {tab === 'summary' && (
               <VisitSummary
                 isOnline={isOnline}
+                edadPaciente={patientContext ? edadEnAnios(patientContext.dateOfBirth) : null}
                 variant="assistant"
                 appointmentId={appointmentId}
                 appointmentStatus={appointmentStatus}
@@ -301,7 +344,16 @@ export function DoctorStepPanel({
             )}
 
             {tab === 'notes' && (
+              <>
+              {/* Un urgente sin leer, arriba de la nota. Va DESPUÉS del aviso
+                  del turno que pinta el editor —el turno decide si podés
+                  escribir— y por eso queda acá y no adentro del editor. */}
+              <div className="mb-3">
+                <MensajeUrgenteStrip datos={mensajes} currentUserId={currentUserId} />
+              </div>
               <VisitNoteEditor
+                ref={notaRef}
+                onPuedeEscribirChange={setPuedeEscribirNota}
                 appointmentId={appointmentId}
                 patientId={patientId}
                 note={note}
@@ -321,6 +373,31 @@ export function DoctorStepPanel({
                   doctorName: providerName,
                 }}
               />
+              </>
+            )}
+
+            {/* DOCUMENTOS — el MISMO explorador del expediente, sin nada de
+                alrededor. Es el componente del tab Documentos del caso, así que
+                lo que se sube acá aparece allá y al revés: un solo lugar donde
+                viven los archivos, dos puertas para entrar.
+
+                Acá SÍ se puede subir (no va `readOnly`): quien está en el
+                mostrador con el paciente es el que escanea la identificación y
+                el reporte del accidente, y mandarlo al expediente para eso es
+                mandarlo a otra pantalla a mitad de la visita.
+
+                Y esto es también donde aparecen los archivos que se compartieron
+                por mensajería: se archivan solos en la carpeta `Messages` del
+                caso — ver `lib/messaging-documents.ts`.
+
+                Sin caso no hay expediente, igual que en Pagar: se muestra el
+                motivo en vez de una pantalla vacía. */}
+            {tab === 'documentos' && (
+              servicesPanel.case ? (
+                <DocumentsTab caseId={servicesPanel.case.id} />
+              ) : (
+                <EmptyState.Rich icon={FolderOpen} title={t('docsNoCaseTitle')} subtitle={t('docsNoCaseHint')} />
+              )
             )}
 
             {tab === 'labs' && (

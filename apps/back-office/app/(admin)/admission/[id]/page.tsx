@@ -5,6 +5,7 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound }             from 'next/navigation';
 import { db }                   from '@precision-medical/database';
+import { getSessionUser }       from '@/lib/session';
 import { AdmissionDetailClient } from './admission-detail-client';
 
 interface Props {
@@ -27,7 +28,12 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function AdmissionDetailPage({ params }: Props) {
   const { id } = await params;
-  const exists = await db.appointment.findUnique({ where: { id }, select: { id: true } });
+  /* `getSessionUser` está memorizado con `cache()`, así que esto no agrega un
+     viaje a la base: el layout ya lo resolvió. */
+  const [exists, user] = await Promise.all([
+    db.appointment.findUnique({ where: { id }, select: { id: true } }),
+    getSessionUser(),
+  ]);
   if (!exists) notFound();
-  return <AdmissionDetailClient key={id} appointmentId={id} />;
+  return <AdmissionDetailClient key={id} appointmentId={id} currentUserId={user?.id ?? null} />;
 }

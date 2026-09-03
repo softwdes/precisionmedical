@@ -77,14 +77,23 @@ export default async function DoctorMyDayPage({
         meetingUrl: true,
         checkedInAt: true,
         attendanceSignedAt: true,
-        patient: { select: { firstName: true, lastName: true } },
+        /* La fecha de nacimiento va para EVALUAR los vitales: los umbrales
+           son de adulto y en un menor no aplican. */
+        patient: { select: { firstName: true, lastName: true, dateOfBirth: true } },
         // `caseType` alimenta la sugerencia de cobertura (un MVA sugiere lien).
         // `consentsData` NO se trae acá: es el JSON de todos los consentimientos
         // y por 20 filas es payload que la lista no usa — la sugerencia derivada
         // del intake solo hace falta en el diálogo, que trae un caso solo.
         case: { select: { id: true, caseCode: true, caseType: true, ...COVERAGE_LIST_SELECT } },
         clinic: { select: { name: true } },
-        triageRecord: { select: { id: true, systolicMmhg: true, diastolicMmhg: true, pulseBpm: true, painScale: true } },
+        /* Los SEIS vitales que evalúa `hallazgosVitales`, no cuatro.
+           Antes traía solo presión, pulso y dolor, así que un O₂ de 86 o una
+           fiebre de 103.5 nunca se podían pintar acá: la alerta existiría y
+           esta pantalla no tendría con qué dispararla. */
+        triageRecord: { select: {
+          id: true, systolicMmhg: true, diastolicMmhg: true, pulseBpm: true, painScale: true,
+          respiratoryRate: true, tempFahrenheit: true, o2Saturation: true,
+        } },
         visitNote: { select: { status: true } },
       },
     }),
@@ -132,10 +141,14 @@ export default async function DoctorMyDayPage({
           diastolic: a.triageRecord.diastolicMmhg,
           pulse: a.triageRecord.pulseBpm,
           pain: a.triageRecord.painScale,
+          respRate: a.triageRecord.respiratoryRate,
+          tempF: a.triageRecord.tempFahrenheit,
+          o2: a.triageRecord.o2Saturation,
         }
       : null,
     noteStatus: a.visitNote?.status ?? null,
     doctorDoneAt: doneMap.get(a.id)?.toISOString() ?? null,
+    patientDob: a.patient.dateOfBirth?.toISOString() ?? null,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
     caseId: a.case?.id ?? null,

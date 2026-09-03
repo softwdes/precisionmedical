@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { edadEnAnios } from '@/lib/vitales-alerta';
 
 /**
  * B.15 — Triage & Verification
@@ -121,7 +122,11 @@ function ChecklistCard({ done, label, meta }: { done: boolean; label: string; me
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function AdmissionDetailClient({ appointmentId }: { appointmentId: string }) {
+export function AdmissionDetailClient({
+  appointmentId,
+  /** Quién mira — baja al step 3 para los mensajes del caso. */
+  currentUserId,
+}: { appointmentId: string; currentUserId: string | null }) {
   const router = useRouter();
   const t = useTranslations('phoenix.admission');
   const [detail,    setDetail]    = useState<ApptDetail | null>(null);
@@ -489,6 +494,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           <DoctorStepPanel
             appointmentId={d.id}
             patientId={d.patient.id}
+            currentUserId={currentUserId}
             patientContext={d.patientContext ?? null}
             appointmentStatus={d.status}
             checkedInAt={d.checkedInAt}
@@ -610,6 +616,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 initial={d.triageRecord}
                 correction={vitalsCorrection}
                 onChange={setVitals}
+                edadPaciente={edadEnAnios(d.patient.dateOfBirth)}
               />
             </div>
 

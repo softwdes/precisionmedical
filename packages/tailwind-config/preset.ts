@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import colors from 'tailwindcss/colors';
 import tailwindcssAnimate from 'tailwindcss-animate';
 import tailwindcssForms from '@tailwindcss/forms';
 
@@ -60,6 +61,38 @@ const config: Omit<Config, 'content'> = {
         'violet-text': alfa('--violet-text'),
         brand: '#6366F1',
         'brand-2': '#8B5CF6',
+        /**
+         * `violet` es la identidad del módulo Provider (Regla #5: B.17-B.18) y
+         * FALTABA acá. No fallaba: `bg-violet/10` y `border-violet/30` no
+         * generaban ninguna regla, así que el fondo no se pintaba y el borde
+         * caía al gris opaco de Tailwind — el mismo síntoma que documenta el
+         * comentario de arriba, en 142 usos del back-office (33 `bg-violet/10`,
+         * 26 `border-violet/30`, 22 `bg-violet/15`...).
+         *
+         * ⚠️ **Va con la escala Y un `DEFAULT`, NO como string pelado.** Una
+         * clave plana en `extend.colors` REEMPLAZA la escala entera de Tailwind,
+         * y ahí `violet-500` deja de resolver. Medido con `resolveConfig`:
+         *
+         *   violet: '#8B5CF6'                      -> violet-500 NO resuelve
+         *   violet: { ...colors.violet, DEFAULT }  -> las dos formas resuelven
+         *
+         * Con el string pelado esto habría APAGADO **93 clases `violet-NNN` de
+         * `apps/web`** (empleados, freelancers, usuarios) para encender las del
+         * back-office: cambiar un agujero por otro más grande. Lo encontró pm-08
+         * antes del push.
+         *
+         * El `DEFAULT` es violet-500, el tono de los mockups aprobados — el
+         * mismo hex que `brand-2`, pero con nombre propio porque el módulo lo
+         * usa como identidad y no como "el segundo brand".
+         *
+         * 🔴 **`emerald`, `amber`, `rose` y `cyan` (arriba y abajo) siguen siendo
+         * strings pelados y tienen el MISMO problema ya en producción**: ~270
+         * clases de escala que no resuelven hoy (86 `emerald-NNN`, 90
+         * `amber-NNN`, 94 `rose-NNN`). No se arreglan acá a propósito: es un
+         * cambio visual grande en el Admin y no corresponde meterlo de
+         * contrabando en el bloque del módulo Provider.
+         */
+        violet: { ...colors.violet, DEFAULT: '#8B5CF6' },
         cyan: '#06B6D4',
         teal: '#14B8A6',
         emerald: '#10B981',

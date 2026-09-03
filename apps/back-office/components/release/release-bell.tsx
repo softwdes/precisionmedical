@@ -17,7 +17,7 @@
  * permanente: el modal pasa a ser un atajo, no la unica oportunidad.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Bell, Check } from 'lucide-react';
@@ -74,7 +74,35 @@ export function ReleaseBell(): React.ReactElement {
    */
   const [verHistorial, setVerHistorial] = useState(false);
 
+  /**
+   * `open` se lee por REF y no entra en las dependencias del efecto.
+   *
+   * Estaba en el array y eso rompia justo lo que el guardia queria evitar: al
+   * abrir el panel, `open` cambiaba, el efecto se volvia a montar y su primera
+   * linea —`void cargar()`— disparaba una consulta nueva. Como el `POST /seen`
+   * ya habia sellado la marca, la respuesta volvia con todo en `isNew: false`,
+   * `hayNuevas` pasaba a falso y el panel saltaba a "Al dia" a los dos segundos,
+   * con el usuario mirando. Reporte de Erick el 2026-09-02: "mostraba 5, le di
+   * clic, se vio el contenido dos segundos y desaparecio".
+   *
+   * Con la ref, el intervalo y el `focus` leen el valor actual sin obligar al
+   * efecto a re-ejecutarse.
+   */
+  const abiertoRef = useRef(open);
+  useEffect(() => { abiertoRef.current = open; }, [open]);
+
   const cargar = useCallback(async (): Promise<void> => {
+    /**
+     * Con el panel abierto NO se pisa lo que el usuario esta leyendo.
+     *
+     * El guardia vive aca y no en cada llamador a proposito: ya se rompio una vez
+     * por olvidarlo en uno solo —`open` entro en las dependencias del efecto y el
+     * remontaje disparo una consulta— y el sintoma fue que el contenido se
+     * mostraba dos segundos y saltaba a "Al dia". Adentro de la funcion no hay
+     * llamador que pueda saltearselo.
+     */
+    if (abiertoRef.current) return;
+
     try {
       const res = await fetch(`/api/changelog/inbox?portal=${portal}`, { cache: 'no-store' });
       if (!res.ok) {
@@ -94,17 +122,16 @@ export function ReleaseBell(): React.ReactElement {
 
   useEffect(() => {
     void cargar();
-    // Con el panel ABIERTO no se vuelve a consultar. La marca ya se sello al
-    // abrir, asi que una respuesta nueva traeria todo como visto y las negritas
-    // se apagarian delante del usuario, justo mientras las esta leyendo.
-    const id = setInterval(() => { if (!open) void cargar(); }, POLL_MS);
-    const onFocus = (): void => { if (!open) void cargar(); };
+    // Con el panel ABIERTO no se vuelve a consultar: la marca ya se sello, asi
+    // que una respuesta nueva apagaria las negritas mientras se leen.
+    const id = setInterval(() => { if (!abiertoRef.current) void cargar(); }, POLL_MS);
+    const onFocus = (): void => { if (!abiertoRef.current) void cargar(); };
     window.addEventListener('focus', onFocus);
     return () => {
       clearInterval(id);
       window.removeEventListener('focus', onFocus);
     };
-  }, [cargar, open]);
+  }, [cargar]);
 
   /**
    * Se sella al ABRIR, no al cerrar.

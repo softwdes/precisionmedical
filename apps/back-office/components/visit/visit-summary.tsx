@@ -29,6 +29,7 @@ import type { LabOrderRow } from './labs-tab';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS, soloEntregadas } from './rx-integration-status';
 import { LabOrderPrintDialog } from './lab-order-print-dialog';
+import { AlertaVitales } from './alerta-vitales';
 
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
 export interface SummaryTriage {
@@ -87,6 +88,11 @@ interface Props {
   appointmentId: string;
   note: VisitNoteData | null;
   triage: SummaryTriage | null;
+  /**
+   * Años cumplidos del paciente — para evaluar los rangos de los vitales.
+   * `null` o ausente = no se evalúa, y la alerta lo dice en pantalla.
+   */
+  edadPaciente?: number | null;
   /**
    * ¿Existe el registro de triaje? Por defecto se deduce de `triage`, que sirve
    * cuando el llamador manda null si no hay registro (la consulta del doctor).
@@ -249,7 +255,7 @@ function Card({
 export function VisitSummary({
   appointmentId, note, triage, hasTriage, services, checkedInAt, doctorDoneAt, checkedOutAt = null, onFix,
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
-  balanceDue, onCollect, isOnline = false, llegadaMarcadaPorElProvider = false,
+  balanceDue, onCollect, isOnline = false, llegadaMarcadaPorElProvider = false, edadPaciente = null,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /** Etiquetas de cargos, compartidas con el tab y el picker. */
@@ -752,6 +758,25 @@ export function VisitSummary({
         {vitalLine
           ? (
             <>
+              {/* Lo que está fuera de rango, ARRIBA de la línea completa.
+                  La línea se queda como está —es la lectura de todos los
+                  valores— y la alerta va antes porque es lo que decide si hay
+                  que hacer algo. Con todo normal no se dibuja nada. */}
+              {/* `vitalLine` con contenido implica que `triage` existe, pero TS
+                  no lo deduce de un string: el guard es para el compilador. */}
+              {triage && <AlertaVitales
+                className="mb-2"
+                edad={edadPaciente ?? null}
+                vitales={{
+                  systolicMmhg:    triage.systolicMmhg,
+                  diastolicMmhg:   triage.diastolicMmhg,
+                  pulseBpm:        triage.pulseBpm,
+                  respiratoryRate: triage.respiratoryRate,
+                  tempFahrenheit:  triage.tempFahrenheit,
+                  o2Saturation:    triage.o2Saturation,
+                  painScale:       triage.painScale,
+                }}
+              />}
               <div className="text-[12.5px] text-text-2 tabular-nums">{vitalLine}</div>
               {/* Con visita online, los vitales solo pueden venir del propio
                   paciente: decirlo es parte del dato, no una nota al pie. */}

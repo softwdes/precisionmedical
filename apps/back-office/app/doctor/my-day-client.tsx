@@ -28,6 +28,8 @@ import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import type { CoverageDTO } from '@/lib/coverage';
+import { AlertaVitales } from '@/components/visit/alerta-vitales';
+import { edadEnAnios } from '@/lib/vitales-alerta';
 
 /**
  * Los tres desenlaces de una cita que no se atendió — el MISMO juego que la fila
@@ -104,7 +106,12 @@ export interface MyDayAppointment {
   attendanceSignedAt: string | null;
   hasTriage: boolean;
   /** Mini-resumen de vitales del triaje (null si no hay registro) */
-  triage: { systolic: number | null; diastolic: number | null; pulse: number | null; pain: number | null } | null;
+  triage: {
+    systolic: number | null; diastolic: number | null; pulse: number | null; pain: number | null;
+    respRate: number | null; tempF: number | null; o2: number | null;
+  } | null;
+  /** ISO — para la edad, que decide si los umbrales de adulto aplican. */
+  patientDob: string | null;
   noteStatus: string | null; // DRAFT | SIGNED | null
   /** El doctor ya terminó con este paciente (el asistente cierra la cita) */
   doctorDoneAt: string | null;
@@ -490,6 +497,26 @@ export function MyDayClient({
                     </span>
                   )}
                 </div>
+              )}
+              {/* Lo que está fuera de rango. La línea de arriba se queda: es la
+                  lectura de los valores. Esto es la DECISIÓN — y en variante
+                  compacta va sin la leyenda, que vive en el triaje y el Resumen
+                  (acá el doctor está eligiendo a quién entrar, no leyendo). */}
+              {hero.hasTriage && hero.triage && (
+                <AlertaVitales
+                  className="mt-2"
+                  variante="compacta"
+                  edad={edadEnAnios(hero.patientDob)}
+                  vitales={{
+                    systolicMmhg:    hero.triage.systolic,
+                    diastolicMmhg:   hero.triage.diastolic,
+                    pulseBpm:        hero.triage.pulse,
+                    respiratoryRate: hero.triage.respRate,
+                    tempFahrenheit:  hero.triage.tempF,
+                    o2Saturation:    hero.triage.o2,
+                    painScale:       hero.triage.pain,
+                  }}
+                />
               )}
             </div>
           </Link>

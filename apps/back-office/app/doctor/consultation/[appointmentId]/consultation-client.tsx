@@ -31,7 +31,11 @@ import { VisitSummary } from '@/components/visit/visit-summary';
 import { MedicationHistory } from '@/components/visit/medication-history';
 import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
 import { BracesTab } from '@/components/visit/braces-tab';
+import { DocumentsTab } from '@/components/cases/documents-tab';
+import { useMensajesDelCaso, MensajesDelCasoCard, MensajeUrgenteStrip } from '@/components/visit/mensajes-del-caso';
+import type { VisitNoteEditorHandle } from '@/components/visit/visit-note-editor';
 import { conCasoAbierto } from '@/lib/case-modal-url';
+import { edadEnAnios } from '@/lib/vitales-alerta';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -88,7 +92,7 @@ export interface ConsultationAppointment {
   triage: ConsultationTriage | null;
 }
 
-type Tab = 'notes' | 'labs' | 'rx' | 'services' | 'braces';
+type Tab = 'notes' | 'documentos' | 'labs' | 'rx' | 'services' | 'braces';
 /** 4 nodos: el 4 es Resumen y salida (el cobro sigue siendo del asistente) */
 type StepView = 1 | 2 | 3 | 4;
 
@@ -166,6 +170,11 @@ export function ConsultationClient({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const desdeNotas = searchParams.get('desde') === 'notas';
+
+  // ── Mensajes del caso · el mismo bloque que Day Admission ─────────────────
+  const mensajes = useMensajesDelCaso(patientContext.id, a.caseId ?? null);
+  const notaRef = React.useRef<VisitNoteEditorHandle>(null);
+  const [puedeEscribirNota, setPuedeEscribirNota] = React.useState(false);
 
   /** Marcando la llegada desde el nodo 1 — ver el bloque que lo usa. */
   const [marcando, setMarcando] = React.useState(false);
@@ -268,6 +277,11 @@ export function ConsultationClient({
   // Tabs del área de trabajo del doctor (nodo 3) — Servicios a la derecha de Prescripción
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'notes',    label: t('tabNotes'),    icon: FileText },
+    /* Documentos pegado a la nota — el mismo orden y el mismo motivo que en Day
+       Admission (ver el comentario largo en `doctor-step-panel.tsx`). El botón
+       "Ver caso" del encabezado se queda: son dos cosas distintas, este tab lee
+       los archivos de este paciente y ese abre el expediente entero. */
+    { id: 'documentos', label: t('tabDocuments'), icon: FolderOpen },
     { id: 'labs',     label: t('tabLabs'),     icon: FlaskConical },
     { id: 'rx',       label: t('tabRx'),       icon: Pill },
     { id: 'services', label: t('tabServices'), icon: Briefcase },
@@ -525,6 +539,7 @@ export function ConsultationClient({
                 appointmentId={a.id}
                 initial={null}
                 onSaved={() => router.refresh()}
+                edadPaciente={edadEnAnios(patientContext.dateOfBirth)}
               />
             </div>
           ) : (
@@ -628,10 +643,14 @@ export function ConsultationClient({
           {/* La barra de tabs va FUERA de la grilla y a lo ancho: si viviera en la
               columna derecha, al pasar a un tab sin panel se correría 290 px a la
               izquierda y el tab recién tocado se movería de abajo del dedo. */}
-          {/* Tabs del doctor — mobile: grid de 4 (icono arriba, etiqueta abajo),
+          {/* Tabs del doctor — mobile: grilla (icono arriba, etiqueta abajo),
               mismo patrón que el bottom nav. Antes era una fila de 402px dentro
-              de 343px y "Servicios" quedaba cortada. Desde sm: fila normal. */}
-          <div className="grid grid-cols-4 sm:flex sm:gap-1 border-b border-border">
+              de 343px y "Servicios" quedaba cortada. Desde sm: fila normal.
+
+              Son 3 columnas y no 4 porque los tabs son SEIS: con 4 quedaba una
+              segunda fila de dos sueltas contra un hueco de la mitad del ancho.
+              3+3 llena las dos filas. */}
+          <div className="grid grid-cols-3 sm:flex sm:gap-1 border-b border-border">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -650,19 +669,48 @@ export function ConsultationClient({
 
           <div className={`grid grid-cols-1 gap-4 items-start ${tab === 'notes' ? 'lg:grid-cols-[290px_1fr]' : ''}`}>
           {tab === 'notes' && (
-            <div className="lg:sticky lg:top-4">
+            <div className="lg:sticky lg:top-4 space-y-2">
               <PatientContextPanel patient={patientContext} />
+              <MensajesDelCasoCard
+                datos={mensajes}
+                currentUserId={userId}
+                onCitar={puedeEscribirNota ? (html) => notaRef.current?.citarEnHpi(html) : null}
+                motivoBloqueo={t('quoteBlockedSigned')}
+                /* Acá sí hay a dónde ir: el modal del expediente está montado en
+                   esta página y el botón "Ver caso" del encabezado usa la misma
+                   URL. */
+                onVerCaso={a.caseId ? () => router.push(conCasoAbierto(pathname, searchParams, a.caseId!, 'mensajes'), { scroll: false }) : null}
+              />
             </div>
           )}
           <div className="space-y-4 min-w-0">
           {tab === 'notes' && (
-            <VisitNoteEditor
-              appointmentId={a.id}
-              patientId={patientContext.id}
-              note={note}
-              templates={templates}
-              userId={userId}
-            />
+            <>
+              <MensajeUrgenteStrip datos={mensajes} currentUserId={userId} />
+              <VisitNoteEditor
+                ref={notaRef}
+                onPuedeEscribirChange={setPuedeEscribirNota}
+                appointmentId={a.id}
+                patientId={patientContext.id}
+                note={note}
+                templates={templates}
+                userId={userId}
+              />
+            </>
+          )}
+          {/* DOCUMENTOS — el mismo explorador del expediente, solo. Lo que se
+              sube acá está en el tab Documentos del caso y al revés, y acá
+              caen también los archivos compartidos por mensajería (carpeta
+              `Messages` — ver `lib/messaging-documents.ts`).
+
+              Sin caso vinculado no hay expediente donde vivan los archivos: se
+              dice el motivo en vez de mostrar un explorador vacío. */}
+          {tab === 'documentos' && (
+            a.caseId ? (
+              <DocumentsTab caseId={a.caseId} />
+            ) : (
+              <EmptyState.Rich icon={FolderOpen} title={t('docsNoCaseTitle')} subtitle={t('docsNoCaseHint')} />
+            )
           )}
           {tab === 'labs' && (
             <LabsTab
@@ -704,6 +752,7 @@ export function ConsultationClient({
       {view === 4 && (
         <VisitSummary
           isOnline={a.isOnline}
+          edadPaciente={edadEnAnios(patientContext.dateOfBirth)}
           llegadaMarcadaPorElProvider={llegadaPropia}
           // El monto sale de la facturación, que es la única autoridad. El botón
           // no cobra acá: lleva al tab de Servicios, donde vive el modal con el

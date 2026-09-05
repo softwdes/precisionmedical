@@ -1,5 +1,7 @@
 /**
- * Portal Médico · Catálogo de precios (labs · inyectables y servicios · férulas)
+ * Portal Médico · Configuración · Laboratorios (catálogo de precios: labs · inyectables y servicios · férulas)
+ *
+ * Vive bajo `/doctor/settings/labs` desde 2026-09-05 (antes `/doctor/catalog`, que redirige).
  *
  * El doctor consulta precios y datos de muestra al ordenar, y también los
  * mantiene — mismo componente que /admin/catalog, `canEdit` lo decide el rol.

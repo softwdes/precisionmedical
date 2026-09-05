@@ -15,18 +15,21 @@ import { localeApp } from '@/lib/fechas';
  */
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock,
+  Stethoscope, Unlock, CheckSquare, Square,
 } from 'lucide-react';
-import { RichTextEditor, TagPill } from '@/components/ui-phoenix';
+import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { MedicalHistoryButton } from '@/components/patients/medical-history-button';
+import { resolveMergeFields, type SnippetMergeData } from '@/lib/snippet-merge';
+import type { SnippetSection } from '@/lib/snippet-sections';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
+import { SnippetPanel, type SnippetItem } from './snippet-panel';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -109,6 +112,14 @@ interface Props {
    * pasa a poder escribir sin que el padre se enterara.
    */
   onPuedeEscribirChange?: (puede: boolean) => void;
+  /**
+   * Datos del paciente para los campos de combinación de los snippets
+   * (`[Patient Name]`, `[Age]`…). Salen del contexto del paciente que la
+   * consulta y Day Admission ya tienen (`mergeDataFromPatient`). Sin esto los
+   * snippets se insertan igual y los campos quedan como rótulo entre corchetes,
+   * para que se vea que falta completarlos.
+   */
+  mergeData?: SnippetMergeData | null;
 }
 
 /** Lo que el padre puede pedirle al editor desde afuera. */
@@ -147,6 +158,11 @@ type SectionField = typeof SECTIONS[number]['field'];
  */
 const AUTOSAVE_MS = 2_500;
 
+/** Preferencia local: ver o no las listas de snippets junto a cada sección. */
+const SNIPPETS_PREF = 'pm.nota.snippets';
+/** Alto del editor de cada sección; la lista de snippets de al lado no lo pasa. */
+const SECTION_MIN_HEIGHT = 150;
+
 function parseDx(content: string): NoteDx[] {
   try {
     const arr = JSON.parse(content) as Array<{
@@ -168,10 +184,42 @@ function parseDx(content: string): NoteDx[] {
 
 export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(function VisitNoteEditor({
   appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange, turno,
-  onPuedeEscribirChange,
+  onPuedeEscribirChange, mergeData = null,
 }: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Snippets por sección ───────────────────────────────────────────────────
+  //
+  // Cada sección lleva a la IZQUIERDA su lista "Available Snippets", como en
+  // Medusa — la forma que los doctores ya conocen (Erick, 2026-09-05). Un solo
+  // interruptor arriba las muestra u oculta todas (la casilla "Available
+  // Snippets" de allá), y la elección se recuerda en este navegador. El HTML se
+  // inserta en el cursor del editor de esa sección, con los campos del paciente
+  // ya resueltos, y el editor avisa por `onChange` como si se hubiera tecleado —
+  // así pasa por `setSection` y el autoguardado.
+  const [verSnippets, setVerSnippets] = React.useState(true);
+  React.useEffect(() => {
+    try { if (window.localStorage.getItem(SNIPPETS_PREF) === '0') setVerSnippets(false); } catch { /* sin storage */ }
+  }, []);
+  const toggleSnippets = (): void => {
+    setVerSnippets((v) => {
+      try { window.localStorage.setItem(SNIPPETS_PREF, v ? '0' : '1'); } catch { /* sin storage */ }
+      return !v;
+    });
+  };
+  const editores = React.useRef<Partial<Record<SectionField, RichTextEditorHandle | null>>>({});
+  // El catálogo vive en el portal médico. Desde el back-office (Day Admission)
+  // el asistente no tiene adónde ir a crear uno, así que no se le ofrece.
+  const settingsHref = (key: SnippetSection): string | null =>
+    pathname.startsWith('/doctor') ? `/doctor/settings/snippets/${key}` : null;
+
+  const insertarSnippet = (field: SectionField, s: SnippetItem): void => {
+    editores.current[field]?.insertHtmlAtCursor(resolveMergeFields(s.content, mergeData));
+    // Telemetría, fire-and-forget: si falla, la nota ya tiene el texto.
+    void fetch(`/api/admin/snippets/${s.id}/use`, { method: 'POST' }).catch(() => {});
+  };
 
   const isSigned = note?.status === 'SIGNED';
 
@@ -658,6 +706,17 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               <Button variant="ghost" onClick={() => setTplTarget(null)} className="h-9 gap-1.5">
                 <FileStack className="w-3.5 h-3.5" /> {t('noteLoadTemplate')}
               </Button>
+              {/* La casilla "Available Snippets" de Medusa: muestra u oculta las
+                  listas de las seis secciones a la vez. */}
+              <Button
+                variant="ghost"
+                onClick={toggleSnippets}
+                aria-pressed={verSnippets}
+                className={`h-9 gap-1.5 ${verSnippets ? 'text-violet-text' : ''}`}
+              >
+                {verSnippets ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                {t('snpPanelShow')}
+              </Button>
               <Button variant="outline" onClick={() => void save()} disabled={saving || !dirty} className="h-9 gap-1.5">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('noteSave')}
@@ -795,12 +854,25 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               dangerouslySetInnerHTML={{ __html: content[field] || `<p class="text-text-muted">—</p>` }}
             />
           ) : (
-            <RichTextEditor
-              value={content[field]}
-              onChange={(html) => setSection(field, html)}
-              placeholder={t('tplWriteHere')}
-              minHeight={150}
-            />
+            /* La lista de snippets a la izquierda y el editor a la derecha —
+               la disposición de Medusa. En angosto la lista va arriba. */
+            <div className={verSnippets ? 'grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-2 items-start' : ''}>
+              {verSnippets && (
+                <SnippetPanel
+                  section={key}
+                  settingsHref={settingsHref(key)}
+                  onPick={(s) => insertarSnippet(field, s)}
+                  maxHeight={SECTION_MIN_HEIGHT + 90}
+                />
+              )}
+              <RichTextEditor
+                ref={(h) => { editores.current[field] = h; }}
+                value={content[field]}
+                onChange={(html) => setSection(field, html)}
+                placeholder={t('tplWriteHere')}
+                minHeight={SECTION_MIN_HEIGHT}
+              />
+            </div>
           )}
         </div>
       ))}

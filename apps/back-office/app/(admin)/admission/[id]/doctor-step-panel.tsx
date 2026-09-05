@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { ClipboardList, FileText, FlaskConical, Stethoscope, Bandage, Pill, CreditCard, FolderOpen, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
 import { VisitNoteEditor, type VisitNoteData, type VisitNoteEditorHandle } from '@/components/visit/visit-note-editor';
+import { mergeDataFromPatient } from '@/lib/snippet-merge';
 import { useMensajesDelCaso, MensajesDelCasoCard, MensajeUrgenteStrip } from '@/components/visit/mensajes-del-caso';
 import { edadEnAnios } from '@/lib/vitales-alerta';
 import { LabsTab } from '@/components/visit/labs-tab';
@@ -362,6 +363,7 @@ export function DoctorStepPanel({
                 canSign={false}
                 onSaved={() => { void loadNote(); }}
                 onDirtyChange={(d) => { noteDirty.current = d; }}
+                mergeData={patientContext ? mergeDataFromPatient(patientContext) : null}
                 /* EL TURNO. Mientras el doctor está adentro con el paciente, el
                    asistente ve la nota en vivo pero no la escribe: los dos
                    tecleando a la vez no es colaboración, es la lotería de quién

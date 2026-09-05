@@ -17,7 +17,6 @@ import {
   Scale,
   Sun,
   FileText,
-  FlaskConical,
   Pill,
   Stethoscope,
   Sparkles,
@@ -34,6 +33,13 @@ interface NavItem {
   exact?: boolean;
   /** Llave del módulo en roles_config.pm_clinic_modules (checks por rol) */
   moduleKey?: string;
+  /**
+   * Menú "paraguas": se ve si se ve ALGUNA de estas llaves. Lo usa Configuración
+   * del portal médico, que agrupa ítems con llaves propias (`doctor:templates`,
+   * `doctor:catalog`) ya guardadas en fichas reales — una llave nueva para el
+   * paraguas las habría dejado sin efecto.
+   */
+  anyOfModuleKeys?: readonly string[];
 }
 
 interface NavSection {
@@ -97,8 +103,13 @@ const DOCTOR_SECTIONS: NavSection[] = [
       { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients',           moduleKey: 'doctor:patients' },
       { href: '/doctor/prescriptions', icon: Pill,     labelKey: 'prescriptions',        moduleKey: 'doctor:prescriptions' },
       { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats',                moduleKey: 'doctor:stats' },
-      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates',            moduleKey: 'doctor:templates' },
-      { href: '/doctor/catalog',   icon: FlaskConical, labelKey: 'catalog',              moduleKey: 'doctor:catalog' },
+      // Configuración agrupa Plantillas, Snippets y Laboratorios (2026-09-05,
+      // copiado de "My Settings" de Medusa). Cada ítem conserva su llave; el
+      // paraguas se ve si alguno se ve — ver `lib/doctor-menu-modules.ts`.
+      {
+        href: '/doctor/settings', icon: Settings, labelKey: 'settings',
+        anyOfModuleKeys: ['doctor:templates', 'doctor:catalog'],
+      },
     ],
   },
 ];
@@ -165,7 +176,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   const visibleSections = allowedModules
     ? baseSections.map((s) => ({
         ...s,
-        items: s.items.filter((i) => !i.moduleKey || allowedModules[i.moduleKey] !== false),
+        items: s.items.filter((i) => {
+          if (i.anyOfModuleKeys) return i.anyOfModuleKeys.some((k) => allowedModules[k] !== false);
+          return !i.moduleKey || allowedModules[i.moduleKey] !== false;
+        }),
       }))
     : baseSections;
   // Los ítems por CAPACIDAD cierran el menú. Se agregan a la última sección en

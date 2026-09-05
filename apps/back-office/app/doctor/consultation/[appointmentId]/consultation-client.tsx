@@ -23,6 +23,7 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
+import { mergeDataFromPatient } from '@/lib/snippet-merge';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { TriageVitalsForm } from '@/components/visit/triage-vitals-form';
 import { PatientContextPanel, type PatientContext } from '@/components/visit/patient-context-panel';
@@ -695,6 +696,7 @@ export function ConsultationClient({
                 note={note}
                 templates={templates}
                 userId={userId}
+                mergeData={mergeDataFromPatient(patientContext)}
               />
             </>
           )}

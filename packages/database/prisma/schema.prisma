@@ -80,6 +80,8 @@ model User {
   createdTemplates   Template[]              @relation("TemplateCreatedBy")
   templateFavorites  TemplateFavorite[]      @relation("TemplateFavorites")
   diagnosisFavorites UserDiagnosisFavorite[] @relation("DiagnosisFavorites")
+  createdSnippets    Snippet[]               @relation("SnippetCreatedBy")
+  snippetFavorites   SnippetFavorite[]       @relation("SnippetFavorites")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2236,6 +2238,73 @@ model TemplateSection {
   @@unique([templateId, sectionKey])
   @@index([templateId])
   @@map("template_sections")
+}
+
+/// Snippet — bloque de texto con formato atado a UNA sección de la nota.
+///
+/// Es la pieza de Medusa ("My Settings → History of Presenting Illness →
+/// snippets"): el provider hace clic en el título de la sección, elige un
+/// snippet y el HTML se AGREGA en el cursor. Nunca reemplaza, y lo que queda
+/// guardado en la nota es lo que se imprime — no hay conversión al firmar.
+///
+/// Independiente de `Template`: la plantilla es la nota completa, el snippet es
+/// un pedazo de una sección. Por eso no cuelga de `TemplateSection` (cuyas
+/// columnas JSON `variants`/`proceduralBlocks` quedan sin usar).
+///
+/// Globales con favoritos personales, misma regla que las plantillas (Erick
+/// 2026-07-28 / 2026-09-05): cualquier provider crea y edita, solo el admin
+/// elimina. `scope` existe por simetría con `Template`; la UI hoy solo escribe
+/// SHARED. Ver docs/plan-settings-portal-snippets.md.
+model Snippet {
+  id String @id @default(cuid())
+
+  /// Sección de la nota a la que pertenece. Reusa el enum de las plantillas;
+  /// DIAGNOSTICOS no admite snippets (esa sección guarda JSON, no HTML).
+  sectionKey TemplateSectionKey
+
+  title       String // "Abdomen", "BC - MVA HPI" — el mismo nombre que en Medusa
+  description String?
+  /// HTML con formato. En F3 admite casillas, blancos y campos de combinación
+  /// del paciente (`data-merge`), que se resuelven al insertar en la nota.
+  content     String  @db.Text
+
+  scope TemplateScope @default(SHARED)
+
+  createdById String
+  createdBy   User   @relation("SnippetCreatedBy", fields: [createdById], references: [id])
+
+  favorites SnippetFavorite[]
+
+  usageCount Int     @default(0)
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([sectionKey])
+  @@index([createdById])
+  @@map("snippets")
+}
+
+/// Favorito PERSONAL de un snippet — la estrella de cada provider, más el uso
+/// propio para ordenar "los míos primero". Espejo de `TemplateFavorite`.
+model SnippetFavorite {
+  id        String  @id @default(cuid())
+  snippetId String
+  snippet   Snippet @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation("SnippetFavorites", fields: [userId], references: [id])
+
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([snippetId, userId])
+  @@index([userId])
+  @@map("snippet_favorites")
 }
 
 model TemplateFavorite {

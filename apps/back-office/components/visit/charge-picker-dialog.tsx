@@ -476,7 +476,7 @@ export function ChargePickerDialog({
                 que lleva el rastro de verificación (priceVerifiedAt/By). El
                 portal del doctor y el back-office tienen su propia ruta. */}
             <a
-              href={pathname.startsWith('/doctor') ? '/doctor/catalog' : '/admin/catalog'}
+              href={pathname.startsWith('/doctor') ? '/doctor/settings/labs' : '/admin/catalog'}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10.5px] text-text-muted hover:text-violet-text transition-colors inline-flex items-center gap-1 shrink-0"

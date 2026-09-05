@@ -843,8 +843,12 @@ const DOCTOR_MODULES: Array<{ key: string; label: string; emoji: string }> = [
   { key: 'patients',      label: 'Mis Pacientes', emoji: '👥' },
   { key: 'prescriptions', label: 'Recetas',       emoji: '💊' },
   { key: 'stats',         label: 'Estadísticas',  emoji: '📈' },
-  { key: 'templates',     label: 'Plantillas',    emoji: '📄' },
-  { key: 'catalog',       label: 'Laboratorios',  emoji: '🧪' },
+  // Desde 2026-09-05 Plantillas y Laboratorios viven bajo el menú Configuración
+  // del portal. Las LLAVES no cambian (ya están guardadas en fichas reales):
+  // solo la etiqueta dice dónde los va a encontrar el provider. Los snippets
+  // por sección van con Plantillas.
+  { key: 'templates',     label: 'Configuración › Plantillas y snippets', emoji: '📄' },
+  { key: 'catalog',       label: 'Configuración › Laboratorios',          emoji: '🧪' },
 ];
 
 const doctorMenuKey = (key: string): string => `${DOCTOR_MENU_PREFIX}${key}`;

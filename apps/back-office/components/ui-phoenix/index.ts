@@ -60,7 +60,7 @@ export { DatePicker } from './date-picker';
 export type { DatePickerProps } from './date-picker';
 
 export { RichTextEditor } from './rich-text-editor';
-export type { RichTextEditorProps } from './rich-text-editor';
+export type { RichTextEditorProps, RichTextEditorHandle } from './rich-text-editor';
 
 export { Autocomplete } from './autocomplete';
 export type { AutocompleteProps, AutoResult } from './autocomplete';

@@ -1,5 +1,8 @@
 /**
- * Portal Médico · Plantillas clínicas (B.17.7 — T3)
+ * Portal Médico · Configuración · Plantillas clínicas (B.17.7 — T3)
+ *
+ * Vive bajo `/doctor/settings/templates` desde 2026-09-05 (antes `/doctor/templates`,
+ * que redirige). El índice izquierdo lo pinta el layout de Configuración.
  *
  * Plantillas GLOBALES (scope SHARED): el doctor puede crear y editar;
  * solo el admin puede eliminar (regla confirmada por Erick 2026-07-28).

@@ -4,7 +4,9 @@ import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlo
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 import { NOTES_AUDIT_MODULE } from '@/lib/notes-audit-module';
 import { ATTORNEY_VIEW_MODULE } from '@/lib/attorney-view-module';
-import { DOCTOR_MENUS, doctorMenuForPath, seesDoctorMenu } from '@/lib/doctor-menu-modules';
+import {
+  DOCTOR_MENUS, DOCTOR_LEGACY_REDIRECTS, doctorMenuForPath, seesDoctorMenu,
+} from '@/lib/doctor-menu-modules';
 
 /**
  * Back-Office middleware.
@@ -183,6 +185,17 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/scriptsure/webhook'); // DAW → nosotros, Basic Auth propio
 
   if (isPublic) return NextResponse.next();
+
+  // Plantillas y Laboratorios del portal se mudaron bajo Configuración
+  // (2026-09-05). La ruta vieja redirige PERMANENTE y ANTES de la puerta de
+  // login: así el `redirectTo` que se guarda ya apunta a la ruta nueva, y el
+  // destino pasa por todas las puertas de abajo en el request siguiente.
+  const legacyTarget = DOCTOR_LEGACY_REDIRECTS[pathname];
+  if (legacyTarget) {
+    const url = request.nextUrl.clone();
+    url.pathname = legacyTarget;
+    return NextResponse.redirect(url, 308);
+  }
 
   // Refrescar sesión Supabase (maneja cookies SSR)
   const { response, user } = await updateSession(request);

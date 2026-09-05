@@ -29,6 +29,16 @@ export function safeHtml(raw: string | null | undefined): string {
   const looksHtml = /<\/?(p|div|br|ul|ol|li|h[1-6]|strong|b|em|i|u|blockquote|a|span)\b/i.test(raw);
   if (!looksHtml) return `<p>${escapeHtml(raw).replace(/\n/g, '<br/>')}</p>`;
   return raw
+    // Casillas y blancos de los snippets (ver rich-text-editor.tsx): en la nota
+    // son <input> reales; para imprimir y para el historial se dibujan como
+    // ☑/☐ y como un tramo subrayado con lo escrito. Va ANTES del filtro de
+    // <input>, que se lleva cualquier otro control.
+    .replace(/<input\b[^>]*\bdata-check\b[^>]*>/gi, (m) =>
+      /\schecked\b/i.test(m) ? '<span class="chk on">☑</span>' : '<span class="chk">☐</span>')
+    .replace(/<input\b[^>]*\bdata-blank\b[^>]*>/gi, (m) => {
+      const v = /\svalue="([^"]*)"/i.exec(m)?.[1] ?? '';
+      return `<span class="blank">${v || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>`;
+    })
     .replace(/<\s*(script|style|iframe|object|embed|link|meta|form|input)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
     .replace(/<\s*\/?\s*(script|style|iframe|object|embed|link|meta|form|input)[^>]*>/gi, '')
     .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')

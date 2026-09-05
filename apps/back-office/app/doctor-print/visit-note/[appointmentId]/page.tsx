@@ -253,6 +253,8 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     .sc p:last-child{margin-bottom:0}
     .sc ul,.sc ol{margin:0 0 6px 18px}
     .sc li{margin-bottom:2px}
+    .sc .chk{font-size:11pt;line-height:1;margin-right:2px}
+    .sc .blank{display:inline-block;min-width:56px;padding:0 4px;border-bottom:1px solid #6b7280;line-height:1.2}
     .sc h1,.sc h2,.sc h3{font-size:10.5pt;font-weight:bold;margin:4px 0}
     .sc blockquote{margin:4px 0 6px 10px;padding-left:8px;border-left:2px solid #ddd6fe;color:#4b5563;font-style:italic}
     .sc strong{font-weight:700}

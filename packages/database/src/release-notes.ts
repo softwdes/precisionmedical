@@ -6,7 +6,6 @@
  * llama a esto — son 6 deploys separados, cada uno con su propio /api/changelog.
  */
 import { db } from './index';
-import { traducirPendientes } from './release-translate';
 import { moduleLabel } from '@precision/release/modules';
 import type { Audience } from '@precision/release/audience';
 import type { NoteLocale, ReleaseModuleGroup, ReleaseNote } from '@precision/release/types';
@@ -92,20 +91,18 @@ type EntradaCruda = {
  *
  * Separado de los agrupadores porque las DOS vistas lo necesitan igual y ninguna
  * de las dos tiene que saber como se resuelve el idioma.
+ * Es SINCRONA: desde que el ingles sale del commit y no de un LLM, aca no hay
+ * nada que esperar. Antes era `async` por la llamada de red del traductor.
  */
-async function resolverNotas(entries: EntradaCruda[], locale: NoteLocale): Promise<ReleaseNote[]> {
-  // En inglés, traducir lo que falte — una vez en la vida de cada nota. Los
-  // commits están en español y siempre lo van a estar; mostrarle español a
-  // alguien con la app en inglés se veía roto. Si no hay proveedor o falla,
-  // `traducidas` viene vacío y cae al español, que es lo que había antes.
-  const traducidas =
-    locale === 'en'
-      ? await traducirPendientes(
-          entries
-            .filter((e) => e.textEn === null || e.textEn.trim() === '')
-            .map((e) => ({ id: e.id, textEs: e.textEs })),
-        )
-      : new Map<string, string>();
+function resolverNotas(entries: EntradaCruda[], locale: NoteLocale): ReleaseNote[] {
+  // Sin traduccion automatica: el ingles lo escribe el autor en el commit con
+  // el trailer `Release-EN:`. Antes habia un LLM que traducia al vuelo y era
+  // resolver al reves un problema que no deberia existir — ademas de costar
+  // plata, depender de la red y fallar en silencio (el modelo configurado
+  // llevaba meses muerto y nadie se entero).
+  //
+  // Si falta el ingles se cae al español, que es lo unico honesto: mejor la
+  // linea en el idioma equivocado que una traduccion inventada.
 
   return entries.map((entry) => ({
     id: entry.id,
@@ -116,7 +113,7 @@ async function resolverNotas(entries: EntradaCruda[], locale: NoteLocale): Promi
     // Si falta el inglés cae al español antes que mostrar un hueco.
     text:
       locale === 'en'
-        ? (entry.textEn ?? traducidas.get(entry.id) ?? entry.textEs)
+        ? (entry.textEn ?? entry.textEs)
         : entry.textEs,
   }));
 }
@@ -196,7 +193,7 @@ export async function getChangelog(
     })),
   );
 
-  const notas = await resolverNotas(entries, locale);
+  const notas = resolverNotas(entries, locale);
   return { modules: agruparPorModulo(notas, entries), count: notas.length };
 }
 
@@ -327,7 +324,7 @@ export async function getInbox(query: InboxQuery): Promise<Inbox> {
 
   // Ya vienen del mas nuevo al mas viejo: `orderBy` de arriba es `desc` y
   // `flatMap` respeta ese orden. El cliente agrupa por dia con `claveDia()`.
-  const notes = await resolverNotas(entries, locale);
+  const notes = resolverNotas(entries, locale);
 
   return { notes, count: notes.length, unseen, since, debut };
 }

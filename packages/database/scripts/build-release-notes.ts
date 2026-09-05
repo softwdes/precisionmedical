@@ -16,7 +16,7 @@ import { db } from '../src/index';
 // Subpaths y no el barrel: el barrel exporta `update-banner.tsx`, que es
 // 'use client' y arrastraria React a un script de Node.
 import { moduleForScope } from '@precision/release/modules';
-import { parseHeader, toNote, type CommitNote, type ParsedCommit } from '@precision/release/commit';
+import { parseHeader, toNote, trailerEn, type CommitNote, type ParsedCommit } from '@precision/release/commit';
 import type { ReleaseAudience, ReleaseNoteKind } from '@prisma/client';
 
 const RECORD_SEP = '\x1e';
@@ -84,7 +84,7 @@ function parseLog(raw: string): ParsedCommit[] {
   for (const chunk of raw.split(RECORD_SEP)) {
     if (chunk.trim() === '') continue;
 
-    const [sha, subject, rest = ''] = chunk.split(FIELD_SEP);
+    const [sha, subject, body = '', rest = ''] = chunk.split(FIELD_SEP);
     if (sha === undefined || subject === undefined) continue;
 
     const header = parseHeader(subject);
@@ -100,6 +100,7 @@ function parseLog(raw: string): ParsedCommit[] {
       type: header.type,
       scope: header.scope,
       subject: header.subject,
+      textEn: trailerEn(body),
       paths,
     });
   }
@@ -113,7 +114,7 @@ function readCommits(from: string, to: string): ParsedCommit[] {
     `${from}..${to}`,
     '--no-merges',
     '--name-only',
-    `--format=${RECORD_SEP}%H${FIELD_SEP}%s${FIELD_SEP}`,
+    `--format=${RECORD_SEP}%H${FIELD_SEP}%s${FIELD_SEP}%b${FIELD_SEP}`,
   ]);
 
   if (raw === null) {
@@ -275,8 +276,10 @@ async function main(): Promise<void> {
               (a) => a.toUpperCase() as ReleaseAudience,
             ),
             textEs: note.subject,
-            // El ingles hay que escribirlo: los commits estan en español.
-            textEn: null,
+            // El ingles lo escribe el AUTOR con el trailer `Release-EN:`. Sin
+            // trailer queda null y la nota se muestra en español, que es el
+            // comportamiento de siempre — ver `trailerEn()`.
+            textEn: note.textEn,
             hidden: note.hidden,
             // Un scope sin mapear YA NO tapa la nota.
             //

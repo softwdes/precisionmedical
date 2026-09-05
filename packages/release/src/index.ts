@@ -24,6 +24,7 @@ export {
   isSensitive,
   parseHeader,
   toNote,
+  trailerEn,
 } from './commit';
 export type { CommitNote, ParsedCommit } from './commit';
 

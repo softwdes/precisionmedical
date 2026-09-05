@@ -82,6 +82,11 @@ export interface ParsedCommit {
   subject: string;
   /** Archivos que toco, relativos a la raiz del repo. */
   paths: string[];
+  /**
+   * Linea en INGLES que el autor escribio en el cuerpo del commit, con el
+   * trailer `Release-EN:`. `null` si no la puso.
+   */
+  textEn: string | null;
 }
 
 export interface CommitNote {
@@ -93,6 +98,8 @@ export interface CommitNote {
   hidden: boolean;
   /** El borrador necesita ojo humano: scope sin mapear o audiencia ambigua. */
   needsReview: boolean;
+  /** El ingles escrito a mano por el autor. `null` = se muestra el español. */
+  textEn: string | null;
 }
 
 // Capturas posicionales, no con nombre: las apps compilan a ES2017 y los
@@ -304,8 +311,36 @@ export function toNote(commit: ParsedCommit): CommitNote | null {
     kind,
     scope: commit.scope,
     subject: commit.subject,
+    textEn: commit.textEn,
     audiences,
     hidden,
     needsReview: ambiguous || hidden || audiences.length === 0,
   };
+}
+/**
+ * El ingles de la nota, escrito por el autor en el cuerpo del commit:
+ *
+ *   fix(citas): el QR de firma se leia como un glifo roto
+ *
+ *   Release-EN: the signature QR read as a broken glyph
+ *
+ * Vive ACA y no en el script del build —donde estaba— porque es parseo de
+ * commit, como `parseHeader`, y porque ahi no se podia testear: la unica prueba
+ * posible era re-tipear la funcion en otro archivo, y eso probo una COPIA
+ * mientras la de verdad tenia la regex rota. Exportada se prueba la real.
+ *
+ * Reemplaza al traductor por LLM, que le pedia a un modelo que ADIVINARA que
+ * quiso decir una linea corta y jergosa en español, cuando quien escribio el
+ * commit sabe exactamente que cambio. Ademas costaba plata, dependia de la red
+ * dentro de una peticion de lectura, y fallaba en SILENCIO: el modelo llevaba
+ * meses muerto (404) y las 318 notas tenian `textEn` en NULL.
+ *
+ * Es OPCIONAL: sin trailer se cae al español, igual que antes.
+ */
+export function trailerEn(body: string): string | null {
+  for (const linea of body.split('\n')) {
+    const m = /^\s*Release-EN\s*:\s*(.+?)\s*$/i.exec(linea);
+    if (m !== null && m[1] !== undefined && m[1].trim() !== '') return m[1].trim();
+  }
+  return null;
 }

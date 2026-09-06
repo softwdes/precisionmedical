@@ -18,14 +18,19 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Send, MessageSquarePlus,
-  LayoutTemplate, Save, Search as SearchIcon, X as XIcon,
+  LayoutTemplate, Save, CheckSquare,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { RichTextEditor, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
+import {
+  RichTextEditor, Autocomplete, type AutoResult, type RichTextEditorHandle,
+} from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
+import {
+  MessageSnippetList, useMessageSnippetsVisible, useMessageContext, invalidateMessageSnippets,
+} from './message-snippet-list';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
 import { AttachmentPicker, type PendingAttachment } from './attachment-picker';
 import { CaseSelect, pickDefaultCase, type MessagingCase } from './case-select';
@@ -176,30 +181,28 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     return () => { cancelled = true; };
   }, [open, effectivePatientId]);
 
-  // ─── Plantillas (panel del legacy) ─────────────────────────────────────
-  interface Template { id: string; title: string; body: string; createdByName: string }
-  const [tplOpen, setTplOpen] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [tplQuery, setTplQuery] = useState('');
+  // ─── Plantillas — la columna izquierda de Medusa ───────────────────────
+  //
+  // Igual que los snippets de la nota: la lista vive a la IZQUIERDA del editor,
+  // siempre visible, con su buscador, y el clic AGREGA donde está el cursor y
+  // deja la lista abierta para apilar varias (Erick, 2026-09-06: "los
+  // providers están acostumbrados a esa forma"). Antes era un desplegable que
+  // pegaba la plantilla al final y se cerraba.
+  //
+  // Las plantillas son los snippets de la categoría MENSAJE — el mismo
+  // catálogo de Configuración que usa la nota (Medusa: "Send Message
+  // Snippets"). La lista, la carga y la inserción viven en
+  // `MessageSnippetList`, compartido con la respuesta del hilo. Antes vivían
+  // en `message_templates`, una tabla aparte solo de la mensajería.
+  const [tplOpen, toggleTpl] = useMessageSnippetsVisible();
+  // "Guardar como plantilla" la guarda en el grupo de quien escribe: providers
+  // desde el portal, clínica desde el back-office.
+  const { ownSection: tplSection } = useMessageContext();
+  const [tplVersion, setTplVersion] = useState(0);
   const [tplSaveOpen, setTplSaveOpen] = useState(false);
   const [tplTitle, setTplTitle] = useState('');
   const [tplBusy, setTplBusy] = useState(false);
-
-  const loadTemplates = async (): Promise<void> => {
-    try {
-      const res = await fetch('/api/messages/templates');
-      if (res.ok) setTemplates(((await res.json()).templates ?? []) as Template[]);
-    } catch { setTemplates([]); }
-  };
-
-  const applyTemplate = (tpl: Template): void => {
-    // Si ya hay texto, la plantilla se AGREGA debajo (no pisa lo escrito).
-    setBody((prev) => {
-      const plain = prev.replace(/<[^>]*>/g, '').trim();
-      return plain === '' ? tpl.body : `${prev}<p></p>${tpl.body}`;
-    });
-    setTplOpen(false);
-  };
+  const editorRef = useRef<RichTextEditorHandle>(null);
 
   const saveTemplate = async (): Promise<void> => {
     const title = tplTitle.trim();
@@ -207,15 +210,16 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
     if (!title || plain === '') return;
     setTplBusy(true);
     try {
-      const res = await fetch('/api/messages/templates', {
+      const res = await fetch('/api/admin/snippets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({ sectionKey: tplSection, title, content: body, isActive: true }),
       });
       if (!res.ok) throw new Error();
       toast.success(t('tplSavedOk'));
       setTplSaveOpen(false); setTplTitle('');
-      await loadTemplates();
+      invalidateMessageSnippets();
+      setTplVersion((v) => v + 1);
     } catch {
       toast.error(t('tplSavedError'));
     } finally {
@@ -437,10 +441,12 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
           <div className="space-y-1.5">
             <div className="flex items-center gap-3 flex-wrap">
               <label className={labelCls}>{t('fieldMessage')}</label>
+              {/* Muestra u oculta la columna de plantillas — la casilla
+                  "Available Snippets" de Medusa. */}
               <button type="button" disabled={sending}
-                onClick={() => { setTplOpen((v) => !v); if (!tplOpen) void loadTemplates(); }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-brand-text hover:bg-brand/10 transition-colors disabled:opacity-40">
-                <LayoutTemplate className="w-3.5 h-3.5" />
+                onClick={toggleTpl} aria-pressed={tplOpen}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium hover:bg-brand/10 transition-colors disabled:opacity-40 ${tplOpen ? 'text-brand-text' : 'text-text-muted hover:text-text-1'}`}>
+                {tplOpen ? <CheckSquare className="w-3.5 h-3.5" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
                 {t('tplButton')}
               </button>
               <button type="button" disabled={sending || plainBody === ''}
@@ -451,40 +457,21 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
               </button>
             </div>
 
-            {/* Panel de plantillas (el buscador + lista del legacy) */}
-            {tplOpen && (
-              <div className="rounded-md bg-bg-2/40 overflow-hidden">
-                <div className="relative border-b border-border/40">
-                  <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                  <input
-                    value={tplQuery} onChange={(e) => setTplQuery(e.target.value)}
-                    placeholder={t('tplSearchPlaceholder')}
-                    className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted pl-8 pr-8 py-2"
-                  />
-                  <button type="button" onClick={() => setTplOpen(false)} aria-label={t('btnCancel')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1">
-                    <XIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="max-h-44 overflow-y-auto">
-                  {templates
-                    .filter((tp) => tp.title.toLowerCase().includes(tplQuery.trim().toLowerCase()))
-                    .map((tp) => (
-                      <button key={tp.id} type="button" onClick={() => applyTemplate(tp)}
-                        className="w-full flex items-center justify-between gap-2 px-3 !py-1.5 text-left hover:bg-white/5 transition-colors">
-                        <span className="text-[12.5px] text-brand-text truncate">{tp.title}</span>
-                        <span className="shrink-0 text-[10px] text-text-muted">{tp.createdByName}</span>
-                      </button>
-                    ))}
-                  {templates.length === 0 && (
-                    <div className="px-3 py-3 text-text-muted text-xs text-center">{t('tplEmpty')}</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <RichTextEditor value={body} onChange={setBody} minHeight={220}
-              placeholder={t('bodyPlaceholder')} disabled={sending} />
+            {/* Lista a la izquierda, editor a la derecha (en angosto, la lista
+                arriba). El clic agrega en el cursor y la lista se queda. */}
+            <div className={tplOpen ? 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-2 items-start' : ''}>
+              {tplOpen && (
+                <MessageSnippetList
+                  onInsert={(html) => editorRef.current?.insertHtmlAtCursor(html)}
+                  patientName={effectivePatient?.name ?? null}
+                  refreshKey={tplVersion}
+                  disabled={sending}
+                  maxHeight={220 + 44}
+                />
+              )}
+              <RichTextEditor ref={editorRef} value={body} onChange={setBody} minHeight={220}
+                placeholder={t('bodyPlaceholder')} disabled={sending} />
+            </div>
           </div>
 
           {/* Adjuntos (los que hagan falta, como el legacy) — el mismo

@@ -17,9 +17,9 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { FileText, FlaskConical, Scissors } from 'lucide-react';
+import { FileText, FlaskConical, Scissors, Mail } from 'lucide-react';
 import { cn } from '@precision/ui';
-import { SNIPPET_SECTIONS } from '@/lib/snippet-sections';
+import { SNIPPET_NOTE_SECTIONS, SNIPPET_MESSAGE_SECTIONS } from '@/lib/snippet-sections';
 
 export function SettingsIndex({ showTemplates, showLabs }: { showTemplates: boolean; showLabs: boolean }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -45,7 +45,23 @@ export function SettingsIndex({ showTemplates, showLabs }: { showTemplates: bool
             <Scissors className="w-3 h-3" />
             {t('settingsIdxSnippets')}
           </div>
-          {SNIPPET_SECTIONS.map((key) => {
+          {SNIPPET_NOTE_SECTIONS.map((key) => {
+            const href = `/doctor/settings/snippets/${key}`;
+            return (
+              <IndexLink key={key} href={href} active={isActive(href)} nested>
+                {t(`sec_${key}`)}
+              </IndexLink>
+            );
+          })}
+
+          {/* "Send Message Snippets" de Medusa: lo que se pega al redactar o
+              responder un mensaje. Mismo catálogo, otra familia, en dos grupos:
+              los de los providers y los de la clínica. */}
+          <div className="hidden lg:flex items-center gap-1.5 px-3 pt-3 pb-1 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+            <Mail className="w-3 h-3" />
+            {t('settingsIdxMessages')}
+          </div>
+          {SNIPPET_MESSAGE_SECTIONS.map((key) => {
             const href = `/doctor/settings/snippets/${key}`;
             return (
               <IndexLink key={key} href={href} active={isActive(href)} nested>

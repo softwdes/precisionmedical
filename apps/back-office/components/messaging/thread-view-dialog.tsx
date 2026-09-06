@@ -20,15 +20,17 @@
  * desmarca nada, por eso el read va contra el actor del server).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
+  LayoutTemplate, CheckSquare,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { RichTextEditor } from '@/components/ui-phoenix';
+import { RichTextEditor, type RichTextEditorHandle } from '@/components/ui-phoenix';
+import { MessageSnippetList, useMessageSnippetsVisible } from './message-snippet-list';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { UserMultiSelect, type MessagingUser } from './user-multi-select';
@@ -115,6 +117,10 @@ export function ThreadViewDialog({
   const [users, setUsers] = useState<MessagingUser[]>([]);
   const [mode, setMode] = useState<ComposerMode>(null);
   const [draft, setDraft] = useState('');
+  // Plantillas al responder — la columna izquierda de Medusa, la misma del
+  // compose. El clic agrega en el cursor del editor de la respuesta.
+  const [tplOpen, toggleTpl] = useMessageSnippetsVisible();
+  const replyEditor = useRef<RichTextEditorHandle>(null);
   const [fwdTo, setFwdTo] = useState<MessagingUser[]>([]);
   /** Adjuntos de la respuesta — la ruta de entradas ya los aceptaba. */
   const [entryFiles, setEntryFiles] = useState<PendingAttachment[]>([]);
@@ -682,16 +688,36 @@ export function ThreadViewDialog({
           {/* Composer inline */}
           {mode && thread && (
             <div className="border-t border-border px-4 sm:px-6 py-3 space-y-2">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                {t(`composer${mode}`)}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {t(`composer${mode}`)}
+                </div>
+                {/* Muestra u oculta la columna de plantillas — la misma casilla
+                    que en el compose; la elección se recuerda. */}
+                <button type="button" disabled={busy} onClick={toggleTpl} aria-pressed={tplOpen}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium hover:bg-brand/10 transition-colors disabled:opacity-40 ${tplOpen ? 'text-brand-text' : 'text-text-muted hover:text-text-1'}`}>
+                  {tplOpen ? <CheckSquare className="w-3.5 h-3.5" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
+                  {t('tplButton')}
+                </button>
               </div>
               {mode === 'FORWARD' && (
                 <UserMultiSelect users={users} selected={fwdTo} onChange={setFwdTo}
                   excludeIds={thread.recipients.map((r) => r.userId)}
                   placeholder={t('toPlaceholder')} disabled={busy} />
               )}
-              <RichTextEditor value={draft} onChange={setDraft} minHeight={100}
-                placeholder={t('bodyPlaceholder')} disabled={busy} />
+              {/* Lista a la izquierda, editor a la derecha (en angosto, arriba). */}
+              <div className={tplOpen ? 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-2 items-start' : ''}>
+                {tplOpen && (
+                  <MessageSnippetList
+                    onInsert={(html) => replyEditor.current?.insertHtmlAtCursor(html)}
+                    patientName={thread.patient ? `${thread.patient.lastName}, ${thread.patient.firstName}` : null}
+                    disabled={busy}
+                    maxHeight={100 + 44}
+                  />
+                )}
+                <RichTextEditor ref={replyEditor} value={draft} onChange={setDraft} minHeight={100}
+                  placeholder={t('bodyPlaceholder')} disabled={busy} />
+              </div>
               {/* Adjuntar también al responder: mismo componente que el compose,
                   en modo compacto (sin descripción, que acá sería ruido). */}
               <AttachmentPicker

@@ -130,7 +130,8 @@ export function SnippetsClient({
         subtitle={
           <>
             {t('snpSubtitleCount', { count: snippets.length })}
-            <span className="text-text-muted"> · {t('snpSubtitleHint')}</span>
+            {/* Los de mensajería no caen en "la nota": el hint lo dice bien. */}
+            <span className="text-text-muted"> · {t(section.startsWith('MENSAJE_') ? 'snpSubtitleHintMsg' : 'snpSubtitleHint')}</span>
           </>
         }
         action={

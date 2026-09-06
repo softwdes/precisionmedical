@@ -2179,9 +2179,13 @@
       "settingsIdxTemplates": "Plantillas",
       "settingsIdxSnippets": "Snippets por sección",
       "settingsIdxLabs": "Laboratorios",
+      "settingsIdxMessages": "Mensajería",
+      "sec_MENSAJE_PROVIDER": "Mensajes · Providers",
+      "sec_MENSAJE_CLINICA": "Mensajes · Clínica",
       "snpTitle": "Snippets · {section}",
       "snpSubtitleCount": "{count} snippets para esta sección",
       "snpSubtitleHint": "Se agregan en el cursor al escribir la nota y el provider los edita ahí.",
+      "snpSubtitleHintMsg": "Se agregan en el cursor al redactar o responder un mensaje.",
       "snpNew": "Nuevo snippet",
       "snpSearch": "Buscar por título o descripción…",
       "snpColTitle": "Snippet",
@@ -5746,7 +5750,8 @@
         "servicios": "Servicios CPT",
         "diagnosticos": "Diagnósticos",
         "auditlog": "Audit Log",
-        "releases": "Notas de versión"
+        "releases": "Notas de versión",
+        "snippets": "Snippets de mensajes"
       }
     },
     "providers": {

@@ -2179,9 +2179,13 @@
       "settingsIdxTemplates": "Templates",
       "settingsIdxSnippets": "Snippets by section",
       "settingsIdxLabs": "Labs",
+      "settingsIdxMessages": "Messaging",
+      "sec_MENSAJE_PROVIDER": "Messages · Providers",
+      "sec_MENSAJE_CLINICA": "Messages · Clinic",
       "snpTitle": "Snippets · {section}",
       "snpSubtitleCount": "{count} snippets for this section",
       "snpSubtitleHint": "Inserted at the cursor while writing the note; the provider edits them there.",
+      "snpSubtitleHintMsg": "Inserted at the cursor while writing or replying to a message.",
       "snpNew": "New snippet",
       "snpSearch": "Search by title or description…",
       "snpColTitle": "Snippet",
@@ -5746,7 +5750,8 @@
         "servicios": "CPT services",
         "diagnosticos": "Diagnoses",
         "auditlog": "Audit Log",
-        "releases": "Release notes"
+        "releases": "Release notes",
+        "snippets": "Message snippets"
       }
     },
     "providers": {

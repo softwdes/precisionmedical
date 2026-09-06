@@ -313,6 +313,47 @@ lo hace la sesión designada (`regla-una-sola-sesion-toca-git`).
   hacen los chicos a mano, pegando (§6.1). Nosotros entregamos la estructura
   que lo soporte.
 
+## 13. Snippets de mensajería (2026-09-06)
+
+Medusa tiene "Send Message Snippets" en el mismo My Settings: al redactar o
+responder un mensaje, la lista aparece a la IZQUIERDA del editor y el clic
+agrega en el cursor. Erick pidió lo mismo y confirmó que va centralizado.
+
+Qué se hizo:
+
+- **Dos categorías** en `snippets` (valores nuevos del enum
+  `TemplateSectionKey`; SQL en `20260906-snippets-mensaje.sql`), pedidas por
+  Erick el mismo día: **`MENSAJE_PROVIDER`** (los temas propios de los
+  providers) y **`MENSAJE_CLINICA`** (recepción, cobranza). No son secciones de
+  la nota: `lib/snippet-sections.ts` separa `SNIPPET_NOTE_SECTIONS` (6) de
+  `SNIPPET_MESSAGE_SECTIONS` (2); `SNIPPET_SECTIONS` es la unión que valida la
+  API. `messageContextFor(pathname)` dice si se escribe desde el portal o el
+  back-office y `ownMessageSection()` en cuál se guarda lo propio.
+- **Quién ve qué al escribir lo decide la API**
+  (`GET /api/admin/snippets?messageContext=portal|backoffice`): ADMIN y
+  SUPER_ADMIN ven los dos grupos, con su encabezado; el resto, el de su
+  contexto. El cliente solo dice dónde está — el rol no viaja al navegador.
+- **Dónde se administran:** los de providers en Configuración del portal
+  (grupo Mensajería, dos ítems); los de clínica en un tab nuevo **Snippets de
+  mensajes** de `/settings` del back-office, con la misma pantalla
+  (`SnippetsClient` con `section="MENSAJE_CLINICA"`). Cualquiera crea y edita;
+  borra solo admin.
+- **Compose e hilo** (`compose-message-dialog.tsx`, `thread-view-dialog.tsx`):
+  la lista es una columna izquierda siempre visible, al redactar Y al responder
+  (Reply, Reply All, Forward); el botón "Plantillas" la oculta y se recuerda en
+  el navegador. El clic inserta en el cursor con `insertHtmlAtCursor`, resuelve
+  `[Patient Name]` con el paciente del mensaje (los demás campos quedan entre
+  corchetes: el mensaje no trae DOB ni seguro) y suma el uso. "Guardar como
+  plantilla" guarda en el grupo propio. Lo compartido vive en
+  `message-snippet-list.tsx`.
+- **`InsertList`** (ui-phoenix): la lista es un primitivo con grupos
+  opcionales; `SnippetPanel` (nota) y `MessageSnippetList` (mensajería) son
+  dos usos con fuentes distintas.
+- La tabla `message_templates` y su API `/api/messages/templates` se retiraron
+  del código: las 2 filas que había (pruebas del QA, hechas por staff) se
+  migraron a `snippets` como `MENSAJE_CLINICA`. La tabla queda en la base sin
+  lectores; se dropea en una limpieza posterior.
+
 ## 12. Preguntas abiertas
 
 1. Nombre visible del menú en español: "Configuración" (como el back-office) o

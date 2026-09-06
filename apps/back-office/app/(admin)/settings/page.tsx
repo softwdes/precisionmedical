@@ -1,5 +1,6 @@
 import { db } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
+import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { redirect } from 'next/navigation';
 import { SettingsClient } from './settings-client';
 
@@ -132,6 +133,33 @@ export default async function SettingsPage() {
     }),
   ]);
 
+  /**
+   * Plantillas de mensaje de la clínica (snippets `MENSAJE_CLINICA`), con el
+   * favorito de quien mira. El favorito cuelga de `users.id` de Phoenix, que se
+   * resuelve por email — el `user.id` de Auth de arriba es otro UUID y no sirve
+   * de FK. Y quién puede borrar lo dice el rol, igual que en el portal.
+   */
+  const [phoenixUser, role] = await Promise.all([
+    user.email
+      ? db.user.findFirst({ where: { email: { equals: user.email, mode: 'insensitive' } }, select: { id: true } })
+      : null,
+    user.email ? fetchDbRole(user.email) : 'EMPLOYEE',
+  ]);
+  const clinicSnippetRows = await db.snippet.findMany({
+    where: { deletedAt: null, sectionKey: 'MENSAJE_CLINICA' },
+    include: {
+      favorites: phoenixUser ? { where: { userId: phoenixUser.id }, select: { id: true } } : false,
+    },
+    orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { title: 'asc' }],
+  });
+  const clinicSnippets = clinicSnippetRows.map((s) => ({
+    id: s.id, sectionKey: s.sectionKey, title: s.title, description: s.description, content: s.content,
+    isActive: s.isActive, usageCount: s.usageCount,
+    isFavorite: Array.isArray(s.favorites) ? s.favorites.length > 0 : false,
+    updatedAt: s.updatedAt.toISOString(),
+  }));
+  const canDeleteSnippets = role === 'SUPER_ADMIN' || role === 'ADMIN';
+
   const serviceFavIds  = new Set(serviceFavs.map((f) => f.serviceCodeId));
   const diagnosisFavIds = new Set(diagnosisFavs.map((f) => f.diagnosisId));
 
@@ -259,6 +287,8 @@ export default async function SettingsPage() {
       }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       initialAuditLogs={auditLogs.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })) as any}
+      clinicSnippets={clinicSnippets}
+      canDeleteSnippets={canDeleteSnippets}
     />
   );
 }

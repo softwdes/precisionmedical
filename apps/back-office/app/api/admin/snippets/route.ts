@@ -18,7 +18,9 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { resolveActor } from '@/lib/actor';
-import { SNIPPET_SECTIONS, isSnippetSection } from '@/lib/snippet-sections';
+import {
+  SNIPPET_SECTIONS, SNIPPET_MESSAGE_SECTIONS, isSnippetSection, ownMessageSection, type SnippetSection,
+} from '@/lib/snippet-sections';
 
 const SnippetInputSchema = z.object({
   id: z.string().optional(),
@@ -58,8 +60,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'INVALID_SECTION' }, { status: 400 });
   }
 
+  /**
+   * `?messageContext=portal|backoffice` — las plantillas de MENSAJERÍA que le
+   * tocan a quien escribe. Se decide ACÁ porque depende del rol, que el cliente
+   * no conoce: ADMIN/SUPER_ADMIN ven los dos grupos (providers y clínica); el
+   * resto, el de su contexto. Excluyente con `section`.
+   */
+  const messageContext = req.nextUrl.searchParams.get('messageContext');
+  let sections: readonly SnippetSection[] | null = section ? [section] : null;
+  if (messageContext !== null) {
+    if (messageContext !== 'portal' && messageContext !== 'backoffice') {
+      return NextResponse.json({ error: 'INVALID_CONTEXT' }, { status: 400 });
+    }
+    const role = await fetchDbRole(session.email);
+    sections = role === 'SUPER_ADMIN' || role === 'ADMIN'
+      ? SNIPPET_MESSAGE_SECTIONS
+      : [ownMessageSection(messageContext)];
+  }
+
   const rows = await db.snippet.findMany({
-    where: { deletedAt: null, ...(section ? { sectionKey: section } : {}) },
+    where: { deletedAt: null, ...(sections ? { sectionKey: { in: [...sections] } } : {}) },
     include: {
       favorites: session.userId ? { where: { userId: session.userId }, select: { id: true } } : false,
       _count: { select: { favorites: true } },

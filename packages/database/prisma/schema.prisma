@@ -2165,6 +2165,13 @@ enum TemplateSectionKey {
   EVALUACIONES // Assessment (tiered + causation statement for PI)
   PLAN // Treatment plan (with variants + procedural + prices)
   DIAGNOSTICOS // Diagnoses (ICD-10 + SNOMED dual)
+  /// Snippets de MENSAJERÍA ("Send Message Snippets" de Medusa), en dos
+  /// familias (Erick 2026-09-06): los de los providers —sus temas clínicos— y
+  /// los de la clínica —recepción, cobranza—. Solo los usa `Snippet.sectionKey`:
+  /// no son secciones de la nota ni de una plantilla. Van en este enum y no en
+  /// uno propio para no recrear la columna.
+  MENSAJE_PROVIDER
+  MENSAJE_CLINICA
 }
 
 model Template {

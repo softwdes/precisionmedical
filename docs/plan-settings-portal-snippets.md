@@ -236,15 +236,18 @@ tienen sección destino en v3 (ver §11).
 
 ## 7. En la nota (consulta y Day Admission)
 
-- Cada sección lleva a la **izquierda** su columna "Snippets disponibles"
-  (`SnippetPanel`): buscador arriba, los títulos como enlaces uno debajo del
-  otro, favoritos primero y después los más usados; el editor a la derecha
-  (en angosto, la lista arriba). Es la disposición de Medusa. Un botón
-  "Snippets" en la barra de la nota muestra u oculta las seis listas a la vez
-  y la elección se recuerda en el navegador (`localStorage`). Si la sección no
-  tiene snippets, la lista lo dice y ofrece crear uno (link a Configuración,
-  solo en el portal). El botón `Templates` por sección que ya existe se queda:
-  uno trae la sección de una plantilla, el otro un snippet.
+- Cada sección tiene su lista "Snippets disponibles" (`SnippetPanel`) **dentro
+  del recuadro del editor**, a la izquierda del texto y compartiendo el marco
+  (el `sidePanel` del `RichTextEditor`; en angosto va arriba del texto). Es la
+  disposición exacta de Medusa (Erick, 2026-09-06: "adentro, no al lado").
+  Buscador arriba, los títulos como enlaces, favoritos primero y después los
+  más usados. **Se abre por sección** con el enlace "Snippets" que va junto a
+  "Templates" en el título; arranca cerrada y las secciones que cada provider
+  deja abiertas se recuerdan en su navegador (`localStorage`,
+  `pm.nota.snippets.secciones`). No hay botón general. Si la sección no tiene
+  snippets, la lista lo dice y ofrece crear uno (link a Configuración, solo en
+  el portal). "Templates" trae la sección de una plantilla; "Snippets", un
+  snippet.
 - La lista se carga por API al montarse cada sección (`GET
   /api/admin/snippets?section=`) con caché de un minuto. Hoy trae el contenido
   completo de cada snippet; si el catálogo crece a cientos por sección, el
@@ -339,9 +342,9 @@ Qué se hizo:
   (`SnippetsClient` con `section="MENSAJE_CLINICA"`). Cualquiera crea y edita;
   borra solo admin.
 - **Compose e hilo** (`compose-message-dialog.tsx`, `thread-view-dialog.tsx`):
-  la lista es una columna izquierda siempre visible, al redactar Y al responder
-  (Reply, Reply All, Forward); el botón "Plantillas" la oculta y se recuerda en
-  el navegador. El clic inserta en el cursor con `insertHtmlAtCursor`, resuelve
+  la lista vive dentro del recuadro del editor, a la izquierda del texto, al
+  redactar Y al responder (Reply, Reply All, Forward); arranca cerrada, el
+  botón "Plantillas" la abre y la elección se recuerda en el navegador. El clic inserta en el cursor con `insertHtmlAtCursor`, resuelve
   `[Patient Name]` con el paciente del mensaje (los demás campos quedan entre
   corchetes: el mensaje no trae DOB ni seguro) y suma el uso. "Guardar como
   plantilla" guarda en el grupo propio. Lo compartido vive en

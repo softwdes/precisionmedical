@@ -37,11 +37,15 @@ export interface MessageSnippet {
 /** Preferencia local: ver o no la columna junto al editor (compose e hilo). */
 export const MESSAGE_SNIPPETS_PREF = 'pm.mensajes.plantillas';
 
-/** [visible, alternar] — se recuerda en este navegador. */
+/**
+ * [visible, alternar] — se recuerda en este navegador. Arranca CERRADA la
+ * primera vez (Erick 2026-09-06): la lista se abre con el clic en "Plantillas"
+ * y queda abierta para quien la usa.
+ */
 export function useMessageSnippetsVisible(): [boolean, () => void] {
-  const [visible, setVisible] = React.useState(true);
+  const [visible, setVisible] = React.useState(false);
   React.useEffect(() => {
-    try { if (window.localStorage.getItem(MESSAGE_SNIPPETS_PREF) === '0') setVisible(false); } catch { /* sin storage */ }
+    try { if (window.localStorage.getItem(MESSAGE_SNIPPETS_PREF) === '1') setVisible(true); } catch { /* sin storage */ }
   }, []);
   const toggle = React.useCallback((): void => {
     setVisible((v) => {
@@ -95,9 +99,11 @@ interface Props {
   refreshKey?: number;
   disabled?: boolean;
   maxHeight?: number;
+  /** Dentro del recuadro del editor (`sidePanel`): sin marco propio. */
+  bare?: boolean;
 }
 
-export function MessageSnippetList({ onInsert, patientName, refreshKey = 0, disabled = false, maxHeight = 264 }: Props): React.ReactElement {
+export function MessageSnippetList({ onInsert, patientName, refreshKey = 0, disabled = false, maxHeight, bare = false }: Props): React.ReactElement {
   const t = useTranslations('phoenix.messaging');
   const tSec = useTranslations('phoenix.doctor');
   const { context } = useMessageContext();
@@ -146,6 +152,7 @@ export function MessageSnippetList({ onInsert, patientName, refreshKey = 0, disa
       errorLabel={t('tplEmpty')}
       error={error}
       maxHeight={maxHeight}
+      bare={bare}
     />
   );
 }

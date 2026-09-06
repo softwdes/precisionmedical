@@ -457,21 +457,21 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
               </button>
             </div>
 
-            {/* Lista a la izquierda, editor a la derecha (en angosto, la lista
-                arriba). El clic agrega en el cursor y la lista se queda. */}
-            <div className={tplOpen ? 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-2 items-start' : ''}>
-              {tplOpen && (
+            {/* La lista vive DENTRO del recuadro del editor, a la izquierda del
+                texto (Medusa). El clic agrega en el cursor y la lista se queda. */}
+            <RichTextEditor ref={editorRef} value={body} onChange={setBody} minHeight={220}
+              placeholder={t('bodyPlaceholder')} disabled={sending}
+              sidePanel={tplOpen ? (
                 <MessageSnippetList
+                  bare
                   onInsert={(html) => editorRef.current?.insertHtmlAtCursor(html)}
                   patientName={effectivePatient?.name ?? null}
                   refreshKey={tplVersion}
                   disabled={sending}
                   maxHeight={220 + 44}
                 />
-              )}
-              <RichTextEditor ref={editorRef} value={body} onChange={setBody} minHeight={220}
-                placeholder={t('bodyPlaceholder')} disabled={sending} />
-            </div>
+              ) : undefined}
+            />
           </div>
 
           {/* Adjuntos (los que hagan falta, como el legacy) — el mismo

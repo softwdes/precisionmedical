@@ -41,6 +41,14 @@ export interface RichTextEditorProps {
   mergeFields?: ReadonlyArray<{ field: MergeField; label: string }>;
   /** Rótulo del selector de campos (i18n del llamador). */
   mergeFieldsLabel?: string;
+  /**
+   * Panel lateral DENTRO del recuadro del editor, a la izquierda del texto —
+   * la lista "Available Snippets" de Medusa, que vive adentro de la sección y
+   * no al lado. Quien lo pasa decide qué va ahí (snippets de la nota,
+   * plantillas de mensaje) y cuándo se muestra; el editor solo le hace lugar.
+   * En angosto va arriba del texto.
+   */
+  sidePanel?: React.ReactNode;
 }
 
 /** Lo que el padre puede pedirle al editor por `ref`. */
@@ -203,6 +211,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
   disabled = false,
   mergeFields,
   mergeFieldsLabel,
+  sidePanel,
 }, refExterno) {
   const ref = React.useRef<HTMLDivElement>(null);
   // Arranca en '' (no en `value`) a propósito: así el efecto de sync de abajo
@@ -339,7 +348,19 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
   const btn = 'w-7 h-7 rounded flex items-center justify-center text-text-muted hover:text-text-1 hover:bg-white/5 transition-colors disabled:opacity-40';
 
   return (
-    <div className="rounded-md border border-border bg-bg-2 overflow-hidden focus-within:border-violet/50 transition-colors">
+    <div
+      className={`rounded-md border border-border bg-bg-2 overflow-hidden focus-within:border-violet/50 transition-colors ${
+        sidePanel ? 'grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)]' : ''
+      }`}
+    >
+      {/* Panel lateral (snippets): comparte el marco con el texto, como en
+          Medusa. La línea que lo separa es chrome estructural, una sola. */}
+      {sidePanel && (
+        <div className="min-h-0 border-b md:border-b-0 md:border-r border-border bg-bg-1/40 flex flex-col">
+          {sidePanel}
+        </div>
+      )}
+      <div className="min-w-0 flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-bg-2/60 flex-wrap">
         <button type="button" onClick={toggleHeading} disabled={disabled} className={btn} title="Encabezado" aria-label="Encabezado">
@@ -404,9 +425,10 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
         onBlur={emit}
         onPaste={onPaste}
         data-placeholder={placeholder}
-        className="rte-content px-3 py-2.5 text-[13px] text-text-1 outline-none overflow-y-auto max-h-[420px]"
+        className="rte-content px-3 py-2.5 text-[13px] text-text-1 outline-none overflow-y-auto max-h-[420px] flex-1"
         style={{ minHeight }}
       />
+      </div>
 
       {/* Los estilos de .rte-content viven en app/globals.css */}
     </div>

@@ -45,14 +45,19 @@ export interface InsertListProps<T extends InsertListItem> {
   loadingLabel: string;
   errorLabel: string;
   error?: boolean;
-  /** Alto máximo, para no pasar el editor de al lado. */
+  /** Alto máximo, para no pasar el editor de al lado. Sin valor, se estira. */
   maxHeight?: number;
+  /**
+   * Sin fondo ni redondeo propios: para vivir DENTRO del recuadro de otro
+   * componente (el `sidePanel` del RichTextEditor), que ya pone el marco.
+   */
+  bare?: boolean;
   className?: string;
 }
 
 export function InsertList<T extends InsertListItem>({
   items, onPick, header, searchPlaceholder, empty, noResults, loadingLabel, errorLabel,
-  error = false, maxHeight = 260, className = '',
+  error = false, maxHeight, bare = false, className = '',
 }: InsertListProps<T>): React.ReactElement {
   const [q, setQ] = React.useState('');
 
@@ -75,7 +80,10 @@ export function InsertList<T extends InsertListItem>({
   const filteredCount = groups.reduce((n, g) => n + g.list.length, 0);
 
   return (
-    <div className={`rounded-md bg-bg-2/40 p-2 flex flex-col gap-1.5 ${className}`} style={{ maxHeight }}>
+    <div
+      className={`${bare ? 'flex-1 min-h-0' : 'rounded-md bg-bg-2/40'} p-2 flex flex-col gap-1.5 ${className}`}
+      style={{ maxHeight: maxHeight ?? (bare ? undefined : 260) }}
+    >
       <div className="relative shrink-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted" />
         <input

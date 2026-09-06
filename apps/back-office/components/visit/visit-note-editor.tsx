@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock, CheckSquare, Square,
+  Stethoscope, Unlock, Scissors,
 } from 'lucide-react';
 import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -158,9 +158,9 @@ type SectionField = typeof SECTIONS[number]['field'];
  */
 const AUTOSAVE_MS = 2_500;
 
-/** Preferencia local: ver o no las listas de snippets junto a cada sección. */
-const SNIPPETS_PREF = 'pm.nota.snippets';
-/** Alto del editor de cada sección; la lista de snippets de al lado no lo pasa. */
+/** Preferencia local: qué secciones tienen la lista de snippets abierta (JSON de campos). */
+const SNIPPETS_PREF = 'pm.nota.snippets.secciones';
+/** Alto del editor de cada sección; la lista de snippets de adentro se estira con él. */
 const SECTION_MIN_HEIGHT = 150;
 
 function parseDx(content: string): NoteDx[] {
@@ -192,21 +192,27 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
 
   // ── Snippets por sección ───────────────────────────────────────────────────
   //
-  // Cada sección lleva a la IZQUIERDA su lista "Available Snippets", como en
-  // Medusa — la forma que los doctores ya conocen (Erick, 2026-09-05). Un solo
-  // interruptor arriba las muestra u oculta todas (la casilla "Available
-  // Snippets" de allá), y la elección se recuerda en este navegador. El HTML se
-  // inserta en el cursor del editor de esa sección, con los campos del paciente
-  // ya resueltos, y el editor avisa por `onChange` como si se hubiera tecleado —
+  // Cada sección lleva su lista "Available Snippets" DENTRO del recuadro del
+  // editor, a la izquierda del texto, como en Medusa — la forma que los
+  // doctores ya conocen (Erick, 2026-09-05/06). Se abre y se cierra POR SECCIÓN
+  // con el enlace "Snippets" del título; arranca cerrada, y las secciones que
+  // cada provider deja abiertas se recuerdan en su navegador. El HTML se inserta
+  // en el cursor del editor de esa sección, con los campos del paciente ya
+  // resueltos, y el editor avisa por `onChange` como si se hubiera tecleado —
   // así pasa por `setSection` y el autoguardado.
-  const [verSnippets, setVerSnippets] = React.useState(true);
+  const [snippetsAbiertos, setSnippetsAbiertos] = React.useState<Set<SectionField>>(() => new Set());
   React.useEffect(() => {
-    try { if (window.localStorage.getItem(SNIPPETS_PREF) === '0') setVerSnippets(false); } catch { /* sin storage */ }
+    try {
+      const raw = window.localStorage.getItem(SNIPPETS_PREF);
+      if (raw) setSnippetsAbiertos(new Set((JSON.parse(raw) as string[]).filter((f): f is SectionField => SECTIONS.some((s) => s.field === f))));
+    } catch { /* sin storage o valor viejo */ }
   }, []);
-  const toggleSnippets = (): void => {
-    setVerSnippets((v) => {
-      try { window.localStorage.setItem(SNIPPETS_PREF, v ? '0' : '1'); } catch { /* sin storage */ }
-      return !v;
+  const toggleSnippets = (field: SectionField): void => {
+    setSnippetsAbiertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(field)) next.delete(field); else next.add(field);
+      try { window.localStorage.setItem(SNIPPETS_PREF, JSON.stringify([...next])); } catch { /* sin storage */ }
+      return next;
     });
   };
   const editores = React.useRef<Partial<Record<SectionField, RichTextEditorHandle | null>>>({});
@@ -706,17 +712,6 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               <Button variant="ghost" onClick={() => setTplTarget(null)} className="h-9 gap-1.5">
                 <FileStack className="w-3.5 h-3.5" /> {t('noteLoadTemplate')}
               </Button>
-              {/* La casilla "Available Snippets" de Medusa: muestra u oculta las
-                  listas de las seis secciones a la vez. */}
-              <Button
-                variant="ghost"
-                onClick={toggleSnippets}
-                aria-pressed={verSnippets}
-                className={`h-9 gap-1.5 ${verSnippets ? 'text-violet-text' : ''}`}
-              >
-                {verSnippets ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-                {t('snpPanelShow')}
-              </Button>
               <Button variant="outline" onClick={() => void save()} disabled={saving || !dirty} className="h-9 gap-1.5">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('noteSave')}
@@ -839,13 +834,27 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               {t(`sec_${key}`)}
             </span>
             {!soloLectura && (
-              <button
-                type="button"
-                onClick={() => setTplTarget(key)}
-                className="text-[11px] font-semibold text-violet-text hover:underline flex items-center gap-1"
-              >
-                <FileStack className="w-3 h-3" /> {t('noteTemplatesBtn')}
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Abre la lista de snippets DENTRO del editor de esta sección —
+                    el gesto de Medusa. Violeta lleno cuando está abierta. */}
+                <button
+                  type="button"
+                  onClick={() => toggleSnippets(field)}
+                  aria-pressed={snippetsAbiertos.has(field)}
+                  className={`text-[11px] font-semibold hover:underline flex items-center gap-1 ${
+                    snippetsAbiertos.has(field) ? 'text-violet-text' : 'text-text-muted hover:text-text-1'
+                  }`}
+                >
+                  <Scissors className="w-3 h-3" /> {t('snpPanelShow')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTplTarget(key)}
+                  className="text-[11px] font-semibold text-violet-text hover:underline flex items-center gap-1"
+                >
+                  <FileStack className="w-3 h-3" /> {t('noteTemplatesBtn')}
+                </button>
+              </div>
             )}
           </div>
           {soloLectura ? (
@@ -854,25 +863,22 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               dangerouslySetInnerHTML={{ __html: content[field] || `<p class="text-text-muted">—</p>` }}
             />
           ) : (
-            /* La lista de snippets a la izquierda y el editor a la derecha —
-               la disposición de Medusa. En angosto la lista va arriba. */
-            <div className={verSnippets ? 'grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] gap-2 items-start' : ''}>
-              {verSnippets && (
+            <RichTextEditor
+              ref={(h) => { editores.current[field] = h; }}
+              value={content[field]}
+              onChange={(html) => setSection(field, html)}
+              placeholder={t('tplWriteHere')}
+              minHeight={SECTION_MIN_HEIGHT}
+              sidePanel={snippetsAbiertos.has(field) ? (
                 <SnippetPanel
+                  bare
                   section={key}
                   settingsHref={settingsHref(key)}
                   onPick={(s) => insertarSnippet(field, s)}
-                  maxHeight={SECTION_MIN_HEIGHT + 90}
+                  maxHeight={SECTION_MIN_HEIGHT + 44 + 90}
                 />
-              )}
-              <RichTextEditor
-                ref={(h) => { editores.current[field] = h; }}
-                value={content[field]}
-                onChange={(html) => setSection(field, html)}
-                placeholder={t('tplWriteHere')}
-                minHeight={SECTION_MIN_HEIGHT}
-              />
-            </div>
+              ) : undefined}
+            />
           )}
         </div>
       ))}

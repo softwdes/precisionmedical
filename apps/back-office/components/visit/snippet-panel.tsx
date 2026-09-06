@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * SnippetPanel — la columna "Available Snippets" de Medusa, a la IZQUIERDA del
- * editor de cada sección de la nota.
+ * SnippetPanel — la columna "Available Snippets" de Medusa, DENTRO del
+ * recuadro del editor de cada sección de la nota, a la izquierda del texto
+ * (va como `sidePanel` del RichTextEditor).
  *
  * Es la forma que los doctores ya conocen (Erick, 2026-09-05: "igual a Medusa,
  * están acostumbrados"). El clic AGREGA en el cursor, nunca reemplaza, y la
@@ -64,11 +65,13 @@ interface Props {
   onPick: (snippet: SnippetItem) => void;
   /** Adónde ir a crear uno. null si esta pantalla no tiene acceso al catálogo. */
   settingsHref: string | null;
-  /** Alto del editor de al lado, para que la lista no lo pase. */
+  /** Alto máximo. Sin valor, se estira con el editor. */
   maxHeight?: number;
+  /** Dentro del recuadro del editor (`sidePanel`): sin marco propio. */
+  bare?: boolean;
 }
 
-export function SnippetPanel({ section, onPick, settingsHref, maxHeight = 260 }: Props): React.ReactElement {
+export function SnippetPanel({ section, onPick, settingsHref, maxHeight, bare = false }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const [items, setItems] = React.useState<SnippetItem[] | null>(null);
   const [error, setError] = React.useState(false);
@@ -98,6 +101,7 @@ export function SnippetPanel({ section, onPick, settingsHref, maxHeight = 260 }:
       errorLabel={t('snpPanelError')}
       error={error}
       maxHeight={maxHeight}
+      bare={bare}
       empty={
         <>
           <div>{t('snpPanelEmpty')}</div>

@@ -705,19 +705,19 @@ export function ThreadViewDialog({
                   excludeIds={thread.recipients.map((r) => r.userId)}
                   placeholder={t('toPlaceholder')} disabled={busy} />
               )}
-              {/* Lista a la izquierda, editor a la derecha (en angosto, arriba). */}
-              <div className={tplOpen ? 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-2 items-start' : ''}>
-                {tplOpen && (
+              {/* La lista vive DENTRO del recuadro del editor (Medusa). */}
+              <RichTextEditor ref={replyEditor} value={draft} onChange={setDraft} minHeight={100}
+                placeholder={t('bodyPlaceholder')} disabled={busy}
+                sidePanel={tplOpen ? (
                   <MessageSnippetList
+                    bare
                     onInsert={(html) => replyEditor.current?.insertHtmlAtCursor(html)}
                     patientName={thread.patient ? `${thread.patient.lastName}, ${thread.patient.firstName}` : null}
                     disabled={busy}
-                    maxHeight={100 + 44}
+                    maxHeight={100 + 44 + 60}
                   />
-                )}
-                <RichTextEditor ref={replyEditor} value={draft} onChange={setDraft} minHeight={100}
-                  placeholder={t('bodyPlaceholder')} disabled={busy} />
-              </div>
+                ) : undefined}
+              />
               {/* Adjuntar también al responder: mismo componente que el compose,
                   en modo compacto (sin descripción, que acá sería ruido). */}
               <AttachmentPicker

@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from 'next-intl';
-import enMessages from '@precision-medical/i18n/messages/en';
+import { messages } from '@/i18n/messages';
 
 /**
  * Las pantallas de acceso van SIEMPRE en inglés (pedido de negocio), sin
@@ -16,7 +16,7 @@ import enMessages from '@precision-medical/i18n/messages/en';
  */
 export default function LoginLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+    <NextIntlClientProvider locale="en" messages={messages.en}>
       {children}
     </NextIntlClientProvider>
   );

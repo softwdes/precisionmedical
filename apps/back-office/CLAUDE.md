@@ -115,7 +115,8 @@ Toda ruta server-component pesada debe tener su propio `loading.tsx` con
 
 Todo string visible al usuario debe pasar por `useTranslations()` con namespace
 `phoenix.*`. Las strings en ambos idiomas (es/en) están en
-`packages/i18n/messages/{es,en}.json`. **No hardcodear strings en español**
+`apps/back-office/messages/{es,en}.json` (lo propio de esta app; en
+`packages/i18n/messages/` solo queda lo compartido entre apps). **No hardcodear strings en español**
 en componentes nuevos.
 
 Excepción temporal: los modales de B.2/B.3/B.4 que se construyeron en español

@@ -1467,6 +1467,30 @@
       "typeIndependent": "Independent",
       "dialogEditTitle": "Edit — {name}",
       "dialogCreateTitle": "New law firm",
+      "addFirmNamed": "Add firm \"{name}\"",
+      "addFirmNew": "Add a new firm",
+      "addFirmHint": "It is created in the catalog and selected here",
+      "similarTitle": "Similar firms already in the catalog",
+      "similarHint": "Check whether it is one of these before creating another. Note: the same firm may have several offices.",
+      "similarUse": "Use this one",
+      "similarSameName": "same name",
+      "addAttorneyNamed": "Add \"{name}\" to the firm",
+      "addAttorneyNew": "Add a new attorney",
+      "addAttorneyHint": "Created inside {firm} and selected here",
+      "attorneyDialogTitle": "New attorney",
+      "attorneyDialogDesc": "Added as a member of {firm}.",
+      "attorneyDialogInherits": "Address and city are taken from the firm. The rest of the record is completed from the catalog.",
+      "btnCreateAttorney": "Create attorney",
+      "errorAttorneyNameRequired": "First and last name are required",
+      "fieldFirstName": "First name",
+      "fieldLastName": "Last name",
+      "fieldMemberRole": "Role at the firm",
+      "fieldBarNumber": "Bar number",
+      "roleATTORNEY": "Attorney",
+      "roleCASE_MANAGER": "Case manager",
+      "rolePARALEGAL": "Paralegal",
+      "roleLEGAL_ASSISTANT": "Legal assistant",
+      "roleOTHER": "Other",
       "dialogDesc": "Firm data is used when creating a case (autocomplete) and in the attorney portal.",
       "fieldFirmName": "Firm name",
       "fieldEmail": "Primary email",
@@ -1489,7 +1513,9 @@
       "deleteTitle": "Delete law firm",
       "deleteDesc": "Are you sure you want to delete \"{name}\"? This is a soft-delete (marked inactive).",
       "deleteWarning": "Has {count, plural, one {1 member} other {{count} members}} (attorneys / case managers). They will also be marked inactive.",
-      "tooltipViewCases": "View cases"
+      "tooltipViewCases": "View cases",
+      "noFirmMatch": "No firm matches your search",
+      "noAttorneyMatch": "No member of this firm matches"
     },
     "insurances": {
       "title": "Insurance Carriers",
@@ -1859,11 +1885,11 @@
         "chiropractorLabel": "Treating chiropractor",
         "chiropractorPlaceholder": "",
         "lawyerNoteDeclined": "No attorney = no lien. The patient must understand treatment is billed directly (cash or own insurance). Confirm before continuing.",
-        "sectionInsurance": "Auto insurance (PIP)",
-        "insuranceLabel": "PIP insurer",
+        "sectionInsurance": "Auto insurance",
+        "insuranceLabel": "Insurer",
         "insurancePlaceholder": "Search insurer (GEICO, State Farm...)",
-        "policyNumber": "PIP claim number",
-        "policyHint": "\"Do you already have a PIP claim number?\"",
+        "policyNumber": "Claim number",
+        "policyHint": "\"Do you already have a claim number?\"",
         "sectionAppointment": "Schedule first appointment",
         "scheduleNow": "on this call",
         "scheduleHint": "\"Let me find an available slot. Does tomorrow or later this week work for you?\"",
@@ -1940,7 +1966,11 @@
         "noAnswerTitle": "No answer",
         "noAnswerRetry": "Try again",
         "noAnswerContinue": "Continue without call",
-        "noAnswerBack": "Go back"
+        "noAnswerBack": "Go back",
+        "referrerFirmLabel": "Referring firm",
+        "referrerAttorneyLabel": "Referring attorney",
+        "referrerHint": "Who sent us the patient. It can differ from the firm that represents them, and you can leave it empty and continue.",
+        "optionalTag": "(optional)"
       }
     },
     "billing": {
@@ -3786,8 +3816,6 @@
       "linkContactSameHint": "No new record is created — we continue with the existing one.",
       "linkContactFamily": "A family member",
       "linkContactFamilyHint": "They share the contact. The record is created and the relationship saved.",
-      "linkContactCoincidence": "Just a coincidence",
-      "linkContactCoincidenceHint": "Not related. The record is created without a link.",
       "linkContactOwnerLabel": "Whose contact is it?",
       "linkContactRelationLabel": "{nombre} is their…",
       "linkContactPreview": "We will record that {nuevo} shares {canal} of {dueño}. The field will show whose it is, not a copy.",
@@ -3795,7 +3823,10 @@
       "linkContactNeedsAuth": "The contact owner still has to authorize it.",
       "linkContactConfirm": "Link and create",
       "linkContactBack": "← Back",
-      "linkContactCancel": "Cancel"
+      "linkContactCancel": "Cancel",
+      "linkContactSharedPhone": "It is a shared or clinic phone",
+      "linkContactSharedPhoneHint": "Not a family tie: unrelated people use it. The record is created without a link, and the review is logged.",
+      "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages."
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",
@@ -4873,6 +4904,7 @@
     "accidentDescription": "Accident description",
     "accidentDescriptionPlaceholder": "Briefly describe the symptoms and the accident.",
     "lawFirm": "Law firm",
+    "lawFirmLabel": "Law firm",
     "lawFirmPlaceholder": "Name of the law firm that referred this medical case...",
     "attorney": "Representing attorney",
     "attorneyPlaceholder": "Attorney name",
@@ -4933,7 +4965,10 @@
         "title": "MEDICAL HISTORY AUTHORITY",
         "body": "Electronic Health Records (EHR) System Authorization: PMUCFP has implemented a new Electronic Health Records (EHR) system that imports prescription history from third-party sources (e.g., pharmacies). In order to transfer my current and past prescription history to this new system, I hereby provide my consent. By signing below, I authorize PMUCFP to transfer my prescription history."
       }
-    }
+    },
+    "gmAlreadyExists": "This patient already has a general medicine case ({caseCode}). In GM every visit goes under the same case: schedule the appointment there instead of opening another one.",
+    "gmOpenExisting": "Open that case",
+    "gmBack": "Back"
   },
   "addNoteDialog": {
     "title": "Add internal note",

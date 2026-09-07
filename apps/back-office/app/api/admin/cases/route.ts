@@ -99,7 +99,22 @@ const InputSchema = z.object({
   }).nullable().optional(),
   // Workflow
   specialtyId: z.string().nullable().optional(),
-  caseType: z.enum(['MVA', 'GENERAL', 'WORKERS_COMP', 'NURSING_HOME']).default('MVA'),
+  /**
+   * SOLO dos tipos de caso: MVA y GM (`GENERAL`). Confirmado por Erick el
+   * 2026-09-07: «solo hay dos tipos, no existen más como WORKERS_COMP,
+   * NURSING_HOME».
+   *
+   * Estaban en el schema porque el enum de la base (`CaseTypeWorkflow`) los
+   * lleva, pero **ningún wizard los ofrece** y en la base hay **0 casos** de los
+   * dos (verificado, borrados incluidos). O sea que la única forma de crear uno
+   * era pegarle a la API a mano, y quedaba un caso de un tipo para el que no
+   * existe flujo: ni regla de cuántos por paciente, ni cobertura, ni cierre.
+   *
+   * El enum de la base NO se toca: sacar un valor de un enum de Postgres es DDL
+   * y `db:push` está minado (ver [[trap-db-push-arrastra-deriva]]). La puerta se
+   * cierra acá, que es por donde se entraba.
+   */
+  caseType: z.enum(['MVA', 'GENERAL']).default('MVA'),
   source: z.enum([
     'PHONE_CALL', 'WALK_IN', 'WEB_FORM', 'AI_AGENT',
     'LAW_FIRM', 'LAW_FIRM_REFERRAL', 'PATIENT_REFERRAL',
@@ -127,6 +142,21 @@ const InputSchema = z.object({
 
   // ─── Paciente existente (desde PreCallStep · evita duplicados) ─────
   existingPatientId: z.string().cuid().nullable().optional(),
+  /**
+   * Quién REFIRIÓ al paciente, cuando fue un bufete. Distinto de
+   * `legal.lawFirmId`, que es quién lo REPRESENTA.
+   *
+   * Hasta el 2026-09-07 los dos hechos compartían la columna
+   * `Patient.lawyerReferrerId`: se llenaba con el representante. El resultado
+   * era que el dato de referido no existía (de 6264 pacientes, 59 tenían el
+   * campo y solo 5 tenían `referralSource = LAW_FIRM`) y que la línea
+   * "Referred by" del lien imprimía al representante — coincidía seguido, y por
+   * eso nadie lo vio, pero ya había 5 pares donde diferían.
+   */
+  referrer: z.object({
+    lawFirmId:  z.string().cuid(),
+    attorneyId: z.string().cuid().nullable().optional(),
+  }).nullable().optional(),
 
   /**
    * `true` cuando el contacto compartido ya se revisó CON UNA PERSONA en el
@@ -309,6 +339,65 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     contactoCompartidoCon = candidatos;
   }
 
+  /**
+   * ─── GM: un solo caso por paciente ──────────────────────────────────────
+   *
+   * Regla de Erick (2026-09-07): un caso MVA es un ACCIDENTE, así que un
+   * paciente puede tener varios. Un caso GM es la atención general del
+   * paciente, y todas las visitas futuras van bajo ese mismo caso.
+   *
+   * ── Lo que había ─────────────────────────────────────────────────────────
+   *
+   * Nada lo impedía. Medido: **104 de 1825 pacientes GM (5,7%) tienen más de un
+   * caso GM**, 116 casos de más. Y separándolos por fecha de creación se ve que
+   * son dos problemas distintos:
+   *  · 32 pacientes con todos los casos creados el MISMO día → doble clic.
+   *  · 72 con casos en días distintos → el paciente volvió meses después y se le
+   *    abrió otro expediente en vez de usar el que ya tenía. Un tratamiento
+   *    partido en dos: `GM-2755` (abril, 6 citas) + `GM-3073` (junio, 2 citas).
+   *
+   * Y el dato que confirma que la regla no pelea con nada: de los 1944 casos GM
+   * **ninguno está CLOSED, SETTLED ni ARCHIVED**. El caso GM ya es, de hecho, un
+   * expediente permanente que nunca se cierra — la regla lo hace explícito.
+   *
+   * ── Por qué DEVUELVE el caso y no bloquea ────────────────────────────────
+   *
+   * Recepción está con el paciente al teléfono. Un "ya existe" sin salida es el
+   * mismo error que teníamos con el correo repetido: la pantalla ofrece
+   * "agendar bajo el caso que ya tiene" y sigue para adelante. La ruta para eso
+   * ya existe (`cases/[id]/schedule-appointment`).
+   *
+   * Los cancelados/archivados NO cuentan: si el caso GM se dio de baja, abrir
+   * uno nuevo es lo correcto.
+   */
+  if (parsed.caseType === 'GENERAL' && parsed.existingPatientId) {
+    const gmExistente = await db.case.findFirst({
+      where: {
+        patientId: parsed.existingPatientId,
+        caseType: 'GENERAL',
+        deletedAt: null,
+        status: { notIn: ['CANCELLED', 'ARCHIVED'] },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, caseCode: true, status: true, createdAt: true },
+    });
+
+    if (gmExistente) {
+      return NextResponse.json({
+        error: 'GM_CASE_ALREADY_EXISTS',
+        message:
+          `Este paciente ya tiene su caso de medicina general (${gmExistente.caseCode}). `
+          + 'En GM todas las visitas van bajo el mismo caso: agendá la cita ahí en vez de abrir otro.',
+        caso: {
+          id: gmExistente.id,
+          caseCode: gmExistente.caseCode,
+          status: gmExistente.status,
+          createdAt: gmExistente.createdAt,
+        },
+      }, { status: 409 });
+    }
+  }
+
   // ─── El correo del apoderado no puede ser el del propio menor ───────
   // Solo aplica cuando hay que CREAR/reutilizar la ficha del apoderado: si vino
   // `patientId` ya está elegido y no se toca ningún correo.
@@ -432,7 +521,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           data: {
             ...(parsed.accident.date && { accidentDate: new Date(parsed.accident.date) }),
             accidentType: parsed.accident.type,
-            ...(parsed.legal.lawFirmId && { lawyerReferrerId: parsed.legal.lawFirmId }),
+            /* El REFERIDO, no el representante. Antes acá iba
+               `parsed.legal.lawFirmId` — ver el comentario de `referrer` en el
+               esquema. Solo se toca si vino: no se pisa con null un referido que
+               ya estaba cargado de un caso anterior. */
+            ...(parsed.referrer && { lawyerReferrerId: parsed.referrer.lawFirmId }),
             ...(guardianPatientId ? {
               guardianPatientId,
               guardianRelation: parsed.guardian?.relation ?? null,
@@ -452,7 +545,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             dateOfBirth: parsed.patient.dateOfBirth ? new Date(parsed.patient.dateOfBirth) : null,
             accidentDate: parsed.accident.date ? new Date(parsed.accident.date) : null,
             accidentType: parsed.accident.type,
-            lawyerReferrerId: parsed.legal.lawFirmId ?? null,
+            /* El REFERIDO. Antes era `parsed.legal.lawFirmId` (el representante). */
+            lawyerReferrerId: parsed.referrer?.lawFirmId ?? null,
             status: 'NEW',
             ...(guardianPatientId ? {
               guardianPatientId,
@@ -633,6 +727,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       caseCode: result.case.caseCode,
       patientCode: result.patient.patientCode,
       existingPatient: !!parsed.existingPatientId,
+      /* Quién refirió — auditado aparte del representante justamente porque
+         antes eran el mismo dato y no se podía distinguir uno del otro. */
+      referrer: parsed.referrer ? {
+        lawFirmId:  parsed.referrer.lawFirmId,
+        attorneyId: parsed.referrer.attorneyId ?? null,
+      } : null,
       source: parsed.source,
       caseType: parsed.caseType,
       // `null` cuando el caso no lleva bufete: el esquema tiene `.default('HAS')`
@@ -659,6 +759,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ],
         autorizado: parsed.contactLink.autorizado,
       } : null,
+      /**
+       * Se revisó el choque de contacto y se decidió NO vincular.
+       *
+       * Antes esto no dejaba rastro: el diálogo decía "se crea suelto" y no se
+       * guardaba nada, así que la decisión de una persona sobre los datos de
+       * otra se perdía. Solo puede pasar con un choque de TELÉFONO —el número
+       * de la clínica, un placeholder— porque con el correo el diálogo ya no
+       * ofrece esa salida (Erick, 2026-09-07).
+       */
+      contactoRevisadoSinVinculo:
+        parsed.contactoYaRevisado === true && !parsed.contactLink && !parsed.existingPatientId,
       // 'created' = se abrió una ficha de paciente nueva para el apoderado.
       guardianAction:    result.guardian.action,
       guardianPatientId: result.guardian.guardianPatientId,

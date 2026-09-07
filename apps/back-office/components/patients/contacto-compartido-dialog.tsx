@@ -20,8 +20,10 @@
  *     existe. Es el caso más frecuente y por eso va primero.
  *  2. **Es un familiar** — se crea, y se guarda de quién es el contacto y qué
  *     parentesco tiene. Acá está el valor.
- *  3. **Es una coincidencia** — se crea suelto, sin vínculo. Dos personas sin
- *     relación pueden compartir un teléfono (una casa, un trabajo).
+ *  3. **Es un número compartido** — se crea sin vínculo. SOLO aparece cuando el
+ *     choque es por teléfono: el número de la clínica o un placeholder los usan
+ *     personas sin relación entre sí. Con el correo de por medio no se ofrece —
+ *     ver el comentario largo en el botón.
  *
  * ── Por qué se pide autorización ────────────────────────────────────────────
  *
@@ -162,17 +164,51 @@ export function ContactoCompartidoDialog({
                   </span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={onCrearSuelto}
-                  className="flex items-start gap-3 rounded-md border border-border bg-bg-2/20 px-3 py-2.5 text-left hover:border-border-strong transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-text-1">{t('linkContactCoincidence')}</span>
-                    <span className="block text-[11px] text-text-muted">{t('linkContactCoincidenceHint')}</span>
-                  </span>
-                </button>
+                {/**
+                 * La salida sin vínculo existe SOLO cuando el choque es por
+                 * teléfono. Con el correo NO se ofrece.
+                 *
+                 * Decisión de Erick (2026-09-07) sobre datos medidos: los 43
+                 * grupos de correo repetido con apellidos distintos son SIEMPRE
+                 * de 2 personas — una pareja, o una madre con el hijo de otro
+                 * apellido. Una casilla de correo es de alguien: dos
+                 * desconocidos no la comparten. Y como el correo es por donde
+                 * viaja el link del portal, dejarlo sin vínculo es mandarle a
+                 * un tercero el acceso al expediente de otro sin registrar nada.
+                 *
+                 * En el teléfono sí es real, pero no entre parientes: es el
+                 * número de la clínica o un placeholder. Medido: 14 pacientes
+                 * con 12 apellidos en un mismo número, y otros en `2222`,
+                 * `5555`, `9999`. Ninguna familia tiene 12 apellidos. Si acá se
+                 * obligara a declarar parentesco, recepción tendría que
+                 * inventarlo entre 14 desconocidos — y el dato falso es peor
+                 * que la ausencia de dato, porque después alguien lo usa para
+                 * mandar un SMS.
+                 *
+                 * Por eso además NO se llama "es una coincidencia": el juicio es
+                 * sobre el NÚMERO, no sobre las personas.
+                 */}
+                {!chocaEmail && (
+                  <button
+                    type="button"
+                    onClick={onCrearSuelto}
+                    className="flex items-start gap-3 rounded-md border border-border bg-bg-2/20 px-3 py-2.5 text-left hover:border-border-strong transition-colors"
+                  >
+                    <AlertCircle className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium text-text-1">{t('linkContactSharedPhone')}</span>
+                      <span className="block text-[11px] text-text-muted">{t('linkContactSharedPhoneHint')}</span>
+                    </span>
+                  </button>
+                )}
+
+                {/* Con el correo de por medio no hay tercera salida: se dice por
+                    qué, en vez de dejar dos botones y que parezca que falta uno. */}
+                {chocaEmail && (
+                  <p className="text-[11px] text-text-muted leading-snug px-1">
+                    {t('linkContactEmailNoCoincidence')}
+                  </p>
+                )}
               </div>
             </>
           ) : (

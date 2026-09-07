@@ -47,7 +47,9 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
 
 const PatchSchema = z.object({
   status:           z.enum(['NEW_REFERRAL','INTAKE_PENDING','INTAKE_COMPLETED','CONFIRMED','ACTIVE','MMI','CLOSED','SETTLED','ARCHIVED','CANCELLED']).optional(),
-  caseType:         z.enum(['MVA','GENERAL','WORKERS_COMP','NURSING_HOME']).optional(),
+  /* Solo MVA y GM — ver el comentario del POST en `../route.ts`. Angostarlo no
+     rompe nada: hay 0 casos de los otros dos tipos en la base. */
+  caseType:         z.enum(['MVA','GENERAL']).optional(),
   accidentType:     z.enum(['AUTO','MOTORCYCLE','PEDESTRIAN','WORKPLACE','OTHER']).nullable().optional(),
   accidentDate:     z.string().nullable().optional(),
   accidentLocation: z.string().nullable().optional(),

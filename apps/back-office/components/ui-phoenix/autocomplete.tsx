@@ -80,11 +80,26 @@ export interface AutocompleteProps {
    * Recibe el texto buscado y una función para cerrar el dropdown.
    */
   renderEmpty?: (query: string, close: () => void) => React.ReactNode;
+  /**
+   * Acción FIJA del dropdown — se muestra ARRIBA de los resultados, haya o no.
+   *
+   * Distinta de `renderEmpty`, que solo aparece con la búsqueda vacía. Hace
+   * falta cuando la acción sigue teniendo sentido CON resultados en pantalla:
+   * el caso que la motivó es el catálogo de bufetes, donde buscar "Sterling"
+   * trae tres sucursales y la que hay que cargar puede ser una cuarta.
+   *
+   * ⚠️ **Va arriba, no abajo.** Primero la puse al pie y Erick lo probó con los
+   * 109 bufetes reales: la lista scrollea, así que la acción quedaba fuera de la
+   * pantalla y había que bajar hasta el final para descubrirla. Después de
+   * filtrar, la vista está arriba — y ahí es justo cuando hace falta crear.
+   */
+  renderAction?: (query: string, close: () => void) => React.ReactNode;
 }
 
 export function Autocomplete({
   endpoint, extraParams, placeholder, selected, onSelect, renderAvatar,
   showAge = false, blockMinors = false, isBlocked, blockedBadge, emptyHint, renderEmpty,
+  renderAction,
 }: AutocompleteProps) {
   const t = useTranslations('phoenix.common');
   const [query, setQuery] = useState('');
@@ -104,18 +119,46 @@ export function Autocomplete({
   // componente quedaba pidiendo al endpoint cada 200ms mientras estuviera montado.
   const paramsKey = JSON.stringify(extraParams ?? {});
 
+  /**
+   * Se vuelve a pedir cada vez que el panel se ABRE, no solo cuando cambia el
+   * texto.
+   *
+   * ── El bug que arregla (Erick, 2026-09-07) ─────────────────────────────────
+   *
+   * "Creo al padre, después al hijo, y en el selector del hijo no aparece el
+   * padre; recién al refrescar la página se muestra."
+   *
+   * Eran dos causas encadenadas y las dos daban el mismo síntoma:
+   *
+   *  1. **El efecto no dependía de `open`.** Con el mismo texto en el buscador,
+   *     reabrir el panel no disparaba nada: se seguían mostrando los `results`
+   *     que quedaron en el estado de la vez anterior, de cuando el padre todavía
+   *     no existía.
+   *  2. **El `fetch` iba sin `cache`.** Estas rutas no mandan `Cache-Control`,
+   *     así que el navegador aplica frescura heurística y puede reusar la
+   *     respuesta anterior para la misma URL. Eso sobrevive incluso a que el
+   *     componente se desmonte, y es lo que explica que SOLO se arregle
+   *     recargando la página — un `Ctrl+R` revalida.
+   *
+   * `no-store` es lo correcto acá y no una precaución: un buscador de pacientes
+   * y bufetes existe para reflejar lo que hay AHORA. Varias rutas del sistema ya
+   * lo declaran del lado del servidor (`pulse`, `changelog`, `releases`); este
+   * primitivo lo pide del lado del cliente y con eso cubre a sus ~8 llamadores
+   * de una vez, sin tocar cada ruta.
+   */
   useEffect(() => {
     if (selected) { setQuery(''); setOpen(false); return; }
+    if (!open) return;
     const handle = setTimeout(async () => {
       setLoading(true);
       try {
         const params = new URLSearchParams({ q: query, ...JSON.parse(paramsKey) as Record<string, string> });
-        const res = await fetch(`${endpoint}?${params}`);
+        const res = await fetch(`${endpoint}?${params}`, { cache: 'no-store' });
         if (res.ok) { const data = await res.json(); setResults(data.results ?? []); }
       } catch { setResults([]); } finally { setLoading(false); }
     }, 200);
     return () => clearTimeout(handle);
-  }, [query, endpoint, paramsKey, selected]);
+  }, [query, endpoint, paramsKey, selected, open]);
 
   // Close on outside click — check both input wrapper and portal dropdown
   useEffect(() => {
@@ -143,6 +186,7 @@ export function Autocomplete({
     );
   }
 
+  /** ¿Hay algo que mostrar cuando la búsqueda no trae nada? */
   const hasEmptyState = !!renderEmpty || !!emptyHint;
 
   return (
@@ -154,10 +198,29 @@ export function Autocomplete({
       </div>
       <FloatingPanel
         anchorRef={wrapRef}
-        open={mounted && open && (results.length > 0 || loading || (hasEmptyState && query.length >= 2))}
+        /**
+         * ⚠️ `renderAction` abre el panel SIEMPRE que el campo tenga el foco.
+         *
+         * Sin ese término, el panel se cerraba al filtrar sin resultados y la
+         * acción de crear desaparecía **justo en el único momento en que hace
+         * falta**: buscaste, no está, y no hay salida (Erick, 2026-09-07:
+         * "apliqué filtrado, no aparece el botón"). Encadenarlo a
+         * `query.length >= 2` como el resto de los estados vacíos tampoco
+         * alcanza: con una sola letra que no matchee volvía a desaparecer.
+         * Si hay una acción disponible, hay algo que mostrar.
+         */
+        open={mounted && open && (results.length > 0 || loading || !!renderAction || (hasEmptyState && query.length >= 2))}
         maxHeight={240}
       >
         <div ref={dropRef}>
+          {/* La acción va PRIMERA y pegada al buscador, con su propia línea
+              abajo: es una acción, no un resultado, y sin la separación se lee
+              como uno más de la lista. */}
+          {renderAction && (
+            <div className="border-b border-row-sep">
+              {renderAction(query.trim(), () => setOpen(false))}
+            </div>
+          )}
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : results.length === 0 && renderEmpty ? (

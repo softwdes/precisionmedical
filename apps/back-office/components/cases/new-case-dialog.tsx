@@ -9,7 +9,7 @@ import QRCode from 'qrcode';
 import {
   PhoneCall, PhoneOff, User, Car, Scale, ShieldCheck, Check, AlertCircle,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
-  Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare, Tablet,
+  Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare,
   Users, Link as LinkIcon,
 } from 'lucide-react';
 import {
@@ -33,6 +33,8 @@ import { useTwilioDevice } from '@/lib/use-twilio-device';
 import {
   ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
 } from '@/components/patients/contacto-compartido-dialog';
+import { LawFirmField } from '@/components/lawyers/law-firm-field';
+import { AttorneyField } from '@/components/lawyers/attorney-field';
 
 // B.2 — Contacto inicial del paciente · llamada + apertura caso + agendamiento
 //
@@ -73,7 +75,7 @@ type ReferralSource =
   | 'LAW_FIRM' | 'PATIENT_REFERRAL' | 'CHIROPRACTOR' | 'REFERRAL' | 'PHONE_CALL' | 'WALK_IN'
   | 'ACCIDENT_CENTER' | 'WEB_SEARCH' | 'GOOGLE' | 'GOOGLE_MAPS' | 'FACEBOOK' | 'INSTAGRAM'
   | 'TIKTOK' | 'WEBSITE' | 'CLINIC_STAFF' | 'INSURANCE' | 'MEDICAL_INSURANCE' | 'FAMILY' | 'OTHER';
-type FormDelivery = { email: boolean; sms: boolean; tablet: boolean };
+type FormDelivery = { email: boolean; sms: boolean };
 type WizardStep  = 1 | 2 | 3 | 4;
 
 // Mapa local de especialidad → enum de Provider (fallback cuando specialtyCatalogIds no está disponible)
@@ -163,6 +165,16 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [language, setLanguage]   = useState<'es' | 'en'>('es');
   const [referralSource, setReferralSource] = useState<ReferralSource>('LAW_FIRM');
+  /** Quién REFIRIÓ al paciente, cuando fue un bufete. Opcional. */
+  const [referrerFirm, setReferrerFirm] = useState<AutoResult | null>(null);
+  const [referrerAttorney, setReferrerAttorney] = useState<AutoResult | null>(null);
+  /**
+   * El select de esta pantalla ofrece `LAW_FIRM` y nada más para bufete: el
+   * alias legacy `LAW_FIRM_REFERRAL` existe en el enum de la base pero NO en las
+   * opciones, y el payload lo traduce al mandar. Compararlo acá era código
+   * muerto — lo marcó `tsc`.
+   */
+  const esReferidoPorBufete = referralSource === 'LAW_FIRM';
 
   // ─── Section 1b: Padre / apoderado (solo si el paciente es menor) ───────
   // Si `guardianLinked` tiene valor, el apoderado ya existe como paciente y se
@@ -224,12 +236,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // ─── Section 3: Form delivery ──────────────────────────────────────────
-  const [formDelivery, setFormDelivery] = useState<FormDelivery>({ email: true, sms: true, tablet: false });
+  const [formDelivery, setFormDelivery] = useState<FormDelivery>({ email: true, sms: true });
 
   // ─── Submit + success state ────────────────────────────────────────────
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
+  /** GM ya existente del paciente — se ofrece abrirlo en vez de crear otro. */
+  const [gmExistente, setGmExistente] = useState<{ id: string; caseCode: string } | null>(null);
 
   /**
    * El contacto ya lo usa alguien: en vez del muro, se abre el diálogo que
@@ -272,7 +286,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setShowAllProviders(false);
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
-    setFormDelivery({ email: true, sms: true, tablet: false });
+    setFormDelivery({ email: true, sms: true });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
 
     if (initialState) {
@@ -445,7 +459,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // Solo se exige nombre y apellido: sin eso no hay ficha que crear. Email,
   // teléfono y fecha de nacimiento quedaron OPCIONALES — ningún dato de
   // contacto bloquea (decisión de negocio 2026-07-29). Si el apoderado no deja
-  // contacto, el formulario se llena en la tablet de la clínica.
+  // contacto, el formulario se llena al llegar a la clínica.
   //
   // La fecha sigue sirviendo para el chequeo de mayoría de edad, pero solo si
   // la cargan: sin fecha no se puede afirmar que sea menor, así que no se bloquea.
@@ -481,11 +495,31 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const contactPhone = patientIsMinor ? (guardianLinked?.phone ?? gPhone) : phone;
   const canEmail = !!contactEmail.trim();
   const canSms   = !!contactPhone.trim();
-  const emailOn  = formDelivery.email && canEmail && !formDelivery.tablet;
-  const smsOn    = formDelivery.sms   && canSms   && !formDelivery.tablet;
-  const noChannel = !emailOn && !smsOn && !formDelivery.tablet;
+  const emailOn  = formDelivery.email && canEmail;
+  const smsOn    = formDelivery.sms   && canSms;
+  const noChannel = !emailOn && !smsOn;
 
   const accidentDateIsValid = !accidentDate || accidentDate <= todayDenver;
+  /**
+   * El bufete que refirió pre-carga el del CASO — editable, no impuesto.
+   *
+   * Medido: en 58 de 74 pares (78%) el bufete que refiere es el que representa.
+   * Así que en 4 de cada 5 altas recepción se ahorra buscar el mismo bufete dos
+   * veces, y en la quinta lo cambia.
+   *
+   * ⚠️ **Va SOLO del referido hacia el caso, nunca al revés.** Pre-cargar el
+   * referido desde el caso sería volver justo al problema que vinimos a
+   * arreglar: el representante escribiéndose como referidor.
+   *
+   * Y solo si el campo del caso está VACÍO: si ya se eligió uno a mano, cambiar
+   * el referido no se lo pisa.
+   */
+  useEffect(() => {
+    if (!referrerFirm || lawFirm) return;
+    setLawFirm(referrerFirm);
+    setLawyerStatus('HAS');
+  }, [referrerFirm, lawFirm]);
+
   const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
   const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
   const canSubmit = canGoToStep4;
@@ -564,6 +598,16 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           source: (['PHONE_CALL','WALK_IN','LAW_FIRM_REFERRAL','PATIENT_REFERRAL','WEB_FORM','AI_AGENT'] as const).includes(referralSource as never)
             ? referralSource
             : referralSource === 'LAW_FIRM' ? 'LAW_FIRM_REFERRAL' : 'OTHER',
+          /**
+           * Quién REFIRIÓ. Va aparte de `legal.lawFirmId` (quién representa) a
+           * propósito: son dos hechos distintos y hasta ahora compartían la
+           * misma columna. Solo se manda si el origen es un bufete — si después
+           * cambian el origen a "Google", el referido no queda pegado.
+           */
+          referrer: esReferidoPorBufete && referrerFirm ? {
+            lawFirmId:  referrerFirm.id,
+            attorneyId: referrerAttorney?.id ?? null,
+          } : null,
           appointment: scheduleNow && slotIso ? {
             clinicId,
             providerId,
@@ -597,6 +641,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         if ((data.error === 'DUPLICATE_PATIENT' || data.error === 'EMAIL_TAKEN') && data.existingPatientId) {
           setDuplicateId(data.existingPatientId);
         }
+        /**
+         * GM: un caso por paciente. El servidor devuelve cuál es, así que se
+         * guarda para ofrecer abrirlo — el mensaje solo, sin la salida, deja a
+         * recepción trabada con el paciente al teléfono.
+         */
+        if (data.error === 'GM_CASE_ALREADY_EXISTS' && data.caso?.id) {
+          setGmExistente({ id: data.caso.id, caseCode: data.caso.caseCode });
+        }
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
       }
       const data = await res.json();
@@ -627,7 +679,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           );
           portalUrl = results[0]?.sent?.portalUrl ?? null;
         } else {
-          // Tablet or no delivery — just generate the token for display.
+          // Sin canal de entrega — solo se genera el token para mostrarlo.
           const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
           if (tokenRes.ok) {
             const tokenData = await tokenRes.json();
@@ -1089,6 +1141,58 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 ]}
                 hint={t('patientHint')}
               />
+
+              {/**
+               * Quién refirió, cuando fue un bufete.
+               *
+               * ── Por qué acá y no solo en el tab Case ─────────────────────────
+               *
+               * "Quién refirió al paciente" y "quién lo representa" son dos
+               * hechos distintos, y hasta ahora solo existía el segundo: la
+               * columna `Patient.lawyerReferrerId` se llenaba con
+               * `legal.lawFirmId`, o sea con el representante. Medido: de 6264
+               * pacientes solo 59 tenían el campo, y apenas 5 tenían
+               * `referralSource = LAW_FIRM`. El dato de referido no existía.
+               *
+               * ── OPCIONAL, y no bloquea ───────────────────────────────────────
+               *
+               * Se puede dar Next sin llenarlo (Erick, 2026-09-07). `canGoToStep2`
+               * solo pide nombre, apellido y fecha de nacimiento, así que no hay
+               * nada que agregar para que no trabe — se deja explícito acá para
+               * que nadie lo "arregle" metiéndolo en la condición.
+               *
+               * Los dos campos son los MISMOS del tab Case, así que traen el
+               * botón de crear bufete y el de crear abogado: si el que refirió no
+               * está en el catálogo, se da de alta desde acá y queda disponible
+               * en el paso siguiente sin hacer nada (los dos leen el mismo
+               * catálogo).
+               */}
+              {esReferidoPorBufete && (
+                <div className="space-y-3 rounded-md bg-bg-2/30 px-3 py-3">
+                  <div>
+                    <Label>{t('referrerFirmLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('optionalTag')}</span></Label>
+                    <LawFirmField
+                      selected={referrerFirm}
+                      onSelect={(r) => { setReferrerFirm(r); setReferrerAttorney(null); }}
+                      placeholder={t('lawFirmPlaceholder')}
+                    />
+                  </div>
+                  {referrerFirm && (
+                    <div>
+                      <Label>{t('referrerAttorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('optionalTag')}</span></Label>
+                      <AttorneyField
+                        firmId={referrerFirm.id}
+                        firmName={referrerFirm.label}
+                        selected={referrerAttorney}
+                        onSelect={setReferrerAttorney}
+                        placeholder={t('attorneyPlaceholder')}
+                      />
+                    </div>
+                  )}
+                  <p className="text-[11px] text-text-muted leading-snug">{t('referrerHint')}</p>
+                </div>
+              )}
+
               {!canGoToStep2 && (
                 <Note tone="amber">{t('requiredToContinue')}</Note>
               )}
@@ -1266,24 +1370,31 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     <div className="space-y-3">
                       <div>
                         <Label>{t('lawFirmLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('lawFirmAutocomplete')}</span></Label>
-                        <Autocomplete endpoint="/api/admin/lawyers/autocomplete" placeholder={t('lawFirmPlaceholder')}
-                          selected={lawFirm} onSelect={(r) => { setLawFirm(r); setAttorney(null); }}
-                          renderAvatar={(r) => (
-                            <div className="w-7 h-7 rounded flex items-center justify-center text-brand-fg text-[10px] font-bold shrink-0 bg-brand/20 border border-brand/30">
-                              {r.label.slice(0, 2).toUpperCase()}
-                            </div>
-                          )} />
+                        {/* `LawFirmField` y no el `Autocomplete` pelado: el aviso
+                            verde de abajo prometía un "Agregar bufete" que en esta
+                            pantalla no existía. Ahora el pie del dropdown abre el
+                            formulario completo y al guardar lo deja seleccionado
+                            acá, sin salir del alta. */}
+                        <LawFirmField
+                          selected={lawFirm}
+                          onSelect={(r) => { setLawFirm(r); setAttorney(null); }}
+                          placeholder={t('lawFirmPlaceholder')}
+                        />
                       </div>
                       {lawFirm && (
                         <div>
                           <Label>{t('attorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('attorneyOptional')}</span></Label>
-                          <Autocomplete endpoint="/api/admin/lawyers/autocomplete" extraParams={{ firmId: lawFirm.id }}
-                            placeholder={t('attorneyPlaceholder')} selected={attorney} onSelect={setAttorney}
-                            renderAvatar={(r) => (
-                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 bg-cyan/20 border border-cyan/30 text-cyan">
-                                {r.label.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()}
-                              </div>
-                            )} />
+                          {/* Mismo callejón que el bufete: si el abogado no
+                              estaba en la lista del bufete, no había salida.
+                              Cuelga de la firma, así que este campo solo existe
+                              con `lawFirm` elegido. */}
+                          <AttorneyField
+                            firmId={lawFirm.id}
+                            firmName={lawFirm.label}
+                            selected={attorney}
+                            onSelect={setAttorney}
+                            placeholder={t('attorneyPlaceholder')}
+                          />
                         </div>
                       )}
                       <Note tone="emerald">{t('lawyerNoteHas')}</Note>
@@ -1301,7 +1412,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <InfoCard title={t('sectionInsurance')} icon={ShieldCheck} number={4} tone="cyan">
                   <div>
                     <Label>{t('insuranceLabel')}</Label>
+                    {/* `omitType`: acá hay UN solo slot y el rótulo ya dice de
+                        qué seguro se habla, así que el "PIP" bajo el nombre de
+                        la aseguradora no agrega nada — y es jerga que recepción
+                        no necesita delante mientras habla con el paciente. El
+                        aviso de aseguradora lenta se conserva. */}
                     <Autocomplete endpoint="/api/admin/insurances/autocomplete" placeholder={t('insurancePlaceholder')}
+                      extraParams={{ omitType: '1' }}
                       selected={insurance} onSelect={setInsurance}
                       renderAvatar={(r) => r.color && r.shortCode ? (
                         <div className="w-7 h-7 rounded flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ background: r.color }}>
@@ -1313,7 +1430,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {insurance && (
                     <FormField.Input label={t('policyNumber')} value={policyNumber}
                       onChange={(v) => setPolicyNumber(v.replace(/[^A-Za-z0-9\-]/g, '').toUpperCase())}
-                      placeholder="PIP-2026-0142" hint={t('policyHint')} maxLength={40} />
+                      placeholder="CLM-2026-0142" hint={t('policyHint')} maxLength={40} />
                   )}
                 </InfoCard>
               )}
@@ -1537,12 +1654,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <p className="text-text-2 text-xs mb-3">Elige cómo el paciente recibe el enlace al formulario. Puedes activar uno o ambos canales.</p>
 
                 {/* Remote channels */}
-                <div className={`space-y-2 ${formDelivery.tablet ? 'opacity-40 pointer-events-none' : ''}`}>
+                <div className="space-y-2">
                   {/* Email toggle */}
                   <button
                     type="button"
                     disabled={!canEmail}
-                    onClick={() => setFormDelivery((d) => ({ ...d, email: !d.email, tablet: false }))}
+                    onClick={() => setFormDelivery((d) => ({ ...d, email: !d.email }))}
                     className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
                       emailOn
                         ? 'border-emerald/50 bg-emerald/10'
@@ -1582,7 +1699,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <button
                     type="button"
                     disabled={!canSms}
-                    onClick={() => setFormDelivery((d) => ({ ...d, sms: !d.sms, tablet: false }))}
+                    onClick={() => setFormDelivery((d) => ({ ...d, sms: !d.sms }))}
                     className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
                       smsOn
                         ? 'border-cyan/50 bg-cyan/10'
@@ -1616,47 +1733,18 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
 
                 {/* Divider */}
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border/40" />
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="bg-bg-1 px-2 text-[10px] uppercase tracking-wider text-text-muted">o bien</span>
-                  </div>
-                </div>
-
-                {/* Tablet option */}
-                <button
-                  type="button"
-                  onClick={() => setFormDelivery((d) => ({ email: false, sms: false, tablet: !d.tablet }))}
-                  className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
-                    formDelivery.tablet
-                      ? 'border-amber/50 bg-amber/10'
-                      : 'border-border bg-bg-2/40 hover:border-border-strong'
-                  }`}
-                >
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    formDelivery.tablet ? 'bg-amber/20' : 'bg-bg-2'
-                  }`}>
-                    <Tablet className={`w-4 h-4 ${formDelivery.tablet ? 'text-amber' : 'text-text-muted'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-semibold ${formDelivery.tablet ? 'text-amber' : 'text-text-1'}`}>
-                      Tablet en clínica
-                    </div>
-                    <div className="text-[11px] text-text-muted">El paciente llena el formulario al llegar</div>
-                  </div>
-                  <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                    formDelivery.tablet ? 'bg-amber' : 'bg-bg-0 border border-border'
-                  }`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                      formDelivery.tablet ? 'translate-x-4' : 'translate-x-0.5'
-                    }`} />
-                  </div>
-                </button>
+                {/* Acá vivía la opción "Tablet en clínica", sacada por pedido de
+                    Erick (2026-09-07). No era un canal de entrega: el servidor
+                    nunca recibió ese flag —su esquema solo tiene `sendEmail` y
+                    `sendSms`— así que lo único que hacía era APAGAR el email y el
+                    SMS desde el UI. Que el paciente llene el formulario al llegar
+                    no es algo que haya que elegir acá: es lo que pasa solo cuando
+                    no se le mandó por ningún canal, y el aviso de abajo ya lo
+                    dice. También se fue el separador "o bien", que existía solo
+                    para oponerla a los otros dos. */}
 
                 {/* Sin canal utilizable. Es un AVISO, no un bloqueo: el caso se
-                    guarda igual y el formulario se llena en la tablet. */}
+                    guarda igual y el formulario se llena al llegar. */}
                 {noChannel && (
                   <div className="mt-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber flex items-start gap-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -1713,12 +1801,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <span className="text-amber">{t('summaryFormNotSent')}</span>
                     </li>
                   )}
-                  {formDelivery.tablet && (
-                    <li className="flex items-start gap-2">
-                      <Check className="w-3 h-3 text-amber mt-0.5 shrink-0" />
-                      <span>Formulario en tablet al llegar a la clínica</span>
-                    </li>
-                  )}
                   {caseType === 'MVA' && lawFirm && (
                     <li className="flex items-start gap-2">
                       <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
@@ -1749,6 +1831,29 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <Button size="sm" variant="outline" className="self-start border-amber/50 text-amber hover:bg-amber/10"
                     onClick={() => { setExistingPatientId(duplicateId); setDuplicateId(null); setError(null); }}>
                     Use existing patient
+                  </Button>
+                </div>
+              )}
+
+              {/* GM: ya tiene su caso. Se ofrece abrirlo — la visita va bajo ese. */}
+              {gmExistente && (
+                <div className="text-amber text-sm bg-amber/10 border border-amber/30 rounded-md px-3 py-2 flex flex-col gap-2">
+                  <p className="leading-snug">{tc('gmAlreadyExists', { caseCode: gmExistente.caseCode })}</p>
+                  <Button
+                    size="sm" variant="outline"
+                    className="self-start border-amber/50 text-amber hover:bg-amber/10"
+                    onClick={() => {
+                      const destino = gmExistente.id;
+                      setGmExistente(null);
+                      setError(null);
+                      onOpenChange(false);
+                      /* A la PÁGINA del caso y no al modal: este diálogo no monta
+                         el helper de `?case=` y agregarlo acá sería plomería para
+                         un desvío que ocurre poco. */
+                      router.push(`/front-office/${destino}`);
+                    }}
+                  >
+                    {tc('gmOpenExisting')}
                   </Button>
                 </div>
               )}

@@ -12,6 +12,7 @@ import {
   resolveGuardian, GuardianIsSelfError, type GuardianResolution,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { quienUsaEsteContacto } from '@/lib/contactos-compartidos';
 import { isCipher } from '@/lib/decrypt';
 import { Prisma } from '@precision-medical/database';
 
@@ -102,6 +103,8 @@ export async function PATCH(
     where: { id },
     select: {
       id: true, email: true,
+      // Para el corte de "correo de otro sin vínculo" — ver más abajo.
+      contactOwnerId: true,
       // Sin descifrar: hace falta saber cuáles siguen cifrados de la migración
       // del v2 para no pisarlos con vacío — ver `protegido()` más abajo.
       employer: true, preferredPharmacy: true,
@@ -145,6 +148,65 @@ export async function PATCH(
         message: 'El correo del apoderado no puede ser también el del paciente. '
           + 'El correo del apoderado vive en su propia ficha — dejá vacío el del menor.',
       }, { status: 400 });
+    }
+  }
+
+  /**
+   * No se le puede poner a un paciente el correo de OTRO sin dejar el vínculo.
+   *
+   * ── Por qué hace falta acá ─────────────────────────────────────────────────
+   *
+   * El alta de caso pregunta el parentesco cuando el correo choca (ver
+   * `contacto-compartido-dialog`). El PATCH no preguntaba nada: se abría una
+   * ficha, se le cambiaba el correo al de otro paciente y pasaba **en
+   * silencio**, sin vínculo y sin registro. Antes lo frenaba el `@unique` de
+   * `Patient.email`; ese índice se quitó en esta misma tanda justamente para que
+   * las familias pudieran compartirlo, y con él se fue el único freno que había.
+   * O sea: puerta en la entrada, ventana abierta.
+   *
+   * ── Por qué NO alcanza con bloquear el correo repetido ─────────────────────
+   *
+   * Compartirlo es LEGÍTIMO y es el caso que vinimos a habilitar. Lo que no se
+   * permite es compartirlo **sin que conste de quién es**. Así que pasa cuando:
+   *
+   *  · el vínculo ya está guardado y apunta a alguno de los que usan ese correo,
+   *  · o viene en este mismo PATCH (se está guardando el parentesco ahora), o
+   *  · alguno de ellos cuelga de ESTE paciente (es el dueño del contacto).
+   *
+   * Y se corta con 409 solo cuando no hay ninguna de las tres. El mensaje dice
+   * qué hacer, porque la salida existe en esa misma pantalla: la sección de
+   * contacto compartido del diálogo de editar.
+   */
+  if (d.email !== undefined && d.email && d.email.trim() && d.email.trim().toLowerCase() !== (existing.email ?? '').toLowerCase()) {
+    const yaLoUsan = await quienUsaEsteContacto({
+      email: d.email.trim(),
+      phone: null,
+      excluirPatientId: id,
+    });
+
+    if (yaLoUsan.length > 0) {
+      const dueñoNuevo = d.contactLink === undefined ? existing.contactOwnerId : d.contactLink?.contactOwnerId ?? null;
+      const idsQueLoUsan = new Set(yaLoUsan.map((p) => p.id));
+      const hayVinculo =
+        (dueñoNuevo !== null && idsQueLoUsan.has(dueñoNuevo))
+        // Este paciente es el DUEÑO y los otros cuelgan de él.
+        || (await db.patient.count({ where: { contactOwnerId: id, id: { in: [...idsQueLoUsan] } } })) > 0;
+
+      if (!hayVinculo) {
+        return NextResponse.json({
+          ok: false,
+          error: 'EMAIL_EN_USO_SIN_VINCULO',
+          message:
+            `Ese correo ya es de ${yaLoUsan.map((p) => `${p.lastName}, ${p.firstName}`).join(' · ')}. `
+            + 'Si son familia, registrá el vínculo en la sección de contacto compartido. '
+            + 'Si no tienen relación, corregí el correo: con el correo de otro, a este paciente '
+            + 'le van a llegar los mensajes del portal de esa persona.',
+          candidatos: yaLoUsan.map((p) => ({
+            id: p.id, patientCode: p.patientCode,
+            firstName: p.firstName, lastName: p.lastName,
+          })),
+        }, { status: 409 });
+      }
     }
   }
 

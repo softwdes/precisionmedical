@@ -1467,6 +1467,30 @@
       "typeIndependent": "Independiente",
       "dialogEditTitle": "Editar — {name}",
       "dialogCreateTitle": "Nuevo bufete",
+      "addFirmNamed": "Agregar bufete «{name}»",
+      "addFirmNew": "Agregar un bufete nuevo",
+      "addFirmHint": "Se crea en el catálogo y queda seleccionado acá",
+      "similarTitle": "Parecidos que ya están en el catálogo",
+      "similarHint": "Fijate si es alguno de estos antes de crear otro. Ojo: un mismo bufete puede tener varias sucursales.",
+      "similarUse": "Usar este",
+      "similarSameName": "mismo nombre",
+      "addAttorneyNamed": "Agregar «{name}» al bufete",
+      "addAttorneyNew": "Agregar un abogado nuevo",
+      "addAttorneyHint": "Se crea dentro de {firm} y queda seleccionado acá",
+      "attorneyDialogTitle": "Nuevo abogado",
+      "attorneyDialogDesc": "Se da de alta como miembro de {firm}.",
+      "attorneyDialogInherits": "La dirección y la ciudad se toman del bufete. El resto de la ficha se completa desde el catálogo.",
+      "btnCreateAttorney": "Crear abogado",
+      "errorAttorneyNameRequired": "El nombre y el apellido son obligatorios",
+      "fieldFirstName": "Nombre",
+      "fieldLastName": "Apellido",
+      "fieldMemberRole": "Rol en el bufete",
+      "fieldBarNumber": "Matrícula",
+      "roleATTORNEY": "Abogado",
+      "roleCASE_MANAGER": "Case manager",
+      "rolePARALEGAL": "Paralegal",
+      "roleLEGAL_ASSISTANT": "Asistente legal",
+      "roleOTHER": "Otro",
       "dialogDesc": "Los datos del bufete se usan al crear un caso (autocompletado) y en el portal del abogado.",
       "fieldFirmName": "Nombre del bufete",
       "fieldEmail": "Email principal",
@@ -1489,7 +1513,9 @@
       "deleteTitle": "Eliminar bufete",
       "deleteDesc": "¿Seguro que querés eliminar \"{name}\"? Se hace soft-delete (queda inactivo).",
       "deleteWarning": "Tiene {count, plural, one {1 miembro} other {{count} miembros}} (attorneys / case managers). Se marcarán como inactivos también.",
-      "tooltipViewCases": "Ver casos"
+      "tooltipViewCases": "Ver casos",
+      "noFirmMatch": "Ningún bufete coincide con la búsqueda",
+      "noAttorneyMatch": "Ningún miembro de este bufete coincide"
     },
     "insurances": {
       "title": "Aseguradoras",
@@ -1859,11 +1885,11 @@
         "chiropractorLabel": "Quiropráctico tratante",
         "chiropractorPlaceholder": "",
         "lawyerNoteDeclined": "Sin abogado = sin lien. El paciente debe entender que el tratamiento se factura directamente (efectivo o seguro propio). Confirmar antes de continuar.",
-        "sectionInsurance": "Seguro de auto (PIP)",
-        "insuranceLabel": "Aseguradora PIP",
+        "sectionInsurance": "Seguro de auto",
+        "insuranceLabel": "Aseguradora",
         "insurancePlaceholder": "Buscar aseguradora (GEICO, State Farm...)",
-        "policyNumber": "Número de reclamo PIP",
-        "policyHint": "\"¿Ya tienes un número de reclamo PIP?\"",
+        "policyNumber": "Número de reclamo",
+        "policyHint": "\"¿Ya tienes un número de reclamo?\"",
         "sectionAppointment": "Agendar primera cita",
         "scheduleNow": "en esta llamada",
         "scheduleHint": "\"Déjame buscar un horario. ¿Te funciona mañana o más adelante en la semana?\"",
@@ -1940,7 +1966,11 @@
         "noAnswerTitle": "No contestó",
         "noAnswerRetry": "Volver a intentar",
         "noAnswerContinue": "Seguir sin llamada",
-        "noAnswerBack": "Regresar"
+        "noAnswerBack": "Regresar",
+        "referrerFirmLabel": "Bufete que refirió",
+        "referrerAttorneyLabel": "Abogado que refirió",
+        "referrerHint": "Es quién nos mandó al paciente. Puede ser distinto del bufete que lo representa, y se puede dejar vacío y seguir.",
+        "optionalTag": "(opcional)"
       }
     },
     "billing": {
@@ -3786,8 +3816,6 @@
       "linkContactSameHint": "No se crea una ficha nueva: se sigue con la que ya existe.",
       "linkContactFamily": "Es un familiar",
       "linkContactFamilyHint": "Comparten el contacto. Se crea la ficha y se guarda el parentesco.",
-      "linkContactCoincidence": "Es una coincidencia",
-      "linkContactCoincidenceHint": "No tienen relación. Se crea la ficha sin vincular.",
       "linkContactOwnerLabel": "¿De quién es el contacto?",
       "linkContactRelationLabel": "{nombre} es su…",
       "linkContactPreview": "Va a quedar guardado que {nuevo} comparte {canal} de {dueño}. El campo va a mostrar de quién es, no una copia.",
@@ -3795,7 +3823,10 @@
       "linkContactNeedsAuth": "Falta la autorización del dueño del contacto.",
       "linkContactConfirm": "Vincular y crear",
       "linkContactBack": "← Volver",
-      "linkContactCancel": "Cancelar"
+      "linkContactCancel": "Cancelar",
+      "linkContactSharedPhone": "Es un número compartido o de la clínica",
+      "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
+      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro."
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",
@@ -4873,6 +4904,7 @@
     "accidentDescription": "Descripción del accidente",
     "accidentDescriptionPlaceholder": "Describe brevemente los síntomas y el accidente.",
     "lawFirm": "Firma de abogados",
+    "lawFirmLabel": "Bufete",
     "lawFirmPlaceholder": "Nombre de la firma de abogados que refirió el caso médico...",
     "attorney": "Abogado representante",
     "attorneyPlaceholder": "Nombre del abogado",
@@ -4933,7 +4965,10 @@
         "title": "AUTORIDAD DE HISTORIAL MÉDICO",
         "body": "Autorización del Sistema de Historias Clínicas Electrónicas (HCE): PMUCFP ha implementado un nuevo sistema de Historias Clínicas Electrónicas (HCE) que importa el historial de recetas de terceros (p. ej., farmacias). Para transferir mi historial de recetas actual y anterior a este nuevo sistema, doy mi consentimiento. Al firmar a continuación, autorizo a PMUCFP a transferir mi historial de recetas."
       }
-    }
+    },
+    "gmAlreadyExists": "Este paciente ya tiene su caso de medicina general ({caseCode}). En GM todas las visitas van bajo el mismo caso: agendá la cita ahí en vez de abrir otro.",
+    "gmOpenExisting": "Abrir ese caso",
+    "gmBack": "Volver"
   },
   "addNoteDialog": {
     "title": "Agregar nota interna",

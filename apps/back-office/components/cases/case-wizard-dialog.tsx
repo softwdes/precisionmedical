@@ -20,48 +20,7 @@ import {
   Button,
 } from '@precision/ui';
 import { FormField } from '@/components/ui-phoenix';
-
-// ─── Law firm select nativo ───────────────────────────────────────────────────
-
-interface LawFirmOption { id: string; label: string; }
-
-function LawFirmSelect({
-  firmId, onChange, placeholder,
-}: {
-  firmId: string | null;
-  onChange: (label: string, id: string | null) => void;
-  placeholder: string;
-}) {
-  const [firms, setFirms] = useState<LawFirmOption[]>([]);
-
-  useEffect(() => {
-    fetch('/api/admin/lawyers/autocomplete')
-      .then(r => r.json())
-      .then(j => setFirms(j.results ?? []))
-      .catch(() => {});
-  }, []);
-
-  return (
-    <div>
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
-        Law firm
-      </label>
-      <select
-        value={firmId ?? ''}
-        onChange={e => {
-          const selected = firms.find(f => f.id === e.target.value);
-          onChange(selected?.label ?? '', selected?.id ?? null);
-        }}
-        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
-      >
-        <option value="">{placeholder}</option>
-        {firms.map(f => (
-          <option key={f.id} value={f.id}>{f.label}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
+import { LawFirmField } from '@/components/lawyers/law-firm-field';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -201,6 +160,8 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   const [step,    setStep]    = useState<1 | 2 | 3>(1);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
+  /** El caso GM que el paciente ya tiene — se ofrece abrirlo en vez de crear otro. */
+  const [gmExistente, setGmExistente] = useState<{ id: string; caseCode: string } | null>(null);
 
   // Step 1 form
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
@@ -391,6 +352,17 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
+        /**
+         * En GM hay UN caso por paciente y todas las visitas van bajo ese.
+         * El servidor devuelve cuál es, así que en vez de dejar el mensaje y
+         * nada más, se ofrece abrirlo: recepción está con el paciente al
+         * teléfono y un "ya existe" sin salida no la deja avanzar.
+         */
+        if (json.error === 'GM_CASE_ALREADY_EXISTS' && json.caso?.id) {
+          setGmExistente({ id: json.caso.id, caseCode: json.caso.caseCode });
+          setError('');
+          return;
+        }
         setError(json.message ?? json.error ?? 'Error al crear el caso.');
         return;
       }
@@ -540,11 +512,22 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     placeholder={t('accidentDescriptionPlaceholder')}
                     rows={3}
                   />
-                  <LawFirmSelect
-                    firmId={lawFirmId}
-                    onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
-                    placeholder={t('lawFirmPlaceholder')}
-                  />
+                  {/* Antes era un `<select>` nativo que pedía el autocomplete
+                      SIN búsqueda, y esa ruta tiene `take: 10`: de los 109
+                      bufetes del catálogo ofrecía diez, en orden alfabético, sin
+                      forma de llegar a los otros 99. Ni buscar ni crear.
+                      `LawFirmField` resuelve las tres cosas y además el rótulo
+                      deja de estar en inglés en duro. */}
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
+                      {t('lawFirmLabel')}
+                    </label>
+                    <LawFirmField
+                      selected={lawFirmId ? { id: lawFirmId, label: lawFirm } : null}
+                      onSelect={(r) => { setLawFirm(r?.label ?? ''); setLawFirmId(r?.id ?? null); }}
+                      placeholder={t('lawFirmPlaceholder')}
+                    />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField.Input
                       label={t('attorney')}
@@ -848,6 +831,32 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
             <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
               {error}
             </p>
+          )}
+
+          {/* GM: ya tiene su caso. Ámbar y no rosa — no es un error, es un
+              desvío: la visita va bajo el caso que ya existe. */}
+          {gmExistente && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 space-y-2">
+              <p className="text-[11.5px] text-amber leading-snug">
+                {t('gmAlreadyExists', { caseCode: gmExistente.caseCode })}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    setGmExistente(null);
+                    if (onCreated) onCreated(gmExistente.id);
+                    router.refresh();
+                  }}
+                >
+                  {t('gmOpenExisting')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setGmExistente(null)}>
+                  {t('gmBack')}
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 

@@ -24,6 +24,9 @@ import {
 import {
   ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
 } from '@/components/patients/contacto-compartido-dialog';
+/* Reemplaza al `LawFirmAutocomplete` privado que vivía acá y creaba el bufete
+   con el nombre solo. Ver el comentario de `components/lawyers/law-firm-field`. */
+import { LawFirmField } from '@/components/lawyers/law-firm-field';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -66,124 +69,6 @@ function ReferredBySelect({ value, onChange, placeholder }: { value: string; onC
       ))}
       <option value="__otro__">Otro…</option>
     </select>
-  );
-}
-
-// ─── LawFirmAutocomplete ──────────────────────────────────────────────────────
-
-interface FirmOption { id: string; label: string; subtitle: string; }
-
-function LawFirmAutocomplete({
-  firmId, firmName, onSelect, searchPlaceholder, addLabel, createLabel,
-}: {
-  firmId: string; firmName: string;
-  onSelect: (id: string, name: string) => void;
-  searchPlaceholder: string;
-  addLabel: string;
-  createLabel: string;
-}) {
-  const [query,    setQuery]    = useState(firmName);
-  const [results,  setResults]  = useState<FirmOption[]>([]);
-  const [open,     setOpen]     = useState(false);
-  const [adding,   setAdding]   = useState(false);
-  const [newName,  setNewName]  = useState('');
-  const [creating, setCreating] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setQuery(firmName); }, [firmName]);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (!q || firmId) { setResults([]); return; }
-    const id = setTimeout(() => {
-      fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(j => setResults(j.results ?? []))
-        .catch(() => {});
-    }, 200);
-    return () => clearTimeout(id);
-  }, [query, firmId]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  function clear() { setQuery(''); onSelect('', ''); setResults([]); setAdding(false); }
-
-  async function createFirm() {
-    if (!newName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/admin/lawyers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entityType: 'FIRM', firmName: newName.trim() }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json.firm?.id) {
-        onSelect(json.firm.id, newName.trim());
-        setQuery(newName.trim());
-        setAdding(false); setNewName(''); setOpen(false); setResults([]);
-      }
-    } catch { /* ignore */ } finally { setCreating(false); }
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        <input
-          className={`${INPUT} pr-7`}
-          value={query}
-          placeholder={firmId ? '' : searchPlaceholder}
-          readOnly={!!firmId}
-          onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => { if (!firmId) setOpen(true); }}
-        />
-        {firmId && (
-          <button type="button" onClick={clear} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1 text-xs">✕</button>
-        )}
-      </div>
-      {open && !firmId && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg overflow-hidden">
-          {results.map(f => (
-            <button
-              key={f.id} type="button"
-              className="w-full text-left px-3 py-2 text-sm hover:bg-bg-2 flex flex-col"
-              onClick={() => { onSelect(f.id, f.label); setQuery(f.label); setOpen(false); setResults([]); }}
-            >
-              <span className="text-text-1">{f.label}</span>
-              {f.subtitle && <span className="text-[11px] text-text-muted">{f.subtitle}</span>}
-            </button>
-          ))}
-          {!adding && (
-            <button type="button" className="w-full text-left px-3 py-2 text-[11px] text-brand-text hover:bg-bg-2 border-t border-border"
-              onClick={() => setAdding(true)}>
-              {addLabel}
-            </button>
-          )}
-          {adding && (
-            <div className="px-3 py-2 border-t border-border flex gap-2 items-center">
-              <input
-                autoFocus
-                className={`${INPUT} flex-1 text-sm`}
-                placeholder={searchPlaceholder}
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') createFirm(); if (e.key === 'Escape') setAdding(false); }}
-              />
-              <button type="button" disabled={creating} onClick={createFirm}
-                className="shrink-0 text-[11px] bg-brand text-white px-2 py-1 rounded-md disabled:opacity-50">
-                {creating ? '…' : createLabel}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -441,7 +326,12 @@ type SaveMode = 'exit' | 'form' | 'qr';
 
 export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const t      = useTranslations('quickRegister');
+  /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
+     tres pantallas que crean casos y no se duplican por namespace. */
+  const tcw    = useTranslations('caseWizard');
   const router = useRouter();
+  /** GM ya existente del paciente — se ofrece abrirlo en vez de crear otro. */
+  const [gmExistente, setGmExistente] = useState<{ id: string; caseCode: string } | null>(null);
 
   const REFERRAL_OPTIONS = [
     { value: 'WALK_IN',          label: t('referralWalkIn') },
@@ -595,6 +485,12 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
          */
         if (Array.isArray(json.candidatos) && json.candidatos.length > 0) {
           setCandidatosContacto(json.candidatos as CandidatoContacto[]);
+          return;
+        }
+        /* GM: un caso por paciente. Se guarda cuál es para ofrecer abrirlo. */
+        if (json.error === 'GM_CASE_ALREADY_EXISTS' && json.caso?.id) {
+          setGmExistente({ id: json.caso.id, caseCode: json.caso.caseCode });
+          setError('');
           return;
         }
         if (json.error === 'INVALID_PAYLOAD' && json.details?.fieldErrors) {
@@ -835,13 +731,17 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                       />
                     </Field>
                     <Field label={t('lawFirm')}>
-                      <LawFirmAutocomplete
-                        firmId={lawFirmId}
-                        firmName={lawFirm}
-                        onSelect={(id, name) => { setLawFirmId(id); setLawFirm(name); setAttorney(''); }}
-                        searchPlaceholder={t('searchFirm')}
-                        addLabel={t('addNewFirm')}
-                        createLabel={t('createFirm')}
+                      {/* Esta pantalla ya podía crear bufetes, pero **con el
+                          nombre solo** (`{ entityType: 'FIRM', firmName }`) — y
+                          eso es justo lo que ensucia el catálogo: un bufete sin
+                          teléfono no sirve para lo único que se necesita
+                          después, que es llamarlo. Ahora usa el campo
+                          compartido, que abre el formulario completo y avisa de
+                          los parecidos antes de crear otro. */}
+                      <LawFirmField
+                        selected={lawFirmId ? { id: lawFirmId, label: lawFirm } : null}
+                        onSelect={(r) => { setLawFirmId(r?.id ?? ''); setLawFirm(r?.label ?? ''); setAttorney(''); }}
+                        placeholder={t('searchFirm')}
                       />
                     </Field>
                     <Field label={t('attorney')}>
@@ -878,6 +778,32 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 <div className="flex items-center gap-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2">
                   <AlertCircle className="w-3.5 h-3.5 text-rose shrink-0" />
                   <p className="text-[11.5px] text-rose">{error}</p>
+                </div>
+              )}
+
+              {/* GM: ya tiene su caso. Ámbar: es un desvío, no un error. */}
+              {gmExistente && (
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 space-y-2">
+                  <p className="text-[11.5px] text-amber leading-snug">
+                    {tcw('gmAlreadyExists', { caseCode: gmExistente.caseCode })}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      size="sm" variant="outline"
+                      className="border-amber/50 text-amber hover:bg-amber/10"
+                      onClick={() => {
+                        const destino = gmExistente.id;
+                        setGmExistente(null);
+                        onOpenChange(false);
+                        router.push(`/front-office/${destino}`);
+                      }}
+                    >
+                      {tcw('gmOpenExisting')}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setGmExistente(null)}>
+                      {tcw('gmBack')}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

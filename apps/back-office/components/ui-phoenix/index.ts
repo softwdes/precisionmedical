@@ -62,6 +62,8 @@ export type { DatePickerProps } from './date-picker';
 export { RichTextEditor } from './rich-text-editor';
 export type { RichTextEditorProps, RichTextEditorHandle } from './rich-text-editor';
 export { InsertList } from './insert-list';
+export { HoverPreview } from './hover-preview';
+export type { HoverPreviewProps } from './hover-preview';
 export type { InsertListItem, InsertListProps } from './insert-list';
 
 export { Autocomplete } from './autocomplete';

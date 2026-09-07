@@ -316,6 +316,45 @@ lo hace la sesión designada (`regla-una-sola-sesion-toca-git`).
   hacen los chicos a mano, pegando (§6.1). Nosotros entregamos la estructura
   que lo soporte.
 
+## 15. Renombrar las secciones (2026-09-07)
+
+Los providers vienen de Medusa y conocen las secciones como "HPI", "ROS
+Other", "PE Other", "Treatment Plan". Erick pidió poder cambiar los nombres.
+Junto al título de cada sección del catálogo hay un lápiz (solo admin) que
+abre un diálogo con el nombre en español y en inglés; vacío vuelve al por
+defecto de i18n. Un idioma vacío cae al otro.
+
+Se guarda en la tabla genérica `settings` (clave `snippet_section_labels`,
+JSON `{ HPI: { es, en }, … }`), con audit log `RENAME_SNIPPET_SECTION`. La
+CLAVE del enum no cambia: es solo el rótulo. API:
+`GET/PATCH /api/admin/snippets/sections` (PATCH solo admin).
+
+Dónde se aplica: `useSectionLabels()` (cliente, una carga por pestaña,
+compartida) en el índice de Configuración, el título de la página, los títulos
+de sección de la nota, el selector de plantillas por sección, el catálogo de
+plantillas y los grupos de mensajería; `getSectionLabelOverrides()` (servidor)
+en el `<title>` de la página de snippets y en la impresión de la nota.
+
+Estado al cierre del día: tsc limpio; NO verificado en navegador (la pestaña
+de Erick quedó oculta y no hidrató). Erick pidió pasarlo a push igual.
+
+## 14. Vista previa al pasar el mouse (2026-09-07)
+
+Con 36 snippets en HPI, abrir uno por uno con el ojo para saber cuál es no
+escala (Erick). Primitivo nuevo `HoverPreview` (ui-phoenix): tarjeta flotante
+con el contenido completo y su formato —casillas como ☐, blancos subrayados,
+vía `safeHtml` + `.rte-content`—, cabecera con el título, 520 × 360 con scroll
+interno. Se abre a los 250 ms de mouse encima o con el foco; en pantallas sin
+hover (iPad) un toque la abre y otro afuera la cierra; el ojo sigue abriendo el
+modal completo. Se dibuja con `FloatingPanel`, que ahora acota su alto al lugar
+que hay de verdad cuando no entra ni arriba ni abajo (antes se salía por el
+borde superior de la ventana).
+
+Dónde: la descripción de cada fila en los catálogos de snippets y de plantillas
+(la plantilla muestra sus secciones con contenido, cada una con su rótulo, y los
+diagnósticos), y cada ítem de la lista de snippets dentro del editor de la nota
+y de la mensajería — ver qué trae ANTES de insertarlo.
+
 ## 13. Snippets de mensajería (2026-09-06)
 
 Medusa tiene "Send Message Snippets" en el mismo My Settings: al redactar o

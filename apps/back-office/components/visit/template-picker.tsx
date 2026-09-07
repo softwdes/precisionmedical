@@ -12,6 +12,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { useSectionLabels } from '@/lib/use-section-labels';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { Search, Star, FileText, Check } from 'lucide-react';
 
@@ -35,6 +36,7 @@ interface Props {
 
 export function TemplatePicker({ open, onClose, templates, targetSection, onPick }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const [q, setQ] = React.useState('');
 
   const filtered = templates
@@ -65,7 +67,7 @@ export function TemplatePicker({ open, onClose, templates, targetSection, onPick
       <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
         <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
           <DialogTitle className="text-[15px]">
-            {targetSection ? t('tplPickForSection', { section: t(`sec_${targetSection}`) }) : t('tplPickFull')}
+            {targetSection ? t('tplPickForSection', { section: secLabel(targetSection) }) : t('tplPickFull')}
           </DialogTitle>
         </DialogHeader>
 

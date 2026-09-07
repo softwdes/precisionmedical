@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { MedicalHistoryButton } from '@/components/patients/medical-history-button';
 import { resolveMergeFields, type SnippetMergeData } from '@/lib/snippet-merge';
 import type { SnippetSection } from '@/lib/snippet-sections';
+import { useSectionLabels } from '@/lib/use-section-labels';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 import { SnippetPanel, type SnippetItem } from './snippet-panel';
@@ -187,6 +188,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   onPuedeEscribirChange, mergeData = null,
 }: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -784,7 +786,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
             <div className="flex-1">
               <div className="text-[12px] text-amber font-semibold">
                 {t('noteConflictTitle', {
-                  sections: conflicto.secciones.map((f) => t(`sec_${SECTIONS.find((s) => s.field === f)!.key}`)).join(' · '),
+                  sections: conflicto.secciones.map((f) => secLabel(SECTIONS.find((s) => s.field === f)!.key)).join(' · '),
                 })}
               </div>
               <div className="text-[11px] text-text-muted mt-0.5">{t('noteConflictHint')}</div>
@@ -806,7 +808,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               {conflicto.secciones.map((f) => (
                 <div key={f}>
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-                    {t(`sec_${SECTIONS.find((s) => s.field === f)!.key}`)}
+                    {secLabel(SECTIONS.find((s) => s.field === f)!.key)}
                   </div>
                   <div
                     className="rte-content rounded-md bg-bg-2/60 px-3 py-2 text-[12.5px] text-text-1"
@@ -831,7 +833,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         <div key={field} id={field === 'hpi' ? 'nota-hpi' : undefined} className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-              {t(`sec_${key}`)}
+              {secLabel(key)}
             </span>
             {!soloLectura && (
               <div className="flex items-center gap-3">

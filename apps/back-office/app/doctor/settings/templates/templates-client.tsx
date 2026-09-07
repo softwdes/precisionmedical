@@ -21,11 +21,12 @@ import {
   Plus, Search, Star, Pencil, Trash2, FileText, Loader2, X, Stethoscope, Eye,
 } from 'lucide-react';
 import {
-  PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor, useToast,
+  PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor, HoverPreview, useToast,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { DiagnosisPicker, type DiagnosisRow } from '@/components/visit/diagnosis-picker';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
+import { useSectionLabels } from '@/lib/use-section-labels';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,25 @@ function fmtDate(iso: string, locale: string): string {
   return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/**
+ * La plantilla entera para la tarjeta de vista previa: cada sección con texto,
+ * con su rótulo arriba, y al final cuántos diagnósticos trae. Las secciones
+ * vacías no se listan — la tarjeta dice qué APORTA la plantilla, no su forma.
+ */
+function previewHtml(tpl: DoctorTemplate, label: (key: string) => string): string {
+  const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const partes: string[] = [];
+  for (const key of TEXT_SECTIONS) {
+    const html = tpl.sections.find((s) => s.sectionKey === key)?.content ?? '';
+    if (html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim()) partes.push(`<h3>${esc(label(key))}</h3>${html}`);
+  }
+  const dx = parseDx(tpl.sections.find((s) => s.sectionKey === 'DIAGNOSTICOS')?.content ?? '');
+  if (dx.length) {
+    partes.push(`<h3>${esc(label('DIAGNOSTICOS'))}</h3><ul>${dx.map((d) => `<li><strong>${esc(d.icd10Code)}</strong> ${esc(d.icd10Description)}</li>`).join('')}</ul>`);
+  }
+  return partes.join('');
+}
+
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function TemplatesClient({
@@ -90,6 +110,7 @@ export function TemplatesClient({
   canDelete: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const router = useRouter();
   const toast = useToast();
 
@@ -211,7 +232,11 @@ export function TemplatesClient({
                       </div>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
-                      <span className="text-[12.5px] text-text-2">{tpl.description ?? '—'}</span>
+                      {/* Mouse encima → las secciones con contenido, cada una
+                          con su rótulo, sin abrir el ojo. */}
+                      <HoverPreview html={previewHtml(tpl, secLabel)} title={tpl.title}>
+                        <span className="text-[12.5px] text-text-2 cursor-help">{tpl.description ?? '—'}</span>
+                      </HoverPreview>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
                       <TagPill
@@ -315,6 +340,7 @@ function TemplateDialog({
   readOnly?: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const isEdit = !!template;
 
   const [title, setTitle] = React.useState(template?.title ?? '');
@@ -452,7 +478,7 @@ function TemplateDialog({
             {/* Secciones con editor rich text */}
             {TEXT_SECTIONS.map((key) => (
               <div key={key} className="space-y-1.5">
-                <Label>{t(`sec_${key}`)}</Label>
+                <Label>{secLabel(key)}</Label>
                 <RichTextEditor
                   value={content[key] ?? ''}
                   onChange={(html) => setContent((c) => ({ ...c, [key]: html }))}

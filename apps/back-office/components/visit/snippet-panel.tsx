@@ -86,7 +86,7 @@ export function SnippetPanel({ section, onPick, settingsHref, maxHeight, bare = 
   }, [section]);
 
   const listItems = React.useMemo(
-    () => items?.map((s) => ({ ...s, hint: s.description ?? t('snpPanelHint'), favorite: s.isFavorite })) ?? null,
+    () => items?.map((s) => ({ ...s, hint: s.description ?? t('snpPanelHint'), favorite: s.isFavorite, preview: s.content })) ?? null,
     [items, t],
   );
 

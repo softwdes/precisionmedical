@@ -8,8 +8,9 @@
 
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
+import { getSectionLabelOverrides, sectionLabelFrom } from '@/lib/section-labels';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
@@ -21,7 +22,10 @@ type Props = { params: Promise<{ section: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { section } = await params;
   const t = await getTranslations('phoenix.doctor');
-  return { title: isSnippetSection(section) ? t('snpTitle', { section: t(`sec_${section}`) }) : t('settingsTitle') };
+  if (!isSnippetSection(section)) return { title: t('settingsTitle') };
+  // El nombre propio que puso el admin, si hay — el mismo que el índice y la nota.
+  const [overrides, locale] = await Promise.all([getSectionLabelOverrides(), getLocale()]);
+  return { title: t('snpTitle', { section: sectionLabelFrom(overrides, section, locale, t(`sec_${section}`)) }) };
 }
 
 export default async function SnippetsSectionPage({ params }: Props): Promise<React.ReactElement> {

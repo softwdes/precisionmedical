@@ -20,10 +20,13 @@ import { useTranslations } from 'next-intl';
 import { FileText, FlaskConical, Scissors, Mail } from 'lucide-react';
 import { cn } from '@precision/ui';
 import { SNIPPET_NOTE_SECTIONS, SNIPPET_MESSAGE_SECTIONS } from '@/lib/snippet-sections';
+import { useSectionLabels } from '@/lib/use-section-labels';
 
 export function SettingsIndex({ showTemplates, showLabs }: { showTemplates: boolean; showLabs: boolean }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const pathname = usePathname();
+  // Los nombres propios que puso el admin; el por defecto de i18n si no hay.
+  const { label } = useSectionLabels();
 
   const isActive = (href: string): boolean => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -49,7 +52,7 @@ export function SettingsIndex({ showTemplates, showLabs }: { showTemplates: bool
             const href = `/doctor/settings/snippets/${key}`;
             return (
               <IndexLink key={key} href={href} active={isActive(href)} nested>
-                {t(`sec_${key}`)}
+                {label(key)}
               </IndexLink>
             );
           })}
@@ -65,7 +68,7 @@ export function SettingsIndex({ showTemplates, showLabs }: { showTemplates: bool
             const href = `/doctor/settings/snippets/${key}`;
             return (
               <IndexLink key={key} href={href} active={isActive(href)} nested>
-                {t(`sec_${key}`)}
+                {label(key)}
               </IndexLink>
             );
           })}

@@ -20,11 +20,12 @@ import {
 } from '@precision/ui';
 import { Plus, Search, Star, Pencil, Trash2, Eye, Loader2, Scissors } from 'lucide-react';
 import {
-  PageHeader, DataTable, TableFooter, EmptyState, IconAction, RichTextEditor, useToast,
+  PageHeader, DataTable, TableFooter, EmptyState, IconAction, RichTextEditor, HoverPreview, useToast,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import type { SnippetSection } from '@/lib/snippet-sections';
+import { useSectionLabels, invalidateSectionLabels } from '@/lib/use-section-labels';
 import { MERGE_FIELDS } from '@/lib/snippet-merge';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ export function SnippetsClient({
   canDelete: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const router = useRouter();
   const toast = useToast();
 
@@ -121,12 +123,24 @@ export function SnippetsClient({
     startTransition(() => { router.refresh(); });
   };
 
-  const sectionLabel = t(`sec_${section}`);
+  const sectionLabel = secLabel(section);
+  /** Renombrar la sección — solo admin (misma condición que eliminar). */
+  const [renaming, setRenaming] = React.useState(false);
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={t('snpTitle', { section: sectionLabel })}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {t('snpTitle', { section: sectionLabel })}
+            {/* El nombre de la categoría lo cambia el admin: los providers vienen
+                de Medusa y la conocen como "HPI" o "PE Other". Se ve en el índice,
+                en los títulos de la nota y en la impresión. */}
+            {canDelete && (
+              <IconAction icon={Pencil} label={t('secRename')} onClick={() => setRenaming(true)} />
+            )}
+          </span>
+        }
         subtitle={
           <>
             {t('snpSubtitleCount', { count: snippets.length })}
@@ -194,9 +208,14 @@ export function SnippetsClient({
                       </div>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
-                      <span className="text-[12.5px] text-text-2">
-                        {row.description || <span className="text-text-muted">{plainPreview(row.content) || '—'}</span>}
-                      </span>
+                      {/* Mouse encima → el contenido completo con formato, sin
+                          abrir el ojo. Con 32 snippets por sección, la única
+                          forma de encontrar el correcto rápido. */}
+                      <HoverPreview html={row.content} title={row.title}>
+                        <span className="text-[12.5px] text-text-2 cursor-help">
+                          {row.description || <span className="text-text-muted">{plainPreview(row.content) || '—'}</span>}
+                        </span>
+                      </HoverPreview>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
                       <button type="button" onClick={() => void toggleFavorite(row)} aria-label={t('pickFavorites')}>
@@ -269,6 +288,21 @@ export function SnippetsClient({
         />
       )}
 
+      {renaming && (
+        <RenameSectionDialog
+          section={section}
+          onClose={() => setRenaming(false)}
+          onSaved={() => {
+            setRenaming(false);
+            toast.success(t('secRenameSaved'));
+            // El nombre vive en el hook compartido (índice, nota, plantillas) y
+            // en el <title> del servidor: se avisa a los dos.
+            invalidateSectionLabels();
+            startTransition(() => { router.refresh(); });
+          }}
+        />
+      )}
+
       {/* Confirmar eliminación (solo admin llega acá) */}
       {deleting && (
         <ConfirmDialog
@@ -285,6 +319,71 @@ export function SnippetsClient({
   );
 }
 
+// ─── Renombrar la sección ────────────────────────────────────────────────────
+
+function RenameSectionDialog({
+  section, onClose, onSaved,
+}: {
+  section: SnippetSection;
+  onClose: () => void;
+  onSaved: () => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.doctor');
+  const { overrides } = useSectionLabels();
+  const [es, setEs] = React.useState(overrides[section]?.es ?? '');
+  const [en, setEn] = React.useState(overrides[section]?.en ?? '');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const save = async (): Promise<void> => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/snippets/sections', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionKey: section, es: es.trim(), en: en.trim() }),
+      });
+      if (!res.ok) { setError(t('secRenameError')); setSaving(false); return; }
+      onSaved();
+    } catch {
+      setError(t('secRenameError'));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[15px]">{t('secRenameTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>{t('secRenameEs')}</Label>
+            <Input value={es} onChange={(e) => setEs(e.target.value)} placeholder={t(`sec_${section}`)} maxLength={60} autoFocus />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('secRenameEn')}</Label>
+            <Input value={en} onChange={(e) => setEn(e.target.value)} placeholder={t(`sec_${section}`)} maxLength={60} />
+          </div>
+          <p className="text-[11px] text-text-muted">{t('secRenameHint')}</p>
+          {error && (
+            <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose">{error}</div>
+          )}
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">{t('snpCancel')}</Button>
+          <Button onClick={() => void save()} disabled={saving} className="w-full sm:w-auto gap-1.5">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+            {t('snpSave')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Modal de snippet ────────────────────────────────────────────────────────
 
 function SnippetDialog({
@@ -297,6 +396,7 @@ function SnippetDialog({
   readOnly?: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const isEdit = !!snippet;
 
   const [title, setTitle] = React.useState(snippet?.title ?? '');
@@ -354,7 +454,7 @@ function SnippetDialog({
         <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
           <DialogTitle className="text-[15px]">
             {readOnly ? t('snpViewTitle') : isEdit ? t('snpEditTitle') : t('snpNewTitle')}
-            <span className="ml-2 text-[12px] font-normal text-text-muted">· {t(`sec_${section}`)}</span>
+            <span className="ml-2 text-[12px] font-normal text-text-muted">· {secLabel(section)}</span>
           </DialogTitle>
         </DialogHeader>
 

@@ -15,6 +15,7 @@
 
 import * as React from 'react';
 import { Search, Star, Loader2, AlertTriangle } from 'lucide-react';
+import { HoverPreview } from './hover-preview';
 
 export interface InsertListItem {
   id: string;
@@ -23,6 +24,11 @@ export interface InsertListItem {
   hint?: string | null;
   /** Favorito de quien mira: estrella ámbar y va primero dentro de su grupo. */
   favorite?: boolean;
+  /**
+   * HTML del contenido, para la tarjeta de vista previa al pasar el mouse:
+   * ver qué trae ANTES de insertarlo evita meter el equivocado y borrarlo.
+   */
+  preview?: string | null;
   /**
    * Rótulo de grupo. Si algún ítem lo trae, la lista se parte en grupos con
    * su encabezado, en el orden en que aparecen (mensajería: "Providers" y
@@ -120,20 +126,28 @@ export function InsertList<T extends InsertListItem>({
                 </div>
               )}
               <ul className="space-y-px">
-                {g.list.map((it) => (
-                  <li key={it.id}>
+                {g.list.map((it) => {
+                  const boton = (
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => onPick(it)}
-                      title={it.hint ?? undefined}
+                      // Con vista previa, el tooltip nativo sobra (y taparía la tarjeta).
+                      title={it.preview ? undefined : it.hint ?? undefined}
                       className="w-full text-left px-1 py-[3px] rounded text-[12px] text-violet-text hover:underline hover:bg-violet/10 flex items-center gap-1.5 transition-colors"
                     >
                       {it.favorite && <Star className="w-3 h-3 fill-amber text-amber shrink-0" />}
                       <span className="truncate">{it.title}</span>
                     </button>
-                  </li>
-                ))}
+                  );
+                  return (
+                    <li key={it.id}>
+                      {it.preview
+                        ? <HoverPreview html={it.preview} title={it.title} className="w-full">{boton}</HoverPreview>
+                        : boton}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))

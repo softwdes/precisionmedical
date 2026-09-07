@@ -23,6 +23,7 @@ import {
   messageContextFor, ownMessageSection, type MessageContext, type SnippetMessageSection,
 } from '@/lib/snippet-sections';
 import { resolveMergeFields, type SnippetMergeData } from '@/lib/snippet-merge';
+import { useSectionLabels } from '@/lib/use-section-labels';
 
 export interface MessageSnippet {
   id: string;
@@ -105,7 +106,7 @@ interface Props {
 
 export function MessageSnippetList({ onInsert, patientName, refreshKey = 0, disabled = false, maxHeight, bare = false }: Props): React.ReactElement {
   const t = useTranslations('phoenix.messaging');
-  const tSec = useTranslations('phoenix.doctor');
+  const { label: secLabel } = useSectionLabels();
   const { context } = useMessageContext();
   const [items, setItems] = React.useState<MessageSnippet[] | null>(null);
   const [error, setError] = React.useState(false);
@@ -136,8 +137,8 @@ export function MessageSnippetList({ onInsert, patientName, refreshKey = 0, disa
   // un solo grupo, el rótulo no le dice nada.
   const multi = new Set(items?.map((s) => s.sectionKey)).size > 1;
   const listItems = items?.map((s) => ({
-    id: s.id, title: s.title, hint: s.description, favorite: s.isFavorite,
-    group: multi ? tSec(`sec_${s.sectionKey}`) : undefined,
+    id: s.id, title: s.title, hint: s.description, favorite: s.isFavorite, preview: s.body,
+    group: multi ? secLabel(s.sectionKey) : undefined,
   })) ?? null;
 
   return (

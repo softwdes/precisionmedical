@@ -70,6 +70,8 @@ export function FloatingPanel({
   width = 'anchor', align = 'start', onScrollClose,
 }: FloatingPanelProps): React.ReactElement | null {
   const [style, setStyle] = React.useState<React.CSSProperties>({ top: -9999, left: -9999, visibility: 'hidden' });
+  /** `maxHeight` acotado al lugar que hay de verdad en el lado elegido. */
+  const [alto, setAlto] = React.useState(maxHeight);
   const [host, setHost] = React.useState<HTMLElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
 
@@ -103,7 +105,18 @@ export function FloatingPanel({
       const hostRect = enDialogo ? host.getBoundingClientRect() : null;
       const base = hostRect ?? { left: 0, top: 0, bottom: 0 };
       const w = width === 'anchor' ? r.width : width;
-      const cabeAbajo = window.innerHeight - r.bottom >= maxHeight + 8;
+      /**
+       * Abajo si entra entero; si no, arriba si entra entero; y si no entra en
+       * ninguno de los dos lados, el que tenga más lugar, con el alto ACOTADO a
+       * ese lugar. Sin este último caso una tarjeta de 360px anclada a una fila
+       * a 300px del borde se volteaba hacia arriba y se salía de la ventana —
+       * el título y las primeras líneas quedaban cortados sin forma de verlos.
+       */
+      const espacioAbajo = window.innerHeight - r.bottom - 8;
+      const espacioArriba = r.top - 8;
+      const cabeAbajo = espacioAbajo >= maxHeight || (espacioArriba < maxHeight && espacioAbajo >= espacioArriba);
+      const altoEfectivo = Math.min(maxHeight, Math.max(96, cabeAbajo ? espacioAbajo : espacioArriba));
+      setAlto(altoEfectivo);
       // Alineado por el borde que pidan, y sin salirse de la ventana por
       // ninguno de los dos lados: un menú a la derecha de la última columna
       // llega al borde, y en mobile el ancho propio puede ser mayor que el hueco.
@@ -160,7 +173,7 @@ export function FloatingPanel({
   return createPortal(
     <div
       ref={panelRef}
-      style={{ ...style, maxHeight }}
+      style={{ ...style, maxHeight: alto }}
       className={`z-[9999] overflow-y-auto overscroll-contain rounded-md bg-bg-1 shadow-xl shadow-black/50 ${className}`}
     >
       {children}

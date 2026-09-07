@@ -17,6 +17,7 @@ import { fechaCalendario, edad } from '@/lib/fechas';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { safeHtml, hasText } from '@/lib/safe-html';
+import { getSectionLabelOverrides, sectionLabelFrom } from '@/lib/section-labels';
 import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
 import { canAuditNotesFor } from '@/lib/notes-audit-access';
 import { getSessionUser } from '@/lib/session';
@@ -179,13 +180,17 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     [t('vitVision'), v.visionR || v.visionL ? `${t('fRight')} ${v.visionR ?? '—'} · ${t('fLeft')} ${v.visionL ?? '—'}` : ''],
   ].filter((row): row is [string, string] => row[1] !== '');
 
+  // Los títulos de sección con el nombre propio que haya puesto el admin (el
+  // mismo que ve el provider en la nota), o el por defecto.
+  const secOverrides = await getSectionLabelOverrides();
+  const sec = (key: string): string => sectionLabelFrom(secOverrides, key, locale, t(`sec_${key}`));
   const SOAP: Array<[string, string | null]> = [
-    [t('sec_QUEJA_PRINCIPAL'), note.chiefComplaint],
-    [t('sec_HPI'), note.hpi],
-    [t('sec_ROS'), note.ros],
-    [t('sec_EXAMEN_FISICO'), note.physicalExam],
-    [t('sec_EVALUACIONES'), note.assessment],
-    [t('sec_PLAN'), note.plan],
+    [sec('QUEJA_PRINCIPAL'), note.chiefComplaint],
+    [sec('HPI'), note.hpi],
+    [sec('ROS'), note.ros],
+    [sec('EXAMEN_FISICO'), note.physicalExam],
+    [sec('EVALUACIONES'), note.assessment],
+    [sec('PLAN'), note.plan],
   ];
   const soapFilled = SOAP.filter(([, c]) => hasText(c));
 

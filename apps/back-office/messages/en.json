@@ -4388,7 +4388,10 @@
         "alertDownloadS3": "Download will be available when S3 storage is configured.",
         "alertDownloadError": "Error generating download link",
         "alertBulkS3": "Bulk download will be available when S3 storage is configured.",
-        "placeholderFolder": "Folder name"
+        "placeholderFolder": "Folder name",
+        "intakeName": "Patient Intake Form",
+        "intakeBadge": "System",
+        "intakeAlwaysCurrent": "Always current"
       }
     },
     "settings": {

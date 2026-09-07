@@ -234,16 +234,33 @@ function PreviewModal({ item, onClose, onDownload }: {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export function DocumentsTab({ caseId, readOnly = false }: {
+export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   caseId: string;
   /**
    * Portal legal: el bufete descarga los documentos del caso —para eso firma—
    * pero no sube ni organiza nada. El expediente lo arma la clínica.
    */
   readOnly?: boolean;
+  /**
+   * De qué API se sirve este tab.
+   *
+   * NO se puede derivar de `readOnly`: el doctor también es `readOnly` y sigue
+   * comiendo de `/api/admin/*`. El que cambia de puerta es el abogado, porque el
+   * middleware le cierra todo lo administrativo (`middleware.ts`, rol LAWYER) —
+   * por eso el tab le devolvía 403 y no llegó a ver un documento nunca.
+   *
+   * `attorney` apunta a `/api/attorney/cases/[id]/**`, que tiene el alcance del
+   * bufete y **solo verbos de lectura**: ahí no hay a dónde mandar un borrado.
+   */
+  portal?: 'admin' | 'attorney';
 }) {
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
+  /**
+   * La raíz de la API según el portal. Todo fetch de este tab cuelga de acá, así
+   * que agregar un endpoint nuevo obliga a decidir si el bufete también lo tiene.
+   */
+  const api = `/api/${portal}/cases/${caseId}`;
   // `handleDownload` hace su propio fetch porque distingue "S3 sin configurar"
   // del resto de los errores, así que usa `show` y no `open`.
   const viewer = useFileViewer(t('alertDownloadError'));
@@ -270,7 +287,7 @@ export function DocumentsTab({ caseId, readOnly = false }: {
     setSelected(new Set());
     try {
       const qs = parentId ? `?parentId=${parentId}` : '';
-      const res = await fetch(`/api/admin/cases/${caseId}/documents${qs}`);
+      const res = await fetch(`${api}/documents${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data.documents ?? []);
@@ -279,7 +296,7 @@ export function DocumentsTab({ caseId, readOnly = false }: {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [api]);
 
   useEffect(() => { load(currentParentId); }, [load, currentParentId]);
 
@@ -310,6 +327,12 @@ export function DocumentsTab({ caseId, readOnly = false }: {
     });
   }
 
+  /* ── Escritura: siempre `/api/admin/*`, a propósito ──────────────────────────
+     Crear carpeta, subir y borrar no tienen equivalente en `/api/attorney/*`
+     porque esas rutas no existen: el expediente lo arma la clínica. Dejarlas
+     cableadas al admin es lo que hace visible la asimetría — si alguien mueve
+     una a `${api}` va a dar 404 en el portal legal, que es exactamente lo que
+     tiene que pasar. */
   async function createFolder() {
     if (!newFolderName.trim()) return;
     setCreatingFolder(true);
@@ -407,7 +430,7 @@ export function DocumentsTab({ caseId, readOnly = false }: {
   }
 
   async function handleDownload(item: DocItem) {
-    const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}/download`);
+    const res = await fetch(`${api}/documents/${item.id}/download`);
     const data = await res.json();
     if (!res.ok) {
       if (data.error === 'S3_NOT_CONFIGURED') {
@@ -421,6 +444,42 @@ export function DocumentsTab({ caseId, readOnly = false }: {
     // y la URL firmada —que es PHI— no queda en el historial del navegador.
     viewer.show({ fileName: data.name ?? item.name, url: data.url, downloadUrl: data.downloadUrl });
   }
+
+  /**
+   * ─── El intake ───────────────────────────────────────────────────────────────
+   *
+   * No es una fila de `patient_documents`: es una fila FIJA que apunta a la ruta
+   * que arma el PDF al vuelo. Se decidió así, y no guardando el archivo, por dos
+   * razones (Erick, 2026-09-07):
+   *
+   *  1. **El intake cambia.** Un caso en INTAKE_PENDING todavía no tiene
+   *     consentimientos ni firma. Un PDF guardado hoy sería un intake a medio
+   *     llenar, y mañana —con el paciente ya firmado— el expediente seguiría
+   *     mostrando la versión vieja SIN ninguna señal de que está vencida.
+   *  2. **Se puede borrar.** El tab tiene botón de borrar. Que alguien borre el
+   *     intake del expediente es peor que no tenerlo.
+   *
+   * Además `PatientDocument` no tiene campo `source`/`kind`, así que un archivo
+   * generado por el sistema quedaría indistinguible de uno subido a mano.
+   *
+   * Se muestra SIEMPRE, aunque el intake esté incompleto: ver qué falta es la
+   * mitad del valor, y el botón viejo de la vista de caso se escondía justo
+   * cuando más se necesitaba (solo aparecía con `INTAKE_COMPLETED`).
+   */
+  const intakeFileName = `${t('intakeName')}.pdf`;
+  function verIntake() {
+    viewer.show({
+      fileName:    intakeFileName,
+      url:         `${api}/pdf`,
+      downloadUrl: `${api}/pdf?download=1`,
+    });
+  }
+
+  /**
+   * El intake vive en la raíz del expediente, no dentro de las carpetas: adentro
+   * de "Messages" una fila de intake sería mentira sobre dónde está el archivo.
+   */
+  const mostrarIntake = currentParentId === null;
 
   return (
     <>
@@ -493,7 +552,7 @@ export function DocumentsTab({ caseId, readOnly = false }: {
           </div>
         ) : error ? (
           <div className="m-4 rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && !mostrarIntake ? (
           <div className="py-16">
             <EmptyState.Rich
               icon={FolderOpen}
@@ -521,6 +580,47 @@ export function DocumentsTab({ caseId, readOnly = false }: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
+              {/* El intake: fila fija, no de la base. Sin casilla (no entra en la
+                  selección masiva) y sin borrar (no hay nada que borrar). El
+                  cyan lo separa de los archivos subidos, que van en el gris de
+                  siempre — es "generado por el sistema", no "alguien lo subió". */}
+              {mostrarIntake && (
+                <tr
+                  className="hover:bg-cyan/[0.04] group transition-colors cursor-pointer bg-cyan/[0.02]"
+                  onClick={verIntake}
+                >
+                  <td className="px-4 py-2.5">
+                    <FileText className="w-3.5 h-3.5 text-cyan mx-auto" />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate text-text-1 group-hover:text-cyan transition-colors font-normal" title={intakeFileName}>
+                        {intakeFileName}
+                      </span>
+                      <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px flex-shrink-0">
+                        {t('intakeBadge')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs font-mono hidden sm:table-cell whitespace-nowrap">—</td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs hidden md:table-cell whitespace-nowrap">
+                    {/* Sin fecha a propósito: se arma en el momento, así que la
+                        única fecha honesta sería "ahora" y no significa nada. */}
+                    {t('intakeAlwaysCurrent')}
+                  </td>
+                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={`${api}/pdf?download=1`}
+                        className="p-1 rounded text-text-muted hover:text-cyan transition-colors"
+                        title={tc('download')}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {items.map(item => (
                 <tr
                   key={item.id}

@@ -941,7 +941,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       {activeTab === 'documentos' && (
         isAttorney && signatureRequired
           ? <DocumentsLocked onSign={onRequestSign} />
-          : <DocumentsTab caseId={caseInfo.id} readOnly={isReadOnly} />
+          : <DocumentsTab caseId={caseInfo.id} readOnly={isReadOnly} portal={isAttorney ? 'attorney' : 'admin'} />
       )}
 
       {/**
@@ -1246,12 +1246,6 @@ function ActionButtons({
           <Button onClick={onSendPortal} variant="outline" size="sm">
             <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
           </Button>
-          <Button
-            variant="outline" size="sm"
-            onClick={() => window.open(`/front-office/${caseId}/intake-print`, '_blank')}
-          >
-            <FileText className="w-3.5 h-3.5 mr-1" /> {t('viewIntake')}
-          </Button>
         </>
       )}
       {status === 'CONFIRMED' && (
@@ -1270,6 +1264,25 @@ function ActionButtons({
           </Button>
         </>
       )}
+      {/**
+        * Ver el intake: SIEMPRE, sea cual sea el estado del caso.
+        *
+        * Estaba adentro del bloque de `INTAKE_COMPLETED`, o sea que se escondía
+        * justo cuando más servía —en INTAKE_PENDING, para ver qué falta— y en un
+        * caso a medio llenar no había forma de llegar al formulario desde acá.
+        *
+        * Y apuntaba a `/front-office/[id]/intake-print`, una segunda vista HTML
+        * del mismo intake que NO tenía consentimientos, ni la política
+        * financiera, ni la firma: tres páginas menos que el PDF. Eran dos
+        * intakes distintos según por dónde entraras. Ahora los dos caminos —este
+        * botón y la fila del tab Documentos— van al mismo documento.
+        */}
+      <Button
+        variant="outline" size="sm"
+        onClick={() => window.open(`/api/admin/cases/${caseId}/pdf`, '_blank')}
+      >
+        <FileText className="w-3.5 h-3.5 mr-1" /> {t('viewIntake')}
+      </Button>
       <Button onClick={onAddNote} variant="outline" size="sm">
         <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> {t('btnAddNote')}
       </Button>

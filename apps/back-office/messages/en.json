@@ -1815,6 +1815,8 @@
         "phone": "Phone",
         "email": "Email",
         "dob": "Date of birth",
+        "existingPatientReadOnly": "This patient's details come from their chart and are changed there — anything typed here would not be saved.",
+        "existingPatientEdit": "Open chart",
         "language": "Preferred language",
         "langEs": "🇪🇸 Spanish",
         "langEn": "🇺🇸 English",

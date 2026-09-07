@@ -63,6 +63,10 @@ export default async function FrontOfficePage({
         lastName: true,
         phone: true,
         email: true,
+        // Viaja hasta el diálogo de alta: ahí los datos del paciente que ya
+        // existe se muestran bloqueados, y sin la fecha el paso 1 quedaba
+        // trabado con un campo obligatorio vacío que no se podía llenar.
+        dateOfBirth: true,
         // Sin `deletedAt: null` el conteo incluye los casos archivados y el
         // paciente figura con más casos de los que tiene.
         _count: { select: { cases: { where: { deletedAt: null } } } },
@@ -138,6 +142,9 @@ export default async function FrontOfficePage({
         lastName: p.lastName,
         phone: p.phone,
         email: p.email,
+        // `YYYY-MM-DD` sin zona, igual que /api/admin/patients/search: es el
+        // valor de un <input type="date"> y con zona un nacido el 1-ene sale 31-dic.
+        dateOfBirth: p.dateOfBirth ? p.dateOfBirth.toISOString().slice(0, 10) : null,
         casesCount: p._count.cases,
       }))}
       cases={cases.map((c) => ({

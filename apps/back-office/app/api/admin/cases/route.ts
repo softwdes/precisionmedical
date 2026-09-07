@@ -282,15 +282,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // normalizado, y la respuesta viaja a la pantalla: una familia que comparte el
   // número del papá no es un error que haya que frenar, es un vínculo que hay que
   // registrar. Ver `lib/contactos-compartidos.ts`.
-  if (!parsed.existingPatientId && !parsed.contactoYaRevisado) {
+  if (!parsed.existingPatientId) {
     const candidatos = await quienUsaEsteContacto({
       phone: parsed.patient.phone,
       email: parsed.patient.email,
     });
 
-    const mismaPersona = probableMismaPersona(
-      candidatos, parsed.patient.firstName, parsed.patient.lastName,
-    );
+    const mismaPersona = parsed.contactoYaRevisado
+      ? null
+      : probableMismaPersona(
+          candidatos, parsed.patient.firstName, parsed.patient.lastName,
+        );
 
     /**
      * Mismo nombre + mismo contacto: se frena, como antes. Es el caso que el
@@ -309,24 +311,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     /**
-     * El correo, en cambio, todavía frena por la restricción `@unique` de la
-     * base: sin sacarla no se puede crear un segundo paciente con la dirección
-     * de la mamá, y el insert moriría con un P2002 más abajo. Se corta acá para
-     * dar un mensaje útil en vez de un error de Prisma — y se devuelven los
-     * candidatos para que la pantalla pueda ofrecer abrir esa ficha.
+     * ─── El CORREO repetido exige VÍNCULO. Siempre. ────────────────────────
      *
-     * ⚠️ Este bloque es el que se va cuando se aplique el vínculo familiar: el
-     * caso "es un familiar, comparte el correo" es exactamente lo que hoy es
-     * imposible. Ver el plan en el pendiente de contactos compartidos.
+     * Regla de Erick (2026-09-07): compartir el correo se permite —es lo que
+     * habilitamos al sacar el `@unique`— **pero solo si queda registrado de
+     * quién es**. Una casilla de correo es de una persona, y es por donde viaja
+     * el link del portal: sin vínculo, a este paciente le llegan los mensajes
+     * del expediente de otro y no hay nada que lo explique.
+     *
+     * ⚠️ **`contactoYaRevisado` NO saltea esto**, y ahí estaba el agujero.
+     * Ese flag lo manda el cliente en el reintento y bypaseaba TODO el bloque,
+     * así que la regla vivía en la pantalla y el servidor aceptaba cualquier
+     * cosa: con `contactLink: null` se creaba el correo duplicado sin
+     * parentesco. Ahora la regla vive acá y el diálogo es solo su cara.
+     *
+     * El TELÉFONO sigue pudiendo pasar sin vínculo a propósito: es el número de
+     * la clínica o un placeholder, y ahí no hay parentesco que declarar. Ver el
+     * comentario de `contacto-compartido-dialog`.
      */
-    const dueñoDelCorreo = candidatos.find((c) => c.canales.includes('EMAIL'));
-    if (dueñoDelCorreo) {
-      return NextResponse.json({
-        error: 'EMAIL_TAKEN',
-        message: `Este email ya pertenece a ${dueñoDelCorreo.firstName} ${dueñoDelCorreo.lastName} (${dueñoDelCorreo.patientCode}).`,
-        existingPatientId: dueñoDelCorreo.id,
-        candidatos,
-      }, { status: 409 });
+    const dueñosDelCorreo = candidatos.filter((c) => c.canales.includes('EMAIL'));
+    if (dueñosDelCorreo.length > 0) {
+      const dueñoElegido = parsed.contactLink?.contactOwnerId ?? null;
+      const hayVinculo = dueñoElegido !== null
+        && dueñosDelCorreo.some((d) => d.id === dueñoElegido);
+
+      if (!hayVinculo) {
+        const primero = dueñosDelCorreo[0]!;
+        return NextResponse.json({
+          error: 'EMAIL_TAKEN',
+          message:
+            `Este email ya es de ${dueñosDelCorreo.map((d) => `${d.firstName} ${d.lastName} (${d.patientCode})`).join(' · ')}. `
+            + 'Compartirlo se permite, pero hay que registrar de quién es: elegí el parentesco. '
+            + 'Si no tienen relación, corregí el correo — con el correo de otro, a este paciente le llegan los mensajes de esa persona.',
+          existingPatientId: primero.id,
+          candidatos,
+        }, { status: 409 });
+      }
     }
 
     /**
@@ -512,6 +532,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
     const guardianPatientId = guardian.guardianPatientId;
 
+    /**
+     * La fecha de nacimiento del paciente conocido, para saber si HAY hueco.
+     *
+     * El diálogo de alta muestra los datos del paciente existente bloqueados
+     * porque acá no se pisa su demografía. La única excepción es esta fecha
+     * cuando la ficha la tiene en null: el paso 1 la exige (de ella sale si es
+     * menor, y de ahí el apoderado que firma el lien), así que en ese caso el
+     * campo se deja escribir — y lo que se escribe tiene que guardarse. Rellenar
+     * un null no es corromper demografía; pisar una fecha que ya está, sí.
+     */
+    const dobActual = parsed.existingPatientId
+      ? (await tx.patient.findUnique({
+          where:  { id: parsed.existingPatientId },
+          select: { dateOfBirth: true },
+        }))?.dateOfBirth ?? null
+      : null;
+
     // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
     //                     demografía (nombre, teléfono) para evitar corrupción
     // Paciente nuevo    → crear con código generado
@@ -519,6 +556,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? await tx.patient.update({
           where: { id: parsed.existingPatientId },
           data: {
+            ...(!dobActual && parsed.patient.dateOfBirth && {
+              dateOfBirth: new Date(parsed.patient.dateOfBirth),
+            }),
             ...(parsed.accident.date && { accidentDate: new Date(parsed.accident.date) }),
             accidentType: parsed.accident.type,
             /* El REFERIDO, no el representante. Antes acá iba

@@ -83,6 +83,7 @@ interface Props {
     lastName: string;
     phone: string | null;
     email: string | null;
+    dateOfBirth: string | null;
     casesCount: number;
   }>;
   pagination: { page: number; pageSize: number; total: number };
@@ -164,6 +165,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       lastName: call.patient?.lastName ?? '',
       phone: call.phone,
       email: call.patient?.email ?? '',
+      dateOfBirth: call.patient?.dateOfBirth ?? '',
       existingPatientId: call.patient?.id ?? null,
     });
     setNewCaseOpen(true);

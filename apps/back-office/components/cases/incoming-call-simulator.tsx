@@ -35,6 +35,9 @@ export interface IncomingCallData {
     firstName: string;
     lastName: string;
     email: string | null;
+    /** `YYYY-MM-DD`. La usa el diálogo de alta, donde los datos del paciente
+     *  que ya existe se muestran bloqueados. */
+    dateOfBirth: string | null;
     casesCount: number;
   } | null;
   /** Momento en que arrancó la llamada (para timer) */
@@ -48,6 +51,7 @@ interface SamplePatient {
   lastName: string;
   phone: string | null;
   email: string | null;
+  dateOfBirth: string | null;
   casesCount: number;
 }
 
@@ -149,6 +153,7 @@ export function IncomingCallSimulator({
           firstName: p.firstName,
           lastName: p.lastName,
           email: p.email,
+          dateOfBirth: p.dateOfBirth,
           casesCount: p.casesCount,
         },
         ringingSince: Date.now(),

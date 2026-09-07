@@ -1815,6 +1815,8 @@
         "phone": "Teléfono",
         "email": "Email",
         "dob": "Fecha de nacimiento",
+        "existingPatientReadOnly": "Los datos de este paciente vienen de su ficha y se cambian ahí: lo que se escriba acá no se guardaría.",
+        "existingPatientEdit": "Abrir la ficha",
         "language": "Idioma preferido",
         "langEs": "🇪🇸 Español",
         "langEn": "🇺🇸 Inglés",

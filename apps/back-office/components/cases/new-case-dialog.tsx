@@ -53,6 +53,10 @@ export interface NewCaseInitialState {
   lastName: string;
   phone: string;
   email?: string;
+  /** `YYYY-MM-DD`. Obligatoria cuando viene `existingPatientId`: con el
+   *  paciente ya existente los datos se muestran bloqueados, y sin la fecha el
+   *  paso 1 quedaba trabado en un campo requerido que nadie podía llenar. */
+  dateOfBirth?: string;
   existingPatientId?: string | null;
 }
 
@@ -115,6 +119,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const didResetRef = useRef(false);
   const [callMode, setCallMode] = useState<PreCallMode | null>(null);
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
+  /**
+   * ¿La FICHA del paciente ya traía fecha de nacimiento?
+   *
+   * No alcanza con mirar si el input tiene texto: con eso, el campo se
+   * bloquearía en cuanto se escribe el primer carácter. Esta bandera se sella
+   * al cargar el paciente y no cambia mientras el diálogo está abierto.
+   */
+  const [dobDelPaciente, setDobDelPaciente] = useState(false);
 
   // ─── Call timer ────────────────────────────────────────────────────────
   const [callElapsed, setCallElapsed] = useState(0);
@@ -292,14 +304,16 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (initialState) {
       setFirstName(initialState.firstName); setLastName(initialState.lastName);
       setPhone(initialState.phone); setEmail(initialState.email ?? '');
-      setDateOfBirth(''); setLanguage('es'); setReferralSource('PHONE_CALL');
+      setDateOfBirth(initialState.dateOfBirth ?? ''); setLanguage('es'); setReferralSource('PHONE_CALL');
       setCallMode(initialState.mode);
       setExistingPatientId(initialState.existingPatientId ?? null);
+      setDobDelPaciente(!!initialState.dateOfBirth);
       setCallElapsed(0); setStep('capturing');
     } else {
       setFirstName(''); setLastName(''); setPhone(''); setEmail('');
       setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM');
       setStep('precall'); setCallMode(null); setExistingPatientId(null);
+      setDobDelPaciente(false);
     }
   }, [open, specialties, clinics, initialState]);
 
@@ -310,6 +324,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setExistingPatientId(result.existingPatient.id);
       setEmail(result.existingPatient.email ?? '');
       setDateOfBirth(result.existingPatient.dateOfBirth ?? '');
+      setDobDelPaciente(!!result.existingPatient.dateOfBirth);
     }
     if (result.mode === 'manual') setReferralSource('LAW_FIRM');
     setCallMode(result.mode); setCallElapsed(0);
@@ -1101,13 +1116,53 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {/* ══ STEP 1 — PACIENTE ════════════════════════════════════════ */}
           {wizardStep === 1 && (
             <InfoCard title={t('sectionPatient')} icon={User} number={1}>
+              {/**
+               * Con una ficha que YA EXISTE, los datos del paciente se muestran
+               * pero NO se editan acá.
+               *
+               * No es una restricción nueva: el servidor ya los ignoraba. Para un
+               * paciente existente el update escribe SOLO `accidentDate`,
+               * `accidentType`, `lawyerReferrerId` y el apoderado — nombre,
+               * apellido, teléfono, correo y fecha de nacimiento se descartaban
+               * en silencio. Se tipeaba un correo nuevo, se guardaba, se veía
+               * como que había funcionado y no cambiaba nada.
+               *
+               * Cinco campos, no solo el correo: bloquear uno y dejar cuatro
+               * igual de decorativos sería cambiar un engaño por otro.
+               *
+               * Y la edición de verdad ya tiene su lugar Y su regla: el PATCH de
+               * la ficha rechaza con 409 el correo de otro paciente sin vínculo
+               * registrado. Escribir esos campos desde acá también sería tener la
+               * misma regla en dos lugares, que es tenerla en ninguno — el error
+               * que ya se cometió con "esconder el botón" (Erick, 2026-09-07).
+               */}
+              {existingPatientId && (
+                <div className="mb-3 rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-cyan shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-cyan leading-snug flex-1">
+                    {t('existingPatientReadOnly')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { onOpenChange(false); router.push(`/patients/${existingPatientId}`); }}
+                    className="text-[11px] font-semibold text-cyan hover:underline shrink-0"
+                  >
+                    {t('existingPatientEdit')}
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} autoFocus />
-                <FormField.Input label={t('lastName')}  required value={lastName}  onChange={setLastName} />
-                <FormField.Phone label={t('phone')}     value={phone}    onChange={(v) => setPhone(v)} />
-                <FormField.Input label={t('email')}     value={email}    onChange={setEmail} type="email" />
+                <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} autoFocus={!existingPatientId} disabled={!!existingPatientId} />
+                <FormField.Input label={t('lastName')}  required value={lastName}  onChange={setLastName} disabled={!!existingPatientId} />
+                <FormField.Phone label={t('phone')}     value={phone}    onChange={(v) => setPhone(v)} disabled={!!existingPatientId} />
+                <FormField.Input label={t('email')}     value={email}    onChange={setEmail} type="email" disabled={!!existingPatientId} />
                 <div className="space-y-1">
-                  <FormField.Input label={t('dob')} required value={dateOfBirth} onChange={setDateOfBirth} type="date" />
+                  {/* La única del bloque que NO se bloquea siempre: si la ficha
+                      del paciente no tiene fecha, el paso 1 la exige y hay que
+                      poder escribirla — el POST rellena ese null (y solo ese). */}
+                  <FormField.Input label={t('dob')} required value={dateOfBirth} onChange={setDateOfBirth} type="date"
+                    disabled={!!existingPatientId && dobDelPaciente} />
                   {patientAge !== null && (
                     <p className={`text-[11px] ${patientIsMinor ? 'text-amber font-semibold' : 'text-text-muted'}`}>
                       {patientIsMinor ? t('ageMinor', { age: patientAge }) : t('ageYears', { age: patientAge })}

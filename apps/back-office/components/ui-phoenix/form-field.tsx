@@ -179,7 +179,7 @@ function isValidPhone(value: string): boolean {
 }
 
 function PhoneField({
-  label, required, value, onChange, placeholder, hint, autoFocus,
+  label, required, value, onChange, placeholder, hint, autoFocus, disabled,
 }: Required & {
   label: React.ReactNode;
   value: string;
@@ -187,6 +187,9 @@ function PhoneField({
   placeholder?: string;
   hint?: React.ReactNode;
   autoFocus?: boolean;
+  /** Era el único campo del primitivo que no lo aceptaba, así que una fila
+   *  entera no se podía bloquear sin dejar el teléfono editable. */
+  disabled?: boolean;
 }) {
   const t = useTranslations('phoenix.common');
   const [touched, setTouched] = React.useState(false);
@@ -213,7 +216,11 @@ function PhoneField({
         // Canadá; era el placeholder el que confundía.
         placeholder={placeholder ?? t('phonePlaceholder')}
         autoFocus={autoFocus}
-        className={showError || showIncomplete ? 'border-rose focus:border-rose' : ''}
+        disabled={disabled}
+        className={[
+          showError || showIncomplete ? 'border-rose focus:border-rose' : '',
+          disabled ? 'border-dashed text-text-2 bg-white/[0.02]' : '',
+        ].filter(Boolean).join(' ') || undefined}
         maxLength={14}
         inputMode="numeric"
       />

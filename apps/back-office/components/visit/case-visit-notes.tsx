@@ -27,6 +27,7 @@ import { ChevronDown, ChevronRight, Loader2, Printer, Lock } from 'lucide-react'
 import { TagPill } from '@/components/ui-phoenix';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import type { CaseVisitNote } from '@/app/api/admin/cases/[id]/visit-notes/route';
+import { VisitNotePrintDialog } from './visit-note-print-dialog';
 
 /**
  * Las 6 secciones, en el orden de la nota SOAP. Los títulos salen de las MISMAS
@@ -47,6 +48,8 @@ export function CaseVisitNotes({ caseId }: { caseId: string }): React.ReactEleme
 
   const [notes, setNotes] = React.useState<CaseVisitNote[] | null>(null);
   const [openId, setOpenId] = React.useState<string | null>(null);
+  /** Cita cuya hoja imprimible se está mirando. Es una lista: guarda cuál. */
+  const [printId, setPrintId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let alive = true;
@@ -154,20 +157,21 @@ export function CaseVisitNotes({ caseId }: { caseId: string }): React.ReactEleme
                 )}
 
                 {n.status === 'SIGNED' && (
-                  <a
-                    href={`/doctor-print/visit-note/${n.appointmentId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setPrintId(n.appointmentId)}
                     className="inline-flex items-center gap-1.5 mt-3 text-[11.5px] font-semibold text-violet hover:underline"
                   >
                     <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
-                  </a>
+                  </button>
                 )}
               </div>
             )}
           </div>
         );
       })}
+
+      <VisitNotePrintDialog appointmentId={printId} onClose={() => setPrintId(null)} />
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge
 import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
 import { DataTable, EmptyState, TagPill, PersonAvatar, FilterPill } from '@/components/ui-phoenix';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
+import { VisitNotePrintDialog } from '@/components/visit/visit-note-print-dialog';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { localeApp } from '@/lib/fechas';
 import type { EstadoNota, EtapaVisita } from '@/lib/notes-audit';
@@ -503,6 +504,8 @@ function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada }: {
   const t = useTranslations('phoenix.notesAudit');
   const [nota, setNota] = React.useState<VisitNoteData | null | undefined>(undefined);
   const [plantillas, setPlantillas] = React.useState<PickableTemplate[]>([]);
+  /** La hoja imprimible, en el visor. Antes salía a otra pestaña y se perdía el modal. */
+  const [imprimiendo, setImprimiendo] = React.useState(false);
 
   const editable = visita.estado === 'draft';
 
@@ -588,10 +591,11 @@ function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada }: {
           <Check className="w-4 h-4 text-emerald shrink-0 mt-px" />
           <span>{t('signedBody')}</span>
         </div>
-        <a href={`/doctor-print/visit-note/${visita.appointmentId}`} target="_blank" rel="noopener"
+        <button type="button" onClick={() => setImprimiendo(true)}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-violet/40 text-violet-text text-[12px] font-semibold hover:bg-violet/10 transition-colors">
           <Printer className="w-3.5 h-3.5" /> {t('print')}
-        </a>
+        </button>
+        <VisitNotePrintDialog appointmentId={imprimiendo ? visita.appointmentId : null} onClose={() => setImprimiendo(false)} />
         <SoloLectura nota={nota} />
       </div>
     );

@@ -30,6 +30,7 @@ import type { SnippetSection } from '@/lib/snippet-sections';
 import { useSectionLabels } from '@/lib/use-section-labels';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
+import { VisitNotePrintDialog } from './visit-note-print-dialog';
 import { SnippetPanel, type SnippetItem } from './snippet-panel';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -240,6 +241,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     plan:           note?.plan ?? '',
   }));
   const [dx, setDx] = React.useState<NoteDx[]>(note?.diagnoses ?? []);
+  /** La hoja imprimible abierta en el visor, en vez de en otra pestaña. */
+  const [printNote, setPrintNote] = React.useState(false);
   const [templateId, setTemplateId] = React.useState<string | null>(note?.templateId ?? null);
 
   const [dirty, setDirty] = React.useState(false);
@@ -732,14 +735,12 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
             </>
           )}
           {isSigned && (
-            <Button variant="ghost" asChild className="h-9 gap-1.5">
-              <a
-                href={`/doctor-print/visit-note/${appointmentId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
-              </a>
+            // `type="button"` explícito: antes esto era un `<a>` y no podía
+            // enviar nada. El primitivo `Button` no fija `type`, y este editor se
+            // monta en tres pantallas distintas — si alguna lo envuelve en un
+            // `<form>`, imprimir mandaría el formulario.
+            <Button type="button" variant="ghost" className="h-9 gap-1.5" onClick={() => setPrintNote(true)}>
+              <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
             </Button>
           )}
         </div>
@@ -1024,6 +1025,10 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           onCancel={() => setConfirmSign(false)}
         />
       )}
+
+      {/* La hoja imprimible, en modal: firmar y volver a la consulta no debería
+          costar cerrar una pestaña y buscar dónde estabas. */}
+      <VisitNotePrintDialog appointmentId={printNote ? appointmentId : null} onClose={() => setPrintNote(false)} />
     </div>
   );
 });

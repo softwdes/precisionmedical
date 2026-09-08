@@ -29,6 +29,7 @@ import type { LabOrderRow } from './labs-tab';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS, soloEntregadas } from './rx-integration-status';
 import { LabOrderPrintDialog } from './lab-order-print-dialog';
+import { VisitNotePrintDialog } from './visit-note-print-dialog';
 import { AlertaVitales } from './alerta-vitales';
 
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
@@ -281,6 +282,8 @@ export function VisitSummary({
   const [doneAt, setDoneAt] = React.useState<string | null>(doctorDoneAt);
   const [upcoming, setUpcoming] = React.useState<UpcomingAppt[]>([]);
   const [printGroup, setPrintGroup] = React.useState<string | null>(null);
+  /** La nota, en el mismo visor que la orden de laboratorio de esta pantalla. */
+  const [printNote, setPrintNote] = React.useState(false);
   const [apptOpen, setApptOpen] = React.useState(false);
   const [apptDate, setApptDate] = React.useState<string | undefined>(undefined);
 
@@ -1059,14 +1062,13 @@ export function VisitSummary({
       {/* Nota imprimible */}
       {isSigned && (
         <div className="flex justify-end">
-          <a
-            href={`/doctor-print/visit-note/${appointmentId}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => setPrintNote(true)}
             className="h-9 px-3 rounded text-[12px] font-semibold text-text-2 hover:bg-white/5 hover:text-text-1 transition-colors inline-flex items-center gap-1.5"
           >
             <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
-          </a>
+          </button>
         </div>
       )}
 
@@ -1091,6 +1093,7 @@ export function VisitSummary({
 
       {/* Visor de impresión de la orden — compartido con el detalle de caso */}
       <LabOrderPrintDialog groupId={printGroup} onClose={() => setPrintGroup(null)} />
+      <VisitNotePrintDialog appointmentId={printNote ? appointmentId : null} onClose={() => setPrintNote(false)} />
 
       {/* Recordatorio de quién cierra la cita — solo al doctor */}
       {!isAssistant && (

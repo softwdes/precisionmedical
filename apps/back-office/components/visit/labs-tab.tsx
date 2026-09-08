@@ -19,6 +19,7 @@ import {
 import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { LabOrderDialog, type SelectedStudy } from './lab-order-dialog';
+import { LabOrderPrintDialog } from './lab-order-print-dialog';
 
 export interface LabOrderRow {
   id: string;
@@ -113,6 +114,12 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
   // "cargando" mientras pide la firma.
   const viewer = useFileViewer(t('labErrResult'));
   const [deleteTarget, setDeleteTarget] = React.useState<LabOrderRow | null>(null);
+  /**
+   * Orden que se está mirando en el visor. El Resumen y el detalle de caso ya
+   * abrían la hoja así; acá seguía saliendo a otra pestaña, de modo que la MISMA
+   * orden se comportaba distinto según por dónde entraras.
+   */
+  const [printGroup, setPrintGroup] = React.useState<string | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -322,14 +329,13 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
                   )}
                   <div className="flex-1" />
                   {head.groupId && (
-                    <a
-                      href={`/doctor-print/lab-order/${head.groupId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => setPrintGroup(head.groupId!)}
                       className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-2 hover:text-violet-text"
                     >
                       <Printer className="w-3.5 h-3.5" /> {t('labPrintOrder')}
-                    </a>
+                    </button>
                   )}
                 </div>
 
@@ -410,6 +416,8 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
         confirmLabel={t('labRemove')}
         variant="danger"
       />
+
+      <LabOrderPrintDialog groupId={printGroup} onClose={() => setPrintGroup(null)} />
 
       <FileViewerDialog {...viewer.props} />
     </div>

@@ -3,11 +3,20 @@
  *
  * Ruta:   /doctor-print/visit-note/[appointmentId]
  * Acceso: el doctor dueño de la cita (o ADMIN/SUPER_ADMIN en soporte).
- * Uso:    botón "Imprimir" de la nota firmada → se abre en pestaña nueva.
+ * Uso:    botón "Imprimir" de la nota firmada → se abre en el visor
+ *         (`VisitNotePrintDialog`), NO en otra pestaña. Salir de la pantalla
+ *         donde se está trabajando para volver cerrando una pestaña era el
+ *         reclamo; y la orden de laboratorio ya abría en modal, así que la
+ *         misma acción se comportaba de dos maneras (Erick, 2026-09-07).
  *
- * Server-rendered y sin dependencias de JS para imprimir: Ctrl+P funciona
- * aunque el bundle no cargue. Los honorarios NO aparecen — el doctor no ve
- * pagos (los servicios se listan solo como acto clínico).
+ * Server-rendered y sin dependencias de JS para el contenido. Para IMPRIMIR hay
+ * que usar el botón de la hoja: llama a `window.print()` desde adentro del
+ * iframe y sale el documento solo. El Ctrl+P del usuario imprime el documento de
+ * nivel superior —la app con el modal encima— y por eso la pista de Ctrl+P se
+ * quitó de la barra (ver el comentario largo más abajo).
+ *
+ * Los honorarios NO aparecen — el doctor no ve pagos (los servicios se listan
+ * solo como acto clínico).
  */
 
 import type { Metadata } from 'next';

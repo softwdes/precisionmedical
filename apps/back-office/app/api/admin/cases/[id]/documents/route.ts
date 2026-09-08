@@ -75,7 +75,8 @@ export async function POST(
 
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    select: { id: true, caseCode: true, deletedAt: true },
+    // `patientId` es nuevo acá: sin él la fila del documento quedaba sin dueño.
+    select: { id: true, caseCode: true, deletedAt: true, patientId: true },
   });
   if (!caseRecord || caseRecord.deletedAt) {
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
@@ -97,6 +98,25 @@ export async function POST(
       isFolder: parsed.isFolder,
       parentId: parsed.parentId,
       caseId,
+      /**
+       * El PACIENTE, que faltaba — y no era cosmético.
+       *
+       * `PatientDocument` tiene las dos relaciones, pero esta vía —por la que el
+       * staff sube TODO desde el tab Documentos— solo escribía el caso. Así que
+       * `patientId` quedaba en `NULL` y cualquier consulta por paciente no veía
+       * nada. Dos consecuencias, la segunda ya estaba viva:
+       *
+       *  · La nueva vista de "Archivos personales" tiene que buscar por CASO en
+       *    vez de por paciente (ver `patients/[id]/documents/route.ts`).
+       *  · **El picker "Attach From Chart" de mensajería filtra por `patientId`**
+       *    (`api/messages/chart-documents/route.ts`), así que a quien quería
+       *    adjuntarle a un abogado un archivo del expediente le salía la lista
+       *    vacía, sin nada que lo explicara.
+       *
+       * Esto arregla las filas NUEVAS. Las viejas siguen en `NULL` hasta que se
+       * corra el backfill — está anotado en los pendientes con el SQL.
+       */
+      patientId: caseRecord.patientId,
       s3Key:    parsed.s3Key,
       mimeType: parsed.mimeType,
       size:     parsed.size,

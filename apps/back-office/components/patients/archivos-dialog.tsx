@@ -24,8 +24,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Camera, FolderOpen, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { Camera, FileText, FolderOpen, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
+import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
+import { localeApp } from '@/lib/fechas';
 
 export type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
@@ -196,6 +198,179 @@ export interface ArchivosDialogProps {
    */
   tieneCaso?: boolean;
   onClose: () => void;
+}
+
+/**
+ * ── Los archivos del paciente ────────────────────────────────────────────────
+ *
+ * Esta sección existía como maqueta: un encabezado NAME / SIZE / LAST MODIFIED
+ * y un "Empty directory" escrito a mano, con el comentario «sección futura» y
+ * **sin un solo fetch**. O sea que decía "carpeta vacía" para todos los
+ * pacientes, siempre, incluso para uno con cuarenta documentos cargados (Erick
+ * la encontró el 2026-09-08 buscando el intake).
+ *
+ * Ahora trae de verdad TODO el papelerío de la persona, junto:
+ *
+ *  · **una fila de intake por caso**, que apunta al PDF que se arma al vuelo — no
+ *    se guarda como archivo, porque un intake congelado envejece y además se
+ *    podría borrar (mismo criterio que el tab Documentos del caso);
+ *  · **los archivos de todos sus casos** en una lista plana, con la pastilla del
+ *    caso en cada fila.
+ *
+ * Sin carpetas y sin subir: organizar y cargar es trabajo del expediente del
+ * caso, que es donde vive el explorador. Acá la pregunta es otra —"¿qué papeles
+ * tiene esta persona?"— y navegar tres niveles de carpetas por cada uno de tres
+ * casos la responde peor.
+ */
+function ArchivosDelPaciente({ patientId }: { patientId: string }) {
+  const t = useTranslations('phoenix.patients');
+  const tc = useTranslations('phoenix.common');
+  const viewer = useFileViewer(t('archivosDownloadError'));
+
+  const [casos, setCasos] = useState<Array<{ id: string; caseCode: string }>>([]);
+  const [docs, setDocs] = useState<Array<{
+    id: string; name: string; mimeType: string | null; size: number | null;
+    createdAt: string; caseId: string | null; caseCode: string | null;
+  }>>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      setCargando(true);
+      setError(null);
+      try {
+        // `no-store`: el diálogo se abre justo después de subir algo desde el
+        // caso, y el heurístico del navegador servía la lista vieja.
+        const res = await fetch(`/api/admin/patients/${patientId}/documents`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!vivo) return;
+        setCasos(data.casos ?? []);
+        setDocs(data.documentos ?? []);
+      } catch (e) {
+        if (vivo) setError(e instanceof Error ? e.message : 'Error');
+      } finally {
+        if (vivo) setCargando(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, [patientId]);
+
+  /** Abre un archivo del expediente en el visor, con su URL firmada. */
+  async function abrir(doc: { id: string; name: string; caseId: string | null }) {
+    if (!doc.caseId) return;
+    try {
+      const res = await fetch(`/api/admin/cases/${doc.caseId}/documents/${doc.id}/download`);
+      const data = await res.json();
+      if (!res.ok) { alert(data.message ?? t('archivosDownloadError')); return; }
+      viewer.show({ fileName: data.name ?? doc.name, url: data.url, downloadUrl: data.downloadUrl });
+    } catch {
+      alert(t('archivosDownloadError'));
+    }
+  }
+
+  const vacio = !cargando && !error && casos.length === 0 && docs.length === 0;
+
+  return (
+    <div>
+      <FileViewerDialog {...viewer.props} />
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-2">
+          <FolderOpen className="w-3.5 h-3.5" /> {t('archivosPersonalFiles')}
+        </div>
+        {!cargando && !vacio && (
+          <span className="text-[10px] text-text-muted tabular-nums">
+            {t('archivosCuenta', { intakes: casos.length, archivos: docs.length })}
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-md border border-border overflow-hidden">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-bg-2 border-b border-border px-3 py-2">
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColName')}</span>
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColSize')}</span>
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('archivosColDate')}</span>
+        </div>
+
+        {cargando ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-text-muted text-sm">
+            <RefreshCw className="w-4 h-4 animate-spin" /> {tc('loading')}
+          </div>
+        ) : error ? (
+          <div className="m-3 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose">{error}</div>
+        ) : vacio ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+            <FolderOpen className="w-10 h-10 opacity-15" />
+            <p className="text-sm font-medium">{t('archivosEmptyDir')}</p>
+            <p className="text-[11px]">{t('archivosSinCasos')}</p>
+          </div>
+        ) : (
+          <div className="max-h-[260px] overflow-y-auto scroll-thin divide-y divide-row-sep">
+            {/* Un intake por caso, arriba y en cyan: es del sistema, no lo subió
+                nadie, y no se puede borrar. */}
+            {casos.map((c) => (
+              <button
+                key={`intake-${c.id}`}
+                type="button"
+                onClick={() => viewer.show({
+                  fileName:    `${t('archivosIntakeName')} · ${c.caseCode}.pdf`,
+                  url:         `/api/admin/cases/${c.id}/pdf`,
+                  downloadUrl: `/api/admin/cases/${c.id}/pdf?download=1`,
+                })}
+                className="w-full text-left grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 bg-cyan/[0.03] hover:bg-cyan/[0.07] transition-colors group"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-3.5 h-3.5 text-cyan shrink-0" />
+                  <span className="truncate text-[12.5px] text-text-1 group-hover:text-cyan transition-colors">
+                    {t('archivosIntakeName')}
+                  </span>
+                  <span className="text-[9.5px] font-mono text-text-muted shrink-0">{c.caseCode}</span>
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px shrink-0">
+                    {t('archivosBadgeSistema')}
+                  </span>
+                </span>
+                <span className="text-[11px] text-text-muted tabular-nums">—</span>
+                <span className="text-[11px] text-text-muted text-right">{t('archivosSiempreAlDia')}</span>
+              </button>
+            ))}
+
+            {docs.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => abrir(d)}
+                className="w-full text-left grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 hover:bg-white/[0.02] transition-colors group"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                  <span className="truncate text-[12.5px] text-text-1 group-hover:text-brand-text transition-colors" title={d.name}>
+                    {d.name}
+                  </span>
+                  {d.caseCode && (
+                    <span className="text-[9.5px] font-mono text-text-muted shrink-0">{d.caseCode}</span>
+                  )}
+                </span>
+                <span className="text-[11px] text-text-muted tabular-nums">{formatBytes(d.size)}</span>
+                <span className="text-[11px] text-text-muted text-right tabular-nums">
+                  {new Date(d.createdAt).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Bytes legibles. Igual que en el tab Documentos del caso. */
+function formatBytes(bytes: number | null): string {
+  if (!bytes) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function ArchivosDialog({
@@ -395,26 +570,7 @@ export function ArchivosDialog({
             })}
           </div>
 
-          {/* Personal files — sección futura */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-2">
-                <FolderOpen className="w-3.5 h-3.5" /> {t('archivosPersonalFiles')}
-              </div>
-            </div>
-            <div className="rounded-md border border-border overflow-hidden">
-              <div className="grid grid-cols-3 bg-bg-2 border-b border-border px-3 py-2">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColName')}</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColSize')}</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('archivosColDate')}</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
-                <FolderOpen className="w-10 h-10 opacity-15" />
-                <p className="text-sm font-medium">{t('archivosEmptyDir')}</p>
-                <p className="text-[11px]">{t('archivosEmptyDirDesc')}</p>
-              </div>
-            </div>
-          </div>
+          <ArchivosDelPaciente patientId={patientId} />
         </div>
 
         <div className="px-6 py-3 border-t border-border flex justify-end">

@@ -706,7 +706,9 @@
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}"
+      "msgYouPrefix": "Vos → {name}",
+      "msgBulkArchiveDesc": "Salen solo de TU bandeja, a Archivados. La clínica los sigue viendo, y vuelven si te responden.",
+      "msgBulkUnarchiveDesc": "Vuelven a tu bandeja tal como estaban."
     },
     "doctor": {
       "greeting": "{name}",

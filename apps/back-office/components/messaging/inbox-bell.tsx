@@ -16,13 +16,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Mail, Volume2, VolumeX } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { playInboxChime, inboxSoundMuted, setInboxSoundMuted } from './notification-sound';
 import { InboxClient } from './inbox-client';
+import { AttorneyInbox } from '@/app/attorney/messages/inbox-client';
 import { MESSAGES_READ_EVENT } from './thread-view-dialog';
 import { anunciarBadge } from '@/lib/messaging-events';
 
@@ -47,11 +48,15 @@ interface BadgeInfo {
 }
 
 /**
- * En el portal legal el sobre consulta la puerta del abogado y al hacer clic
- * NAVEGA a su bandeja, en vez de abrir el inbox de la clínica en un modal.
- * `/api/messages/badge` y el `InboxClient` están detrás del middleware que
- * solo deja pasar `/api/attorney/*` a un LAWYER: con "ver como bufete" andaba
- * (el que mira es admin) y a un abogado real le fallaba en silencio.
+ * En el portal legal el sobre consulta la puerta del abogado y abre el mismo
+ * modal, pero con la bandeja del BUFETE adentro (`AttorneyInbox`).
+ *
+ * Durante un rato navegó a `/attorney/messages` en vez de abrir el modal, y el
+ * motivo era real: `/api/messages/badge` y el `InboxClient` de la clínica están
+ * detrás del middleware que solo deja pasar `/api/attorney/*` a un LAWYER, así
+ * que con "ver como bufete" andaba (el que mira es admin) y a un abogado real
+ * le fallaba en silencio. La solución no era quitarle el modal sino ponerle SU
+ * bandeja: la del abogado pega a su propia puerta (Erick, 2026-09-08).
  */
 type Portal = 'clinic' | 'attorney';
 
@@ -72,6 +77,7 @@ const BLINK_MS = 9_000;
 export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): React.ReactElement | null {
   const t = useTranslations('phoenix.messaging');
   const esAbogado = portal === 'attorney';
+  const locale = useLocale();
 
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
   const [unlinked, setUnlinked] = useState(false);
@@ -135,7 +141,7 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
             data.latestAuthor
               ? t('arrivedFrom', { name: data.latestAuthor })
               : t('arrivedGeneric'),
-            { onClick: () => { if (esAbogado) router.push('/attorney/messages'); else setOpen(true); }, durationMs: 8000 },
+            { onClick: () => { setOpen(true); }, durationMs: 8000 },
           );
         }
         prevUnread.current = data.unread;
@@ -180,7 +186,7 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
     <>
       <button
         type="button"
-        onClick={() => { if (esAbogado) router.push('/attorney/messages'); else setOpen(true); }}
+        onClick={() => { setOpen(true); }}
         aria-label={label}
         title={label}
         className={`inline-flex items-center gap-2 h-9 px-3 rounded-md border text-sm font-semibold transition-colors ${
@@ -235,7 +241,7 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
       {/* Se repliega mientras el caso está encima, sin desmontarse: al cerrar
           el caso el inbox y el hilo vuelven como estaban. En el portal legal no
           existe: el clic navega a la bandeja del abogado. */}
-      {!esAbogado && <Dialog open={open && !caseModalOpen}
+      <Dialog open={open && !caseModalOpen}
         onOpenChange={(v) => { if (caseModalOpen) return; setOpen(v); if (!v) void refreshBadge(); }}>
           {/* h fijo (no max-h): el overlay del legacy es grande SIEMPRE, aunque
               la bandeja esté vacía — la tabla respira y no baila al filtrar. */}
@@ -264,7 +270,13 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-              {open && badge?.userId ? (
+              {open && esAbogado ? (
+                /* El portal legal trae SU bandeja: pega a `/api/attorney/*`
+                   —la única puerta que el middleware le abre— y no expone las
+                   herramientas internas. La identidad la resuelve el servidor
+                   con la sesión, así que no depende del badge. */
+                <AttorneyInbox locale={locale} embedded />
+              ) : open && badge?.userId ? (
                 <InboxClient
                   embedded
                   currentUserId={badge.userId}
@@ -283,7 +295,7 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
               )}
             </div>
           </DialogContent>
-      </Dialog>}
+      </Dialog>
     </>
   );
 }

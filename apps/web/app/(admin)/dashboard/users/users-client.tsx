@@ -812,6 +812,9 @@ const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
   // tracking lo reemplazo. Un `intake: true` viejo en la DB queda inofensivo.
   { key: 'edson',     label: 'Tracking',       emoji: '📋' },
   { key: 'billing',   label: 'Billing',        emoji: '💼' },
+  // Mensajes entro al sidebar de la clinica el 2026-09-08 (espejo de SECTIONS
+  // en apps/back-office/components/layout/sidebar.tsx).
+  { key: 'messages',  label: 'Messages',       emoji: '✉️' },
   { key: 'settings',  label: 'Settings',       emoji: '⚙️' },
 ];
 

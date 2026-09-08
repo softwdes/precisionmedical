@@ -58,6 +58,10 @@ const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
   // (visibles para cualquiera con un modulo cualquiera).
   ['edson',     /^\/(edson|intake)/],
   ['billing',   /^\/billing/],
+  // La bandeja: gobernada como cualquier otro menú desde que tiene entrada en
+  // el sidebar (2026-09-08). Solo cubre páginas — `/api/messages/*` no entra
+  // acá, y no debe: el sobre del top bar y el compositor los usa todo el mundo.
+  ['messages',  /^\/messages/],
   ['settings',  /^\/(settings|audit-logs|admin\/(specialties|insurances|services|diagnoses|providers|templates))/],
 ];
 
@@ -169,7 +173,7 @@ function forbidden(module: string, base: NextResponse): NextResponse {
 const MODULE_HOME: Record<string, string> = {
   dashboard: '/dashboard', patients: '/patients', calendar: '/calendar',
   admission: '/admission', externals: '/admin/lawyers', edson: '/edson',
-  billing: '/billing', settings: '/settings',
+  billing: '/billing', messages: '/messages', settings: '/settings',
 };
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {

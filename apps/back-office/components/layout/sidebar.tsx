@@ -69,6 +69,12 @@ const SECTIONS: NavSection[] = [
       // ya no tienen entrada en el menú. Ver docs/plan-vista-edson.md §6.
       { href: '/edson',      icon: ClipboardList,  labelKey: 'edson', moduleKey: 'edson' },
       { href: '/billing',    icon: Briefcase,      labelKey: 'billing', moduleKey: 'billing'   },
+      // La bandeja de la clínica entró al menú el 2026-09-08, por el mismo
+      // motivo que la del provider: solo se llegaba por el sobre del top bar y
+      // nadie sabía que existía. Va antes de Configuración para que el menú
+      // cierre con lo que se toca una vez, y deja el último lugar a Pedidos de
+      // bufetes, que es opt-in.
+      { href: '/messages',   icon: Mail,           labelKey: 'messages', moduleKey: 'messages'  },
       { href: '/settings',   icon: Settings,       labelKey: 'settings',      moduleKey: 'settings'  },
     ],
   },

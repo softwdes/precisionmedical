@@ -10,6 +10,8 @@
  *   ?folder=archived lo que archivó para sí (`archivedAt`).
  *   ?q=              cliente, código de caso o asunto.
  *   ?unread=1        solo sin leer · ?urgent=1 solo urgentes.
+ *   ?priority=       NORMAL | URGENT · ?type= MESSAGE|ALERT|REMINDER|REQUEST|REFERRAL
+ *   ?page=           25 por página.
  *
  * Ruta propia y no `/api/messages`: por ahí también viajan los adjuntos, las
  * plantillas, el listado de staff y el "ver inbox de…", que son herramientas
@@ -33,6 +35,10 @@ const MAX_ESCANEO = 300;
 
 type Folder = 'inbox' | 'sent' | 'archived';
 
+/** Tipos que el filtro acepta. Fuera de la lista, el parámetro se ignora. */
+const TIPOS = ['MESSAGE', 'ALERT', 'REMINDER', 'REQUEST', 'REFERRAL'] as const;
+type Tipo = (typeof TIPOS)[number];
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const lawyer = await getSessionLawyer();
   if (!lawyer) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
@@ -54,6 +60,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const q = sp.get('q')?.trim() || null;
   const soloSinLeer = sp.get('unread') === '1';
   const soloUrgentes = sp.get('urgent') === '1';
+  // Filtros finos, los mismos que la bandeja de la clínica: el chip Urgentes
+  // manda sobre el select de prioridad (si el chip está puesto, el select ni
+  // se muestra en la UI).
+  const priority = sp.get('priority');
+  const type = sp.get('type');
   const page = Math.max(1, Number(sp.get('page') ?? '1'));
 
   const entradaAjena = entradaAjenaA(yo);
@@ -73,7 +84,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       deletedAt: null,
       removedFromInboxesAt: null,
       ...(porCarpeta.thread as Prisma.MessageThreadWhereInput | undefined),
-      ...(soloUrgentes ? { priority: 'URGENT' } : {}),
+      ...(soloUrgentes
+        ? { priority: 'URGENT' as const }
+        : priority === 'URGENT' || priority === 'NORMAL'
+          ? { priority }
+          : {}),
+      ...(type && TIPOS.includes(type as Tipo) ? { type: type as Tipo } : {}),
       ...(q
         ? {
             OR: [

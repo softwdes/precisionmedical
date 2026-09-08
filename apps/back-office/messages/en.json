@@ -706,7 +706,9 @@
       "msgUnarchived": "Back in the inbox.",
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
-      "msgYouPrefix": "You → {name}"
+      "msgYouPrefix": "You → {name}",
+      "msgBulkArchiveDesc": "They leave YOUR inbox only, into Archived. The clinic still sees them, and they come back if someone replies.",
+      "msgBulkUnarchiveDesc": "They come back to your inbox as they were."
     },
     "doctor": {
       "greeting": "{name}",

@@ -8,6 +8,7 @@ import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
 import { InboxBell } from '@/components/messaging/inbox-bell';
+import { PushToggle } from '@/components/PushToggle';
 import { ReleaseBell } from '@/components/release/release-bell';
 import { createClient } from '@precision-medical/auth/client';
 
@@ -221,6 +222,12 @@ export function Topbar({
               se agrupan después, pegadas al avatar. La jerarquía visual sigue
               a la urgencia clínica: nada debe gritar más que un urgente. */}
           <InboxBell portal={portal} />
+
+          {/* Interruptor de los avisos al celular. Pegado al sobre porque es la
+              misma noticia por otro canal: el sobre avisa con la app abierta,
+              esto avisa con la app cerrada. No se dibuja donde no hay soporte
+              ni claves configuradas. */}
+          <PushToggle />
 
           {/* Novedades del sistema. Antes habia aca un boton de campana de
               adorno: sin onClick, sin consultar nada y con un 2 escrito en

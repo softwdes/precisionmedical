@@ -16,6 +16,22 @@ type MobilePlatform = 'ios' | 'android';
 const DISMISS_KEY = 'bo-pwa-install-dismissed';
 const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * Cómo se llama la app que se está instalando, según el portal.
+ *
+ * Estaba clavado en "Clínica App" para los tres dominios, así que el provider y
+ * el abogado leían el nombre del módulo administrativo mientras instalaban el
+ * suyo. Los patrones son los mismos que la ruta del manifest y las puertas por
+ * host del middleware: los tres tienen que decir lo mismo o la tarjeta anuncia
+ * una app distinta de la que Chrome termina instalando.
+ */
+function getAppName(): string {
+  const host = window.location.hostname;
+  if (/^providers?\./.test(host)) return 'Providers App';
+  if (/^attorney\./.test(host))   return 'Legal App';
+  return 'Clínica App';
+}
+
 function getMobilePlatform(): MobilePlatform | null {
   const ua = navigator.userAgent;
   // iPadOS 13+ reports Macintosh UA but has touch points
@@ -77,7 +93,7 @@ function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boo
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
 
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#BFDBFE', margin: '0 0 4px' }}>Instalar Clínica App</p>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#BFDBFE', margin: '0 0 4px' }}>Instalar {getAppName()}</p>
         <p style={{ fontSize: 12, color: '#6B7592', margin: '0 0 20px' }}>
           {isIos ? 'Sigue estos pasos en Safari:' : 'Sigue estos pasos en Chrome:'}
         </p>
@@ -212,7 +228,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 12.5, fontWeight: 600, color: '#BFDBFE', margin: 0, letterSpacing: '0.01em', lineHeight: 1.25 }}>
-                Instalar Clínica App
+                Instalar {getAppName()}
               </p>
               <p style={{ fontSize: 10.5, color: '#8B95B5', margin: '2px 0 0', lineHeight: 1.35 }}>
                 {subtitle}

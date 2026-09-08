@@ -4168,6 +4168,57 @@ model MessageAttachment {
 }
 
 // =====================================================
+// AVISOS AL CELULAR (Web Push)
+// =====================================================
+
+/// Un navegador que aceptó recibir avisos, para mandarle la notificación
+/// cuando la app está CERRADA.
+///
+/// Una fila por (persona · navegador · dominio), no una por persona: cada
+/// dominio —el principal, `providers.*`, `attorney.*`— se instala como una PWA
+/// distinta, con su propio Service Worker y su propia suscripción. Alguien con
+/// la clínica en la laptop y providers en el teléfono tiene dos filas, y
+/// quiere el aviso en las dos.
+///
+/// `userId` es `users.id` de Phoenix (cuid) sin relación, igual que en todo el
+/// módulo de mensajería: los usuarios viven en otro proyecto de Supabase.
+model PushSubscription {
+  id String @id @default(cuid())
+
+  userId String
+
+  /// El host desde el que se suscribió, para saber a qué portal pertenece y
+  /// poder abrir el link correcto al tocar la notificación.
+  origin String
+
+  /// La URL que da el navegador para empujarle un mensaje (FCM en Chrome).
+  /// Es el identificador real de la suscripción: si el navegador la renueva,
+  /// cambia, y la vieja deja de existir. Por eso es única y no lleva
+  /// `@@unique([userId, origin])` — la misma persona puede tener dos
+  /// navegadores en el mismo dominio.
+  endpoint String @unique
+
+  /// Las dos claves con las que se cifra el payload (RFC 8291). Sin ellas el
+  /// push service acepta el envío pero el navegador no puede leerlo.
+  p256dh String
+  auth   String
+
+  /// Para poder decirle a alguien cuál de sus dispositivos está suscripto.
+  userAgent String?
+
+  /// Última vez que el push service aceptó un envío. Una suscripción que
+  /// acumula fallos se borra: el navegador que la emitió ya no existe.
+  lastSuccessAt DateTime?
+  failureCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// =====================================================
 // RELEASE NOTES
 // =====================================================
 

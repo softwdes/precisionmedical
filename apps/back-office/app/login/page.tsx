@@ -66,12 +66,32 @@ export default function LoginPage(): React.ReactElement {
   const callbackErr  = searchParams.get('error');
   const reason       = searchParams.get('reason');
 
-  // Portal médico: entrada por providers.lienmaster.net (local: providers.localhost)
-  // muestra la identidad del Doctor Portal en lugar de la del back-office.
-  const [isProvidersHost, setIsProvidersHost] = useState(false);
+  /**
+   * Qué portal es este dominio. Cada uno entra por su host y el login muestra
+   * SU identidad, no la del back-office.
+   *
+   * Era un booleano `isProvidersHost`, así que el portal legal —que nació
+   * después— caía en la rama del back-office y anunciaba "Clinic · Clinical
+   * Management" a un abogado, justo encima de un botón que ya decía "Instalar
+   * Legal App". Los patrones son los mismos que la ruta del manifest y las
+   * puertas por host del middleware.
+   *
+   * Los tonos son los de la identidad declarada en `globals.css`: violet para
+   * el portal médico, brand (indigo) para el legal — en su versión CLARA,
+   * porque este fondo es oscuro siempre.
+   */
+  const [portal, setPortal] = useState<'clinic' | 'providers' | 'legal'>('clinic');
   useEffect(() => {
-    setIsProvidersHost(/^providers?\./.test(window.location.hostname));
+    const host = window.location.hostname;
+    if (/^providers?\./.test(host))    setPortal('providers');
+    else if (/^attorney\./.test(host)) setPortal('legal');
   }, []);
+
+  const marca = {
+    clinic:    { tono: '#4A5474', titulo: 'Clinic · Clinical Management',  pie: 'Precision Medical · Clinic · Utah, USA' },
+    providers: { tono: '#A78BFA', titulo: 'Providers · Doctor Portal',     pie: 'Precision Medical · Providers · Utah, USA' },
+    legal:     { tono: '#818CF8', titulo: 'Legal · Attorney Portal',       pie: 'Precision Medical · Legal · Utah, USA' },
+  }[portal];
 
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
@@ -297,8 +317,8 @@ export default function LoginPage(): React.ReactElement {
               </div>
             </div>
             <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>Precision Medical</p>
-            <p style={{color: isProvidersHost ? '#A78BFA' : '#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0,fontWeight:isProvidersHost?700:400}}>
-              {isProvidersHost ? 'Providers · Doctor Portal' : 'Clinic · Clinical Management'}
+            <p style={{color: marca.tono,fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0,fontWeight:portal === 'clinic' ? 400 : 700}}>
+              {marca.titulo}
             </p>
           </div>
 
@@ -426,7 +446,7 @@ export default function LoginPage(): React.ReactElement {
 
           {/* Footer */}
           <p className="lm-fade-380" style={{color:'#2C3248',fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:'1.25rem'}}>
-            {isProvidersHost ? 'Precision Medical · Providers · Utah, USA' : 'Precision Medical · Clinic · Utah, USA'}
+            {marca.pie}
           </p>
         </div>
       </div>

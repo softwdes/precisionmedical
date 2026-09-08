@@ -241,7 +241,7 @@ const STRINGS = {
     employerPh: 'Nombre de su empresa o lugar de trabajo',
     // Contactos de emergencia
     emergencySection: 'Contactos de emergencia',
-    emergencyAllOptional: 'Todos los campos son opcionales, pero proporcionarlos nos ayudará a brindar la mejor atención posible.',
+    emergencyAllOptional: 'El nombre y el teléfono los necesitamos. El resto es opcional y nos ayuda a atenderte mejor.',
     emergencyName: 'Nombre',
     emergencyPhone: 'Teléfono',
     emergencyNamePh: 'Ej: María García',
@@ -264,6 +264,8 @@ const STRINGS = {
     addressLine1Ph: 'Ej: 123 Main St, Apt 4',
     addressCity: 'Ciudad',
     addressCityPh: 'Ej: Provo',
+    otraCiudad: 'Mi ciudad no está en la lista…',
+    volverALaLista: '← Elegir de la lista',
     addressState: 'Estado',
     addressStatePh: 'UT',
     addressZip: 'Código postal',
@@ -271,7 +273,10 @@ const STRINGS = {
     sifoHint2: 'Verifica que tus datos coincidan con tu ID. Los usaremos en tus documentos médicos.',
     // Step 3 — Información adicional
     additionalTitle: 'Información adicional',
-    additionalSub: 'Todos los campos son opcionales, pero nos ayudan a brindar la mejor atención.',
+    // Ya NO son todos opcionales: sexo y el contacto de emergencia se exigen
+    // desde el 2026-09-07. Un subtítulo que promete lo contrario hace que el
+    // paciente lea el bloqueo como un error del formulario.
+    additionalSub: 'Casi todos son opcionales. Los marcados con * los necesitamos.',
     demographicSection: 'Información demográfica',
     demographicSub: 'Esta información es opcional y se usa solo con fines estadísticos de salud.',
     raceLabel: 'Raza',
@@ -581,7 +586,7 @@ const STRINGS = {
     employerPh: 'Name of your company or workplace',
     // Emergency contacts
     emergencySection: 'Emergency contacts',
-    emergencyAllOptional: 'All fields are optional, but providing them will help us give you the best care possible.',
+    emergencyAllOptional: 'We need the name and phone. The rest is optional and helps us care for you better.',
     emergencyName: 'Name',
     emergencyPhone: 'Phone',
     emergencyNamePh: 'E.g., Maria Garcia',
@@ -600,6 +605,8 @@ const STRINGS = {
     addressLine1Ph: 'E.g., 123 Main St, Apt 4',
     addressCity: 'City',
     addressCityPh: 'E.g., Provo',
+    otraCiudad: 'My city is not on the list…',
+    volverALaLista: '← Pick from the list',
     addressState: 'State',
     addressStatePh: 'UT',
     addressZip: 'ZIP code',
@@ -607,7 +614,7 @@ const STRINGS = {
     sifoHint2: 'Make sure your info matches your ID. We use it in your medical documents.',
     // Step 3 — Additional information
     additionalTitle: 'Additional information',
-    additionalSub: 'All fields are optional but help us provide the best care.',
+    additionalSub: 'Most of these are optional. The ones marked * we do need.',
     demographicSection: 'Demographic information',
     demographicSub: 'This information is optional and used only for health statistics.',
     raceLabel: 'Race',
@@ -939,6 +946,15 @@ const COMM_OPTIONS_EN = [
 ];
 
 const BG           = '#0a1224';
+/**
+ * Valor centinela de la opción "mi ciudad no está en la lista".
+ *
+ * Va con `__` para que no pueda chocar con una ciudad real: el valor del
+ * `<select>` es el nombre de la ciudad tal cual, así que cualquier centinela
+ * legible sería un nombre válido.
+ */
+const OTRA_CIUDAD  = '__OTRA__';
+
 const CYAN         = '#06B6D4';
 const INDIGO       = '#6366F1';
 const EMERALD      = '#10B981';
@@ -1471,6 +1487,14 @@ export function IntakeWizard({
 
     if (e.insType === 'MEDICAL') {
       if (!e.policyId.trim() || e.policyId.trim().length < 3) es.policyId = lang === 'es' ? 'N° de póliza inválido (mín. 3 caracteres).' : 'Policy number invalid (min 3 chars).';
+      // Titular y su fecha de nacimiento: obligatorios SOLO acá, o sea solo
+      // cuando el paciente está cargando una póliza. "No tengo seguro" sigue
+      // siendo una respuesta válida y no pasa por esta función (Erick,
+      // 2026-09-07). Sin el titular y su fecha, la aseguradora rechaza el
+      // reclamo y el dato hay que perseguirlo por teléfono después.
+      if (!e.holderName.trim()) es.holderName = req(lang === 'es' ? 'Nombre del titular' : "Policy holder's name");
+      if (!e.holderDOB)         es.holderDOB  = req(lang === 'es' ? 'Nacimiento del titular' : "Policy holder's date of birth");
+      else if (new Date(e.holderDOB) >= today) es.holderDOB = lang === 'es' ? 'La fecha no puede ser futura.' : 'Date cannot be in the future.';
       if (e.copay && !isMoneyField(e.copay)) es.copay = lang === 'es' ? 'Formato inválido (ej: $500.00).' : 'Invalid amount (e.g. $500.00).';
       if (e.deductible && !isMoneyField(e.deductible)) es.deductible = lang === 'es' ? 'Formato inválido (ej: $1000.00).' : 'Invalid amount (e.g. $1000.00).';
       if (e.effectiveDate) {
@@ -1543,6 +1567,28 @@ export function IntakeWizard({
   const [lastNameError, setLastNameError]           = useState('');
   const [dobError, setDobError]                     = useState('');
   const [emailError, setEmailError]                 = useState('');
+  const [addressLine1Error, setAddressLine1Error]   = useState('');
+  const [addressStateError, setAddressStateError]   = useState('');
+  const [addressCityError, setAddressCityError]     = useState('');
+  const [addressZipError, setAddressZipError]       = useState('');
+  const [sexError, setSexError]                     = useState('');
+  const [emergencyNameError, setEmergencyNameError] = useState('');
+  const [emergencyPhoneError, setEmergencyPhoneError] = useState('');
+
+  /**
+   * La ciudad se escribe a mano en vez de elegirse de la lista.
+   *
+   * Arranca activo si la ciudad guardada no figura en el catálogo del estado —
+   * si no, un paciente migrado con "Taylorsville" veía el desplegable en blanco
+   * y parecía que nunca la había cargado.
+   */
+  const [ciudadALaMano, setCiudadALaMano] = useState(() => {
+    const ciudad = patient.addressCity?.trim();
+    if (!ciudad) return false;
+    const cod = US_STATES.find(s => s.name === patient.addressState)?.code ?? '';
+    const lista = CITIES_BY_STATE[cod] ?? [];
+    return !lista.some(c => c.toLowerCase() === ciudad.toLowerCase());
+  });
   const [referralOtherError, setReferralOtherError] = useState('');
   const [phoneError, setPhoneError]                 = useState('');
   const [cellPhoneError, setCellPhoneError]         = useState('');
@@ -1810,16 +1856,43 @@ export function IntakeWizard({
                 ? '⚠️ Demasiados intentos seguidos. Espera un minuto e intenta de nuevo.'
                 : '⚠️ Too many attempts in a row. Wait a minute and try again.')
           : (lang === 'es'
-                ? '⚠️ No se pudo guardar la foto. Se mostrará en esta sesión pero no se guardará al reabrir.'
-                : '⚠️ Could not save photo. It will show this session but not persist on reopen.'),
+                ? '⚠️ No se pudo guardar la foto. Tómala de nuevo.'
+                : '⚠️ Could not save the photo. Please take it again.'),
         );
+        descartarVistaPrevia(type, blobUrl);
       }
     } catch {
       setPhotoUploadError(lang === 'es'
-        ? '⚠️ Error de conexión al subir la foto. Solo visible en esta sesión.'
-        : '⚠️ Connection error uploading photo. Only visible this session.');
+        ? '⚠️ Error de conexión al subir la foto. Tómala de nuevo.'
+        : '⚠️ Connection error uploading the photo. Please take it again.');
+      descartarVistaPrevia(type, blobUrl);
     }
   };
+
+  /**
+   * Saca de pantalla una foto que NO llegó al servidor.
+   *
+   * Antes la vista previa local se quedaba puesta y el mensaje decía "se
+   * mostrará en esta sesión pero no se guardará al reabrir". El paciente veía su
+   * foto, la daba por hecha y seguía. Con las fotos ya obligatorias eso es peor
+   * que un detalle: el formulario estaría exigiendo algo que puede no existir, y
+   * dejaría pasar a alguien con una foto fantasma.
+   *
+   * Que desaparezca es coherente con lo que dice el aviso —"tómala de nuevo"— y
+   * deja una regla simple para el resto del código: si hay una URL, el servidor
+   * la tiene.
+   */
+  const descartarVistaPrevia = (type: keyof typeof photoUrls, blobUrl: string) => {
+    setPhotoUrls(p => {
+      if (p[type] !== blobUrl) return p;
+      URL.revokeObjectURL(blobUrl);
+      return { ...p, [type]: null };
+    });
+  };
+
+  /** Una foto cuenta solo si está en el servidor — un `blob:` es local. */
+  const fotoGuardada = (url: string | null | undefined): boolean =>
+    !!url && !url.startsWith('blob:');
 
   // ── Silent autosave for legal rep fields ──────────────────────────────────
   const saveAccidentFields = useCallback(
@@ -1961,10 +2034,21 @@ export function IntakeWizard({
         } else { setDobError(''); }
       }
 
-      if (personal.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personal.email)) {
+      // El correo es obligatorio, no solo válido: es a donde se le mandan los
+      // documentos, y la pantalla final le dice "te los enviamos a <correo>".
+      if (!personal.email.trim()) {
+        setEmailError(req(lang === 'es' ? 'Correo electrónico' : 'Email address'));
+        valid = false;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personal.email)) {
         setEmailError(lang === 'es' ? 'Correo electrónico inválido.' : 'Invalid email address.');
         valid = false;
       } else { setEmailError(''); }
+
+      // ── Dirección ────────────────────────────────────────────────────────
+      if (!personal.addressLine1.trim()) { setAddressLine1Error(req(lang === 'es' ? 'Calle y número' : 'Street address')); valid = false; } else { setAddressLine1Error(''); }
+      if (!personal.addressState.trim()) { setAddressStateError(req(lang === 'es' ? 'Estado' : 'State')); valid = false; } else { setAddressStateError(''); }
+      if (!personal.addressCity.trim())  { setAddressCityError(req(lang === 'es' ? 'Ciudad' : 'City'));   valid = false; } else { setAddressCityError(''); }
+      if (!personal.addressZip.trim())   { setAddressZipError(req(lang === 'es' ? 'Código postal' : 'ZIP code')); valid = false; } else { setAddressZipError(''); }
 
       if (personal.referralSource === 'OTHER' && !personal.referralSourceOther.trim()) {
         setReferralOtherError(lang === 'es' ? 'Por favor especifica la fuente.' : 'Please specify the source.');
@@ -1979,12 +2063,42 @@ export function IntakeWizard({
       let valid = true;
       const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
       const otherMsg = lang === 'es' ? 'Por favor especifica la relación.' : 'Please specify the relationship.';
+      const req = (f: string) => lang === 'es' ? `${f} es obligatorio.` : `${f} is required.`;
+
+      // Sexo. Tiene "Prefiero no decir" entre las opciones, así que exigirlo no
+      // fuerza a nadie a declarar algo que no quiere — solo a responder.
+      if (!personal.sex.trim()) { setSexError(req(lang === 'es' ? 'Sexo' : 'Sex')); valid = false; } else { setSexError(''); }
+
+      // Contacto de emergencia: nombre y teléfono. El PARENTESCO queda opcional
+      // (decisión de Erick 2026-09-07) — el segundo contacto también.
+      if (!personal.emergencyContactName.trim())  { setEmergencyNameError(req(lang === 'es' ? 'Nombre del contacto' : 'Contact name')); valid = false; } else { setEmergencyNameError(''); }
+      if (!personal.emergencyContactPhone.trim()) { setEmergencyPhoneError(req(lang === 'es' ? 'Teléfono del contacto' : 'Contact phone')); valid = false; } else { setEmergencyPhoneError(''); }
+
       if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) { setEmerPhoneError(phoneMsg); valid = false; } else { setEmerPhoneError(''); }
       if (personal.emergency2Phone && !isValidNANP(personal.emergency2Phone)) { setEmer2PhoneError(phoneMsg); valid = false; } else { setEmer2PhoneError(''); }
       if (personal.emergencyContactRelation === 'OTHER' && !personal.emergencyContactRelationOther.trim()) { setEmerRelOtherError(otherMsg); valid = false; } else { setEmerRelOtherError(''); }
       if (personal.emergency2Relation === 'OTHER' && !personal.emergency2RelationOther.trim()) { setEmer2RelOtherError(otherMsg); valid = false; } else { setEmer2RelOtherError(''); }
       if (!valid) return;
     }
+    // ── Fotos obligatorias: selfie + identificación ────────────────────────
+    // "ID and patient photo" de la lista de Erick. `fotoGuardada` mira que la
+    // URL no sea un `blob:`: una foto que se está subiendo, o que falló, no
+    // cuenta. Sin eso el requisito sería de mentira — dejaría pasar la vista
+    // previa local de algo que el servidor nunca recibió.
+    if (fromStep === 8) {
+      const faltan: string[] = [];
+      if (!fotoGuardada(photoUrls.selfie))  faltan.push(t.selfieLabel);
+      if (!fotoGuardada(photoUrls.dlFront)) faltan.push(t.dlLabel);
+      if (faltan.length > 0) {
+        setPhotoUploadError(
+          (lang === 'es' ? '⚠️ Falta: ' : '⚠️ Missing: ') + faltan.join(' · '),
+        );
+        window.scrollTo(0, 0);
+        return;
+      }
+      setPhotoUploadError(null);
+    }
+
     if (fromStep === 5 && acc.type === 'MVA') {
       if (!acc.date) {
         setAccidentDateError(lang === 'es' ? 'La fecha del accidente es obligatoria.' : 'Accident date is required.');
@@ -2525,11 +2639,11 @@ export function IntakeWizard({
               >
                 {/* Nombre + Apellido */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.firstName} error={firstNameError}>
+                  <Field label={t.firstName} req error={firstNameError}>
                     <input type="text" style={S.input} value={personal.firstName}
                       onChange={e => setPersonal(p => ({ ...p, firstName: e.target.value }))} />
                   </Field>
-                  <Field label={t.lastName} error={lastNameError}>
+                  <Field label={t.lastName} req error={lastNameError}>
                     <input type="text" style={S.input} value={personal.lastName}
                       onChange={e => setPersonal(p => ({ ...p, lastName: e.target.value }))} />
                   </Field>
@@ -2537,7 +2651,7 @@ export function IntakeWizard({
 
                 {/* DOB + Teléfono */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.dob} error={dobError}>
+                  <Field label={t.dob} req error={dobError}>
                     <DateInputMDY style={S.input} value={personal.dateOfBirth}
                       max={todayISO} ariaLabel={calendarLabel}
                       onChange={v => setPersonal(p => ({ ...p, dateOfBirth: v }))} />
@@ -2558,7 +2672,7 @@ export function IntakeWizard({
                       onChange={e => { setPersonal(p => ({ ...p, cellPhone: formatPhone(e.target.value) })); setCellPhoneError(''); }} />
                     {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
                   </Field>
-                  <Field label={t.email} error={emailError}>
+                  <Field label={t.email} req error={emailError}>
                     <input type="email" style={S.input} value={personal.email}
                       placeholder="correo@ejemplo.com"
                       onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
@@ -2577,18 +2691,21 @@ export function IntakeWizard({
                     El orden importa y no es cosmético: elegir Estado habilita
                     Ciudad, y elegir Ciudad autocompleta el C.P. — por eso el
                     código postal va último. */}
-                <Field label={t.addressLine1}>
+                <Field label={t.addressLine1} req error={addressLine1Error}>
                   <input type="text" style={S.input} value={personal.addressLine1}
                     placeholder={t.addressLine1Ph}
-                    onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
+                    onChange={e => { setPersonal(p => ({ ...p, addressLine1: e.target.value })); setAddressLine1Error(''); }} />
                 </Field>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.addressState}>
+                  <Field label={t.addressState} req error={addressStateError}>
                     <select
                       style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressState ? '#fff' : 'rgba(255,255,255,0.35)' }}
                       value={personal.addressState}
-                      onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value, addressCity: '', addressZip: '' }))}
+                      onChange={e => {
+                        setPersonal(p => ({ ...p, addressState: e.target.value, addressCity: '', addressZip: '' }));
+                        setAddressStateError(''); setCiudadALaMano(false);
+                      }}
                     >
                       <option value="">{lang === 'es' ? 'Seleccionar estado' : 'Select state'}</option>
                       <option value="Utah">Utah</option>
@@ -2597,29 +2714,64 @@ export function IntakeWizard({
                       ))}
                     </select>
                   </Field>
-                  <Field label={t.addressCity}>
-                    <select
-                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressCity ? '#fff' : 'rgba(255,255,255,0.35)', opacity: personal.addressState ? 1 : 0.5 }}
-                      value={personal.addressCity}
-                      disabled={!personal.addressState}
-                      onChange={e => {
-                        const city = e.target.value;
-                        const zip = CITY_ZIP[city] ?? '';
-                        setPersonal(p => ({ ...p, addressCity: city, addressZip: zip }));
-                      }}
-                    >
-                      <option value="">{personal.addressState ? (lang === 'es' ? 'Seleccionar ciudad' : 'Select city') : (lang === 'es' ? 'Primero selecciona estado' : 'Select state first')}</option>
-                      {(personal.addressState
-                        ? (CITIES_BY_STATE[US_STATES.find(s => s.name === personal.addressState)?.code ?? ''] ?? [])
-                        : []
-                      ).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                  {/* Ciudad: lista, con salida a texto libre.
+                      La lista NO es exhaustiva y no puede serlo. Medido el
+                      2026-09-07 contra los pacientes reales: 46 estados tienen
+                      entre 3 y 64 ciudades cargadas (Delaware tiene 3), y hasta
+                      en Utah faltaban 16 municipios — Taylorsville (60.000 hab),
+                      Millcreek (63.000) y Kearns (36.000) entre ellos, porque el
+                      catálogo se armó antes de las incorporaciones de 2016-2017
+                      del condado de Salt Lake.
+                      Mientras el campo era opcional eso no molestaba. Ahora que
+                      es obligatorio, sin esta salida un paciente cuyo pueblo no
+                      figura NO PUEDE TERMINAR el formulario. */}
+                  <Field label={t.addressCity} req error={addressCityError}>
+                    {ciudadALaMano ? (
+                      <input type="text" style={S.input} value={personal.addressCity}
+                        autoFocus placeholder={lang === 'es' ? 'Escribe tu ciudad' : 'Type your city'}
+                        onChange={e => { setPersonal(p => ({ ...p, addressCity: e.target.value })); setAddressCityError(''); }} />
+                    ) : (
+                      <select
+                        style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressCity ? '#fff' : 'rgba(255,255,255,0.35)', opacity: personal.addressState ? 1 : 0.5 }}
+                        value={personal.addressCity}
+                        disabled={!personal.addressState}
+                        onChange={e => {
+                          const city = e.target.value;
+                          if (city === OTRA_CIUDAD) {
+                            setCiudadALaMano(true);
+                            setPersonal(p => ({ ...p, addressCity: '' }));
+                            return;
+                          }
+                          // Solo se pisa el C.P. si hay uno mapeado: las ciudades
+                          // que se agregaron ahora no tienen, y borrarle al
+                          // paciente el que ya escribió sería peor que dejarlo.
+                          const zip = CITY_ZIP[city];
+                          setPersonal(p => ({ ...p, addressCity: city, addressZip: zip ?? p.addressZip }));
+                          setAddressCityError('');
+                        }}
+                      >
+                        <option value="">{personal.addressState ? (lang === 'es' ? 'Seleccionar ciudad' : 'Select city') : (lang === 'es' ? 'Primero selecciona estado' : 'Select state first')}</option>
+                        {(personal.addressState
+                          ? (CITIES_BY_STATE[US_STATES.find(s => s.name === personal.addressState)?.code ?? ''] ?? [])
+                          : []
+                        ).map(c => <option key={c} value={c}>{c}</option>)}
+                        {personal.addressState && <option value={OTRA_CIUDAD}>{t.otraCiudad}</option>}
+                      </select>
+                    )}
+                    {ciudadALaMano && (
+                      <button type="button"
+                        onClick={() => { setCiudadALaMano(false); setPersonal(p => ({ ...p, addressCity: '' })); }}
+                        style={{
+                          marginTop: 6, background: 'none', border: 'none', padding: 0,
+                          color: 'rgba(6,182,212,0.75)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                        }}>{t.volverALaLista}</button>
+                    )}
                   </Field>
                 </div>
-                <Field label={lang === 'es' ? 'Código postal' : 'ZIP code'}>
+                <Field label={lang === 'es' ? 'Código postal' : 'ZIP code'} req error={addressZipError}>
                   <input type="text" style={S.input} value={personal.addressZip}
                     placeholder="84601" maxLength={10}
-                    onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
+                    onChange={e => { setPersonal(p => ({ ...p, addressZip: e.target.value })); setAddressZipError(''); }} />
                 </Field>
               </FormSection>
 
@@ -2731,9 +2883,10 @@ export function IntakeWizard({
                 {/* Sexo + Estado civil — 2 columnas: a 3 el contenedor de 480px
                     deja ~140px por celda, los labels envuelven y descuadran. */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.sexLabel}>
+                  <Field label={t.sexLabel} req error={sexError}>
                     <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.sex ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.sex} onChange={e => setPersonal(p => ({ ...p, sex: e.target.value }))}>
+                      value={personal.sex}
+                      onChange={e => { setPersonal(p => ({ ...p, sex: e.target.value })); setSexError(''); }}>
                       <option value="">—</option>
                       <option value="MALE">{lang === 'es' ? 'Masculino' : 'Male'}</option>
                       <option value="FEMALE">{lang === 'es' ? 'Femenino' : 'Female'}</option>
@@ -2777,16 +2930,18 @@ export function IntakeWizard({
                 {/* Contacto 1 — nombre a ancho completo: a 3 columnas quedaba en
                     ~140px y se cortaba ("E.g., Maria Gar…"). */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <Field label={t.emergencyName}>
+                  {/* Nombre y teléfono obligatorios; el parentesco NO (Erick,
+                      2026-09-07). El segundo contacto queda entero opcional. */}
+                  <Field label={t.emergencyName} req error={emergencyNameError}>
                     <input type="text" style={S.input} value={personal.emergencyContactName}
                       placeholder={t.emergencyNamePh}
-                      onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
+                      onChange={e => { setPersonal(p => ({ ...p, emergencyContactName: e.target.value })); setEmergencyNameError(''); }} />
                   </Field>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.emergencyPhone}>
+                    <Field label={t.emergencyPhone} req error={emergencyPhoneError}>
                       <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
                         value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
-                        onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); }} />
+                        onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); setEmergencyPhoneError(''); }} />
                       {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
                     </Field>
                     <Field label={t.emergencyRelation} error={emerRelOtherError}>
@@ -3215,17 +3370,17 @@ export function IntakeWizard({
               {insModalEntry.insType === 'MEDICAL' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insCarrier} error={insErrors.carrier}>
+                    <Field label={t.insCarrier} req error={insErrors.carrier}>
                       <input type="text" style={S.input} value={insModalEntry.carrier}
                         onChange={e => { setInsModalEntry(v => ({ ...v, carrier: e.target.value })); setInsErrors(er => ({ ...er, carrier: '' })); }} />
                     </Field>
-                    <Field label={t.insPolicyId} error={insErrors.policyId}>
+                    <Field label={t.insPolicyId} req error={insErrors.policyId}>
                       <input type="text" style={S.input} value={insModalEntry.policyId}
                         onChange={e => { setInsModalEntry(v => ({ ...v, policyId: e.target.value })); setInsErrors(er => ({ ...er, policyId: '' })); }} />
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insHolderName}>
+                    <Field label={t.insHolderName} req error={insErrors.holderName}>
                       <input type="text" style={S.input} value={insModalEntry.holderName}
                         onChange={e => setInsModalEntry(v => ({ ...v, holderName: e.target.value }))} />
                     </Field>
@@ -3235,7 +3390,7 @@ export function IntakeWizard({
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insHolderDOB} error={insErrors.holderDOB}>
+                    <Field label={t.insHolderDOB} req error={insErrors.holderDOB}>
                       <DateInputMDY style={S.input} value={insModalEntry.holderDOB}
                         max={todayISO} ariaLabel={calendarLabel}
                         onChange={v => { setInsModalEntry(e => ({ ...e, holderDOB: v })); setInsErrors(er => ({ ...er, holderDOB: '' })); }} />
@@ -4170,14 +4325,27 @@ function StepHeader({ icon, title, sub }: { icon: string; title: string; sub: st
   );
 }
 
-function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
+/**
+ * @param req Marca el campo como obligatorio con un asterisco.
+ *
+ * El asterisco va SIEMPRE visible, no solo cuando falta: el paciente tiene que
+ * poder ver de un vistazo qué le van a exigir antes de empezar a escribir. El
+ * mensaje en rojo aparece recién al intentar continuar — marcar en rojo un
+ * campo que todavía está llenando es hostil y no aporta nada.
+ */
+function Field({ label, children, error, req }: {
+  label: string; children: React.ReactNode; error?: string; req?: boolean;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <label style={{
         display: 'block', fontSize: 11, fontWeight: 700,
         letterSpacing: '0.10em', textTransform: 'uppercase',
         color: 'rgba(255,255,255,0.40)', marginBottom: 6,
-      }}>{label}</label>
+      }}>
+        {label}
+        {req && <span style={{ color: '#f87171', marginLeft: 3 }} aria-hidden>*</span>}
+      </label>
       {/* marginTop:auto — si en una fila un label envuelve a 2 lineas, los
           controles de las otras celdas bajan para alinearse con el en vez de
           quedar desfasados. Sin efecto cuando el Field va solo. */}

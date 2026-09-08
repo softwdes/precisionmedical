@@ -6,7 +6,7 @@ import { Send, Loader2, Check, AlertTriangle, ChevronDown, ChevronRight, ShieldC
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Button,
 } from '@precision/ui';
-import { FormField, TagPill } from '@/components/ui-phoenix';
+import { FormField, TagPill, UrgentToggle } from '@/components/ui-phoenix';
 import { US_STATES } from '@/lib/us-locations';
 import { ReferidoSchema, type ReferidoPayload } from '@/lib/referidos/referido';
 
@@ -189,10 +189,12 @@ export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }
 
             <FormField.Textarea label={t('refNotes')} value={notes} onChange={setNotes} rows={3} maxLength={2000} placeholder={t('refNotesPlaceholder')} />
 
-            <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer">
-              <input type="checkbox" checked={urgente} onChange={(e) => setUrgente(e.target.checked)} className="accent-amber" />
-              {t('refUrgent')}
-            </label>
+            <UrgentToggle
+              checked={urgente}
+              onChange={setUrgente}
+              label={t('refUrgent')}
+              hint={t('refUrgentHint')}
+            />
 
             {error && (
               <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 flex items-start gap-2">

@@ -35,7 +35,11 @@ interface Row {
   priority: 'NORMAL' | 'URGENT';
   firm: { id: string; name: string };
   case: { id: string; caseCode: string } | null;
+  /** Sede del paciente (la de su cita más reciente). */
+  clinic: { id: string; name: string } | null;
   patientName: string | null;
+  /** Quién respondió por la clínica por última vez, cuándo y qué dijo. */
+  lastReply: { by: string; at: string; text: string | null } | null;
   from: string;
   to: string[];
   createdAt: string;
@@ -68,7 +72,11 @@ const selectCls =
   'bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none [color-scheme:dark]';
 const labelCls = 'text-[10px] uppercase tracking-wider font-semibold text-text-muted';
 
-export function FirmRequestsClient({ currentUserId }: { currentUserId: string }): React.ReactElement {
+export function FirmRequestsClient({ currentUserId, clinics = [] }: {
+  currentUserId: string;
+  /** Sedes para el filtro; sin lista, el filtro no se dibuja. */
+  clinics?: Array<{ id: string; name: string }>;
+}): React.ReactElement {
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
   const toast = useToast();
@@ -77,6 +85,7 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
   const searchParams = useSearchParams();
 
   const [firmId, setFirmId] = useState('');
+  const [clinicId, setClinicId] = useState('');
   const [tipo, setTipo] = useState('');
   const [desk, setDesk] = useState('');
   const [estado, setEstado] = useState('');
@@ -99,6 +108,7 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
     setLoading(true);
     const sp = new URLSearchParams();
     if (firmId) sp.set('firmId', firmId);
+    if (clinicId) sp.set('clinicId', clinicId);
     if (tipo) sp.set('type', tipo);
     if (desk) sp.set('desk', desk);
     if (estado) sp.set('estado', estado);
@@ -113,7 +123,7 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
     } finally {
       setLoading(false);
     }
-  }, [firmId, tipo, desk, estado, priority, from, to, q, page]);
+  }, [firmId, clinicId, tipo, desk, estado, priority, from, to, q, page]);
 
   // El buscador espera a que dejen de tipear; el resto dispara al instante.
   useEffect(() => {
@@ -182,6 +192,15 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
             {(data?.firms ?? []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </div>
+        {clinics.length > 0 && (
+          <div className="space-y-1">
+            <label className={labelCls}>{t('frFilterClinic')}</label>
+            <select className={selectCls} value={clinicId} onChange={(e) => { setClinicId(e.target.value); setPage(1); }}>
+              <option value="">{t('frAll')}</option>
+              {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="space-y-1">
           <label className={labelCls}>{t('frFilterType')}</label>
           <select className={selectCls} value={tipo} onChange={(e) => { setTipo(e.target.value); setPage(1); }}>
@@ -246,10 +265,12 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
               <DataTable.Head>
                 <DataTable.Th sticky="left">{t('frColFirm')}</DataTable.Th>
                 <DataTable.Th>{t('frColCase')}</DataTable.Th>
+                <DataTable.Th>{t('frColClinic')}</DataTable.Th>
                 <DataTable.Th>{t('frColDesk')}</DataTable.Th>
                 <DataTable.Th>{t('frColSubject')}</DataTable.Th>
                 <DataTable.Th>{t('frColTo')}</DataTable.Th>
                 <DataTable.Th>{t('frColState')}</DataTable.Th>
+                <DataTable.Th>{t('frColLastReply')}</DataTable.Th>
                 <DataTable.Th align="right">{t('frColResponse')}</DataTable.Th>
                 <DataTable.Th>{t('frColDate')}</DataTable.Th>
                 <DataTable.Th align="right" sticky="right"><span className="sr-only">{t('frOpen')}</span></DataTable.Th>
@@ -275,6 +296,9 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
                       {r.patientName && (
                         <span className="block text-[10.5px] text-text-muted truncate max-w-[160px]">{r.patientName}</span>
                       )}
+                    </DataTable.Td>
+                    <DataTable.Td>
+                      <span className="text-[12.5px] text-text-2 whitespace-nowrap">{r.clinic?.name ?? '—'}</span>
                     </DataTable.Td>
                     <DataTable.Td onClick={(e) => e.stopPropagation()}>
                       {r.type === 'REFERRAL' ? (
@@ -319,6 +343,24 @@ export function FirmRequestsClient({ currentUserId }: { currentUserId: string })
                       />
                       {r.estado === 'CREATED' && r.referral?.convertedByName && (
                         <span className="block text-[10.5px] text-text-muted mt-0.5">{r.referral.convertedByName}</span>
+                      )}
+                    </DataTable.Td>
+                    <DataTable.Td>
+                      {/* Quién respondió, cuándo y qué: el control de que el
+                          pedido no quedó en el aire. El texto va recortado; el
+                          hilo completo se abre con la fila. */}
+                      {r.lastReply ? (
+                        <div className="max-w-[300px]">
+                          <span className="block text-[12px] text-text-1 whitespace-nowrap">
+                            {r.lastReply.by}
+                            <span className="text-text-muted font-mono text-[10.5px]"> · {fechaHora(r.lastReply.at, locale as 'es' | 'en')}</span>
+                          </span>
+                          {r.lastReply.text && (
+                            <span className="block text-[11.5px] text-text-2 truncate" title={r.lastReply.text}>{r.lastReply.text}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11.5px] text-text-muted">{t('frNoReplyYet')}</span>
                       )}
                     </DataTable.Td>
                     <DataTable.Td align="right">

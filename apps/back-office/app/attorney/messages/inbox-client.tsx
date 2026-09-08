@@ -340,7 +340,7 @@ export function AttorneyInbox({ locale, initialThreadId = null }: {
                         </div>
                         <div className={`text-[12.5px] truncate ${th.unread && folder !== 'sent' ? 'text-text-1' : 'text-text-2'}`}>{th.subject}</div>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {th.priority === 'URGENT' && <AlertCircle className="w-3 h-3 text-amber shrink-0" aria-label={t('msgUrgent')} />}
+                          {th.priority === 'URGENT' && <AlertCircle className="w-3 h-3 text-rose shrink-0" aria-label={t('msgUrgent')} />}
                           {th.caseCode && <TagPill label={th.caseCode} colorClass="bg-brand/15 text-brand-text border-brand/30" mono />}
                           {estado
                             ? <TagPill label={estado.label} colorClass={estado.cls} />
@@ -399,7 +399,7 @@ export function AttorneyInbox({ locale, initialThreadId = null }: {
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <h2 className="text-text-1 font-semibold leading-snug">{abierto.subject}</h2>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {abierto.priority === 'URGENT' && <TagPill label={t('msgUrgent')} colorClass="bg-amber/15 text-amber border-amber/30" />}
+                    {abierto.priority === 'URGENT' && <TagPill label={t('msgUrgent')} colorClass="bg-rose/10 text-rose border-rose/30" />}
                     {abierto.type === 'REFERRAL' ? (
                       <TagPill
                         label={abierto.referral?.status === 'CREATED' ? t('refStatusCreated') : t('refStatusPending')}

@@ -28,8 +28,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       JOIN "message_threads"    t ON t."id" = r."threadId"
      WHERE r."userId" = ${actor.actorUserId}
        AND r."deletedAt" IS NULL
+       AND r."archivedAt" IS NULL
        AND t."deletedAt" IS NULL
        AND t."removedFromInboxesAt" IS NULL
+       -- Recibidos = alguien MÁS escribió en el hilo. Lo que mandé y nadie
+       -- contestó vive en Enviados y no es "nuevo" para mí. Mismo criterio que
+       -- la pestaña Recibidos de la bandeja (GET /api/messages?folder=inbox).
+       AND EXISTS (
+         SELECT 1 FROM "message_entries" e
+          WHERE e."threadId" = t."id"
+            AND e."authorUserId" <> ${actor.actorUserId}
+            AND e."kind" IN ('MESSAGE', 'REPLY', 'FORWARD')
+       )
   `;
 
   const unread = Number(rows[0]?.unread ?? 0);
@@ -49,8 +59,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         JOIN "message_entries"    e ON e."threadId" = t."id"
        WHERE r."userId" = ${actor.actorUserId}
          AND r."deletedAt" IS NULL
+         AND r."archivedAt" IS NULL
          AND t."deletedAt" IS NULL
          AND t."removedFromInboxesAt" IS NULL
+         AND e."authorUserId" <> ${actor.actorUserId}
          AND (r."lastReadAt" IS NULL OR t."lastEntryAt" > r."lastReadAt")
        ORDER BY e."sentAt" DESC
        LIMIT 1

@@ -18,6 +18,7 @@ import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, reviveThread, sanitizeAttachments, verificarAbogadosEnAlcance, type AttachmentInput } from '@/lib/messaging';
 import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
 import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
+import { avisarMensajeNuevo } from '@/lib/push';
 
 type Ctx = { params: Promise<{ threadId: string }> };
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const thread = await db.messageThread.findFirst({
     where: { id: threadId, deletedAt: null },
-    select: { id: true, subject: true, patientId: true, caseId: true, recipients: { select: { userId: true } } },
+    select: { id: true, subject: true, patientId: true, caseId: true, priority: true, recipients: { select: { userId: true } } },
   });
   if (!thread) return NextResponse.json({ error: 'Hilo no encontrado' }, { status: 404 });
 
@@ -138,6 +139,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     caseId: thread.caseId,
     patientId: thread.patientId,
   }).catch((e) => { console.error('[messages/entries] aviso al abogado:', e); });
+
+  // Y el staff del portal se entera en el teléfono, aunque tenga la app
+  // cerrada. Mismo trato que el correo del abogado: se dispara y no se espera —
+  // el mensaje ya está guardado y la bandeja lo muestra pase lo que pase acá.
+  // El autor no se avisa a sí mismo.
+  void avisarMensajeNuevo(
+    [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)]
+      .filter((id) => id !== actor.actorUserId),
+    actor.actorName,
+    threadId,
+    thread.priority === 'URGENT',
+  ).catch((e) => { console.error('[messages/entries] aviso al celular:', e); });
 
   return NextResponse.json({ id: entry.id }, { status: 201 });
 }

@@ -98,6 +98,16 @@ const DOCTOR_PORTAL_ITEM: NavItem = {
   href: '/doctor', icon: Stethoscope, labelKey: 'doctorPortal', exact: true,
 };
 
+/**
+ * Pedidos de bufetes — todo lo que los abogados pidieron desde su portal, a
+ * quién le llegó y si respondieron. Cierra el menú del back-office y es
+ * OPT-IN como Notas clínicas: sin `moduleKey`, se agrega por la capacidad
+ * `canSeeFirmRequests` (Erick, 2026-09-08).
+ */
+const FIRM_REQUESTS_ITEM: NavItem = {
+  href: '/firm-requests', icon: Scale, labelKey: 'firmRequests',
+};
+
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
 const DOCTOR_SECTIONS: NavSection[] = [
   {
@@ -110,6 +120,9 @@ const DOCTOR_SECTIONS: NavSection[] = [
       { href: '/doctor/calendar',  icon: CalendarDays, labelKey: 'calendar',             moduleKey: 'doctor:calendar' },
       { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients',           moduleKey: 'doctor:patients' },
       { href: '/doctor/prescriptions', icon: Pill,     labelKey: 'prescriptions',        moduleKey: 'doctor:prescriptions' },
+      // La bandeja del provider tiene entrada en el menú desde 2026-09-08: antes
+      // solo se llegaba por el sobre del top bar y nadie sabía que existía.
+      { href: '/doctor/messages',  icon: Mail,         labelKey: 'messages',             moduleKey: 'doctor:messages' },
       { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats',                moduleKey: 'doctor:stats' },
       // Configuración agrupa Plantillas, Snippets y Laboratorios (2026-09-05,
       // copiado de "My Settings" de Medusa). Cada ítem conserva su llave; el
@@ -132,15 +145,17 @@ const ATTORNEY_SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      // Sin Panel desde 2026-09-08: Vigía lo reemplazó. El referido va primero
-      // y con relleno: el portal es gratis para que los bufetes nos manden
-      // referidos. Usuarios al final, es lo que menos se usa.
-      { href: '/attorney/referrals',    icon: UserPlus,     labelKey: 'attorneyReferrals',    moduleKey: 'referrals', highlight: true },
+      // Sin Panel desde 2026-09-08: Vigía lo reemplazó y abre el menú. Usuarios
+      // casi al final, es lo que menos se usa. El referido —con relleno, porque
+      // el portal es gratis para que los bufetes nos manden referidos— cierra el
+      // menú separado del resto: arriba, pegado a Vigía activa, eran dos bloques
+      // de color juntos y se leía peor (Erick, 2026-09-08).
       { href: '/attorney/vigia',        icon: Sparkles,     labelKey: 'attorneyVigia',        moduleKey: 'vigia'        },
       { href: '/attorney/messages',     icon: Mail,         labelKey: 'attorneyMessages',     moduleKey: 'messages'     },
       { href: '/attorney/cases',        icon: Briefcase,    labelKey: 'attorneyCases',        moduleKey: 'cases'        },
       { href: '/attorney/appointments', icon: CalendarDays, labelKey: 'attorneyAppointments', moduleKey: 'appointments' },
       { href: '/attorney/users',        icon: Users,        labelKey: 'attorneyUsers',        moduleKey: 'users'        },
+      { href: '/attorney/referrals',    icon: UserPlus,     labelKey: 'attorneyReferrals',    moduleKey: 'referrals', highlight: true },
     ],
   },
 ];
@@ -159,6 +174,8 @@ interface SidebarProps {
   canViewAsDoctor?: boolean;
   /** Capacidad "supervisión de notas" — agrega Notas clínicas. También opt-in. */
   canAuditNotes?: boolean;
+  /** Capacidad "pedidos de bufetes" — agrega ese menú al final del back-office. Opt-in. */
+  canSeeFirmRequests?: boolean;
   /** Bloque libre entre el menú y el footer. Lo usa el Portal Legal para la
    *  tarjeta de oficina; se oculta con la barra colapsada, donde no hay ancho. */
   belowNav?: React.ReactNode;
@@ -166,7 +183,7 @@ interface SidebarProps {
   badges?: Record<string, number> | null;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, belowNav = null, badges = null }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, canSeeFirmRequests = false, belowNav = null, badges = null }: SidebarProps): React.ReactElement {
   /*
    * Colapsada, la barra se abre sola al pasar el mouse y se vuelve a cerrar al
    * salir — como Gmail. El boton de la barra superior es lo que la FIJA abierta.
@@ -222,7 +239,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   // vive en el PORTAL; la puerta al portal es del staff y vive en el back-office.
   const extras = isDoctor
     ? (canAuditNotes ? [NOTES_AUDIT_ITEM] : [])
-    : !isAttorney && canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : [];
+    : isAttorney
+      ? []
+      : [
+          ...(canSeeFirmRequests ? [FIRM_REQUESTS_ITEM] : []),
+          ...(canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : []),
+        ];
   const sections = extras.length
     ? visibleSections.map((s, i) =>
         i === visibleSections.length - 1 ? { ...s, items: [...s.items, ...extras] } : s,
@@ -411,7 +433,7 @@ function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, colla
           // El ítem destacado lleva el relleno SIEMPRE; activo lo marca con el
           // anillo, para que "estoy acá" siga siendo legible.
           highlight
-            ? cn('text-white font-semibold bg-gradient-brand shadow-glow mb-2 hover:opacity-90', active && 'ring-2 ring-white/40')
+            ? cn('text-white font-semibold bg-gradient-brand shadow-glow mt-3 hover:opacity-90', active && 'ring-2 ring-white/40')
             : active
               ? cn('text-white font-semibold', accent === 'brand' && 'bg-gradient-brand shadow-glow')
               : 'text-text-2 hover:text-text-1 hover:bg-white/5',

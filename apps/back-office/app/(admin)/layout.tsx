@@ -6,6 +6,7 @@ import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
+import { canSeeFirmRequests } from '@/lib/firm-requests-access';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
@@ -65,6 +66,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     // fallback: inicial del email
   }
 
+  // "Pedidos de bufetes" es un menú OPT-IN (como Notas clínicas): admin por rol,
+  // el resto por la casilla en su ficha. Va aparte de `allowedModules`.
+  const puedeVerPedidos = await canSeeFirmRequests();
+
   return (
     <>
       <UpdateBanner audience="admin" />
@@ -81,6 +86,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userInitials={userInits}
         userEmail={user.email ?? ''}
         allowedModules={allowedModules}
+        canSeeFirmRequests={puedeVerPedidos}
       >
         {children}
       </AdminShell>

@@ -42,7 +42,9 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       },
       case: { select: { id: true, caseCode: true, accidentDate: true } },
       recipients: {
-        select: { userId: true, userName: true, kind: true, lastReadAt: true },
+        // `archivedAt`/`deletedAt` van para que el diálogo sepa si el hilo está
+        // archivado PARA quien lo mira y ofrezca "Desarchivar" en vez de "Archivar".
+        select: { userId: true, userName: true, kind: true, lastReadAt: true, archivedAt: true, deletedAt: true },
       },
       entries: {
         orderBy: { sentAt: 'asc' },

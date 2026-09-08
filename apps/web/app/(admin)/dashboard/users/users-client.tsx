@@ -842,6 +842,8 @@ const DOCTOR_MODULES: Array<{ key: string; label: string; emoji: string }> = [
   { key: 'calendar',      label: 'Citas',         emoji: '📅' },
   { key: 'patients',      label: 'Mis Pacientes', emoji: '👥' },
   { key: 'prescriptions', label: 'Recetas',       emoji: '💊' },
+  // Mensajes entró al menú del portal el 2026-09-08 (espejo de DOCTOR_MENUS).
+  { key: 'messages',      label: 'Mensajes',      emoji: '✉️' },
   { key: 'stats',         label: 'Estadísticas',  emoji: '📈' },
   // Desde 2026-09-05 Plantillas y Laboratorios viven bajo el menú Configuración
   // del portal. Las LLAVES no cambian (ya están guardadas en fichas reales):
@@ -895,6 +897,14 @@ const ATTORNEY_VIEW_MODULE = 'attorney';
  */
 const NOTES_AUDIT_MODULE = 'notesAudit';
 
+/**
+ * Pedidos de bufetes: el menú del back-office donde se ve TODO lo que los
+ * abogados pidieron desde su portal (a quién le llegó, si respondieron, quién y
+ * qué). Opt-in como Notas clínicas — lista pacientes y casos de todos los
+ * bufetes. Espejo de `apps/back-office/lib/firm-requests-module.ts`.
+ */
+const FIRM_REQUESTS_MODULE = 'firmRequests';
+
 function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
@@ -919,6 +929,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const [doctorView, setDoctorView] = useState(savedModules?.[DOCTOR_VIEW_MODULE] === true);
   const [attorneyView, setAttorneyView] = useState(savedModules?.[ATTORNEY_VIEW_MODULE] === true);
   const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
+  const [firmRequests, setFirmRequests] = useState(savedModules?.[FIRM_REQUESTS_MODULE] === true);
 
   /**
    * Menús del portal médico. Mismo par visión-completa/selección que arriba,
@@ -982,6 +993,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
       ...(doctorView   ? { [DOCTOR_VIEW_MODULE]:   true } : {}),
       ...(attorneyView ? { [ATTORNEY_VIEW_MODULE]: true } : {}),
       ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
+      ...(firmRequests ? { [FIRM_REQUESTS_MODULE]: true } : {}),
     };
     const clinicModulesPayload =
       menus === null && menusDoctor === null && Object.keys(portales).length === 0
@@ -1278,6 +1290,35 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     queda a nombre de esa ficha. Para pruebas, elegir un despacho de QA.
                   </p>
                 </div>
+              )}
+            </div>
+
+            {/* ── Back-office: menú "Pedidos de bufetes" ── */}
+            {/* Opt-in como Notas clínicas: lista todo lo que los bufetes pidieron,
+                con paciente y caso, y quién respondió. Un admin ya lo tiene por rol. */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Pedidos de bufetes</p>
+                  <p className="text-[11px] text-text-muted">
+                    {firmRequests
+                      ? 'Ve el menú "Pedidos de bufetes" del back-office: todo lo que pidieron los abogados y si se respondió.'
+                      : 'No ve el menú. Solo recibe los pedidos que le lleguen a su propia bandeja.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFirmRequests(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${firmRequests ? 'bg-indigo-500' : 'bg-border'}`}
+                  title={firmRequests ? 'Con el menú Pedidos de bufetes' : 'Sin el menú Pedidos de bufetes'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${firmRequests ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  Esta cuenta ya lo tiene por su rol de administrador — el interruptor no le agrega nada.
+                </p>
               )}
             </div>
 

@@ -11,18 +11,33 @@
  * sello NO filtra por sí mismo — sellar también marca removedFromInboxesAt,
  * y una entrada nueva lo limpia (revive), así que la condición queda simple.
  *
+ * CARPETAS (2026-09-08, como Gmail — mismo criterio que la bandeja del abogado):
+ *   ?folder=inbox    (default) hilos con al menos una entrada de OTRO, no
+ *                    archivados. Lo que yo mandé y nadie contestó vive en Sent.
+ *   ?folder=sent     hilos que abrí yo, con si ya tuvieron respuesta.
+ *   ?folder=archived lo que archivé (`archivedAt`) o "quité" antes (`deletedAt`).
+ *   ?q=              paciente, código de caso, asunto o remitente.
+ *   ?unread=1        solo sin leer (se filtra en memoria, ver abajo).
+ * Todo se aplica también a la bandeja AJENA (`?userId=`).
+ *
  * El bold es lastEntryAt > lastReadAt; se computa en JS porque Prisma no
  * compara dos columnas entre sí.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments, verificarAbogadosEnAlcance } from '@/lib/messaging';
 import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
 import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
+import { avisarMensajeNuevo } from '@/lib/push';
 
 const PAGE_SIZE = 15;
+/** Techo cuando "solo sin leer" obliga a filtrar en memoria. */
+const MAX_ESCANEO = 300;
+const KINDS_VISIBLES = ['MESSAGE', 'REPLY', 'FORWARD'] as const;
+
+type Folder = 'inbox' | 'sent' | 'archived';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { actor, deny } = await requireMessagingActor(req.headers);
@@ -32,8 +47,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const targetUserId = sp.get('userId') || actor.actorUserId;
   const page = Math.max(1, Number(sp.get('page') || '1'));
   const priority = sp.get('priority'); // NORMAL | URGENT
-  const type = sp.get('type'); // ALERT | REMINDER | REQUEST | MESSAGE
+  const type = sp.get('type'); // ALERT | REMINDER | REQUEST | MESSAGE | REFERRAL
   const patientId = sp.get('patientId');
+  const folder = (['inbox', 'sent', 'archived'].includes(sp.get('folder') ?? '') ? sp.get('folder') : 'inbox') as Folder;
+  const q = sp.get('q')?.trim() || null;
+  const soloSinLeer = sp.get('unread') === '1';
 
   // Mirar el inbox de otro queda auditado — es la cobertura de "quién leyó qué".
   if (targetUserId !== actor.actorUserId) {
@@ -46,48 +64,91 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }).catch(() => undefined);
   }
 
-  const where = {
+  const entradaAjena: Prisma.MessageEntryWhereInput = {
+    authorUserId: { not: targetUserId },
+    kind: { in: [...KINDS_VISIBLES] },
+  };
+  // `deletedAt` es el "quitar de mi bandeja" de antes de la carpeta: hoy se lee
+  // como archivado, así que lo viejo aparece en Archivados y no se pierde.
+  const porCarpeta: Prisma.MessageRecipientWhereInput =
+    folder === 'archived'
+      ? { OR: [{ archivedAt: { not: null } }, { deletedAt: { not: null } }] }
+      : folder === 'sent'
+        ? { archivedAt: null, deletedAt: null, thread: { createdByUserId: targetUserId } }
+        : { archivedAt: null, deletedAt: null, thread: { entries: { some: entradaAjena } } };
+
+  const where: Prisma.MessageRecipientWhereInput = {
     userId: targetUserId,
-    deletedAt: null,
+    ...porCarpeta,
     thread: {
       deletedAt: null,
       removedFromInboxesAt: null,
+      ...(porCarpeta.thread as Prisma.MessageThreadWhereInput | undefined),
       ...(priority ? { priority: priority as 'NORMAL' | 'URGENT' } : {}),
-      ...(type ? { type: type as 'ALERT' | 'REMINDER' | 'REQUEST' | 'MESSAGE' } : {}),
+      ...(type ? { type: type as 'ALERT' | 'REMINDER' | 'REQUEST' | 'MESSAGE' | 'REFERRAL' } : {}),
       ...(patientId ? { patientId } : {}),
+      ...(q
+        ? {
+            OR: [
+              { subject: { contains: q, mode: 'insensitive' } },
+              { createdByName: { contains: q, mode: 'insensitive' } },
+              { case: { caseCode: { contains: q, mode: 'insensitive' } } },
+              { patient: { firstName: { contains: q, mode: 'insensitive' } } },
+              { patient: { lastName: { contains: q, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
     },
-  } as const;
+  };
 
-  const [total, rows] = await Promise.all([
-    db.messageRecipient.count({ where }),
-    db.messageRecipient.findMany({
-      where,
-      orderBy: { thread: { lastEntryAt: 'desc' } },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+  const select = {
+    lastReadAt: true,
+    archivedAt: true,
+    deletedAt: true,
+    thread: {
       select: {
-        lastReadAt: true,
-        thread: {
-          select: {
-            id: true,
-            subject: true,
-            type: true,
-            category: true,
-            priority: true,
-            lastEntryAt: true,
-            sealedAt: true,
-            firmId: true,
-            patient: { select: { id: true, firstName: true, lastName: true } },
-            entries: {
-              orderBy: { sentAt: 'desc' },
-              take: 1,
-              select: { authorName: true, kind: true },
-            },
-          },
+        id: true,
+        subject: true,
+        type: true,
+        category: true,
+        priority: true,
+        lastEntryAt: true,
+        sealedAt: true,
+        firmId: true,
+        createdByUserId: true,
+        createdByName: true,
+        patient: { select: { id: true, firstName: true, lastName: true } },
+        entries: {
+          orderBy: { sentAt: 'desc' as const },
+          take: 1,
+          select: { authorName: true, authorUserId: true, kind: true },
         },
       },
-    }),
-  ]);
+    },
+  };
+
+  // "Solo sin leer" compara dos columnas (lastReadAt vs lastEntryAt), que Prisma
+  // no compara: se traen hasta MAX_ESCANEO y se filtra en memoria.
+  const [totalBase, rows] = soloSinLeer
+    ? await Promise.all([
+        Promise.resolve(0),
+        db.messageRecipient.findMany({ where, orderBy: { thread: { lastEntryAt: 'desc' } }, take: MAX_ESCANEO, select }),
+      ])
+    : await Promise.all([
+        db.messageRecipient.count({ where }),
+        db.messageRecipient.findMany({ where, orderBy: { thread: { lastEntryAt: 'desc' } }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, select }),
+      ]);
+
+  // El número de la pestaña Recibidos (y del sobre): sin leer, no archivados,
+  // con algo escrito por otro. Un solo criterio para las tres puntas.
+  const recibidos = await db.messageRecipient.findMany({
+    where: {
+      userId: targetUserId, archivedAt: null, deletedAt: null,
+      thread: { deletedAt: null, removedFromInboxesAt: null, entries: { some: entradaAjena } },
+    },
+    select: { lastReadAt: true, thread: { select: { lastEntryAt: true } } },
+  });
+  const unreadInbox = recibidos.filter((r) => !r.lastReadAt || r.thread.lastEntryAt > r.lastReadAt).length;
 
   /**
    * Adjuntos de los hilos de ESTA página, para la columna del clip. Consulta
@@ -113,7 +174,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     else attByThread.set(key, { count: 1, first: { id: a.id, fileName: a.fileName } });
   }
 
-  const threads = rows.map((r) => ({
+  const mapeados = rows.map((r) => ({
     id: r.thread.id,
     subject: r.thread.subject,
     type: r.thread.type,
@@ -131,12 +192,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : null,
     lastAuthorName: r.thread.entries[0]?.authorName ?? null,
     lastEntryKind: r.thread.entries[0]?.kind ?? null,
+    /** Lo abrí yo (la persona cuya bandeja se mira). */
+    mine: r.thread.createdByUserId === targetUserId,
+    /** Un hilo mío "tiene respuesta" cuando lo último no lo escribí yo. */
+    answered: !!r.thread.entries[0] && r.thread.entries[0].authorUserId !== targetUserId,
+    archived: !!r.archivedAt || !!r.deletedAt,
     unread: !r.lastReadAt || r.thread.lastEntryAt > r.lastReadAt,
     attachmentCount: attByThread.get(r.thread.id)?.count ?? 0,
     firstAttachment: attByThread.get(r.thread.id)?.first ?? null,
   }));
 
-  return NextResponse.json({ threads, total, page, pageSize: PAGE_SIZE });
+  const threads = soloSinLeer
+    ? mapeados.filter((t) => t.unread).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    : mapeados;
+  const total = soloSinLeer ? mapeados.filter((t) => t.unread).length : totalBase;
+
+  return NextResponse.json({ threads, total, page, pageSize: PAGE_SIZE, folder, unreadInbox });
 }
 
 interface CreateBody {
@@ -278,6 +349,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     caseId,
     patientId: raw.patientId || null,
   }).catch((e) => { console.error('[messages] aviso al abogado:', e); });
+
+  // Y el staff del portal en el teléfono, con la app cerrada. El autor no se
+  // avisa a sí mismo aunque se haya puesto en la lista.
+  void avisarMensajeNuevo(
+    [...toUsers, ...ccUsers].map((u) => u.id).filter((id) => id !== actor.actorUserId),
+    actor.actorName,
+    thread.id,
+    (raw.priority ?? 'NORMAL') === 'URGENT',
+  ).catch((e) => { console.error('[messages] aviso al celular:', e); });
 
   return NextResponse.json({ id: thread.id }, { status: 201 });
 }

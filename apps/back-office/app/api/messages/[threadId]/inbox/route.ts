@@ -3,7 +3,10 @@
  * el historial del paciente (eso es DELETE /api/messages/[threadId], admin).
  *
  * DELETE /api/messages/[threadId]/inbox      → mi Delete personal: el hilo
- *        sale de MI bandeja (recipient.deletedAt), nadie más se entera.
+ *        sale de MI bandeja, nadie más se entera. Desde 2026-09-08 escribe
+ *        `archivedAt` (es ARCHIVAR, y tiene su carpeta); `deletedAt` queda
+ *        como columna histórica que la carpeta Archivados también lee.
+ *        Preferir `POST …/archive` para lo nuevo.
  * DELETE /api/messages/[threadId]/inbox?all=1 → Delete From All: sale de
  *        todas las bandejas (thread.removedFromInboxesAt). Auditado.
  */
@@ -41,7 +44,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
 
   await db.messageRecipient.updateMany({
     where: { threadId, userId: actor.actorUserId },
-    data: { deletedAt: new Date() },
+    data: { archivedAt: new Date() },
   });
   return NextResponse.json({ ok: true });
 }

@@ -12,7 +12,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
-import { requireMessagingActor, reviveThread, ADMIN_ROLES } from '@/lib/messaging';
+import { requireMessagingActor, reviveThread } from '@/lib/messaging';
+import { canSeeFirmRequestsFor } from '@/lib/firm-requests-access';
 import { ESCRITORIOS_DE_PEDIDO } from '@/lib/mensajeria/escritorios';
 import { miembrosActivos } from '@/lib/mensajeria/escritorios-server';
 
@@ -24,7 +25,8 @@ const Schema = z.object({ desk: z.enum(ESCRITORIOS_DE_PEDIDO) });
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { actor, deny } = await requireMessagingActor(req.headers);
   if (deny) return deny;
-  if (!actor.actorRole || !(ADMIN_ROLES as readonly string[]).includes(actor.actorRole)) {
+  // La misma llave que la pantalla: admin por rol o la casilla "Pedidos de bufetes".
+  if (!actor.email || !(await canSeeFirmRequestsFor(actor.email))) {
     return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
   }
   const { threadId } = await ctx.params;

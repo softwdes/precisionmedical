@@ -24,8 +24,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
-  LayoutTemplate, CheckSquare, UserPlus, Scale,
+  Reply, ReplyAll, Forward, StickyNote, FolderLock, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
+  LayoutTemplate, CheckSquare, UserPlus, Scale, Archive, ArchiveRestore,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -70,7 +70,7 @@ interface ThreadDetail {
   sealedByName: string | null;
   patient: { id: string; firstName: string; lastName: string; patientCode: string } | null;
   case: { id: string; caseCode: string; accidentDate: string | null } | null;
-  recipients: Array<{ userId: string; userName: string; kind: 'TO' | 'CC'; lastReadAt: string | null }>;
+  recipients: Array<{ userId: string; userName: string; kind: 'TO' | 'CC' | 'SENDER'; lastReadAt: string | null; archivedAt?: string | null; deletedAt?: string | null }>;
   entries: ThreadEntry[];
   nextAppointment: { id: string; scheduledFor: string } | null;
   /** Lo abrió un bufete desde su portal (pedido o referido). */
@@ -291,19 +291,17 @@ export function ThreadViewDialog({
     }
   };
 
-  const doDelete = async (which: 'MINE' | 'ALL' | 'HISTORY'): Promise<void> => {
+  const doDelete = async (which: 'ALL' | 'HISTORY'): Promise<void> => {
     if (!thread) return;
     setBusy(true);
     try {
       const url =
         which === 'HISTORY'
           ? `/api/messages/${thread.id}`
-          : `/api/messages/${thread.id}/inbox${which === 'ALL' ? '?all=1' : ''}`;
+          : `/api/messages/${thread.id}/inbox?all=1`;
       const res = await fetch(url, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      // El aviso enseña la regla en el momento exacto en que importa: el que
-      // borra de su bandeja cree que borró para todos.
-      toast.success(which === 'MINE' ? t('deleteMineOk') : t('deleteOk'));
+      toast.success(t('deleteOk'));
       onChanged?.();
       onClose();
     } catch {
@@ -311,6 +309,33 @@ export function ThreadViewDialog({
     } finally {
       setBusy(false);
       setConfirm(null);
+    }
+  };
+
+  /**
+   * Archivar PARA MÍ (antes "quitar de mi bandeja"): el hilo sale de mi lista,
+   * sigue en el historial del paciente y vuelve si alguien responde. Con la
+   * carpeta Archivados ya no hace falta advertir que "no se borra": se ve.
+   */
+  const miFila = thread?.recipients.find((r) => r.userId === currentUserId);
+  const archivadoParaMi = !!(miFila?.archivedAt || miFila?.deletedAt);
+  const doArchive = async (archived: boolean): Promise<void> => {
+    if (!thread) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/messages/${thread.id}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(archived ? t('deleteMineOk') : t('unarchiveOk'));
+      onChanged?.();
+      onClose();
+    } catch {
+      toast.error(t('deleteError'));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -557,8 +582,10 @@ export function ThreadViewDialog({
                   otros: si todo fuera rojo, el nombre nuevo no alcanzaría para
                   sacarle el miedo. Cada uno declara su alcance en el tooltip. */}
               <button type="button" className={actionBtn} disabled={busy}
-                title={t('tipDeleteMine')} onClick={() => doDelete('MINE')}>
-                <Trash2 className="w-3.5 h-3.5" />{t('actDeleteMine')}
+                title={archivadoParaMi ? t('tipUnarchive') : t('tipDeleteMine')}
+                onClick={() => doArchive(!archivadoParaMi)}>
+                {archivadoParaMi ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                {archivadoParaMi ? t('actUnarchive') : t('actDeleteMine')}
               </button>
               <button type="button" className={dangerBtn} disabled={busy}
                 title={t('tipDeleteAll')} onClick={() => setConfirm('DELETE_ALL')}>

@@ -4,13 +4,22 @@
  * InboxClient — la vista completa del inbox (M1 F2), compartida entre
  * /messages (Clínica) y /doctor/messages (portal médico).
  *
- * Calcada del inbox del legacy:
+ * Calcada del inbox del legacy, y desde 2026-09-08 ordenada como Gmail:
+ *  · CARPETAS: Recibidos (hilos con algo escrito por otro, no archivados),
+ *    Enviados (hilos que abrí yo, con si ya tuvieron respuesta) y Archivados.
+ *    Lo que antes era "quitar de mi bandeja" ahora se llama ARCHIVAR —es lo que
+ *    siempre hizo— y tiene su carpeta para volver; los "quitados" de antes ya
+ *    aparecen ahí. Sellar, quitar de todas las bandejas y borrar del historial
+ *    NO cambian: son decisiones sobre los demás, no sobre mi lista.
+ *  · buscador (paciente, caso, asunto, remitente) y chips Sin leer / Urgentes.
  *  · select "ver inbox de…" con TODOS los usuarios internos (cualquiera puede
- *    mirar cualquier bandeja — auditado server-side) + banner cuando es ajena
+ *    mirar cualquier bandeja — auditado server-side) + banner cuando es ajena.
+ *    Las carpetas y filtros se aplican también a la bandeja ajena.
  *  · bold = hilo con entradas sin leer · urgentes marcados en rose
  *  · filtros por prioridad y tipo · paginación
- *  · checkboxes + borrar seleccionados (solo en MI inbox: el delete personal
- *    de otro no existe — sería tocarle la bandeja)
+ *  · checkboxes + archivar/desarchivar seleccionados (solo en MI inbox: la
+ *    lista de otro no se toca desde acá)
+ *  · en el teléfono la lista son tarjetas; la tabla aparece desde `sm:`
  *  · Nuevo mensaje sin paciente (el flujo minoritario del legacy)
  */
 
@@ -18,15 +27,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
-import { Mail, MailOpen, Lock, Plus, Trash2, Eye, FileEdit, Paperclip } from 'lucide-react';
-import { PageHeader, EmptyState } from '@/components/ui-phoenix';
+import {
+  Mail, MailOpen, Lock, Plus, Eye, FileEdit, Paperclip, Trash2, Inbox, SendHorizontal, Archive, ArchiveRestore, Search, X,
+} from 'lucide-react';
+import { PageHeader, EmptyState, FilterPill, TagPill } from '@/components/ui-phoenix';
 import { useToast } from '@/components/ui-phoenix/toast';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { anunciarLectura } from '@/lib/messaging-events';
 import { ComposeMessageDialog, type ComposeDraftPayload } from './compose-message-dialog';
 import { ThreadViewDialog } from './thread-view-dialog';
 import { UserSelect } from './user-select';
 import { AttachmentViewerDialog } from './attachment-viewer-dialog';
 import { type MessagingUser } from './user-multi-select';
+
+type Folder = 'inbox' | 'sent' | 'archived';
 
 interface InboxRow {
   id: string;
@@ -43,6 +57,11 @@ interface InboxRow {
   firstAttachment: { id: string; fileName: string } | null;
   /** Lo abrió un bufete desde su portal: pastilla de origen en la fila. */
   fromFirm?: boolean;
+  /** Lo abrió la persona cuya bandeja se mira. */
+  mine?: boolean;
+  /** Un hilo mío con respuesta: lo último no lo escribí yo. */
+  answered?: boolean;
+  archived?: boolean;
 }
 
 interface Props {
@@ -74,6 +93,12 @@ interface Props {
 const selectCls =
   'bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none [color-scheme:dark]';
 
+const FOLDERS: Array<{ id: Folder; icon: React.ElementType; key: string }> = [
+  { id: 'inbox',    icon: Inbox,          key: 'folderInbox' },
+  { id: 'sent',     icon: SendHorizontal, key: 'folderSent' },
+  { id: 'archived', icon: Archive,        key: 'folderArchived' },
+];
+
 export function InboxClient({
   currentUserId, currentUserName, isAdmin, embedded = false, onOpenCase,
   openThreadId: controlledThreadId, onOpenThreadChange,
@@ -95,11 +120,16 @@ export function InboxClient({
 
   const [users, setUsers] = useState<MessagingUser[]>([]);
   const [viewUserId, setViewUserId] = useState(currentUserId);
+  const [folder, setFolder] = useState<Folder>('inbox');
+  const [q, setQ] = useState('');
+  const [soloSinLeer, setSoloSinLeer] = useState(false);
+  const [soloUrgentes, setSoloUrgentes] = useState(false);
   const [priority, setPriority] = useState('');
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<InboxRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [unreadInbox, setUnreadInbox] = useState(0);
   const [pageSize, setPageSize] = useState(15);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -148,15 +178,19 @@ export function InboxClient({
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page) });
+      const params = new URLSearchParams({ page: String(page), folder });
       if (viewUserId !== currentUserId) params.set('userId', viewUserId);
       if (priority) params.set('priority', priority);
       if (type) params.set('type', type);
+      if (q.trim()) params.set('q', q.trim());
+      if (soloSinLeer) params.set('unread', '1');
+      if (soloUrgentes) params.set('priority', 'URGENT');
       const res = await fetch(`/api/messages?${params}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setRows(data.threads ?? []);
       setTotal(data.total ?? 0);
+      setUnreadInbox(data.unreadInbox ?? 0);
       setPageSize(data.pageSize ?? 15);
       setSelected(new Set());
     } catch {
@@ -164,9 +198,13 @@ export function InboxClient({
     } finally {
       setLoading(false);
     }
-  }, [page, viewUserId, priority, type, currentUserId]);
+  }, [page, viewUserId, folder, priority, type, q, soloSinLeer, soloUrgentes, currentUserId]);
 
-  useEffect(() => { void load(); }, [load]);
+  // El buscador espera a que dejen de tipear; lo demás dispara al instante.
+  useEffect(() => {
+    const id = setTimeout(() => { void load(); }, q ? 300 : 0);
+    return () => clearTimeout(id);
+  }, [load, q]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const fmtDt = (iso: string) =>
@@ -177,13 +215,20 @@ export function InboxClient({
   const toggleAll = () =>
     setSelected(selected.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)));
 
-  const bulkDelete = async (): Promise<void> => {
+  /** Archivar (o desarchivar, en la carpeta Archivados) los seleccionados. */
+  const bulkArchive = async (): Promise<void> => {
+    const archived = folder !== 'archived';
     setBusy(true);
     try {
       await Promise.all(
-        [...selected].map((id) => fetch(`/api/messages/${id}/inbox`, { method: 'DELETE' })),
+        [...selected].map((id) => fetch(`/api/messages/${id}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived }),
+        })),
       );
-      toast.success(t('deleteMineOk'));
+      toast.success(archived ? t('deleteMineOk') : t('unarchiveOk'));
+      anunciarLectura();
       await load();
     } catch {
       toast.error(t('deleteError'));
@@ -193,7 +238,30 @@ export function InboxClient({
     }
   };
 
+  const cambiarCarpeta = (f: Folder) => {
+    setFolder(f);
+    setPage(1);
+    setSelected(new Set());
+    // "Sin leer" no significa nada en Enviados.
+    if (f === 'sent') setSoloSinLeer(false);
+  };
+
+  /** Estado de un hilo mío en Enviados: lo que se viene a controlar. */
+  const estadoEnviado = (r: InboxRow): { label: string; cls: string } =>
+    r.answered
+      ? { label: t('sentAnswered'), cls: 'bg-emerald/15 text-emerald border-emerald/30' }
+      : { label: t('sentPending'), cls: 'bg-amber/15 text-amber border-amber/30' };
+
+  const origenPill = (r: InboxRow) => r.fromFirm ? (
+    <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full border ${
+      r.type === 'REFERRAL' ? 'bg-violet/15 border-violet/30 text-violet' : 'bg-cyan/15 border-cyan/30 text-cyan'
+    }`}>
+      {r.type === 'REFERRAL' ? t('originReferral') : t('originFirmRequest')}
+    </span>
+  ) : null;
+
   const labelCls = 'text-[10px] uppercase tracking-wider font-semibold text-text-muted';
+  const hayFiltro = q.trim() !== '' || soloSinLeer || soloUrgentes || priority !== '' || type !== '';
 
   const newMessageBtn = (
     <button type="button" onClick={() => setComposeOpen(true)}
@@ -213,7 +281,55 @@ export function InboxClient({
         />
       )}
 
-      {/* Filtros + select de bandeja */}
+      {/* Carpetas + buscador + chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
+          {FOLDERS.map((f) => {
+            const Icon = f.icon;
+            const activo = folder === f.id;
+            const n = f.id === 'inbox' ? unreadInbox : 0;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={activo}
+                onClick={() => cambiarCarpeta(f.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+                  activo ? 'bg-gradient-brand text-white shadow-glow' : 'text-text-2 hover:text-text-1 hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t(f.key)}
+                {n > 0 && (
+                  <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${activo ? 'bg-white/25 text-white' : 'bg-emerald text-black'}`}>
+                    {n}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <label className="relative flex-1 min-w-[180px]">
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            placeholder={t('searchPlaceholder')}
+            className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-8 py-1.5 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors"
+          />
+          {q && (
+            <button type="button" onClick={() => setQ('')} aria-label={t('clearSearch')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </label>
+        {folder !== 'sent' && <FilterPill active={soloSinLeer} onClick={() => { setSoloSinLeer((v) => !v); setPage(1); }} label={t('onlyUnread')} />}
+        <FilterPill active={soloUrgentes} onClick={() => { setSoloUrgentes((v) => !v); setPage(1); }} label={t('onlyUrgent')} />
+      </div>
+
+      {/* Bandeja de… + filtros finos + acciones */}
       <div className="flex items-end gap-3 flex-wrap">
         <div className="space-y-1">
           <label className={labelCls}>{t('inboxOf')}</label>
@@ -226,15 +342,17 @@ export function InboxClient({
             searchPlaceholder={t('toPlaceholder')}
           />
         </div>
-        <div className="space-y-1">
-          <label className={labelCls}>{t('fieldPriority')}</label>
-          <select className={selectCls} value={priority}
-            onChange={(e) => { setPriority(e.target.value); setPage(1); }}>
-            <option value="">{t('filterAll')}</option>
-            <option value="URGENT">{t('priorityURGENT')}</option>
-            <option value="NORMAL">{t('priorityNORMAL')}</option>
-          </select>
-        </div>
+        {!soloUrgentes && (
+          <div className="space-y-1">
+            <label className={labelCls}>{t('fieldPriority')}</label>
+            <select className={selectCls} value={priority}
+              onChange={(e) => { setPriority(e.target.value); setPage(1); }}>
+              <option value="">{t('filterAll')}</option>
+              <option value="URGENT">{t('priorityURGENT')}</option>
+              <option value="NORMAL">{t('priorityNORMAL')}</option>
+            </select>
+          </div>
+        )}
         <div className="space-y-1">
           <label className={labelCls}>{t('fieldType')}</label>
           <select className={selectCls} value={type}
@@ -248,10 +366,10 @@ export function InboxClient({
         <span className="flex-1" />
         {isOwnInbox && selected.size > 0 && (
           <button type="button" disabled={busy} onClick={() => setConfirmBulk(true)}
-            title={t('tipDeleteMine')}
+            title={folder === 'archived' ? t('tipUnarchive') : t('tipDeleteMine')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold text-text-2 border border-border bg-bg-2 hover:text-text-1 hover:bg-white/5 transition-colors disabled:opacity-40">
-            <Trash2 className="w-3 h-3" />
-            {t('bulkDelete', { count: selected.size })}
+            {folder === 'archived' ? <ArchiveRestore className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+            {folder === 'archived' ? t('bulkUnarchive', { count: selected.size }) : t('bulkDelete', { count: selected.size })}
           </button>
         )}
         {drafts.length > 0 && (
@@ -306,9 +424,55 @@ export function InboxClient({
         </div>
       )}
 
-      {/* Tabla */}
+      {/* Lista */}
       <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* ── Tarjetas en el teléfono ─────────────────────────────────── */}
+        <div className="sm:hidden">
+          {loading ? (
+            <EmptyState.Inline message={t('loading')} />
+          ) : rows.length === 0 ? (
+            <EmptyState.Inline message={hayFiltro ? t('noResults') : t(`empty_${folder}`)} />
+          ) : rows.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setOpenThreadId(r.id)}
+              className={`w-full text-left px-4 py-3 border-b border-row-sep last:border-0 flex gap-3 ${
+                !r.unread ? '' : r.priority === 'URGENT' ? 'bg-rose/[0.10]' : 'bg-emerald/[0.08]'
+              }`}
+            >
+              {isOwnInbox && (
+                <input type="checkbox" className="accent-[#6366F1] mt-1 shrink-0"
+                  checked={selected.has(r.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
+                    return next;
+                  })}
+                  aria-label={r.subject} />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className={`text-sm truncate ${r.unread ? 'text-text-1 font-semibold' : 'text-text-2'}`}>{r.lastAuthorName ?? '—'}</span>
+                  <span className="text-[11px] text-text-muted tabular-nums shrink-0">{fmtDt(r.lastEntryAt)}</span>
+                </div>
+                <div className={`text-[12.5px] truncate ${r.unread ? 'text-text-1' : 'text-text-2'}`}>{r.subject}</div>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {r.patient && <span className="text-[11px] text-text-muted truncate">{r.patient.name}</span>}
+                  {origenPill(r) ?? <span className="text-[11px] text-text-muted">{t(`type${r.type}`)}</span>}
+                  {folder === 'sent' && r.mine && <TagPill label={estadoEnviado(r).label} colorClass={estadoEnviado(r).cls} />}
+                  {r.priority === 'URGENT' && <TagPill label={t('priorityURGENT')} colorClass="bg-rose/10 text-rose border-rose/30" />}
+                  {r.sealedAt && <Lock className="w-3 h-3 text-amber" />}
+                  {r.attachmentCount > 0 && <Paperclip className="w-3 h-3 text-text-muted" />}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tabla desde tablet ──────────────────────────────────────── */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[760px]">
             <thead>
               <tr className="border-b border-border bg-bg-2/50">
@@ -319,7 +483,7 @@ export function InboxClient({
                       onChange={toggleAll} aria-label={t('selectAll')} />
                   )}
                 </th>
-                {[t('colDateTime'), t('colFrom'), t('colPatient'), t('colType'), t('colSubject')].map((h) => (
+                {[t('colDateTime'), t('colFrom'), t('colPatient'), folder === 'sent' ? t('colStatus') : t('colType'), t('colSubject')].map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
                     {h}
                   </th>
@@ -333,7 +497,7 @@ export function InboxClient({
               {loading ? (
                 <tr><td colSpan={8}><EmptyState.Inline message={t('loading')} /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={8}><EmptyState.Inline message={t('bellEmpty')} /></td></tr>
+                <tr><td colSpan={8}><EmptyState.Inline message={hayFiltro ? t('noResults') : t(`empty_${folder}`)} /></td></tr>
               ) : /* No leído = tinte de fondo + raya de 3px en el borde: el ojo
                      detecta el bloque de color antes de leer una palabra, y de
                      un vistazo se ve cuántos pendientes hay. Sin animación a
@@ -341,16 +505,10 @@ export function InboxClient({
                      movimiento queda reservado al urgente del top bar. */
                 rows.map((r) => {
                 /**
-                 * ESCALERA DE CONTRASTE. El reporte "el mensaje recién llegado
-                 * no se ve en modo oscuro" tenía una causa concreta: leídas y
-                 * no leídas usaban el MISMO color de texto (text-1), así que la
-                 * única diferencia era la negrita y un tinte del 6% — casi nada
-                 * sobre fondo negro.
-                 *
-                 * En oscuro no se puede sumar mucha luz sin que se vea chillón;
-                 * lo que crea diferencia es RESTARLE luz a lo ya leído. Es lo
-                 * que hace Gmail: lo pendiente en blanco y negrita, lo atendido
-                 * en gris. Así el ojo separa los dos grupos sin leer nada.
+                 * ESCALERA DE CONTRASTE. Leídas y no leídas con el MISMO color
+                 * de texto solo se distinguían por la negrita y un tinte del 6%.
+                 * Lo que crea diferencia en oscuro es RESTARLE luz a lo ya leído
+                 * (Gmail): lo pendiente en blanco y negrita, lo atendido en gris.
                  */
                 const fuerte = r.unread ? 'text-text-1 font-semibold' : 'text-text-2';
                 const suave = r.unread ? 'text-text-2' : 'text-text-muted';
@@ -393,19 +551,13 @@ export function InboxClient({
                     {r.patient?.name ?? '—'}
                   </td>
                   <td className="px-3 !py-1.5 whitespace-nowrap">
-                    {/* Origen bufete: pastilla propia (violeta = referido, cyan
-                        = consulta de caso). Es pastilla y no tinte para que
-                        conviva con el rojo de urgente. */}
-                    {r.fromFirm ? (
-                      <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full border ${
-                        r.type === 'REFERRAL'
-                          ? 'bg-violet/15 border-violet/30 text-violet'
-                          : 'bg-cyan/15 border-cyan/30 text-cyan'
-                      }`}>
-                        {r.type === 'REFERRAL' ? t('originReferral') : t('originFirmRequest')}
-                      </span>
+                    {folder === 'sent' && r.mine ? (
+                      <TagPill label={estadoEnviado(r).label} colorClass={estadoEnviado(r).cls} />
                     ) : (
-                      <span className={`text-[12.5px] ${suave}`}>{t(`type${r.type}`)}</span>
+                      /* Origen bufete: pastilla propia (violeta = referido, cyan =
+                         consulta de caso). Pastilla y no tinte, para que conviva
+                         con el rojo de urgente. */
+                      origenPill(r) ?? <span className={`text-[12.5px] ${suave}`}>{t(`type${r.type}`)}</span>
                     )}
                     {r.priority === 'URGENT' && (
                       <span className="ml-1.5 text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full bg-rose/10 border border-rose/30 text-rose">
@@ -516,12 +668,12 @@ export function InboxClient({
 
       <ConfirmDialog
         open={confirmBulk}
-        variant="danger"
-        title={t('confirmBulkTitle', { count: selected.size })}
-        description={t('confirmBulkDesc')}
-        confirmLabel={t('actDeleteMine')}
+        variant={folder === 'archived' ? 'info' : 'warning'}
+        title={folder === 'archived' ? t('confirmBulkUnarchiveTitle', { count: selected.size }) : t('confirmBulkTitle', { count: selected.size })}
+        description={folder === 'archived' ? t('confirmBulkUnarchiveDesc') : t('confirmBulkDesc')}
+        confirmLabel={folder === 'archived' ? t('actUnarchive') : t('actDeleteMine')}
         cancelLabel={t('btnCancel')}
-        onConfirm={() => void bulkDelete()}
+        onConfirm={() => void bulkArchive()}
         onCancel={() => setConfirmBulk(false)}
       />
     </div>

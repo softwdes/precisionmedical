@@ -32,6 +32,8 @@ interface AdminShellProps {
   canViewAsDoctor?: boolean;
   /** Capacidad "supervisión de notas": agrega Notas clínicas al menú. Opt-in. */
   canAuditNotes?: boolean;
+  /** Capacidad "pedidos de bufetes": agrega ese menú al final del back-office. Opt-in. */
+  canSeeFirmRequests?: boolean;
   /** Bloque libre al pie del menú lateral (Portal Legal: tarjeta de oficina). */
   sidebarBelowNav?: React.ReactNode;
   /** Contadores por menú (Portal Legal: referidos pendientes). */
@@ -48,6 +50,7 @@ export function AdminShell({
   allowedModules = null,
   canViewAsDoctor = false,
   canAuditNotes = false,
+  canSeeFirmRequests = false,
   sidebarBelowNav = null,
   sidebarBadges = null,
 }: AdminShellProps): React.ReactElement {
@@ -81,6 +84,7 @@ export function AdminShell({
             allowedModules={allowedModules}
             canViewAsDoctor={canViewAsDoctor}
             canAuditNotes={canAuditNotes}
+            canSeeFirmRequests={canSeeFirmRequests}
             belowNav={sidebarBelowNav}
             badges={sidebarBadges}
           />

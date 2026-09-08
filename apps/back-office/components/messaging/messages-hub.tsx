@@ -17,16 +17,19 @@ import { FirmRequestsClient } from './firm-requests-client';
  * La pestaña vive en `?view=firms` para que un link a la vista llegue a la
  * vista, y para que `?case=` (el caso abierto encima) no la pierda al volver.
  */
-export function MessagesHub({ currentUserId, currentUserName, isAdmin }: {
+export function MessagesHub({ currentUserId, currentUserName, isAdmin, canSeeFirmRequests = isAdmin, clinics = [] }: {
   currentUserId: string;
   currentUserName: string;
   isAdmin: boolean;
+  /** Pestaña "Pedidos de bufetes": admin por rol o la casilla opt-in. */
+  canSeeFirmRequests?: boolean;
+  clinics?: Array<{ id: string; name: string }>;
 }): React.ReactElement {
   const t = useTranslations('phoenix.messaging');
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
-  const view = isAdmin && sp.get('view') === 'firms' ? 'firms' : 'inbox';
+  const view = canSeeFirmRequests && sp.get('view') === 'firms' ? 'firms' : 'inbox';
 
   function ir(v: 'inbox' | 'firms'): void {
     const next = new URLSearchParams(sp.toString());
@@ -37,7 +40,7 @@ export function MessagesHub({ currentUserId, currentUserName, isAdmin }: {
 
   return (
     <div>
-      {isAdmin && (
+      {canSeeFirmRequests && (
         <div className="px-4 sm:px-6 pt-4">
           <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border" role="tablist">
             {([
@@ -67,7 +70,7 @@ export function MessagesHub({ currentUserId, currentUserName, isAdmin }: {
       )}
 
       {view === 'firms'
-        ? <FirmRequestsClient currentUserId={currentUserId} />
+        ? <FirmRequestsClient currentUserId={currentUserId} clinics={clinics} />
         : <InboxClient currentUserId={currentUserId} currentUserName={currentUserName} isAdmin={isAdmin} />}
     </div>
   );

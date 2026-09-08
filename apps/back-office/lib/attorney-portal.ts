@@ -77,9 +77,10 @@ export function canSeeMessages(lawyer: SessionLawyer, isAdminViewer: boolean): b
 // Vigía lo ven todos los del despacho: lo que cambia entre roles es el ALCANCE
 // —un gestor pregunta sobre sus casos, no sobre los del bufete entero— y eso ya
 // lo gobierna `lawyerCaseFilter()`, no el menú.
-// Usuarios al final: es lo que menos se usa (Erick, 2026-09-08).
-const FULL_MENUS: AttorneyMenu[] = ['referrals', 'vigia', 'messages', 'cases', 'appointments', 'users'];
-const STAFF_MENUS: AttorneyMenu[] = ['referrals', 'vigia', 'messages', 'cases'];
+// El orden visible lo decide el sidebar; acá solo QUIÉN ve qué. Usuarios es lo
+// que menos se usa y el referido cierra el menú (Erick, 2026-09-08).
+const FULL_MENUS: AttorneyMenu[] = ['vigia', 'messages', 'cases', 'appointments', 'users', 'referrals'];
+const STAFF_MENUS: AttorneyMenu[] = ['vigia', 'messages', 'cases', 'referrals'];
 
 export function menusFor(lawyer: SessionLawyer): AttorneyMenu[] {
   if (lawyer.isFirmAccount) return FULL_MENUS;

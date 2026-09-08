@@ -24,6 +24,9 @@ export type { KpiCardProps } from './kpi-card';
 export { FilterPill } from './filter-pill';
 export type { FilterPillProps } from './filter-pill';
 
+export { UrgentToggle } from './urgent-toggle';
+export type { UrgentToggleProps } from './urgent-toggle';
+
 export { IconAction } from './icon-action';
 export type { IconActionProps } from './icon-action';
 

@@ -18,8 +18,24 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, type Prisma } from '@precision-medical/database';
-import { requireMessagingActor, ADMIN_ROLES } from '@/lib/messaging';
+import { requireMessagingActor } from '@/lib/messaging';
+import { canSeeFirmRequestsFor } from '@/lib/firm-requests-access';
 import { esEscritorio } from '@/lib/mensajeria/escritorios';
+
+/** El cuerpo de la respuesta, en texto plano y corto, para la columna. */
+function recorte(html: string | null | undefined, max = 160): string | null {
+  if (!html) return null;
+  const texto = html
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(p|div|li|h\d)>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!texto) return null;
+  return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+}
 
 const PAGE_SIZE = 20;
 /** Techo de hilos que se resuelven en memoria por consulta. */
@@ -32,12 +48,15 @@ type EstadoPedido = 'PENDING' | 'ANSWERED' | 'CREATED';
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { actor, deny } = await requireMessagingActor(req.headers);
   if (deny) return deny;
-  if (!actor.actorRole || !(ADMIN_ROLES as readonly string[]).includes(actor.actorRole)) {
+  // Admin por rol, o la casilla "Pedidos de bufetes" en la ficha (opt-in).
+  if (!actor.email || !(await canSeeFirmRequestsFor(actor.email))) {
     return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
   }
 
   const sp = req.nextUrl.searchParams;
   const firmId = sp.get('firmId') || null;
+  // Clínica del paciente = la de sus citas (el caso no tiene sede propia).
+  const clinicId = sp.get('clinicId') || null;
   const desk = sp.get('desk');
   // REQUEST = consulta de caso · REFERRAL = referido. Sin filtro, los dos.
   const type = sp.get('type');
@@ -54,6 +73,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     ...(esEscritorio(desk) ? { desk } : {}),
     ...(type === 'REQUEST' || type === 'REFERRAL' ? { type } : {}),
     ...(priority === 'URGENT' || priority === 'NORMAL' ? { priority } : {}),
+    ...(clinicId ? { case: { appointments: { some: { clinicId } } } } : {}),
     ...(from || to
       ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}) } }
       : {}),
@@ -71,12 +91,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         id: true, subject: true, type: true, desk: true, topic: true, priority: true, firmId: true,
         createdByUserId: true, createdByName: true, createdAt: true, lastEntryAt: true, sealedAt: true,
         referral: { select: { id: true, status: true, convertedByName: true } },
-        case: { select: { id: true, caseCode: true } },
+        case: {
+          select: {
+            id: true, caseCode: true,
+            // La sede del paciente: la de su cita más reciente.
+            appointments: { orderBy: { scheduledFor: 'desc' }, take: 1, select: { clinic: { select: { id: true, name: true } } } },
+          },
+        },
         patient: { select: { firstName: true, lastName: true } },
         entries: {
           where: { kind: { in: [...KINDS_VISIBLES] } },
           orderBy: { sentAt: 'asc' },
-          select: { authorUserId: true, authorName: true, sentAt: true },
+          select: { authorUserId: true, authorName: true, sentAt: true, body: true },
         },
         recipients: { where: { kind: 'TO' }, select: { userName: true } },
       },
@@ -97,6 +123,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const esBufete = (uid: string) => uid === t.createdByUserId || ladoBufete.has(uid);
     const ultima = t.entries[t.entries.length - 1];
     const primeraRespuesta = t.entries.find((e) => !esBufete(e.authorUserId));
+    // Quién respondió por la clínica por última vez, cuándo y qué dijo: es el
+    // control de que el pedido no quedó en el aire.
+    const respuestas = t.entries.filter((e) => !esBufete(e.authorUserId));
+    const ultimaRespuesta = respuestas[respuestas.length - 1];
     // Un referido convertido en caso está CERRADO aunque el bufete haya escrito
     // después: el trabajo que pedía ya se hizo.
     const estadoHilo: EstadoPedido = t.referral?.status === 'CREATED'
@@ -111,8 +141,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       topic: t.topic,
       priority: t.priority,
       firm: { id: t.firmId!, name: nombreBufete.get(t.firmId!) ?? '—' },
-      case: t.case,
+      case: t.case ? { id: t.case.id, caseCode: t.case.caseCode } : null,
+      clinic: t.case?.appointments[0]?.clinic ?? null,
       patientName: t.patient ? `${t.patient.firstName} ${t.patient.lastName}`.trim() : null,
+      lastReply: ultimaRespuesta
+        ? { by: ultimaRespuesta.authorName, at: ultimaRespuesta.sentAt, text: recorte(ultimaRespuesta.body) }
+        : null,
       from: t.createdByName,
       to: t.recipients.map((r) => r.userName),
       createdAt: t.createdAt,

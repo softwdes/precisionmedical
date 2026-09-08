@@ -69,7 +69,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }): Reac
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none">
+      {/* En el teléfono los avisos van ARRIBA, debajo de la barra superior: abajo
+          a la derecha caían sobre la barra de navegación y sobre el botón
+          flotante de referir del portal legal, y tapaban justo lo que el usuario
+          iba a tocar. En escritorio siguen abajo a la derecha, donde no hay nada.
+          Auditoría móvil 2026-09-08. */}
+      <div className="fixed top-16 right-4 left-4 md:left-auto md:top-auto md:bottom-4 z-[100] flex flex-col gap-2 items-end pointer-events-none">
         {items.map((it) => (
           <div
             key={it.id}

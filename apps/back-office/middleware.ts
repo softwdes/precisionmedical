@@ -3,6 +3,7 @@ import { updateSession } from '@precision-medical/auth/middleware';
 import { fetchDbUserAccess, fetchRoleClinicAccess, fetchUserClinicModules, isBlockedStatus } from '@precision-medical/auth/v2-apps';
 import { DOCTOR_VIEW_MODULE } from '@/lib/doctor-view-module';
 import { NOTES_AUDIT_MODULE } from '@/lib/notes-audit-module';
+import { FIRM_REQUESTS_MODULE } from '@/lib/firm-requests-module';
 import { ATTORNEY_VIEW_MODULE } from '@/lib/attorney-view-module';
 import {
   DOCTOR_MENUS, DOCTOR_LEGACY_REDIRECTS, doctorMenuForPath, seesDoctorMenu,
@@ -487,6 +488,25 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // del back-office, que es quien llega hasta esta línea — la exportación saca
   // PHI y esconder un menú no cierra una URL.
   if (pathname.startsWith('/api/admin/notes/') && !canAuditNotes) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  /**
+   * Pedidos de bufetes (`/firm-requests`). Mismo criterio opt-in que las notas:
+   * la pantalla lista TODO lo que los bufetes pidieron, con paciente y caso, y
+   * quién respondió. Se cierra la página Y sus dos rutas de API (la lista y la
+   * reasignación de escritorio): el menú solo esconde.
+   */
+  const canSeeFirmRequests = isAdminRole || mods?.[FIRM_REQUESTS_MODULE] === true;
+  if (
+    !canSeeFirmRequests &&
+    (pathname === '/firm-requests' || pathname.startsWith('/firm-requests/') ||
+      pathname.startsWith('/api/messages/firm-requests') || /^\/api\/messages\/[^/]+\/desk$/.test(pathname))
+  ) {
+    if (isApi) return forbidden('admin', response);
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     url.search = '';

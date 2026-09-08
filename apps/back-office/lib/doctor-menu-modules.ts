@@ -47,6 +47,9 @@ export const DOCTOR_MENUS = [
   { key: 'calendar',      href: '/doctor/calendar'           },
   { key: 'patients',      href: '/doctor/patients'           },
   { key: 'prescriptions', href: '/doctor/prescriptions'      },
+  // Mensajes entró al menú del portal el 2026-09-08 (Erick): la bandeja existía
+  // en /doctor/messages pero solo se llegaba por el sobre del top bar.
+  { key: 'messages',      href: '/doctor/messages'           },
   { key: 'stats',         href: '/doctor/stats'              },
   // `templates` y `catalog` viven desde 2026-09-05 bajo el menú Configuración
   // (`/doctor/settings/*`), pero conservan SUS llaves: ya están guardadas en

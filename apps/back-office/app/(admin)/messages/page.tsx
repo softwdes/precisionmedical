@@ -13,8 +13,10 @@
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/session';
 import { getDbUserByEmail } from '@/lib/actor';
+import { db } from '@precision-medical/database';
 import { MessagesHub } from '@/components/messaging/messages-hub';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
+import { canSeeFirmRequests } from '@/lib/firm-requests-access';
 
 export default async function MessagesPage({
   searchParams,
@@ -27,15 +29,20 @@ export default async function MessagesPage({
   const dbUser = await getDbUserByEmail(user.email);
   if (!dbUser) redirect('/login');
 
-  const { case: caseId, tab } = await searchParams;
+  const [{ case: caseId, tab }, puedeVerPedidos] = await Promise.all([searchParams, canSeeFirmRequests()]);
+  const clinics = puedeVerPedidos
+    ? await db.clinic.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } })
+    : [];
 
   return (
     <>
-      {/* Bandeja propia + (admin) los pedidos de todos los bufetes, en pestañas. */}
+      {/* Bandeja propia + (con la capacidad) los pedidos de todos los bufetes, en pestañas. */}
       <MessagesHub
         currentUserId={dbUser.id}
         currentUserName={`${dbUser.firstName} ${dbUser.lastName}`.trim()}
         isAdmin={dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ADMIN'}
+        canSeeFirmRequests={puedeVerPedidos}
+        clinics={clinics}
       />
       <CaseUrlModal caseId={caseId} tab={tab} />
     </>

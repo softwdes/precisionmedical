@@ -6,7 +6,7 @@ import { Send, Loader2, Check, AlertTriangle, Stethoscope, ClipboardList, Receip
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Button,
 } from '@precision/ui';
-import { FilterPill } from '@/components/ui-phoenix';
+import { FilterPill, UrgentToggle } from '@/components/ui-phoenix';
 import { ESCRITORIOS_DE_PEDIDO, TEMAS, type EscritorioDePedido as Escritorio } from '@/lib/mensajeria/escritorios';
 
 /**
@@ -239,15 +239,12 @@ export function RequestDialog({ caso, asunto, cuerpo, desk: deskInicial = null, 
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={urgente}
-                onChange={(e) => setUrgente(e.target.checked)}
-                className="accent-amber"
-              />
-              {t('vigiaReqUrgent')}
-            </label>
+            <UrgentToggle
+              checked={urgente}
+              onChange={setUrgente}
+              label={t('vigiaReqUrgent')}
+              hint={t('vigiaReqUrgentHint')}
+            />
 
             {error && (
               <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 flex items-start gap-2">

@@ -24,6 +24,12 @@ apps/*/public/sw.js
 apps/*/public/sw.js.map
 apps/*/public/workbox-*.js
 apps/*/public/workbox-*.js.map
+# `worker-<hash>.js` — el hash cambia en cada build, así que commitearlo mete un
+# archivo que caduca solo y ensucia el diff de la siguiente sesión que buildee.
+# OJO: esto NO alcanza a `apps/back-office/worker/` (sin `public/`), que es
+# FUENTE de la PWA y sí va al repo.
+apps/*/public/worker-*.js
+apps/*/public/worker-*.js.map
 
 # IDE
 .idea/

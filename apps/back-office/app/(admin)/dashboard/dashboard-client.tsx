@@ -1,36 +1,47 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  PhoneCall, Send, FileCheck, CalendarCheck, AlertTriangle, AlertCircle,
-  ChevronRight, Clock, Calendar, Stethoscope, Building2, MessageSquarePlus,
-  FileText, Bot, Cpu, User, Plus, BarChart3,
+  AlertTriangle, AlertCircle, BarChart3, CalendarDays, FileClock,
+  CalendarPlus, ArrowRight,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@precision/ui';
 import {
-  PageHeader, KpiCard, TagPill, PersonAvatar, EmptyState,
+  PageHeader, KpiCard, TagPill,
 } from '@/components/ui-phoenix';
 import { IntakePanel, type FilaVista } from './intake-panel';
+import { TitularIntake } from './titular-intake';
 
-// B.29 — Dashboard de Recepción · vista panel agregada
-
-interface Kpis {
-  casesCreatedToday: number;
-  portalsSentToday: number;
-  confirmsToday: number;
-  schedulesToday: number;
-}
-
-interface StatusCounts {
-  NEW_REFERRAL: number;
-  INTAKE_PENDING: number;
-  INTAKE_COMPLETED: number;
-  CONFIRMED: number;
-  ACTIVE: number;
-}
+/**
+ * B.29 — Panel de Recepción.
+ *
+ * ── Por qué esta pantalla se ve como Vigía ───────────────────────────────────
+ *
+ * Erick, 2026-09-08: «me gustó mucho más el de Vigía». Y el diagnóstico no era
+ * de gusto: la versión anterior teñía de rojo las diecisiete filas del día, con
+ * seis marcas rojas por fila —fondo, riel, punto que late, chip macizo, "sin
+ * empezar" y "sin contacto"— y con todo gritando, nada grita. Encima la escala
+ * tipográfica entera vivía entre 10,5 y 12,5 px: no había jerarquía porque no
+ * había tamaños, así que el ojo no tenía dónde aterrizar.
+ *
+ * Lo que se copió de Vigía, en orden de importancia:
+ *
+ *  1. **Elegir UNO y decirlo en una frase.** `colaIntake()` devuelve un
+ *     `titular` con prioridad, y `mereceTitular()` decide si se gana el
+ *     encabezado. Cuando nadie lo alcanza, la tarjeta dice en verde que no hay
+ *     nada urgente en vez de inventar una urgencia.
+ *  2. **Una escala donde el ojo aterrice**: 24 px el saludo, 20 px el titular,
+ *     13,5 px el cuerpo, 10 px las etiquetas.
+ *  3. **El rojo como señal, no como fondo** — eso vive en `intake-panel.tsx`.
+ *  4. **La pantalla saluda.** Es la mitad de la decisión del 2026-09-02 («Vigía
+ *     es una identidad con dos alcances, y la cara de clínica va en el felpudo
+ *     que cruzan 12 de 12 personas»). La otra mitad —la caja de preguntar— falta
+ *     todavía: el agente está atado al bufete en las ocho herramientas, así que
+ *     la cara de clínica necesita su propio alcance y es un trabajo aparte.
+ *  5. **Los KPI con burbuja de icono.** `KpiCard` ya aceptaba `icon`, `iconBg` e
+ *     `iconColor` desde antes de que Vigía existiera; esta pantalla no los usaba.
+ */
 
 interface AlertItem {
   id: string;
@@ -44,62 +55,29 @@ interface AlertsByKind {
   confirmedNoSched: Array<AlertItem & { confirmedAt: Date }>;
 }
 
-interface UpcomingAppointment {
-  id: string;
-  scheduledFor: Date;
-  durationMinutes: number;
-  type: string;
-  status: string;
-  patientName: string;
-  clinicName: string;
-  providerName: string | null;
-  providerSpecialty: string | null;
-  caseId: string | null;
-  caseCode: string | null;
-}
-
-interface ActivityEvent {
-  id: string;
-  action: string;
-  actorType: string;
-  actorUserId: string | null;
-  createdAt: Date;
-  caseId: string | null;
-  caseCode: string | null;
-  patientName: string | null;
-  metadata: Record<string, unknown> | null;
-}
-
 interface Props {
-  kpis: Kpis;
-  statusCounts: StatusCounts;
   alerts: AlertsByKind;
-  upcomingAppointments: UpcomingAppointment[];
-  recentActivity: ActivityEvent[];
-  todayBoundary: { start: Date; end: Date; tomorrowStart: Date };
-  /** La cola del centinela — ver `intake-panel.tsx`. */
-  intake: { filas: FilaVista[]; yaLlegaron: FilaVista[]; citasEnVentana: number };
+  /** Los tres que son una decisión. Ver el docblock de `page.tsx`. */
+  numeros: { citasHoy: number; intakePendiente: number; sinAgendar: number };
+  /** La cola del centinela — ver `intake-panel.tsx` y `lib/cola-intake.ts`. */
+  intake: {
+    filas: FilaVista[];
+    yaLlegaron: FilaVista[];
+    citasEnVentana: number;
+    citasHoy: number;
+    titular: FilaVista | null;
+  };
 }
 
-export function DashboardClient({
-  kpis,
-  statusCounts,
-  alerts,
-  upcomingAppointments,
-  recentActivity,
-  todayBoundary,
-  intake,
-}: Props) {
+export function DashboardClient({ alerts, numeros, intake }: Props) {
   const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
-  const totalAlerts = alerts.newReferralsAged.length + alerts.intakeStalled.length + alerts.confirmedNoSched.length;
+  const totalAlerts =
+    alerts.newReferralsAged.length + alerts.intakeStalled.length + alerts.confirmedNoSched.length;
 
-  const apptsToday = upcomingAppointments.filter(
-    (a) => new Date(a.scheduledFor).getTime() < new Date(todayBoundary.tomorrowStart).getTime(),
-  );
-  const apptsTomorrow = upcomingAppointments.filter(
-    (a) => new Date(a.scheduledFor).getTime() >= new Date(todayBoundary.tomorrowStart).getTime(),
-  );
+  const hoy    = intake.filas.filter((f) => f.diasHasta === 0);
+  const manana = intake.filas.filter((f) => f.diasHasta === 1);
+  const resto  = intake.filas.filter((f) => f.diasHasta >= 2);
 
   return (
     <div className="space-y-6">
@@ -115,238 +93,184 @@ export function DashboardClient({
         }
       />
 
-      {/* ───── El centinela ─────────────────────────────────────────────────
-          Va PRIMERO, arriba de los números, y eso es la decisión de producto:
-          el dashboard es el felpudo del sistema (lo cruzan 12 de 12 personas,
-          ~6 minutos cada una) y en un lugar de paso un número no dispara
-          ninguna acción — una lista de nombres con un botón al lado, sí.
-          Los números quedan debajo, que es donde Erick los pidió. */}
-      <IntakePanel
-        filas={intake.filas}
-        yaLlegaron={intake.yaLlegaron}
-        citasEnVentana={intake.citasEnVentana}
-      />
+      {/* ───── El saludo ─────────────────────────────────────────────────────
+          Centrado y a 24 px, la misma pieza que abre Vigía. No es adorno: es lo
+          que convierte el tablero en alguien que te habla, y es lo primero que
+          Erick señaló de la pantalla del bufete. */}
+      <p className="text-2xl font-bold text-text-1 text-center pt-1">
+        {t(saludoDelDia())}
+      </p>
 
-      {/* ───── KPIs del día ───────────────────────────────────────────────── */}
-      <div>
-        <SectionHeader icon={Clock} label={t('todayMetrics')} />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard
-            label={t('casesCreated')}
-            value={kpis.casesCreatedToday}
-            sub={t('casesCreatedSub')}
-            color="text-brand-text"
-          />
-          <KpiCard
-            label={t('portalsSent')}
-            value={kpis.portalsSentToday}
-            sub={t('portalsSentSub')}
-            color="text-cyan"
-          />
-          <KpiCard
-            label={t('confirmations')}
-            value={kpis.confirmsToday}
-            sub={t('confirmationsSub')}
-            color="text-amber"
-          />
-          <KpiCard
-            label={t('scheduledAppointments')}
-            value={kpis.schedulesToday}
-            sub={t('scheduledAppointmentsSub')}
-            color="text-emerald"
-          />
-        </div>
-      </div>
-
-      {/* ───── Cola por status + Alertas ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Cola por status */}
-        <div className="lg:col-span-2 rounded-lg border border-border bg-bg-1 p-5">
-          <SectionHeader icon={Building2} label={t('queueByStatus')} />
-          <div className="space-y-2">
-            <StatusRow status="NEW_REFERRAL"     count={statusCounts.NEW_REFERRAL}     label={t('statusNewReferral')}      action={t('statusNewReferralAction')}          color="rose"    icon="🔴" />
-            <StatusRow status="INTAKE_PENDING"   count={statusCounts.INTAKE_PENDING}   label={t('statusIntakePending')}    action={t('statusIntakePendingAction')}     color="amber"   icon="🟡" />
-            <StatusRow status="INTAKE_COMPLETED" count={statusCounts.INTAKE_COMPLETED} label={t('statusIntakeCompleted')} action={t('statusIntakeCompletedAction')}  color="cyan"    icon="🔵" />
-            <StatusRow status="CONFIRMED"        count={statusCounts.CONFIRMED}        label={t('statusConfirmed')}          action={t('statusConfirmedAction')}    color="emerald" icon="🟢" />
-            <StatusRow status="ACTIVE"           count={statusCounts.ACTIVE}           label={t('statusActive')}      action={t('statusActiveAction')}     color="brand"   icon="⚕" />
-          </div>
+      {/* ───── Las dos cosas de hoy, una al lado de la otra ─────────────────
+          Izquierda el caso que hay que destrabar, derecha el tamaño del trabajo.
+          Mismo grid que Vigía (1.15fr / 1fr) y mismo orden invertido en mobile:
+          el número primero, porque el titular es alto y empujaría la cola. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-3 items-stretch">
+        <div className="order-2 lg:order-1">
+          <TitularIntake fila={intake.titular} />
         </div>
 
-        {/* Alertas */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('attentionRequired')}</h3>
-            <TagPill
-              label={String(totalAlerts)}
-              colorClass={totalAlerts === 0 ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
-              compact
-            />
-          </div>
-          {totalAlerts === 0 ? (
-            <div className="rounded-md border border-emerald/30 bg-emerald/5 px-3 py-4 text-center">
-              <div className="text-emerald font-semibold text-sm">{t('allCaughtUp')}</div>
-              <div className="text-text-muted text-xs mt-1">{t('noDelayedCases')}</div>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto scroll-thin pr-1">
-              <AlertGroup
-                title={t('alertNoPortalSent')}
-                tone="rose"
-                items={alerts.newReferralsAged.map((c) => ({
-                  id: c.id,
-                  caseCode: c.caseCode,
-                  patientName: c.patientName,
-                  time: c.createdAt,
-                  timeLabel: t('timeLabelAgo'),
-                }))}
-                onClick={(id) => router.push(`/front-office/${id}`)}
-              />
-              <AlertGroup
-                title={t('alertPatientNoResponse')}
-                tone="amber"
-                items={alerts.intakeStalled.map((c) => ({
-                  id: c.id,
-                  caseCode: c.caseCode,
-                  patientName: c.patientName,
-                  time: c.sentAt,
-                  timeLabel: t('timeLabelSentAgo'),
-                }))}
-                onClick={(id) => router.push(`/front-office/${id}`)}
-              />
-              <AlertGroup
-                title={t('alertConfirmedNoSched')}
-                tone="emerald"
-                items={alerts.confirmedNoSched.map((c) => ({
-                  id: c.id,
-                  caseCode: c.caseCode,
-                  patientName: c.patientName,
-                  time: c.confirmedAt,
-                  timeLabel: t('timeLabelConfirmedAgo'),
-                }))}
-                onClick={(id) => router.push(`/front-office/${id}`)}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ───── Próximas citas + Activity feed ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Próximas citas */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4 text-brand-text" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('upcomingAppointments')}</h3>
-            <span className="text-text-muted text-xs font-mono ml-auto">
-              {apptsToday.length} {t('today')} · {apptsTomorrow.length} {t('tomorrow')}
+        <div className="order-1 lg:order-2 relative overflow-hidden rounded-lg bg-bg-1 p-6 h-full flex flex-col">
+          {/* El halo de marca de Vigía: el único acento decorativo de la
+              pantalla, y va acá porque esta tarjeta es la que NO es una alarma. */}
+          <div className="pointer-events-none absolute -right-10 -top-10 w-44 h-44 rounded-full bg-brand/20 blur-2xl" />
+          <div className="relative flex items-center gap-2 mb-2">
+            <BarChart3 className="w-3.5 h-3.5 text-brand-text" />
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-brand-text">
+              {t('colaLabel')}
             </span>
           </div>
-
-          {upcomingAppointments.length === 0 ? (
-            <div className="text-text-muted text-sm italic text-center py-6">
-              {t('noAppointmentsScheduled')}
+          <h2 className="relative text-text-1 text-xl font-bold">
+            {/* El DENOMINADOR. "17" solo no significa nada; "17 de 41", sí. */}
+            {t('colaTitulo', { sinFirmar: hoy.length, citas: numeros.citasHoy })}
+          </h2>
+          <p className="relative text-text-2 text-sm mt-2">
+            {t('colaCuerpo', { manana: manana.length, pendientes: numeros.intakePendiente })}
+          </p>
+          <dl className="relative flex gap-6 mt-4 flex-wrap">
+            <div>
+              <dd className="text-2xl font-bold text-rose tabular-nums leading-none">{hoy.length}</dd>
+              <dt className="text-[11px] text-text-muted mt-1">{t('colaHoy')}</dt>
             </div>
-          ) : (
-            <div className="space-y-4 max-h-[450px] overflow-y-auto scroll-thin pr-1">
-              {apptsToday.length > 0 && (
-                <div>
-                  <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">
-                    {t('today')} · {formatDate(new Date())}
-                  </div>
-                  <div className="space-y-1.5">
-                    {apptsToday.map((a) => <AppointmentRow key={a.id} appt={a} />)}
-                  </div>
-                </div>
-              )}
-              {apptsTomorrow.length > 0 && (
-                <div>
-                  <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">
-                    {t('tomorrow')} · {formatDate(new Date(todayBoundary.tomorrowStart))}
-                  </div>
-                  <div className="space-y-1.5">
-                    {apptsTomorrow.map((a) => <AppointmentRow key={a.id} appt={a} />)}
-                  </div>
-                </div>
-              )}
+            <div>
+              <dd className="text-2xl font-bold text-amber tabular-nums leading-none">{manana.length}</dd>
+              <dt className="text-[11px] text-text-muted mt-1">{t('colaManana')}</dt>
             </div>
-          )}
-        </div>
-
-        {/* Activity feed */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-brand-text" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('recentActivity')}</h3>
-            <span className="text-text-muted text-xs font-mono ml-auto">{recentActivity.length} {t('events')}</span>
+            <div>
+              <dd className="text-2xl font-bold text-text-1 tabular-nums leading-none">{resto.length}</dd>
+              <dt className="text-[11px] text-text-muted mt-1">{t('colaSemana')}</dt>
+            </div>
+          </dl>
+          <div className="relative flex items-center gap-4 flex-wrap mt-auto pt-5">
+            <a
+              href="#cola-intake"
+              className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-md bg-gradient-brand text-white font-semibold text-sm shadow-glow hover:opacity-90 transition-opacity w-full sm:w-auto"
+            >
+              {t('colaCta')}
+              <ArrowRight className="w-4 h-4" />
+            </a>
           </div>
-
-          {recentActivity.length === 0 ? (
-            <div className="text-text-muted text-sm italic text-center py-6">
-              {t('noRecentActivity')}
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[450px] overflow-y-auto scroll-thin pr-1">
-              {recentActivity.map((e) => <ActivityRow key={e.id} event={e} />)}
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* ───── El centinela ─────────────────────────────────────────────────
+          La cola, con el rojo calibrado. El `id` es el destino del botón de
+          arriba: en una pantalla que se cruza en seis minutos, el CTA tiene que
+          llevar a algún lado y ese lado es la lista, no otra página. */}
+      <div id="cola-intake" className="scroll-mt-4">
+        <IntakePanel
+          filas={intake.filas}
+          yaLlegaron={intake.yaLlegaron}
+          citasEnVentana={intake.citasEnVentana}
+        />
+      </div>
+
+      {/* ───── Los tres números ─────────────────────────────────────────────
+          Debajo del centinela, que es donde Erick los pidió («si dejás algún
+          número lo ponés abajo del sentinel»). Los tres son una decisión:
+          el denominador de la cola, la pileta de la que sale la cola de mañana,
+          y trabajo de recepción esperando. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <KpiCard
+          label={t('numCitasHoy')}
+          value={numeros.citasHoy}
+          sub={t('numCitasHoySub')}
+          color="text-cyan"
+          icon={CalendarDays}
+          iconBg="bg-cyan/10"
+          iconColor="text-cyan"
+        />
+        <KpiCard
+          label={t('numIntakePendiente')}
+          value={numeros.intakePendiente}
+          sub={t('numIntakePendienteSub')}
+          color="text-amber"
+          icon={FileClock}
+          iconBg="bg-amber/10"
+          iconColor="text-amber"
+        />
+        <KpiCard
+          label={t('numSinAgendar')}
+          value={numeros.sinAgendar}
+          sub={t('numSinAgendarSub')}
+          color="text-emerald"
+          icon={CalendarPlus}
+          iconBg="bg-emerald/10"
+          iconColor="text-emerald"
+        />
+      </div>
+
+      {/* ───── Atrasos del front office ─────────────────────────────────────
+          Se quedan porque NO son un marcador: son tres listas de casos con
+          nombre y un clic que abre el caso. El nombre cambió para que no haya
+          dos cajas de "atención" en la misma pantalla. */}
+      <div className="rounded-lg bg-bg-1 p-5">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <AlertTriangle className="w-4 h-4 text-amber" />
+          <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('atrasos')}</h3>
+          <TagPill
+            label={String(totalAlerts)}
+            colorClass={totalAlerts === 0 ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
+            compact
+          />
+        </div>
+        {totalAlerts === 0 ? (
+          <div className="rounded-md border border-emerald/30 bg-emerald/5 px-3 py-4 text-center">
+            <div className="text-emerald font-semibold text-sm">{t('allCaughtUp')}</div>
+            <div className="text-text-muted text-xs mt-1">{t('noDelayedCases')}</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AlertGroup
+              title={t('alertNoPortalSent')}
+              tone="rose"
+              items={alerts.newReferralsAged.map((c) => ({
+                id: c.id, caseCode: c.caseCode, patientName: c.patientName,
+                time: c.createdAt, timeLabel: t('timeLabelAgo'),
+              }))}
+              onClick={(id) => router.push(`/front-office/${id}`)}
+            />
+            <AlertGroup
+              title={t('alertPatientNoResponse')}
+              tone="amber"
+              items={alerts.intakeStalled.map((c) => ({
+                id: c.id, caseCode: c.caseCode, patientName: c.patientName,
+                time: c.sentAt, timeLabel: t('timeLabelSentAgo'),
+              }))}
+              onClick={(id) => router.push(`/front-office/${id}`)}
+            />
+            <AlertGroup
+              title={t('alertConfirmedNoSched')}
+              tone="emerald"
+              items={alerts.confirmedNoSched.map((c) => ({
+                id: c.id, caseCode: c.caseCode, patientName: c.patientName,
+                time: c.confirmedAt, timeLabel: t('timeLabelConfirmedAgo'),
+              }))}
+              onClick={(id) => router.push(`/front-office/${id}`)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-
-function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-3">
-      <Icon className="w-4 h-4 text-brand-text" />
-      <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{label}</h3>
-    </div>
-  );
-}
-
-// ─── Status row (cola por status) ─────────────────────────────────────────────
-
-function StatusRow({
-  status, count, label, action, color, icon,
-}: {
-  status: string;
-  count: number;
-  label: string;
-  action: string;
-  color: 'rose' | 'amber' | 'cyan' | 'emerald' | 'brand';
-  icon: string;
-}) {
-  const colorClasses: Record<typeof color, string> = {
-    rose:    'bg-rose/5 border-rose/20 hover:bg-rose/10',
-    amber:   'bg-amber/5 border-amber/20 hover:bg-amber/10',
-    cyan:    'bg-cyan/5 border-cyan/20 hover:bg-cyan/10',
-    emerald: 'bg-emerald/5 border-emerald/20 hover:bg-emerald/10',
-    brand:   'bg-brand/5 border-brand/20 hover:bg-brand/10',
-  };
-  const textColors: Record<typeof color, string> = {
-    rose: 'text-rose', amber: 'text-amber', cyan: 'text-cyan', emerald: 'text-emerald', brand: 'text-brand-text',
-  };
-
-  return (
-    <Link
-      href={`/front-office?filter=${status}`}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-md border transition-colors group ${colorClasses[color]}`}
-    >
-      <span className="text-lg shrink-0">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`font-semibold text-sm ${textColors[color]}`}>{label}</span>
-          <code className={`text-[10px] font-mono ${textColors[color]} opacity-70`}>{status}</code>
-        </div>
-        <div className="text-text-muted text-[11px]">{action}</div>
-      </div>
-      <div className={`text-2xl font-bold ${textColors[color]}`}>{count}</div>
-      <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-text-1 transition-colors" />
-    </Link>
-  );
+/**
+ * Qué saludo toca.
+ *
+ * Con la hora del NAVEGADOR y no con la de la clínica, al revés que el resto de
+ * esta pantalla. Es a propósito y es la única excepción: las citas son eventos de
+ * la clínica —tienen que leerse igual desde cualquier lado— pero "buenos días"
+ * habla de quien está mirando. A alguien que abre esto de noche desde otra zona
+ * no se le dice "buenas tardes" porque en Utah lo sea.
+ *
+ * Los cortes son los mismos que usa `franjaDelDia()` en Vigía.
+ */
+function saludoDelDia(): 'greetMorning' | 'greetAfternoon' | 'greetEvening' {
+  const h = new Date().getHours();
+  if (h < 12) return 'greetMorning';
+  if (h < 19) return 'greetAfternoon';
+  return 'greetEvening';
 }
 
 // ─── Alert group ──────────────────────────────────────────────────────────────
@@ -389,101 +313,6 @@ function AlertGroup({
       </div>
     </div>
   );
-}
-
-// ─── Appointment row ──────────────────────────────────────────────────────────
-
-function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
-  const t = useTranslations('phoenix.dashboard');
-  const time = new Date(appt.scheduledFor).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit' });
-  const statusColors: Record<string, string> = {
-    SCHEDULED:   'bg-cyan/15 text-cyan border-cyan/30',
-    CONFIRMED:   'bg-emerald/15 text-emerald border-emerald/30',
-    IN_PROGRESS: 'bg-brand/15 text-brand-text border-brand/30',
-    PENDING:     'bg-amber/15 text-amber border-amber/30',
-  };
-
-  const content = (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-md border border-border bg-bg-2/30 hover:bg-bg-2/60 transition-colors group">
-      {/* Hora */}
-      <div className="text-center shrink-0 w-14">
-        <div className="text-text-1 font-bold text-sm">{time}</div>
-        <div className="text-text-muted text-[10px]">{appt.durationMinutes}m</div>
-      </div>
-
-      {/* Patient + provider */}
-      <div className="flex-1 min-w-0">
-        <div className="text-text-1 text-sm font-medium truncate">{appt.patientName}</div>
-        <div className="flex items-center gap-1 text-text-muted text-[11px] truncate">
-          <Stethoscope className="w-3 h-3 shrink-0" />
-          {appt.providerName ?? t('noDoctorAssigned')}
-          {appt.providerSpecialty && (
-            <span className="opacity-70">· {appt.providerSpecialty}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Clínica + caseCode + status */}
-      <div className="text-right shrink-0">
-        <div className="text-text-2 text-[11px] truncate max-w-[140px]">{appt.clinicName}</div>
-        <div className="flex items-center gap-1 justify-end mt-0.5">
-          {appt.caseCode && <code className="text-text-muted text-[9px] font-mono">{appt.caseCode}</code>}
-          <TagPill
-            label={appt.status}
-            colorClass={statusColors[appt.status] ?? 'bg-bg-2 text-text-2 border-border'}
-            mono
-            compact
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  return appt.caseId ? (
-    <Link href={`/front-office/${appt.caseId}`} className="block">{content}</Link>
-  ) : content;
-}
-
-// ─── Activity row ─────────────────────────────────────────────────────────────
-
-const ACTION_META: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
-  CREATE_CASE_FROM_CALL:    { labelKey: 'actionCaseCreated',          icon: PhoneCall,          color: 'text-brand-text' },
-  SEND_PORTAL_LINK:         { labelKey: 'actionPortalSent',           icon: Send,               color: 'text-cyan' },
-  MARK_INTAKE_COMPLETE_DEV: { labelKey: 'actionIntakeCompletedDev',   icon: FileText,           color: 'text-amber' },
-  CONFIRM_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentConfirmed', icon: FileCheck,          color: 'text-emerald' },
-  SCHEDULE_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentScheduled', icon: CalendarCheck,     color: 'text-brand-text' },
-  INSERT_CASE_NOTE:         { labelKey: 'actionNoteAdded',            icon: MessageSquarePlus,  color: 'text-violet-text' },
-};
-
-function ActivityRow({ event }: { event: ActivityEvent }) {
-  const t = useTranslations('phoenix.dashboard');
-  const meta = ACTION_META[event.action];
-  if (!meta) return null;
-  const Icon = meta.icon;
-  const ActorIcon = event.actorType === 'AI_AGENT' ? Bot : event.actorType === 'SYSTEM' ? Cpu : User;
-
-  const content = (
-    <div className="flex items-start gap-3 px-3 py-2 rounded-md border border-border bg-bg-2/30 hover:bg-bg-2/60 transition-colors">
-      <div className={`w-7 h-7 rounded-full bg-bg-1 border border-border flex items-center justify-center shrink-0 ${meta.color}`}>
-        <Icon className="w-3.5 h-3.5" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-text-1 text-sm font-medium">{t(meta.labelKey as Parameters<typeof t>[0])}</span>
-          {event.caseCode && <code className="text-text-muted text-[10px] font-mono">{event.caseCode}</code>}
-        </div>
-        <div className="flex items-center gap-2 text-text-muted text-[10px] mt-0.5 truncate">
-          {event.patientName && <span className="truncate">{event.patientName}</span>}
-          <ActorIcon className="w-3 h-3 shrink-0" />
-          <span>{formatRelative(event.createdAt)}</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  return event.caseId ? (
-    <Link href={`/front-office/${event.caseId}`} className="block">{content}</Link>
-  ) : content;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

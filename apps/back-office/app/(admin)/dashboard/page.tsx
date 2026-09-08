@@ -1,80 +1,73 @@
 import { db } from '@precision-medical/database';
 import { DashboardClient } from './dashboard-client';
-import { nombreProviderONull } from '@/lib/provider-name';
 import { colaIntake } from '@/lib/cola-intake';
 
-// B.29 — Dashboard de Recepción
-// Vista panel agregada · KPIs del día · cola por status · alertas · citas · activity feed
+/**
+ * B.29 — Panel de Recepción.
+ *
+ * ── Qué es esta pantalla, y qué dejó de ser ──────────────────────────────────
+ *
+ * Es **la cola diaria del centinela**, no un marcador. La decisión es de Erick
+ * (2026-09-02) y sale de una medición: el dashboard tiene el récord raro de ser
+ * la pantalla que más gente pisa (12 de 12) y en la que menos se trabaja (~6 min
+ * por persona por día). Nadie *va* al dashboard: todos lo *cruzan*.
+ *
+ * En un lugar de paso un número no produce ninguna acción. "8 portales enviados
+ * hoy" no le hace hacer nada a nadie en seis minutos. Lo único que aprovecha un
+ * felpudo es una lista corta de nombres con un botón al lado.
+ *
+ * Por eso se fueron cuatro bloques que estaban acá abajo (Erick, 2026-09-08):
+ *
+ *  · **Cola por estado** — `ACTIVE = 2.817` es mentira conocida: la migración
+ *    aplanó los casos cerrados. Un número que sabemos falso es peor que ninguno.
+ *  · **Próximas citas (30 filas)** — copia peor del Calendario, que tiene vista
+ *    de día de 15 minutos y 537 minutos de uso real contra los 216 de acá.
+ *  · **Actividad reciente (20 eventos)** — copia peor de `/admin/metrics`, que
+ *    además desglosa por persona.
+ *  · **Los cuatro KPI grandes** (casos creados · portales enviados ·
+ *    confirmaciones · agendas) — un marcador de productividad, y para eso está
+ *    `/admin/metrics`.
+ *
+ * Quedan tres números, y los tres son una decisión, no un puntaje: cuántas citas
+ * hay hoy (el DENOMINADOR de la cola — "17 de 41" significa algo, "17" solo no),
+ * cuántos casos esperan el intake (la pileta de la que sale la cola de mañana) y
+ * cuántos confirmados no tienen cita (trabajo de recepción esperando).
+ *
+ * ── Los "Atrasos del front office" siguen ────────────────────────────────────
+ *
+ * Las tres reglas de `attentionRequired` se quedan: no son un marcador, son tres
+ * listas de casos con nombre y un enlace. Cambia el nombre para que no haya dos
+ * cajas de "atención" en la misma pantalla.
+ */
 
 export default async function DashboardPage() {
-  // Definir "hoy" en Utah local (UTC-6/-7 según DST).
-  // Para simplicidad acá usamos UTC midnight — Phase 2 con timezone lib propia.
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
-  const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 60 * 60 * 1000);
+  /**
+   * La cola del centinela.
+   *
+   * Los bordes del día los resuelve `colaIntake()` con `ZONA_CLINICA`. El resto
+   * de esta página ya no calcula "hoy" por su cuenta: las tres consultas de
+   * atrasos son ventanas relativas ("hace más de una hora"), que no dependen de
+   * dónde empieza el día. El viejo `new Date(y, m, d)` —la zona del SERVIDOR, con
+   * un comentario que decía "Phase 2 con timezone lib propia"— se fue con los
+   * KPI que lo usaban, y con él el bug de que una cita de las 7 de la mañana
+   * cayera en el bucket equivocado media parte del año.
+   */
+  const intake = await colaIntake();
 
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const ahora = Date.now();
+  const haceUnaHora  = new Date(ahora - 60 * 60 * 1000);
+  const haceUnDia    = new Date(ahora - 24 * 60 * 60 * 1000);
+  const haceDosDias  = new Date(ahora - 48 * 60 * 60 * 1000);
 
-  // ──────────────────────────────────────────────────────────────────
-  // KPIs del día (Front Office)
-  // ──────────────────────────────────────────────────────────────────
-  const [
-    casesCreatedToday,
-    portalsSentToday,
-    confirmsToday,
-    schedulesToday,
-  ] = await Promise.all([
-    db.case.count({
-      where: { createdAt: { gte: startOfToday, lte: endOfToday }, deletedAt: null },
-    }),
-    db.auditLog.count({
-      where: { action: 'SEND_PORTAL_LINK', createdAt: { gte: startOfToday, lte: endOfToday } },
-    }),
-    db.auditLog.count({
-      where: { action: 'CONFIRM_FIRST_APPOINTMENT', createdAt: { gte: startOfToday, lte: endOfToday } },
-    }),
-    db.auditLog.count({
-      where: { action: 'SCHEDULE_FIRST_APPOINTMENT', createdAt: { gte: startOfToday, lte: endOfToday } },
-    }),
-  ]);
-
-  // ──────────────────────────────────────────────────────────────────
-  // Cola por status (cuántos casos activos en cada etapa)
-  // ──────────────────────────────────────────────────────────────────
-  const statusGroups = await db.case.groupBy({
-    by: ['status'],
-    where: {
-      deletedAt: null,
-      status: { in: ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED', 'ACTIVE'] },
-    },
-    _count: { _all: true },
-  });
-  const statusCounts = {
-    NEW_REFERRAL:     statusGroups.find((g) => g.status === 'NEW_REFERRAL')?._count._all ?? 0,
-    INTAKE_PENDING:   statusGroups.find((g) => g.status === 'INTAKE_PENDING')?._count._all ?? 0,
-    INTAKE_COMPLETED: statusGroups.find((g) => g.status === 'INTAKE_COMPLETED')?._count._all ?? 0,
-    CONFIRMED:        statusGroups.find((g) => g.status === 'CONFIRMED')?._count._all ?? 0,
-    ACTIVE:           statusGroups.find((g) => g.status === 'ACTIVE')?._count._all ?? 0,
-  };
-
-  // ──────────────────────────────────────────────────────────────────
-  // Alertas — atención requerida
-  // ──────────────────────────────────────────────────────────────────
   const [
     newReferralsAged,   // NEW_REFERRAL > 1h sin portal enviado
-    intakeStalled,      // INTAKE_PENDING > 24h (paciente no respondió)
+    intakeStalled,      // INTAKE_PENDING > 24h (el paciente no respondió)
     confirmedNoSched,   // CONFIRMED > 48h sin agendar
+    intakePendiente,    // la pileta: de acá sale la cola de mañana
+    sinAgendar,         // confirmados esperando cita
   ] = await Promise.all([
     db.case.findMany({
-      where: {
-        status: 'NEW_REFERRAL',
-        deletedAt: null,
-        createdAt: { lte: oneHourAgo },
-      },
+      where: { status: 'NEW_REFERRAL', deletedAt: null, createdAt: { lte: haceUnaHora } },
       take: 10,
       orderBy: { createdAt: 'asc' },
       select: {
@@ -83,11 +76,7 @@ export default async function DashboardPage() {
       },
     }),
     db.case.findMany({
-      where: {
-        status: 'INTAKE_PENDING',
-        deletedAt: null,
-        intakeFormSentAt: { lte: oneDayAgo },
-      },
+      where: { status: 'INTAKE_PENDING', deletedAt: null, intakeFormSentAt: { lte: haceUnDia } },
       take: 10,
       orderBy: { intakeFormSentAt: 'asc' },
       select: {
@@ -96,11 +85,7 @@ export default async function DashboardPage() {
       },
     }),
     db.case.findMany({
-      where: {
-        status: 'CONFIRMED',
-        deletedAt: null,
-        firstAppointmentConfirmedAt: { lte: twoDaysAgo },
-      },
+      where: { status: 'CONFIRMED', deletedAt: null, firstAppointmentConfirmedAt: { lte: haceDosDias } },
       take: 10,
       orderBy: { firstAppointmentConfirmedAt: 'asc' },
       select: {
@@ -108,83 +93,22 @@ export default async function DashboardPage() {
         patient: { select: { firstName: true, lastName: true } },
       },
     }),
+    db.case.count({ where: { status: 'INTAKE_PENDING', deletedAt: null } }),
+    /**
+     * Confirmado y sin ninguna cita viva. `none` con los estados muertos
+     * excluidos, y no `appointments: { none: {} }` a secas: un caso cuya única
+     * cita se canceló SÍ está esperando que alguien lo agende, y con el `none`
+     * pelado quedaba invisible.
+     */
+    db.case.count({
+      where: {
+        status: 'CONFIRMED',
+        deletedAt: null,
+        appointments: { none: { status: { notIn: ['CANCELLED', 'NO_SHOW'] } } },
+      },
+    }),
   ]);
 
-  // ──────────────────────────────────────────────────────────────────
-  // Próximas citas (hoy + mañana)
-  // ──────────────────────────────────────────────────────────────────
-  const upcomingAppointments = await db.appointment.findMany({
-    where: {
-      scheduledFor: { gte: startOfToday, lte: endOfTomorrow },
-      status: { in: ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'PENDING'] },
-    },
-    orderBy: { scheduledFor: 'asc' },
-    take: 30,
-    select: {
-      id: true,
-      scheduledFor: true,
-      durationMinutes: true,
-      type: true,
-      status: true,
-      patient: { select: { firstName: true, lastName: true } },
-      clinic: { select: { name: true } },
-      provider: { select: { firstName: true, lastName: true, specialty: true } },
-      case: { select: { id: true, caseCode: true } },
-    },
-  });
-
-  // ──────────────────────────────────────────────────────────────────
-  // Activity feed — últimos eventos del Front Office
-  // ──────────────────────────────────────────────────────────────────
-  const recentActivity = await db.auditLog.findMany({
-    where: {
-      entityType: 'cases',
-      action: {
-        in: [
-          'CREATE_CASE_FROM_CALL',
-          'SEND_PORTAL_LINK',
-          'MARK_INTAKE_COMPLETE_DEV',
-          'CONFIRM_FIRST_APPOINTMENT',
-          'SCHEDULE_FIRST_APPOINTMENT',
-          'INSERT_CASE_NOTE',
-        ],
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    select: {
-      id: true,
-      action: true,
-      actorType: true,
-      actorUserId: true,
-      createdAt: true,
-      entityId: true,
-      metadata: true,
-    },
-  });
-
-  // Resolver caseCode para cada activity event (1 query)
-  const caseIds = Array.from(new Set(recentActivity.map((e) => e.entityId).filter(Boolean) as string[]));
-  const cases = caseIds.length === 0 ? [] : await db.case.findMany({
-    where: { id: { in: caseIds } },
-    select: {
-      id: true,
-      caseCode: true,
-      patient: { select: { firstName: true, lastName: true } },
-    },
-  });
-  const caseMap = new Map(cases.map((c) => [c.id, c]));
-
-  /**
-   * La cola del centinela.
-   *
-   * Los bordes del día los resuelve `colaIntake()` con `ZONA_CLINICA`, NO con el
-   * `startOfToday` de arriba: ese usa la zona del SERVIDOR (`new Date(y, m, d)`)
-   * y con eso una cita de las 7 de la mañana cae en el bucket equivocado media
-   * parte del año. El resto de esta página sigue con el cálculo viejo hasta que
-   * se migre — está marcado ahí arriba desde antes.
-   */
-  const intake = await colaIntake();
   const aVista = (f: (typeof intake.filas)[number]) => ({
     caseId: f.caseId,
     caseCode: f.caseCode,
@@ -198,6 +122,9 @@ export default async function DashboardPage() {
     cita: f.cita.toISOString(),
     provider: f.provider,
     diasHasta: f.diasHasta,
+    minutosHasta: f.minutosHasta,
+    nivel: f.nivel,
+    prioridad: f.prioridad,
     pct: f.pct,
     faltan: f.faltan as string[],
     telefono: f.telefono,
@@ -214,14 +141,10 @@ export default async function DashboardPage() {
         filas: intake.filas.map(aVista),
         yaLlegaron: intake.yaLlegaron.map(aVista),
         citasEnVentana: intake.citasEnVentana,
+        citasHoy: intake.citasHoy,
+        titular: intake.titular ? aVista(intake.titular) : null,
       }}
-      kpis={{
-        casesCreatedToday,
-        portalsSentToday,
-        confirmsToday,
-        schedulesToday,
-      }}
-      statusCounts={statusCounts}
+      numeros={{ citasHoy: intake.citasHoy, intakePendiente, sinAgendar }}
       alerts={{
         newReferralsAged: newReferralsAged.map((c) => ({
           id: c.id, caseCode: c.caseCode, createdAt: c.createdAt,
@@ -236,34 +159,6 @@ export default async function DashboardPage() {
           patientName: `${c.patient.firstName} ${c.patient.lastName}`,
         })),
       }}
-      upcomingAppointments={upcomingAppointments.map((a) => ({
-        id: a.id,
-        scheduledFor: a.scheduledFor,
-        durationMinutes: a.durationMinutes,
-        type: a.type,
-        status: a.status,
-        patientName: `${a.patient.firstName} ${a.patient.lastName}`,
-        clinicName: a.clinic.name,
-        providerName: nombreProviderONull(a.provider),
-        providerSpecialty: a.provider?.specialty ?? null,
-        caseId: a.case?.id ?? null,
-        caseCode: a.case?.caseCode ?? null,
-      }))}
-      recentActivity={recentActivity.map((e) => {
-        const caseInfo = e.entityId ? caseMap.get(e.entityId) : null;
-        return {
-          id: e.id,
-          action: e.action,
-          actorType: e.actorType,
-          actorUserId: e.actorUserId,
-          createdAt: e.createdAt,
-          caseId: e.entityId,
-          caseCode: caseInfo?.caseCode ?? null,
-          patientName: caseInfo ? `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}` : null,
-          metadata: e.metadata as Record<string, unknown> | null,
-        };
-      })}
-      todayBoundary={{ start: startOfToday, end: endOfToday, tomorrowStart: startOfTomorrow }}
     />
   );
 }

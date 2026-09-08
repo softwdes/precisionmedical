@@ -8,6 +8,8 @@ import { Section, TagPill, EmptyState, IconAction } from '@/components/ui-phoeni
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
+import { useReloj } from '@/lib/use-reloj';
+import { recalcularUrgencia } from '@/lib/intake-urgencia';
 
 /**
  * El centinela · los que llegan sin el intake firmado.
@@ -43,6 +45,12 @@ export interface FilaVista {
   cita: string;
   provider: string | null;
   diasHasta: number;
+  /** Minutos hasta la cita. **Negativo si ya pasó.** Ver `lib/cola-intake.ts`. */
+  minutosHasta: number;
+  /** El momento de la fila: es lo único que decide su tratamiento visual. */
+  nivel: 'TARDE' | 'AHORA' | 'HOY' | 'MANANA' | 'SEMANA';
+  /** Peso del momento más los agravantes. Solo elige el titular de la pantalla. */
+  prioridad: number;
   pct: number;
   faltan: string[];
   telefono: string | null;
@@ -71,7 +79,7 @@ const CANAL_KEY: Record<string, string> = { SMS: 'SMS', EMAIL: 'Email', LLAMADA:
  * para la vista previa del SMS y para decidir qué canal ofrecen. El envío real
  * lo resuelve la ruta con la ficha, así que este valor no autoriza nada.
  */
-function caseInfo(f: FilaVista) {
+export function caseInfo(f: FilaVista) {
   return {
     id: f.caseId,
     caseCode: f.caseCode,
@@ -123,15 +131,26 @@ function duracionHasta(iso: string): string | null {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-/** Riel de urgencia: se enrojece a medida que la cita se acerca. */
-const RIEL = [
-  'bg-rose',
-  'bg-rose/60',
-  'bg-amber',
-  'bg-amber/50',
-  'bg-amber/25',
-  'bg-amber/25',
-] as const;
+/**
+ * El riel de urgencia, ahora por NIVEL y no por día.
+ *
+ * Antes era una escala de seis pasos indexada por `diasHasta`, así que las
+ * diecisiete filas de hoy compartían el mismo `bg-rose` desde las ocho de la
+ * mañana. Ahora el riel se enciende cuando la cita entra en la última hora
+ * (`AHORA`) o cuando ya pasó (`TARDE`), y el resto del día va sin riel: si todo
+ * grita, nada grita.
+ *
+ * `HOY` conserva un ámbar tenue —no cero— porque sigue siendo trabajo de la
+ * mañana: la fila tiene que distinguirse de la de pasado mañana sin competir con
+ * la que está por entrar.
+ */
+const RIEL: Record<FilaVista['nivel'], string> = {
+  TARDE:  'bg-rose',
+  AHORA:  'bg-rose',
+  HOY:    'bg-amber/40',
+  MANANA: 'bg-amber/20',
+  SEMANA: 'bg-transparent',
+};
 
 function Fila({ f, onPedir, onQr, onLlamar }: {
   f: FilaVista;
@@ -142,22 +161,38 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
   const t = useTranslations('phoenix.dashboard');
   const locale = useLocale();
   const router = useRouter();
+  const tarde = f.nivel === 'TARDE';
+  const ahora = f.nivel === 'AHORA';
+  /**
+   * "Urgente" ya no es "es de hoy o de mañana" — son treinta filas — sino "hay
+   * que hacer algo con esto antes de que termine esta hora". Es lo que devuelve
+   * el rojo a ser una señal, y lo único que cambia el tratamiento de la fila.
+   */
+  const urgente = tarde || ahora;
   const hoy = f.diasHasta === 0;
   const manana = f.diasHasta === 1;
-  const urgente = hoy || manana;
-  const cuenta = hoy ? duracionHasta(f.cita) : null;
+  const cuenta = ahora ? duracionHasta(f.cita) : null;
 
-  const chip = hoy
-    ? 'bg-rose border-rose text-white font-extrabold'
-    : manana
-      ? 'bg-rose/[0.18] border-rose/50 text-rose font-extrabold'
-      : f.diasHasta <= 3
-        ? 'bg-amber/15 border-amber/30 text-amber'
-        : 'bg-bg-2 border-border text-text-muted';
+  const chip = tarde
+    /* El ámbar del atraso, no el rojo: el rojo es "corré a llamarlo antes de que
+       llegue", y a este ya se le pasó la cita. Es un problema distinto —
+       reprogramar, o marcarlo no-show— y merece otro color. */
+    ? 'bg-amber/[0.18] border-amber/50 text-amber font-extrabold'
+    : ahora
+      ? 'bg-rose border-rose text-white font-extrabold'
+      : hoy
+        ? 'bg-bg-2 border-border text-text-2'
+        : manana
+          ? 'bg-amber/10 border-amber/25 text-amber'
+          : 'bg-bg-2 border-border text-text-muted';
 
-  const cuando = hoy ? `${t('intakeToday')} ${hora(f.cita, locale)}`
-    : manana ? `${t('intakeTomorrow')} ${hora(f.cita, locale)}`
-    : `${diaCorto(f.cita, locale)} ${hora(f.cita, locale)}`;
+  const cuando = tarde
+    ? t('intakeLate', { t: duracionDesde(f.cita) })
+    : ahora
+      ? t('intakeInShort', { t: cuenta ?? '0 min' })
+      : hoy ? hora(f.cita, locale)
+      : manana ? `${t('intakeTomorrow')} ${hora(f.cita, locale)}`
+      : `${diaCorto(f.cita, locale)} ${hora(f.cita, locale)}`;
 
   const motivoBloqueo = f.bloqueoEnvio === 'SIN_TUTOR'
     ? t('intakeBlockGuardian')
@@ -168,13 +203,13 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
   return (
     <div
       className={`flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors group ${
-        hoy ? 'bg-rose/[0.08] hover:bg-rose/[0.12]'
-          : manana ? 'bg-rose/[0.04] hover:bg-rose/[0.07]'
+        ahora ? 'bg-rose/[0.08] hover:bg-rose/[0.12]'
+          : tarde ? 'bg-amber/[0.07] hover:bg-amber/[0.11]'
           : 'hover:bg-white/[0.02]'
       }`}
     >
       {/* El riel. Sin texto encima, así que la opacidad no cuesta contraste. */}
-      <span className={`self-stretch shrink-0 ${hoy ? 'w-1.5' : 'w-1'} ${RIEL[Math.min(f.diasHasta, 5)]}`} aria-hidden="true" />
+      <span className={`self-stretch shrink-0 ${urgente ? 'w-1.5' : 'w-1'} ${RIEL[f.nivel]}`} aria-hidden="true" />
 
       <button
         type="button"
@@ -197,9 +232,12 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
 
         <span className="shrink-0 w-[124px] flex flex-col gap-0.5">
           <span className="flex items-center gap-1.5">
-            {urgente && (
+            {/* El latido queda SOLO para la última hora. Antes latían las
+                diecisiete filas del día a la vez, que es una pantalla vibrando
+                todo el día — y con el movimiento apagado no quedaba nada. */}
+            {ahora && (
               <span
-                className={`shrink-0 w-[7px] h-[7px] rounded-full bg-rose ${hoy ? 'animate-latido' : 'animate-latido-lento'}`}
+                className="shrink-0 w-[7px] h-[7px] rounded-full bg-rose animate-latido"
                 aria-hidden="true"
               />
             )}
@@ -207,19 +245,27 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
               {cuando}
             </span>
           </span>
+          {/* El chip de arriba ya lleva el "cuándo", así que acá va la hora real
+              cuando el chip la reemplazó por un relativo. Antes esta línea
+              repetía la cuenta regresiva y la fila decía dos veces lo mismo. */}
           <span className="text-[11px] text-text-muted tabular-nums truncate">
-            {cuenta && <span className="text-rose font-bold">{t('intakeIn', { t: cuenta })} · </span>}
+            {urgente && <span className="text-text-2">{hora(f.cita, locale)} · </span>}
             {f.provider ?? '—'}
           </span>
         </span>
 
+        {/* Estas dos columnas eran rojas en TODAS las filas del día, y eran dos
+            de las seis marcas rojas por fila que volvieron el rojo un fondo.
+            Ahora el color solo aparece donde el rojo ya significa algo. */}
         <span className="text-[12px] text-text-muted flex-1 min-w-0 truncate">
           {f.faltan.length >= 6
-            ? <span className="text-rose font-semibold">{t('intakeNotStarted', { n: f.faltan.length })}</span>
+            ? <span className={urgente ? 'text-rose font-semibold' : 'text-text-2'}>{t('intakeNotStarted', { n: f.faltan.length })}</span>
             : t('intakeMissing', { lista: f.faltan.map((k) => (FALTA_KEY[k] ? t(FALTA_KEY[k]) : k)).join(', ') })}
         </span>
 
-        <span className={`hidden lg:block shrink-0 w-[132px] text-[11.5px] tabular-nums ${f.ultimoContacto ? 'text-text-muted' : 'text-rose font-semibold'}`}>
+        <span className={`hidden lg:block shrink-0 w-[132px] text-[11.5px] tabular-nums ${
+          f.ultimoContacto ? 'text-text-muted' : urgente ? 'text-rose font-semibold' : 'text-text-2'
+        }`}>
           {f.ultimoContacto
             ? <>
                 {f.ultimoContacto.canal === 'LLAMADA' ? t('intakeChannelCall') : CANAL_KEY[f.ultimoContacto.canal]}
@@ -241,9 +287,9 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
             title={f.telefono ? t('intakeCallTo', { quien: f.paciente ?? f.caseCode }) : t('intakeNoPhone')}
             className={`inline-flex items-center gap-1.5 h-[25px] px-2.5 rounded border text-[11.5px] font-bold whitespace-nowrap transition-opacity ${
               f.telefono
-                ? hoy
+                ? ahora
                   ? 'bg-rose border-rose text-white hover:opacity-90'
-                  : 'bg-transparent border-rose/50 text-rose hover:opacity-90'
+                  : 'bg-transparent border-amber/50 text-amber hover:opacity-90'
                 : 'bg-transparent border-border text-text-muted/60 line-through cursor-not-allowed'
             }`}
           >
@@ -288,7 +334,7 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
   );
 }
 
-export function IntakePanel({ filas, yaLlegaron, citasEnVentana }: {
+export function IntakePanel({ filas: filasDelServidor, yaLlegaron, citasEnVentana }: {
   filas: FilaVista[];
   yaLlegaron: FilaVista[];
   citasEnVentana: number;
@@ -298,9 +344,33 @@ export function IntakePanel({ filas, yaLlegaron, citasEnVentana }: {
   const [pedir, setPedir] = React.useState<FilaVista | null>(null);
   const [qr, setQr] = React.useState<FilaVista | null>(null);
 
-  const hoy = filas.filter((f) => f.diasHasta === 0);
-  const manana = filas.filter((f) => f.diasHasta === 1);
-  const resto = filas.filter((f) => f.diasHasta >= 2);
+  /**
+   * El reloj. `/dashboard` es un server component sin pulso, así que sin esto el
+   * nivel de cada fila quedaría congelado en el momento de cargar la página — y
+   * el dashboard es justo la pantalla que se deja abierta toda la mañana. Ver el
+   * porqué completo en `recalcularUrgencia()`.
+   */
+  const ahoraMs = useReloj();
+  const filas = React.useMemo(
+    () => (ahoraMs === null ? filasDelServidor : filasDelServidor.map((f) => recalcularUrgencia(f, ahoraMs))),
+    [filasDelServidor, ahoraMs],
+  );
+
+  /**
+   * Los grupos ahora son de MOMENTO, no de día.
+   *
+   * "Ahora" junta a los que ya debían estar acá y a los que entran en la próxima
+   * hora: son las dos cosas que se resuelven levantando el teléfono en este
+   * instante, y son las únicas dos que se ven rojas. "Más tarde hoy" es la misma
+   * gente que antes ocupaba las diecisiete filas rojas, pero en calma: sigue
+   * siendo trabajo del día y ya no compite con lo que está por entrar.
+   */
+  const ahora  = filas.filter((f) => f.nivel === 'TARDE' || f.nivel === 'AHORA');
+  const hoy    = filas.filter((f) => f.nivel === 'HOY');
+  const manana = filas.filter((f) => f.nivel === 'MANANA');
+  const resto  = filas.filter((f) => f.nivel === 'SEMANA');
+  /** Para la banda y el denominador: todos los del día, en cualquier momento. */
+  const totalHoy = ahora.length + hoy.length;
 
   const llamar = React.useCallback((f: FilaVista) => {
     if (f.telefono) twilio.connect(f.telefono);
@@ -334,9 +404,11 @@ export function IntakePanel({ filas, yaLlegaron, citasEnVentana }: {
       count={filas.length + yaLlegaron.length}
       tone="amber"
     >
-      {/* La banda de prioridad. Solo existe cuando hay filas de hoy o de mañana:
-          con la cola limpia desaparece sola, y por eso significa algo. */}
-      {(hoy.length > 0 || manana.length > 0) && (
+      {/* La banda de prioridad. Ahora se enciende SOLO cuando hay alguien en la
+          próxima hora o alguien atrasado — no por tener filas de mañana. Antes
+          estaba prendida todo el día todos los días, y una alarma que nunca se
+          apaga no es una alarma: es el encabezado de la tabla. */}
+      {ahora.length > 0 && (
         <div className="-mx-5 flex items-center gap-2.5 flex-wrap px-5 py-2.5 bg-rose/[0.12] border-y border-rose/25" role="status">
           <span className="shrink-0 w-[7px] h-[7px] rounded-full bg-rose animate-latido" aria-hidden="true" />
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose text-white text-[10.5px] font-extrabold uppercase tracking-wider">
@@ -344,9 +416,10 @@ export function IntakePanel({ filas, yaLlegaron, citasEnVentana }: {
             {t('intakePriority')}
           </span>
           <span className="text-[13px] font-bold text-text-1">
-            {hoy.length > 0 && <span className="text-rose tabular-nums">{t('intakeArriveToday', { n: hoy.length })}</span>}
-            {hoy.length > 0 && manana.length > 0 && ' · '}
-            {manana.length > 0 && <span className="text-rose tabular-nums">{t('intakeArriveTomorrow', { n: manana.length })}</span>}
+            <span className="text-rose tabular-nums">{t('intakeAhoraBanda', { n: ahora.length })}</span>
+            {totalHoy > ahora.length && (
+              <span className="text-text-2"> · {t('intakeRestoDelDia', { n: totalHoy - ahora.length })}</span>
+            )}
           </span>
           <span className="text-[12px] text-text-2 ml-auto hidden sm:block">
             {t('intakeCallHint')}
@@ -362,8 +435,9 @@ export function IntakePanel({ filas, yaLlegaron, citasEnVentana }: {
         />
       ) : (
         <>
-          {grupo(t('intakeGroupToday'), hoy, true)}
-          {grupo(t('intakeGroupTomorrow'), manana, true)}
+          {grupo(t('intakeGroupAhora'), ahora, true)}
+          {grupo(t('intakeGroupToday'), hoy, false)}
+          {grupo(t('intakeGroupTomorrow'), manana, false)}
           {grupo(t('intakeGroupLater'), resto, false)}
 
           {/* Los que ya están en la clínica no son una llamada: se firman en la

@@ -2,6 +2,9 @@ import { db, isMinor } from '@precision-medical/database';
 import { decryptField } from '@/lib/decrypt';
 import { claveDia } from '@/lib/fechas';
 import { progresoIntake, intakeFirmado, type MissingKey } from '@/lib/intake-progreso';
+import {
+  nivelDe, agravantesDe, PESO_NIVEL, PESO_AGRAVANTE, type NivelIntake,
+} from '@/lib/intake-urgencia';
 
 /**
  * El centinela de la clínica · los que llegan sin el intake firmado.
@@ -69,6 +72,16 @@ export interface FilaIntake {
   provider: string | null;
   /** 0 = hoy, 1 = mañana… Nunca negativo: el pasado no entra. */
   diasHasta: number;
+  /**
+   * Minutos hasta la cita. **NEGATIVO si ya pasó** — es el único dato que
+   * distingue "llega en veinte minutos" de "debía estar acá hace dos horas", y
+   * la pantalla no lo tenía.
+   */
+  minutosHasta: number;
+  /** El momento de la fila. Decide su tratamiento visual y nada más. */
+  nivel: NivelIntake;
+  /** Peso del momento más los agravantes. Solo se usa para elegir el titular. */
+  prioridad: number;
   /** Ya hizo check-in (o ya salió): no es una llamada, es la tablet. */
   yaLlego: boolean;
   /** Cuánto lleva hecho del intake, y qué le falta. */
@@ -94,12 +107,28 @@ export interface FilaIntake {
 }
 
 export interface ColaIntake {
-  /** Los que todavía no llegaron, ordenados por urgencia. */
+  /** Los que todavía no llegaron, en orden CRONOLÓGICO. */
   filas: FilaIntake[];
   /** Los de hoy que ya están en la clínica: se firman en el mostrador. */
   yaLlegaron: FilaIntake[];
   /** Total de citas en la ventana — el DENOMINADOR de la cola. */
   citasEnVentana: number;
+  /** Solo las de HOY. El denominador que de verdad se lee: "17 de 41". */
+  citasHoy: number;
+  /**
+   * La fila de mayor prioridad, o `null` si la cola está vacía.
+   *
+   * Va aparte y NO es `filas[0]` a propósito, que es la diferencia con Vigía:
+   * allá la cola se ordena por prioridad y el titular es el primero. Acá la cola
+   * se ordena por HORA, porque recepción la trabaja de arriba hacia abajo
+   * siguiendo el reloj — una cola ordenada por puntaje sería imposible de
+   * recorrer. Así que el titular se elige por prioridad y la cola se lee por
+   * tiempo, y las dos cosas están bien cada una en lo suyo.
+   *
+   * Quien lo muestre tiene que pasarlo por `mereceTitular()` antes: esto es el
+   * máximo de la cola, no una promesa de que valga la pena titularlo.
+   */
+  titular: FilaIntake | null;
 }
 
 /** Diferencia en días entre dos claves `YYYY-MM-DD`. Exacta: son fechas de calendario. */
@@ -206,6 +235,7 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
   /** Un caso puede tener dos citas en la ventana: la más próxima manda. */
   const vistos = new Set<string>();
   let citasEnVentana = 0;
+  let citasHoy = 0;
 
   for (const a of citas) {
     const c = a.case;
@@ -214,6 +244,7 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
     const dias = diasEntre(hoy, claveDia(a.scheduledFor));
     if (dias < 0 || dias > ventana) continue;
     citasEnVentana++;
+    if (dias === 0) citasHoy++;
 
     // El denominador cuenta CITAS; las filas, casos. Por eso el dedup va
     // después de contar y las citas vienen ordenadas por fecha.
@@ -282,6 +313,10 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
       cita: a.scheduledFor,
       provider: nombreDe(a.provider),
       diasHasta: dias,
+      // Se llenan abajo, cuando ya existen `pct`, `ultimoContacto` y el bloqueo.
+      minutosHasta: Math.round((a.scheduledFor.getTime() - ahora) / 60_000),
+      nivel: 'SEMANA',
+      prioridad: 0,
       yaLlego: (ESTADOS_LLEGO as readonly string[]).includes(a.status),
       pct,
       faltan,
@@ -307,5 +342,29 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
 
   await ponerUltimoContacto([...filas, ...yaLlegaron]);
 
-  return { filas, yaLlegaron, citasEnVentana };
+  /**
+   * Nivel y prioridad, DESPUÉS de `ponerUltimoContacto`.
+   *
+   * El orden importa: "nadie lo contactó nunca" es uno de los tres agravantes, y
+   * se rellena en lote al final. Calcular la prioridad antes daría a todas las
+   * filas ese agravante —porque `ultimoContacto` arranca en `null`— y el titular
+   * saldría de un dato que todavía no existe.
+   */
+  for (const f of [...filas, ...yaLlegaron]) {
+    f.nivel = nivelDe(f.minutosHasta, f.diasHasta);
+    f.prioridad = PESO_NIVEL[f.nivel] + agravantesDe(f) * PESO_AGRAVANTE;
+  }
+
+  /**
+   * El titular sale SOLO de `filas`. Los que ya están en el mostrador tienen su
+   * nivel calculado igual —para que el dato no mienta si alguien lo lee— pero no
+   * compiten: no hay a quién llamar, están del otro lado del vidrio firmando en
+   * la tablet.
+   */
+  let titular: FilaIntake | null = null;
+  for (const f of filas) {
+    if (!titular || f.prioridad > titular.prioridad) titular = f;
+  }
+
+  return { filas, yaLlegaron, citasEnVentana, citasHoy, titular };
 }

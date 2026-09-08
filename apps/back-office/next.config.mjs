@@ -24,6 +24,27 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /**
+   * Dónde escribe el build. El default sigue siendo `.next` — esto solo abre la
+   * puerta para mandarlo a otro lado con una variable de entorno.
+   *
+   * ── Para qué ────────────────────────────────────────────────────────────────
+   *
+   * Next 15.5 comparte `.next` entre `dev` y `build`, así que un `next build`
+   * corrido mientras alguien tiene el dev server de ESTA app levantado rompe las
+   * dos cosas: el build falla con `PageNotFoundError: Cannot find module for
+   * page` en rutas que nadie tocó, y el dev server queda sirviendo 500 hasta que
+   * se borra `.next` a mano. En un repo que comparten varias sesiones a la vez
+   * eso ya pasó tres veces, y la última con Erick mirando la pantalla.
+   *
+   * Ahora se puede verificar un cambio sin pisarle el server a nadie:
+   *
+   *     NEXT_DIST_DIR=.next-verify npx next build
+   *
+   * El default no cambia, así que Vercel, `next dev` y cualquier script que ya
+   * exista siguen usando `.next` sin enterarse.
+   */
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },

@@ -19,8 +19,8 @@ import { AlertTriangle, ArrowLeft, Ban, Bell, Check, Download, FileText, Loader2
 import { useRouter } from 'next/navigation';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
-import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
-import { DataTable, EmptyState, TagPill, PersonAvatar, FilterPill } from '@/components/ui-phoenix';
+import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
+import { DataTable, EmptyState, TagPill, PersonAvatar, FilterPill, useToast } from '@/components/ui-phoenix';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import { VisitNotePrintDialog } from '@/components/visit/visit-note-print-dialog';
 import type { PickableTemplate } from '@/components/visit/template-picker';
@@ -354,6 +354,7 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
   const t = useTranslations('phoenix.notesAudit');
   /** Las claves del desenlace son las MISMAS de Mi Día — no se duplican. */
   const ta = useTranslations('phoenix.admission');
+  const toast = useToast();
 
   const [tipo, setTipo] = React.useState<Desenlace | null>(null);
   const [sellando, setSellando] = React.useState(false);
@@ -361,6 +362,9 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
   /** Abierto el picker = ya se selló y falta elegir el código de la penalidad. */
   const [cobrando, setCobrando] = React.useState(false);
   const [cargosActuales, setCargosActuales] = React.useState<PlannedService[]>([]);
+  /** Los cargos de EFECTIVO ya puestos en esta cita. Sin esto el picker no
+   *  sabía que el ítem ya estaba y cada clic agregaba otro cargo. */
+  const [cargosEfectivo, setCargosEfectivo] = React.useState<CargoEfectivo[]>([]);
   const [cargoError, setCargoError] = React.useState<string | null>(null);
 
   const confirmar = async (): Promise<void> => {
@@ -386,6 +390,7 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
 
       // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
       setCargosActuales(await leerCargos(visita.appointmentId));
+      setCargosEfectivo([]);
       setCargoError(null);
       setCobrando(true);
     } catch {
@@ -404,9 +409,16 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
       actuales:      cargosActuales,
     });
     setCargosActuales(r.servicios);
+    // El cargo de efectivo recién creado, para que el picker lo marque y no
+    // deje agregarlo otra vez. En el circuito de seguro viene null.
+    if (r.efectivo) setCargosEfectivo((prev) => [...prev, r.efectivo!]);
     // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
     // clic parezca que funcionó (`sync-billing` responde `no_case`).
     setCargoError(r.ok ? null : r.error === 'NO_CASE' ? ta('penaltyNoCase') : ta('penaltyFailed'));
+    // El AVISO de que entró. El picker se queda abierto a propósito, así que
+    // sin esto el único rastro del éxito era una fila que aparecía detrás del
+    // modal: nadie lo veía, y el segundo clic era la consecuencia.
+    if (r.ok) toast.success(ta('penaltyAdded', { nombre: item.name }));
   };
 
   const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-[12px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
@@ -468,7 +480,8 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
           /* El picker indexa por `item.key`, que para el circuito de seguro es
              `s<refId>`. Con la clave mal armada el ítem ya cargado no se marcaría
              y se agregaría dos veces. */
-          added={new Map(cargosActuales.map((c) => [`s${c.id}`, 1]))}
+          added={mapaDeCargos(cargosActuales, cargosEfectivo)}
+          bloquearRepetidos
           onClose={() => { setCobrando(false); setCargoError(null); onSellada(visita.appointmentId); }}
           onAdd={onAgregarCargo}
         />

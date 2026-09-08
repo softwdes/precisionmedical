@@ -17,14 +17,14 @@ import {
   AlertTriangle, Ban, CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
   Hourglass, QrCode, RefreshCw, Sun, UserX, Video,
 } from 'lucide-react';
-import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
+import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker, useToast } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
-import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
+import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -162,6 +162,7 @@ export function MyDayClient({
    * sería sobre cuál de los dos textos vale. Mismo criterio que la consulta.
    */
   const ta = useTranslations('phoenix.admission');
+  const toast = useToast();
   /** Las palabras de la firma nacieron en el panel de la cita; una sola copia. */
   const tc = useTranslations('phoenix.calendar');
   const router = useRouter();
@@ -186,6 +187,12 @@ export function MyDayClient({
   /** Cita a la que le falta la penalidad — abre el picker apenas se sella. */
   const [cargoTarget, setCargoTarget] = React.useState<MyDayAppointment | null>(null);
   const [cargosActuales, setCargosActuales] = React.useState<PlannedService[]>([]);
+
+  /** Los cargos de EFECTIVO ya puestos en esta cita. Sin esto el picker no
+
+   *  sabía que el ítem ya estaba y cada clic agregaba otro cargo. */
+
+  const [cargosEfectivo, setCargosEfectivo] = React.useState<CargoEfectivo[]>([]);
   const [cargoError, setCargoError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -330,6 +337,7 @@ export function MyDayClient({
       if (!cobraPenalidad(tipo)) return;
       // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
       setCargosActuales(await leerCargos(appt.id));
+      setCargosEfectivo([]);
       setCargoError(null);
       setCargoTarget(appt);
     } finally {
@@ -348,9 +356,16 @@ export function MyDayClient({
       actuales:      cargosActuales,
     });
     setCargosActuales(r.servicios);
+    // El cargo de efectivo recién creado, para que el picker lo marque y no
+    // deje agregarlo otra vez. En el circuito de seguro viene null.
+    if (r.efectivo) setCargosEfectivo((prev) => [...prev, r.efectivo!]);
     // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
     // clic parezca que funcionó (`sync-billing` responde `no_case`).
     setCargoError(r.ok ? null : r.error === 'NO_CASE' ? ta('penaltyNoCase') : ta('penaltyFailed'));
+    // El AVISO de que entró. El picker se queda abierto a propósito, así que
+    // sin esto el único rastro del éxito era una fila que aparecía detrás del
+    // modal: nadie lo veía, y el segundo clic era la consecuencia.
+    if (r.ok) toast.success(ta('penaltyAdded', { nombre: item.name }));
     if (r.ok) router.refresh();
   };
 
@@ -794,7 +809,8 @@ export function MyDayClient({
              `s<refId>`. Con la clave mal armada el ítem ya cargado no se marcaría
              y se agregaría dos veces. No se listan los de efectivo: a un no-show
              todavía no se le cobró nada. */
-          added={new Map(cargosActuales.map(c => [`s${c.id}`, 1]))}
+          added={mapaDeCargos(cargosActuales, cargosEfectivo)}
+          bloquearRepetidos
           onClose={() => { setCargoTarget(null); setCargoError(null); }}
           onAdd={onAgregarCargo}
         />

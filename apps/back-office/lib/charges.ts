@@ -74,6 +74,34 @@ export interface CargoElegido {
   insuranceCode: string | null;
 }
 
+/**
+ * El mapa `added` que espera `ChargePickerDialog`, con los DOS circuitos.
+ *
+ * Existe porque la forma de las claves es un contrato del picker y estaba
+ * copiada a mano en cinco pantallas: dos la armaban bien y **tres solo con las
+ * claves de seguro**, que es el bug de los cargos repetidos. Un contrato que se
+ * reescribe en cada consumidor es un contrato que alguien va a escribir mal.
+ *
+ * Las claves las define `/api/admin/billable-items`: `s<refId>` para el circuito
+ * de seguro y `c<catalogItemId>` para el de efectivo — con `c-<code>` como
+ * respaldo cuando el cargo no salió del catálogo.
+ *
+ * El valor es la CANTIDAD, no un booleano: en el tab de Servicios repetir es
+ * legítimo y la fila muestra "×2".
+ */
+export function mapaDeCargos(
+  servicios: readonly PlannedService[],
+  efectivo: readonly CargoEfectivo[],
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const s of servicios) m.set(`s${s.id}`, 1);
+  for (const c of efectivo) {
+    const k = c.catalogItemId !== null ? `c${c.catalogItemId}` : `c-${c.code}`;
+    m.set(k, (m.get(k) ?? 0) + (c.quantity || 1));
+  }
+  return m;
+}
+
 /** Los cargos que la cita ya tiene. `GET /api/admin/appointments/:id` los trae. */
 export async function leerCargos(appointmentId: string): Promise<PlannedService[]> {
   const res = await fetch(`/api/admin/appointments/${appointmentId}`);
@@ -82,10 +110,42 @@ export async function leerCargos(appointmentId: string): Promise<PlannedService[
   return d.plannedServiceCodes ?? [];
 }
 
+/**
+ * Un cargo de efectivo ya creado, en lo mínimo que la pantalla necesita para
+ * marcarlo como agregado en el picker.
+ */
+export interface CargoEfectivo {
+  id: string;
+  catalogItemId: number | null;
+  code: string;
+  quantity: number;
+}
+
 export interface AgregarCargoResultado {
   ok: boolean;
   /** La lista nueva de `plannedServiceCodes` (igual a la anterior si fue CASH). */
   servicios: PlannedService[];
+  /**
+   * El cargo de EFECTIVO recién creado, o `null` si el circuito fue de seguro.
+   *
+   * ── Por qué esto no estaba, y qué rompía ────────────────────────────────────
+   *
+   * Esta función descartaba la fila que devuelve el endpoint y contestaba
+   * `servicios: actuales` — o sea, "no cambió nada". Las tres pantallas de
+   * penalidad hacían `setCargosActuales(r.servicios)` con el mismo array, así
+   * que su mapa `added` nunca se enteraba del cargo. Y como la clave de un ítem
+   * de efectivo es `c<catalogItemId>` y ese mapa solo llevaba claves de seguro
+   * (`s<id>`), el picker no tenía forma de saber que el ítem ya estaba.
+   *
+   * Resultado, reportado por Erick el 2026-09-08: el botón quedaba idéntico
+   * después del clic, sin marca y sin aviso, así que se volvía a apretar — y el
+   * POST no tiene idempotencia. Cinco clics en "Cancel Same Day" dejaron **cinco
+   * cargos de $50 = $250** de deuda real en una cita.
+   *
+   * El comentario que estaba arriba —«acá se descarta»— ya señalaba esto como
+   * deuda conocida. Era un bug esperando el clic.
+   */
+  efectivo?: CargoEfectivo | null;
   /** Mensaje para mostrar cuando `ok` es false. */
   error?: string;
 }
@@ -121,9 +181,16 @@ export async function agregarCargo(opts: {
         quantity:  1,
       }),
     });
-    return res.ok
-      ? { ok: true, servicios: actuales }
-      : { ok: false, servicios: actuales, error: 'CASH_FAILED' };
+    if (!res.ok) return { ok: false, servicios: actuales, efectivo: null, error: 'CASH_FAILED' };
+
+    /**
+     * La fila creada se devuelve, no se descarta. Si por lo que sea el cuerpo no
+     * viniera parseable, `efectivo` queda en `null` y la pantalla se comporta
+     * como antes: el cargo SÍ se creó, así que responder `ok: false` sería peor
+     * —haría que alguien lo cargue de nuevo, que es justo el bug que esto cierra.
+     */
+    const cuerpo = await res.json().catch(() => null) as { charge?: CargoEfectivo } | null;
+    return { ok: true, servicios: actuales, efectivo: cuerpo?.charge ?? null };
   }
 
   // El JSON indexa por código: un duplicado se perdería igual, así que se avisa

@@ -1,6 +1,8 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
-import { APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
+import {
+  APPT_COLORS, MVA_FIRST_GLOW, CANCELLED_SAMEDAY_FILL, CANCELLED_SAMEDAY_RING,
+} from '@/lib/appointment-colors';
 
 /**
  * B.10 — CalendarClient · Grid semanal de citas
@@ -516,16 +518,29 @@ function LegendStats({
           // Las que no ocurrieron van con la etiqueta TACHADA, igual que la
           // tarjeta en el grid: es la senal que las distingue de un vistazo.
           { color: APPT_COLORS.cancelled,   label: t('legendCancelled'), strike: true },
-          { color: APPT_COLORS.cancelledSameDay, label: t('legendCancelledSameDay'), strike: true },
+          // La del mismo día lleva ARO, como la tarjeta: es la única de la lista
+          // que se distingue por el borde y no solo por el relleno, así que una
+          // muestra de color plano mentiría sobre lo que hay que buscar en la
+          // grilla. Ver `baseEventStyle`.
+          {
+            color: CANCELLED_SAMEDAY_FILL,
+            ring:  CANCELLED_SAMEDAY_RING,
+            label: t('legendCancelledSameDay'),
+            strike: true,
+          },
           { color: APPT_COLORS.noShow,      label: t('legendNoShow'),    strike: true },
           // El aviso de agenda no es un estado de cita: se muestra con su rayado
           // —el mismo de la tarjeta— en vez de un color plano, que lo haria
           // parecer una categoria mas de la lista.
           { color: 'repeating-linear-gradient(135deg, var(--bg-3) 0 4px, transparent 4px 8px)', label: t('legendBlock') },
-        ] as { color: string; label: string; glow?: boolean; strike?: boolean }[]).map(item => (
+        ] as { color: string; label: string; glow?: boolean; strike?: boolean; ring?: string }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-4 h-2 rounded-sm shrink-0"
-              style={{ background: item.color, boxShadow: item.glow ? MVA_FIRST_GLOW : undefined }} />
+              style={{
+                background: item.color,
+                boxShadow: item.glow ? MVA_FIRST_GLOW : undefined,
+                ...(item.ring ? { border: `1px solid ${item.ring}` } : {}),
+              }} />
             <span className="text-[12px] text-text-2 font-medium" style={{ textDecoration: item.strike ? 'line-through' : undefined }}>{item.label}</span>
           </div>
         ))}

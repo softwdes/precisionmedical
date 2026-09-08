@@ -701,14 +701,14 @@
       "msgEmpty_archived_title": "Nothing archived",
       "msgEmpty_archived_sub": "What you archive is kept here and returns to Inbox if the clinic replies.",
       "msgArchive": "Archive",
+      "msgBulkArchiveDesc": "They leave YOUR inbox only, into Archived. The clinic still sees them, and they come back if someone replies.",
+      "msgBulkUnarchiveDesc": "They come back to your inbox as they were.",
       "msgUnarchive": "Unarchive",
       "msgArchived": "Archived. It comes back on its own if the clinic replies.",
       "msgUnarchived": "Back in the inbox.",
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
-      "msgYouPrefix": "You → {name}",
-      "msgBulkArchiveDesc": "They leave YOUR inbox only, into Archived. The clinic still sees them, and they come back if someone replies.",
-      "msgBulkUnarchiveDesc": "They come back to your inbox as they were."
+      "msgYouPrefix": "You → {name}"
     },
     "doctor": {
       "greeting": "{name}",
@@ -2553,6 +2553,7 @@
       "desenlaceSealing": "Saving…",
       "penaltyNoCase": "This appointment has no case, so there is nowhere to record the debt. Assign a case before charging the penalty.",
       "penaltyFailed": "Could not add the charge. Please try again.",
+      "penaltyAdded": "{nombre} charged to this appointment.",
       "cancelSameDayShort": "Same day",
       "outsideClinics": "+{count} at another facility",
       "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",

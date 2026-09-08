@@ -3,6 +3,12 @@ node_modules/
 
 # Next.js
 .next/
+# Directorios de build alternativos: `NEXT_DIST_DIR=.next-algo npx next build`
+# (ver `distDir` en apps/back-office/next.config.mjs). El patrón va con comodín a
+# propósito: cada sesión elige su nombre —`.next-verify`, `.next-agente`— y una
+# regla por nombre deja el siguiente sin cubrir. Ya pasó: `.next-agente/`
+# apareció como "sin trackear" y un `git add -A` habría subido un build entero.
+.next-*/
 out/
 
 # Turbo

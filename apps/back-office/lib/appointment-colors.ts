@@ -42,6 +42,24 @@ export const APPT_COLORS = {
   noShow:      'rgba(100,116,139,0.45)',
 } as const;
 
+/**
+ * La cancelada del MISMO DÍA en la tarjeta del calendario: dos valores, no uno.
+ *
+ * El chip de arriba (`APPT_COLORS.cancelledSameDay`) sigue siendo ámbar plano
+ * porque lo usa la **franja de 4px** del tracking MVA, donde no hay borde donde
+ * poner nada: ahí el único canal es el relleno.
+ *
+ * La TARJETA del calendario sí tiene borde, y lo aprovecha, porque ahí el ámbar
+ * de relleno chocaba con el de "agendada" — se distinguían por cinco centésimas
+ * de opacidad. Relleno = si ocurrió (pizarra, como el no-show); aro = si hay
+ * plata en juego (ámbar). El razonamiento completo está en `baseEventStyle`.
+ *
+ * Viven acá y no inline en la leyenda para que la muestra y la tarjeta no se
+ * separen — que es la razón de existir de este módulo.
+ */
+export const CANCELLED_SAMEDAY_FILL = 'rgba(100,116,139,0.14)';
+export const CANCELLED_SAMEDAY_RING = 'rgba(245,158,11,0.65)';
+
 export const MVA_FIRST_GLOW = '0 0 4px rgba(244,63,94,0.40)';
 
 export interface ApptVisual {

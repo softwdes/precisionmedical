@@ -82,6 +82,18 @@ interface Props {
    * idéntico después de agregar y no hay forma de saber si el clic tomó.
    */
   added: ReadonlyMap<string, number>;
+  /**
+   * Bloquea el segundo cargo del MISMO ítem, también en efectivo.
+   *
+   * Por defecto `false`, porque en el tab de Servicios repetir es legítimo: dos
+   * aplicaciones del mismo inyectable son dos cobros. Pero el flujo de PENALIDAD
+   * es distinto — una cancelación del mismo día, o un no-show, **ocurren una sola
+   * vez por cita**. Ahí un segundo cargo no es un cobro más: es un error.
+   *
+   * Erick, 2026-09-08, después de que cinco clics dejaran $250 de deuda en una
+   * cita: mostrar el contador arregla los síntomas, pero bloquear evita el error.
+   */
+  bloquearRepetidos?: boolean;
   onClose: () => void;
   onAdd: (item: BillableItem) => Promise<void>;
 }
@@ -94,7 +106,7 @@ const EMPTY: Payload = {
 };
 
 export function ChargePickerDialog({
-  coverage, added, onClose, onAdd,
+  coverage, added, bloquearRepetidos = false, onClose, onAdd,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.charges');
   const pathname = usePathname();
@@ -217,7 +229,14 @@ export function ChargePickerDialog({
     const cash = item.source === 'CASH';
     const busy = addingKey === item.key;
 
-    if (!cash && added.has(item.key)) return null;
+    /**
+     * El botón desaparece cuando el ítem ya está y repetirlo no tiene sentido:
+     * siempre para el circuito de seguro (el JSON indexa por código, un duplicado
+     * se perdería igual) y, en el flujo de penalidad, también para el efectivo.
+     * La marca de "ya agregado" queda en su lugar, así que la fila no se vuelve
+     * muda — solo pierde el botón.
+     */
+    if ((!cash || bloquearRepetidos) && added.has(item.key)) return null;
 
     // Sin precio cargado. No se agrega en cero: `sync-billing` saltea los
     // servicios con fee <= 0, así que entraba a la visita y NUNCA generaba

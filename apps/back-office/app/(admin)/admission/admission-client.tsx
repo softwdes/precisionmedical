@@ -20,6 +20,7 @@ import {
   QrCode, Check,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
+import { useToast } from '@/components/ui-phoenix';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { OnlineBadge } from '@/components/visit/online-visit';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
@@ -32,7 +33,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { conCasoAbierto } from '@/lib/case-modal-url';
-import { agregarCargo, leerCargos, type PlannedService } from '@/lib/charges';
+import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
 import { getEventStyle } from '@/lib/appointment-style';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
@@ -501,6 +502,7 @@ export function AdmissionClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations('phoenix.admission');
+  const toast = useToast();
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
   const [done,        setDone]        = useState<AdmissionAppt[]>([]);
@@ -525,6 +527,12 @@ export function AdmissionClient() {
    */
   const [cargoTarget, setCargoTarget] = useState<AdmissionAppt | null>(null);
   const [cargosActuales, setCargosActuales] = useState<PlannedService[]>([]);
+
+  /** Los cargos de EFECTIVO ya puestos en esta cita. Sin esto el picker no
+
+   *  sabía que el ítem ya estaba y cada clic agregaba otro cargo. */
+
+  const [cargosEfectivo, setCargosEfectivo] = useState<CargoEfectivo[]>([]);
   const [cargoError, setCargoError] = useState<string | null>(null);
   const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -617,6 +625,7 @@ export function AdmissionClient() {
       if (tipo === 'cancel') return;
       // Lo que la cita ya tenía cargado, para no escribir un duplicado encima.
       setCargosActuales(await leerCargos(appt.id));
+      setCargosEfectivo([]);
       setCargoError(null);
       setCargoTarget(appt);
     } finally {
@@ -652,9 +661,16 @@ export function AdmissionClient() {
       actuales:      cargosActuales,
     });
     setCargosActuales(r.servicios);
+    // El cargo de efectivo recién creado, para que el picker lo marque y no
+    // deje agregarlo otra vez. En el circuito de seguro viene null.
+    if (r.efectivo) setCargosEfectivo((prev) => [...prev, r.efectivo!]);
     // Sin caso no hay dónde colgar la deuda: hay que decirlo, no dejar que el
     // clic parezca que funcionó (`sync-billing` responde `no_case` y no escribe).
     setCargoError(r.ok ? null : r.error === 'NO_CASE' ? t('penaltyNoCase') : t('penaltyFailed'));
+    // El AVISO de que entró. El picker se queda abierto a propósito, así que
+    // sin esto el único rastro del éxito era una fila que aparecía detrás del
+    // modal: nadie lo veía, y el segundo clic era la consecuencia.
+    if (r.ok) toast.success(t('penaltyAdded', { nombre: item.name }));
     if (r.ok) await load(selectedDate, true);
   }
 
@@ -1148,7 +1164,8 @@ export function AdmissionClient() {
                mal armada el ítem ya cargado no se marcaría y se agregaría dos
                veces. No se listan los cargos de efectivo: a un no-show todavía no
                se le cobró nada, así que no hay ninguno. */
-            added={new Map(cargosActuales.map(c => [`s${c.id}`, 1]))}
+            added={mapaDeCargos(cargosActuales, cargosEfectivo)}
+          bloquearRepetidos
             onClose={() => { setCargoTarget(null); setCargoError(null); }}
             onAdd={onAgregarCargo}
           />

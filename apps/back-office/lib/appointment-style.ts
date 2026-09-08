@@ -20,6 +20,8 @@
  *    cancelada es una cancelada, no una MVA.
  */
 
+import { CANCELLED_SAMEDAY_FILL, CANCELLED_SAMEDAY_RING } from './appointment-colors';
+
 /**
  * Lo mínimo que hace falta para pintar una cita. Estructural a propósito: el
  * calendario y Admisión traen tipos distintos (cada uno con sus propios campos
@@ -101,13 +103,35 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
    * tachado; el color solo acompana.
    */
   if (appt.status === 'CANCELLED') {
-    // El mismo día va ámbar: consume el horario y cobra penalidad, así que se
-    // lee más cerca de un no-show que de una cancelación con aviso. Las dos
-    // siguen tachadas — esa es la señal fuerte.
+    /**
+     * ── Cancelada EL MISMO DÍA: relleno de "no ocurrió", aro de penalidad ────
+     *
+     * Antes era ámbar **de relleno** al 0.10, y una cita AGENDADA es ámbar de
+     * relleno al 0.15. Cinco centésimas de opacidad separaban "viene a la
+     * clínica" de "canceló y hay que cobrarle", con el tachado como única señal
+     * fuerte — y el tachado se pierde en un nombre corto o una fila angosta.
+     * Erick lo confundió el 2026-09-08 mirando el calendario.
+     *
+     * Ahora los dos ejes dicen cada uno su cosa, y ninguno depende del otro:
+     *
+     *  · **el RELLENO dice si ocurrió** — pizarra apagada, igual que el no-show,
+     *    porque operativamente es lo mismo: el horario se consumió y nadie vino;
+     *  · **el ARO dice si hay plata en juego** — ámbar fuerte (0.65, contra el
+     *    0.35 de antes), que en esta paleta es el color de atención.
+     *
+     * Así queda separada de las tres vecinas por un eje distinto en cada caso:
+     * de la AGENDADA por el relleno (pizarra contra ámbar), del NO-SHOW por el
+     * aro (ámbar contra pizarra) y de la CANCELADA CON AVISO por las dos cosas.
+     * El tachado se queda, pero ya no carga solo con la distinción.
+     *
+     * No se usó rayado, que era la idea obvia: en este calendario ya significa
+     * **bloqueo de horario** y **continuación de cita**, las dos con borde
+     * punteado. Un tercer significado para el mismo patrón no separa nada.
+     */
     return appt.cancelledSameDay
       ? {
-          bg: 'rgba(245,158,11,0.10)',
-          border: 'rgba(245,158,11,0.35)',
+          bg: CANCELLED_SAMEDAY_FILL,
+          border: CANCELLED_SAMEDAY_RING,
           text: 'var(--cal-text-cancelled-sameday)',
           strike: true,
         }

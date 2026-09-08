@@ -701,14 +701,14 @@
       "msgEmpty_archived_title": "Nada archivado",
       "msgEmpty_archived_sub": "Lo que archives se guarda acá y vuelve a Recibidos si la clínica responde.",
       "msgArchive": "Archivar",
+      "msgBulkArchiveDesc": "Salen solo de TU bandeja, a Archivados. La clínica los sigue viendo, y vuelven si te responden.",
+      "msgBulkUnarchiveDesc": "Vuelven a tu bandeja tal como estaban.",
       "msgUnarchive": "Desarchivar",
       "msgArchived": "Archivado. Vuelve solo si la clínica responde.",
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}",
-      "msgBulkArchiveDesc": "Salen solo de TU bandeja, a Archivados. La clínica los sigue viendo, y vuelven si te responden.",
-      "msgBulkUnarchiveDesc": "Vuelven a tu bandeja tal como estaban."
+      "msgYouPrefix": "Vos → {name}"
     },
     "doctor": {
       "greeting": "{name}",
@@ -2553,6 +2553,7 @@
       "desenlaceSealing": "Guardando…",
       "penaltyNoCase": "Esta cita no tiene caso, así que no hay dónde registrar la deuda. Asignale un caso antes de cargar la penalidad.",
       "penaltyFailed": "No se pudo agregar el cargo. Intentá de nuevo.",
+      "penaltyAdded": "{nombre} cargado a la cita.",
       "cancelSameDayShort": "Mismo día",
       "outsideClinics": "+{count} en otro centro",
       "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",

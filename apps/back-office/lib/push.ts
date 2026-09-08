@@ -17,31 +17,6 @@
  *
  * Quien llame a esto tiene que respetarlo. `cuerpo` no es un campo libre.
  *
- * ── Por qué el import es dinámico ───────────────────────────────────────────
- *
- * `web-push` todavía no está instalado: `pnpm install` en este monorepo con
- * pnpm 10 puede dejar a Prisma sin engines (no hay `onlyBuiltDependencies`) y
- * hay dos sesiones más trabajando en el mismo árbol. Con un `import` estático,
- * un módulo ausente rompe el `tsc` y el `next build` DE TODOS.
- *
- * Así que el especificador va en una variable: TypeScript no lo resuelve, el
- * árbol sigue compilando, y si el paquete no está el aviso se saltea con un log
- * en vez de tumbar el envío del mensaje.
- *
- * ⚠️ ESTO ES UN ANDAMIO, NO LA FORMA FINAL. Con el especificador en una
- * variable el bundler no puede ver la dependencia, y en Vercel lo que no se ve
- * NO SE TRAZA al bundle serverless — el mismo problema que el binario de
- * Prisma, que por eso está listado a mano en `outputFileTracingIncludes`. O
- * sea: mientras esta línea siga así, los avisos NO funcionan en producción,
- * aunque `web-push` esté en el `package.json`.
- *
- * Los dos pasos, en este orden, cuando se pueda parar los dev servers:
- *   1. `pnpm --filter @precision-medical/back-office add web-push`
- *      (+ `-D @types/web-push`) — actualiza también el lockfile, que si no
- *      Vercel falla con `--frozen-lockfile`.
- *   2. reemplazar este bloque por `import webpush from 'web-push'` arriba.
- * Está anotado en `pending-tasks`.
- *
  * ── Por qué SQL crudo y no `db.pushSubscription` ───────────────────────────
  *
  * Por el mismo motivo: `db.pushSubscription` no existe hasta correr
@@ -57,17 +32,8 @@
  * lógica.
  */
 
+import webpush from 'web-push';
 import { db } from '@precision-medical/database';
-
-/** Lo mínimo que usamos de `web-push`, para no depender de sus tipos todavía. */
-interface WebPush {
-  setVapidDetails(subject: string, publicKey: string, privateKey: string): void;
-  sendNotification(
-    sub: { endpoint: string; keys: { p256dh: string; auth: string } },
-    payload: string,
-    options?: { TTL?: number; urgency?: string },
-  ): Promise<unknown>;
-}
 
 /** El aviso tal como lo lee el Service Worker (ver `worker/index.js`). */
 export interface AvisoPush {
@@ -86,16 +52,17 @@ export interface AvisoPush {
   urgente?: boolean;
 }
 
-let cliente: WebPush | null = null;
-let intentado = false;
+let listo: boolean | null = null;
 
 /**
- * Carga `web-push` y le pone las claves VAPID. Devuelve null —una sola vez con
- * log— si falta el paquete o falta la configuración.
+ * Le pone las claves VAPID a `web-push`, una sola vez por proceso.
+ *
+ * Devuelve false —con un log, también una sola vez— si falta configuración.
+ * Sin claves los avisos quedan apagados y el resto del sistema no se enfrenta:
+ * el mensaje se guarda y la bandeja lo muestra igual.
  */
-async function obtenerCliente(): Promise<WebPush | null> {
-  if (intentado) return cliente;
-  intentado = true;
+function configurar(): boolean {
+  if (listo !== null) return listo;
 
   const publica = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privada = process.env.VAPID_PRIVATE_KEY;
@@ -103,20 +70,20 @@ async function obtenerCliente(): Promise<WebPush | null> {
 
   if (!publica || !privada) {
     console.warn('[push] sin claves VAPID: los avisos al celular quedan apagados');
-    return null;
+    listo = false;
+    return listo;
   }
 
   try {
-    const especificador = 'web-push';
-    const mod = (await import(especificador)) as { default?: WebPush } & WebPush;
-    const wp = mod.default ?? mod;
-    wp.setVapidDetails(subject, publica, privada);
-    cliente = wp;
-  } catch {
-    console.warn('[push] `web-push` no está instalado: los avisos al celular quedan apagados');
-    cliente = null;
+    webpush.setVapidDetails(subject, publica, privada);
+    listo = true;
+  } catch (e) {
+    // Una clave mal copiada llega hasta acá: `setVapidDetails` valida el
+    // formato. Se avisa y se apaga, en vez de tirar en cada mensaje enviado.
+    console.error('[push] claves VAPID inválidas:', (e as Error).message);
+    listo = false;
   }
-  return cliente;
+  return listo;
 }
 
 /** ¿Está el push configurado y disponible? Lo usa la pantalla de opt-in. */
@@ -137,8 +104,10 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
   const destinatarios = [...new Set(userIds)].filter(Boolean);
   if (destinatarios.length === 0) return;
 
-  const wp = await obtenerCliente();
-  if (!wp) return;
+  // La guarda va ANTES de consultar la tabla, a propósito: sin claves esto no
+  // toca `push_subscriptions`, así que el sistema funciona igual en un entorno
+  // donde la tabla todavía no exista.
+  if (!configurar()) return;
 
   const subs = await db.$queryRaw<
     Array<{ id: string; endpoint: string; p256dh: string; auth: string }>
@@ -156,7 +125,7 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
   await Promise.all(
     subs.map(async (s) => {
       try {
-        await wp.sendNotification(
+        await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           payload,
           // 4 h de TTL: un aviso de mensaje que llega al otro día no sirve, y

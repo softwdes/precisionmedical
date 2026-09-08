@@ -14,8 +14,9 @@
  *    texto: "State Farm" escrito a mano no siempre coincide con el catálogo, y
  *    un seguro mal casado es peor que ninguno. La recepcionista lo elige con el
  *    dato a la vista.
- *  · Case manager del bufete: nombre, teléfono, email.
  *  · Nota libre y "necesita cita esta semana" (→ URGENT).
+ *  · NO se pide el case manager del bufete (Erick, 2026-09-08): quien manda ES
+ *    la firma, y su ficha ya está en Externals con teléfono y correo.
  *  · Nada de dirección, SSN ni tutor: eso lo completa la clínica con el paciente.
  */
 
@@ -50,11 +51,6 @@ export const ReferidoSchema = z.object({
     adjusterPhone:  opcional(30),
     thirdPartyCarrier: opcional(120),
   }).optional(),
-  caseManager: z.object({
-    name:  opcional(120),
-    phone: opcional(30),
-    email: z.string().trim().email().optional().or(z.literal('').transform(() => undefined)),
-  }).optional(),
   notes: opcional(2000),
   /** El cliente tiene dolor o el bufete necesita la primera cita esta semana. */
   urgente: z.boolean().default(false),
@@ -85,14 +81,13 @@ export function lugarDelAccidente(a: ReferidoPayload['accidente']): string {
 }
 
 /**
- * Lo que el abogado sabe del seguro y del case manager, como bloque de texto
- * para las notas del caso. Se precarga en `accidentNotes` para que la
- * recepcionista lo tenga delante al elegir la aseguradora del catálogo; puede
- * borrarlo o dejarlo.
+ * Lo que el abogado sabe del seguro, como bloque de texto para las notas del
+ * caso. Se precarga en `accidentNotes` para que la recepcionista lo tenga
+ * delante al elegir la aseguradora del catálogo; puede borrarlo o dejarlo.
  */
 export function notasDelReferido(p: ReferidoPayload, etiquetas: {
   seguro: string; poliza: string; reclamo: string; ajustador: string; tercero: string;
-  caseManager: string; notaDelBufete: string;
+  notaDelBufete: string;
 }): string {
   const lineas: string[] = [];
   if (p.accidente.description) lineas.push(p.accidente.description);
@@ -106,10 +101,6 @@ export function notasDelReferido(p: ReferidoPayload, etiquetas: {
       s.thirdPartyCarrier ? `${etiquetas.tercero}: ${s.thirdPartyCarrier}` : null,
     ].filter(Boolean);
     lineas.push(partes.join(' · '));
-  }
-  const cm = p.caseManager;
-  if (cm && (cm.name || cm.phone || cm.email)) {
-    lineas.push(`${etiquetas.caseManager}: ${[cm.name, cm.phone, cm.email].filter(Boolean).join(' · ')}`);
   }
   if (p.notes) lineas.push(`${etiquetas.notaDelBufete}: ${p.notes}`);
   return lineas.join('\n');

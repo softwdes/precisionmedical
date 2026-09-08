@@ -31,7 +31,7 @@ export interface EtiquetasResumen {
   cliente: string; telefono: string; email: string; nacimiento: string; idioma: string;
   accidente: string; fecha: string; lugar: string; descripcion: string;
   seguro: string; poliza: string; reclamo: string; ajustador: string; tercero: string;
-  bufete: string; abogado: string; caseManager: string; nota: string; urgente: string;
+  bufete: string; abogado: string; nota: string; urgente: string;
   posibleDuplicado: string;
 }
 
@@ -75,11 +75,11 @@ export function resumenDelReferido(
     ].filter(Boolean).join('\n'));
   }
 
-  const cm = p.caseManager;
+  // Quién manda ES el contacto del bufete: su ficha (teléfono, correo) está en
+  // Externals, así que acá alcanza con el nombre.
   bloques.push([
     `${e.bufete}: ${ctx.firmName}`,
     linea(e.abogado, ctx.attorneyName),
-    linea(e.caseManager, cm && (cm.name || cm.phone || cm.email) ? [cm.name, cm.phone, cm.email].filter(Boolean).join(' · ') : undefined),
   ].filter(Boolean).join('\n'));
 
   if (p.notes) bloques.push(`${e.nota}: ${p.notes}`);

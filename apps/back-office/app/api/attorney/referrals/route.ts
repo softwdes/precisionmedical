@@ -47,7 +47,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     nacimiento: tm('refLblDob'), idioma: tm('refLblLanguage'),
     accidente: tm('refLblAccident'), fecha: tm('refLblDate'), lugar: tm('refLblPlace'), descripcion: tm('refLblDescription'),
     seguro: tm('refLblInsurance'), poliza: tm('refLblPolicy'), reclamo: tm('refLblClaim'), ajustador: tm('refLblAdjuster'), tercero: tm('refLblThirdParty'),
-    bufete: tm('refLblFirm'), abogado: tm('refLblAttorney'), caseManager: tm('refLblCaseManager'), nota: tm('refLblNote'),
+    bufete: tm('refLblFirm'), abogado: tm('refLblAttorney'), nota: tm('refLblNote'),
     urgente: tm('refLblUrgent'), posibleDuplicado: tm('refLblPossibleDuplicate'),
   };
   const firma = lawyer.firmName ?? `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim();

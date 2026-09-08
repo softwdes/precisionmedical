@@ -18,9 +18,15 @@ import { ReferidoSchema, type ReferidoPayload } from '@/lib/referidos/referido';
  * lo demás lo completa recepción con el paciente. El bufete y el abogado no se
  * eligen: salen de la sesión y se muestran como contexto.
  *
- * El seguro y el case manager van PLEGADOS: el que los sabe los despliega, el
- * que no, ni los ve. Un formulario de veinte campos no lo llena nadie desde el
- * teléfono, y este portal se usa desde el teléfono.
+ * El seguro va PLEGADO: el que lo sabe lo despliega, el que no, ni lo ve. Un
+ * formulario de veinte campos no lo llena nadie desde el teléfono, y este
+ * portal se usa desde el teléfono.
+ *
+ * NO se pide el case manager del bufete (Erick, 2026-09-08): quien manda el
+ * referido ES la firma, su ficha y la del bufete ya están en Externals con
+ * teléfono y correo, y el wizard de la clínica los precarga como
+ * representantes y como referidores. Pedirle al abogado que se describa a sí
+ * mismo era un dato repetido.
  *
  * NO crea nada del lado clínica: recepción valida, deduplica y elige el seguro
  * del catálogo cuando abre el wizard desde el mensaje.
@@ -37,31 +43,27 @@ interface Props {
 type Cliente = ReferidoPayload['cliente'];
 type Accidente = ReferidoPayload['accidente'];
 type Seguro = NonNullable<ReferidoPayload['seguro']>;
-type CaseManager = NonNullable<ReferidoPayload['caseManager']>;
 
 const CLIENTE_VACIO: Cliente = { firstName: '', lastName: '', phone: '', email: undefined, dateOfBirth: undefined, language: 'en' };
 const ACCIDENTE_VACIO: Accidente = { date: '', city: '', state: 'UT', place: '', description: '' };
 const SEGURO_VACIO: Seguro = { carrier: '', policyNumber: '', claimNumber: '', adjusterName: '', adjusterPhone: '', thirdPartyCarrier: '' };
-const CM_VACIO: CaseManager = { name: '', phone: '', email: undefined };
 
 export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }: Props): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const [cliente, setCliente] = React.useState<Cliente>(CLIENTE_VACIO);
   const [accidente, setAccidente] = React.useState<Accidente>(ACCIDENTE_VACIO);
   const [seguro, setSeguro] = React.useState<Seguro>(SEGURO_VACIO);
-  const [cm, setCm] = React.useState<CaseManager>(CM_VACIO);
   const [notes, setNotes] = React.useState('');
   const [urgente, setUrgente] = React.useState(false);
   const [seguroAbierto, setSeguroAbierto] = React.useState(false);
-  const [cmAbierto, setCmAbierto] = React.useState(false);
   const [enviando, setEnviando] = React.useState(false);
   const [enviado, setEnviado] = React.useState<{ duplicados: number; respaldo: string | null } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
-    setCliente(CLIENTE_VACIO); setAccidente(ACCIDENTE_VACIO); setSeguro(SEGURO_VACIO); setCm(CM_VACIO);
-    setNotes(''); setUrgente(false); setSeguroAbierto(false); setCmAbierto(false);
+    setCliente(CLIENTE_VACIO); setAccidente(ACCIDENTE_VACIO); setSeguro(SEGURO_VACIO);
+    setNotes(''); setUrgente(false); setSeguroAbierto(false);
     setEnviando(false); setEnviado(null); setError(null);
   }, [open]);
 
@@ -69,7 +71,6 @@ export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }
     cliente: { ...cliente, email: cliente.email ?? '', dateOfBirth: cliente.dateOfBirth ?? '' },
     accidente,
     seguro,
-    caseManager: { ...cm, email: cm.email ?? '' },
     notes,
     urgente,
   });
@@ -182,23 +183,6 @@ export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }
                   <FormField.Input label={t('refThirdParty')} value={seguro.thirdPartyCarrier ?? ''} onChange={(v) => setSeguro({ ...seguro, thirdPartyCarrier: v })} hint={t('refThirdPartyHint')} />
                   <FormField.Input label={t('refAdjuster')} value={seguro.adjusterName ?? ''} onChange={(v) => setSeguro({ ...seguro, adjusterName: v })} />
                   <FormField.Phone label={t('refAdjusterPhone')} value={seguro.adjusterPhone ?? ''} onChange={(v) => setSeguro({ ...seguro, adjusterPhone: v })} />
-                </div>
-              )}
-            </section>
-
-            {/* Case manager — plegado */}
-            <section className="rounded-md bg-bg-2/40 p-3 space-y-3">
-              <button type="button" onClick={() => setCmAbierto((v) => !v)} className="w-full flex items-center gap-2 text-left" aria-expanded={cmAbierto}>
-                {cmAbierto ? <ChevronDown className="w-3.5 h-3.5 text-text-muted" /> : <ChevronRight className="w-3.5 h-3.5 text-text-muted" />}
-                <Briefcase className="w-3.5 h-3.5 text-amber" />
-                <span className="text-sm font-semibold text-text-1">{t('refSecCaseManager')}</span>
-                <span className="text-[11px] text-text-muted">{t('refOptional')}</span>
-              </button>
-              {cmAbierto && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <FormField.Input label={t('refCmName')} value={cm.name ?? ''} onChange={(v) => setCm({ ...cm, name: v })} />
-                  <FormField.Phone label={t('refCmPhone')} value={cm.phone ?? ''} onChange={(v) => setCm({ ...cm, phone: v })} />
-                  <FormField.Input label={t('refCmEmail')} type="email" value={cm.email ?? ''} onChange={(v) => setCm({ ...cm, email: v || undefined })} />
                 </div>
               )}
             </section>

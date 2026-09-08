@@ -1683,7 +1683,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           accidentNotes: notasDelReferido(p, {
             seguro: tMsg('refLblInsurance'), poliza: tMsg('refLblPolicy'), reclamo: tMsg('refLblClaim'),
             ajustador: tMsg('refLblAdjuster'), tercero: tMsg('refLblThirdParty'),
-            caseManager: tMsg('refLblCaseManager'), notaDelBufete: tMsg('refLblNote'),
+            notaDelBufete: tMsg('refLblNote'),
           }),
           lawFirm: { id: ref.firm.id, label: ref.firm.label, subtitle: ref.firm.subtitle },
           attorney: ref.attorney ? { id: ref.attorney.id, label: ref.attorney.label, subtitle: ref.attorney.subtitle } : null,

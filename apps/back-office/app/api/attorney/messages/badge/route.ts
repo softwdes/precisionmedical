@@ -6,14 +6,14 @@
  * prohíbe al rol LAWYER: con "ver como bufete" funcionaba (el que mira es
  * admin) y a un abogado REAL le fallaba en silencio. Esta es su puerta.
  *
- * Mismo criterio que la bandeja: hilos donde figuro como destinatario, vivos.
- * Sin asunto ni paciente en la respuesta — es un número para una pastilla.
+ * Cuenta SOLO la carpeta Recibidos, con el criterio único de
+ * `lib/mensajeria/bandeja-abogado.ts`: el mismo número que la pestaña y el menú.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { resolveActor } from '@/lib/actor';
+import { contarRecibidos } from '@/lib/mensajeria/bandeja-abogado';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const lawyer = await getSessionLawyer();
@@ -22,23 +22,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
   if (!actor.actorUserId) return NextResponse.json({ error: 'SIN_IDENTIDAD' }, { status: 401 });
 
-  const rows = await db.messageRecipient.findMany({
-    where: {
-      userId: actor.actorUserId,
-      deletedAt: null,
-      thread: { deletedAt: null, removedFromInboxesAt: null },
-    },
-    select: { lastReadAt: true, thread: { select: { lastEntryAt: true, priority: true } } },
-  });
-
-  let unread = 0;
-  let urgentUnread = 0;
-  for (const r of rows) {
-    const sinLeer = !r.lastReadAt || r.lastReadAt < r.thread.lastEntryAt;
-    if (!sinLeer) continue;
-    unread += 1;
-    if (r.thread.priority === 'URGENT') urgentUnread += 1;
-  }
-
-  return NextResponse.json({ total: rows.length, unread, urgentUnread });
+  return NextResponse.json(await contarRecibidos(actor.actorUserId));
 }

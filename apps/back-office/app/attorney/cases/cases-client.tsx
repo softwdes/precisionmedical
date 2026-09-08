@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Loader2, FileDown } from 'lucide-react';
 import { CaseActionsMenu } from './case-actions';
 import { AssistantsSelect, type AssistantOption } from './assistants-select';
 import {
@@ -199,7 +199,23 @@ export function AttorneyCasesClient({
 
   return (
     <div className="space-y-4">
-      <PageHeader title={heading.title} subtitle={heading.sub} />
+      {/* El reporte PDF vivía en el Panel; sin Panel (2026-09-08) su lugar es
+          la lista de casos que resume. Abre en otra pestaña, como antes. */}
+      <PageHeader
+        title={heading.title}
+        subtitle={heading.sub}
+        action={
+          <a
+            href="/api/attorney/report"
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-bg-2 text-sm font-semibold text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t('actionReport')}</span>
+          </a>
+        }
+      />
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex-1 min-w-[220px]">

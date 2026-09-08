@@ -191,5 +191,11 @@ export async function reviveThread(threadId: string, lastEntryAt: Date): Promise
       where: { threadId, deletedAt: { not: null } },
       data: { deletedAt: null },
     }),
+    // Lo archivado también vuelve: una respuesta nueva es motivo para mirarlo
+    // otra vez (Gmail hace lo mismo). Ver la carpeta Archivados del portal legal.
+    db.messageRecipient.updateMany({
+      where: { threadId, archivedAt: { not: null } },
+      data: { archivedAt: null },
+    }),
   ]);
 }

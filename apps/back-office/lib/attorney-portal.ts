@@ -15,10 +15,16 @@ import type { SessionLawyer } from './get-session-lawyer';
  * (menús) y los guards de API del middleware.
  */
 
-export type AttorneyMenu = 'panel' | 'vigia' | 'messages' | 'cases' | 'users' | 'appointments';
+/**
+ * Sin `panel` desde 2026-09-08 (Erick): Vigía lo reemplazó —dice qué hacer hoy,
+ * el Panel solo mostraba números— y `/attorney` redirige a Vigía. `referrals`
+ * es la puerta del negocio: el portal es gratis para que los bufetes nos manden
+ * referidos, así que va PRIMERO en el menú y con relleno propio.
+ */
+export type AttorneyMenu = 'referrals' | 'vigia' | 'messages' | 'cases' | 'users' | 'appointments';
 
 export const ATTORNEY_MENU_HOME: Record<AttorneyMenu, string> = {
-  panel:        '/attorney',
+  referrals:    '/attorney/referrals',
   vigia:        '/attorney/vigia',
   messages:     '/attorney/messages',
   cases:        '/attorney/cases',
@@ -36,16 +42,15 @@ export const ATTORNEY_MENU_HOME: Record<AttorneyMenu, string> = {
 export const VIGIA_EN_CONSTRUCCION = false;
 
 /**
- * Mensajes va aparte, y todavía NO.
+ * Mensajes se ENCENDIÓ para el bufete el 2026-09-08 (Erick: "ya puedes
+ * habilitarlo"). Estuvo apagado mientras la bandeja no tenía nada que mostrar;
+ * ahora la llenan los pedidos por escritorio, los referidos y las respuestas de
+ * la clínica, así que un abogado que entra encuentra su historial.
  *
- * Estuvo atado a la misma bandera hasta que se encendió Vigía, y ahí quedó claro
- * que son dos decisiones: el agente está listo para el bufete y la bandeja no —
- * cobranza todavía no le escribió a nadie, así que un abogado entraría a una
- * pantalla vacía sin saber para qué es.
- *
- * Se enciende cuando cobranza empiece a escribir.
+ * Se deja la bandera por la misma razón que la de Vigía: apagar tiene que ser
+ * una línea, sin tocar rutas ni páginas.
  */
-export const MENSAJES_EN_CONSTRUCCION = true;
+export const MENSAJES_EN_CONSTRUCCION = false;
 
 /**
  * ¿Ve esta persona el menú de Vigía?
@@ -72,8 +77,9 @@ export function canSeeMessages(lawyer: SessionLawyer, isAdminViewer: boolean): b
 // Vigía lo ven todos los del despacho: lo que cambia entre roles es el ALCANCE
 // —un gestor pregunta sobre sus casos, no sobre los del bufete entero— y eso ya
 // lo gobierna `lawyerCaseFilter()`, no el menú.
-const FULL_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'messages', 'cases', 'users', 'appointments'];
-const STAFF_MENUS: AttorneyMenu[] = ['panel', 'vigia', 'messages', 'cases'];
+// Usuarios al final: es lo que menos se usa (Erick, 2026-09-08).
+const FULL_MENUS: AttorneyMenu[] = ['referrals', 'vigia', 'messages', 'cases', 'appointments', 'users'];
+const STAFF_MENUS: AttorneyMenu[] = ['referrals', 'vigia', 'messages', 'cases'];
 
 export function menusFor(lawyer: SessionLawyer): AttorneyMenu[] {
   if (lawyer.isFirmAccount) return FULL_MENUS;

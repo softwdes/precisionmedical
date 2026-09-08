@@ -16,7 +16,7 @@ import type { EscritorioDePedido as Escritorio } from '@/lib/mensajeria/escritor
  * el pedido nace con el contexto puesto —el caso, el motivo y el escritorio al
  * que va— y el abogado solo lo lee y lo manda.
  */
-export function AttentionActions({ caso, href, asunto, cuerpo, desk, topic, urgente }: {
+export function AttentionActions({ caso, href, asunto, cuerpo, desk, topic, urgente, alineado = 'centro' }: {
   caso: string;
   href: string;
   asunto: string;
@@ -26,13 +26,15 @@ export function AttentionActions({ caso, href, asunto, cuerpo, desk, topic, urge
   topic: string;
   /** Cambia el color del botón principal, igual que el resto de la tarjeta. */
   urgente: boolean;
+  /** En la tarjeta a dos columnas los botones van a la izquierda. */
+  alineado?: 'centro' | 'izquierda';
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const [pidiendo, setPidiendo] = React.useState(false);
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+      <div className={`flex flex-wrap items-center gap-2 mt-4 ${alineado === 'centro' ? 'justify-center' : ''}`}>
         <Link
           href={href}
           className={`inline-flex items-center justify-center h-9 px-5 rounded font-semibold text-sm text-white transition-opacity hover:opacity-90 ${

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -21,14 +21,22 @@ import {
   Stethoscope,
   Sparkles,
   Mail,
+  UserPlus,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
+import { MESSAGES_BADGE_EVENT } from '@/lib/messaging-events';
 
 interface NavItem {
   href: string;
   icon: React.ElementType;
   labelKey: string;
   disabled?: boolean;
+  /**
+   * Ítem con relleno de marca SIEMPRE, no solo activo: es la acción que le
+   * pedimos al usuario, no una pantalla más. Lo usa "Referir un cliente" en el
+   * portal legal — el único ítem del menú con color (Erick, 2026-09-08).
+   */
+  highlight?: boolean;
   /** Solo activo con match exacto (para items "home" como /doctor) */
   exact?: boolean;
   /** Llave del módulo en roles_config.pm_clinic_modules (checks por rol) */
@@ -124,12 +132,15 @@ const ATTORNEY_SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      { href: '/attorney',              icon: BarChart3,    labelKey: 'attorneyPanel',        moduleKey: 'panel', exact: true },
+      // Sin Panel desde 2026-09-08: Vigía lo reemplazó. El referido va primero
+      // y con relleno: el portal es gratis para que los bufetes nos manden
+      // referidos. Usuarios al final, es lo que menos se usa.
+      { href: '/attorney/referrals',    icon: UserPlus,     labelKey: 'attorneyReferrals',    moduleKey: 'referrals', highlight: true },
       { href: '/attorney/vigia',        icon: Sparkles,     labelKey: 'attorneyVigia',        moduleKey: 'vigia'        },
       { href: '/attorney/messages',     icon: Mail,         labelKey: 'attorneyMessages',     moduleKey: 'messages'     },
       { href: '/attorney/cases',        icon: Briefcase,    labelKey: 'attorneyCases',        moduleKey: 'cases'        },
-      { href: '/attorney/users',        icon: Users,        labelKey: 'attorneyUsers',        moduleKey: 'users'        },
       { href: '/attorney/appointments', icon: CalendarDays, labelKey: 'attorneyAppointments', moduleKey: 'appointments' },
+      { href: '/attorney/users',        icon: Users,        labelKey: 'attorneyUsers',        moduleKey: 'users'        },
     ],
   },
 ];
@@ -151,9 +162,11 @@ interface SidebarProps {
   /** Bloque libre entre el menú y el footer. Lo usa el Portal Legal para la
    *  tarjeta de oficina; se oculta con la barra colapsada, donde no hay ancho. */
   belowNav?: React.ReactNode;
+  /** Contadores por `moduleKey` (ej. referidos pendientes). Cero no se muestra. */
+  badges?: Record<string, number> | null;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, belowNav = null }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, belowNav = null, badges = null }: SidebarProps): React.ReactElement {
   /*
    * Colapsada, la barra se abre sola al pasar el mouse y se vuelve a cerrar al
    * salir — como Gmail. El boton de la barra superior es lo que la FIJA abierta.
@@ -168,6 +181,25 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   const compact = collapsed && !hoverOpen;
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
+
+  /**
+   * El contador de Mensajes llega del servidor con el primer render y después
+   * lo mantiene VIVO el sobre del top bar, que ya consulta cada 20 s y avisa por
+   * evento: abrir un hilo baja el número acá y en el sobre a la vez, sin que el
+   * menú haga su propia consulta.
+   */
+  const [mensajesEnVivo, setMensajesEnVivo] = useState<number | null>(null);
+  useEffect(() => {
+    const onBadge = (e: Event) => {
+      const n = (e as CustomEvent<{ unread: number }>).detail?.unread;
+      if (typeof n === 'number') setMensajesEnVivo(n);
+    };
+    window.addEventListener(MESSAGES_BADGE_EVENT, onBadge);
+    return () => window.removeEventListener(MESSAGES_BADGE_EVENT, onBadge);
+  }, []);
+  const badgesVivos: Record<string, number> | null = badges
+    ? { ...badges, ...(mensajesEnVivo !== null && 'messages' in badges ? { messages: mensajesEnVivo } : {}) }
+    : null;
 
   const isDoctor = variant === 'doctor';
   const isAttorney = variant === 'attorney';
@@ -206,6 +238,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 flex h-full flex-col bg-bg-1 border-r border-border',
+        // En el teléfono el cajón y la barra inferior comparten z-40 y la barra se
+        // pinta después: sin este aire, los últimos 64px del cajón (el botón del
+        // sitio web de la clínica en el portal legal) quedaban DEBAJO de la barra y
+        // el tap navegaba a otra pantalla. Auditoría móvil 2026-09-08.
+        'pb-16 md:pb-0',
         'transition-all duration-300 ease-out',
         'md:translate-x-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
@@ -285,6 +322,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
                   onClick={onMobileClose}
                   collapsed={compact}
                   accent={isDoctor ? 'violet' : 'brand'}
+                  highlight={item.highlight}
+                  badge={item.moduleKey ? badgesVivos?.[item.moduleKey] ?? 0 : 0}
                 />
               ))}
             </ul>
@@ -337,9 +376,11 @@ interface NavItemLinkProps {
   onClick?: () => void;
   collapsed?: boolean;
   accent?: 'brand' | 'violet';
+  highlight?: boolean;
+  badge?: number;
 }
 
-function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, collapsed, accent = 'brand' }: NavItemLinkProps): React.ReactElement {
+function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, collapsed, accent = 'brand', highlight = false, badge = 0 }: NavItemLinkProps): React.ReactElement {
   if (disabled) {
     return (
       <li>
@@ -358,7 +399,7 @@ function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, colla
   }
 
   return (
-    <li>
+    <li className="relative">
       <Link
         href={href}
         onClick={onClick}
@@ -367,11 +408,15 @@ function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, colla
         className={cn(
           'flex items-center rounded-md text-[13px] transition-all group',
           collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2',
-          active
-            ? cn('text-white font-semibold', accent === 'brand' && 'bg-gradient-brand shadow-glow')
-            : 'text-text-2 hover:text-text-1 hover:bg-white/5',
+          // El ítem destacado lleva el relleno SIEMPRE; activo lo marca con el
+          // anillo, para que "estoy acá" siga siendo legible.
+          highlight
+            ? cn('text-white font-semibold bg-gradient-brand shadow-glow mb-2 hover:opacity-90', active && 'ring-2 ring-white/40')
+            : active
+              ? cn('text-white font-semibold', accent === 'brand' && 'bg-gradient-brand shadow-glow')
+              : 'text-text-2 hover:text-text-1 hover:bg-white/5',
         )}
-        style={active && accent === 'violet'
+        style={active && !highlight && accent === 'violet'
           ? { background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', boxShadow: '0 0 18px rgba(139,92,246,0.35)' }
           : undefined}
       >
@@ -379,7 +424,18 @@ function NavItemLink({ href, icon: Icon, label, active, disabled, onClick, colla
         {!collapsed && (
           <>
             <span className="flex-1 truncate">{label}</span>
+            {badge > 0 && (
+              <span className={cn(
+                'text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full',
+                highlight || active ? 'bg-white/25 text-white' : 'bg-amber/15 text-amber',
+              )}>
+                {badge}
+              </span>
+            )}
           </>
+        )}
+        {collapsed && badge > 0 && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber" aria-hidden="true" />
         )}
       </Link>
     </li>

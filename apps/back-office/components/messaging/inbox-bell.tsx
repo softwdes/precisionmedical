@@ -24,6 +24,7 @@ import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { playInboxChime, inboxSoundMuted, setInboxSoundMuted } from './notification-sound';
 import { InboxClient } from './inbox-client';
 import { MESSAGES_READ_EVENT } from './thread-view-dialog';
+import { anunciarBadge } from '@/lib/messaging-events';
 
 /**
  * Pantallas que montan <CaseUrlModal> y por lo tanto pueden abrir un caso con
@@ -140,6 +141,8 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
         prevUnread.current = data.unread;
         setBadge(data);
         setUnlinked(false);
+        // El menú lateral pinta el mismo número sin consultar por su cuenta.
+        anunciarBadge(data.unread);
         return;
       }
       // 401 = el usuario autenticó pero la app no lo reconoce (no tenía fila en
@@ -199,16 +202,30 @@ export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): Reac
         {/* Pastilla RELLENA: es la única mancha de color saturado de la barra
             y por eso se lee de un vistazo sin necesidad de animarla. El
             movimiento queda reservado para lo urgente — si todo parpadea,
-            nada parpadea. */}
-        <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
-          hasUrgent
-            ? 'bg-rose text-white'
-            : unread > 0
-              ? 'bg-emerald text-black'
-              : 'bg-bg-1 text-text-muted border border-border'
-        }`}>
-          {unread}/{total}
-        </span>
+            nada parpadea.
+
+            En el portal legal va SOLO el número de no leídos, y ninguno cuando
+            no hay nada nuevo (Erick, 2026-09-08): el "0/4" de la clínica le
+            servía a recepción como total, a un abogado no le dice nada. */}
+        {esAbogado ? (
+          unread > 0 && (
+            <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+              hasUrgent ? 'bg-rose text-white' : 'bg-emerald text-black'
+            }`}>
+              {unread}
+            </span>
+          )
+        ) : (
+          <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+            hasUrgent
+              ? 'bg-rose text-white'
+              : unread > 0
+                ? 'bg-emerald text-black'
+                : 'bg-bg-1 text-text-muted border border-border'
+          }`}>
+            {unread}/{total}
+          </span>
+        )}
       </button>
 
       {/* El overlay grande del legacy: inbox completo dentro del modal.

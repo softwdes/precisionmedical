@@ -11,8 +11,9 @@ import { ZONA_CLINICA } from '@/lib/fechas';
 import { colaDeAtencion } from '@/lib/vigia/queue';
 import { AskBox } from './ask-box';
 import { QueuePanel, StalledPanel } from './queue-panel';
-import { AttentionCard } from './attention-card';
-import { ReferralCta } from './referral-cta';
+import { AttentionCard, mereceTitular } from './attention-card';
+import { ReferralPanel } from './referral-panel';
+import { CheckCircle2 } from 'lucide-react';
 
 /**
  * Portal Legal · Vigía
@@ -105,12 +106,20 @@ export default async function AttorneyVigiaPage({ searchParams }: {
     db.case.findFirst({ where: scope, orderBy: { createdAt: 'desc' }, select: { caseCode: true } }),
   ]);
 
-  // Los referidos que mandó el bufete, para la tarjeta "¿Tenés un referido?".
-  const referidos = lawyer.firmId
-    ? await db.firmReferral.groupBy({ by: ['status'], where: { firmId: lawyer.firmId }, _count: { _all: true } })
-    : [];
+  // Los referidos que mandó el bufete, para el panel "¿Tenés un referido?":
+  // pendientes, ya con caso, y cuántos van este mes (el mes de la clínica).
+  const inicioDeMes = new Date(new Date().toLocaleString('en-US', { timeZone: ZONA_CLINICA }));
+  inicioDeMes.setDate(1); inicioDeMes.setHours(0, 0, 0, 0);
+  const [referidos, refEsteMes] = lawyer.firmId
+    ? await Promise.all([
+        db.firmReferral.groupBy({ by: ['status'], where: { firmId: lawyer.firmId }, _count: { _all: true } }),
+        db.firmReferral.count({ where: { firmId: lawyer.firmId, createdAt: { gte: inicioDeMes } } }),
+      ])
+    : [[], 0];
   const refPendientes = referidos.find((r) => r.status === 'PENDING')?._count._all ?? 0;
   const refCreados = referidos.find((r) => r.status === 'CREATED')?._count._all ?? 0;
+  const attorneyName = lawyer.isFirmAccount ? null : (`${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || null);
+  const titular = cola.filas[0] ?? null;
 
   /**
    * La sugerencia del caso usa un código REAL del alcance de quien mira.
@@ -167,18 +176,38 @@ export default async function AttorneyVigiaPage({ searchParams }: {
             ...(casoEjemplo ? [t('vigiaSuggest4', { caso: casoEjemplo })] : []),
           ]}
         />
-
-        {/* "¿Tenés un referido?" — la acción que le pedimos al bufete, en la
-            misma columna que la conversación. Ver `referral-cta.tsx`. */}
-        <ReferralCta
-          firmName={lawyer.firmName ?? '—'}
-          attorneyName={lawyer.isFirmAccount ? null : `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || null}
-          pendientes={refPendientes}
-          creados={refCreados}
-        />
       </div>
 
-      <AttentionCard fila={cola.filas[0] ?? null} />
+      {/* Las DOS cosas que le pedimos al bufete hoy, una al lado de la otra y
+          con el mismo rango: destrabá este caso (izquierda, rojo) y mandanos el
+          próximo cliente (derecha, indigo). En el teléfono se apilan, el
+          referido primero. Sin nada urgente, la izquierda lo dice — y el
+          referido queda igual de grande. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-3 items-stretch">
+        <div className="order-2 lg:order-1">
+          {mereceTitular(titular) ? (
+            <AttentionCard fila={titular} enColumna />
+          ) : (
+            <div className="rounded-lg bg-bg-1 p-6 h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald">{t('vigiaAllClearLabel')}</span>
+              </div>
+              <h2 className="text-text-1 text-xl font-bold">{t('vigiaAllClearTitle')}</h2>
+              <p className="text-text-2 text-sm mt-2 flex-1">{t('vigiaAllClearBody', { n: cola.total })}</p>
+            </div>
+          )}
+        </div>
+        <div className="order-1 lg:order-2">
+          <ReferralPanel
+            firmName={lawyer.firmName ?? '—'}
+            attorneyName={attorneyName}
+            esteMes={refEsteMes}
+            enTratamiento={refCreados}
+            pendientes={refPendientes}
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <KpiCard

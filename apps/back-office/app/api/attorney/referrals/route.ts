@@ -77,7 +77,7 @@ export async function GET(): Promise<NextResponse> {
     take: 50,
     select: {
       id: true, status: true, createdAt: true, convertedAt: true, threadId: true, payload: true,
-      thread: { select: { case: { select: { caseCode: true } } } },
+      thread: { select: { case: { select: { id: true, caseCode: true } } } },
     },
   });
 
@@ -95,6 +95,9 @@ export async function GET(): Promise<NextResponse> {
         createdAt: r.createdAt,
         convertedAt: r.convertedAt,
         caseCode: r.thread.case?.caseCode ?? null,
+        // El caso está en el alcance del bufete por construcción (lo creó la
+        // clínica a partir de este referido), así que el id puede viajar.
+        caseId: r.thread.case?.id ?? null,
       };
     }),
   });

@@ -12,6 +12,9 @@ import { getSessionLawyer, canViewAsLawyer, ATTORNEY_VIEW_COOKIE } from '@/lib/g
 import { menusFor, canSeeVigia, canSeeMessages } from '@/lib/attorney-portal';
 import { AttorneyViewBar, type FirmOption } from './attorney-view-bar';
 import { OfficeCard, type OfficeClinic } from './office-card';
+import { ReferralFab } from './referral-fab';
+import { getDbUserByEmail } from '@/lib/actor';
+import { contarRecibidos } from '@/lib/mensajeria/bandeja-abogado';
 import { cookies } from 'next/headers';
 import { esSede } from '@/lib/clinic-sede';
 
@@ -155,7 +158,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
   // `!== false`, así que un menú ausente se vería igual.
   const menus = menusFor(lawyer);
   const allowedModules: Record<string, boolean> = {
-    panel:        menus.includes('panel'),
+    referrals:    menus.includes('referrals'),
     // Vigía tiene su propia puerta mientras se construye — ver `canSeeVigia`.
     vigia:        canSeeVigia(lawyer, canView),
     // Puerta propia: el agente ya está para el bufete, la bandeja todavía no.
@@ -207,6 +210,16 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
         : null,
   }));
 
+  // Contadores del menú: referidos pendientes del bufete, y mensajes sin leer
+  // de la PERSONA de la sesión (la bandeja es personal, no del despacho). El de
+  // mensajes lo mantiene vivo el sobre del top bar después del primer render.
+  const yo = user?.email ? await getDbUserByEmail(user.email) : null;
+  const [refPendientes, recibidos] = await Promise.all([
+    lawyer.firmId ? db.firmReferral.count({ where: { firmId: lawyer.firmId, status: 'PENDING' } }) : 0,
+    yo ? contarRecibidos(yo.id) : { unread: 0, total: 0, urgentUnread: 0 },
+  ]);
+  const attorneyName = lawyer.isFirmAccount ? null : (`${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || null);
+
   const isViewAs = !!(await cookies()).get(ATTORNEY_VIEW_COOKIE)?.value && canView;
   const displayName = lawyer.isFirmAccount
     ? (lawyer.firmName ?? t('roleFirm'))
@@ -225,9 +238,15 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
         userEmail={lawyer.email ?? ''}
         allowedModules={allowedModules}
         sidebarBelowNav={<OfficeCard clinics={clinics} />}
+        sidebarBadges={{ referrals: refPendientes, messages: recibidos.unread }}
       >
         {isViewAs && <AttorneyViewBar firms={options} currentId={lawyer.id} />}
         {children}
+        {/* En el teléfono el referido es el botón flotante, en todas las
+            pantallas del portal — la barra de abajo no tiene lugar para él. */}
+        {allowedModules.referrals && (
+          <ReferralFab firmName={lawyer.firmName ?? '—'} attorneyName={attorneyName} />
+        )}
       </AdminShell>
     </>
   );

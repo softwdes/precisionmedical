@@ -48,14 +48,16 @@ export async function GET(
   const actor = await resolveActor(req.headers);
   if (!actor.actorUserId) return NextResponse.json({ error: 'SIN_IDENTIDAD' }, { status: 401 });
 
-  if (!(await participacion(threadId, actor.actorUserId))) {
-    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-  }
+  const mia = await db.messageRecipient.findFirst({
+    where: { threadId, userId: actor.actorUserId, deletedAt: null, thread: { deletedAt: null, removedFromInboxesAt: null } },
+    select: { archivedAt: true },
+  });
+  if (!mia) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
   const thread = await db.messageThread.findUnique({
     where: { id: threadId },
     select: {
-      id: true, subject: true, priority: true, desk: true, topic: true, type: true, createdAt: true,
+      id: true, subject: true, priority: true, desk: true, topic: true, type: true, createdAt: true, createdByUserId: true,
       referral: { select: { status: true, convertedByName: true, convertedAt: true } },
       case: { select: { id: true, caseCode: true } },
       // El paciente está en el alcance del abogado —es SU cliente—, así que el
@@ -96,6 +98,8 @@ export async function GET(
       ? { status: thread.referral.status, convertedByName: thread.referral.convertedByName, convertedAt: thread.referral.convertedAt }
       : null,
     createdAt: thread.createdAt,
+    archived: !!mia.archivedAt,
+    mine: thread.createdByUserId === actor.actorUserId,
     caseCode: thread.case?.caseCode ?? null,
     caseId: thread.case?.id ?? null,
     patientName: thread.patient ? `${thread.patient.firstName} ${thread.patient.lastName}`.trim() : null,
@@ -158,6 +162,11 @@ export async function POST(
     db.messageRecipient.updateMany({
       where: { threadId, deletedAt: { not: null } },
       data: { deletedAt: null },
+    }),
+    // Y lo archivado vuelve a la bandeja de todos: hay algo nuevo que leer.
+    db.messageRecipient.updateMany({
+      where: { threadId, archivedAt: { not: null } },
+      data: { archivedAt: null },
     }),
     // Quien responde ya leyó lo suyo; los demás vuelven a "no leído" porque
     // `lastReadAt` queda por detrás del nuevo `lastEntryAt`.

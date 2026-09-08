@@ -4016,6 +4016,11 @@ model MessageRecipient {
   /// Mi "Delete" personal: fuera de MI inbox, nadie más se entera.
   deletedAt DateTime?
 
+  /// Archivado por ESTE participante (carpeta "Archivados" del portal legal,
+  /// 2026-09-08). Distinto de `deletedAt`: lo archivado vuelve solo —una
+  /// entrada nueva lo limpia, como en Gmail— y se puede desarchivar a mano.
+  archivedAt DateTime?
+
   createdAt DateTime @default(now())
 
   @@id([threadId, userId])

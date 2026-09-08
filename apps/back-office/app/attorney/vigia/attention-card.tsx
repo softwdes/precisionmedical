@@ -24,8 +24,21 @@ import { escritorioDelMotivo } from '@/lib/mensajeria/escritorios';
 /** Debajo de esto no hay titular: la cola de abajo alcanza. */
 const UMBRAL = 60;
 
-export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Promise<React.ReactElement | null> {
-  if (!fila || fila.prioridad < UMBRAL) return null;
+/** ¿Esta fila merece titular? La misma vara que usa la tarjeta, para que la
+ *  página sepa si dibuja el caso o el "hoy no hay nada frenado". */
+export function mereceTitular(fila: FilaAtencion | null): fila is FilaAtencion {
+  return !!fila && fila.prioridad >= UMBRAL;
+}
+
+export async function AttentionCard({ fila, enColumna = false }: {
+  fila: FilaAtencion | null;
+  /**
+   * A la izquierda del panel de referidos (Vigía, 2026-09-08): alineada a la
+   * izquierda y estirada a la altura del vecino, en vez de centrada y suelta.
+   */
+  enColumna?: boolean;
+}): Promise<React.ReactElement | null> {
+  if (!mereceTitular(fila)) return null;
 
   const t = await getTranslations('phoenix.attorney');
 
@@ -44,8 +57,8 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
   const urgente = cerradoSinFirma || fila.agravantes.includes('LIEN_SIN_FIRMA');
 
   return (
-    <div className={`rounded-lg p-6 text-center ${urgente ? 'bg-rose/[0.07]' : 'bg-amber/[0.07]'}`}>
-      <div className="flex items-center justify-center gap-2 mb-2">
+    <div className={`rounded-lg p-6 ${enColumna ? 'text-left h-full flex flex-col' : 'text-center'} ${urgente ? 'bg-rose/[0.07]' : 'bg-amber/[0.07]'}`}>
+      <div className={`flex items-center gap-2 mb-2 ${enColumna ? '' : 'justify-center'}`}>
         <Sparkles className={`w-3.5 h-3.5 ${urgente ? 'text-rose' : 'text-amber'}`} />
         <span className={`text-[10px] uppercase tracking-wider font-semibold ${urgente ? 'text-rose' : 'text-amber'}`}>
           {t(urgente ? 'vigiaHeroLabelUrgent' : 'vigiaHeroLabel')}
@@ -68,7 +81,7 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
         </p>
       )}
 
-      <p className="text-text-2 text-sm mt-2 max-w-2xl mx-auto">
+      <p className={`text-text-2 text-sm mt-2 max-w-2xl ${enColumna ? 'flex-1' : 'mx-auto'}`}>
         {t(`vigiaHeroWhy_${fila.motivo}`, { dias: diasDeLaFila(fila) })}
         {urgente && !cerradoSinFirma && ` ${t('vigiaHeroWhyUnsigned')}`}
       </p>
@@ -80,6 +93,7 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
         caso={fila.caseCode}
         href={`/attorney/vigia?case=${fila.caseId}`}
         urgente={urgente}
+        alineado={enColumna ? 'izquierda' : 'centro'}
         asunto={t(`vigiaReqSubject_${fila.motivo}`, { caso: fila.caseCode })}
         cuerpo={t(`vigiaReqBody_${fila.motivo}`, {
           caso: fila.caseCode,

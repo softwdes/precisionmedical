@@ -34,6 +34,8 @@ interface AdminShellProps {
   canAuditNotes?: boolean;
   /** Bloque libre al pie del menú lateral (Portal Legal: tarjeta de oficina). */
   sidebarBelowNav?: React.ReactNode;
+  /** Contadores por menú (Portal Legal: referidos pendientes). */
+  sidebarBadges?: Record<string, number> | null;
 }
 
 export function AdminShell({
@@ -47,6 +49,7 @@ export function AdminShell({
   canViewAsDoctor = false,
   canAuditNotes = false,
   sidebarBelowNav = null,
+  sidebarBadges = null,
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -79,6 +82,7 @@ export function AdminShell({
             canViewAsDoctor={canViewAsDoctor}
             canAuditNotes={canAuditNotes}
             belowNav={sidebarBelowNav}
+            badges={sidebarBadges}
           />
 
           {/* Backdrop mobile */}
@@ -101,7 +105,12 @@ export function AdminShell({
               onToggleSidebar={() => handleCollapsedChange(!collapsed)}
               portal={variant === 'attorney' ? 'attorney' : 'clinic'}
             />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
+            {/* Aire al pie en móvil: la barra inferior mide 64px (pb-20), y en el
+                portal legal encima de ella flota el botón de referir (56px +
+                margen), así que ahí hace falta más — sin esto tapaba el botón
+                Responder de Mensajes y el paginador de Casos al llegar al fondo.
+                Auditoría móvil 2026-09-08. */}
+            <main className={`flex-1 p-4 sm:p-6 lg:p-8 md:pb-8 animate-fade-in ${variant === 'attorney' ? 'pb-40' : 'pb-20'}`}>{children}</main>
           </div>
           <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} allowedModules={allowedModules} />
           {/* FloatingAI (agente) deshabilitado — se reactivará cuando el agente entre en uso */}

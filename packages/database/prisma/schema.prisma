@@ -82,6 +82,7 @@ model User {
   diagnosisFavorites UserDiagnosisFavorite[] @relation("DiagnosisFavorites")
   createdSnippets    Snippet[]               @relation("SnippetCreatedBy")
   snippetFavorites   SnippetFavorite[]       @relation("SnippetFavorites")
+  deskMemberships    MessageDeskMember[]     @relation("DeskMemberships")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -3829,6 +3830,10 @@ enum MessageType {
   REMINDER
   REQUEST
   MESSAGE
+  /// Un REFERIDO que mandó un bufete desde su portal (ver `FirmReferral`).
+  /// Tipo propio para que la clínica lo distinga de una consulta de caso
+  /// —color y filtro— sin mirar el asunto. Nunca se elige en el compositor.
+  REFERRAL
 
   @@map("message_type")
 }
@@ -3873,6 +3878,28 @@ enum MessageRecipientKind {
   @@map("message_recipient_kind")
 }
 
+/// Escritorio de la clínica al que se dirige un PEDIDO DE BUFETE.
+///
+/// El abogado no elige una persona: elige un tema, y el tema cae en uno de
+/// estos tres escritorios (Erick, 2026-09-07). Quién atiende cada escritorio
+/// vive en `message_desk_members` y se cambia desde Configuración, sin deploy.
+///   CLINICAL — lo médico, preguntas a los providers, plan de tratamiento.
+///   INTAKE   — admisión antes de la primera visita, PIP, datos del case
+///              manager y del abogado.
+///   BILLING  — ledger, firma del lien, saldo de liquidación, copia de notas
+///              del provider y HCFA.
+enum MessageDesk {
+  CLINICAL
+  INTAKE
+  BILLING
+  /// Quién recibe los REFERIDOS de los bufetes (Reagin · Carolina · Pamela ·
+  /// Beatriz, 2026-09-07). No es un tema del diálogo de pedidos: lo usa el
+  /// botón "¿Tenés un referido?" y nada más.
+  REFERRALS
+
+  @@map("message_desk")
+}
+
 model MessageThread {
   id String @id @default(cuid())
 
@@ -3887,6 +3914,16 @@ model MessageThread {
   patient   Patient? @relation("PatientMessageThreads", fields: [patientId], references: [id])
   caseId    String?
   case      Case?    @relation("CaseMessageThreads", fields: [caseId], references: [id])
+
+  /// Solo en PEDIDOS DE BUFETE (los que nacen en el portal legal). El
+  /// escritorio al que fue dirigido, el sub-tema elegido y el bufete que lo
+  /// mandó. Se guardan en el hilo —no solo se usan para elegir destinatario—
+  /// porque sin eso no hay filtro para el admin, ni reasignar, ni medir.
+  /// `firmId` apunta a `lawyers.id` (la cuenta raíz del bufete), sin FK: el
+  /// hilo tiene que sobrevivir a que la ficha se borre o se fusione.
+  desk   MessageDesk?
+  topic  String?
+  firmId String?
 
   createdByUserId String
   createdByName   String
@@ -3912,6 +3949,8 @@ model MessageThread {
 
   entries    MessageEntry[]
   recipients MessageRecipient[]
+  /// Solo en hilos de tipo REFERRAL: los datos estructurados del referido.
+  referral   FirmReferral?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3920,6 +3959,8 @@ model MessageThread {
   @@index([caseId])
   @@index([lastEntryAt])
   @@index([deletedAt])
+  @@index([firmId])
+  @@index([desk])
   @@map("message_threads")
 }
 
@@ -3980,6 +4021,80 @@ model MessageRecipient {
   @@id([threadId, userId])
   @@index([userId, deletedAt])
   @@map("message_recipients")
+}
+
+/// Quién atiende cada escritorio de pedidos de bufete (ver `MessageDesk`).
+///
+/// Una fila por persona y escritorio. Reemplaza a la variable de entorno
+/// `VIGIA_REQUEST_RECIPIENTS`, que queda como último respaldo: cambiar quién
+/// recibe los pedidos tiene que ser un clic en Configuración, no un deploy.
+/// `userId` es `users.id` de Phoenix (cuid), como todo en este módulo.
+model MessageDeskMember {
+  id String @id @default(cuid())
+
+  desk   MessageDesk
+  userId String
+  user   User   @relation("DeskMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  addedByUserId String?
+  addedByName   String?
+  createdAt     DateTime @default(now())
+
+  @@unique([desk, userId])
+  @@index([userId])
+  @@map("message_desk_members")
+}
+
+/// Un referido que mandó un bufete desde el portal legal ("¿Tenés un referido?").
+///
+/// Viaja como un hilo de mensajería (tipo REFERRAL) a la gente del escritorio
+/// REFERRALS, pero los datos van ACÁ, estructurados, no en el cuerpo del
+/// mensaje: el botón "Crear el caso" precarga el wizard desde `payload`, y el
+/// `status` es lo que evita que cuatro personas creen el mismo paciente —la
+/// primera que lo convierte lo cierra para las demás.
+///
+/// La clínica NO crea nada automáticamente con lo que manda el abogado: valida,
+/// deduplica y elige seguro en el wizard. Por eso `payload` es JSON y no columnas
+/// del paciente: es una PROPUESTA, no un registro.
+///
+/// `caseId`/`patientId` sin FK a propósito: el referido es un registro de lo que
+/// pidió el bufete y tiene que sobrevivir a que el caso se borre o se fusione.
+model FirmReferral {
+  id String @id @default(cuid())
+
+  /// Bufete de origen (`lawyers.id`, la cuenta raíz) y, si se sabe, el abogado.
+  firmId           String
+  attorneyLawyerId String?
+
+  sentByUserId String
+  sentByName   String
+
+  threadId String        @unique
+  thread   MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  /// Ver `ReferidoPayload` en `lib/referidos/referido.ts`.
+  payload Json
+
+  /// PENDING → CREATED (el wizard terminó) | DISCARDED. Texto y no enum: es un
+  /// estado de flujo de trabajo y agregar uno tiene que ser un UPDATE.
+  status String @default("PENDING")
+
+  /// Pacientes que ya usan ese teléfono/correo, calculado al recibirlo: el
+  /// aviso ámbar del mensaje. Ver `quienUsaEsteContacto`.
+  posiblesDuplicados Json?
+
+  caseId            String?
+  patientId         String?
+  convertedByUserId String?
+  convertedByName   String?
+  convertedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([status])
+  @@map("firm_referrals")
 }
 
 /// Plantilla de mensaje (M1 F4) — el panel de plantillas del legacy

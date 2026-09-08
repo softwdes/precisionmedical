@@ -6,20 +6,24 @@ import { useTranslations } from 'next-intl';
 import { MessageSquarePlus } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { RequestDialog } from './request-dialog';
+import type { EscritorioDePedido as Escritorio } from '@/lib/mensajeria/escritorios';
 
 /**
  * Portal Legal · Vigía · los dos botones del aviso del día.
  *
  * Existe como componente de cliente solo porque el pedido abre un diálogo: la
  * tarjeta sigue siendo server, y los textos ya vienen traducidos desde ahí. Así
- * el pedido nace con el contexto puesto —el caso y el motivo— y el abogado solo
- * lo lee y lo manda.
+ * el pedido nace con el contexto puesto —el caso, el motivo y el escritorio al
+ * que va— y el abogado solo lo lee y lo manda.
  */
-export function AttentionActions({ caso, href, asunto, cuerpo, urgente }: {
+export function AttentionActions({ caso, href, asunto, cuerpo, desk, topic, urgente }: {
   caso: string;
   href: string;
   asunto: string;
   cuerpo: string;
+  /** Escritorio y tema que el motivo ya decidió (ver `escritorioDelMotivo`). */
+  desk: Escritorio;
+  topic: string;
   /** Cambia el color del botón principal, igual que el resto de la tarjeta. */
   urgente: boolean;
 }): React.ReactElement {
@@ -48,6 +52,8 @@ export function AttentionActions({ caso, href, asunto, cuerpo, urgente }: {
         caso={pidiendo ? caso : null}
         asunto={asunto}
         cuerpo={cuerpo}
+        desk={desk}
+        topic={topic}
         onClose={() => setPidiendo(false)}
       />
     </>

@@ -21,10 +21,11 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Reply, ReplyAll, Forward, StickyNote, FolderLock, Trash2, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
-  LayoutTemplate, CheckSquare,
+  LayoutTemplate, CheckSquare, UserPlus, Scale,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -72,6 +73,10 @@ interface ThreadDetail {
   recipients: Array<{ userId: string; userName: string; kind: 'TO' | 'CC'; lastReadAt: string | null }>;
   entries: ThreadEntry[];
   nextAppointment: { id: string; scheduledFor: string } | null;
+  /** Lo abrió un bufete desde su portal (pedido o referido). */
+  firmId?: string | null;
+  /** Solo en hilos de tipo REFERRAL: el referido y su estado. */
+  referral?: { id: string; status: 'PENDING' | 'CREATED' | 'DISCARDED'; convertedByName: string | null; caseId: string | null } | null;
 }
 
 type ComposerMode = 'REPLY' | 'REPLY_ALL' | 'FORWARD' | 'NOTE' | null;
@@ -111,6 +116,7 @@ export function ThreadViewDialog({
   const t = useTranslations('phoenix.messaging');
   const locale = useLocale();
   const toast = useToast();
+  const router = useRouter();
 
   const [thread, setThread] = useState<ThreadDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -409,9 +415,44 @@ export function ThreadViewDialog({
                   {t('priorityURGENT')}
                 </span>
               )}
+              {/* Origen: lo abrió un BUFETE. Pastilla y no tinte, para que
+                  conviva con el rojo de urgente sin pelearse: violeta = referido,
+                  cyan = consulta de caso. */}
+              {thread?.firmId && (
+                thread.type === 'REFERRAL' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-violet/15 border border-violet/30 text-violet">
+                    <UserPlus className="w-3 h-3" />{t('originReferral')}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan">
+                    <Scale className="w-3 h-3" />{t('originFirmRequest')}
+                  </span>
+                )
+              )}
               <span className="truncate">{thread?.subject ?? '…'}</span>
               {thread?.sealedAt && <Lock className="w-3.5 h-3.5 text-amber shrink-0" />}
             </DialogTitle>
+            {/* El REFERIDO tiene un botón propio: abre el wizard de nuevo caso
+                precargado con lo que mandó el bufete (`/patients?referral=`).
+                Una vez creado, el chip del caso de abajo es el que abre, y acá
+                queda dicho quién lo creó — así las otras tres personas que
+                recibieron el mismo mensaje no lo crean de nuevo. */}
+            {thread?.referral && (
+              thread.referral.status === 'PENDING' ? (
+                <div className="flex items-center gap-3 flex-wrap rounded-md border border-violet/30 bg-violet/10 px-3 py-2">
+                  <span className="text-[11px] text-violet flex-1 min-w-[200px]">{t('referralPendingHint')}</span>
+                  <Button size="sm" onClick={() => router.push(`/patients?referral=${thread.referral!.id}`)}>
+                    <UserPlus />
+                    {t('referralCreateCase')}
+                  </Button>
+                </div>
+              ) : thread.referral.status === 'CREATED' ? (
+                <div className="flex items-center gap-2 rounded-md border border-emerald/30 bg-emerald/10 px-3 py-2 text-[11px] text-emerald">
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  {t('referralCreatedBy', { name: thread.referral.convertedByName ?? '—' })}
+                </div>
+              ) : null
+            )}
             {thread && (
               <div className="text-[11px] text-text-muted space-y-0.5">
                 <div><span className="font-semibold">{t('fieldTo')}:</span> {toNames.join(', ') || '—'}</div>

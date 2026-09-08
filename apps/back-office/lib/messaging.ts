@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { resolveActor, type ResolvedActor } from '@/lib/actor';
+import { firmCaseFilter } from '@/lib/attorney-portal';
 
 /** Roles internos que aparecen como destinatarios y pueden usar el módulo. */
 export const MESSAGING_ROLES = [
@@ -54,6 +55,56 @@ export async function resolveRecipientUsers(
     select: { id: true, firstName: true, lastName: true },
   });
   return users.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`.trim() }));
+}
+
+/**
+ * La ÚNICA fuga real de meter abogados en la mensajería: un empleado poniendo
+ * en copia a un abogado en el hilo de un paciente de OTRO bufete.
+ *
+ * La bandeja ya es segura por participación (cada uno ve donde lo pusieron),
+ * así que la guarda va en el momento de ponerlo. Regla: un abogado solo puede
+ * ser destinatario de un hilo ATADO A UN CASO de su bufete. Sin caso no hay
+ * cómo saber de quién es la conversación, y a un abogado no se le escribe
+ * "en general" — se le escribe por un expediente.
+ *
+ * El bufete del abogado sale de su ficha (`lawyers.email` → `parentFirmId`, o
+ * la ficha misma si ES el bufete): el mismo puente por email que usa el portal.
+ * Un abogado sin ficha no tiene bufete, y sin bufete no entra en ningún hilo.
+ *
+ * Devuelve los NOMBRES que no pasan, para que la ruta se lo diga a quien
+ * escribe en vez de un 400 mudo.
+ */
+export async function verificarAbogadosEnAlcance(
+  userIds: string[],
+  caseId: string | null,
+): Promise<{ ok: true } | { ok: false; motivo: 'SIN_CASO' | 'FUERA_DE_ALCANCE'; nombres: string[] }> {
+  if (userIds.length === 0) return { ok: true };
+  const abogados = await db.user.findMany({
+    where: { id: { in: userIds }, role: 'LAWYER' },
+    select: { id: true, email: true, firstName: true, lastName: true },
+  });
+  if (abogados.length === 0) return { ok: true };
+
+  const nombres = abogados.map((a) => `${a.firstName} ${a.lastName}`.trim() || a.email);
+  if (!caseId) return { ok: false, motivo: 'SIN_CASO', nombres };
+
+  const fichas = await db.lawyer.findMany({
+    where: { email: { in: abogados.map((a) => a.email), mode: 'insensitive' }, deletedAt: null },
+    select: { id: true, email: true, parentFirmId: true },
+  });
+  const bufetePorEmail = new Map(
+    fichas.map((f) => [f.email!.toLowerCase(), f.parentFirmId ?? f.id] as const),
+  );
+
+  const fuera: string[] = [];
+  for (const a of abogados) {
+    const firmId = bufetePorEmail.get(a.email.toLowerCase());
+    const enAlcance = firmId
+      ? await db.case.findFirst({ where: { id: caseId, deletedAt: null, ...firmCaseFilter(firmId) }, select: { id: true } })
+      : null;
+    if (!enAlcance) fuera.push(`${a.firstName} ${a.lastName}`.trim() || a.email);
+  }
+  return fuera.length === 0 ? { ok: true } : { ok: false, motivo: 'FUERA_DE_ALCANCE', nombres: fuera };
 }
 
 export interface AttachmentInput {

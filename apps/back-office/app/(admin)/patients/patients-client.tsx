@@ -22,6 +22,7 @@ import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
+import { lugarDelAccidente, notasDelReferido, type ReferidoParaWizard } from '@/lib/referidos/referido';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
@@ -1638,6 +1639,61 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   };
   const [newCaseOpen,    setNewCaseOpen]    = useState(false);
   const [newCaseInitial, setNewCaseInitial] = useState<NewCaseInitialState | null>(null);
+
+  /**
+   * `?referral=<id>` — llegó desde el botón "Crear el caso" de un REFERIDO de
+   * bufete (mensajería). Se trae el referido y se abre el wizard precargado:
+   * paciente, accidente, bufete y abogado como representantes y como quienes
+   * refirieron. Si otra persona ya lo convirtió, se abre ESE caso en vez de
+   * crear otro — es el punto de guardar el estado.
+   *
+   * `referidosVistos` evita reabrirlo cuando el diálogo se cierra y el
+   * `router.refresh()` vuelve a montar la lista con el mismo parámetro.
+   */
+  const referidosVistos = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const referralId = searchParamsHook.get('referral');
+    if (!referralId || referidosVistos.current.has(referralId)) return;
+    referidosVistos.current.add(referralId);
+    let cancelado = false;
+    fetch(`/api/referrals/${referralId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ref: (ReferidoParaWizard & { caseId: string | null }) | null) => {
+        if (cancelado || !ref) return;
+        const sp = new URLSearchParams(searchParamsHook.toString());
+        sp.delete('referral');
+        if (ref.status !== 'PENDING' && ref.caseId) {
+          sp.set(CASE_PARAM, ref.caseId);
+          router.replace(`${basePath}?${sp.toString()}`, { scroll: false });
+          return;
+        }
+        const p = ref.payload;
+        setNewCaseInitial({
+          mode: 'manual',
+          referralId: ref.id,
+          firstName: p.cliente.firstName,
+          lastName: p.cliente.lastName,
+          phone: p.cliente.phone,
+          email: p.cliente.email ?? '',
+          dateOfBirth: p.cliente.dateOfBirth ?? '',
+          language: p.cliente.language,
+          caseType: 'MVA',
+          accidentDate: p.accidente.date,
+          accidentLocation: lugarDelAccidente(p.accidente),
+          accidentNotes: notasDelReferido(p, {
+            seguro: tMsg('refLblInsurance'), poliza: tMsg('refLblPolicy'), reclamo: tMsg('refLblClaim'),
+            ajustador: tMsg('refLblAdjuster'), tercero: tMsg('refLblThirdParty'),
+            caseManager: tMsg('refLblCaseManager'), notaDelBufete: tMsg('refLblNote'),
+          }),
+          lawFirm: { id: ref.firm.id, label: ref.firm.label, subtitle: ref.firm.subtitle },
+          attorney: ref.attorney ? { id: ref.attorney.id, label: ref.attorney.label, subtitle: ref.attorney.subtitle } : null,
+        });
+        setNewCaseOpen(true);
+      })
+      .catch(() => undefined);
+    return () => { cancelado = true; };
+  }, [searchParamsHook, router, basePath, tMsg]);
+
   const [deleteTarget, setDeleteTarget] = useState<PatientRow | null>(null);
   const [deleteError,  setDeleteError]  = useState('');
   const [deleting,     setDeleting]     = useState(false);
@@ -3139,7 +3195,18 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         open={newCaseOpen}
         onOpenChange={(open) => {
           setNewCaseOpen(open);
-          if (!open) { setNewCaseInitial(null); router.refresh(); }
+          if (!open) {
+            setNewCaseInitial(null);
+            // El `?referral=` ya cumplió: se saca de la URL para que F5 no
+            // vuelva a abrir el wizard con el mismo referido.
+            if (searchParamsHook.get('referral')) {
+              const sp = new URLSearchParams(searchParamsHook.toString());
+              sp.delete('referral');
+              const qs = sp.toString();
+              router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+            }
+            router.refresh();
+          }
         }}
         specialties={specialties}
         clinics={clinics}

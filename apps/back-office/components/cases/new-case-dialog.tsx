@@ -58,6 +58,22 @@ export interface NewCaseInitialState {
    *  paso 1 quedaba trabado en un campo requerido que nadie podía llenar. */
   dateOfBirth?: string;
   existingPatientId?: string | null;
+
+  /**
+   * Precarga desde un REFERIDO de bufete (`/patients?referral=<id>`). Todo
+   * opcional: lo que venga se pone, lo demás queda como siempre. `referralId`
+   * viaja en el POST para que el referido pase a CREATED y el abogado reciba la
+   * respuesta. Ver `lib/referidos`.
+   */
+  referralId?: string;
+  language?: 'es' | 'en';
+  caseType?: CaseType;
+  accidentDate?: string;
+  accidentLocation?: string;
+  accidentNotes?: string;
+  /** Bufete y abogado que REPRESENTAN, y —los mismos— quienes refirieron. */
+  lawFirm?: AutoResult | null;
+  attorney?: AutoResult | null;
 }
 
 interface NewCaseDialogProps {
@@ -304,11 +320,20 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (initialState) {
       setFirstName(initialState.firstName); setLastName(initialState.lastName);
       setPhone(initialState.phone); setEmail(initialState.email ?? '');
-      setDateOfBirth(initialState.dateOfBirth ?? ''); setLanguage('es'); setReferralSource('PHONE_CALL');
+      setDateOfBirth(initialState.dateOfBirth ?? ''); setLanguage(initialState.language ?? 'es');
+      setReferralSource(initialState.referralId ? 'LAW_FIRM' : 'PHONE_CALL');
       setCallMode(initialState.mode);
       setExistingPatientId(initialState.existingPatientId ?? null);
       setDobDelPaciente(!!initialState.dateOfBirth);
       setCallElapsed(0); setStep('capturing');
+      // Referido de bufete: el caso llega con el accidente y el bufete puestos,
+      // y el bufete es a la vez quien representa y quien refirió.
+      if (initialState.caseType) setCaseType(initialState.caseType);
+      if (initialState.accidentDate) setAccidentDate(initialState.accidentDate);
+      if (initialState.accidentLocation) setAccidentLocation(initialState.accidentLocation);
+      if (initialState.accidentNotes) setAccidentNotes(initialState.accidentNotes);
+      if (initialState.lawFirm) { setLawFirm(initialState.lawFirm); setReferrerFirm(initialState.lawFirm); }
+      if (initialState.attorney) { setAttorney(initialState.attorney); setReferrerAttorney(initialState.attorney); }
     } else {
       setFirstName(''); setLastName(''); setPhone(''); setEmail('');
       setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM');
@@ -639,6 +664,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             : null,
           callDurationSeconds: callElapsed,
           twilioCallSid: twilio.callSid ?? null,
+          // El referido del bufete que originó este alta, si lo hubo.
+          ...(initialState?.referralId ? { referralId: initialState.referralId } : {}),
         }),
       });
       if (!res.ok) {

@@ -40,10 +40,19 @@ interface BadgeInfo {
   total: number;
   unread: number;
   urgentUnread: number;
-  latestAuthor: string | null;
-  userId: string;
-  isAdmin: boolean;
+  latestAuthor?: string | null;
+  userId?: string;
+  isAdmin?: boolean;
 }
+
+/**
+ * En el portal legal el sobre consulta la puerta del abogado y al hacer clic
+ * NAVEGA a su bandeja, en vez de abrir el inbox de la clínica en un modal.
+ * `/api/messages/badge` y el `InboxClient` están detrás del middleware que
+ * solo deja pasar `/api/attorney/*` a un LAWYER: con "ver como bufete" andaba
+ * (el que mira es admin) y a un abogado real le fallaba en silencio.
+ */
+type Portal = 'clinic' | 'attorney';
 
 /**
  * 20s y no 45s: el reporte de los usuarios ("la llegada no es notoria") era en
@@ -59,8 +68,9 @@ const POLL_MS = 20_000;
 /** Cuánto dura el parpadeo de llegada antes de quedarse quieto. */
 const BLINK_MS = 9_000;
 
-export function InboxBell(): React.ReactElement | null {
+export function InboxBell({ portal = 'clinic' }: { portal?: Portal } = {}): React.ReactElement | null {
   const t = useTranslations('phoenix.messaging');
+  const esAbogado = portal === 'attorney';
 
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
   const [unlinked, setUnlinked] = useState(false);
@@ -104,7 +114,7 @@ export function InboxBell(): React.ReactElement | null {
 
   const refreshBadge = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch('/api/messages/badge');
+      const res = await fetch(esAbogado ? '/api/attorney/messages/badge' : '/api/messages/badge');
       if (res.ok) {
         const data = (await res.json()) as BadgeInfo;
         /**
@@ -124,7 +134,7 @@ export function InboxBell(): React.ReactElement | null {
             data.latestAuthor
               ? t('arrivedFrom', { name: data.latestAuthor })
               : t('arrivedGeneric'),
-            { onClick: () => setOpen(true), durationMs: 8000 },
+            { onClick: () => { if (esAbogado) router.push('/attorney/messages'); else setOpen(true); }, durationMs: 8000 },
           );
         }
         prevUnread.current = data.unread;
@@ -137,7 +147,7 @@ export function InboxBell(): React.ReactElement | null {
       // si vuelve a pasar, el botón lo DICE en vez de quedarse inerte.
       if (res.status === 401) setUnlinked(true);
     } catch { /* informativo: si falla, el badge no cambia */ }
-  }, [toast, t]);
+  }, [toast, t, esAbogado, router]);
 
   useEffect(() => {
     void refreshBadge();
@@ -167,7 +177,7 @@ export function InboxBell(): React.ReactElement | null {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { if (esAbogado) router.push('/attorney/messages'); else setOpen(true); }}
         aria-label={label}
         title={label}
         className={`inline-flex items-center gap-2 h-9 px-3 rounded-md border text-sm font-semibold transition-colors ${
@@ -206,8 +216,9 @@ export function InboxBell(): React.ReactElement | null {
           un 401 dejaba el botón sin respuesta: parecía que "solo el admin podía
           abrirlo". Si la identidad no se resuelve, el modal lo explica. */}
       {/* Se repliega mientras el caso está encima, sin desmontarse: al cerrar
-          el caso el inbox y el hilo vuelven como estaban. */}
-      <Dialog open={open && !caseModalOpen}
+          el caso el inbox y el hilo vuelven como estaban. En el portal legal no
+          existe: el clic navega a la bandeja del abogado. */}
+      {!esAbogado && <Dialog open={open && !caseModalOpen}
         onOpenChange={(v) => { if (caseModalOpen) return; setOpen(v); if (!v) void refreshBadge(); }}>
           {/* h fijo (no max-h): el overlay del legacy es grande SIEMPRE, aunque
               la bandeja esté vacía — la tabla respira y no baila al filtrar. */}
@@ -236,12 +247,12 @@ export function InboxBell(): React.ReactElement | null {
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-              {open && badge ? (
+              {open && badge?.userId ? (
                 <InboxClient
                   embedded
                   currentUserId={badge.userId}
                   currentUserName=""
-                  isAdmin={badge.isAdmin}
+                  isAdmin={badge.isAdmin ?? false}
                   onOpenCase={openCase}
                   openThreadId={openThreadId}
                   onOpenThreadChange={setOpenThreadId}
@@ -255,7 +266,7 @@ export function InboxBell(): React.ReactElement | null {
               )}
             </div>
           </DialogContent>
-      </Dialog>
+      </Dialog>}
     </>
   );
 }

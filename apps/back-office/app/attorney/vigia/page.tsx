@@ -12,6 +12,7 @@ import { colaDeAtencion } from '@/lib/vigia/queue';
 import { AskBox } from './ask-box';
 import { QueuePanel, StalledPanel } from './queue-panel';
 import { AttentionCard } from './attention-card';
+import { ReferralCta } from './referral-cta';
 
 /**
  * Portal Legal · Vigía
@@ -104,6 +105,13 @@ export default async function AttorneyVigiaPage({ searchParams }: {
     db.case.findFirst({ where: scope, orderBy: { createdAt: 'desc' }, select: { caseCode: true } }),
   ]);
 
+  // Los referidos que mandó el bufete, para la tarjeta "¿Tenés un referido?".
+  const referidos = lawyer.firmId
+    ? await db.firmReferral.groupBy({ by: ['status'], where: { firmId: lawyer.firmId }, _count: { _all: true } })
+    : [];
+  const refPendientes = referidos.find((r) => r.status === 'PENDING')?._count._all ?? 0;
+  const refCreados = referidos.find((r) => r.status === 'CREATED')?._count._all ?? 0;
+
   /**
    * La sugerencia del caso usa un código REAL del alcance de quien mira.
    *
@@ -158,6 +166,15 @@ export default async function AttorneyVigiaPage({ searchParams }: {
             t('vigiaSuggest3'),
             ...(casoEjemplo ? [t('vigiaSuggest4', { caso: casoEjemplo })] : []),
           ]}
+        />
+
+        {/* "¿Tenés un referido?" — la acción que le pedimos al bufete, en la
+            misma columna que la conversación. Ver `referral-cta.tsx`. */}
+        <ReferralCta
+          firmName={lawyer.firmName ?? '—'}
+          attorneyName={lawyer.isFirmAccount ? null : `${lawyer.firstName ?? ''} ${lawyer.lastName ?? ''}`.trim() || null}
+          pendientes={refPendientes}
+          creados={refCreados}
         />
       </div>
 

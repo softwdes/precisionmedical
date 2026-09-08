@@ -5,9 +5,10 @@ import { HexColorPicker } from 'react-colorful';
 import { useTranslations } from 'next-intl';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset, Rocket, Mail,
+  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset, Rocket, Mail, Inbox,
 } from 'lucide-react';
 import { SnippetsClient } from '@/app/doctor/settings/snippets/[section]/snippets-client';
+import { MessageDesksClient } from '@/components/settings/message-desks-client';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogFooter, Label,
@@ -33,11 +34,11 @@ interface Clinic {
 
 // Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
 // en el portal del doctor (/doctor/templates), con editor rich text y diagnósticos.
-type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'diagnosticos' | 'snippets' | 'auditlog' | 'releases';
+type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'diagnosticos' | 'snippets' | 'escritorios' | 'auditlog' | 'releases';
 
 // La etiqueta sale de `phoenix.settings.tabs.<id>` — antes era texto fijo en
 // español y no cambiaba al pasar la app a inglés.
-const TABS: Array<{ id: Tab; icon: React.ElementType }> = [
+const TABS: Array<{ id: Tab; icon: React.ElementType; adminOnly?: boolean }> = [
   { id: 'clinicas',       icon: Building2   },
   { id: 'especialidades', icon: Stethoscope },
   { id: 'doctores',       icon: UserRound   },
@@ -51,6 +52,10 @@ const TABS: Array<{ id: Tab; icon: React.ElementType }> = [
   // portal — acá es donde las administran. Las de los providers viven en
   // Configuración del portal médico.
   { id: 'snippets',       icon: Mail        },
+  // Quién atiende cada escritorio de pedidos de bufete (clínico / admisión /
+  // facturación). Decide a quién le llega lo que pide un abogado desde su
+  // portal, así que es cosa de admin.
+  { id: 'escritorios',    icon: Inbox,      adminOnly: true },
   { id: 'auditlog',       icon: Shield      },
   // Notas de release: es un registro que se lee y se cura, mas parecido al
   // audit log que a los catalogos de al lado.
@@ -78,6 +83,8 @@ interface Props {
   initialAuditLogs:   React.ComponentProps<typeof AuditLogsClient>['initialLogs'];
   clinicSnippets:     React.ComponentProps<typeof SnippetsClient>['snippets'];
   canDeleteSnippets:  boolean;
+  /** SUPER_ADMIN / ADMIN: habilita los tabs `adminOnly`. */
+  isAdmin?:           boolean;
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────────
@@ -105,6 +112,7 @@ export function SettingsClient({
   initialProviders,   providerStats,
   auditKpis,          initialAuditLogs,
   clinicSnippets,     canDeleteSnippets,
+  isAdmin = false,
 }: Props) {
   const ts = useTranslations('phoenix.settings');
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
@@ -212,7 +220,7 @@ export function SettingsClient({
 
         {/* ── Tab bar ── */}
         <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border mt-4">
-          {TABS.map((tab) => {
+          {TABS.filter((tab) => !tab.adminOnly || isAdmin).map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
@@ -313,6 +321,7 @@ export function SettingsClient({
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}
       {activeTab === 'snippets'       && <SnippetsClient section="MENSAJE_CLINICA" snippets={clinicSnippets} canDelete={canDeleteSnippets} />}
+      {activeTab === 'escritorios'    && isAdmin && <MessageDesksClient />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
       {activeTab === 'releases'       && <ReleasesClient />}
 

@@ -129,16 +129,7 @@ export function canAssignStaff(lawyer: SessionLawyer): boolean {
 export function lawyerCaseFilter(lawyer: SessionLawyer): Prisma.CaseWhereInput {
   if (!lawyer.firmId) return { id: { in: [] } };
 
-  const belongsToFirm: Prisma.CaseWhereInput = {
-    OR: [
-      { lawFirmId: lawyer.firmId },
-      { attorney:  { parentFirmId: lawyer.firmId } },
-      { paralegal: { parentFirmId: lawyer.firmId } },
-      // Los asistentes son VARIOS por caso: se pregunta por la tabla, no por
-      // una columna. `some` = "alguno de los asistentes es de este bufete".
-      { legalAssistants: { some: { lawyer: { parentFirmId: lawyer.firmId } } } },
-    ],
-  };
+  const belongsToFirm = firmCaseFilter(lawyer.firmId);
 
   // Solo la CUENTA DEL BUFETE ve el despacho entero.
   if (lawyer.isFirmAccount) {
@@ -168,6 +159,26 @@ export function lawyerCaseFilter(lawyer: SessionLawyer): Prisma.CaseWhereInput {
           { legalAssistants: { some: { lawyerId: lawyer.id } } },
         ],
       },
+    ],
+  };
+}
+
+/**
+ * "Este caso es del bufete X" — el ancla que comparten `lawyerCaseFilter()` y
+ * la guarda de la mensajería (un abogado solo puede ser destinatario de hilos
+ * de casos de SU bufete). Es una sola definición a propósito: si las dos
+ * puntas dijeran "del bufete" con criterios distintos, habría casos visibles
+ * en el portal sobre los que no se puede escribir, o al revés.
+ */
+export function firmCaseFilter(firmId: string): Prisma.CaseWhereInput {
+  return {
+    OR: [
+      { lawFirmId: firmId },
+      { attorney:  { parentFirmId: firmId } },
+      { paralegal: { parentFirmId: firmId } },
+      // Los asistentes son VARIOS por caso: se pregunta por la tabla, no por
+      // una columna. `some` = "alguno de los asistentes es de este bufete".
+      { legalAssistants: { some: { lawyer: { parentFirmId: firmId } } } },
     ],
   };
 }

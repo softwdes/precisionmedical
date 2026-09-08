@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Sparkles } from 'lucide-react';
 import { AttentionActions } from './attention-actions';
 import { diasDeLaFila, type FilaAtencion } from '@/lib/vigia/queue';
+import { escritorioDelMotivo } from '@/lib/mensajeria/escritorios';
 
 /**
  * Portal Legal · Vigía · la tarjeta proactiva.
@@ -84,6 +85,9 @@ export async function AttentionCard({ fila }: { fila: FilaAtencion | null }): Pr
           caso: fila.caseCode,
           dias: diasDeLaFila(fila),
         })}
+        // El motivo ya dice a qué escritorio va: el abogado solo confirma.
+        desk={escritorioDelMotivo(fila.motivo).desk}
+        topic={escritorioDelMotivo(fila.motivo).topic}
       />
     </div>
   );

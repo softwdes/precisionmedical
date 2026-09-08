@@ -15,8 +15,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { requireMessagingActor, resolveRecipientUsers, reviveThread, sanitizeAttachments, type AttachmentInput } from '@/lib/messaging';
+import { requireMessagingActor, resolveRecipientUsers, reviveThread, sanitizeAttachments, verificarAbogadosEnAlcance, type AttachmentInput } from '@/lib/messaging';
 import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
+import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
 
 type Ctx = { params: Promise<{ threadId: string }> };
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const thread = await db.messageThread.findFirst({
     where: { id: threadId, deletedAt: null },
-    select: { id: true, subject: true, patientId: true, recipients: { select: { userId: true } } },
+    select: { id: true, subject: true, patientId: true, caseId: true, recipients: { select: { userId: true } } },
   });
   if (!thread) return NextResponse.json({ error: 'Hilo no encontrado' }, { status: 404 });
 
@@ -57,6 +58,16 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     resolveRecipientUsers(newToIds),
     resolveRecipientUsers(newCcIds),
   ]);
+
+  // Sumar un abogado a un hilo tiene la misma guarda que crearlo con él:
+  // solo si el hilo está atado a un caso de su bufete.
+  const alcance = await verificarAbogadosEnAlcance(
+    [...newTo, ...newCc].map((u) => u.id),
+    thread.caseId,
+  );
+  if (!alcance.ok) {
+    return NextResponse.json({ error: alcance.motivo, nombres: alcance.nombres }, { status: 400 });
+  }
 
   const now = new Date();
   const entry = await db.messageEntry.create({
@@ -116,6 +127,17 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   // vuelve a copiar lo de las entradas anteriores del hilo.
   await archivarAdjuntosDelHilo(threadId, actor.actorUserId)
     .catch((e) => { console.error('[messages/entries] archivado de adjuntos:', e); });
+
+  // Los abogados del hilo (los de siempre y los que se sumaron) se enteran por
+  // correo — es la respuesta a su pedido, y no viven en nuestro portal.
+  void avisarAbogadosPorEmail({
+    threadId,
+    userIds: [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)],
+    autorUserId: actor.actorUserId,
+    autorNombre: actor.actorName,
+    caseId: thread.caseId,
+    patientId: thread.patientId,
+  }).catch((e) => { console.error('[messages/entries] aviso al abogado:', e); });
 
   return NextResponse.json({ id: entry.id }, { status: 201 });
 }

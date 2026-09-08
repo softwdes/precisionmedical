@@ -33,6 +33,10 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       removedFromInboxesAt: true,
       lastEntryAt: true,
       createdAt: true,
+      // Origen: un hilo con `firmId` lo abrió un bufete (pedido o referido).
+      firmId: true,
+      desk: true,
+      referral: { select: { id: true, status: true, convertedByName: true, caseId: true } },
       patient: {
         select: { id: true, firstName: true, lastName: true, patientCode: true },
       },

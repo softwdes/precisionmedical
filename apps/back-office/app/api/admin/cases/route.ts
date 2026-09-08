@@ -166,6 +166,13 @@ const InputSchema = z.object({
   contactoYaRevisado: z.boolean().optional(),
 
   /**
+   * El wizard se abrió desde un REFERIDO de bufete (`/patients?referral=<id>`).
+   * Al terminar, el referido pasa a CREATED, el hilo del mensaje queda atado al
+   * caso y el abogado recibe la respuesta "caso creado". Ver `referidos-server`.
+   */
+  referralId: z.string().cuid().optional(),
+
+  /**
    * El vínculo que eligió recepción. `null` = revisó y es una coincidencia (se
    * crea suelto). Solo se aplica cuando `contactoYaRevisado` es true.
    */
@@ -864,9 +871,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
 
+  // ─── Referido de bufete → CREATED (idempotente si otro lo convirtió antes) ──
+  let referido: { ok: boolean; convertedByName?: string | null } | null = null;
+  if (parsed.referralId && actor.actorUserId && actor.actorName) {
+    const { marcarReferidoCreado } = await import('@/lib/referidos/referidos-server');
+    const { getTranslations } = await import('next-intl/server');
+    const tm = await getTranslations({ locale: 'es', namespace: 'phoenix.messaging' });
+    referido = await marcarReferidoCreado({
+      referralId: parsed.referralId,
+      caseId: result.case.id,
+      caseCode: result.case.caseCode,
+      patientId: result.patient.id,
+      actor: { ...actor, actorUserId: actor.actorUserId, actorName: actor.actorName },
+      textoRespuesta: tm('refCaseCreatedReply', { code: result.case.caseCode, name: actor.actorName }),
+    }).then((r) => (r.ok ? { ok: true } : { ok: false, convertedByName: r.convertedByName }))
+      .catch((e) => { console.error('[cases] referido:', e); return { ok: false }; });
+  }
+
   return NextResponse.json(
     {
       ok: true,
+      referido,
       case: {
         id: result.case.id,
         caseCode: result.case.caseCode,

@@ -41,6 +41,8 @@ interface InboxRow {
   unread: boolean;
   attachmentCount: number;
   firstAttachment: { id: string; fileName: string } | null;
+  /** Lo abrió un bufete desde su portal: pastilla de origen en la fila. */
+  fromFirm?: boolean;
 }
 
 interface Props {
@@ -238,7 +240,7 @@ export function InboxClient({
           <select className={selectCls} value={type}
             onChange={(e) => { setType(e.target.value); setPage(1); }}>
             <option value="">{t('filterAll')}</option>
-            {(['MESSAGE', 'ALERT', 'REMINDER', 'REQUEST'] as const).map((v) => (
+            {(['MESSAGE', 'ALERT', 'REMINDER', 'REQUEST', 'REFERRAL'] as const).map((v) => (
               <option key={v} value={v}>{t(`type${v}`)}</option>
             ))}
           </select>
@@ -391,7 +393,20 @@ export function InboxClient({
                     {r.patient?.name ?? '—'}
                   </td>
                   <td className="px-3 !py-1.5 whitespace-nowrap">
-                    <span className={`text-[12.5px] ${suave}`}>{t(`type${r.type}`)}</span>
+                    {/* Origen bufete: pastilla propia (violeta = referido, cyan
+                        = consulta de caso). Es pastilla y no tinte para que
+                        conviva con el rojo de urgente. */}
+                    {r.fromFirm ? (
+                      <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full border ${
+                        r.type === 'REFERRAL'
+                          ? 'bg-violet/15 border-violet/30 text-violet'
+                          : 'bg-cyan/15 border-cyan/30 text-cyan'
+                      }`}>
+                        {r.type === 'REFERRAL' ? t('originReferral') : t('originFirmRequest')}
+                      </span>
+                    ) : (
+                      <span className={`text-[12.5px] ${suave}`}>{t(`type${r.type}`)}</span>
+                    )}
                     {r.priority === 'URGENT' && (
                       <span className="ml-1.5 text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full bg-rose/10 border border-rose/30 text-rose">
                         {t('priorityURGENT')}

@@ -289,6 +289,8 @@ export default async function SettingsPage() {
       initialAuditLogs={auditLogs.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })) as any}
       clinicSnippets={clinicSnippets}
       canDeleteSnippets={canDeleteSnippets}
+      // Misma regla que borrar snippets: SUPER_ADMIN / ADMIN.
+      isAdmin={canDeleteSnippets}
     />
   );
 }

@@ -18,8 +18,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments } from '@/lib/messaging';
+import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments, verificarAbogadosEnAlcance } from '@/lib/messaging';
 import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
+import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
 
 const PAGE_SIZE = 15;
 
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             priority: true,
             lastEntryAt: true,
             sealedAt: true,
+            firmId: true,
             patient: { select: { id: true, firstName: true, lastName: true } },
             entries: {
               orderBy: { sentAt: 'desc' },
@@ -119,6 +121,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     priority: r.thread.priority,
     lastEntryAt: r.thread.lastEntryAt,
     sealedAt: r.thread.sealedAt,
+    // Lo abrió un bufete desde su portal: la fila lleva la pastilla de origen.
+    fromFirm: !!r.thread.firmId,
     patient: r.thread.patient
       ? {
           id: r.thread.patient.id,
@@ -182,6 +186,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       select: { id: true },
     });
     caseId = kase?.id ?? null;
+  }
+
+  // Un abogado solo entra en hilos de casos de SU bufete — ver la función.
+  const alcance = await verificarAbogadosEnAlcance(
+    [...toUsers, ...ccUsers].map((u) => u.id),
+    caseId,
+  );
+  if (!alcance.ok) {
+    return NextResponse.json({ error: alcance.motivo, nombres: alcance.nombres }, { status: 400 });
   }
 
   const attachments = await sanitizeAttachments(raw.attachments, raw.patientId);
@@ -254,6 +267,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
    */
   await archivarAdjuntosDelHilo(thread.id, actor.actorUserId)
     .catch((e) => { console.error('[messages] archivado de adjuntos:', e); });
+
+  // Si hay un abogado entre los destinatarios, se le avisa por correo (sin
+  // PHI, con el link al hilo). Fire-and-forget: el mensaje ya está guardado.
+  void avisarAbogadosPorEmail({
+    threadId: thread.id,
+    userIds: [...toUsers, ...ccUsers].map((u) => u.id),
+    autorUserId: actor.actorUserId,
+    autorNombre: actor.actorName,
+    caseId,
+    patientId: raw.patientId || null,
+  }).catch((e) => { console.error('[messages] aviso al abogado:', e); });
 
   return NextResponse.json({ id: thread.id }, { status: 201 });
 }

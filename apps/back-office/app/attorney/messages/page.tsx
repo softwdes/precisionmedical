@@ -13,12 +13,15 @@ import { AttorneyInbox } from './inbox-client';
  * del pedido —sin bandeja, la respuesta de la clínica no llega a ningún lado— y
  * no tiene sentido mostrarle una a un bufete que todavía no puede pedir nada.
  */
-export default async function AttorneyMessagesPage(): Promise<React.ReactElement> {
-  const [lawyer, user, t, locale] = await Promise.all([
+export default async function AttorneyMessagesPage({ searchParams }: {
+  searchParams: Promise<{ thread?: string }>;
+}): Promise<React.ReactElement> {
+  const [lawyer, user, t, locale, { thread }] = await Promise.all([
     getSessionLawyer(),
     getSessionUser(),
     getTranslations('phoenix.attorney'),
     getLocale(),
+    searchParams,
   ]);
   if (!lawyer) return <></>;
 
@@ -28,7 +31,8 @@ export default async function AttorneyMessagesPage(): Promise<React.ReactElement
   return (
     <div className="space-y-6">
       <PageHeader title={t('msgTitle')} subtitle={t('msgSubtitle')} />
-      <AttorneyInbox locale={locale} />
+      {/* `?thread=` es el link que viaja en el aviso por correo: abre ese hilo. */}
+      <AttorneyInbox locale={locale} initialThreadId={thread ?? null} />
     </div>
   );
 }

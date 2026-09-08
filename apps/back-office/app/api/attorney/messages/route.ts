@@ -57,8 +57,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             priority: true,
             lastEntryAt: true,
             createdByName: true,
+            desk: true,
+            type: true,
+            referral: { select: { status: true, convertedByName: true } },
             case: { select: { caseCode: true } },
-            _count: { select: { entries: true } },
+            patient: { select: { firstName: true, lastName: true } },
+            // Solo lo que el portal muestra: las notas internas no cuentan.
+            entries: {
+              where: { kind: { in: ['MESSAGE', 'REPLY', 'FORWARD'] } },
+              orderBy: { sentAt: 'desc' },
+              select: { authorName: true, _count: { select: { attachments: true } } },
+            },
           },
         },
       },
@@ -73,10 +82,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id: r.thread.id,
       subject: r.thread.subject,
       priority: r.thread.priority,
+      desk: r.thread.desk,
+      type: r.thread.type,
+      referralStatus: r.thread.referral?.status ?? null,
       from: r.thread.createdByName,
+      // Quién escribió lo ÚLTIMO: en una bandeja tipo correo es lo que se lee
+      // primero, y no siempre coincide con quien abrió el hilo.
+      lastFrom: r.thread.entries[0]?.authorName ?? r.thread.createdByName,
       caseCode: r.thread.case?.caseCode ?? null,
+      patientName: r.thread.patient ? `${r.thread.patient.firstName} ${r.thread.patient.lastName}`.trim() : null,
       lastEntryAt: r.thread.lastEntryAt,
-      entries: r.thread._count.entries,
+      entries: r.thread.entries.length,
+      attachments: r.thread.entries.reduce((n, e) => n + e._count.attachments, 0),
       // Sin fecha de lectura, o con una anterior al último mensaje: no leído.
       unread: !r.lastReadAt || r.lastReadAt < r.thread.lastEntryAt,
     })),

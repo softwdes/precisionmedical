@@ -8,12 +8,15 @@ import { db } from '@precision-medical/database';
  * lado del bufete (apunta a `Lawyer`), y del lado nuestro el caso no tiene
  * dueño; se va a asignar al crearlo, y eso se debate en la clínica.
  *
- * Así que el destinatario sale de una variable de entorno, y el día que exista
- * el encargado se usa ese y esto queda como respaldo para los casos sin asignar.
- * Se eligió una variable y no un valor en el código para que cambiar quién
- * recibe no necesite un deploy.
+ * Así que el destinatario salía de una variable de entorno:
  *
  *   VIGIA_REQUEST_RECIPIENTS="devin@…,beatriz@…"
+ *
+ * DESDE 2026-09-07 esto es el ÚLTIMO RESPALDO, no la regla. El pedido se
+ * dirige a un ESCRITORIO (clínico / admisión / facturación) y quién lo atiende
+ * vive en `message_desk_members`, editable desde Configuración — ver
+ * `lib/mensajeria/escritorios-server.ts`. Acá se cae solo cuando el escritorio
+ * pedido Y el de respaldo están vacíos.
  *
  * Sin la variable NO se inventa un destinatario: se devuelve vacío y la ruta
  * responde 503. Mandarle el pedido "a cualquier admin" es peor que no mandarlo:

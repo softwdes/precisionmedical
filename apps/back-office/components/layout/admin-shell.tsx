@@ -99,6 +99,7 @@ export function AdminShell({
               onMenuClick={() => setMobileOpen(v => !v)}
               sidebarCollapsed={collapsed}
               onToggleSidebar={() => handleCollapsedChange(!collapsed)}
+              portal={variant === 'attorney' ? 'attorney' : 'clinic'}
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>

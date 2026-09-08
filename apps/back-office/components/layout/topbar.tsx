@@ -31,6 +31,8 @@ interface TopbarProps {
    */
   sidebarCollapsed?: boolean;
   onToggleSidebar?:  () => void;
+  /** El portal legal usa su propia puerta de mensajes (ver `InboxBell`). */
+  portal?: 'clinic' | 'attorney';
 }
 
 function generateSecurePassword(): string {
@@ -61,6 +63,7 @@ export function Topbar({
   onMenuClick,
   sidebarCollapsed = false,
   onToggleSidebar,
+  portal = 'clinic',
 }: TopbarProps): React.ReactElement {
   const router        = useRouter();
   const currentLocale = useLocale();
@@ -217,7 +220,7 @@ export function Topbar({
               Van primero y juntas; las preferencias personales (idioma, tema)
               se agrupan después, pegadas al avatar. La jerarquía visual sigue
               a la urgencia clínica: nada debe gritar más que un urgente. */}
-          <InboxBell />
+          <InboxBell portal={portal} />
 
           {/* Novedades del sistema. Antes habia aca un boton de campana de
               adorno: sin onClick, sin consultar nada y con un 2 escrito en

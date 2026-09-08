@@ -6,6 +6,11 @@
  * del hilo. No hace falta preguntar por el caso ni por el bufete — si a alguien
  * no le escribieron, para él ese hilo no existe. Un id adivinado devuelve 404,
  * no un 403: decir "existe pero no podés verlo" ya es contar algo.
+ *
+ * Lo que el abogado VE del hilo son los mensajes (MESSAGE · REPLY · FORWARD).
+ * Las notas (NOTE · SEAL_NOTE) son anotaciones internas de la clínica sobre el
+ * hilo y no viajan al portal — antes salían todas y una nota de cobranza para
+ * uso interno le llegaba al bufete.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -15,6 +20,9 @@ import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { resolveActor } from '@/lib/actor';
 
 const ReplySchema = z.object({ body: z.string().min(1).max(4000) });
+
+/** Lo que el portal muestra del hilo: mensajes, no anotaciones internas. */
+const KINDS_VISIBLES = ['MESSAGE', 'REPLY', 'FORWARD'] as const;
 
 /** ¿Esta persona participa del hilo? Devuelve su fila de destinatario. */
 async function participacion(threadId: string, userId: string) {
@@ -47,11 +55,23 @@ export async function GET(
   const thread = await db.messageThread.findUnique({
     where: { id: threadId },
     select: {
-      id: true, subject: true, priority: true,
+      id: true, subject: true, priority: true, desk: true, topic: true, type: true, createdAt: true,
+      referral: { select: { status: true, convertedByName: true, convertedAt: true } },
       case: { select: { id: true, caseCode: true } },
+      // El paciente está en el alcance del abogado —es SU cliente—, así que el
+      // nombre puede ir en la cabecera igual que en su lista de casos.
+      patient: { select: { firstName: true, lastName: true } },
+      recipients: {
+        where: { kind: { in: ['TO', 'CC'] } },
+        select: { userName: true, kind: true },
+      },
       entries: {
+        where: { kind: { in: [...KINDS_VISIBLES] } },
         orderBy: { sentAt: 'asc' },
-        select: { id: true, authorName: true, body: true, sentAt: true, kind: true },
+        select: {
+          id: true, authorUserId: true, authorName: true, body: true, sentAt: true, kind: true,
+          attachments: { select: { id: true, fileName: true, documentType: true } },
+        },
       },
     },
   });
@@ -69,9 +89,23 @@ export async function GET(
     id: thread.id,
     subject: thread.subject,
     priority: thread.priority,
+    desk: thread.desk,
+    topic: thread.topic,
+    type: thread.type,
+    referral: thread.referral
+      ? { status: thread.referral.status, convertedByName: thread.referral.convertedByName, convertedAt: thread.referral.convertedAt }
+      : null,
+    createdAt: thread.createdAt,
     caseCode: thread.case?.caseCode ?? null,
     caseId: thread.case?.id ?? null,
-    entries: thread.entries,
+    patientName: thread.patient ? `${thread.patient.firstName} ${thread.patient.lastName}`.trim() : null,
+    recipients: thread.recipients,
+    entries: thread.entries.map((e) => ({
+      ...e,
+      // Para pintar "vos" vs "la clínica" sin mandar ids ajenos al cliente.
+      mine: e.authorUserId === actor.actorUserId,
+      authorUserId: undefined,
+    })),
   });
 }
 
@@ -106,19 +140,25 @@ export async function POST(
    *
    * Sin la transacción, un `lastEntryAt` viejo deja el mensaje enterrado al
    * fondo de la bandeja de quien tiene que leerlo: existe pero nadie lo ve.
+   * Y la respuesta REVIVE el hilo en las bandejas de la clínica igual que
+   * cualquier entrada: si alguien lo había borrado de la suya, vuelve.
    */
   await db.$transaction([
     db.messageEntry.create({
       data: {
         threadId,
-        kind: 'MESSAGE',
+        kind: 'REPLY',
         authorUserId: actor.actorUserId,
         authorName: actor.actorName,
         body: input.body.trim(),
         sentAt: now,
       },
     }),
-    db.messageThread.update({ where: { id: threadId }, data: { lastEntryAt: now } }),
+    db.messageThread.update({ where: { id: threadId }, data: { lastEntryAt: now, removedFromInboxesAt: null } }),
+    db.messageRecipient.updateMany({
+      where: { threadId, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    }),
     // Quien responde ya leyó lo suyo; los demás vuelven a "no leído" porque
     // `lastReadAt` queda por detrás del nuevo `lastEntryAt`.
     db.messageRecipient.updateMany({

@@ -7,9 +7,14 @@
  * general obligaría a confiar en el `to` que llega del navegador — y ese `to`
  * es el nombre de cualquier persona de la clínica.
  *
+ * El abogado NO elige a quién: elige un ESCRITORIO (tema) con botones, y quién
+ * atiende ese escritorio hoy lo dice Configuración (`escritorios-server.ts`).
+ * El escritorio, el sub-tema y el bufete quedan guardados en el hilo: son lo
+ * que después permite filtrar, reasignar y medir "sin responder".
+ *
  * El hilo que crea es un hilo normal: cae en la bandeja del destinatario como
  * cualquier otro, atado al caso, y la respuesta le vuelve al abogado por su
- * propia bandeja. Ninguna tabla nueva.
+ * propia bandeja.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -19,10 +24,13 @@ import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
 import { lawyerCaseFilter, canSeeVigia } from '@/lib/attorney-portal';
 import { resolveActor } from '@/lib/actor';
-import { destinatariosDePedidos } from '@/lib/vigia/pedidos';
+import { ESCRITORIOS_DE_PEDIDO, esTemaDe } from '@/lib/mensajeria/escritorios';
+import { destinatariosDeEscritorio } from '@/lib/mensajeria/escritorios-server';
 
 const Schema = z.object({
   caso: z.string().min(1).max(60),
+  desk: z.enum(ESCRITORIOS_DE_PEDIDO),
+  topic: z.string().max(60).optional(),
   subject: z.string().min(3).max(200),
   body: z.string().min(3).max(4000),
   priority: z.enum(['NORMAL', 'URGENT']).default('NORMAL'),
@@ -43,6 +51,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json({ error: 'PEDIDO_INVALIDO' }, { status: 400 });
   }
+  // Un sub-tema que no es de ese escritorio no rompe el pedido: se descarta.
+  const topic = esTemaDe(input.desk, input.topic) ? input.topic : null;
 
   // El caso tiene que estar en SU alcance. Se resuelve por código, igual que
   // las herramientas del agente: el id nunca viaja desde el cliente.
@@ -52,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   if (!kase) return NextResponse.json({ error: 'FUERA_DE_ALCANCE' }, { status: 404 });
 
-  const destinatarios = await destinatariosDePedidos();
+  const { destinatarios, escritorioEfectivo, respaldo } = await destinatariosDeEscritorio(input.desk);
   if (destinatarios.length === 0) {
     return NextResponse.json({ error: 'SIN_DESTINATARIOS' }, { status: 503 });
   }
@@ -83,6 +93,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       priority: input.priority,
       patientId: kase.patientId,
       caseId: kase.id,
+      // Se guarda el escritorio PEDIDO, no el que terminó recibiendo: si
+      // Facturación estaba vacía y cayó en Admisión, el hilo sigue siendo de
+      // facturación y el admin lo ve en su columna. Quién lo recibió está en
+      // los destinatarios y en el audit.
+      desk: input.desk,
+      topic,
+      firmId: lawyer.firmId,
       createdByUserId: actor.actorUserId,
       createdByName: actor.actorName,
       lastEntryAt: now,
@@ -123,9 +140,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       bufete: firma,
       // Queda quién lo mandó de verdad y en nombre de quién.
       comoBufete: lawyer.id,
+      escritorio: input.desk,
+      tema: topic,
+      // Si el escritorio pedido estaba vacío, acá queda a dónde cayó.
+      escritorioEfectivo,
+      respaldo,
       destinatarios: destinatarios.map((d) => d.name),
     },
   }).catch(() => undefined);
 
-  return NextResponse.json({ ok: true, threadId: thread.id });
+  return NextResponse.json({ ok: true, threadId: thread.id, escritorioEfectivo, respaldo });
 }

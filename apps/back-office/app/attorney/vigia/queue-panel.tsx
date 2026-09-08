@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, ChevronRight, MessageSquarePlus, Clock } from 'lucide-react';
 import { Section, EmptyState, TagPill, IconAction } from '@/components/ui-phoenix';
 import type { MotivoAtencion } from '@/lib/vigia/queue';
+import { escritorioDelMotivo } from '@/lib/mensajeria/escritorios';
 import { RequestDialog } from './request-dialog';
 
 /**
@@ -138,6 +139,8 @@ export function StalledPanel({ filas, total }: { filas: FilaVista[]; total: numb
               dias: pidiendo.diasCerrado ?? pidiendo.diasSinCita ?? pidiendo.diasAbierto,
             })
           : ''}
+        desk={pidiendo ? escritorioDelMotivo(pidiendo.motivo).desk : null}
+        topic={pidiendo ? escritorioDelMotivo(pidiendo.motivo).topic : null}
         onClose={() => setPidiendo(null)}
       />
     </Section>
@@ -177,6 +180,8 @@ export function QueuePanel({ filas, total }: {
               dias: pidiendo.diasCerrado ?? pidiendo.diasSinCita ?? pidiendo.diasAbierto,
             })
           : ''}
+        desk={pidiendo ? escritorioDelMotivo(pidiendo.motivo).desk : null}
+        topic={pidiendo ? escritorioDelMotivo(pidiendo.motivo).topic : null}
         onClose={() => setPidiendo(null)}
       />
     </Section>

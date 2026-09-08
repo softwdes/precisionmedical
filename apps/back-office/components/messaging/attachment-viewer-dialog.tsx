@@ -22,9 +22,15 @@ interface Props {
   attachmentId: string | null;
   fileName: string;
   onClose: () => void;
+  /**
+   * Base de la ruta que firma. La clínica usa la general; el portal legal, la
+   * suya (`/api/attorney/messages/attachments`), que exige ser destinatario
+   * del hilo y que el middleware sí le deja pasar a un LAWYER.
+   */
+  endpoint?: string;
 }
 
-export function AttachmentViewerDialog({ attachmentId, fileName, onClose }: Props) {
+export function AttachmentViewerDialog({ attachmentId, fileName, onClose, endpoint = '/api/messages/attachments' }: Props) {
   const t = useTranslations('phoenix.messaging');
   const [url, setUrl] = useState<string | null>(null);
   // Firma aparte, con `Content-Disposition: attachment`.
@@ -37,7 +43,7 @@ export function AttachmentViewerDialog({ attachmentId, fileName, onClose }: Prop
     setUrl(null);
     setDownloadUrl(null);
     setError(false);
-    fetch(`/api/messages/attachments/${attachmentId}`)
+    fetch(`${endpoint}/${attachmentId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
       .then((d: { url: string; downloadUrl?: string }) => {
         if (cancelled) return;
@@ -46,7 +52,7 @@ export function AttachmentViewerDialog({ attachmentId, fileName, onClose }: Prop
       })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [attachmentId]);
+  }, [attachmentId, endpoint]);
 
   return (
     <FileViewerDialog

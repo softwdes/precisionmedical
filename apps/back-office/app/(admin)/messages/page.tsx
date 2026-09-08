@@ -13,7 +13,7 @@
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/session';
 import { getDbUserByEmail } from '@/lib/actor';
-import { InboxClient } from '@/components/messaging/inbox-client';
+import { MessagesHub } from '@/components/messaging/messages-hub';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export default async function MessagesPage({
@@ -31,7 +31,8 @@ export default async function MessagesPage({
 
   return (
     <>
-      <InboxClient
+      {/* Bandeja propia + (admin) los pedidos de todos los bufetes, en pestañas. */}
+      <MessagesHub
         currentUserId={dbUser.id}
         currentUserName={`${dbUser.firstName} ${dbUser.lastName}`.trim()}
         isAdmin={dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ADMIN'}

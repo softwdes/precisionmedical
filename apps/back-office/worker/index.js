@@ -138,3 +138,58 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   event.waitUntil(actualizarMarca());
 });
+
+/**
+ * El navegador renovó o invalidó la suscripción por su cuenta: se rehace SOLA.
+ *
+ * Sin esto, cuando Chrome rota una suscripción —le pasa por su cuenta, y también
+ * al reinstalar o limpiar datos del sitio— la fila que tenemos guardada queda
+ * apuntando a un endpoint muerto. FCM lo sigue aceptando sin error, así que en
+ * la base se ve sano (`failureCount: 0`, `lastSuccessAt` al día) y al teléfono
+ * no llega nada. El fallo es invisible por los dos lados.
+ *
+ * Cuando el navegador SÍ nos avisa, esto lo arregla sin que la persona haga
+ * nada. Lo que no cubre —porque el navegador no lo reporta— es el caso de
+ * desinstalar y reinstalar la app dejando la suscripción vieja viva del lado del
+ * cliente; para ese está el botón "Reactivar avisos" del diálogo.
+ *
+ * La clave pública se PIDE al servidor (`/api/push/public-key`) porque acá no
+ * llega por env: next-pwa compila este archivo aparte y su `EnvironmentPlugin`
+ * solo inyecta las claves de los fallbacks, no las variables de Next.
+ * Verificado en el `dist` del paquete — no es una suposición.
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const res = await fetch('/api/push/public-key');
+        const clave = res.ok ? (await res.json()).key : null;
+        if (!clave) return;
+
+        // La vieja, si el navegador la dejó, para que el servidor la borre.
+        const vieja = event.oldSubscription || (await self.registration.pushManager.getSubscription());
+        if (vieja) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: vieja.endpoint }),
+          }).catch(() => undefined);
+        }
+
+        const nueva = event.newSubscription || (await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: clave,
+        }));
+
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nueva.toJSON()),
+        });
+      } catch (e) {
+        // Si falla, queda el botón "Reactivar avisos" como salida manual.
+        console.error('[sw] no se pudo rehacer la suscripción', e);
+      }
+    })(),
+  );
+});

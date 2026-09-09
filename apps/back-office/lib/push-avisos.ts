@@ -60,6 +60,26 @@ export interface AvisosControl {
   encender: () => Promise<void>;
   /** Da de baja la suscripción de este navegador. */
   apagar: () => Promise<void>;
+  /**
+   * Rehace la suscripción de cero: baja la actual y crea una nueva.
+   *
+   * Existe por un fallo que NO se puede detectar desde acá. En Android,
+   * desinstalar la PWA **no borra los datos del sitio en Chrome**, así que al
+   * reinstalar el Service Worker y la suscripción sobreviven. `getSubscription()`
+   * devuelve una suscripción, el control se pinta VERDE… y ese endpoint ya no
+   * está atado a la app instalada: FCM lo sigue aceptando (`failureCount: 0`,
+   * `lastSuccessAt` actualizándose) y al teléfono no llega nada.
+   *
+   * El verde miente y el código no tiene forma de saberlo: nunca llama a
+   * `subscribe()` porque cree que está todo bien. Reportado el 2026-09-09 con la
+   * reproducción exacta: instalar, activar, recibir bien, **desinstalar**,
+   * reinstalar, activar → verde y nada llega.
+   *
+   * Un solo toque en vez de "apagá y prendé": pedirle dos pasos a alguien que no
+   * sabe por qué no le llegan los avisos es pedirle que adivine, y quedarse a
+   * mitad de camino lo deja peor que antes.
+   */
+  reactivar: () => Promise<void>;
 }
 
 export function usePushAvisos(): AvisosControl {
@@ -120,7 +140,7 @@ export function usePushAvisos(): AvisosControl {
     return () => window.removeEventListener(PUSH_AVISOS_EVENT, onCambio);
   }, [leerEstado]);
 
-  const encender = useCallback(async (): Promise<void> => {
+  const encender = useCallback(async (opts?: { rehacer?: boolean }): Promise<void> => {
     if (!clavePublica) return;
     setTrabajando(true);
     try {
@@ -132,6 +152,28 @@ export function usePushAvisos(): AvisosControl {
       }
 
       const reg = await navigator.serviceWorker.ready;
+
+      /**
+       * Rehacer: se da de baja la suscripción actual ANTES de crear la nueva.
+       *
+       * Sin esto, `subscribe()` devuelve la MISMA suscripción que ya existe
+       * —incluida la que quedó muerta tras un desinstalar/reinstalar— y el
+       * problema no se mueve. Se avisa al servidor primero: si el `unsubscribe`
+       * fallara después, la fila muerta ya está borrada y no queda basura
+       * recibiendo envíos al vacío.
+       */
+      if (opts?.rehacer) {
+        const vieja = await reg.pushManager.getSubscription();
+        if (vieja) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: vieja.endpoint }),
+          }).catch(() => undefined);
+          await vieja.unsubscribe().catch(() => undefined);
+        }
+      }
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: claveABytes(clavePublica),
@@ -157,7 +199,7 @@ export function usePushAvisos(): AvisosControl {
 
       setEstado('encendido');
       anunciarCambio();
-      toast.success(t('pushOnDone'));
+      toast.success(opts?.rehacer ? t('pushRedone') : t('pushOnDone'));
     } catch (e) {
       console.error('[push] alta falló', e);
       toast.error(t('pushError'));
@@ -193,5 +235,8 @@ export function usePushAvisos(): AvisosControl {
     }
   }, [toast, t]);
 
-  return { estado, trabajando, encender, apagar };
+  /** Ver la nota de `reactivar` en `AvisosControl`. */
+  const reactivar = useCallback(() => encender({ rehacer: true }), [encender]);
+
+  return { estado, trabajando, encender, apagar, reactivar };
 }

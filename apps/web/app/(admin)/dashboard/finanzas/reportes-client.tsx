@@ -8,6 +8,7 @@ import {
 import { FileText, Download, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
+import { construirWorkbookCajaChica, nombreArchivoCajaChica } from './reporte-excel';
 
 type ReportData = inferRouterOutputs<AppRouter>['pettyCash']['report'];
 type Boxes      = inferRouterOutputs<AppRouter>['pettyCash']['listBoxes'];
@@ -355,15 +356,26 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
   }, [report.byClinic]);
 
   // ── Exports ───────────────────────────────────────────────────────────────
-  const handleExportCSV = useCallback(() => {
-    const headers = ['Categoría','Transacciones','Monto','% del total'];
-    const rows = report.byCategory.map(r => [CAT_LABELS[r.category]??r.category, String(r.count), r.amount.toFixed(2), `${(r.pct*100).toFixed(1)}%`]);
-    const csv = [headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=`reporte-caja-chica-${applied.dateFrom}-${applied.dateTo}.csv`; a.click();
+  // El botón dice Excel, así que entrega un Excel (SpreadsheetML, el mismo
+  // formato que employees/reporte-horas-client). Antes bajaba un CSV separado
+  // por comas y el Excel de acá lo abría TODO en la columna A: el separador de
+  // lista de Windows en es-PE/es-BO es ';', no ','. Medido 2026-09-09 en la
+  // máquina de Erick. Además llevaba solo la tabla de categorías, menos de lo
+  // que ya trae el PDF de al lado.
+  const handleExportExcel = useCallback(() => {
+    const xml  = construirWorkbookCajaChica(report, applied, totalBalance, CAT_LABELS);
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivoCajaChica(applied);
+    // En el documento antes del click: un ancla suelta no dispara la descarga
+    // en todos los navegadores, y revocar la URL es lo último que pasa.
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     URL.revokeObjectURL(url);
-  }, [report.byCategory, applied]);
+  }, [report, applied, totalBalance]);
 
   const handleExportPDF = useCallback(() => {
     const catRows = report.byCategory.map(r=>`<tr><td>${CAT_LABELS[r.category]??r.category}</td><td style="text-align:center">${r.count}</td><td style="text-align:right;color:#dc2626">$${fmt(r.amount)}</td><td style="text-align:right">${(r.pct*100).toFixed(1)}%</td></tr>`).join('');
@@ -448,7 +460,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand-text transition-colors">
                 <FileText size={13} /> <span className="hidden sm:inline">PDF</span>
               </button>
-              <button onClick={handleExportCSV}
+              <button onClick={handleExportExcel}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11.5px] font-semibold text-text-2 bg-transparent hover:border-brand hover:text-brand-text transition-colors">
                 <Download size={13} /> <span className="hidden sm:inline">Excel</span>
               </button>

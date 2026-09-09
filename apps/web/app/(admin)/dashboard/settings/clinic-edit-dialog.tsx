@@ -355,7 +355,7 @@ export function ClinicEditDialog({
           {isCreate && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
               <div className="space-y-1.5">
-                <Label>{t('internalKey')} <span className="text-rose-400">*</span></Label>
+                <Label>{t('internalKey')} <span className="text-rose-text">*</span></Label>
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -366,7 +366,7 @@ export function ClinicEditDialog({
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label>{t('country')} <span className="text-rose-400">*</span></Label>
+                <Label>{t('country')} <span className="text-rose-text">*</span></Label>
                 <select
                   value={newCountry}
                   onChange={(e) => setNewCountry(e.target.value as 'US' | 'BO' | 'PE')}
@@ -587,7 +587,7 @@ export function ClinicEditDialog({
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
-                <p className="text-tiny text-rose-400 leading-relaxed">
+                <p className="text-tiny text-rose-text leading-relaxed">
                   Activa solo cuando hayas confirmado las coordenadas exactas y el radio.
                   Si las coords son aproximadas, vas a bloquear empleados legítimos.
                 </p>

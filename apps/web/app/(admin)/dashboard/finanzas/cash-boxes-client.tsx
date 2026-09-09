@@ -54,12 +54,12 @@ function StatusBadge({ isActive, balance, threshold }: StatusBadgeProps): React.
     // Balance 0 on an active box: critical, but our caller decides if
     // it's "never opened" or "fully spent" via transactions count.
     // Here we just show the visual — alert logic lives elsewhere.
-    return <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/30">Sin saldo</Badge>;
+    return <Badge className="bg-rose-500/15 text-rose-text border-rose-500/30">Sin saldo</Badge>;
   }
   if (balance <= threshold) {
-    return <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30">Saldo bajo</Badge>;
+    return <Badge className="bg-amber-500/15 text-amber-text border-amber-500/30">Saldo bajo</Badge>;
   }
-  return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">Activa</Badge>;
+  return <Badge className="bg-emerald-500/15 text-emerald-text border-emerald-500/30">Activa</Badge>;
 }
 
 export function CashBoxesClient(): React.ReactElement {
@@ -124,8 +124,8 @@ export function CashBoxesClient(): React.ReactElement {
       {/* Read-only notice */}
       {!canManage && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-text mt-0.5" />
+          <p className="text-xs text-amber-text">
             Solo Super Admin puede crear, editar o desactivar cajas chicas. Tu rol tiene acceso de lectura.
           </p>
         </div>
@@ -183,7 +183,7 @@ export function CashBoxesClient(): React.ReactElement {
                 {/* Balance */}
                 <div className="mb-3">
                   <p className="text-tiny text-text-muted uppercase tracking-wide">Saldo</p>
-                  <p className={cn('text-xl font-bold font-mono', balance <= threshold && box.is_active ? 'text-amber-400' : 'text-text-1')}>
+                  <p className={cn('text-xl font-bold font-mono', balance <= threshold && box.is_active ? 'text-amber-text' : 'text-text-1')}>
                     {fmtMoney(balance, box.currency)}
                   </p>
                   <p className="text-tiny text-text-3 mt-0.5">
@@ -233,7 +233,7 @@ export function CashBoxesClient(): React.ReactElement {
                       </button>
                       <button
                         onClick={() => setConfirmDelete(box)}
-                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-tiny text-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-tiny text-text-muted hover:text-rose-text hover:bg-rose-500/10 transition-colors"
                         title="Eliminar (solo si no tiene transacciones)"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -279,7 +279,7 @@ export function CashBoxesClient(): React.ReactElement {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {confirmToggle?.is_active ? <PowerOff className="h-4 w-4 text-amber-500" /> : <Power className="h-4 w-4 text-emerald-500" />}
+              {confirmToggle?.is_active ? <PowerOff className="h-4 w-4 text-amber-text" /> : <Power className="h-4 w-4 text-emerald-text" />}
               {confirmToggle?.is_active ? 'Desactivar caja' : 'Activar caja'}
             </DialogTitle>
             <DialogDescription>
@@ -305,7 +305,7 @@ export function CashBoxesClient(): React.ReactElement {
       <Dialog open={!!confirmDelete} onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-rose-500">
+            <DialogTitle className="flex items-center gap-2 text-rose-text">
               <Trash2 className="h-4 w-4" />
               Eliminar caja
             </DialogTitle>

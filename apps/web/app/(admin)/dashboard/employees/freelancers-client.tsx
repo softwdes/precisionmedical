@@ -474,8 +474,8 @@ function KpiCard({ icon: Icon, label, value, color }: {
 }) {
   const colors = {
     brand:   'bg-brand/10 text-brand-text',
-    emerald: 'bg-emerald-500/10 text-emerald-500',
-    amber:   'bg-amber-400/10 text-amber-400',
+    emerald: 'bg-emerald-500/10 text-emerald-text',
+    amber:   'bg-amber-400/10 text-amber-text',
   };
   return (
     <Card>

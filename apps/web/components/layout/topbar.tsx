@@ -11,6 +11,7 @@ import { Bell, Search, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy
 import { api as trpc } from '@/lib/trpc/client';
 import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
 import { NotificationsDrawer } from './notifications-drawer';
+import { PushToggle, PushAvisosMenuItem } from '@/components/push-toggle';
 import { CommandPalette } from './command-palette';
 import { toast } from 'sonner';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
@@ -187,6 +188,12 @@ export function Topbar({
           <span className="font-mono text-[12px] font-semibold text-cyan tracking-wide">{time}</span>
         </div>
 
+        {/* Avisos al celular. Va ANTES de la campana a propósito: la campana es
+            el buzón de las notificaciones internas y esto es la preferencia de
+            si este aparato suena. Solo se dibuja cuando hace falta un clic
+            —apagado o bloqueado—, así que encendido no le roba lugar a nada. */}
+        <PushToggle />
+
         {/* Notifications */}
         <button
           onClick={() => setNotifOpen(true)}
@@ -259,6 +266,11 @@ export function Topbar({
                   <KeyRound className="h-3.5 w-3.5 text-amber shrink-0" />
                   Cambiar contraseña
                 </button>
+                {/* Los avisos del aparato van acá porque son una preferencia
+                    personal del dispositivo, la misma clase de cosa que el
+                    idioma y el tema. A diferencia del botón de la barra, esta
+                    fila está SIEMPRE: es donde se ve el estado y se apaga. */}
+                <PushAvisosMenuItem onNavigate={() => setMenuOpen(false)} />
               </div>
               <div className="border-t border-border py-1">
                 <button
@@ -375,7 +387,7 @@ export function Topbar({
               </div>
             </div>
 
-            {pwError && <p className="text-xs text-rose-500">{pwError}</p>}
+            {pwError && <p className="text-xs text-rose-text">{pwError}</p>}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPwOpen(false)}>Cancelar</Button>

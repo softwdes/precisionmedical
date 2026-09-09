@@ -126,8 +126,8 @@ export function FreelancersPagosClient({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <div className="h-9 w-9 rounded-lg bg-emerald/10 flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-emerald" />
               </div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('freelancers.pagosPagadosMes')}</p>
@@ -139,8 +139,8 @@ export function FreelancersPagosClient({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-amber-500" />
+              <div className="h-9 w-9 rounded-lg bg-amber/10 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-amber" />
               </div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">
@@ -229,7 +229,7 @@ export function FreelancersPagosClient({
                         {p.descripcion as string}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-mono font-bold text-small ${monto < 0 ? 'text-rose-500' : 'text-text-1'}`}>
+                        <span className={`font-mono font-bold text-small ${monto < 0 ? 'text-rose' : 'text-text-1'}`}>
                           {fmtAmount(monto, moneda)} <span className="text-tiny text-text-3">{moneda}</span>
                         </span>
                         {p.modalidad === 'POR_HORA' && p.horas != null && (
@@ -248,6 +248,18 @@ export function FreelancersPagosClient({
                         <div className="flex gap-1 justify-end">
                           {status === 'PENDING' && (
                             <>
+                              {/* Marcar pagado va PRIMERO y con el recuadro verde,
+                                  igual que en Pagos de Salarios: es la acción que
+                                  se busca en esta fila, no editar. Acá estaba
+                                  tercera en el orden visual y sin color, así que
+                                  la fila no decía qué se espera que hagas. */}
+                              <button
+                                onClick={() => setShowMarkPaid(p.id as string)}
+                                className="p-1.5 rounded border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald hover:text-white hover:border-emerald transition-colors"
+                                title={t('freelancers.markAsPaid')}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
                               <button
                                 onClick={() => setShowEdit(p.id as string)}
                                 className="p-1.5 text-text-muted hover:text-brand-text transition-colors rounded"
@@ -256,15 +268,8 @@ export function FreelancersPagosClient({
                                 <Pencil className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() => setShowMarkPaid(p.id as string)}
-                                className="p-1.5 text-text-muted hover:text-emerald-500 transition-colors rounded"
-                                title={t('freelancers.markAsPaid')}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                              <button
                                 onClick={() => setShowCancel(p.id as string)}
-                                className="p-1.5 text-text-muted hover:text-rose-500 transition-colors rounded"
+                                className="p-1.5 text-text-muted hover:text-rose transition-colors rounded"
                                 title={t('freelancers.cancelPayment')}
                               >
                                 <X className="h-4 w-4" />
@@ -274,7 +279,7 @@ export function FreelancersPagosClient({
                           {status === 'PAID' && !p.reversedById && (
                             <button
                               onClick={() => setShowReverse(p.id as string)}
-                              className="p-1.5 text-text-muted hover:text-amber-500 transition-colors rounded"
+                              className="p-1.5 text-text-muted hover:text-amber transition-colors rounded"
                               title={t('freelancers.reversePayment')}
                             >
                               <RotateCcw className="h-4 w-4" />
@@ -333,7 +338,7 @@ export function FreelancersPagosClient({
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-text-3">{t('common.total')}</span>
-                      <span className="font-semibold text-emerald-500 font-mono">
+                      <span className="font-semibold text-emerald font-mono">
                         {fmtAmount(Number(pago.monto), pago.moneda as string)} {pago.moneda as string}
                       </span>
                     </div>

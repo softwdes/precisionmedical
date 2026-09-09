@@ -1161,5 +1161,25 @@
       "nameMinLength": "Internal key must be at least 2 characters",
       "displayNameMinLength": "Display name must be at least 2 characters"
     }
+  },
+  "push": {
+    "menuLabel": "Alerts on this device",
+    "stateOn": "On",
+    "stateOff": "Off",
+    "stateBlocked": "Blocked by the browser",
+    "off": "Turn on alerts for this device",
+    "blocked": "Alerts blocked by the browser",
+    "askTitle": "Alerts on this device",
+    "askBody": "We will alert you on your phone when cash boxes drop below the minimum or payments need review, even with the app closed.",
+    "askPrivacy": "The alert only says what it is about. It never shows patient names or amounts: it is drawn on the lock screen, where anyone can see it.",
+    "blockedTitle": "Alerts are blocked",
+    "blockedBody": "This browser has alerts blocked for the site. To turn them on you have to allow them in the browser settings; we cannot ask again from here.",
+    "enable": "Turn on",
+    "later": "Not now",
+    "close": "Close",
+    "saving": "Turning on...",
+    "onDone": "Alerts on for this device",
+    "offDone": "Alerts off for this device",
+    "error": "Could not change the alerts"
   }
 }

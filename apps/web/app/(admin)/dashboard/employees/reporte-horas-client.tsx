@@ -596,7 +596,7 @@ function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean 
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-xs text-text-2 font-medium">{fmtWeekLabel(week.weekStart, week.weekEnd)}</span>
-        <span className={cn('text-xs font-semibold font-mono', hasOT ? 'text-rose-500' : 'text-text-1')}>
+        <span className={cn('text-xs font-semibold font-mono', hasOT ? 'text-rose-text' : 'text-text-1')}>
           {fmtHours(week.totalHours)}
         </span>
       </div>
@@ -620,7 +620,7 @@ function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean 
       <div className="flex items-center justify-between text-[11px] text-text-3">
         <span>{fmtHours(week.regularHours)} regulares / 40h</span>
         {hasOT && (
-          <span className="text-rose-500 font-medium">+{fmtHours(week.overtimeHours)} extras</span>
+          <span className="text-rose-text font-medium">+{fmtHours(week.overtimeHours)} extras</span>
         )}
         {isExempt && (
           <span className="italic">Asalariado — sin overtime</span>
@@ -662,10 +662,10 @@ function DailyDetail({ days, weekBlocks }: { days: DayRecord[]; weekBlocks: Week
           {days.map((day) => {
             const isOT = overtimeDates.has(day.date);
             const statusBadge = day.status === 'on_time'
-              ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-600">A tiempo</span>
+              ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-text">A tiempo</span>
               : day.status === 'late'
-                ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-amber-500/10 text-amber-600">Tardanza {day.late_minutes}m</span>
-                : <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-rose-500/10 text-rose-600">Ausente</span>;
+                ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-amber-500/10 text-amber-text">Tardanza {day.late_minutes}m</span>
+                : <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-rose-500/10 text-rose-text">Ausente</span>;
 
             return (
               <tr key={day.id} className="border-b border-border/40 last:border-0">
@@ -673,7 +673,7 @@ function DailyDetail({ days, weekBlocks }: { days: DayRecord[]; weekBlocks: Week
                 <td className="py-1.5 pr-3 text-text-3 max-w-[120px] truncate">{day.clinic_name ?? '—'}</td>
                 <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_in)}</td>
                 <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_out)}</td>
-                <td className={cn('py-1.5 pr-3 text-right font-mono font-medium', isOT ? 'text-rose-500' : 'text-emerald-600')}>
+                <td className={cn('py-1.5 pr-3 text-right font-mono font-medium', isOT ? 'text-rose-text' : 'text-emerald-text')}>
                   {day.hours_worked != null ? fmtHours(day.hours_worked) : '—'}
                 </td>
                 <td className="py-1.5">{statusBadge}</td>
@@ -738,7 +738,7 @@ function EmployeeRow({
 
         {/* Regulares */}
         <td className="px-4 py-3 w-[90px] text-right font-mono text-sm font-medium">
-          <span className={emp.totalRegular > 0 ? 'text-emerald-600' : 'text-text-muted'}>
+          <span className={emp.totalRegular > 0 ? 'text-emerald-text' : 'text-text-muted'}>
             {fmtHours(emp.totalRegular)}
           </span>
         </td>
@@ -748,7 +748,7 @@ function EmployeeRow({
           {isExempt
             ? <span className="text-text-muted italic text-xs">N/A</span>
             : hasOT
-              ? <span className="text-rose-500 font-semibold">{fmtHours(emp.totalOvertime)}</span>
+              ? <span className="text-rose-text font-semibold">{fmtHours(emp.totalOvertime)}</span>
               : <span className="text-text-muted">—</span>
           }
         </td>
@@ -856,11 +856,11 @@ function EmployeeMobileCard({
       <div className="grid grid-cols-3 gap-2">
         <div className="text-center">
           <p className="text-[10px] text-text-muted uppercase tracking-wider">Regular</p>
-          <p className="text-sm font-semibold font-mono text-emerald-600">{fmtHours(emp.totalRegular)}</p>
+          <p className="text-sm font-semibold font-mono text-emerald-text">{fmtHours(emp.totalRegular)}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] text-text-muted uppercase tracking-wider">Extras</p>
-          <p className={cn('text-sm font-semibold font-mono', hasOT ? 'text-rose-500' : 'text-text-muted')}>
+          <p className={cn('text-sm font-semibold font-mono', hasOT ? 'text-rose-text' : 'text-text-muted')}>
             {isExempt ? <span className="italic text-xs">N/A</span> : hasOT ? fmtHours(emp.totalOvertime) : '—'}
           </p>
         </div>
@@ -881,7 +881,7 @@ function EmployeeMobileCard({
           </div>
           <div className="flex justify-between text-[10px] text-text-muted">
             <span>{fmtHours(emp.totalRegular)} regulares</span>
-            {hasOT && <span className="text-rose-500">+{fmtHours(emp.totalOvertime)} extras</span>}
+            {hasOT && <span className="text-rose-text">+{fmtHours(emp.totalOvertime)} extras</span>}
           </div>
         </div>
       )}
@@ -1098,7 +1098,7 @@ export function ReporteHorasClient({
 
       {/* ── Error ── */}
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-600">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-text">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -1140,11 +1140,11 @@ export function ReporteHorasClient({
           {/* Incomplete records warning */}
           {(reportData!.incompleteCount ?? 0) > 0 && (
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-700">
+              <AlertTriangle className="h-4 w-4 text-amber-text shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-text">
                 <span className="font-semibold">{reportData!.incompleteCount} registros incompletos</span>
                 {' '}no incluidos (sin hora de salida).{' '}
-                <span className="text-amber-600">Ve a Asistencia para corregirlos.</span>
+                <span className="text-amber-text">Ve a Asistencia para corregirlos.</span>
               </p>
             </div>
           )}
@@ -1155,12 +1155,12 @@ export function ReporteHorasClient({
               className="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5"
               style={{ background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.18)' }}
             >
-              <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-rose-text shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-rose-600">
+                <p className="text-sm font-medium text-rose-text">
                   {summary!.employeesWithOvertime} empleado{summary!.employeesWithOvertime !== 1 ? 's' : ''} {summary!.employeesWithOvertime !== 1 ? 'tienen' : 'tiene'} horas extras este período
                 </p>
-                <p className="text-xs text-rose-500/80 mt-0.5">Revisa el detalle antes de procesar la nómina</p>
+                <p className="text-xs text-rose-text/80 mt-0.5">Revisa el detalle antes de procesar la nómina</p>
               </div>
             </div>
           )}
@@ -1169,22 +1169,22 @@ export function ReporteHorasClient({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#10B981' }}>
               <div className="flex items-center gap-2 mb-1.5">
-                <Clock className="h-3.5 w-3.5 text-emerald-500" />
+                <Clock className="h-3.5 w-3.5 text-emerald-text" />
                 <p className="text-[10px] uppercase tracking-wider text-text-muted">Horas regulares</p>
               </div>
-              <p className="text-2xl font-bold font-mono text-emerald-600">{fmtHours(summary!.totalRegularHours)}</p>
+              <p className="text-2xl font-bold font-mono text-emerald-text">{fmtHours(summary!.totalRegularHours)}</p>
               <p className="text-xs text-text-muted mt-0.5">{summary!.totalEmployees} empleados</p>
             </div>
 
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#F43F5E' }}>
               <div className="flex items-center gap-2 mb-1.5">
-                <TrendingUp className="h-3.5 w-3.5 text-rose-500" />
+                <TrendingUp className="h-3.5 w-3.5 text-rose-text" />
                 <p className="text-[10px] uppercase tracking-wider text-text-muted">Horas extras</p>
               </div>
-              <p className={cn('text-2xl font-bold font-mono', summary!.totalOvertimeHours > 0 ? 'text-rose-500' : 'text-text-muted')}>
+              <p className={cn('text-2xl font-bold font-mono', summary!.totalOvertimeHours > 0 ? 'text-rose-text' : 'text-text-muted')}>
                 {fmtHours(summary!.totalOvertimeHours)}
               </p>
-              <p className={cn('text-xs mt-0.5', summary!.employeesWithOvertime > 0 ? 'text-rose-400' : 'text-text-muted')}>
+              <p className={cn('text-xs mt-0.5', summary!.employeesWithOvertime > 0 ? 'text-rose-text' : 'text-text-muted')}>
                 {summary!.employeesWithOvertime > 0 ? `${summary!.employeesWithOvertime} con overtime` : 'sin overtime'}
               </p>
             </div>
@@ -1200,10 +1200,10 @@ export function ReporteHorasClient({
 
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#F59E0B' }}>
               <div className="flex items-center gap-2 mb-1.5">
-                <Coffee className="h-3.5 w-3.5 text-amber-500" />
+                <Coffee className="h-3.5 w-3.5 text-amber-text" />
                 <p className="text-[10px] uppercase tracking-wider text-text-muted">Breaks no pagados</p>
               </div>
-              <p className="text-2xl font-bold font-mono text-amber-600">{fmtHours(summary!.totalBreakHours)}</p>
+              <p className="text-2xl font-bold font-mono text-amber-text">{fmtHours(summary!.totalBreakHours)}</p>
               <p className="text-xs text-text-muted mt-0.5">descontados</p>
             </div>
           </div>
@@ -1289,7 +1289,7 @@ export function ReporteHorasClient({
               )}>
                 {confirmExport === 'pdf'
                   ? <FileText className="h-4.5 w-4.5 text-indigo-500" />
-                  : <Download className="h-4.5 w-4.5 text-emerald-600" />
+                  : <Download className="h-4.5 w-4.5 text-emerald-text" />
                 }
               </div>
               Descargar {confirmExport === 'pdf' ? 'PDF' : 'Excel'}

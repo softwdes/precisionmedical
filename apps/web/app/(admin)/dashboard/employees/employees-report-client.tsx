@@ -22,8 +22,8 @@ type Department   = inferRouterOutputs<AppRouter>['departments']['list'][number]
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', BOB: 'Bs', PEN: 'S/' };
 const CURRENCY_COLOR:  Record<string, string> = {
-  USD: 'text-emerald-500',
-  BOB: 'text-amber-400',
+  USD: 'text-emerald-text',
+  BOB: 'text-amber-text',
   PEN: 'text-violet-400',
 };
 
@@ -264,7 +264,7 @@ export function EmployeesReportClient({
                     <span className="text-text-3"><Users className="inline h-3 w-3 mr-1" />{k.employeeCount}</span>
                     <span className="text-text-3"><Calendar className="inline h-3 w-3 mr-1" />{k.count}</span>
                     {k.bonuses > 0 && (
-                      <span className="text-emerald-500"><Star className="inline h-3 w-3 mr-0.5" />{fmtAmount(k.bonuses, k.currency)}</span>
+                      <span className="text-emerald-text"><Star className="inline h-3 w-3 mr-0.5" />{fmtAmount(k.bonuses, k.currency)}</span>
                     )}
                   </div>
                 </CardContent>
@@ -399,7 +399,7 @@ export function EmployeesReportClient({
                             {p.bonus > 0 ? (
                               <span
                                 title={p.bonusReason ?? ''}
-                                className="text-emerald-500"
+                                className="text-emerald-text"
                               >
                                 +{fmtAmount(p.bonus, p.currency)}
                               </span>
@@ -425,7 +425,7 @@ export function EmployeesReportClient({
             <CardContent className="p-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-border">
                 <h3 className="text-small font-semibold text-text-1 flex items-center gap-2">
-                  <Star className="h-3.5 w-3.5 text-emerald-500" />
+                  <Star className="h-3.5 w-3.5 text-emerald-text" />
                   {t('employees.bonusesTitle')} ({report.bonuses.length})
                 </h3>
               </div>

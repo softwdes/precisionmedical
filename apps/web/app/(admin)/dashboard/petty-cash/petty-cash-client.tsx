@@ -260,7 +260,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">EEUU</p>
             <span className="text-base leading-none">🇺🇸</span>
           </div>
-          <p className={`mt-2 text-2xl font-bold font-mono ${eeuuHealthy ? 'text-emerald-500' : 'text-amber-400'}`}>
+          <p className={`mt-2 text-2xl font-bold font-mono ${eeuuHealthy ? 'text-emerald-text' : 'text-amber-text'}`}>
             ${fmt(kpis?.eeuu ?? 0)}
           </p>
           <p className="mt-1 text-xs text-text-3">{t('pettyCash.minBalance')}: $100 · {eeuuHealthy ? t('pettyCash.healthy') : t('pettyCash.lowStatus')}</p>
@@ -271,7 +271,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Bolivia</p>
             <span className="text-base leading-none">🇧🇴</span>
           </div>
-          <p className={`mt-2 text-2xl font-bold font-mono ${boliviaHealthy ? 'text-emerald-500' : 'text-amber-400'}`}>
+          <p className={`mt-2 text-2xl font-bold font-mono ${boliviaHealthy ? 'text-emerald-text' : 'text-amber-text'}`}>
             ${fmt(kpis?.bolivia ?? 0)}
           </p>
           <p className="mt-1 text-xs text-text-3">{t('pettyCash.minBalance')}: $100 · {boliviaHealthy ? t('pettyCash.healthy') : t('pettyCash.lowStatus')}</p>
@@ -280,9 +280,9 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-start justify-between">
             <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.monthlyExpensesLabel', { month: monthLabel })}</p>
-            <TrendingDown className="h-4 w-4 text-rose-500 opacity-70" />
+            <TrendingDown className="h-4 w-4 text-rose-text opacity-70" />
           </div>
-          <p className="mt-2 text-2xl font-bold font-mono text-rose-500">${fmt(kpis?.monthlyExpenses ?? 0)}</p>
+          <p className="mt-2 text-2xl font-bold font-mono text-rose-text">${fmt(kpis?.monthlyExpenses ?? 0)}</p>
           <p className="mt-1 text-xs text-text-3">{kpis?.monthlyCount ?? 0} {t('pettyCash.transactions').toLowerCase()}</p>
         </div>
       </div>
@@ -343,13 +343,13 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       tx.type === 'DEPOSIT' ? 'bg-emerald-500/10' : 'bg-rose-500/10'
                     }`}>
                       {tx.type === 'DEPOSIT'
-                        ? <ArrowDownCircle className="h-4 w-4 text-emerald-500" />
-                        : <ArrowUpCircle className="h-4 w-4 text-rose-500" />}
+                        ? <ArrowDownCircle className="h-4 w-4 text-emerald-text" />
+                        : <ArrowUpCircle className="h-4 w-4 text-rose-text" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-xs font-medium text-text-1 truncate">{tx.description}</p>
-                        <p className={`text-sm font-bold font-mono shrink-0 ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        <p className={`text-sm font-bold font-mono shrink-0 ${Number(tx.amount) >= 0 ? 'text-emerald-text' : 'text-rose-text'}`}>
                           {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
                         </p>
                       </div>
@@ -366,7 +366,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                         {(() => {
                           const bal = runningBalances[tx.id] ?? 0;
                           const threshold = boxMap[tx.cashBoxId]?.threshold ?? 100;
-                          const balColor = bal > threshold ? 'text-emerald-500' : bal > 0 ? 'text-amber-400' : 'text-rose-500';
+                          const balColor = bal > threshold ? 'text-emerald-text' : bal > 0 ? 'text-amber-text' : 'text-rose-text';
                           const warn = bal > threshold ? '' : bal > 0 ? ' ⚠' : ' ⚠⚠';
                           return (
                             <>
@@ -386,7 +386,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                           </button>
                           <button
                             onClick={() => setRevertTx(tx as TxItem)}
-                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-rose-500 transition-colors"
+                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-rose-text transition-colors"
                           >
                             <Undo2 className="h-3 w-3" /> Revertir
                           </button>
@@ -435,8 +435,8 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       <TableCell>
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                           tx.type === 'DEPOSIT'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : 'bg-rose-500/10 text-rose-500'
+                            ? 'bg-emerald-500/10 text-emerald-text'
+                            : 'bg-rose-500/10 text-rose-text'
                         }`}>
                           {tx.type === 'DEPOSIT' ? t('pettyCash.typeDeposit') : t('pettyCash.typeExpense')}
                         </span>
@@ -447,13 +447,13 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                           ? t('pettyCash.typeDeposit')
                           : (tx.category ? getCategoryLabel(tx.category) : t('pettyCash.categories.OTHER'))}
                       </TableCell>
-                      <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-text' : 'text-rose-text'}`}>
                         {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
                       </TableCell>
                       {(() => {
                         const bal = runningBalances[tx.id] ?? 0;
                         const threshold = boxMap[tx.cashBoxId]?.threshold ?? 100;
-                        const color = bal > threshold ? 'text-emerald-500' : bal > 0 ? 'text-amber-400' : 'text-rose-500';
+                        const color = bal > threshold ? 'text-emerald-text' : bal > 0 ? 'text-amber-text' : 'text-rose-text';
                         const warn = bal > threshold ? '' : bal > 0 ? ' ⚠' : ' ⚠⚠';
                         return (
                           <TableCell className={`text-right font-mono text-xs font-semibold whitespace-nowrap ${color}`}>
@@ -473,7 +473,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                             </button>
                             <button
                               onClick={() => setRevertTx(tx as TxItem)}
-                              className="p-1 rounded hover:bg-rose-500/10 text-text-3 hover:text-rose-500 transition-colors"
+                              className="p-1 rounded hover:bg-rose-500/10 text-text-3 hover:text-rose-text transition-colors"
                               title="Revertir"
                             >
                               <Undo2 className="h-3.5 w-3.5" />
@@ -510,16 +510,16 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.summary', { month: monthLabel })}</p>
             <div className="flex justify-between text-xs py-0.5">
               <span className="text-text-3">{t('pettyCash.totalDepositsLabel')}</span>
-              <span className="font-mono text-emerald-500 font-semibold">+${fmt(sidebarStats.deposits)}</span>
+              <span className="font-mono text-emerald-text font-semibold">+${fmt(sidebarStats.deposits)}</span>
             </div>
             <div className="flex justify-between text-xs py-0.5">
               <span className="text-text-3">{t('pettyCash.totalExpensesLabel')}</span>
-              <span className="font-mono text-rose-500 font-semibold">-${fmt(sidebarStats.expenses)}</span>
+              <span className="font-mono text-rose-text font-semibold">-${fmt(sidebarStats.expenses)}</span>
             </div>
             <div className="h-px bg-border" />
             <div className="flex justify-between text-xs font-semibold pt-0.5">
               <span className="text-text-2">{t('pettyCash.netBalance')}</span>
-              <span className={`font-mono ${sidebarStats.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              <span className={`font-mono ${sidebarStats.net >= 0 ? 'text-emerald-text' : 'text-rose-text'}`}>
                 {sidebarStats.net >= 0 ? '+' : ''}${fmt(sidebarStats.net)}
               </span>
             </div>
@@ -555,8 +555,8 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             if (lowBoxes.length === 0) {
               return (
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex items-center gap-1.5">
-                  <span className="text-emerald-500 text-xs font-bold">✓</span>
-                  <p className="text-xs font-semibold text-emerald-500">Todas las cajas saludables</p>
+                  <span className="text-emerald-text text-xs font-bold">✓</span>
+                  <p className="text-xs font-semibold text-emerald-text">Todas las cajas saludables</p>
                 </div>
               );
             }
@@ -565,12 +565,12 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                 {lowBoxes.map(box => (
                   <div key={box.name} className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 space-y-1.5">
                     <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-                      <p className="text-xs font-semibold text-amber-400">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-text flex-shrink-0" />
+                      <p className="text-xs font-semibold text-amber-text">
                         {box.country === 'EEUU' ? '🇺🇸' : '🇧🇴'} {box.name}
                       </p>
                     </div>
-                    <p className="text-xs text-amber-300/80">
+                    <p className="text-xs text-amber-text/80">
                       Saldo ${fmt(box.balance)} — mín ${fmt(box.threshold)}
                     </p>
                   </div>
@@ -686,7 +686,7 @@ function RevertirDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () =>
         <div className="space-y-4 pt-2 pb-1">
           <div className={`rounded-lg border p-3 space-y-1 ${isDeposit ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-rose-500/25 bg-rose-500/5'}`}>
             <p className="text-xs font-medium text-text-1 truncate">{tx.description}</p>
-            <p className={`text-sm font-bold font-mono ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            <p className={`text-sm font-bold font-mono ${Number(tx.amount) >= 0 ? 'text-emerald-text' : 'text-rose-text'}`}>
               {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
             </p>
           </div>
@@ -851,8 +851,8 @@ function NuevoMovimientoModal({
                     isDeposit ? 'border-emerald-500 bg-emerald-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
                 >
-                  <ArrowDownCircle className={`h-6 w-6 ${isDeposit ? 'text-emerald-500' : 'text-text-3'}`} />
-                  <span className={`text-sm font-semibold ${isDeposit ? 'text-emerald-500' : 'text-text-2'}`}>{t('pettyCash.deposit')}</span>
+                  <ArrowDownCircle className={`h-6 w-6 ${isDeposit ? 'text-emerald-text' : 'text-text-3'}`} />
+                  <span className={`text-sm font-semibold ${isDeposit ? 'text-emerald-text' : 'text-text-2'}`}>{t('pettyCash.deposit')}</span>
                 </button>
                 <button
                   type="button"
@@ -861,8 +861,8 @@ function NuevoMovimientoModal({
                     !isDeposit ? 'border-rose-500 bg-rose-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
                 >
-                  <ArrowUpCircle className={`h-6 w-6 ${!isDeposit ? 'text-rose-500' : 'text-text-3'}`} />
-                  <span className={`text-sm font-semibold ${!isDeposit ? 'text-rose-500' : 'text-text-2'}`}>{t('pettyCash.expense')}</span>
+                  <ArrowUpCircle className={`h-6 w-6 ${!isDeposit ? 'text-rose-text' : 'text-text-3'}`} />
+                  <span className={`text-sm font-semibold ${!isDeposit ? 'text-rose-text' : 'text-text-2'}`}>{t('pettyCash.expense')}</span>
                 </button>
               </div>
             </div>
@@ -898,7 +898,7 @@ function NuevoMovimientoModal({
                     onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
                   />
                 )}
-                {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
+                {errors.clinic && <p className="text-xs text-rose-text">{errors.clinic}</p>}
                 <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
               </div>
             )}
@@ -921,7 +921,7 @@ function NuevoMovimientoModal({
                   className="flex-1"
                 />
               </div>
-              {errors.amount && <p className="text-xs text-rose-500">{errors.amount}</p>}
+              {errors.amount && <p className="text-xs text-rose-text">{errors.amount}</p>}
             </div>
 
             {/* Origen — solo Depósito. Cartera (misma moneda) de la que sale el dinero. */}
@@ -953,7 +953,7 @@ function NuevoMovimientoModal({
                     {categoryOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {errors.category && <p className="text-xs text-rose-500">{errors.category}</p>}
+                {errors.category && <p className="text-xs text-rose-text">{errors.category}</p>}
               </div>
             )}
 
@@ -965,7 +965,7 @@ function NuevoMovimientoModal({
                 value={description}
                 onChange={e => { setDescription(e.target.value); setErrors(r => ({ ...r, description: '' })); }}
               />
-              {errors.description && <p className="text-xs text-rose-500">{errors.description}</p>}
+              {errors.description && <p className="text-xs text-rose-text">{errors.description}</p>}
             </div>
 
             {/* Fecha */}
@@ -977,8 +977,8 @@ function NuevoMovimientoModal({
             {/* Low balance warning */}
             {lowWarn && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-400">{t('pettyCash.lowWarnText')}</p>
+                <AlertTriangle className="h-4 w-4 text-amber-text flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-text">{t('pettyCash.lowWarnText')}</p>
               </div>
             )}
           </div>

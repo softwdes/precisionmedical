@@ -93,7 +93,7 @@ function AccesosText({ dbRole, clinicModules }: { dbRole: string; clinicModules?
     <span className="text-[11px] text-text-muted leading-relaxed">
       {meta.accesos}
       {limitedCount !== null && (
-        <span className="text-amber-400"> · Back-Office limitado ({limitedCount} menús)</span>
+        <span className="text-amber-text"> · Back-Office limitado ({limitedCount} menús)</span>
       )}
     </span>
   );
@@ -221,7 +221,7 @@ function ActionButtons({
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); onSendAccess(user); }}
-        className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+        className="p-1.5 rounded text-text-muted hover:text-emerald-text hover:bg-emerald-500/10 transition-colors"
         title="Enviar acceso"
       >
         <KeyRound className="h-3.5 w-3.5" />
@@ -229,7 +229,7 @@ function ActionButtons({
       {!isProtected && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(user); }}
-          className="p-1.5 rounded text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+          className="p-1.5 rounded text-text-muted hover:text-rose-text hover:bg-rose-500/10 transition-colors"
           title="Eliminar usuario"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -707,7 +707,7 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
                 {loadingEmployees ? (
                   <p className="text-tiny text-text-muted py-2">Cargando empleados...</p>
                 ) : availableEmployees.length === 0 ? (
-                  <div className="rounded border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-tiny text-amber-600 dark:text-amber-400">
+                  <div className="rounded border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-tiny text-amber-text">
                     No hay empleados disponibles sin usuario asignado. Crea uno desde el módulo Empleados primero.
                   </div>
                 ) : (
@@ -1256,7 +1256,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
               {doctorView && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                  <p className="text-[11px] text-amber-400 leading-relaxed">
+                  <p className="text-[11px] text-amber-text leading-relaxed">
                     Todo lo que registre en el portal queda a nombre del médico elegido.
                     Para pruebas, usar un doctor de QA — no uno que esté atendiendo.
                   </p>
@@ -1288,7 +1288,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
               {attorneyView && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                  <p className="text-[11px] text-amber-400 leading-relaxed">
+                  <p className="text-[11px] text-amber-text leading-relaxed">
                     Ve los casos y firma en nombre del bufete elegido, y lo que registre
                     queda a nombre de esa ficha. Para pruebas, elegir un despacho de QA.
                   </p>
@@ -1333,7 +1333,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
               {linkedEmployee ? (
                 <div className="flex items-center justify-between gap-3 rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
                   <div className="min-w-0 flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <Check className="h-3.5 w-3.5 text-emerald-text shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm text-text-1 truncate">
                         {linkedEmployee.firstName} {linkedEmployee.lastName}
@@ -1606,7 +1606,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-emerald-500" />
+            <KeyRound className="h-4 w-4 text-emerald-text" />
             Enviar acceso
           </DialogTitle>
         </DialogHeader>
@@ -1626,7 +1626,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
             Se enviará un enlace de acceso al correo registrado. El usuario podrá establecer su contraseña y entrar al sistema.
           </p>
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-start gap-2">
+            <p className="text-xs text-emerald-text flex items-start gap-2">
               <Mail className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               El enlace expira en 1 hora y solo puede usarse una vez.
             </p>
@@ -1664,7 +1664,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
                   </Button>
                 </div>
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                  <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                  <p className="text-xs text-amber-text leading-relaxed">
                     Anotala ahora: no se vuelve a mostrar. Pasásela en persona o por
                     un canal privado — al entrar el sistema le va a exigir cambiarla.
                   </p>
@@ -1701,7 +1701,7 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="text-rose-500">{t('users.deleteUser')}</DialogTitle>
+          <DialogTitle className="text-rose-text">{t('users.deleteUser')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1 overflow-y-auto flex-1 min-h-0">
           <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">

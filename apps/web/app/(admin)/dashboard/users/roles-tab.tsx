@@ -185,7 +185,7 @@ function EditPermissionsModal({
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(88vh - 140px)' }}>
           {/* Warning banner */}
           <div className="mx-6 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-            <p className="text-[11px] text-amber-400 leading-relaxed">
+            <p className="text-[11px] text-amber-text leading-relaxed">
               Los cambios afectan a todos los usuarios con este rol inmediatamente.
             </p>
           </div>

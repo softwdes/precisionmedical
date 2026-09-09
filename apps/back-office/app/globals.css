@@ -91,6 +91,18 @@
   --brand-text: #818CF8;   /* indigo-400 · 6.1:1 sobre bg-1 oscuro */
   --violet-text: #A78BFA;  /* violet-400 · 6.7:1 */
 
+  /* Texto de estado — mismo motivo, agregado al destapar la escala (2026-09-09).
+     Contraste contra el PEOR fondo del tema, incluido el tinte /10 del color. */
+  --amber-text:   #FBBF24;  /* amber-400   · 7.48:1 */
+  --emerald-text: #34D399;  /* emerald-400 · 6.54:1 */
+  --rose-text:    #FB7185;  /* rose-400    · 5.07:1 */
+  --sky-text:     #38BDF8;  /* sky-400     · 5.91:1 */
+  /* Sin uso todavía — preventivos, ver el preset. `cyan` está en los tokens
+     canónicos del CLAUDE.md ("info"), así que su primer uso como texto llega. */
+  --cyan-text:    #22D3EE;  /* cyan-400    · 6.95:1 */
+  --teal-text:    #2DD4BF;  /* teal-400    · 6.72:1 */
+  --pink-text:    #F472B6;  /* pink-400    · 5.06:1 */
+
   /* ─── Texto de las tarjetas del calendario ────────────────────────────────
    *
    * Mismo motivo que `--brand-text`: sobre fondo oscuro el tono CLARO del color
@@ -158,6 +170,17 @@
   --row-ready:     #BBF7D0;
   --brand-text: #4F46E5;   /* indigo-600 · 6.3:1 sobre blanco */
   --violet-text: #7C3AED;  /* violet-600 · 5.7:1 */
+
+  /* En claro bajan a los tonos oscuros. Ámbar necesita -800: el -700 se queda
+     en 4.26:1 y no llega al mínimo. */
+  --amber-text:   #92400E;  /* amber-800   · 6.02:1 */
+  --emerald-text: #047857;  /* emerald-700 · 4.59:1 */
+  --rose-text:    #BE123C;  /* rose-700    · 5.06:1 */
+  --sky-text:     #0369A1;  /* sky-700     · 4.93:1 */
+  /* Cian va al -800: el -700 da 4.5021 y pasar por dos milésimas no es pasar. */
+  --cyan-text:    #155E75;  /* cyan-800    · 6.11:1 */
+  --teal-text:    #0F766E;  /* teal-700    · 4.59:1 */
+  --pink-text:    #BE185D;  /* pink-700    · 4.91:1 */
 
   /* Texto de las tarjetas del calendario — en CLARO todas caen a texto oscuro.
    *

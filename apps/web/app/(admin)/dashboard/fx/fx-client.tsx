@@ -649,12 +649,12 @@ function RowActions({
       <button onClick={onDetail} className={`${btn} text-text-muted hover:text-brand-text hover:bg-surface-hover`} title={t('fx.viewDetail')}>
         <Eye className="h-3.5 w-3.5" />
       </button>
-      <button onClick={onEdit} className={`${btn} text-text-muted hover:text-amber-500 hover:bg-amber-500/10`} title={t('fx.editOp')}>
+      <button onClick={onEdit} className={`${btn} text-text-muted hover:text-amber-text hover:bg-amber-500/10`} title={t('fx.editOp')}>
         <Pencil className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={onReverse}
-        className={`${btn} ${isReversed ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-500/10' : 'text-text-muted hover:text-rose-500 hover:bg-rose-500/10'}`}
+        className={`${btn} ${isReversed ? 'text-rose-text hover:text-rose-text hover:bg-rose-500/10' : 'text-text-muted hover:text-rose-text hover:bg-rose-500/10'}`}
         title={isReversed ? t('fx.deleteRecord') : t('fx.reverseOp')}
       >
         {isReversed ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
@@ -778,7 +778,7 @@ function ReverseDialog({
       <div className="p-5 space-y-4 flex-1">
         <div className="rounded-lg p-3.5 space-y-1"
           style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)' }}>
-          <p className="text-sm font-semibold text-rose-500">{t('fx.reverseWarning')}</p>
+          <p className="text-sm font-semibold text-rose-text">{t('fx.reverseWarning')}</p>
           <p className="text-small text-text-3">
             {isReversed ? t('fx.deleteExplain') : t('fx.reverseExplain')}
           </p>
@@ -830,7 +830,7 @@ function ReverseDialog({
 
             <Button
               variant="outline"
-              className="w-full text-rose-500 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/60"
+              className="w-full text-rose-text border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/60"
               disabled={busy}
               onClick={() => del.mutate({ id: op.id })}
             >

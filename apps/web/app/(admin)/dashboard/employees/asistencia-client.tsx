@@ -1768,8 +1768,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                       className={cn(
                         'flex-1 py-2 text-[12px] font-medium transition-colors',
                         corrStatus === s
-                          ? s === 'on_time' ? 'bg-emerald-500/15 text-emerald-400'
-                            : s === 'late' ? 'bg-rose-500/15 text-rose-400'
+                          ? s === 'on_time' ? 'bg-emerald-500/15 text-emerald-text'
+                            : s === 'late' ? 'bg-rose-500/15 text-rose-text'
                             : 'bg-surface/80 text-text-muted'
                           : 'text-text-muted hover:text-text-2'
                       )}
@@ -1796,7 +1796,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Notes */}
               <div className="space-y-1.5">
                 <label className="text-[12px] font-medium text-text-2">
-                  Motivo {corrMode === 'create' && <span className="text-rose-400">*</span>}
+                  Motivo {corrMode === 'create' && <span className="text-rose-text">*</span>}
                 </label>
                 <textarea
                   value={corrNotes}
@@ -1810,14 +1810,14 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Error */}
               {corrError && (
                 <div className="flex items-start gap-2 rounded-lg bg-rose-500/8 border border-rose-500/20 px-3 py-2.5">
-                  <AlertTriangle size={13} className="text-rose-500 mt-0.5 shrink-0" />
-                  <p className="text-[11px] text-rose-300">{corrError}</p>
+                  <AlertTriangle size={13} className="text-rose-text mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-rose-text">{corrError}</p>
                 </div>
               )}
 
               {/* Warning */}
               <div className="flex items-start gap-2 rounded-lg bg-amber-500/8 border border-amber-500/15 px-3 py-2.5">
-                <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                <AlertTriangle size={13} className="text-amber-text mt-0.5 shrink-0" />
                 <p className="text-[11px] text-text-muted italic">
                   {corrMode === 'create'
                     ? 'Se guardará como registro MANUAL (sin GPS), con tu usuario y fecha. Requiere entrada y salida.'
@@ -1861,18 +1861,18 @@ function ManualTag() {
 function TodayBadge({ row }: { row: TodayRow }) {
   const state = rowState(row);
   if (state === 'done')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">Completado</Badge>;
-  if (state === 'break')   return <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border-amber-500/20">Break</Badge>;
+  if (state === 'break')   return <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-text border-amber-500/20">Break</Badge>;
   if (state === 'working') {
-    if (row.status === 'late') return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-400 border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
-    return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border-emerald-500/20">Presente</Badge>;
+    if (row.status === 'late') return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
+    return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">Presente</Badge>;
   }
   return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Sin fichar</Badge>;
 }
 
 function HistoryBadge({ row }: { row: HistoryRow }) {
-  if (row.status === 'late')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-400 border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
+  if (row.status === 'late')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
   if (row.status === 'absent')  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Ausente</Badge>;
   if (row.check_out)            return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">Completado</Badge>;
-  if (row.check_in)             return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border-emerald-500/20">Presente</Badge>;
+  if (row.check_in)             return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">Presente</Badge>;
   return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Sin fichar</Badge>;
 }

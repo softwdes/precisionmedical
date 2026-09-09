@@ -41,7 +41,19 @@
      `brand` a 11px no llega a 4.5:1 y no hay un hex que sirva en los dos temas. */
   --brand-text: #818CF8;
   --violet-text: #A78BFA;
-  
+
+  /* Texto de estado. Mismo motivo que --brand-text: el tono que se lee sobre
+     fondo oscuro es ilegible sobre blanco. Contraste contra el PEOR fondo del
+     tema, incluido el tinte /10 del propio color. */
+  --amber-text:   #FBBF24;  /* amber-400   · 7.48:1 */
+  --emerald-text: #34D399;  /* emerald-400 · 6.54:1 */
+  --rose-text:    #FB7185;  /* rose-400    · 5.07:1 */
+  --sky-text:     #38BDF8;  /* sky-400     · 5.91:1 */
+  /* Sin uso todavía — preventivos, ver el preset. */
+  --cyan-text:    #22D3EE;  /* cyan-400    · 6.95:1 */
+  --teal-text:    #2DD4BF;  /* teal-400    · 6.72:1 */
+  --pink-text:    #F472B6;  /* pink-400    · 5.06:1 */
+
   /* === Shadows === */
   --shadow-soft: 
     0 1px 0 rgba(255,255,255,0.04) inset, 
@@ -77,7 +89,18 @@
   --text-muted: #94A3B8;
   --brand-text: #4F46E5;
   --violet-text: #7C3AED;
-  
+
+  /* En claro bajan a los tonos oscuros. Ámbar necesita -800: el -700 se queda
+     en 4.26:1 y no llega. */
+  --amber-text:   #92400E;  /* amber-800   · 6.02:1 */
+  --emerald-text: #047857;  /* emerald-700 · 4.59:1 */
+  --rose-text:    #BE123C;  /* rose-700    · 5.06:1 */
+  --sky-text:     #0369A1;  /* sky-700     · 4.93:1 */
+  /* Cian va al -800: el -700 da 4.5021 y pasar por dos milésimas no es pasar. */
+  --cyan-text:    #155E75;  /* cyan-800    · 6.11:1 */
+  --teal-text:    #0F766E;  /* teal-700    · 4.59:1 */
+  --pink-text:    #BE185D;  /* pink-700    · 4.91:1 */
+
   /* === Shadows (lighter for light theme) === */
   --shadow-soft:
     0 1px 2px rgba(15,23,42,0.04),

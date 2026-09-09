@@ -47,8 +47,8 @@ export function ClinicsTab(): React.ReactElement {
       {/* Read-only notice for non-super-admin */}
       {!canEdit && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-text mt-0.5" />
+          <p className="text-xs text-amber-text">
             Solo Super Admin puede editar las coordenadas de las clínicas. Tu rol tiene acceso de lectura.
           </p>
         </div>
@@ -101,7 +101,7 @@ export function ClinicsTab(): React.ReactElement {
                       <TableCell>
                         {hasGps ? (
                           <div className="flex items-center gap-1.5 font-mono text-tiny text-text-2">
-                            <MapPin className="h-3 w-3 text-emerald-500 shrink-0" />
+                            <MapPin className="h-3 w-3 text-emerald-text shrink-0" />
                             {c.lat!.toFixed(5)}, {c.lng!.toFixed(5)}
                           </div>
                         ) : (

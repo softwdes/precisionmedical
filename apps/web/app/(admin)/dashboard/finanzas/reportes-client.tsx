@@ -553,7 +553,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-[12px] text-text-2">{r.count}</td>
-                      <td className="px-4 py-2.5 text-[11.5px] text-right font-mono font-semibold text-rose-500">${fmt(r.amount)}</td>
+                      <td className="px-4 py-2.5 text-[11.5px] text-right font-mono font-semibold text-rose-text">${fmt(r.amount)}</td>
                       <td className="px-4 py-2.5 text-[11.5px] text-right font-mono text-text-2">{(r.pct*100).toFixed(1)}%</td>
                       <td className="px-4 py-2.5 w-[100px]">
                         <div className="h-1 rounded-full bg-white/5 overflow-hidden">

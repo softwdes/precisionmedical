@@ -59,6 +59,46 @@ const config: Omit<Config, 'content'> = {
          */
         'brand-text': alfa('--brand-text'),
         'violet-text': alfa('--violet-text'),
+        /**
+         * Lo mismo para los colores de ESTADO, agregado el 2026-09-09.
+         *
+         * Al destapar la escala (ver el bloque de abajo) 114 clases `text-*` de
+         * `apps/web` empezaron a pintar de verdad, y en tema claro no se leían:
+         * `amber-400` da **1.42:1** sobre blanco, `emerald-500` 2.12, `rose-500`
+         * 2.96. Antes no emitían nada y el texto heredaba un color legible, así
+         * que el arreglo de la escala habría cambiado un bug por otro.
+         *
+         * Medido tono por tono contra el PEOR fondo de cada tema —incluido el
+         * tinte `/10` del propio color, que es donde vive el texto de los
+         * avisos— no existe un solo hex que pase 4.5:1 en los dos:
+         *
+         *   amber-400 → oscuro 7.48 ✓ / claro 1.42 ✗
+         *   amber-800 → oscuro 1.76 ✗ / claro 6.02 ✓
+         *
+         * Por eso el tono vive en una variable y cada tema pone el suyo, igual
+         * que `--brand-text`. En oscuro va el `-400`; en claro el `-700`/`-800`.
+         *
+         * `bg-amber/10` y `border-rose/30` NO se tocan: ahí el mínimo es 3:1 y
+         * lo pasan de sobra. Esto es SOLO para texto.
+         */
+        'amber-text': alfa('--amber-text'),
+        'emerald-text': alfa('--emerald-text'),
+        'rose-text': alfa('--rose-text'),
+        'sky-text': alfa('--sky-text'),
+        /**
+         * `cyan`, `teal` y `pink` no tienen NINGÚN uso como texto hoy — van
+         * igual, de forma preventiva.
+         *
+         * Los otros cuatro se agregaron corriendo, cuando destapar la escala
+         * dejó texto ilegible en producción. Estos tres tienen exactamente el
+         * mismo problema esperando: `text-cyan-500` da 2.04:1 sobre blanco. La
+         * diferencia es que acá llegamos antes, y `cyan` está en la lista de
+         * tokens canónicos del CLAUDE.md del back-office ("info"), así que su
+         * primer uso como texto es cuestión de tiempo.
+         */
+        'cyan-text': alfa('--cyan-text'),
+        'teal-text': alfa('--teal-text'),
+        'pink-text': alfa('--pink-text'),
         brand: '#6366F1',
         'brand-2': '#8B5CF6',
         /**
@@ -85,21 +125,40 @@ const config: Omit<Config, 'content'> = {
          * mismo hex que `brand-2`, pero con nombre propio porque el módulo lo
          * usa como identidad y no como "el segundo brand".
          *
-         * 🔴 **`emerald`, `amber`, `rose` y `cyan` (arriba y abajo) siguen siendo
-         * strings pelados y tienen el MISMO problema ya en producción**: ~270
-         * clases de escala que no resuelven hoy (86 `emerald-NNN`, 90
-         * `amber-NNN`, 94 `rose-NNN`). No se arreglan acá a propósito: es un
-         * cambio visual grande en el Admin y no corresponde meterlo de
-         * contrabando en el bloque del módulo Provider.
+         * ✅ **Los demás se corrigieron igual el 2026-09-09** (Erick aprobó el
+         * arreglo de raíz). Antes eran strings pelados y arrastraban el mismo
+         * problema en producción: 263 clases de escala que no emitían **ni una
+         * línea de CSS** (94 `rose-NNN`, 85 `amber-NNN`, 82 `emerald-NNN`, 2
+         * `sky-NNN`), casi todas en `apps/web`.
+         *
+         * El cambio es seguro por un motivo concreto y verificado: **los siete
+         * hexes planos eran EXACTAMENTE el tono `-500` de Tailwind** (medido
+         * contra `tailwindcss/colors`, los siete idénticos). Poniéndolo como
+         * `DEFAULT`:
+         *
+         *   · `bg-emerald/10`, `text-amber`, `border-rose/30`… pintan el MISMO
+         *     color que venían pintando. Cero cambio en lo que ya funcionaba.
+         *   · `text-emerald-500` empieza a pintar el mismo tono que `text-emerald`
+         *     — el que ya usa el resto de la UI, no un color nuevo.
+         *   · Solo `-300/-400/-600/-700` estrenan tonos, que es lo que quiso
+         *     quien escribió esas clases.
+         *
+         * `cyan`, `teal` y `pink` no tenían ni un uso de escala: van con el mismo
+         * tratamiento para que nadie vuelva a pisar la trampa al usarlos.
+         *
+         * ⚠️ La REGLA que hay que respetar al agregar un color acá: si el nombre
+         * coincide con una paleta de Tailwind, va **con la escala Y un DEFAULT**.
+         * Un string pelado la reemplaza entera y apaga las clases numeradas sin
+         * que `tsc` ni `next build` digan nada.
          */
         violet: { ...colors.violet, DEFAULT: '#8B5CF6' },
-        cyan: '#06B6D4',
-        teal: '#14B8A6',
-        emerald: '#10B981',
-        amber: '#F59E0B',
-        rose: '#F43F5E',
-        sky: '#0EA5E9',
-        pink: '#EC4899',
+        cyan: { ...colors.cyan, DEFAULT: '#06B6D4' },
+        teal: { ...colors.teal, DEFAULT: '#14B8A6' },
+        emerald: { ...colors.emerald, DEFAULT: '#10B981' },
+        amber: { ...colors.amber, DEFAULT: '#F59E0B' },
+        rose: { ...colors.rose, DEFAULT: '#F43F5E' },
+        sky: { ...colors.sky, DEFAULT: '#0EA5E9' },
+        pink: { ...colors.pink, DEFAULT: '#EC4899' },
       },
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],

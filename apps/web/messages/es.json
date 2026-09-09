@@ -1161,5 +1161,25 @@
       "nameMinLength": "La clave interna debe tener al menos 2 caracteres",
       "displayNameMinLength": "El nombre visible debe tener al menos 2 caracteres"
     }
+  },
+  "push": {
+    "menuLabel": "Avisos en este aparato",
+    "stateOn": "Activados",
+    "stateOff": "Desactivados",
+    "stateBlocked": "Bloqueados por el navegador",
+    "off": "Activar los avisos en este aparato",
+    "blocked": "Avisos bloqueados por el navegador",
+    "askTitle": "Avisos en este aparato",
+    "askBody": "Te avisamos en el teléfono cuando haya cajas bajo el mínimo o pagos para revisar, aunque tengas la app cerrada.",
+    "askPrivacy": "El aviso solo dice de qué se trata. Nunca muestra nombres de pacientes ni montos: se dibuja en la pantalla de bloqueo, a la vista de cualquiera.",
+    "blockedTitle": "Los avisos están bloqueados",
+    "blockedBody": "Este navegador tiene los avisos bloqueados para el sitio. Para activarlos hay que permitirlos desde los ajustes del navegador; desde acá no se puede volver a pedir.",
+    "enable": "Activar",
+    "later": "Ahora no",
+    "close": "Cerrar",
+    "saving": "Activando...",
+    "onDone": "Avisos activados en este aparato",
+    "offDone": "Avisos desactivados en este aparato",
+    "error": "No se pudieron cambiar los avisos"
   }
 }

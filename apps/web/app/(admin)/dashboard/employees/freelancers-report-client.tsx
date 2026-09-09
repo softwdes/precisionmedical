@@ -29,8 +29,8 @@ const MODALIDAD_VARIANT: Record<string, 'info' | 'secondary' | 'success'> = {
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', BOB: 'Bs', PEN: 'S/' };
 const CURRENCY_COLOR:  Record<string, string> = {
-  USD: 'text-emerald-500',
-  BOB: 'text-amber-400',
+  USD: 'text-emerald-text',
+  BOB: 'text-amber-text',
   PEN: 'text-violet-400',
 };
 
@@ -524,7 +524,7 @@ export function FreelancersReportClient({
               <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-small font-semibold text-text-1">{t('freelancers.detailedPayments')}</h3>
                 {report.totalPayments > 500 && (
-                  <span className="text-tiny text-amber-500">{t('freelancers.showingMax')}</span>
+                  <span className="text-tiny text-amber-text">{t('freelancers.showingMax')}</span>
                 )}
               </div>
               <div className="overflow-x-auto">

@@ -632,6 +632,26 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|workbox-.*\\.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /**
+     * `worker-.*\.js` es el TERCER archivo de la PWA y faltaba.
+     *
+     * next-pwa emite TRES cosas en `public/`: `sw.js`, `workbox-<hash>.js` y
+     * `worker-<hash>.js` (el worker propio, con el handler de push). El `sw.js`
+     * lo carga con `importScripts("/worker-<hash>.js")`.
+     *
+     * Sin esta exclusión ese archivo recibía un **307 a `/login`**, el
+     * `importScripts` explotaba y **el Service Worker no instalaba**: el handler
+     * de push nunca se registraba, y cuando llegaba un aviso Chrome mostraba su
+     * propio cartel genérico en vez del nuestro. Medido el 2026-09-09 en
+     * producción: `sw.js` 200, `workbox-*.js` 200, `manifest.json` 200 y
+     * `worker-*.js` **307**.
+     *
+     * Es la misma trampa que ya estaba documentada para el manifest, y se coló
+     * porque este archivo no existía cuando se escribió la exclusión: apareció
+     * al agregar `worker/index.js`. **Regla: cada archivo nuevo que emita
+     * next-pwa en `public/` hay que agregarlo acá**, y se comprueba con un
+     * `curl` sin sesión — con sesión pasa igual y el bug no se ve.
+     */
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|workbox-.*\\.js|worker-.*\\.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

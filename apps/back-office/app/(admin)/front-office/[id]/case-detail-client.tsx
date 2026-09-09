@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { localeApp, fecha, fechaHora, fechaCalendario, edad } from '@/lib/fechas';
 
 /**
@@ -43,9 +44,33 @@ import { HistorialMedicoTab } from '@/components/cases/historial-medico-tab';
 import { VisitFilter } from '@/components/cases/visit-filter';
 import { LienPrintButton } from '@/app/attorney/cases/lien-print';
 import { VISIT_PARAM, conTab, conVisitaFiltrada, escribirUrl, paramsDelNavegador } from '@/lib/case-modal-url';
-import {
-  CaseLabsTab, CaseRxTab, CaseServicesTab, CaseBracesTab, useCaseClinical,
-} from '@/components/cases/case-clinical-tabs';
+/**
+ * El HOOK del módulo chico; los cuatro TABS, diferidos.
+ *
+ * Los tabs son 1.100 líneas con los diálogos de laboratorio, férulas, cargos y
+ * el widget de ScriptSure adentro, y el modal del caso se monta en **trece
+ * rutas** — dashboard, pacientes, calendario, admisión, mensajes, la consulta y
+ * las tres del portal legal. Con el import estático, esas 1.100 líneas viajaban
+ * a las trece aunque nadie abriera un tab clínico.
+ *
+ * Se puede diferir porque abajo el render ya está condicionado por `activeTab`:
+ * el `dynamic` dice DÓNDE vive el código y el gate dice CUÁNDO se baja. Sin el
+ * gate no serviría de nada — un componente montado con `open={false}` se
+ * descarga igual.
+ *
+ * Sin `ssr: false`: el modal se renderiza en servidor a propósito, para que un
+ * refresh con `?case=…&tab=labs` reproduzca la vista exacta.
+ */
+import { useCaseClinical } from '@/components/cases/case-clinical-data';
+
+const CaseLabsTab = dynamic(() =>
+  import('@/components/cases/case-clinical-tabs').then((m) => m.CaseLabsTab));
+const CaseRxTab = dynamic(() =>
+  import('@/components/cases/case-clinical-tabs').then((m) => m.CaseRxTab));
+const CaseServicesTab = dynamic(() =>
+  import('@/components/cases/case-clinical-tabs').then((m) => m.CaseServicesTab));
+const CaseBracesTab = dynamic(() =>
+  import('@/components/cases/case-clinical-tabs').then((m) => m.CaseBracesTab));
 
 // Front Office · Detalle del caso
 

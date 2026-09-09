@@ -1,3 +1,4 @@
+import { db } from '@precision-medical/database';
 import { hoyEnClinica, preguntar, preguntarUnaVez } from '@/lib/agente/lazo';
 import type {
   AccionAgente, DefinicionAgente, EventoAgente, PasoAgente, RespuestaAgente,
@@ -90,9 +91,14 @@ function systemPrompt(alcance: AlcanceClinica, locale: string): string {
  * Los botones, derivados de QUÉ herramientas corrieron — nunca elegidos por el
  * modelo.
  *
- * A diferencia de Vigía, el botón de un caso NO se resuelve a id acá: el modal
- * del panel de recepción abre por código y el `?case=` lo arma la pantalla. Un
- * viaje menos a la base por respuesta.
+ * El código de caso hay que resolverlo a ID acá, igual que en Vigía. La primera
+ * versión no lo hacía —"un viaje menos a la base"— y el botón quedaba muerto: el
+ * modal del panel abre por `?case=<id>`, no por código, así que sin la búsqueda
+ * no hay nada que apretar. Una consulta por respuesta es el precio de que el
+ * botón funcione.
+ *
+ * Y de paso es la misma red que en Vigía: si el modelo inventara un código, el
+ * `findMany` no lo encuentra y el botón simplemente no aparece.
  */
 async function armarAcciones(
   _alcance: AlcanceClinica,
@@ -102,8 +108,19 @@ async function armarAcciones(
   const acciones: SentinelAction[] = [];
 
   // Un caso concreto gana: es el botón más útil de todos.
-  for (const caso of [...codigos].slice(0, 2)) {
-    acciones.push({ key: 'openCase', params: { caso }, kind: 'case' });
+  if (codigos.size > 0) {
+    const rows = await db.case.findMany({
+      where: { caseCode: { in: [...codigos].slice(0, 2) }, deletedAt: null },
+      select: { id: true, caseCode: true },
+    });
+    for (const r of rows) {
+      acciones.push({
+        key: 'openCase',
+        params: { caso: r.caseCode },
+        // El caso abre EN el panel, sobre la respuesta que se acaba de pedir.
+        href: `/dashboard?case=${r.id}`,
+      });
+    }
   }
 
   if (toolsUsadas.has('cola_de_intake') || toolsUsadas.has('pulso_del_dia')) {

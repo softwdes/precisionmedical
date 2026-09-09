@@ -3,6 +3,7 @@ import { DashboardClient } from './dashboard-client';
 import { colaIntake } from '@/lib/cola-intake';
 import { atrasosRecepcion } from '@/lib/atrasos-recepcion';
 import { canAskSentinel } from '@/lib/sentinel-access';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 /**
  * B.29 — Panel de Recepción.
@@ -37,12 +38,39 @@ import { canAskSentinel } from '@/lib/sentinel-access';
  *
  * ── Los "Atrasos del front office" siguen ────────────────────────────────────
  *
- * Las tres reglas de `attentionRequired` se quedan: no son un marcador, son tres
- * listas de casos con nombre y un enlace. Cambia el nombre para que no haya dos
- * cajas de "atención" en la misma pantalla.
+ * Las tres reglas se quedan: no son un marcador, son tres listas de casos con
+ * nombre y un enlace.
+ *
+ * **El bloque ahora se llama "Esperando desde antes"** (Erick, 2026-09-08:
+ * *"donde dice Front Office ellos no saben qué es eso, eso es interno para
+ * nosotros"*). El nombre nuevo dice lo único que las tres listas tienen en
+ * común: esperan desde antes de hoy. Es lo que las separa de la cola de arriba,
+ * que mide el tiempo que FALTA. "Clínica" no servía de título —todo en esta
+ * pantalla es la clínica— y "backlog" es la misma jerga en otro idioma.
+ *
+ * Por lo mismo se fue "portal" de la primera etiqueta: el botón que manda ese
+ * link dice "Send the form", así que la lista de los que no lo recibieron dice
+ * "formulario" y no "portal".
+ *
+ * Y las tres listas abrían el caso en `/front-office/[id]` — otra página, y un
+ * destino que el proyecto ya había marcado como obsoleto. Ahora abren el modal
+ * de esta pantalla, igual que el titular y la cola.
  */
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: {
+  searchParams: Promise<{ case?: string; tab?: string }>;
+}) {
+  /**
+   * El caso se abre en un MODAL sobre esta pantalla, no en otra página.
+   *
+   * Es el patrón de todo el sistema desde que se sacaron las rutas
+   * interceptadas: cada pantalla monta su propio `CaseUrlModal` y los botones
+   * navegan a la MISMA ruta con `?case=<id>`. Antes el titular hacía
+   * `push('/patients?case=…')` y te sacaba del panel — la respuesta que
+   * acababas de mirar quedaba atrás (Erick, 2026-09-08).
+   */
+  const { case: caseIdAbierto, tab: tabAbierto } = await searchParams;
+
   /**
    * La cola del centinela.
    *
@@ -115,6 +143,7 @@ export default async function DashboardPage() {
   });
 
   return (
+    <>
     <DashboardClient
       intake={{
         filas: intake.filas.map(aVista),
@@ -137,5 +166,9 @@ export default async function DashboardPage() {
         })),
       }}
     />
+    {/* El mismo modal que el resto del sistema. Trae adentro el expediente
+        completo y respeta el `?tab=` con el que se lo abre. */}
+    <CaseUrlModal caseId={caseIdAbierto} tab={tabAbierto} />
+    </>
   );
 }

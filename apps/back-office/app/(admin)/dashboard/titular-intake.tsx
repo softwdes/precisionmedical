@@ -171,9 +171,12 @@ export function TitularIntake({ fila: filaDelServidor }: { fila: FilaVista | nul
           {t('titularMandar')}
         </Button>
 
+        {/* Abre el caso EN ESTA pantalla: el modal está montado en `page.tsx` y
+            lee el `?case=`. Antes esto era `/patients?case=…` y te sacaba del
+            panel, contra el patrón de todo el sistema. */}
         <button
           type="button"
-          onClick={() => router.push(`/patients?case=${fila.caseId}`)}
+          onClick={() => router.push(`/dashboard?case=${fila.caseId}`)}
           className="text-[12.5px] text-text-2 hover:text-text-1 underline-offset-2 hover:underline"
         >
           {t('titularVerCaso')}

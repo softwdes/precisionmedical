@@ -96,42 +96,84 @@ export function SentinelBox({ configurado, casoEjemplo }: {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[680px] flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 rounded-lg bg-bg-1 px-3.5 py-2.5">
+      {/* ── La caja ───────────────────────────────────────────────────────────
+          Es una TARJETA, no un input de línea. La primera versión era un campo
+          flaco con un botón al lado y se leía como un buscador — exactamente lo
+          que el propio archivo de Vigía advierte y que yo cité en un comentario
+          antes de construirlo mal (Erick lo marcó de una: "mirá el tamaño de
+          Vigía y mirá el tamaño de Sentinel").
+
+          Misma anatomía que el portal legal: tarjeta `bg-bg-1 p-5`, etiqueta con
+          la chispa arriba, el campo como una caja RECOGIDA sobre el fondo de la
+          tarjeta (el escalón de fondo lo define, sin agregar otra línea), el
+          botón redondo adentro, y el pie que dice QUÉ ALCANZA. */}
+      <div className="mx-auto w-full max-w-[760px] flex flex-col gap-3">
+        <div className="rounded-lg bg-bg-1 p-5 space-y-3">
+          <div className="flex items-center gap-2">
             {configurado
-              ? <Sparkles className="w-4 h-4 text-brand-text shrink-0" />
-              : <Lock className="w-4 h-4 text-text-muted shrink-0" />}
+              ? <Sparkles className="w-4 h-4 text-brand-text" />
+              : <Lock className="w-4 h-4 text-amber" />}
+            <span className={`text-[10px] uppercase tracking-wider font-semibold ${configurado ? 'text-brand-text' : 'text-amber'}`}>
+              {t('sentinelAskLabel')}
+            </span>
+          </div>
+
+          <form
+            className="flex items-center gap-3 rounded-md bg-bg-2/40 pl-4 pr-2 py-2"
+            onSubmit={(e) => { e.preventDefault(); void lanzar(texto); }}
+          >
             <input
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void lanzar(texto); }}
-              disabled={!configurado}
-              placeholder={configurado ? t('sentinelPlaceholder') : t('sentinelNotConfigured')}
-              aria-label={t('sentinelPlaceholder')}
-              className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted outline-none disabled:cursor-not-allowed"
+              disabled={!configurado || cargando}
+              placeholder={t('sentinelPlaceholder')}
+              aria-label={t('sentinelAskLabel')}
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[15px] text-text-1 placeholder:text-text-muted disabled:opacity-60"
             />
-            {cargando && <Loader2 className="w-3.5 h-3.5 text-brand-text animate-spin shrink-0" />}
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!configurado || cargando || texto.trim().length < 3}
+              aria-label={t('sentinelAsk')}
+              className="shrink-0"
+            >
+              {cargando ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+            </Button>
+          </form>
+
+          {/* Sin la clave del proveedor, se dice ANTES de preguntar y no después
+              del clic. Mismo aviso ámbar que usa Vigía. */}
+          {!configurado && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-start gap-2">
+              <Lock className="w-3.5 h-3.5 text-amber mt-0.5 shrink-0" />
+              <span className="text-[11px] leading-relaxed text-text-2">
+                {t('sentinelNotConfigured')}
+              </span>
+            </div>
+          )}
+
+          {/* El pie dice QUÉ ALCANZA, y acá eso incluye lo que NO hace: trabajar
+              sin nombres de paciente es la decisión de diseño del agente, y el
+              lugar donde importa decirla es ANTES de que alguien pregunte por
+              una persona. */}
+          <div className="flex justify-end">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">
+              {t('sentinelScopeShort')}
+            </span>
           </div>
-          <Button
-            onClick={() => void lanzar(texto)}
-            disabled={!configurado || texto.trim().length < 3 || cargando}
-          >
-            {t('sentinelAsk')}
-            <ArrowRight />
-          </Button>
         </div>
 
-        {/* Las sugerencias son botones, no texto de ayuda: se aprietan. */}
+        {/* Las sugerencias quedan SIEMPRE a la vista: con la respuesta en un
+            panel aparte, ya no compiten con nada. */}
         {configurado && (
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+          <div className="flex flex-wrap justify-center gap-2">
             {sugerencias.map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => void lanzar(s)}
                 disabled={cargando}
-                className="rounded-md bg-bg-2/60 px-2.5 py-1 text-[11.5px] text-text-2 hover:text-text-1 hover:bg-bg-2 transition-colors disabled:opacity-50"
+                className="rounded-full bg-bg-1 px-3.5 py-1.5 text-[12.5px] text-text-muted hover:text-text-1 transition-colors disabled:opacity-50"
               >
                 {s}
               </button>

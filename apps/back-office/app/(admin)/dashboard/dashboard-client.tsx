@@ -221,7 +221,7 @@ export function DashboardClient({ alerts, numeros, intake, sentinel }: Props) {
         />
       </div>
 
-      {/* ───── Atrasos del front office ─────────────────────────────────────
+      {/* ───── Esperando desde antes ────────────────────────────────────────
           Se quedan porque NO son un marcador: son tres listas de casos con
           nombre y un clic que abre el caso. El nombre cambió para que no haya
           dos cajas de "atención" en la misma pantalla. */}
@@ -249,7 +249,7 @@ export function DashboardClient({ alerts, numeros, intake, sentinel }: Props) {
                 id: c.id, caseCode: c.caseCode, patientName: c.patientName,
                 time: c.createdAt, timeLabel: t('timeLabelAgo'),
               }))}
-              onClick={(id) => router.push(`/front-office/${id}`)}
+              onClick={(id) => router.push(`/dashboard?case=${id}`)}
             />
             <AlertGroup
               title={t('alertPatientNoResponse')}
@@ -258,7 +258,7 @@ export function DashboardClient({ alerts, numeros, intake, sentinel }: Props) {
                 id: c.id, caseCode: c.caseCode, patientName: c.patientName,
                 time: c.sentAt, timeLabel: t('timeLabelSentAgo'),
               }))}
-              onClick={(id) => router.push(`/front-office/${id}`)}
+              onClick={(id) => router.push(`/dashboard?case=${id}`)}
             />
             <AlertGroup
               title={t('alertConfirmedNoSched')}
@@ -267,7 +267,7 @@ export function DashboardClient({ alerts, numeros, intake, sentinel }: Props) {
                 id: c.id, caseCode: c.caseCode, patientName: c.patientName,
                 time: c.confirmedAt, timeLabel: t('timeLabelConfirmedAgo'),
               }))}
-              onClick={(id) => router.push(`/front-office/${id}`)}
+              onClick={(id) => router.push(`/dashboard?case=${id}`)}
             />
           </div>
         )}

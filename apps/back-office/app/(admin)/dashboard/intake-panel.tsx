@@ -211,9 +211,11 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
       {/* El riel. Sin texto encima, así que la opacidad no cuesta contraste. */}
       <span className={`self-stretch shrink-0 ${urgente ? 'w-1.5' : 'w-1'} ${RIEL[f.nivel]}`} aria-hidden="true" />
 
+      {/* El caso abre EN el panel: el modal está montado en `page.tsx` y lee el
+          `?case=`. Antes era `/patients?case=…` y te sacaba de la pantalla. */}
       <button
         type="button"
-        onClick={() => router.push(`/patients?case=${f.caseId}`)}
+        onClick={() => router.push(`/dashboard?case=${f.caseId}`)}
         className="flex items-center gap-3 flex-1 min-w-0 px-3 py-2.5 text-left"
       >
         <span className="shrink-0 w-[104px]">

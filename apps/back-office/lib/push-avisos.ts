@@ -148,7 +148,7 @@ export function usePushAvisos(): AvisosControl {
          *
          * Antes acá solo se lanzaba "alta rechazada": el usuario veía un aviso
          * genérico, el botón no se ponía verde y no quedaba rastro de por qué.
-         * El 2026-09-10 eso costó un ida y vuelta entero para descubrir que el
+         * El 2026-09-09 eso costó un ida y vuelta entero para descubrir que el
          * navegador de un Samsung emitía un endpoint que el servidor no aceptaba.
          */
         const detalle = await res.text().catch(() => '');

@@ -50,6 +50,28 @@ export interface AvisoPush {
   tag: string;
   /** Urgente vibra y pide atención; el resto entra callado. */
   urgente?: boolean;
+  /**
+   * ¿Tiene que llegar YA, aunque el teléfono esté dormido?
+   *
+   * Va SEPARADO de `urgente` a propósito, porque son dos cosas distintas:
+   * `urgente` es cómo se VE (vibra, pide atención, pastilla roja) y esto es
+   * cuándo se ENTREGA.
+   *
+   * Sin esto, un mensaje normal salía con `urgency: 'normal'` y Android podía
+   * **retenerlo mientras el teléfono estaba dormido** hasta la próxima ventana
+   * de mantenimiento — minutos. Con la pantalla encendida llegaba al instante y
+   * con el teléfono en el bolsillo tardaba, que es justo el caso real y el que
+   * hace que parezca roto.
+   *
+   * Erick lo definió el 2026-09-09: un mensaje interno tiene que llegar en el
+   * acto. Y no es abusar del servicio: la especificación de Web Push pone
+   * "mensaje entrante" como el ejemplo de `high`; `low` y `very-low` son para
+   * cosas como estadísticas.
+   *
+   * El parte de la mañana NO lo usa: a las 7:30 unos minutos no cambian nada, y
+   * despertar el teléfono para eso es gastar batería sin motivo.
+   */
+  inmediato?: boolean;
 }
 
 let listo: boolean | null = null;
@@ -130,7 +152,10 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
           payload,
           // 4 h de TTL: un aviso de mensaje que llega al otro día no sirve, y
           // dejarlo colgado en el push service solo genera ruido tardío.
-          { TTL: 4 * 60 * 60, urgency: aviso.urgente ? 'high' : 'normal' },
+          {
+            TTL: 4 * 60 * 60,
+            urgency: aviso.inmediato || aviso.urgente ? 'high' : 'normal',
+          },
         );
         vivas.push(s.id);
       } catch (e) {
@@ -184,5 +209,8 @@ export async function avisarMensajeNuevo(
     // distintos son dos avisos, porque son dos conversaciones.
     tag: `hilo-${threadId}`,
     urgente,
+    // Un mensaje interno llega en el acto, urgente o no: alguien del otro lado
+    // está esperando una respuesta. Ver la nota de `inmediato` en `AvisoPush`.
+    inmediato: true,
   });
 }

@@ -55,6 +55,24 @@ async function actualizarMarca() {
   }
 }
 
+/**
+ * El aviso se dibuja SIEMPRE, también con la app en pantalla. Es deliberado.
+ *
+ * En el diseño original yo había propuesto silenciarlo cuando la app está
+ * abierta —para no dar la misma noticia dos veces, ya que el sobre y el toast
+ * la muestran adentro— y hasta quedó escrito así en las notas. Nunca se
+ * implementó, y cuando Erick lo probó en la mano decidió lo contrario: con la
+ * app abierta **sí debe sonar** (2026-09-09).
+ *
+ * Tiene sentido: "app abierta" no quiere decir que la persona esté mirando la
+ * bandeja. Puede estar en el calendario, en una nota, con el teléfono apoyado
+ * en el mostrador. El contador del sobre solo se ve si estás mirando esa
+ * esquina; el aviso se oye.
+ *
+ * Así que si alguien encuentra la nota vieja que dice "con la app en pantalla
+ * no se muestra notificación del sistema": está SUPERADA por esta decisión, no
+ * es un pendiente.
+ */
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 

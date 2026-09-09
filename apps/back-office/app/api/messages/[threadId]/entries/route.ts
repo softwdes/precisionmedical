@@ -153,7 +153,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
    * instancia a veces sigue viva lo suficiente, el aviso llega ALGUNAS veces —
    * que es peor que no llegar nunca, porque parece un problema del teléfono.
    *
-   * Reportado el 2026-09-10: a una persona le llegó y a otras dos no, con la
+   * Reportado el 2026-09-09: a una persona le llegó y a otras dos no, con la
    * misma versión y el mismo navegador.
    *
    * `after()` es el mecanismo de Next 15 para trabajo posterior a la respuesta:

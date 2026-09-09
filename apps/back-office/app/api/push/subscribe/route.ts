@@ -42,7 +42,7 @@ const HOSTS_PROHIBIDOS = ['localhost', '.local', '.internal', '.localdomain'];
  *
  * La primera versión sí lo era, con un comentario que afirmaba: "el navegador
  * solo emite endpoints de su propio servicio, así que restringir a estos hosts
- * no le quita nada a nadie legítimo". **Era falso.** El 2026-09-10 un usuario
+ * no le quita nada a nadie legítimo". **Era falso.** El 2026-09-09 un usuario
  * con un Samsung A56 tocó la campana y no se encendió: su navegador (Samsung
  * Internet) emite un endpoint que no estaba en la lista, el alta devolvía 400 y
  * el aviso de error no decía por qué. Una lista de hosts es una lista de los

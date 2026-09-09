@@ -872,13 +872,17 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               onChange={(html) => setSection(field, html)}
               placeholder={t('tplWriteHere')}
               minHeight={SECTION_MIN_HEIGHT}
+              // SIN `maxHeight`: la altura la da la celda del grid, no un número.
+              // Acá iba `SECTION_MIN_HEIGHT + 44 + 90` (284 px) derivado del
+              // MÍNIMO del editor, que no tiene relación con su altura real —
+              // el bug de la lista que no se ajusta a su contenedor. El porqué
+              // completo está en el docblock de `rich-text-editor.tsx`.
               sidePanel={snippetsAbiertos.has(field) ? (
                 <SnippetPanel
                   bare
                   section={key}
                   settingsHref={settingsHref(key)}
                   onPick={(s) => insertarSnippet(field, s)}
-                  maxHeight={SECTION_MIN_HEIGHT + 44 + 90}
                 />
               ) : undefined}
             />

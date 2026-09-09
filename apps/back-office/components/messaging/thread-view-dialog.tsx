@@ -782,7 +782,6 @@ export function ThreadViewDialog({
                     onInsert={(html) => replyEditor.current?.insertHtmlAtCursor(html)}
                     patientName={thread.patient ? `${thread.patient.lastName}, ${thread.patient.firstName}` : null}
                     disabled={busy}
-                    maxHeight={100 + 44 + 60}
                   />
                 ) : undefined}
               />

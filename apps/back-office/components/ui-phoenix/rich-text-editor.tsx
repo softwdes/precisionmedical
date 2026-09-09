@@ -353,10 +353,57 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
         sidePanel ? 'grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)]' : ''
       }`}
     >
-      {/* Panel lateral (snippets): comparte el marco con el texto, como en
-          Medusa. La línea que lo separa es chrome estructural, una sola. */}
+      {/**
+        * Panel lateral (snippets): comparte el marco con el texto, como en
+        * Medusa. La línea que lo separa es chrome estructural, una sola.
+        *
+        * ── La ALTURA la manda esta celda ─────────────────────────────────────
+        *
+        * En escritorio la celda es una columna del grid, así que **se estira** a
+        * la altura de la fila — y la fija el texto de la nota. El panel de
+        * adentro tiene que tomar ESA altura, no una en píxeles: quien le pasaba
+        * un `maxHeight` fijo (284 px, derivado del MÍNIMO del editor) dejaba
+        * ocho snippets y 300 px de fondo vacío en una sección larga, y una lista
+        * recortada sin aviso en una corta. Los dos síntomas eran el mismo bug
+        * (Erick, 2026-09-09).
+        *
+        * La cadena que lo resuelve, sin medir nada: esta celda es `flex flex-col`
+        * con `min-h-0`, la raíz de `InsertList` es `flex-1 min-h-0`, y su lista
+        * interna `flex-1 min-h-0 overflow-y-auto`. Sin techo, el panel llena la
+        * celda y la lista scrollea sola.
+        *
+        * ── En MÓVIL el grid cae a una columna, y ahí hay que acotar ───────────
+        *
+        * Sin `md:`, el panel pasa a ocupar el ancho completo ARRIBA del texto y
+        * su altura la da el contenido: con ocho snippets son unos 300 px, media
+        * pantalla de teléfono antes de ver una palabra de la nota — y el doctor
+        * la abre en el iPad con el paciente enfrente.
+        *
+        * `max-h-[40vh]` lo acota SOLO en móvil (`md:max-h-none` lo suelta en
+        * escritorio, donde la celda tiene que estirarse). La lista ya scrollea
+        * adentro, así que no se pierde ningún snippet: se corta el empuje, no el
+        * contenido. Se deja ARRIBA y no abajo a propósito — es una herramienta de
+        * inserción, y mandarla debajo obligaría a scrollear la nota entera para
+        * llegar a ella.
+        *
+        * ── Los tres llamadores están arreglados, y la precondición es `bare` ──
+        *
+        * El mismo defecto estaba en los dos editores de mensajería
+        * (`compose-message-dialog.tsx` con `maxHeight={220 + 44}` y
+        * `thread-view-dialog.tsx` con `{100 + 44 + 60}`, los dos sumándole cosas
+        * al `minHeight`). Ya se borraron.
+        *
+        * ⚠️ **Borrar el prop solo arregla si el panel es `bare`.** En `bare`,
+        * `InsertList` deja `maxHeight: undefined` y gobierna la cadena de flex;
+        * sin `bare` cae al default de **260 px, igual de fijo**, así que quitar el
+        * prop sería una regresión silenciosa — se cambia un techo por otro y no
+        * se nota. Los tres llamadores actuales pasan `bare`, y por eso aplicó.
+        *
+        * Quien agregue un cuarto: si no es `bare`, el arreglo no es borrar el
+        * prop sino darle una celda que le dé altura, como esta.
+        */}
       {sidePanel && (
-        <div className="min-h-0 border-b md:border-b-0 md:border-r border-border bg-bg-1/40 flex flex-col">
+        <div className="min-h-0 max-h-[40vh] md:max-h-none border-b md:border-b-0 md:border-r border-border bg-bg-1/40 flex flex-col">
           {sidePanel}
         </div>
       )}

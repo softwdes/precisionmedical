@@ -468,7 +468,6 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
                   patientName={effectivePatient?.name ?? null}
                   refreshKey={tplVersion}
                   disabled={sending}
-                  maxHeight={220 + 44}
                 />
               ) : undefined}
             />

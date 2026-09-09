@@ -1969,9 +1969,38 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     }
   }
 
+  /**
+   * ── El término y la página, LEÍDOS DE LA URL VIVA ─────────────────────────
+   *
+   * No de las props, y es el arreglo del bug que reportó Erick el 2026-09-09:
+   * *"el buscador solo busca en la primera página; en la siguiente deja de
+   * buscar"*.
+   *
+   * La causa: el buscador **no navega** a propósito (ver el comentario del
+   * `setTimeout` de arriba — pide la lista por `fetch`, la mete en estado local
+   * y escribe la URL con `history.replaceState` para que se sienta inmediata y
+   * para no exponer el `providerId`). Pero **`replaceState` no le avisa al
+   * router de Next**: la URL dice `?q=patient` y la prop `q` que este componente
+   * recibió sigue siendo la del último viaje real al servidor — vacía.
+   *
+   * Con la prop vacía, "página siguiente" navegaba a `/patients?page=1` **sin
+   * `q`**, el servidor devolvía la página 2 de la lista COMPLETA, y el efecto de
+   * sincronización pisaba los resultados de la búsqueda con esa lista. De ahí la
+   * frase exacta del reporte.
+   *
+   * `page` tiene el mismo problema y por eso también sale de acá: después de
+   * buscar, la URL ya no lleva `page` pero la prop sigue en el número viejo, así
+   * que el "página X de Y" y el `disabled` de los botones mentían igual.
+   *
+   * Leerlas de la URL las vuelve una sola fuente de verdad, y deja de importar
+   * si el último cambio vino de una navegación o de un `replaceState`.
+   */
+  const qUrl = searchParamsHook.get('q') ?? '';
+  const pageUrl = Math.max(0, parseInt(searchParamsHook.get('page') ?? '0', 10) || 0);
+
   function buildPageUrl(p: number, size = pageSize) {
     const params = new URLSearchParams();
-    if (q) params.set('q', q);
+    if (qUrl) params.set('q', qUrl);
     if (p > 0) params.set('page', String(p));
     if (inactiveOnly) params.set('showInactive', '1');
     if (size !== 15) params.set('size', String(size));
@@ -1981,7 +2010,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
   function toggleInactiveUrl() {
     const params = new URLSearchParams();
-    if (q) params.set('q', q);
+    if (qUrl) params.set('q', qUrl);
     if (!inactiveOnly) params.set('showInactive', '1');
     const qs = params.toString();
     return `${basePath}${qs ? `?${qs}` : ''}`;
@@ -2130,7 +2159,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       {/* Tabs: Activos / Archivados */}
       <div className="flex items-center gap-1 border-b border-border mb-2">
         <a
-          href={`${basePath}${q ? `?q=${q}` : ''}`}
+          href={`${basePath}${qUrl ? `?q=${encodeURIComponent(qUrl)}` : ''}`}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             !inactiveOnly
               ? 'border-brand text-brand-text'
@@ -2146,7 +2175,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           </span>
         </a>
         <a
-          href={`${basePath}?showInactive=1${q ? `&q=${q}` : ''}`}
+          href={`${basePath}?showInactive=1${qUrl ? `&q=${encodeURIComponent(qUrl)}` : ''}`}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             inactiveOnly
               ? 'border-amber text-amber'
@@ -2194,7 +2223,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-text-muted text-sm">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  {q ? t('noResultsFor', { q }) : t('noPatients')}
+                  {/* De la URL viva, por lo mismo que los links: buscar no
+                      navega, así que con la prop una búsqueda sin resultados
+                      decía "no hay pacientes" en vez de "sin resultados para X". */}
+                  {qUrl ? t('noResultsFor', { q: qUrl }) : t('noPatients')}
                 </td>
               </tr>
             )}
@@ -2697,24 +2729,24 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           </select>
           {localPages > 0 && (
             <span className="ml-2" aria-live="polite" aria-atomic="true">
-              {t('pageInfo', { page: page + 1, total: localPages })}
+              {t('pageInfo', { page: pageUrl + 1, total: localPages })}
             </span>
           )}
         </div>
         {localPages > 1 && (
           <div className="flex gap-1" role="group" aria-label={t('pageControls')}>
             <button
-              onClick={() => router.push(buildPageUrl(page - 1))}
-              disabled={page === 0}
-              aria-label={t('prevPage', { page: page, total: localPages })}
+              onClick={() => router.push(buildPageUrl(pageUrl - 1))}
+              disabled={pageUrl === 0}
+              aria-label={t('prevPage', { page: pageUrl, total: localPages })}
               className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
-              onClick={() => router.push(buildPageUrl(page + 1))}
-              disabled={page >= localPages - 1}
-              aria-label={t('nextPage', { page: page + 2, total: localPages })}
+              onClick={() => router.push(buildPageUrl(pageUrl + 1))}
+              disabled={pageUrl >= localPages - 1}
+              aria-label={t('nextPage', { page: pageUrl + 2, total: localPages })}
               className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" aria-hidden="true" />

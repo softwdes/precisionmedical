@@ -1,225 +1,216 @@
 'use client';
 
 /**
- * Interruptor de los avisos al celular (Web Push).
+ * Los avisos al celular, en sus dos caras.
  *
- * Vive en la barra superior, al lado del sobre, y NO es un banner de una sola
- * vez: un banner se descarta y no vuelve, así que quien lo cierre sin leer
- * queda sin avisos para siempre y sin forma de encontrarlos. Acá el estado se
- * ve y se puede cambiar en los dos sentidos.
+ * ── Por qué NO es una campana ───────────────────────────────────────────────
  *
- * ── Por qué hay un diálogo antes del permiso ────────────────────────────────
+ * La primera versión usaba `Bell`/`BellRing`, y quedó al lado de `ReleaseBell`
+ * —"novedades del sistema"—, que usa `Bell` al mismo tamaño. A 16px en un
+ * teléfono son el mismo icono, y Erick reportó la confusión al probarlo.
  *
- * El cartel del navegador tiene UN intento. Si la persona toca "Bloquear",
- * queda bloqueado y desbloquearlo requiere entrar a los ajustes del sitio —
- * nadie lo hace. Así que primero se explica en nuestra pantalla, en nuestro
- * idioma, y el cartel del navegador aparece recién cuando ya dijo que sí.
+ * Pero el problema de fondo no era el parecido: la campana y el sobre son
+ * BUZONES —tienen cosas adentro para leer, y un número que lo dice—, y esto es
+ * una PREFERENCIA que se toca una vez y no vuelve. Darle forma de buzón promete
+ * algo que no cumple. Un teléfono, en cambio, dice exactamente lo que gobierna:
+ * si ESTE aparato suena.
  *
- * Y cuando está bloqueado, el botón SE MUESTRA y explica: esconder la acción
- * bloqueada deja a la persona sin saber por qué no le llegan los avisos.
+ * ── Por qué está en dos lugares ─────────────────────────────────────────────
+ *
+ * `PushToggle` (barra superior) aparece SOLO cuando hace falta un clic: apagado
+ * —para que alguien lo descubra— o bloqueado —para explicar por qué no llegan
+ * los avisos, porque esconder la acción bloqueada deja a la persona sin saberlo—.
+ * Encendido se va de la barra: no hay nada más que tocar, y en un teléfono esa
+ * barra ya lleva siete controles.
+ *
+ * `PushAvisosMenuItem` (menú del avatar) está siempre, junto a idioma y tema,
+ * que son la misma clase de cosa: preferencias personales del dispositivo. Ahí
+ * se ve el estado y se puede apagar.
+ *
+ * Las dos comparten estado por `usePushAvisos` — ver ese archivo.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { BellRing, BellOff, Bell } from 'lucide-react';
+import { Smartphone, SmartphoneNfc } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
-import { useToast } from '@/components/ui-phoenix/toast';
+import { usePushAvisos } from '@/lib/push-avisos';
 
-type Estado = 'cargando' | 'no-soportado' | 'apagado' | 'encendido' | 'bloqueado';
+/** El color ámbar de los ítems del menú del avatar (no tiene escala de tonos). */
+const AMBER = '#F59E0B';
 
 /**
- * La clave pública VAPID viaja como bytes, no como texto: `subscribe()` pide
- * un Uint8Array y el navegador la sirve en base64url (con `-` y `_`).
+ * Diálogo explicativo: se abre ANTES del cartel del navegador.
  *
- * El tipo de retorno lleva `<ArrayBuffer>` explícito: `applicationServerKey`
- * exige un buffer propio, y un `Uint8Array` sin parametrizar puede estar
- * respaldado por un `SharedArrayBuffer`, que TypeScript rechaza ahí.
+ * Ese cartel tiene UN intento. Si la persona toca "Bloquear", queda bloqueado y
+ * desbloquearlo requiere entrar a los ajustes del sitio — nadie lo hace. Así que
+ * primero se explica acá, en nuestro idioma, y el cartel del navegador aparece
+ * recién cuando ya dijo que sí.
  */
-function claveABytes(base64: string): Uint8Array<ArrayBuffer> {
-  const relleno = '='.repeat((4 - (base64.length % 4)) % 4);
-  const normal = (base64 + relleno).replace(/-/g, '+').replace(/_/g, '/');
-  const crudo = atob(normal);
-  const bytes = new Uint8Array(new ArrayBuffer(crudo.length));
-  for (let i = 0; i < crudo.length; i += 1) bytes[i] = crudo.charCodeAt(i);
-  return bytes;
+function DialogoAvisos({
+  abierto, onOpenChange, bloqueado, trabajando, onEncender,
+}: {
+  abierto: boolean;
+  onOpenChange: (v: boolean) => void;
+  bloqueado: boolean;
+  trabajando: boolean;
+  onEncender: () => void;
+}): React.ReactElement {
+  const t = useTranslations('phoenix.topbar');
+
+  return (
+    <Dialog open={abierto} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
+            <Smartphone className="w-4 h-4 text-brand-text" aria-hidden="true" />
+            {bloqueado ? t('pushBlockedTitle') : t('pushAskTitle')}
+          </DialogTitle>
+        </DialogHeader>
+
+        {bloqueado ? (
+          <div className="space-y-3">
+            <p className="text-sm text-text-2 leading-relaxed">{t('pushBlockedBody')}</p>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="w-full h-9 rounded-md border border-border bg-bg-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+            >
+              {t('close')}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-text-2 leading-relaxed">{t('pushAskBody')}</p>
+            {/* Lo que NO va a decir el aviso. Se dice acá y no en letra chica:
+                es la razón por la que se puede aceptar sin riesgo. */}
+            <p className="text-xs text-text-muted leading-relaxed border-l-2 border-border pl-3">
+              {t('pushAskPrivacy')}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="flex-1 h-9 rounded-md border border-border bg-bg-2 text-sm text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
+              >
+                {t('pushLater')}
+              </button>
+              <button
+                type="button"
+                onClick={onEncender}
+                disabled={trabajando}
+                className="flex-1 h-9 rounded-md border border-emerald/40 bg-emerald/15 text-sm font-semibold text-emerald hover:bg-emerald/25 transition-colors disabled:opacity-60"
+              >
+                {trabajando ? t('saving') : t('pushEnable')}
+              </button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
+/**
+ * Cara 1 — el botón de la barra superior. Solo cuando hace falta un clic.
+ */
 export function PushToggle(): React.ReactElement | null {
   const t = useTranslations('phoenix.topbar');
-  const toast = useToast();
-  const [estado, setEstado] = useState<Estado>('cargando');
+  const { estado, trabajando, encender } = usePushAvisos();
   const [preguntando, setPreguntando] = useState(false);
-  const [trabajando, setTrabajando] = useState(false);
 
-  const clavePublica = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  // Encendido no se dibuja: el estado vive en el menú del avatar y acá sería
+  // ruido permanente. Tampoco mientras carga, para no parpadear en cada vista.
+  if (estado === 'cargando' || estado === 'no-soportado' || estado === 'encendido') {
+    return null;
+  }
 
-  useEffect(() => {
-    void (async () => {
-      // Sin SW, sin PushManager o sin claves configuradas no hay nada que
-      // ofrecer: el botón no se dibuja en vez de prometer algo que no funciona.
-      if (
-        typeof window === 'undefined' ||
-        !('serviceWorker' in navigator) ||
-        !('PushManager' in window) ||
-        !clavePublica
-      ) {
-        setEstado('no-soportado');
-        return;
-      }
-      if (Notification.permission === 'denied') {
-        setEstado('bloqueado');
-        return;
-      }
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        setEstado(sub ? 'encendido' : 'apagado');
-      } catch {
-        setEstado('apagado');
-      }
-    })();
-  }, [clavePublica]);
-
-  const encender = useCallback(async (): Promise<void> => {
-    if (!clavePublica) return;
-    setTrabajando(true);
-    try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        setEstado(permiso === 'denied' ? 'bloqueado' : 'apagado');
-        return;
-      }
-
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: claveABytes(clavePublica),
-      });
-
-      const res = await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub.toJSON()),
-      });
-      if (!res.ok) throw new Error('alta rechazada');
-
-      setEstado('encendido');
-      setPreguntando(false);
-      toast.success(t('pushOnDone'));
-    } catch (e) {
-      console.error('[push] alta falló', e);
-      toast.error(t('pushError'));
-    } finally {
-      setTrabajando(false);
-    }
-  }, [clavePublica, toast, t]);
-
-  const apagar = useCallback(async (): Promise<void> => {
-    setTrabajando(true);
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        // Primero el servidor: si se desuscribe el navegador y falla el borrado,
-        // queda una fila que va a recibir 410 en el próximo envío. Al revés no
-        // se pierde nada.
-        await fetch('/api/push/subscribe', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint: sub.endpoint }),
-        }).catch(() => undefined);
-        await sub.unsubscribe();
-      }
-      setEstado('apagado');
-      toast.info(t('pushOffDone'));
-    } catch (e) {
-      console.error('[push] baja falló', e);
-      toast.error(t('pushError'));
-    } finally {
-      setTrabajando(false);
-    }
-  }, [toast, t]);
-
-  if (estado === 'cargando' || estado === 'no-soportado') return null;
-
-  const etiqueta =
-    estado === 'encendido' ? t('pushOn')
-    : estado === 'bloqueado' ? t('pushBlocked')
-    : t('pushOff');
+  const bloqueado = estado === 'bloqueado';
+  const etiqueta = bloqueado ? t('pushBlocked') : t('pushOff');
 
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          if (trabajando) return;
-          if (estado === 'encendido') { void apagar(); return; }
-          setPreguntando(true);
-        }}
+        onClick={() => { if (!trabajando) setPreguntando(true); }}
         aria-label={etiqueta}
         title={etiqueta}
         className={`inline-flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
-          estado === 'encendido'
-            ? 'border-emerald/40 bg-emerald/10 text-emerald'
-            : estado === 'bloqueado'
-              ? 'border-border bg-bg-2 text-text-muted'
-              : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
+          bloqueado
+            ? 'border-amber/30 bg-amber/10 text-amber'
+            : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
         }`}
       >
-        {estado === 'encendido' ? <BellRing className="w-4 h-4" aria-hidden="true" />
-          : estado === 'bloqueado' ? <BellOff className="w-4 h-4" aria-hidden="true" />
-          : <Bell className="w-4 h-4" aria-hidden="true" />}
+        <Smartphone className="w-4 h-4" aria-hidden="true" />
       </button>
 
-      <Dialog open={preguntando} onOpenChange={setPreguntando}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
-              <Bell className="w-4 h-4 text-brand-text" aria-hidden="true" />
-              {estado === 'bloqueado' ? t('pushBlockedTitle') : t('pushAskTitle')}
-            </DialogTitle>
-          </DialogHeader>
+      <DialogoAvisos
+        abierto={preguntando}
+        onOpenChange={setPreguntando}
+        bloqueado={bloqueado}
+        trabajando={trabajando}
+        onEncender={() => { void encender().then(() => setPreguntando(false)); }}
+      />
+    </>
+  );
+}
 
-          {estado === 'bloqueado' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-text-2 leading-relaxed">{t('pushBlockedBody')}</p>
-              <button
-                type="button"
-                onClick={() => setPreguntando(false)}
-                className="w-full h-9 rounded-md border border-border bg-bg-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
-              >
-                {t('close')}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-text-2 leading-relaxed">{t('pushAskBody')}</p>
-              {/* Lo que NO va a decir el aviso. Se dice acá y no en letra chica:
-                  es la razón por la que se puede aceptar sin riesgo. */}
-              <p className="text-xs text-text-muted leading-relaxed border-l-2 border-border pl-3">
-                {t('pushAskPrivacy')}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPreguntando(false)}
-                  className="flex-1 h-9 rounded-md border border-border bg-bg-2 text-sm text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
-                >
-                  {t('pushLater')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void encender()}
-                  disabled={trabajando}
-                  className="flex-1 h-9 rounded-md border border-emerald/40 bg-emerald/15 text-sm font-semibold text-emerald hover:bg-emerald/25 transition-colors disabled:opacity-60"
-                >
-                  {trabajando ? t('saving') : t('pushEnable')}
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+/**
+ * Cara 2 — la fila del menú del avatar. Siempre presente (salvo sin soporte).
+ *
+ * `onNavigate` cierra el menú, igual que los otros ítems: apagar los avisos y
+ * quedarse con el desplegable abierto encima deja la sensación de que no pasó
+ * nada.
+ */
+export function PushAvisosMenuItem({ onNavigate }: { onNavigate: () => void }): React.ReactElement | null {
+  const t = useTranslations('phoenix.topbar');
+  const { estado, trabajando, encender, apagar } = usePushAvisos();
+  const [preguntando, setPreguntando] = useState(false);
+
+  if (estado === 'cargando' || estado === 'no-soportado') return null;
+
+  const encendido = estado === 'encendido';
+  const bloqueado = estado === 'bloqueado';
+
+  const detalle = encendido ? t('pushStateOn')
+    : bloqueado ? t('pushStateBlocked')
+    : t('pushStateOff');
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={trabajando}
+        onClick={() => {
+          if (encendido) { onNavigate(); void apagar(); return; }
+          // Apagado o bloqueado: el diálogo explica antes de tocar el navegador.
+          onNavigate();
+          setPreguntando(true);
+        }}
+        className="flex w-full items-start gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left disabled:opacity-60"
+      >
+        {encendido
+          ? <SmartphoneNfc className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: AMBER }} aria-hidden="true" />
+          : <Smartphone className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: AMBER }} aria-hidden="true" />}
+        <span className="min-w-0">
+          {t('pushMenuLabel')}
+          {/* El estado va en su propia línea y con palabras, no con un color:
+              "activados" se lee igual para quien no distingue el verde. */}
+          <span className={`block text-[11px] ${
+            encendido ? 'text-emerald' : bloqueado ? 'text-amber' : 'text-text-muted'
+          }`}>
+            {detalle}
+          </span>
+        </span>
+      </button>
+
+      <DialogoAvisos
+        abierto={preguntando}
+        onOpenChange={setPreguntando}
+        bloqueado={bloqueado}
+        trabajando={trabajando}
+        onEncender={() => { void encender().then(() => setPreguntando(false)); }}
+      />
     </>
   );
 }

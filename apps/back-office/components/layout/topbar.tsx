@@ -8,7 +8,7 @@ import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
 import { InboxBell } from '@/components/messaging/inbox-bell';
-import { PushToggle } from '@/components/PushToggle';
+import { PushToggle, PushAvisosMenuItem } from '@/components/PushToggle';
 import { ReleaseBell } from '@/components/release/release-bell';
 import { createClient } from '@precision-medical/auth/client';
 
@@ -223,10 +223,10 @@ export function Topbar({
               a la urgencia clínica: nada debe gritar más que un urgente. */}
           <InboxBell portal={portal} />
 
-          {/* Interruptor de los avisos al celular. Pegado al sobre porque es la
-              misma noticia por otro canal: el sobre avisa con la app abierta,
-              esto avisa con la app cerrada. No se dibuja donde no hay soporte
-              ni claves configuradas. */}
+          {/* Avisos al celular — SOLO cuando hace falta un clic (apagado o
+              bloqueado). Encendido se va de la barra y su estado queda en el
+              menú del avatar: no hay nada más que tocar, y acá al lado de
+              ReleaseBell dos campanas se confundían. Ver `PushToggle`. */}
           <PushToggle />
 
           {/* Novedades del sistema. Antes habia aca un boton de campana de
@@ -325,6 +325,10 @@ export function Topbar({
                     <KeyRound className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
                     {t('changePassword')}
                   </button>
+                  {/* Avisos al celular: es una preferencia del DISPOSITIVO, así
+                      que vive donde ya viven idioma y tema. Acá está siempre —
+                      en la barra solo aparece cuando hay algo que tocar. */}
+                  <PushAvisosMenuItem onNavigate={() => setMenuOpen(false)} />
                 </div>
                 <div className="border-t border-border py-1">
                   <button

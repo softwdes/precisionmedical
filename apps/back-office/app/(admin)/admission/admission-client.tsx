@@ -246,7 +246,15 @@ function ApptCard({
         },
       } : {})}
     >
-      <div className="flex items-start gap-3">
+      {/* `flex-wrap` abajo de sm para que las acciones bajen a su propio renglón.
+          Eran tres items en UNA fila: avatar, info (`flex-1 min-w-0`) y acciones
+          (`shrink-0`). Como las acciones no ceden nunca y la info puede achicarse
+          hasta cero, en un teléfono la info quedaba de ~60px —el horario salía
+          "8:00 / AM / 45 / min", una palabra por renglón— y el nombre, que no
+          parte por la mitad, se desbordaba POR DEBAJO de los botones. El
+          `flex-wrap` que ya tenía la fila de botones no llegaba a actuar nunca,
+          porque `shrink-0` hacía que su contenedor jamás estuviera apretado. */}
+      <div className="flex flex-wrap sm:flex-nowrap items-start gap-3">
         <PersonAvatar
           firstName={appt.patient.firstName}
           lastName={appt.patient.lastName}
@@ -405,12 +413,15 @@ function ApptCard({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col items-end gap-2 shrink-0">
+        {/* Actions — `w-full` abajo de sm: fuerza el salto de renglón del
+            `flex-wrap` de arriba y le da a los botones el ancho de la tarjeta
+            para envolver de verdad. `shrink-0` solo desde sm, que es donde hay
+            espacio al costado. */}
+        <div className="w-full sm:w-auto flex flex-col items-start sm:items-end gap-2 sm:shrink-0">
           {isPending && (
             // `flex-wrap` + `justify-end`: son cuatro acciones y en 375px no entran
             // en una fila. Envuelven en vez de desbordar (Regla #4).
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap justify-start sm:justify-end gap-2">
               {/* Los tres desenlaces van NEUTROS (salvo el ámbar de la cancelación
                   tardía, que anticipa el color con que se va a pintar la fila) y
                   antes del primario: ninguno es una alarma, y el gesto evidente

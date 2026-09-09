@@ -142,7 +142,18 @@ export function usePushAvisos(): AvisosControl {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub.toJSON()),
       });
-      if (!res.ok) throw new Error('alta rechazada');
+      if (!res.ok) {
+        /**
+         * El motivo del servidor va a la consola con el host del endpoint.
+         *
+         * Antes acá solo se lanzaba "alta rechazada": el usuario veía un aviso
+         * genérico, el botón no se ponía verde y no quedaba rastro de por qué.
+         * El 2026-09-10 eso costó un ida y vuelta entero para descubrir que el
+         * navegador de un Samsung emitía un endpoint que el servidor no aceptaba.
+         */
+        const detalle = await res.text().catch(() => '');
+        throw new Error(`alta rechazada (${res.status}) ${detalle} · endpoint: ${new URL(sub.endpoint).hostname}`);
+      }
 
       setEstado('encendido');
       anunciarCambio();

@@ -12,7 +12,7 @@
  * inmutable lo previo, no bloquea entradas nuevas.
  */
 
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, after, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, reviveThread, sanitizeAttachments, verificarAbogadosEnAlcance, type AttachmentInput } from '@/lib/messaging';
@@ -140,17 +140,35 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     patientId: thread.patientId,
   }).catch((e) => { console.error('[messages/entries] aviso al abogado:', e); });
 
-  // Y el staff del portal se entera en el teléfono, aunque tenga la app
-  // cerrada. Mismo trato que el correo del abogado: se dispara y no se espera —
-  // el mensaje ya está guardado y la bandeja lo muestra pase lo que pase acá.
-  // El autor no se avisa a sí mismo.
-  void avisarMensajeNuevo(
-    [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)]
-      .filter((id) => id !== actor.actorUserId),
-    actor.actorName,
-    threadId,
-    thread.priority === 'URGENT',
-  ).catch((e) => { console.error('[messages/entries] aviso al celular:', e); });
+  /**
+   * Y el staff se entera en el teléfono, aunque tenga la app cerrada. El autor
+   * no se avisa a sí mismo.
+   *
+   * ── Va con `after()` y NO con `void`, y la diferencia importa ─────────────
+   *
+   * Acá estaba `void avisarMensajeNuevo(...)`, copiando el patrón del correo al
+   * abogado de arriba. **En serverless eso pierde el aviso**: cuando la
+   * respuesta se devuelve, la instancia puede congelarse antes de que la
+   * promesa termine, y la petición a FCM se corta a medio camino. Como la
+   * instancia a veces sigue viva lo suficiente, el aviso llega ALGUNAS veces —
+   * que es peor que no llegar nunca, porque parece un problema del teléfono.
+   *
+   * Reportado el 2026-09-10: a una persona le llegó y a otras dos no, con la
+   * misma versión y el mismo navegador.
+   *
+   * `after()` es el mecanismo de Next 15 para trabajo posterior a la respuesta:
+   * la plataforma mantiene la función viva hasta que termina. El usuario no
+   * espera por el push, pero el push tampoco se pierde.
+   */
+  after(async () => {
+    await avisarMensajeNuevo(
+      [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)]
+        .filter((id) => id !== actor.actorUserId),
+      actor.actorName,
+      threadId,
+      thread.priority === 'URGENT',
+    ).catch((e) => { console.error('[messages/entries] aviso al celular:', e); });
+  });
 
   return NextResponse.json({ id: entry.id }, { status: 201 });
 }

@@ -24,7 +24,7 @@
  * compara dos columnas entre sí.
  */
 
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, after, type NextRequest } from 'next/server';
 import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments, verificarAbogadosEnAlcance } from '@/lib/messaging';
@@ -350,14 +350,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     patientId: raw.patientId || null,
   }).catch((e) => { console.error('[messages] aviso al abogado:', e); });
 
-  // Y el staff del portal en el teléfono, con la app cerrada. El autor no se
-  // avisa a sí mismo aunque se haya puesto en la lista.
-  void avisarMensajeNuevo(
-    [...toUsers, ...ccUsers].map((u) => u.id).filter((id) => id !== actor.actorUserId),
-    actor.actorName,
-    thread.id,
-    (raw.priority ?? 'NORMAL') === 'URGENT',
-  ).catch((e) => { console.error('[messages] aviso al celular:', e); });
+  /**
+   * Y el staff en el teléfono, con la app cerrada. El autor no se avisa a sí
+   * mismo aunque se haya puesto en la lista.
+   *
+   * `after()` y no `void`: en serverless una promesa sin esperar se corta
+   * cuando la respuesta se devuelve, y el aviso llega ALGUNAS veces — ver la
+   * nota larga en `[threadId]/entries/route.ts`.
+   */
+  after(async () => {
+    await avisarMensajeNuevo(
+      [...toUsers, ...ccUsers].map((u) => u.id).filter((id) => id !== actor.actorUserId),
+      actor.actorName,
+      thread.id,
+      (raw.priority ?? 'NORMAL') === 'URGENT',
+    ).catch((e) => { console.error('[messages] aviso al celular:', e); });
+  });
 
   return NextResponse.json({ id: thread.id }, { status: 201 });
 }

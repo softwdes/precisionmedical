@@ -1,0 +1,431 @@
+<title>Alerts on Your Phone</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Tema ÚNICO oscuro, deliberado: este manual tiene que verse como la app que
+   enseña a instalar. Los tokens son los mismos de globals.css del back-office. */
+:root {
+  --bg-0: #0A0E1A;
+  --bg-1: #0F1524;
+  --bg-2: #141B2D;
+  --text-1: #F5F7FB;
+  --text-2: #A8B2CC;
+  --text-3: #7A86A8;
+  --rule: #1E2740;
+  --rule-2: #2A3550;
+  --sky: #38BDF8;
+  --blue: #2563EB;
+  --blue-deep: #1E40AF;
+  --blue-pale: #BFDBFE;
+  --emerald: #10B981;
+  --amber: #F59E0B;
+  --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 44rem; margin: 0 auto; padding: 44px 20px 80px; }
+
+.eyebrow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--sky); margin: 0 0 14px;
+}
+h1 {
+  font-size: clamp(29px, 8vw, 40px); font-weight: 800;
+  letter-spacing: -0.03em; line-height: 1.06; margin: 0 0 14px;
+  text-wrap: balance; color: var(--text-1);
+}
+.lede { font-size: 17px; color: var(--text-2); margin: 0; max-width: 34rem; }
+
+section { margin: 44px 0 0; padding-top: 26px; border-top: 1px solid var(--rule); }
+h2 {
+  font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0 0 3px; text-wrap: balance;
+}
+.sub { font-size: 12.5px; font-weight: 600; color: var(--sky); margin: 0 0 20px; letter-spacing: 0.02em; }
+
+/* ── Dos columnas: pasos + teléfono ──────────────────────────────────── */
+.split { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.split .col { flex: 1 1 15rem; min-width: 0; }
+.split .art { flex: 0 0 auto; }
+
+/* ── Pasos ───────────────────────────────────────────────────────────── */
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+ol.steps > li { display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 12px; row-gap: 2px; align-items: start; }
+/* Todo lo que no es el número va a la SEGUNDA columna. Sin esto, un segundo
+   párrafo en el mismo paso caía en la columna de 26px y se partía una palabra
+   por línea. */
+ol.steps > li > :not(.num) { grid-column: 2; }
+.num {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(37,99,235,0.20); color: #93C5FD;
+  border: 1px solid rgba(56,189,248,0.30);
+}
+ol.steps p { margin: 2px 0 0; font-size: 15.5px; color: var(--text-2); }
+ol.steps strong { color: var(--text-1); font-weight: 600; }
+.hint { font-size: 13.5px; color: var(--text-3); margin-top: 4px; }
+
+kbd {
+  font-family: var(--font); font-size: 13.5px; font-weight: 600;
+  background: var(--bg-2); border: 1px solid var(--rule-2);
+  border-radius: 5px; padding: 1px 7px; white-space: nowrap; color: var(--blue-pale);
+}
+
+/* ── Direcciones ─────────────────────────────────────────────────────── */
+.addr { display: flex; flex-direction: column; gap: 1px; background: var(--rule); border-radius: 8px; overflow: hidden; }
+.addr > div {
+  background: var(--bg-1); padding: 13px 16px;
+  display: flex; flex-wrap: wrap; gap: 3px 12px; align-items: baseline; justify-content: space-between;
+}
+.addr .who { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.addr .url { font-size: 13.5px; font-weight: 500; color: var(--sky); word-break: break-all; }
+
+/* ── Aviso ───────────────────────────────────────────────────────────── */
+.note {
+  background: rgba(37,99,235,0.10); border-left: 3px solid var(--blue);
+  padding: 13px 17px; margin: 22px 0 0;
+}
+.note p { margin: 0; font-size: 15px; color: var(--blue-pale); }
+.note strong { font-weight: 700; color: #DBEAFE; }
+
+/* ── Teléfono ────────────────────────────────────────────────────────── */
+.phone {
+  width: 194px; border: 7px solid #232C42; border-radius: 26px;
+  background: #05070C; overflow: hidden;
+}
+.notch { height: 18px; display: flex; align-items: center; justify-content: center; }
+.notch span { width: 44px; height: 4px; border-radius: 3px; background: #000; }
+.sbar { display: flex; justify-content: space-between; padding: 0 13px 4px; font-size: 9.5px; font-weight: 600; color: var(--text-3); }
+.pbody { padding: 0 8px 12px; min-height: 232px; }
+
+/* barra superior de la app, dentro del teléfono */
+.appbar { display: flex; align-items: center; gap: 5px; background: var(--bg-1); border-radius: 8px; padding: 6px 7px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 6px; font-size: 9.5px; font-weight: 700; }
+.sq { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sq svg { width: 12px; height: 12px; }
+
+/* menú desplegable de Chrome */
+.menu { background: #1B1F27; border-radius: 9px; margin: 6px 4px 0 auto; width: 148px; padding: 5px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+.menu div { font-size: 10.5px; color: #C7CDD6; padding: 6px 11px; }
+.menu div.on { background: rgba(56,189,248,0.16); color: #BFDBFE; font-weight: 700; }
+
+/* hoja de compartir de Safari */
+.sheet { background: #1B1F27; border-radius: 12px 12px 0 0; margin: 40px -8px -12px; padding: 8px 0 12px; }
+.sheet .grip { width: 32px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18); margin: 0 auto 8px; }
+.sheet div.row { font-size: 10.5px; color: #C7CDD6; padding: 7px 13px; display: flex; justify-content: space-between; align-items: center; }
+.sheet div.row.on { background: rgba(56,189,248,0.16); color: #BFDBFE; font-weight: 700; }
+
+/* pantalla de bloqueo */
+.clock { text-align: center; padding: 22px 0 18px; }
+.clock .t { font-size: 33px; font-weight: 500; line-height: 1; letter-spacing: -0.02em; color: var(--text-1); }
+.clock .d { font-size: 10.5px; color: var(--text-3); margin-top: 5px; }
+.noti { background: #1B1F27; border-radius: 11px; padding: 9px 10px; display: flex; gap: 9px; }
+.noti .meta { font-size: 9.5px; font-weight: 600; color: var(--text-3); }
+.noti .ttl { font-size: 12.5px; font-weight: 700; color: var(--text-1); margin: 2px 0 0; }
+.noti .who2 { font-size: 11.5px; color: var(--text-2); margin: 1px 0 0; }
+
+.cap { font-size: 12.5px; font-weight: 600; color: var(--text-3); text-align: center; margin: 10px 0 0; }
+
+/* ── Estados del icono ───────────────────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0 0; }
+.chip { display: flex; align-items: center; gap: 11px; background: var(--bg-1); border-radius: 8px; padding: 12px 15px; flex: 1 1 11rem; }
+.ibox { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ibox svg { width: 18px; height: 18px; }
+.chip .lbl { font-size: 13px; font-weight: 700; }
+.chip .mean { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+
+footer { margin: 50px 0 0; padding-top: 22px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--text-3); }
+
+/* ── IMPRESIÓN ─────────────────────────────────────────────────────────
+   En pantalla este manual es oscuro porque tiene que verse como la app.
+   En papel, ese mismo fondo es un cartucho de tinta y un texto que se
+   lee peor. Así que al imprimir se invierte TODO menos los teléfonos:
+   esos siguen oscuros porque son la foto de una pantalla encendida, y
+   en blanco no se reconocerían.                                        */
+@media print {
+  :root {
+    --bg-0: #FFFFFF;
+    --bg-1: #F4F6FA;
+    --bg-2: #E8ECF4;
+    --text-1: #0A0E1A;
+    --text-2: #303A52;
+    --text-3: #5C6883;
+    --rule: #C9D2E2;
+    --rule-2: #AEBACE;
+    --sky: #1D4ED8;
+    --blue-pale: #1E3A8A;
+  }
+  body { font-size: 11.5pt; line-height: 1.5; }
+  .wrap { max-width: none; padding: 0; }
+
+  h1 { font-size: 24pt; }
+  h2 { font-size: 14pt; }
+  .lede { font-size: 12pt; }
+  ol.steps p { font-size: 11pt; }
+  .hint { font-size: 10pt; }
+
+  /* Cada sección entera en una página, sin cortar un paso a la mitad. */
+  section { break-inside: avoid; page-break-inside: avoid; margin-top: 22px; padding-top: 16px; }
+  ol.steps > li, .split, .note, .chip, .phone { break-inside: avoid; page-break-inside: avoid; }
+
+  /* El aviso necesita borde: en papel el fondo tenue casi no se ve. */
+  .note { background: #EEF3FD; border: 1px solid #A9C2EE; border-left: 3px solid #1D4ED8; }
+  .note p { color: #14294F; }
+  .note strong { color: #0A1B3A; }
+
+  .addr > div, .chip { border: 1px solid var(--rule); }
+  kbd { background: #FFFFFF; border: 1px solid #8494B0; color: #0A0E1A; }
+  .num { background: #E4EBFA; color: #1D4ED8; border: 1px solid #A9C2EE; }
+
+  /**
+   * Los teléfonos NO se invierten: son la foto de una pantalla prendida, y en
+   * blanco no se reconocerían.
+   *
+   * Se hace redefiniendo los TOKENS sobre `.phone` en vez de pisar cada
+   * elemento. Dos motivos: las variables se heredan, así que cubre también los
+   * `var(--bg-2)` que están escritos como estilo inline en el relleno —y un
+   * estilo inline le gana a cualquier regla de clase, así que pisarlos uno por
+   * uno habría necesitado `!important` en cada uno.
+   */
+  .phone {
+    --bg-1: #0F1524;
+    --bg-2: #141B2D;
+    --text-1: #F5F7FB;
+    --text-2: #A8B2CC;
+    --text-3: #7A86A8;
+    --rule-2: #2A3550;
+    border-color: #4A5474;
+  }
+  .phone, .phone * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cap { color: #5C6883; }
+
+  footer { border-top: 1px solid var(--rule); color: #5C6883; }
+}
+@page { margin: 14mm 15mm; }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Precision Medical</p>
+  <h1>Alerts on Your Phone</h1>
+  <p class="lede">Install the app and turn on alerts, so you know a message arrived even when the app is closed. About two minutes.</p>
+
+  <section style="border-top: 0; padding-top: 30px;">
+    <h2>Start with your address</h2>
+    <p class="sub">Open the one that matches your role</p>
+    <div class="addr">
+      <div><span class="who">Clinic staff</span><span class="url">clinic.lienmaster.net</span></div>
+      <div><span class="who">Providers</span><span class="url">provider.lienmaster.net</span></div>
+      <div><span class="who">Legal</span><span class="url">attorney.lienmaster.net</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Android</h2>
+    <p class="sub">Use Chrome</p>
+    <div class="split">
+      <div class="col">
+        <ol class="steps">
+          <li><span class="num">1</span><p>Open your address in <strong>Chrome</strong> and sign in.</p></li>
+          <li><span class="num">2</span><p>Tap the <kbd>⋮</kbd> menu, top right.</p></li>
+          <li><span class="num">3</span><p>Tap <kbd>Install app</kbd>.</p><p class="hint">Some phones say <em>Add to Home screen</em>. Same thing.</p></li>
+          <li><span class="num">4</span><p>Confirm with <kbd>Install</kbd>. The icon lands on your home screen.</p></li>
+        </ol>
+      </div>
+      <div class="art">
+        <div class="phone">
+          <div class="notch"><span></span></div>
+          <div class="sbar"><span>9:41</span><span>100%</span></div>
+          <div class="pbody">
+            <div style="display: flex; justify-content: flex-end; padding: 2px 4px 0; font-size: 13px; color: var(--text-2); font-weight: 700;">⋮</div>
+            <div class="menu">
+              <div>New tab</div>
+              <div>Bookmarks</div>
+              <div class="on">Install app</div>
+              <div>Desktop site</div>
+              <div>Settings</div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Chrome menu</p>
+      </div>
+    </div>
+    <div class="note">
+      <p>From now on, <strong>open the app from that icon</strong> — not from a browser tab. Alerts only work in the installed app.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>iPhone</h2>
+    <p class="sub">Use Safari — Chrome will not work for this</p>
+    <div class="split">
+      <div class="col">
+        <ol class="steps">
+          <li><span class="num">1</span><p>Open your address in <strong>Safari</strong> and sign in.</p></li>
+          <li><span class="num">2</span><p>Tap the <strong>Share</strong> button — the square with an arrow pointing up, at the bottom.</p></li>
+          <li><span class="num">3</span><p>Scroll down and tap <kbd>Add to Home Screen</kbd>.</p></li>
+          <li><span class="num">4</span><p>Tap <kbd>Add</kbd>, top right.</p></li>
+        </ol>
+      </div>
+      <div class="art">
+        <div class="phone">
+          <div class="notch"><span></span></div>
+          <div class="sbar"><span>9:41</span><span>100%</span></div>
+          <div class="pbody">
+            <div class="sheet">
+              <div class="grip"></div>
+              <div class="row"><span>Copy</span><span>⧉</span></div>
+              <div class="row"><span>Add to Reading List</span><span>◇</span></div>
+              <div class="row on"><span>Add to Home Screen</span><span>＋</span></div>
+              <div class="row"><span>Markup</span><span>✎</span></div>
+              <div class="row"><span>Print</span><span>⎙</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Safari share sheet</p>
+      </div>
+    </div>
+    <div class="note">
+      <p><strong>On iPhone this step is required, not optional.</strong> Until the app is on your home screen, alerts cannot be turned on at all. You also need iOS 16.4 or newer.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Turn on alerts</h2>
+    <p class="sub">Same on both phones — open the installed app first</p>
+    <div class="split">
+      <div class="col">
+        <ol class="steps">
+          <li><span class="num">1</span><p>In the top bar, find the <strong>phone icon</strong>.</p><p class="hint">Next to Messages. It is a phone, not a bell — the bell is system news.</p></li>
+          <li><span class="num">2</span><p>Tap it. A short note explains what the alert will say.</p></li>
+          <li><span class="num">3</span><p>Tap <kbd>Turn on</kbd>.</p></li>
+          <li><span class="num">4</span><p>Your phone asks for permission. Tap <kbd>Allow</kbd>.</p><p class="hint">This appears once. If you tap Block, only your phone settings can undo it.</p></li>
+          <li><span class="num">5</span><p>The icon turns <strong>green</strong>. That is the whole confirmation.</p></li>
+        </ol>
+      </div>
+      <div class="art">
+        <div class="phone">
+          <div class="notch"><span></span></div>
+          <div class="sbar"><span>9:41</span><span>100%</span></div>
+          <div class="pbody">
+            <div class="appbar">
+              <span class="pill" style="background: rgba(16,185,129,0.14); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.35);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6EE7B7" stroke-width="2.2" stroke-linecap="round" style="width:10px;height:10px;"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+                3/178
+              </span>
+              <span class="sq" style="background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.40); margin-left: 2px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"></rect><path d="M11 18h2"></path></svg>
+              </span>
+              <span class="sq" style="background: var(--bg-2); border: 1px solid var(--rule-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7A86A8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+              </span>
+              <span style="margin-left: auto; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg,#F59E0B,#B45309);"></span>
+            </div>
+            <p style="font-size: 10px; color: var(--text-3); margin: 9px 4px 0; line-height: 1.5;">
+              The <strong style="color:#6EE7B7;">green phone</strong> is alerts.<br>
+              The <strong style="color:#A8B2CC;">bell</strong> beside it is system news.
+            </p>
+            <!-- Contenido de relleno: sin esto el teléfono quedaba medio vacío y
+                 la barra flotaba sola, que se leía como un recorte y no como
+                 una pantalla. -->
+            <div style="margin: 12px 4px 0;">
+              <div style="height: 7px; width: 52%; border-radius: 4px; background: var(--bg-2); margin-bottom: 9px;"></div>
+              <div style="background: var(--bg-1); border-radius: 8px; padding: 9px; margin-bottom: 6px;">
+                <div style="height: 6px; width: 66%; border-radius: 3px; background: var(--bg-2); margin-bottom: 5px;"></div>
+                <div style="height: 6px; width: 42%; border-radius: 3px; background: var(--bg-2);"></div>
+              </div>
+              <div style="background: var(--bg-1); border-radius: 8px; padding: 9px;">
+                <div style="height: 6px; width: 54%; border-radius: 3px; background: var(--bg-2); margin-bottom: 5px;"></div>
+                <div style="height: 6px; width: 70%; border-radius: 3px; background: var(--bg-2);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">App top bar</p>
+      </div>
+    </div>
+
+    <div class="chips">
+      <div class="chip">
+        <div class="ibox" style="background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.40);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"></rect><path d="M11 18h2"></path></svg>
+        </div>
+        <div><div class="lbl" style="color:#6EE7B7;">Green</div><div class="mean">Alerts are on</div></div>
+      </div>
+      <div class="chip">
+        <div class="ibox" style="background: var(--bg-2); border: 1px solid var(--rule-2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7A86A8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"></rect><path d="M11 18h2"></path></svg>
+        </div>
+        <div><div class="lbl" style="color:var(--text-2);">Grey</div><div class="mean">Not on yet — tap it</div></div>
+      </div>
+      <div class="chip">
+        <div class="ibox" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.40);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"></rect><path d="M11 18h2"></path></svg>
+        </div>
+        <div><div class="lbl" style="color:#FCD34D;">Amber</div><div class="mean">Blocked — tap for how to fix</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What you will see</h2>
+    <p class="sub">On the lock screen, with the app closed</p>
+    <div class="split">
+      <div class="art">
+        <div class="phone">
+          <div class="notch"><span></span></div>
+          <div class="sbar"><span>9:41</span><span>100%</span></div>
+          <div class="pbody">
+            <div class="clock">
+              <div class="t">9:41</div>
+              <div class="d">Tuesday, September 9</div>
+            </div>
+            <div class="noti">
+              <span class="sq" style="background: #2563EB; width: 26px; height: 26px; border-radius: 7px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#DBEAFE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+              </span>
+              <div>
+                <div class="meta">PM Clinical · now</div>
+                <div class="ttl">New message</div>
+                <div class="who2">from Beatriz</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">Lock screen</p>
+      </div>
+      <div class="col">
+        <p style="font-size: 15.5px; color: var(--text-2); margin: 2px 0 0;">It rings once and stays there until you read it. Tap it and the app opens on that message.</p>
+        <div class="note" style="margin-top: 18px;">
+          <p><strong>The alert only names who wrote to you.</strong> Never the subject, the patient, or the reason — anyone glancing at your screen learns nothing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>If alerts stop coming</h2>
+    <p class="sub">The icon says green but nothing arrives</p>
+    <p style="font-size: 15.5px; color: var(--text-2); margin: 0;">This happens after the app is uninstalled and installed again. The fix is one tap:</p>
+    <ol class="steps" style="margin-top: 18px;">
+      <li><span class="num">1</span><p>Tap the green <strong>phone icon</strong>.</p></li>
+      <li><span class="num">2</span><p>Tap <kbd>Reactivate alerts</kbd>.</p></li>
+    </ol>
+    <p style="font-size: 15.5px; color: var(--text-2); margin: 18px 0 0;">Send yourself a test message afterwards to confirm.</p>
+    <div class="note">
+      <p><strong>Samsung phones need one extra check.</strong> Samsung puts apps to sleep on its own, and a sleeping app cannot wake up for an alert. Open <em>Settings › Battery › Background usage limits</em> and make sure the app is not in <em>Sleeping apps</em> or <em>Deep sleeping apps</em>.</p>
+    </div>
+  </section>
+
+  <footer>Stuck on any of these steps? Send a message from the desktop app and someone will walk you through it.</footer>
+
+</div>

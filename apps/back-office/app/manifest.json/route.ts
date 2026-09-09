@@ -75,7 +75,24 @@ const CLINICA = {
  */
 const PROVIDERS = {
   name: 'Precision Medical — Providers',
-  short_name: 'PM Providers',
+  /**
+   * SINGULAR, y son 11 caracteres contados.
+   *
+   * Era "PM Providers" (12) y los launchers de Android cortan la etiqueta
+   * alrededor de los 11-12 según el launcher y el tamaño del icono, así que
+   * estaba justo en el borde: en algunos teléfonos salía "PM Provider…".
+   *
+   * Se descartó "PM Pro", que era la otra opción sobre la mesa: acorta más pero
+   * se lee como "versión profesional" y no dice qué es. Y sobre todo, el
+   * proyecto DECIDIÓ que la palabra es "Provider" —una sesión entera del
+   * 2026-08-27, 65 lugares y 78 claves para sacar "Doctor"—; abreviarla en la
+   * pantalla de inicio del teléfono, que es la superficie más visible que
+   * tenemos, desarmaría esa decisión justo donde más se ve.
+   *
+   * El singular además empata con el dominio, que también es singular
+   * (`provider.lienmaster.net`). Antes el dominio decía una cosa y el icono otra.
+   */
+  short_name: 'PM Provider',
   description: 'Portal de providers — Precision Medical',
   start_url: '/doctor',
   theme_color: '#7C3AED',

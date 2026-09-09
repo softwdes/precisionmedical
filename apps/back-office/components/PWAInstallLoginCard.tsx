@@ -4,6 +4,30 @@ import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { Download } from 'lucide-react';
 
+/**
+ * La tarjeta de "instalar la app" del login.
+ *
+ * ── Por qué los textos están en INGLÉS y no pasan por i18n ─────────────────
+ *
+ * Porque la pantalla de login es monolingüe a propósito: no tiene un solo
+ * `useTranslations`, no tiene selector de idioma, y todo su texto está en
+ * inglés ("Sign in", "Your session", "Account locked"). El layout lo dice para
+ * el título: las rutas de login van siempre en inglés por regla.
+ *
+ * Esta tarjeta era **lo único en español** de esa pantalla — decía "Instalar
+ * Clínica App" sobre un formulario en inglés. Se pasó a inglés el 2026-09-09,
+ * y NO se le agregó i18n: meterle claves a un componente que vive en una
+ * pantalla que nunca cambia de idioma es maquinaria que no varía nunca.
+ *
+ * Si algún día el login se vuelve bilingüe, entonces sí: `phoenix.*` como todo
+ * lo demás. Hasta entonces, esto es correcto, no una deuda.
+ *
+ * Los nombres de menú son los REALES de cada sistema en inglés ("Add to Home
+ * Screen" en Safari, "Install app" en Chrome). No son traducciones nuestras:
+ * son lo que la persona va a leer en su teléfono, y tienen que coincidir letra
+ * por letra o el paso no se encuentra.
+ */
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -27,9 +51,11 @@ const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
  */
 function getAppName(): string {
   const host = window.location.hostname;
-  if (/^providers?\./.test(host)) return 'Providers App';
-  if (/^attorney\./.test(host))   return 'Legal App';
-  return 'Clínica App';
+  // Singular, igual que el `short_name` del manifest y que el dominio: lo que se
+  // instala es la app de UNA persona en SU teléfono.
+  if (/^providers?\./.test(host)) return 'Provider app';
+  if (/^attorney\./.test(host))   return 'Legal app';
+  return 'Clinic app';
 }
 
 function getMobilePlatform(): MobilePlatform | null {
@@ -61,14 +87,14 @@ function wasDismissedRecently(): boolean {
 function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boolean }): React.ReactElement {
   const steps = isIos
     ? [
-        { n: 1, text: 'Abre el menú de Safari — toca el', strong: 'ícono de Compartir', after: '(cuadro con flecha ↑)' },
-        { n: 2, text: 'Desplázate y toca', strong: '"Agregar a pantalla de inicio"', after: '' },
-        { n: 3, text: 'Toca', strong: '"Agregar"', after: 'en la esquina superior derecha' },
+        { n: 1, text: 'Open the Safari menu — tap the', strong: 'Share button', after: '(square with an arrow ↑)' },
+        { n: 2, text: 'Scroll down and tap', strong: '"Add to Home Screen"', after: '' },
+        { n: 3, text: 'Tap', strong: '"Add"', after: 'in the top right corner' },
       ]
     : [
-        { n: 1, text: 'Abre el menú de Chrome — toca los', strong: '⋮ tres puntos', after: 'arriba a la derecha' },
-        { n: 2, text: 'Toca', strong: '"Instalar app"', after: 'o "Agregar a pantalla de inicio"' },
-        { n: 3, text: 'Toca', strong: '"Instalar"', after: 'en el cuadro de diálogo' },
+        { n: 1, text: 'Open the Chrome menu — tap the', strong: '⋮ three dots', after: 'in the top right' },
+        { n: 2, text: 'Tap', strong: '"Install app"', after: 'or "Add to Home screen"' },
+        { n: 3, text: 'Tap', strong: '"Install"', after: 'in the dialog' },
       ];
 
   return (
@@ -93,9 +119,9 @@ function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boo
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
 
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#BFDBFE', margin: '0 0 4px' }}>Instalar {getAppName()}</p>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#BFDBFE', margin: '0 0 4px' }}>Install {getAppName()}</p>
         <p style={{ fontSize: 12, color: '#6B7592', margin: '0 0 20px' }}>
-          {isIos ? 'Sigue estos pasos en Safari:' : 'Sigue estos pasos en Chrome:'}
+          {isIos ? 'Follow these steps in Safari:' : 'Follow these steps in Chrome:'}
         </p>
 
         {steps.map(({ n, text, strong, after }) => (
@@ -122,7 +148,7 @@ function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boo
             boxShadow: '0 4px 16px rgba(37,99,235,0.45)',
           }}
         >
-          Entendido
+          Got it
         </button>
       </div>
     </div>
@@ -190,10 +216,10 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   // iOS never has beforeinstallprompt — always show inline instruction, no install button
   const isIos    = platform === 'ios';
   const subtitle = hasPrompt
-    ? 'Acceso rápido desde tu pantalla de inicio'
+    ? 'Quick access from your home screen'
     : isIos
-      ? 'Toca ⎙ → "Agregar a pantalla de inicio"'
-      : 'Un toque para instalar en tu dispositivo';
+      ? 'Tap ⎙ → "Add to Home Screen"'
+      : 'One tap to install it on your phone';
 
   return (
     <>
@@ -228,7 +254,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 12.5, fontWeight: 600, color: '#BFDBFE', margin: 0, letterSpacing: '0.01em', lineHeight: 1.25 }}>
-                Instalar {getAppName()}
+                Install {getAppName()}
               </p>
               <p style={{ fontSize: 10.5, color: '#8B95B5', margin: '2px 0 0', lineHeight: 1.35 }}>
                 {subtitle}
@@ -247,13 +273,13 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
                   flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.40)',
                 }}
               >
-                Instalar App
+                Install app
               </button>
             )}
 
             <button
               onClick={handleDismiss}
-              aria-label="Cerrar"
+              aria-label="Close"
               style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}
             >
               ✕

@@ -190,7 +190,13 @@ export function SentinelBox({ configurado, casoEjemplo }: {
         <div
           role="complementary"
           aria-label="Sentinel"
-          className="fixed right-0 top-0 bottom-0 z-40 w-full sm:w-[440px] bg-bg-1 shadow-2xl flex flex-col"
+          /* `pb-16` en móvil: la barra inferior de navegación es `fixed bottom-0
+             z-40` igual que este cajón, y se monta después (`admin-shell.tsx`),
+             así que sin el aire al pie tapaba los 64px de abajo — justo el pie
+             con las fuentes, los tokens y el aviso de alcance. Se le deja el
+             aire en vez de portalearlo por lo de arriba: el cajón no es modal, y
+             tragarse la navegación sería peor. */
+          className="fixed right-0 top-0 bottom-0 z-40 w-full sm:w-[440px] pb-16 md:pb-0 bg-bg-1 shadow-2xl flex flex-col"
         >
           <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border shrink-0">
             <Sparkles className="w-3.5 h-3.5 text-brand-text" />

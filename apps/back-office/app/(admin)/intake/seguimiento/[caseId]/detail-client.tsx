@@ -603,10 +603,16 @@ export function SeguimientoDetailClient() {
 
       </div>
 
-      {/* ── Quick Actions Bar (fixed bottom) ────────────────────────────── */}
+      {/* ── Quick Actions Bar (fixed bottom) ────────────────────────────────
+          En móvil se apoya SOBRE la barra inferior de navegación (64px), no
+          debajo: las dos son `fixed bottom-0 z-40` y el nav se monta después
+          (`admin-shell.tsx:119` vs `main` en :117), así que con `bottom-0` el
+          nav ganaba y se comía la barra entera —medido: la barra ocupaba
+          640→695 y el nav 630→695, y el toque sobre "Llamar bufete" caía en una
+          etiqueta del nav—. Desde md: no hay barra inferior y vuelve al piso. */}
       {!activeAction && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-bg-0/95 backdrop-blur-sm px-4 sm:px-6 py-3"
+          className="fixed bottom-16 md:bottom-0 left-0 md:left-[var(--pm-shell-left,240px)] right-0 z-40 border-t border-border bg-bg-0/95 backdrop-blur-sm px-4 sm:px-6 py-3 transition-[left] duration-300"
           style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
         >
           <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">

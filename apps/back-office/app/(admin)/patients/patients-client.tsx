@@ -2202,13 +2202,23 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[980px] table-fixed text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        {/* El `min-w` arranca en sm: abajo de ese breakpoint las 6 columnas del
+            medio son `hidden`, así que solo quedan Paciente y Acciones —y
+            forzar 980px para dos columnas hacía que Paciente midiera 674px y
+            que Acciones, que es sticky a la derecha, se pintara ENCIMA del
+            nombre (668px de superposición, medidos a 388px), más 668px de
+            paneo hacia un medio vacío. Con `w-full` las dos entran sin scroll. */}
+        <table className={`w-full sm:min-w-[980px] table-fixed text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               {/* Anchos parejos a proposito: las 3 columnas de texto miden lo
                   mismo (220px) y las 5 compactas comparten 100px, asi la tabla
                   se lee cuadrada en vez de con saltos de 56px a 200px. */}
-              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-[220px]">{t('colPatient')}</th>
+              {/* Sin ancho fijo abajo de sm: ahí las 6 del medio están `hidden` y
+                  220 + 100 de Acciones dan 320 contra un contenedor de 310, así
+                  que Acciones —sticky y opaca— se comía los últimos 10px del
+                  nombre. En auto, table-fixed le da lo que sobra. */}
+              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted sm:w-[220px]">{t('colPatient')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[220px]">{t('colContact')}</th>
               <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell w-[100px]">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[100px]">{t('colStatus')}</th>

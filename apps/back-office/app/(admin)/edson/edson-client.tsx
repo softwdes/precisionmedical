@@ -39,6 +39,26 @@ import { DatePicker } from '@/components/ui-phoenix/date-picker';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
+// ─── Escalera de columnas ────────────────────────────────────────────────────
+//
+// Son 13 columnas: a 386px eso daba 2.128px de contenido en un contenedor de
+// 355px, o sea SEIS pantallas de paneo, y ahí viven los datos que el escritorio
+// trabaja. En vez de rediseñar a tarjetas se esconden por breakpoint, que es el
+// patrón que ya usa la lista de Pacientes.
+//
+// En un teléfono quedan Paciente (fija), **Abogado** y Acciones (fija). Abogado
+// es la que sobrevive porque es la primera editable y la que define si el caso
+// tiene representación: sin abogado, las otras cinco no se pueden completar
+// (decisión de Erick, 2026-09-09). Después entran las editables por urgencia y
+// al final el contexto que solo se lee.
+//
+// La cabecera y la celda TIENEN que llevar la misma constante o la tabla se
+// desalinea — por eso son constantes y no clases sueltas en cada lugar.
+const COL_SM = 'hidden sm:table-cell';   // Claim # · PIP · Listo
+const COL_MD = 'hidden md:table-cell';   // Quiropráctico/Referido · Aseguradora
+const COL_LG = 'hidden lg:table-cell';   // Hora·Clínica · Provider · Fecha del accidente
+const COL_XL = 'hidden xl:table-cell';   // Ajustador · Observaciones · Archivado
+
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface Row {
@@ -516,11 +536,11 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
         <DataTable.Table gridLines className="text-[8px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
-              <DataTable.Th>{t('colTime')}</DataTable.Th>
-              <DataTable.Th>{t('colProvider')}</DataTable.Th>
-              <DataTable.Th>{t('colLossDate')}</DataTable.Th>
+              <DataTable.Th className={COL_LG}>{t('colTime')}</DataTable.Th>
+              <DataTable.Th className={COL_LG}>{t('colProvider')}</DataTable.Th>
+              <DataTable.Th className={COL_LG}>{t('colLossDate')}</DataTable.Th>
               <DataTable.Th>{t('colAttorney')}</DataTable.Th>
-              <DataTable.Th>
+              <DataTable.Th className={COL_MD}>
                 {/*
                   * Rotulo corto: el completo son 23 caracteres y partia el
                   * encabezado en dos lineas, subiendo el alto de toda la fila.
@@ -530,13 +550,13 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                   {t('colChiropractor')}
                 </span>
               </DataTable.Th>
-              <DataTable.Th>{t('colCarrier')}</DataTable.Th>
-              <DataTable.Th>{t('colClaim')}</DataTable.Th>
-              <DataTable.Th align="center">{t('colPip')}</DataTable.Th>
-              <DataTable.Th>{t('colAdjuster')}</DataTable.Th>
-              <DataTable.Th>{t('colObservations')}</DataTable.Th>
-              <DataTable.Th align="center">{t('colDone')}</DataTable.Th>
-              {archived && <DataTable.Th>{t('colArchivedAt')}</DataTable.Th>}
+              <DataTable.Th className={COL_MD}>{t('colCarrier')}</DataTable.Th>
+              <DataTable.Th className={COL_SM}>{t('colClaim')}</DataTable.Th>
+              <DataTable.Th align="center" className={COL_SM}>{t('colPip')}</DataTable.Th>
+              <DataTable.Th className={COL_XL}>{t('colAdjuster')}</DataTable.Th>
+              <DataTable.Th className={COL_XL}>{t('colObservations')}</DataTable.Th>
+              <DataTable.Th align="center" className={COL_SM}>{t('colDone')}</DataTable.Th>
+              {archived && <DataTable.Th className={COL_XL}>{t('colArchivedAt')}</DataTable.Th>}
               <DataTable.Th align="right" sticky="right">{tc('actions')}</DataTable.Th>
             </DataTable.Head>
             <tbody>
@@ -601,16 +621,24 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               * fila. Con las 13 columnas ya entrando sin scroll
                               * horizontal, el ancho es lo que sobra y el alto lo
                               * que falta: se paga una cosa con la otra.
+                              *
+                              * En un TELEFONO ese trato se da vuelta —ahí el ancho
+                              * es lo escaso y el alto es gratis porque ya scrolleás
+                              * en vertical—, así que abajo de sm vuelven a apilarse.
+                              * El span de abajo era `whitespace-nowrap shrink-0`, o
+                              * sea que NUNCA se encogía: fijaba el ancho mínimo de
+                              * la columna en 375px y, con Acciones fija a la
+                              * derecha, esta se pintaba 103px ENCIMA del nombre.
                               */}
                             <div className="min-w-0">
-                            <div className="flex items-baseline gap-1.5 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1.5 min-w-0">
                               <span
                                 className="text-text-1 font-semibold truncate"
                                 style={{ textDecoration: vis.strike ? 'line-through' : undefined }}
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
-                              <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono shrink-0">
+                              <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono sm:shrink-0">
                                 {fechaCalendarioNum(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
                               </span>
                             </div>
@@ -633,7 +661,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             </div>
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_LG}>
                           <div className="flex items-baseline gap-1.5 whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
@@ -647,7 +675,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_LG}>
                           {/*
                             * "Creada por" baja como segunda linea del provider en
                             * vez de ocupar columna propia. Mismo recurso que ya
@@ -673,7 +701,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             </span>
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_LG}>
                           {archived ? (
                             <span className="text-text-2 whitespace-nowrap">
                               {row.lossDate ? fechaCalendarioNum(row.lossDate) : <Empty />}
@@ -758,7 +786,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_MD}>
                           {/*
                             * Se guarda en `case_tracking`, NO en el JSON del
                             * formulario: la respuesta firmada del paciente no se
@@ -778,7 +806,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           />
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_MD}>
                           <InlineCombo
                             value={row.carrierName}
                             options={carriers.map(c => ({ id: c.id, name: c.name }))}
@@ -792,7 +820,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           />
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_SM}>
                           <InlineText
                             value={row.claimNum}
                             mono
@@ -801,10 +829,10 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             onSave={next => saveCell(row.caseId, { claimNum: next }, { claimNum: next })}
                           />
                         </DataTable.Td>
-                        <DataTable.Td align="center">
+                        <DataTable.Td className={COL_SM} align="center">
                           <PipChip row={row} readOnly={archived} onCycle={() => void cyclePip(row)} />
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_XL}>
                           <div className="relative">
                             <button
                               type="button"
@@ -845,7 +873,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td>
+                        <DataTable.Td className={COL_XL}>
                           <div className="relative">
                             <NoteCell row={row} onOpen={() => setNoteFor(row.caseId)} />
                             {noteFor === row.caseId && (
@@ -860,7 +888,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                           </div>
                         </DataTable.Td>
-                        <DataTable.Td align="center">
+                        <DataTable.Td className={COL_SM} align="center">
                           {archived ? (
                             done
                               ? <Check className="w-3.5 h-3.5 text-emerald inline" strokeWidth={3} />
@@ -880,7 +908,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           )}
                         </DataTable.Td>
                         {archived && (
-                          <DataTable.Td>
+                          <DataTable.Td className={COL_XL}>
                             <span className="text-text-muted text-[9.5px] whitespace-nowrap">
                               {row.archivedAt ? fmtDate(row.archivedAt) : <Empty />}
                             </span>

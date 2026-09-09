@@ -48,7 +48,15 @@ const DialogContent = React.forwardRef<
       aria-describedby={undefined}
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-surface p-6 shadow-xl duration-200 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
+        // `calc(100%-2rem)` y no `w-full`: con `w-full` el diálogo mide EXACTO
+        // el ancho de la pantalla en móvil (medido a 386px: left 0, ancho 386),
+        // así que el borde y las esquinas redondeadas quedan contra el filo y no
+        // queda aire para agarrar el fondo. `max-w-lg` sigue mandando en
+        // escritorio, donde 100%-2rem nunca ata.
+        // OJO: el padding queda en `p-6` a propósito. 68 consumidores pasan
+        // `p-0`, y bajo twMerge un `p-0` NO anula un `sm:p-6` (son grupos
+        // distintos): responsivizar el padding acá los rompería a todos.
+        'fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-surface p-6 shadow-xl duration-200 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
         className,
       )}
       {...props}

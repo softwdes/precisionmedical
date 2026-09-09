@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { BootAnimation } from './boot-animation';
@@ -98,7 +98,16 @@ export function AdminShell({
             />
           )}
 
-          <div className={collapsed ? 'md:ml-[60px] flex flex-col min-h-screen transition-all duration-300' : 'md:ml-[240px] flex flex-col min-h-screen transition-all duration-300'}>
+          {/* `--pm-shell-left` publica cuánto ocupa el sidebar para que una barra
+              `fixed` de una pantalla pueda esquivarlo. Un `fixed` no hereda el
+              `ml` de este wrapper, así que sin esto arranca en x=0 y el menú le
+              tapa los primeros 240px (medido en la barra de acciones de
+              Seguimiento). Va como variable y no como número en duro porque el
+              sidebar se colapsa a 60px. */}
+          <div
+            style={{ '--pm-shell-left': collapsed ? '60px' : '240px' } as CSSProperties}
+            className={collapsed ? 'md:ml-[60px] flex flex-col min-h-screen transition-all duration-300' : 'md:ml-[240px] flex flex-col min-h-screen transition-all duration-300'}
+          >
             <Topbar
               userName={userName}
               userRole={userRole}

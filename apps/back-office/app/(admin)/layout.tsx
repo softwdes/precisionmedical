@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { canSeeFirmRequests } from '@/lib/firm-requests-access';
+import { getSessionUser } from '@/lib/session';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
@@ -28,9 +28,29 @@ function initials(first: string, last: string): string {
 }
 
 export default async function AdminLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
-  // Obtener usuario autenticado
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  /**
+   * El usuario, por el helper MEMOIZADO — no con un cliente propio.
+   *
+   * Acá había un `createServerClient()` + `supabase.auth.getUser()` sueltos, y
+   * eso es un viaje de red de ~180 ms que NO se comparte con nadie: `cache()`
+   * memoriza por identidad de función, así que la llamada de este layout y la de
+   * `getSessionUser()` que hace la página eran dos viajes distintos para resolver
+   * el mismo usuario.
+   *
+   * Lo irónico es que el docblock de `lib/session.ts` documenta exactamente este
+   * error como ya corregido —«el layout, la página y cada helper que la llamaba
+   * por su cuenta pagaban ese viaje de nuevo; un render de /doctor hacía 5
+   * llamadas»— y este layout se había quedado afuera del arreglo.
+   *
+   * Cuánto se gana: el layout NO se re-ejecuta en una navegación de cliente, así
+   * que esto no toca el clic de un menú. Lo que sí paga es **cada carga completa
+   * y cada `router.refresh()`**, y de esos hay 84 en el back-office — uno por
+   * cada guardado de diálogo en Pacientes, Mi Día y el Resumen de visita.
+   *
+   * `canSeeFirmRequests()` de más abajo ya usa el mismo helper, así que ahora las
+   * dos resoluciones del layout comparten un solo viaje.
+   */
+  const user = await getSessionUser();
 
   if (!user) redirect('/login');
 
@@ -44,13 +64,31 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // es "se ve salvo false" y un mapa nulo significa "ve todo", regla que no puede
   // regalar la suplantación de un médico. Acá solo cuenta el sí explícito.
 
+  /**
+   * La ficha del usuario y el permiso de "Pedidos de bufetes", EN PARALELO.
+   *
+   * Eran dos `await` en fila y son independientes: uno lee `users` por correo y
+   * el otro resuelve una casilla. Encadenados, el layout sumaba las dos latencias
+   * en cada carga completa. Es el mismo `Promise.all` que ya usan los layouts de
+   * `/doctor` y `/attorney` — este era el único que iba de a uno.
+   *
+   * `fetchUserClinicModules` NO entra acá: depende del `role` que devuelve la
+   * primera consulta, así que su turno es después y no hay nada que ganar.
+   */
+  let puedeVerPedidos = false;
+
   try {
     const admin = createAdminClient();
-    const { data } = await admin
-      .from('users')
-      .select('firstName, lastName, role')
-      .eq('email', user.email ?? '')
-      .single();
+    const [fichaRes, verPedidos] = await Promise.all([
+      admin
+        .from('users')
+        .select('firstName, lastName, role')
+        .eq('email', user.email ?? '')
+        .single(),
+      canSeeFirmRequests(),
+    ]);
+    const { data } = fichaRes;
+    puedeVerPedidos = verPedidos;
 
     if (data) {
       userName  = `${data.firstName} ${data.lastName}`.trim();
@@ -63,12 +101,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       }
     }
   } catch {
-    // fallback: inicial del email
+    /**
+     * Fallback: la inicial del correo, y `puedeVerPedidos` en false.
+     *
+     * ⚠️ Esto cambió de significado al juntar las dos consultas: antes el permiso
+     * de "Pedidos de bufetes" se resolvía FUERA del `try`, así que sobrevivía a un
+     * fallo de la consulta de `users`. Ahora comparte el `catch`, y si la ficha
+     * falla el menú desaparece. Es lo correcto para un menú OPT-IN —ante la duda,
+     * no se muestra— pero es un cambio de comportamiento, no un refactor puro.
+     */
   }
-
-  // "Pedidos de bufetes" es un menú OPT-IN (como Notas clínicas): admin por rol,
-  // el resto por la casilla en su ficha. Va aparte de `allowedModules`.
-  const puedeVerPedidos = await canSeeFirmRequests();
 
   return (
     <>

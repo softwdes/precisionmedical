@@ -1,7 +1,22 @@
 /**
  * Admin · Catálogo de precios (labs · inyectables y servicios · férulas)
  *
- * Punto de mantenimiento canónico. Reemplaza el Excel "LabCorp Lab Pricing".
+ * Reemplaza el Excel "LabCorp Lab Pricing".
+ *
+ * ─── Esta ruta NO es la puerta de entrada, y aun así se queda ───────────────
+ *
+ * Hasta el 2026-09-09 no estaba enlazada desde ningún lado —ni menú, ni
+ * Configuración, ni un link— así que solo llegaba quien se sabía la URL: el
+ * staff del back-office terminaba mirando los precios desde el portal del
+ * provider. Ahora la puerta visible es Configuración → "Labs y precios".
+ *
+ * Se deja viva a propósito: los tabs de Configuración son estado interno y no
+ * tienen dirección propia, así que ésta es la ÚNICA URL enlazable del catálogo
+ * — la que se pega en un mensaje o se guarda en favoritos.
+ *
+ * El tab hace lo mismo que esta página pero contra `GET /api/admin/catalog`,
+ * porque allá se carga bajo demanda. Ver el comentario largo en
+ * `app/doctor/settings/labs/page.tsx`, que lista los tres puntos de montaje.
  */
 
 import type { Metadata } from 'next';

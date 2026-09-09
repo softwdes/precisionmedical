@@ -1,7 +1,9 @@
 /**
  * Catálogo de precios — CRUD
  *
- * GET    /api/admin/catalog            → todos los ítems (labs · inyectables · servicios · férulas)
+ * GET    /api/admin/catalog            → { items, services, canEdit } — todo lo que
+ *                                        necesita `CatalogClient` para montarse
+ *                                        sin server component detrás
  * POST   /api/admin/catalog            → crear
  * PATCH  /api/admin/catalog            → editar (body.id requerido)
  * DELETE /api/admin/catalog?id=...     → soft delete
@@ -17,7 +19,9 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
-import { listCatalog, findCatalogItem, canEditCatalogFor } from '@/lib/catalog';
+import {
+  listCatalog, findCatalogItem, canEditCatalogFor, listInsuranceServices, serializeCatalog,
+} from '@/lib/catalog';
 
 const ItemSchema = z.object({
   id: z.number().int().optional(),
@@ -86,12 +90,37 @@ function parseBody(raw: unknown): ItemInput | NextResponse {
   }
 }
 
+/**
+ * Todo el catálogo, listo para montar `CatalogClient` desde el cliente.
+ *
+ * Devuelve las TRES cosas que hasta ahora armaba cada server component
+ * (`/admin/catalog` y `/doctor/settings/labs`): los ítems, los servicios con
+ * código de seguro y si esta persona puede editar. Existe así porque el tab de
+ * Labs de Configuración se carga BAJO DEMANDA: son ~670 ítems más ~390
+ * servicios, y traerlos en el server de `/settings` se los cobraría a todos los
+ * que entran a mirar Clínicas.
+ *
+ * `serializeCatalog` no es decorativo acá tampoco: `priceVerifiedAt` es un Date
+ * y el cliente espera el ISO, igual que en las dos páginas.
+ *
+ * Leer el catálogo lo puede cualquier sesión —el doctor consulta precios al
+ * ordenar—; ESCRIBIR lo gobierna `requireEditor()` en POST/PATCH/DELETE, y
+ * `canEdit` acá es el mismo criterio para no ofrecer un botón que el server
+ * después niega.
+ */
 export async function GET(): Promise<NextResponse> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-  return NextResponse.json({ items: await listCatalog() });
+  const email = user.email ?? null;
+  const [items, services, canEdit] = await Promise.all([
+    listCatalog(),
+    listInsuranceServices(),
+    (async () => canEditCatalogFor(email, email ? await fetchDbRole(email) : null))(),
+  ]);
+
+  return NextResponse.json({ items: serializeCatalog(items), services, canEdit });
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

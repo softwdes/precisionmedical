@@ -3,5 +3,11 @@
   "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/web && (pnpm --filter=@precision-medical/database release:notes -- --app web || true)",
   "installCommand": "cd ../.. && pnpm install",
   "outputDirectory": ".next",
-  "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/web"
+  "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/web",
+  "crons": [
+    {
+      "path": "/api/cron/auditoria",
+      "schedule": "30 13,14 * * *"
+    }
+  ]
 }

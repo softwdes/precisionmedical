@@ -104,6 +104,56 @@ export function claveDia(iso: string | Date): string {
   }).format(new Date(iso));
 }
 
+/** Un día en milisegundos. */
+export const DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Rango `[inicio, fin)` de un día en la zona de la clínica, consciente de DST.
+ *
+ * Vive acá y no en la pantalla que lo usa porque **el conteo tiene que ser el
+ * mismo en todos lados**: el portal del provider muestra "hoy tenés N
+ * pacientes" y el parte de la mañana se lo manda al teléfono. Con dos copias de
+ * este cálculo, el día que alguien toque una, los dos números dejan de coincidir
+ * y nadie sabe cuál creer.
+ *
+ * El offset se toma del MEDIODÍA UTC del día pedido, no de "ahora": en los dos
+ * domingos del año en que cambia la hora, el offset de la medianoche es ambiguo
+ * y el del mediodía no.
+ *
+ * @param clave `YYYY-MM-DD` del día deseado (por defecto, hoy en la clínica)
+ */
+export function rangoDelDia(clave?: string): { start: Date; end: Date; key: string } {
+  const key = clave ?? claveDia(new Date());
+  const sonda = new Date(`${key}T12:00:00Z`);
+  const parte = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA_CLINICA, timeZoneName: 'shortOffset',
+  })
+    .formatToParts(sonda)
+    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-6';
+  const m = /GMT([+-]\d+)/.exec(parte);
+  const horas = m?.[1] ? parseInt(m[1], 10) : -6;
+  const hh = String(Math.abs(horas)).padStart(2, '0');
+  const start = new Date(`${key}T00:00:00${horas <= 0 ? '-' : '+'}${hh}:00`);
+  return { start, end: new Date(start.getTime() + DIA_MS), key };
+}
+
+/**
+ * La HORA local de la clínica (0-23) en un instante dado.
+ *
+ * La usa el cron del parte de la mañana: los crons de Vercel corren en UTC, así
+ * que el mismo horario UTC cae a distinta hora local según el DST. En vez de
+ * elegir un UTC y que se corra una hora dos veces al año, el cron se dispara en
+ * los dos horarios posibles y la ruta pregunta acá si de verdad es la hora.
+ */
+export function horaLocalClinica(cuando: Date = new Date()): number {
+  return parseInt(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: ZONA_CLINICA, hour: '2-digit', hour12: false,
+    }).format(cuando),
+    10,
+  );
+}
+
 // ─── Fechas de CALENDARIO (sin zona) ─────────────────────────────────────────
 
 /**

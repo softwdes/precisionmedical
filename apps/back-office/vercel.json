@@ -3,5 +3,15 @@
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "framework": "nextjs",
-  "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/back-office"
+  "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/back-office",
+  "crons": [
+    {
+      "path": "/api/cron/parte-manana",
+      "schedule": "30 13,14 * * *"
+    },
+    {
+      "path": "/api/cron/alertas-admin",
+      "schedule": "45 13,14 * * *"
+    }
+  ]
 }

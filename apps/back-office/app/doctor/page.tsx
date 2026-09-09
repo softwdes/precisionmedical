@@ -12,6 +12,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
 import { MyDayClient, type MyDayAppointment } from './my-day-client';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,27 +20,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('myDay') };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const dayKeyOf = (d: Date): string =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-
 /**
- * Rango [inicio, fin) de un día en America/Denver, DST-aware.
- * @param dayKey YYYY-MM-DD del día deseado (default: hoy en Denver)
+ * El rango del día y la clave de día viven en `lib/fechas` (`rangoDelDia`,
+ * `claveDia`). Estaban duplicados acá —y `dayKeyOf` era una copia exacta de
+ * `claveDia`, que ya existía— hasta que el parte de la mañana necesitó el mismo
+ * cálculo: dos copias del rango son dos conteos que se separan el día que
+ * alguien toque una sola.
  */
-function denverDayRange(dayKey?: string): { start: Date; end: Date; key: string } {
-  const key = dayKey ?? dayKeyOf(new Date());
-  // Offset vigente EN ESE DÍA (mediodía UTC de ese día evita ambigüedad de DST)
-  const probe = new Date(`${key}T12:00:00Z`);
-  const offsetPart = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', timeZoneName: 'shortOffset' })
-    .formatToParts(probe)
-    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-6';
-  const m = /GMT([+-]\d+)/.exec(offsetPart);
-  const hours = m?.[1] ? parseInt(m[1], 10) : -6;
-  const hh = String(Math.abs(hours)).padStart(2, '0');
-  const start = new Date(`${key}T00:00:00${hours <= 0 ? '-' : '+'}${hh}:00`);
-  return { start, end: new Date(start.getTime() + DAY_MS), key };
-}
 
 export default async function DoctorMyDayPage({
   searchParams,
@@ -52,10 +39,10 @@ export default async function DoctorMyDayPage({
   const { date: dateParam } = await searchParams;
   const requested = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
 
-  const { start, end, key: dateKey } = denverDayRange(requested);
-  const todayKey = dayKeyOf(new Date());
-  const prevDate = dayKeyOf(new Date(start.getTime() - DAY_MS / 2));
-  const nextDate = dayKeyOf(new Date(end.getTime() + DAY_MS / 2));
+  const { start, end, key: dateKey } = rangoDelDia(requested);
+  const todayKey = claveDia(new Date());
+  const prevDate = claveDia(new Date(start.getTime() - DIA_MS / 2));
+  const nextDate = claveDia(new Date(end.getTime() + DIA_MS / 2));
 
   // Las tres en paralelo: cada round-trip a la base cuesta ~150 ms, no vale
   // encadenarlas (`doctorDoneAt` va en SQL directo, ver nota más abajo).

@@ -30,6 +30,7 @@ import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import {
   ScriptSureWidgetDialog, launchRefill, type WidgetKind, type WidgetStatus,
 } from './scriptsure-widget-dialog';
+import { DrugHistoryConsentDialog } from './drug-history-consent-dialog';
 
 type Status = WidgetStatus;
 
@@ -128,6 +129,8 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
   const [syncing, setSyncing] = React.useState(false);
   const [refillingId, setRefillingId] = React.useState<string | null>(null);
   const [errorDetail, setErrorDetail] = React.useState<string | null>(null);
+  /** Widget que quedó esperando el consentimiento del paciente (428). */
+  const [consentPara, setConsentPara] = React.useState<WidgetKind | null>(null);
 
   const loadPrescriptions = React.useCallback(async () => {
     try {
@@ -153,6 +156,14 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
       // equivocado.
       if (res.status === 403) { setStatus('forbidden'); return; }
       if (res.status === 409) { setStatus('not_onboarded'); return; }
+      // 428 = falta el permiso del paciente para consultar la red de farmacias.
+      // No es un error: se cierra el modal grande y se ofrece registrarlo, que
+      // es la acción que destraba esto. Al confirmar se reintenta solo.
+      if (res.status === 428) {
+        setActive(null);
+        setConsentPara(widget);
+        return;
+      }
       if (res.status === 422) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         setStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob' : 'missing_address');
@@ -362,6 +373,19 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
         url={url}
         errorDetail={errorDetail}
         onClose={closeWidget}
+      />
+
+      {/* Permiso del paciente para el historial de farmacia. Al confirmarlo se
+          reintenta el widget que lo pidió, sin que haya que volver a buscarlo. */}
+      <DrugHistoryConsentDialog
+        open={!!consentPara}
+        appointmentId={appointmentId}
+        onCancel={() => setConsentPara(null)}
+        onGranted={() => {
+          const widget = consentPara;
+          setConsentPara(null);
+          if (widget) void openWidget(widget);
+        }}
       />
     </div>
   );

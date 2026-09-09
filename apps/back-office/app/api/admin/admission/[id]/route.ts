@@ -8,7 +8,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
-import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
+import { buildPatientContextConRecetas, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 
 export async function GET(
   _req: NextRequest,
@@ -143,7 +143,7 @@ export async function GET(
         // Panel de contexto clínico del paso 3 — el MISMO que ve el doctor en su
         // consulta, armado por el helper compartido (Erick, 2026-08-13: "el
         // asistente debe ver lo mismo que el doctor").
-        patientContext: buildPatientContext(appt.patient, c ?? null),
+        patientContext: await buildPatientContextConRecetas(appt.patient, c ?? null),
         provider: appt.provider ? {
           id:        appt.provider.id,
           firstName: appt.provider.firstName,

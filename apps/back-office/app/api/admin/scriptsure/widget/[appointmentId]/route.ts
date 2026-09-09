@@ -48,6 +48,7 @@ export async function GET(
           id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true,
           addressLine1: true, addressCity: true, addressState: true, addressZip: true,
           phone: true, phone2: true, scriptsurePatientId: true,
+          consentToDrugHistory: true,
         },
       },
       provider: { select: { email: true, scriptsureUserId: true } },
@@ -63,6 +64,24 @@ export async function GET(
   }
   if (!appt.patient.dateOfBirth) {
     return NextResponse.json({ error: 'PATIENT_MISSING_DOB' }, { status: 422 });
+  }
+
+  /**
+   * El historial de farmacia sale de Surescripts y trae 12 meses de lo que el
+   * paciente retiró en CUALQUIER farmacia: es su medicación con otros médicos.
+   * ScriptSure exige su consentimiento y forma parte de la certificación, así
+   * que se corta acá y no se manda la consulta.
+   *
+   * 428 y no 422: no le falta un dato a la ficha del paciente, falta una acción
+   * que alguien tiene que hacer. El cliente ofrece registrarlo y reintenta.
+   *
+   * NO se pide además el NPI del prescriptor, aunque la descarga lo use: el que
+   * cuenta es el que ScriptSure tiene en la ficha del Provider (sin NPI no lo
+   * habrían dado de alta como prescriptor), y nuestra columna `Provider.npi`
+   * está vacía en la mayoría. Cortar por ella bloquearía un flujo que funciona.
+   */
+  if (widget === 'medicationdownload' && appt.patient.consentToDrugHistory !== true) {
+    return NextResponse.json({ error: 'CONSENT_REQUIRED' }, { status: 428 });
   }
 
   const loginEmail = appt.provider.email;

@@ -14,6 +14,7 @@
 
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderONull } from './provider-name';
+import { conDetalleDeReceta, type MedicationConDetalle } from './medication-details';
 
 // ─── El tipo que consume el panel ─────────────────────────────────────────────
 
@@ -45,10 +46,12 @@ export interface PatientContext {
   history: {
     allergies: string | null;
     problems: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
-    medications: Array<{
-      id?: string; name: string; dose?: string; instructions?: string; status: string;
-      prescribedBy?: string; externalPrescriber?: boolean;
-    }>;
+    /**
+     * Con el detalle de la receta pegado cuando la entrada salió de ScriptSure
+     * — lo arma `buildPatientContextConRecetas`. El builder sincrónico las deja
+     * como están en el JSON (sin `rx`), que es lo que ve quien no hace el join.
+     */
+    medications: MedicationConDetalle[];
     surgeries: Array<{ procedure: string; date?: string }>;
     familyHistory: Array<{ relation: string; condition: string }>;
     socialHistory: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string } | null;
@@ -175,5 +178,26 @@ export function buildPatientContext(
       familyHistory: mh.familyHistory ?? [],
       socialHistory: mh.socialHistory ?? null,
     },
+  };
+}
+
+/**
+ * El contexto con la dosis, las indicaciones, la cantidad, la farmacia y el
+ * estado de envío pegados a cada medicamento que salió de una receta
+ * electrónica.
+ *
+ * Es una capa aparte y no parte del builder porque el builder es sincrónico y
+ * puro (arma el payload con lo que ya se leyó); esto necesita una consulta más.
+ * Quien muestre la lista de medicamentos tiene que usar ESTA — si no, la
+ * pantalla queda con el nombre pelado, que es de donde venimos.
+ */
+export async function buildPatientContextConRecetas(
+  p: PatientContextInput,
+  c: PatientContextCaseInput | null,
+): Promise<PatientContext> {
+  const ctx = buildPatientContext(p, c);
+  return {
+    ...ctx,
+    history: { ...ctx.history, medications: await conDetalleDeReceta(p.id, ctx.history.medications) },
   };
 }

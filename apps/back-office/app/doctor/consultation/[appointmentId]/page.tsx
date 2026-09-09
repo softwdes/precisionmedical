@@ -14,7 +14,7 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
-import { buildPatientContext, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
+import { buildPatientContextConRecetas, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { llegadaMarcadaPorElProvider } from '@/lib/appointment-scope';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { ConsultationClient } from './consultation-client';
@@ -131,7 +131,7 @@ export default async function DoctorConsultationPage({
   // El armado vive en lib/patient-context.ts porque Day Admission muestra el
   // MISMO panel: dos copias de estas 40 líneas divergirían en la primera columna
   // que alguien agregue.
-  const patientContext = buildPatientContext(a.patient, a.case);
+  const patientContext = await buildPatientContextConRecetas(a.patient, a.case);
 
   const n = a.visitNote;
   const note = n

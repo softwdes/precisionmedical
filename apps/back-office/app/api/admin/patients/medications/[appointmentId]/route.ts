@@ -21,10 +21,27 @@ import { checkAppointmentAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
+/**
+ * `dose`, `quantity` e `instructions` son TEXTO LIBRE a propósito.
+ *
+ * Lo que receta esta clínica trae los datos estructurados de ScriptSure (con
+ * NDC, RxNorm y la presentación de First Databank). Esto es lo que el paciente
+ * refiere tomar: no tenemos catálogo de medicamentos propio ni forma de validar
+ * lo que dice, así que se guarda como lo dicta —"10 mg", "medio comprimido al
+ * acostarse"— en vez de forzarlo a un formato que no podemos garantizar.
+ *
+ * Y sigue sin pasar por el control de interacciones, que corre del lado de
+ * ScriptSure sobre los medicamentos que están ALLÁ. Por eso la pantalla las
+ * muestra marcadas: el detalle sirve para leerlo, no para confiar en que
+ * alguien lo revisó.
+ */
 const BodySchema = z.object({
   name: z.string().min(1).max(300),
   status: z.enum(['IN_USE', 'HISTORY']).default('IN_USE'),
   prescribedBy: z.string().max(300).nullable().optional(),
+  dose: z.string().max(120).nullable().optional(),
+  quantity: z.string().max(120).nullable().optional(),
+  instructions: z.string().max(500).nullable().optional(),
 });
 
 interface MedEntry {
@@ -33,6 +50,9 @@ interface MedEntry {
   status: 'IN_USE' | 'HISTORY';
   prescribedBy?: string;
   externalPrescriber?: boolean;
+  dose?: string;
+  quantity?: string;
+  instructions?: string;
 }
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
@@ -62,6 +82,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     status: body.status,
     externalPrescriber: true,
     ...(body.prescribedBy?.trim() ? { prescribedBy: body.prescribedBy.trim() } : {}),
+    ...(body.dose?.trim() ? { dose: body.dose.trim() } : {}),
+    ...(body.quantity?.trim() ? { quantity: body.quantity.trim() } : {}),
+    ...(body.instructions?.trim() ? { instructions: body.instructions.trim() } : {}),
   };
   const medications = [...(mh.medications ?? []), entry];
 
@@ -70,13 +93,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     data: { medicalHistory: { ...mh, medications } as object },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'ADD_EXTERNAL_MEDICATION',
     entityType: 'Patient',
     entityId: appt.patient.id,
     metadata: { name: entry.name, status: entry.status, addedBy: actor.name },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ medications }, { status: 201 });
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { conDetalleDeReceta } from '@/lib/medication-details';
 
 /**
  * GET /api/admin/cases/[id]/clinical
@@ -26,7 +27,7 @@ export async function GET(
     where: { id },
     // Cobertura: el picker de cargos la usa para ordenar los catálogos
     // (INSURANCE primero si hay seguro) — misma regla que Day Admission.
-    select: { patient: { select: { medicalHistory: true } }, ...COVERAGE_LIST_SELECT },
+    select: { patient: { select: { id: true, medicalHistory: true } }, ...COVERAGE_LIST_SELECT },
   });
   if (!caseRow) return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   const mh = (caseRow.patient.medicalHistory ?? {}) as {
@@ -142,7 +143,10 @@ export async function GET(
 
   return NextResponse.json({
     visits,
-    medications: mh.medications ?? [],
+    // Con la dosis, el sig, la cantidad, la farmacia y el estado del envío
+    // pegados — mismo helper que la consulta, para que el caso no muestre
+    // menos que el portal del provider por leer de otra ruta.
+    medications: await conDetalleDeReceta(caseRow.patient.id, mh.medications),
     latestAppointmentId: latestPast?.id ?? null,
     coverage: serializeCoverage(resolveCoverage(caseRow)),
   });

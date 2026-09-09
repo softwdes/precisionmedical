@@ -9,8 +9,18 @@
  * Qué recibe cada uno:
  *   · provider  → sus citas de hoy y la hora de la primera
  *   · clínica   → el total del día y cuántos llegan sin admisión firmada
- *   · abogado   → NADA. Decisión de Erick: "al abogado solo mensajería". No
- *                 tiene "pacientes del día" y un parte vacío es ruido.
+ *   · abogado   → sus casos frenados, los mismos que le muestra Vigía
+ *
+ * El del abogado no es "pacientes del día" —él no tiene agenda— sino la cola de
+ * atención de Vigía: los casos importantes que están atrasados. Erick lo definió
+ * el 2026-09-09, corrigiendo la decisión anterior de dejarlo sin parte: "solo
+ * ver los casos como muestra Vigía, los importantes que tienen que ver y están
+ * retrasados".
+ *
+ * Se reusa `colaDeAtencion()` tal cual, sin recalcular nada: si algún día
+ * cambia el criterio de "frenado" —los 21 días de meseta, los pesos— el aviso
+ * cambia con él. Una segunda versión del criterio sería un aviso que dice algo
+ * distinto de lo que muestra la pantalla.
  *
  * ── Por qué se dispara DOS veces y casi siempre no hace nada ────────────────
  *
@@ -33,6 +43,8 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { enviarAviso } from '@/lib/push';
 import { colaIntake } from '@/lib/cola-intake';
+import { colaDeAtencion, diasDeLaFila } from '@/lib/vigia/queue';
+import { lawyerPorEmail } from '@/lib/get-session-lawyer';
 import { rangoDelDia, horaLocalClinica, claveDia, ZONA_CLINICA } from '@/lib/fechas';
 
 export const runtime = 'nodejs';
@@ -44,8 +56,8 @@ const HORA_DEL_PARTE = 7;
 /** Roles que viven en el portal médico. */
 const ROLES_PROVIDER = ['DOCTOR', 'PROVIDER'];
 
-/** Roles que NO reciben parte (ver cabecera). */
-const ROLES_SIN_PARTE = ['LAWYER'];
+/** Roles del portal legal. */
+const ROLES_ABOGADO = ['LAWYER'];
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // Sin el secreto cualquiera puede disparar el parte y mandarle un aviso al
@@ -83,25 +95,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
    * `db.user.findFirst`). Consultar la otra dejaría ids sin match y el parte no
    * le llegaría a nadie, en silencio.
    */
+  // El email va porque el parte del abogado necesita su ficha de `lawyers`, y
+  // el puente entre la sesión y esa tabla es el correo (ver `get-session-lawyer`).
   const usuarios = await db.user.findMany({
     where: { id: { in: ids } },
-    select: { id: true, role: true },
+    select: { id: true, role: true, email: true },
   });
-  const rolPorUsuario = new Map<string, string>(usuarios.map((u) => [u.id, u.role]));
+  const porUsuario = new Map(usuarios.map((u) => [u.id, u]));
 
   /**
    * El parte de la clínica es el MISMO para todos, así que se calcula una vez
    * —no una por persona— y se manda a todos los del grupo de una sola llamada.
+   * Los de provider y abogado son individuales por definición.
    */
-  let parteClinica: { titulo: string; cuerpo: string } | null = null;
   const idsClinica: string[] = [];
   const providers: string[] = [];
+  const abogados: Array<{ id: string; email: string }> = [];
 
   for (const id of ids) {
-    const rol = rolPorUsuario.get(id) ?? '';
-    if (ROLES_SIN_PARTE.includes(rol)) continue;
+    const u = porUsuario.get(id);
+    const rol = u?.role ?? '';
     if (ROLES_PROVIDER.includes(rol)) providers.push(id);
-    else idsClinica.push(id);
+    else if (ROLES_ABOGADO.includes(rol)) {
+      // Sin correo no hay puente a su ficha: se saltea en vez de fallar.
+      if (u?.email) abogados.push({ id, email: u.email });
+    } else idsClinica.push(id);
   }
 
   let enviados = 0;
@@ -153,19 +171,53 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const cola = await colaIntake();
     if (cola.citasHoy > 0) {
       const sinFirmar = cola.filas.length;
-      parteClinica = {
+      await enviarAviso(idsClinica, {
         titulo: cola.citasHoy === 1 ? 'Hoy hay 1 cita' : `Hoy hay ${cola.citasHoy} citas`,
         cuerpo: sinFirmar > 0
           ? `${sinFirmar} llegan sin admisión firmada`
           : 'Todas con su admisión firmada',
-      };
-      await enviarAviso(idsClinica, {
-        ...parteClinica,
         url: '/dashboard',
         tag: `parte-${key}`,
       });
       enviados += idsClinica.length;
     }
+  }
+
+  // ── El parte del abogado: sus casos frenados ───────────────────────────────
+  //
+  // La cola de Vigía, sin recalcular el criterio. Va uno por uno porque cada
+  // abogado ve solo los casos de SU bufete (`colaDeAtencion` aplica el scope).
+  let abogadosAvisados = 0;
+  for (const ab of abogados) {
+    const lawyer = await lawyerPorEmail(ab.email);
+    // Sin ficha activa no entra al portal, así que tampoco recibe su parte.
+    if (!lawyer) continue;
+
+    const cola = await colaDeAtencion(lawyer);
+    if (cola.filas.length === 0) continue; // Nada frenado hoy: no se molesta.
+
+    /**
+     * El cuerpo lleva DÍAS, no identificadores.
+     *
+     * `FilaAtencion` trae `paciente` y `caseCode`, y ninguno de los dos entra
+     * acá: esto se dibuja en la pantalla de bloqueo, con gente al lado. El
+     * número de días alcanza para saber si hay que abrirlo ahora, y el detalle
+     * está a un toque — misma regla que el aviso de mensaje, que solo dice
+     * quién escribió.
+     */
+    const peor = cola.filas.reduce((a, b) => (diasDeLaFila(b) > diasDeLaFila(a) ? b : a));
+    const dias = diasDeLaFila(peor);
+
+    await enviarAviso([ab.id], {
+      titulo: cola.filas.length === 1
+        ? '1 caso necesita atención'
+        : `${cola.filas.length} casos necesitan atención`,
+      cuerpo: `El más atrasado, ${dias} ${dias === 1 ? 'día' : 'días'}`,
+      url: '/attorney/vigia',
+      tag: `parte-${key}`,
+    });
+    abogadosAvisados += 1;
+    enviados += 1;
   }
 
   return NextResponse.json({
@@ -174,6 +226,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     suscriptos: ids.length,
     providers: providers.length,
     clinica: idsClinica.length,
+    abogados: abogadosAvisados,
     enviados,
   });
 }

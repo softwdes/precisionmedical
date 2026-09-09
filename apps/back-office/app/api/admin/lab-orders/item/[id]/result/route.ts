@@ -104,13 +104,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'UPLOAD_LAB_RESULT',
     entityType: 'LabOrder',
     entityId: order.id,
     metadata: { studyName: order.studyName, fileName: updated.resultFileName, uploadedBy: actor.name },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ order: updated });
 }
@@ -143,13 +143,13 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     return NextResponse.json({ error: 'STORAGE_ERROR', message: (error ?? dl.error)?.message }, { status: 500 });
   }
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'VIEW_LAB_RESULT',
     entityType: 'LabOrder',
     entityId: id,
     metadata: { studyName: order.studyName },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ url: data.signedUrl, downloadUrl: dl.data.signedUrl, name: fileName });
 }

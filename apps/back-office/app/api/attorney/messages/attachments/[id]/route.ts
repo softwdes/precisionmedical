@@ -47,13 +47,13 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const firmado = await firmarAdjunto(id);
   if (!firmado.ok) return NextResponse.json({ error: firmado.error }, { status: firmado.status });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'VIEW_MESSAGE_ATTACHMENT',
     entityType: 'MessageThread',
     entityId: firmado.threadId,
     metadata: { attachmentId: firmado.attachmentId, fileName: firmado.name, comoBufete: lawyer.firmName ?? lawyer.id },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ url: firmado.url, downloadUrl: firmado.downloadUrl, name: firmado.name });
 }

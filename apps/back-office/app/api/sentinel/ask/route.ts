@@ -98,7 +98,7 @@ export async function POST(req: NextRequest): Promise<Response> {
          * traer un nombre de paciente — que es exactamente lo que hay que poder
          * auditar, porque el prompt le contesta que no busca por nombre.
          */
-        writeAuditLog(db, {
+        await writeAuditLog(db, {
           ...(await resolveActor(req.headers)),
           action: 'SENTINEL_ASK',
           entityType: 'users',
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             completa: !!final,
             ms: Date.now() - empezo,
           },
-        }).catch(() => undefined);
+        }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
       }
     },
   });

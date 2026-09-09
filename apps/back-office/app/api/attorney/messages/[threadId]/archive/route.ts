@@ -41,13 +41,13 @@ export async function POST(
   });
   if (r.count === 0) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: input.archived ? 'MESSAGE_ARCHIVED' : 'MESSAGE_UNARCHIVED',
     entityType: 'MessageThread',
     entityId: threadId,
     metadata: { comoBufete: lawyer.firmName ?? lawyer.id },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, archived: input.archived });
 }

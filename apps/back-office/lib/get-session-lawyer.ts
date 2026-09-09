@@ -118,7 +118,17 @@ export const canViewAsLawyer = cache(async (email: string): Promise<boolean> => 
   return modules?.[ATTORNEY_VIEW_MODULE] === true;
 });
 
-const getOwnLawyer = cache(async (email: string): Promise<SessionLawyer | null> => {
+/**
+ * La ficha de abogado de un correo, SIN pasar por la sesión.
+ *
+ * Se exporta porque el parte de la mañana (`/api/cron/parte-manana`) la necesita:
+ * ahí no hay sesión —lo dispara Vercel— y hay que armar el `SessionLawyer` de
+ * cada abogado suscripto para poder consultarle su cola de casos frenados.
+ *
+ * `getSessionLawyer` sigue siendo la puerta para las pantallas: aplica el
+ * selector de bufete y la cookie. Esta es solo la ficha propia.
+ */
+export const lawyerPorEmail = cache(async (email: string): Promise<SessionLawyer | null> => {
   const row = await db.lawyer.findFirst({
     where: {
       deletedAt: null,
@@ -151,5 +161,5 @@ export const getSessionLawyer = cache(async (): Promise<SessionLawyer | null> =>
   }
 
   // 2. Su propia ficha
-  return getOwnLawyer(user.email);
+  return lawyerPorEmail(user.email);
 });

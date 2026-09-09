@@ -56,13 +56,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     noDiagnoses: (appt.visitNote?.diagnoses.length ?? 0) === 0,
   };
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'CHECKOUT_APPOINTMENT',
     entityType: 'Appointment',
     entityId: id,
     metadata: { by: actor.name, role: actor.role, from: appt.status, ...pending },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, status: 'COMPLETED', pending });
 }
@@ -88,13 +88,13 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     data: { status: appt.checkedInAt ? 'IN_PROGRESS' : 'CHECKED_IN', checkedOutAt: null },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'REOPEN_APPOINTMENT',
     entityType: 'Appointment',
     entityId: id,
     metadata: { by: actor.name, role: actor.role },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, status: appt.checkedInAt ? 'IN_PROGRESS' : 'CHECKED_IN' });
 }

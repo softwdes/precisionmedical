@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   const actor = await resolveActor(req.headers);
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole:   actor.actorRole,
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     entityType:  'Case',
     entityId:    rec.id,
     metadata:    { photoType: foto.photoType },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ url: subida.url });
 }

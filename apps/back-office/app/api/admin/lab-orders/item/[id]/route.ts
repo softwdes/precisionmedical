@@ -79,13 +79,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     // Anular saca el estudio del pedido → su cobro se retira y el total baja.
     await syncLabBilling(current.appointmentId);
 
-    writeAuditLog(db, {
+    await writeAuditLog(db, {
       ...(await resolveActor(req.headers)),
       action: body.status === 'VOIDED' ? 'VOID_LAB_ORDER' : 'UPDATE_LAB_ORDER_STATUS',
       entityType: 'LabOrder',
       entityId: id,
       metadata: { studyName: current.studyName, from: current.status, to: body.status },
-    }).catch(() => undefined);
+    }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
   }
 
   return NextResponse.json({ order });

@@ -55,13 +55,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Mirar el inbox de otro queda auditado — es la cobertura de "quién leyó qué".
   if (targetUserId !== actor.actorUserId) {
-    writeAuditLog(db, {
+    await writeAuditLog(db, {
       ...(await resolveActor(req.headers)),
       action: 'MESSAGING_VIEWED_OTHER_INBOX',
       entityType: 'User',
       entityId: targetUserId,
       metadata: { viewerName: actor.actorName },
-    }).catch(() => undefined);
+    }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
   }
 
   const entradaAjena: Prisma.MessageEntryWhereInput = {
@@ -314,7 +314,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     select: { id: true },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'MESSAGE_THREAD_CREATED',
     entityType: 'MessageThread',
@@ -326,7 +326,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       to: toUsers.map((u) => u.name),
       cc: ccUsers.map((u) => u.name),
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   /**
    * Lo que se adjuntó pasa al expediente del caso — ver `messaging-documents`.
@@ -341,14 +341,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Si hay un abogado entre los destinatarios, se le avisa por correo (sin
   // PHI, con el link al hilo). Fire-and-forget: el mensaje ya está guardado.
-  void avisarAbogadosPorEmail({
-    threadId: thread.id,
-    userIds: [...toUsers, ...ccUsers].map((u) => u.id),
-    autorUserId: actor.actorUserId,
-    autorNombre: actor.actorName,
-    caseId,
-    patientId: raw.patientId || null,
-  }).catch((e) => { console.error('[messages] aviso al abogado:', e); });
+  // `after()` y no `void`: en serverless una promesa sin esperar se corta cuando
+  // la respuesta se devuelve, así que el correo salía ALGUNAS veces. Va acá y no
+  // con `await` porque mandar un mail no puede demorarle el envío a quien
+  // escribe — ver la nota larga en `[threadId]/entries/route.ts`.
+  after(async () => {
+    await avisarAbogadosPorEmail({
+      threadId: thread.id,
+      userIds: [...toUsers, ...ccUsers].map((u) => u.id),
+      autorUserId: actor.actorUserId,
+      autorNombre: actor.actorName,
+      caseId,
+      patientId: raw.patientId || null,
+    }).catch((e) => { console.error('[messages] aviso al abogado:', e); });
+  });
 
   /**
    * Y el staff en el teléfono, con la app cerrada. El autor no se avisa a sí

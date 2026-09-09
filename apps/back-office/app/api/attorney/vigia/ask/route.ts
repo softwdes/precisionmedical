@@ -82,7 +82,7 @@ export async function POST(req: NextRequest): Promise<Response> {
          * herramientas corrieron y cuánto costó. Si el abogado abandona a mitad,
          * `final` queda null y igual queda registro de que preguntó.
          */
-        writeAuditLog(db, {
+        await writeAuditLog(db, {
           ...(await resolveActor(req.headers)),
           action: 'VIGIA_ASK',
           entityType: 'lawyers',
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             completa: !!final,
             ms: Date.now() - empezo,
           },
-        }).catch(() => undefined);
+        }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
       }
     },
   });

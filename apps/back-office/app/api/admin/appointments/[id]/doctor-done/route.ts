@@ -42,13 +42,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     RETURNING "doctorDoneAt"
   `;
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'DOCTOR_DONE_WITH_PATIENT',
     entityType: 'Appointment',
     entityId: id,
     metadata: { doctorName: actor.name, noteStatus: note?.status ?? 'NONE' },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ doctorDoneAt: rows[0]?.doctorDoneAt ?? null });
 }
@@ -62,13 +62,13 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     UPDATE appointments SET "doctorDoneAt" = NULL, "updatedAt" = now() WHERE id = ${id}
   `;
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'DOCTOR_REOPEN_VISIT',
     entityType: 'Appointment',
     entityId: id,
     metadata: { doctorName: actor.name },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ doctorDoneAt: null });
 }

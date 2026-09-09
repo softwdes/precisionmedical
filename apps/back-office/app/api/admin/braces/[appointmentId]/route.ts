@@ -125,7 +125,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   // Cobro: la férula se paga completa, junto con los servicios de la visita.
   await syncBraceBilling(appointmentId);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'DISPENSE_BRACE',
     entityType: 'appointment_braces',
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       unitPrice: body.unitPrice,
       dispensedBy: actor.name,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ brace }, { status: 201 });
 }

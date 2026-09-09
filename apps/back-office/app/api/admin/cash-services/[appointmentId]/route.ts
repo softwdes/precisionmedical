@@ -107,7 +107,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   await syncCashServiceBilling(appointmentId);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'CHARGE_CASH_SERVICE',
     entityType: 'appointment_services',
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       unitPrice: body.unitPrice,
       chargedBy: actor.name,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json(
     { charge: { ...charge, unitPrice: Number(charge.unitPrice) } },

@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     }),
   ]);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'MESSAGE_DESK_UPDATED',
     entityType: 'MessageDesk',
@@ -89,7 +89,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       antes: antes.map((a) => a.user.email),
       despues: emails,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, escritorios: await escritoriosConMiembros() });
 }

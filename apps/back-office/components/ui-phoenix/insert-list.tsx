@@ -58,12 +58,27 @@ export interface InsertListProps<T extends InsertListItem> {
    * componente (el `sidePanel` del RichTextEditor), que ya pone el marco.
    */
   bare?: boolean;
+  /**
+   * Apaga TODO lo que aparezca al pasar el mouse por un ítem: la tarjeta y
+   * también el `title` nativo, que si no toma su lugar con otro globo.
+   *
+   * La usa la NOTA CLÍNICA: ahí la lista vive pegada al editor, y el globo del
+   * preview le tapaba justo el texto que el médico está escribiendo mientras
+   * recorre los snippets buscando cuál insertar (Erick, 2026-09-09). En la
+   * mensajería la lista está al costado y el globo no estorba, así que allá se
+   * queda.
+   *
+   * Va como opción y no se borra el `HoverPreview` porque el catálogo de
+   * Configuración también lo usa, y ahí ver el contenido sin abrir cada fila es
+   * el punto de la pantalla.
+   */
+  sinPreview?: boolean;
   className?: string;
 }
 
 export function InsertList<T extends InsertListItem>({
   items, onPick, header, searchPlaceholder, empty, noResults, loadingLabel, errorLabel,
-  error = false, maxHeight, bare = false, className = '',
+  error = false, maxHeight, bare = false, sinPreview = false, className = '',
 }: InsertListProps<T>): React.ReactElement {
   const [q, setQ] = React.useState('');
 
@@ -133,7 +148,10 @@ export function InsertList<T extends InsertListItem>({
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => onPick(it)}
                       // Con vista previa, el tooltip nativo sobra (y taparía la tarjeta).
-                      title={it.preview ? undefined : it.hint ?? undefined}
+                      // Con `sinPreview` tampoco va: apagar la tarjeta para no
+                      // estorbar y dejar que el globo del navegador ocupe su
+                      // lugar sería el mismo estorbo con otra cara.
+                      title={sinPreview || it.preview ? undefined : it.hint ?? undefined}
                       className="w-full text-left px-1 py-[3px] rounded text-[12px] text-violet-text hover:underline hover:bg-violet/10 flex items-center gap-1.5 transition-colors"
                     >
                       {it.favorite && <Star className="w-3 h-3 fill-amber text-amber shrink-0" />}
@@ -142,7 +160,7 @@ export function InsertList<T extends InsertListItem>({
                   );
                   return (
                     <li key={it.id}>
-                      {it.preview
+                      {it.preview && !sinPreview
                         ? <HoverPreview html={it.preview} title={it.title} className="w-full">{boton}</HoverPreview>
                         : boton}
                     </li>

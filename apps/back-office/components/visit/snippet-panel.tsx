@@ -85,8 +85,20 @@ export function SnippetPanel({ section, onPick, settingsHref, maxHeight, bare = 
     return () => { vivo = false; };
   }, [section]);
 
+  /**
+   * Sin `preview`: la nota NO le pasa el contenido a la lista.
+   *
+   * El globo al pasar el mouse molesta al provider mientras recorre los
+   * snippets buscando cuál insertar (Erick, 2026-09-09), y acá la lista vive
+   * pegada al editor, así que la tarjeta le tapa justo el texto que está
+   * escribiendo. No alcanzaba con apagarla por bandera: si el dato no se manda,
+   * no hay forma de que reaparezca por un prop mal pasado.
+   *
+   * El contenido se sigue viendo donde corresponde: el catálogo de
+   * Configuración → Snippets, que es la pantalla hecha para eso.
+   */
   const listItems = React.useMemo(
-    () => items?.map((s) => ({ ...s, hint: s.description ?? t('snpPanelHint'), favorite: s.isFavorite, preview: s.content })) ?? null,
+    () => items?.map((s) => ({ ...s, hint: s.description ?? t('snpPanelHint'), favorite: s.isFavorite })) ?? null,
     [items, t],
   );
 
@@ -102,6 +114,10 @@ export function SnippetPanel({ section, onPick, settingsHref, maxHeight, bare = 
       error={error}
       maxHeight={maxHeight}
       bare={bare}
+      // Cierra la otra puerta del mismo estorbo: sin esto, al no haber tarjeta
+      // el ítem cae al `title` nativo y el navegador dibuja SU globo al pasar el
+      // mouse. La descripción se sigue pudiendo buscar (va en `hint`).
+      sinPreview
       empty={
         <>
           <div>{t('snpPanelEmpty')}</div>

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   const actor = await resolveActor(req.headers);
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole:   actor.actorRole,
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     entityType:  'Case',
     entityId:    latestCase.id,
     metadata:    { photoType: foto.photoType, uploadedVia: 'patient-dialog', patientId },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ url: subida.url, caseId: latestCase.id });
 }
@@ -91,7 +91,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   borrarObjeto(urlPrevia); // best-effort
 
   const actor = await resolveActor(req.headers);
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole:   actor.actorRole,
@@ -99,7 +99,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     entityType:  'Case',
     entityId:    latestCase.id,
     metadata:    { photoType, patientId },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true });
 }

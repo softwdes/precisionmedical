@@ -212,7 +212,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
    * pasa poquísimas veces y cada vez importa.
    */
   if (enConsulta && takeover && !actorCita.isProviderOwner && note) {
-    writeAuditLog(db, {
+    await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
       actorRole: actor.actorRole,
@@ -229,7 +229,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           : null,
         sections: Object.keys(sections),
       },
-    }).catch(() => undefined);
+    }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
   }
 
   return NextResponse.json({ ok: true, note });

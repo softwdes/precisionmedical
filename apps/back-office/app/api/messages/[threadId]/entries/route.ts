@@ -111,7 +111,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     data: { lastReadAt: now },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: `MESSAGE_ENTRY_${kind}`,
     entityType: 'MessageThread',
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       subject: thread.subject,
       addedRecipients: [...newTo, ...newCc].map((u) => u.name),
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   // Los adjuntos de esta respuesta también pasan al expediente. La función es
   // idempotente (se salta los que ya tienen `patientDocumentId`), así que no
@@ -131,14 +131,29 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   // Los abogados del hilo (los de siempre y los que se sumaron) se enteran por
   // correo — es la respuesta a su pedido, y no viven en nuestro portal.
-  void avisarAbogadosPorEmail({
-    threadId,
-    userIds: [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)],
-    autorUserId: actor.actorUserId,
-    autorNombre: actor.actorName,
-    caseId: thread.caseId,
-    patientId: thread.patientId,
-  }).catch((e) => { console.error('[messages/entries] aviso al abogado:', e); });
+  /**
+   * `after()` y no `void`, por lo mismo que el aviso al celular de abajo: en
+   * serverless una promesa sin esperar se corta cuando la respuesta se
+   * devuelve, así que el correo al abogado salía **algunas veces** — y como
+   * nadie mira un correo que no llegó, llevaba meses así sin que se notara.
+   *
+   * Va con `after()` y no con `await` a propósito: acá el camino es CALIENTE
+   * —cada respuesta de cada hilo— y mandar un mail son cientos de
+   * milisegundos que el que escribe no tiene por qué esperar. En el referido
+   * (`lib/referidos/referidos-server.ts`), que ocurre una vez por conversión,
+   * se usa `await` porque ahí la latencia no se nota y `await` no depende del
+   * contexto de request.
+   */
+  after(async () => {
+    await avisarAbogadosPorEmail({
+      threadId,
+      userIds: [...existing, ...newTo.map((u) => u.id), ...newCc.map((u) => u.id)],
+      autorUserId: actor.actorUserId,
+      autorNombre: actor.actorName,
+      caseId: thread.caseId,
+      patientId: thread.patientId,
+    }).catch((e) => { console.error('[messages/entries] aviso al abogado:', e); });
+  });
 
   /**
    * Y el staff se entera en el teléfono, aunque tenga la app cerrada. El autor

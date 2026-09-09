@@ -196,7 +196,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: ORDER_SELECT,
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'CREATE_LAB_ORDER',
     entityType: 'Appointment',
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       enteredBy: actor.email,
       enteredByRole: actor.role,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ groupId, orders }, { status: 201 });
 }

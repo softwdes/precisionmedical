@@ -61,13 +61,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }),
   ]);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'MESSAGE_THREAD_SEALED',
     entityType: 'MessageThread',
     entityId: threadId,
     metadata: { subject: thread.subject, withNote: Boolean(note), sealedByName: actor.actorName },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ sealedAt: now });
 }

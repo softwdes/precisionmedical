@@ -84,7 +84,7 @@ export async function PATCH(
 
   await syncBraceBilling(brace.appointmentId);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: leavingDispensed ? 'VOID_BRACE' : 'UPDATE_BRACE',
     entityType: 'appointment_braces',
@@ -97,7 +97,7 @@ export async function PATCH(
       reason: body.voidReason ?? null,
       by: actor.name,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ brace: updated });
 }

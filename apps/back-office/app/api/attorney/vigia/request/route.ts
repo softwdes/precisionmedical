@@ -130,7 +130,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     select: { id: true },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'VIGIA_REQUEST_SENT',
     entityType: 'MessageThread',
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       respaldo,
       destinatarios: destinatarios.map((d) => d.name),
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, threadId: thread.id, escritorioEfectivo, respaldo });
 }

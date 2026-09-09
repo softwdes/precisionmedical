@@ -50,13 +50,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     maxAge: 60 * 60 * 8, // una jornada
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'ATTORNEY_VIEW_AS',
     entityType: 'lawyers',
     entityId: lawyer.id,
     metadata: { viewer: actor.email, firm: lawyer.firmName ?? lawyer.email },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true });
 }

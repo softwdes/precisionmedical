@@ -201,39 +201,70 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
       : null;
 
   return (
+    /**
+     * ── Por qué esto es una TARJETA en móvil y una fila en desktop ───────────
+     *
+     * Era una sola fila `flex` con dos columnas de ancho fijo y `shrink-0`
+     * adentro: el código (104px) y el "cuándo" (124px). En un teléfono de 360px
+     * la cuenta no cierra —6 del riel + 170 de acciones + gaps dejan 136px de
+     * caja para 240px que no pueden encogerse— y como no había ningún
+     * `overflow-x`, no scrolleaba: **se pintaba encima**. El botón "Llamar"
+     * quedaba arriba de "09:00 · Andrew Nielsen" en las quince filas (Erick,
+     * 2026-09-09).
+     *
+     * La salida NO es scroll horizontal: la regla #4 pide tarjetas en móvil. Los
+     * anchos fijos pasan a `sm:`, así que debajo de 640px no hay columnas —hay
+     * líneas— y las acciones bajan a su propia barra con blancos que un pulgar
+     * puede acertar. Desktop no cambia ni un píxel.
+     */
     <div
-      className={`flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors group ${
+      className={`flex flex-col sm:flex-row sm:items-center border-b border-row-sep last:border-0 transition-colors group ${
         ahora ? 'bg-rose/[0.08] hover:bg-rose/[0.12]'
           : tarde ? 'bg-amber/[0.07] hover:bg-amber/[0.11]'
           : 'hover:bg-white/[0.02]'
       }`}
     >
-      {/* El riel. Sin texto encima, así que la opacidad no cuesta contraste. */}
-      <span className={`self-stretch shrink-0 ${urgente ? 'w-1.5' : 'w-1'} ${RIEL[f.nivel]}`} aria-hidden="true" />
+      {/* El riel. En móvil cruza el ancho arriba de la tarjeta; en desktop es la
+          barra vertical de siempre. Sin texto encima, así que la opacidad no
+          cuesta contraste. */}
+      <span
+        className={`shrink-0 ${RIEL[f.nivel]} h-1 w-full sm:h-auto sm:w-1 sm:self-stretch ${urgente ? 'sm:w-1.5' : ''}`}
+        aria-hidden="true"
+      />
 
       {/* El caso abre EN el panel: el modal está montado en `page.tsx` y lee el
           `?case=`. Antes era `/patients?case=…` y te sacaba de la pantalla. */}
       <button
         type="button"
         onClick={() => router.push(`/dashboard?case=${f.caseId}`)}
-        className="flex items-center gap-3 flex-1 min-w-0 px-3 py-2.5 text-left"
+        className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 flex-1 min-w-0 px-4 sm:px-3 pt-3 pb-2 sm:py-2.5 text-left"
       >
-        <span className="shrink-0 w-[104px]">
+        {/* Línea 1 en móvil: el código y el chip del cuándo, en los extremos. */}
+        <span className="flex items-center justify-between gap-2 w-full sm:w-[104px] sm:block sm:shrink-0">
           <span className="block text-sm font-semibold text-text-1">{f.caseCode}</span>
-          {f.paciente && (
-            <span className="block sm:hidden text-[11.5px] text-text-muted truncate">{f.paciente}</span>
-          )}
+          {/* El chip sube acá SOLO en móvil: en desktop vive en su columna. */}
+          <span className="flex items-center gap-1.5 sm:hidden">
+            {ahora && (
+              <span className="shrink-0 w-[7px] h-[7px] rounded-full bg-rose animate-latido" aria-hidden="true" />
+            )}
+            <span className={`inline-flex items-center px-2 rounded border text-[10.5px] tracking-wide whitespace-nowrap ${chip}`}>
+              {cuando}
+            </span>
+          </span>
         </span>
 
+        {/* El nombre completo, sin truncar, en su propia línea en móvil. */}
         {f.paciente && (
-          <span className={`hidden sm:block shrink-0 w-[168px] text-[12.5px] truncate ${urgente ? 'text-text-1 font-semibold' : 'text-text-2'}`}>
+          <span className={`block sm:shrink-0 sm:w-[168px] text-[13px] sm:text-[12.5px] sm:truncate ${urgente ? 'text-text-1 font-semibold' : 'text-text-2'}`}>
             {f.paciente}
             {f.esMenor && <span className="ml-1.5 text-[9.5px] font-bold text-text-muted align-top">{t('intakeMinor')}</span>}
           </span>
         )}
 
-        <span className="shrink-0 w-[124px] flex flex-col gap-0.5">
-          <span className="flex items-center gap-1.5">
+        {/* En móvil esta columna se reduce a la hora y el provider: el chip ya
+            se mostró arriba. */}
+        <span className="sm:shrink-0 sm:w-[124px] flex flex-col gap-0.5">
+          <span className="hidden sm:flex items-center gap-1.5">
             {/* El latido queda SOLO para la última hora. Antes latían las
                 diecisiete filas del día a la vez, que es una pantalla vibrando
                 todo el día — y con el movimiento apagado no quedaba nada. */}
@@ -249,9 +280,12 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
           </span>
           {/* El chip de arriba ya lleva el "cuándo", así que acá va la hora real
               cuando el chip la reemplazó por un relativo. Antes esta línea
-              repetía la cuenta regresiva y la fila decía dos veces lo mismo. */}
+              repetía la cuenta regresiva y la fila decía dos veces lo mismo.
+              En móvil la hora se muestra SIEMPRE: es el dato con el que se
+              decide a quién llamar primero. */}
           <span className="text-[11px] text-text-muted tabular-nums truncate">
-            {urgente && <span className="text-text-2">{hora(f.cita, locale)} · </span>}
+            <span className="text-text-2 sm:hidden">{hora(f.cita, locale)} · </span>
+            {urgente && <span className="hidden sm:inline text-text-2">{hora(f.cita, locale)} · </span>}
             {f.provider ?? '—'}
           </span>
         </span>
@@ -265,7 +299,11 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
             : t('intakeMissing', { lista: f.faltan.map((k) => (FALTA_KEY[k] ? t(FALTA_KEY[k]) : k)).join(', ') })}
         </span>
 
-        <span className={`hidden lg:block shrink-0 w-[132px] text-[11.5px] tabular-nums ${
+        {/* "Sin contacto" es el dato que decide si hay que llamar, y estaba
+            `hidden lg:block` — o sea escondido justo en el teléfono, que es
+            desde donde se llama. En móvil se muestra; en desktop sigue
+            apareciendo recién en `lg`, donde hay ancho para su columna. */}
+        <span className={`block lg:shrink-0 lg:w-[132px] text-[11.5px] tabular-nums sm:hidden lg:block ${
           f.ultimoContacto ? 'text-text-muted' : urgente ? 'text-rose font-semibold' : 'text-text-2'
         }`}>
           {f.ultimoContacto
@@ -278,7 +316,12 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
         </span>
       </button>
 
-      <span className="pr-3 flex items-center gap-1 shrink-0">
+      {/* ── La barra de acciones ──────────────────────────────────────────────
+          En móvil baja a su propia línea, a lo ancho, con los blancos
+          separados: los íconos de 32px pegados uno al otro son cuatro blancos
+          que un pulgar no acierta. En desktop vuelve a ser el grupo compacto
+          de la derecha. */}
+      <span className="flex items-center gap-2 sm:gap-1 shrink-0 px-4 sm:px-0 sm:pr-3 pb-3 sm:pb-0 pt-1 sm:pt-0">
         {/* En los urgentes el teléfono deja de ser un ícono: la urgencia también
             tiene que hacer más FÁCIL la acción, no solo más ruidosa. */}
         {urgente ? (
@@ -287,7 +330,10 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
             onClick={() => onLlamar(f)}
             disabled={!f.telefono}
             title={f.telefono ? t('intakeCallTo', { quien: f.paciente ?? f.caseCode }) : t('intakeNoPhone')}
-            className={`inline-flex items-center gap-1.5 h-[25px] px-2.5 rounded border text-[11.5px] font-bold whitespace-nowrap transition-opacity ${
+            /* 44px de alto en móvil: es el mínimo que un pulgar acierta, y
+               recepción trabaja desde el teléfono. En desktop vuelve a los 25
+               de la fila compacta. */
+            className={`inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none h-11 sm:h-[25px] px-3 sm:px-2.5 rounded border text-[12.5px] sm:text-[11.5px] font-bold whitespace-nowrap transition-opacity ${
               f.telefono
                 ? ahora
                   ? 'bg-rose border-rose text-white hover:opacity-90'
@@ -295,7 +341,7 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
                 : 'bg-transparent border-border text-text-muted/60 line-through cursor-not-allowed'
             }`}
           >
-            <Phone className="w-3 h-3" />
+            <Phone className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
             {t('intakeCall')}
           </button>
         ) : (
@@ -330,7 +376,8 @@ function Fila({ f, onPedir, onQr, onLlamar }: {
           stopPropagation
           onClick={() => onQr(f)}
         />
-        <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Pista de hover: en touch no hay hover, así que en móvil no va. */}
+        <ChevronRight className="hidden sm:block w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </span>
     </div>
   );
@@ -385,8 +432,11 @@ export function IntakePanel({ filas: filasDelServidor, yaLlegaron, citasEnVentan
       }`}>
         {titulo}
         <span className="text-text-2 tabular-nums">{items.length}</span>
+        {/* En móvil este sello sobra: la banda de arriba ya dice PRIORIDAD y
+            esta franja ya está en rose. Eran dos renglones de adorno antes del
+            primer dato, en una pantalla de 360px. */}
         {prioritario && (
-          <span className="ml-auto px-1.5 rounded border border-rose/40 text-[9.5px] font-extrabold tracking-widest">
+          <span className="hidden sm:inline-flex ml-auto px-1.5 rounded border border-rose/40 text-[9.5px] font-extrabold tracking-widest">
             {t('intakePriorityTag')}
           </span>
         )}

@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       : []),
   ]);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'MESSAGE_ENTRY_EDITED',
     entityType: 'MessageThread',
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       previousSubject: cambiaAsunto ? entry.thread.subject : undefined,
       editedByName: actor.actorName,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ editedAt: now, subject: cambiaAsunto ? newSubject : entry.thread.subject });
 }

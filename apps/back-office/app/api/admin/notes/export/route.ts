@@ -122,7 +122,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Excel — el mismo motivo por el que el tracking de Edson existe.
   const csv = '﻿' + lineas.join('\r\n');
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'EXPORT_NOTES_AUDIT',
     entityType: 'visit_notes',
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         q: filtros.q ?? null,
       },
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
   return new NextResponse(csv, {

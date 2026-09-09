@@ -72,7 +72,7 @@ export async function PATCH(
 
   await syncCashServiceBilling(charge.appointmentId);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: voiding ? 'VOID_CASH_SERVICE' : 'UPDATE_CASH_SERVICE',
     entityType: 'appointment_services',
@@ -85,7 +85,7 @@ export async function PATCH(
       reason: body.voidReason ?? null,
       by: actor.name,
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ charge: updated });
 }

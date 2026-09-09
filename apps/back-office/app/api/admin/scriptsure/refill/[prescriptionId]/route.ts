@@ -119,7 +119,7 @@ export async function POST(
       raw: (rx.drugPayload ?? null) as Record<string, unknown> | null,
     }, { practiceId, doctorId: prescriberId });
 
-    writeAuditLog(db, {
+    await writeAuditLog(db, {
       ...(await resolveActor(req.headers)),
       action: 'SCRIPTSURE_REFILL',
       entityType: 'prescriptions',
@@ -132,7 +132,7 @@ export async function POST(
         raw: cart.raw,
         clear: cart.clear ?? null,
       })) as Record<string, string>,
-    }).catch(() => undefined);
+    }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
     if (!cart.ok) {
       return NextResponse.json(

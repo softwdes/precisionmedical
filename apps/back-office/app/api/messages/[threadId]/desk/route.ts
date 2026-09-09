@@ -62,13 +62,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   ]);
   await reviveThread(threadId, now);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'MESSAGE_DESK_REASSIGNED',
     entityType: 'MessageThread',
     entityId: threadId,
     metadata: { de: thread.desk, a: input.desk, subject: thread.subject, sumados: miembros.map((m) => m.name) },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true, desk: input.desk, sumados: miembros.map((m) => m.name) });
 }

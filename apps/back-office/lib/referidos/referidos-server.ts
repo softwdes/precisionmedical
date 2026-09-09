@@ -166,7 +166,7 @@ export async function crearReferido(args: {
     select: { id: true, referral: { select: { id: true } } },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'FIRM_REFERRAL_SENT',
     entityType: 'FirmReferral',
@@ -180,7 +180,7 @@ export async function crearReferido(args: {
       respaldo,
       destinatarios: destinatarios.map((d) => d.name),
     },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return { ok: true, referralId: thread.referral!.id, threadId: thread.id, duplicados, respaldo };
 }
@@ -247,16 +247,30 @@ export async function marcarReferidoCreado(args: {
     data: { lastReadAt: now },
   });
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...args.actor,
     action: 'FIRM_REFERRAL_CONVERTED',
     entityType: 'FirmReferral',
     entityId: ref.id,
     metadata: { caseId: args.caseId, caseCode: args.caseCode, patientId: args.patientId, threadId: ref.threadId },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
-  // El abogado se entera: la respuesta "caso creado" es lo que estaba esperando.
-  void avisarAbogadosPorEmail({
+  /**
+   * El abogado se entera: la respuesta "caso creado" es lo que estaba esperando.
+   *
+   * Se ESPERA. Antes era `void` y en serverless eso lo perdía a veces: la
+   * instancia se congela al devolver la respuesta y el correo se corta a mitad
+   * de camino. Nadie reclama un mail que no llegó, así que el fallo era
+   * invisible.
+   *
+   * Acá va `await` y no `after()` —al revés que las rutas de mensajería— por
+   * dos razones: esto ocurre **una vez por referido convertido**, así que unos
+   * cientos de milisegundos no se notan dentro de un alta de caso; y `after()`
+   * exige contexto de request, que hoy existe (se llama desde
+   * `api/admin/cases`) pero desaparecería si alguna vez esto se corre desde un
+   * script o un cron. `await` funciona en los dos casos.
+   */
+  await avisarAbogadosPorEmail({
     threadId: ref.threadId,
     userIds: ref.thread.recipients.map((r) => r.userId),
     autorUserId: args.actor.actorUserId,

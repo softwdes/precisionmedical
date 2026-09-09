@@ -149,7 +149,11 @@ export function TitularIntake({ fila: filaDelServidor }: { fila: FilaVista | nul
           disabled={!fila.telefono}
           onClick={() => { if (fila.telefono) twilio.connect(fila.telefono); }}
           title={fila.telefono ? undefined : t('intakeNoPhone')}
-          className={`inline-flex items-center justify-center gap-2 h-9 px-5 rounded font-semibold text-sm transition-opacity ${
+          /* 44px en móvil, 36 en desktop. El resto de la tarjeta ya era
+             mobile-safe (`flex-wrap`, sin anchos fijos); lo único que faltaba
+             era el blanco del botón, y este es EL botón: recepción llama desde
+             el teléfono. */
+          className={`inline-flex items-center justify-center gap-2 h-11 sm:h-9 px-5 rounded font-semibold text-sm transition-opacity ${
             fila.telefono
               ? `text-white hover:opacity-90 ${urgente ? 'bg-rose' : 'bg-amber'}`
               : 'bg-transparent border border-border text-text-muted/60 cursor-not-allowed'
@@ -162,7 +166,7 @@ export function TitularIntake({ fila: filaDelServidor }: { fila: FilaVista | nul
         <Button
           variant="secondary"
           size="sm"
-          className="h-9 gap-1.5"
+          className="h-11 sm:h-9 gap-1.5"
           disabled={!!fila.bloqueoEnvio}
           title={motivoBloqueo ?? undefined}
           onClick={() => setPedir(true)}

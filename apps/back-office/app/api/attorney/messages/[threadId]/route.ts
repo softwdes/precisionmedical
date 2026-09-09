@@ -176,13 +176,13 @@ export async function POST(
     }),
   ]);
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...actor,
     action: 'MESSAGE_REPLIED',
     entityType: 'MessageThread',
     entityId: threadId,
     metadata: { comoBufete: lawyer.firmName ?? lawyer.id },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true });
 }

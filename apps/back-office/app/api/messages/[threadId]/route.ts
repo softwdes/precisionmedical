@@ -106,13 +106,13 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     return NextResponse.json({ error: 'Hilo no encontrado' }, { status: 404 });
   }
 
-  writeAuditLog(db, {
+  await writeAuditLog(db, {
     ...(await resolveActor(req.headers)),
     action: 'MESSAGE_THREAD_DELETED',
     entityType: 'MessageThread',
     entityId: threadId,
     metadata: { deletedByName: actor.actorName },
-  }).catch(() => undefined);
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true });
 }

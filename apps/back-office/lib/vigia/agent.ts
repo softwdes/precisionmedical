@@ -1,96 +1,44 @@
-import OpenAI from 'openai';
 import { db } from '@precision-medical/database';
 import type { SessionLawyer } from '@/lib/get-session-lawyer';
 import { lawyerCaseFilter } from '@/lib/attorney-portal';
-import { ZONA_CLINICA } from '@/lib/fechas';
-import { VIGIA_TOOLS, ejecutarHerramienta } from './tools';
+import { hoyEnClinica, preguntar, preguntarUnaVez } from '@/lib/agente/lazo';
+import type {
+  AccionAgente, DefinicionAgente, EventoAgente, PasoAgente, PasoCrudo, RespuestaAgente,
+} from '@/lib/agente/tipos';
+import { VIGIA_TOOLS } from './tools';
 
 /**
- * Vigía · el lazo del agente.
+ * Vigía · el agente del portal legal.
  *
- * Este es el ÚNICO archivo que sabe qué proveedor de modelo usamos. Todo lo
- * demás —las herramientas, el alcance, la pantalla, los botones— es agnóstico:
- * cambiar de proveedor es reescribir esto y nada más.
+ * El lazo ya NO vive acá: se mudó a `lib/agente/lazo.ts` el 2026-09-08, cuando
+ * Erick decidió que la clínica tenga su propio agente (Sentinel). Lo que queda
+ * en este archivo es lo único que distingue a Vigía de cualquier otro agente, y
+ * son cuatro cosas:
  *
- * Tres decisiones que valen la pena explicar:
+ *   1. su alcance — `SessionLawyer`, el bufete de la sesión;
+ *   2. su prompt;
+ *   3. su registro de herramientas (`./tools`);
+ *   4. sus botones.
  *
- * · **En streaming, y contenido acá.** El lazo es un generador que emite lo que
- *   pasa —cada herramienta que termina, cada pedazo de la respuesta— y la ruta
- *   lo pasa a NDJSON. El total no baja, son las mismas llamadas; lo que baja es
- *   la espera percibida: la primera palabra a ~1,5 s en vez de todo a los 4.
- *   `preguntarAVigia()` sigue existiendo para quien solo quiera el resultado.
- *
- * · **Los botones NO los elige el modelo.** Se derivan de qué herramientas
- *   corrieron. Un modelo inventando URLs es un modelo mandando gente a páginas
- *   que no existen — o peor, a un caso ajeno.
- *
- * · **El código de caso viaja; el id no.** Las herramientas hablan en códigos
- *   (`2026-0142`). El id interno se resuelve DESPUÉS del lazo, de este lado,
- *   solo para armar el link. El modelo nunca lo ve ni lo necesita.
+ * Nada de este archivo sabe del proveedor del modelo ni del streaming. Y los
+ * nombres exportados son los de antes (`preguntarAVigiaStream`, `VigiaAnswer`…)
+ * para que ni la ruta ni la pantalla noten la mudanza.
  */
-
-/** Tope de vueltas. Sin esto, un modelo confundido puede pedir herramientas para siempre. */
-const MAX_VUELTAS = 6;
 
 export const VIGIA_MODEL = process.env.VIGIA_MODEL ?? 'gpt-5.4-mini';
 
-export interface VigiaStep {
-  tool: string;
-  sources: string[];
-  count?: number;
-}
+/** Los cuatro botones de Vigía. El motor los trata como strings; el union vive acá. */
+export type VigiaActionKey = 'openCase' | 'pendingLiens' | 'caseList' | 'stalledList';
 
 /**
- * El botón viaja como CLAVE, no como texto.
- *
- * Si el servidor mandara "Abrir el caso MVA-3230" ya escrito, el botón queda en
- * español para siempre — que es justo el bug que se vio con el portal en inglés.
- * La pantalla traduce con su propio idioma; acá solo se decide CUÁL botón va.
+ * Los tipos que ya consumían la ruta y el componente, ahora con la forma del
+ * motor. Se re-exportan con el nombre viejo a propósito: renombrarlos habría
+ * tocado la pantalla sin cambiarle nada.
  */
-export interface VigiaAction {
-  key: 'openCase' | 'pendingLiens' | 'caseList' | 'stalledList';
-  /** Valores para la traducción, por ejemplo el código del caso. */
-  params?: Record<string, string>;
-  /** Solo el botón de UN caso navega (abre el expediente en la misma pantalla). */
-  href?: string;
-  /**
-   * Los botones de LISTA no navegan: abren un modal encima de Vigía.
-   *
-   * Mandar al abogado a `/attorney/cases` le hacía perder la respuesta que
-   * acababa de pedir. Ningún botón de Vigía saca de la pantalla.
-   */
-  kind?: 'stalled' | 'unsigned' | 'active';
-}
-
-/**
- * Lo que viaja mientras el agente trabaja.
- *
- * `reset` existe por un caso raro pero real: el modelo a veces escribe una frase
- * ANTES de decidir que necesita una herramienta. Esa frase ya se mostró, y
- * cuando la vuelta termina pidiendo herramientas hay que borrarla — si no, queda
- * un pedazo de texto huérfano arriba de la respuesta de verdad.
- */
-export type VigiaEvent =
-  | { type: 'step'; step: VigiaStep }
-  | { type: 'delta'; text: string }
-  | { type: 'reset' }
-  | { type: 'done'; answer: VigiaAnswer };
-
-export interface VigiaAnswer {
-  answer: string;
-  steps: VigiaStep[];
-  sources: string[];
-  actions: VigiaAction[];
-  usage: { prompt: number; completion: number; total: number };
-  model: string;
-}
-
-/** Hoy, en la zona de la clínica — el modelo lo necesita para "esta semana". */
-function hoyEnClinica(): string {
-  return new Intl.DateTimeFormat('es-ES', {
-    timeZone: ZONA_CLINICA, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  }).format(new Date());
-}
+export type VigiaStep = PasoAgente;
+export type VigiaAction = AccionAgente;
+export type VigiaEvent = EventoAgente;
+export type VigiaAnswer = RespuestaAgente;
 
 function systemPrompt(lawyer: SessionLawyer, locale: string): string {
   /**
@@ -136,41 +84,24 @@ function systemPrompt(lawyer: SessionLawyer, locale: string): string {
   ].join('\n');
 }
 
-/** Las herramientas, en el formato que espera la API. */
-const TOOL_SPECS = VIGIA_TOOLS.map((t) => ({
-  type: 'function' as const,
-  function: { name: t.name, description: t.description, parameters: t.parameters },
-}));
-
-/** Los dos textos que escribe el servidor, no el modelo — también en su idioma. */
-function sinRespuesta(locale: string): string {
-  return locale === 'es'
-    ? 'No pude armar una respuesta con lo que tengo.'
-    : 'I could not put together an answer with what I have.';
-}
-
-function seQuedoSinVueltas(locale: string): string {
-  return locale === 'es'
-    ? 'Me quedé dando vueltas sin llegar a una respuesta. Probá con una pregunta más concreta.'
-    : 'I went in circles without reaching an answer. Try a more specific question.';
-}
-
 /**
  * Los botones, derivados de lo que se consultó.
  *
- * `casos` son los códigos que el modelo pidió por herramienta: se resuelven a id
- * para abrir el caso en su modal, igual que hace la lista.
+ * `codigos` son los códigos de caso que salieron de los pasos: se resuelven a id
+ * DENTRO DEL ALCANCE para abrir el caso en su modal, igual que hace la lista. Si
+ * el modelo inventara un código ajeno, el `findMany` no lo encuentra y el botón
+ * no aparece.
  */
 async function armarAcciones(
   lawyer: SessionLawyer,
   toolsUsadas: Set<string>,
-  casosTocados: Set<string>,
+  codigos: Set<string>,
 ): Promise<VigiaAction[]> {
   const acciones: VigiaAction[] = [];
 
   // Un caso concreto gana: es el botón más útil de todos.
-  if (casosTocados.size > 0) {
-    const codes = [...casosTocados].slice(0, 3);
+  if (codigos.size > 0) {
+    const codes = [...codigos].slice(0, 3);
     const rows = await db.case.findMany({
       where: { AND: [lawyerCaseFilter(lawyer), { caseCode: { in: codes } }] },
       select: { id: true, caseCode: true },
@@ -197,170 +128,50 @@ async function armarAcciones(
 }
 
 /**
- * El lazo, en streaming.
+ * De qué códigos habló cada paso.
  *
- * Va emitiendo lo que pasa: cada herramienta que termina y cada pedazo de la
- * respuesta a medida que el modelo la escribe. El total no baja —son las mismas
- * llamadas— pero la espera percibida sí: el abogado ve la primera palabra a los
- * ~1,5 s en vez de la respuesta entera a los 4.
+ * Además del argumento `caso` —que es lo que hace el motor por defecto— Vigía
+ * necesita una regla propia: **`buscar_paciente` no RECIBE un caso, lo
+ * ENCUENTRA**. Si dio con uno solo, ese es el botón: se busca a una persona para
+ * entrar a su caso, no para leer un código. Con varios no se elige por el
+ * abogado.
  */
-export async function* preguntarAVigiaStream(
+function codigosTocados({ name, args, data }: PasoCrudo): string[] {
+  const codigos: string[] = [];
+  if (typeof args.caso === 'string') codigos.push(args.caso.trim());
+
+  if (name === 'buscar_paciente') {
+    const encontrados = (data as { casos?: Array<{ caso?: string }> } | null)?.casos;
+    if (encontrados?.length === 1 && encontrados[0]?.caso) codigos.push(encontrados[0].caso);
+  }
+
+  return codigos;
+}
+
+/** Vigía, en la forma que el motor entiende. */
+export const VIGIA: DefinicionAgente<SessionLawyer> = {
+  nombre: 'Vigía',
+  modelo: VIGIA_MODEL,
+  herramientas: VIGIA_TOOLS,
+  systemPrompt,
+  armarAcciones,
+  codigosTocados,
+};
+
+/** El lazo, en streaming. Misma firma que antes de la mudanza. */
+export function preguntarAVigiaStream(
   lawyer: SessionLawyer,
   pregunta: string,
   locale: string,
 ): AsyncGenerator<VigiaEvent> {
-  const client = new OpenAI();
-
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: 'system', content: systemPrompt(lawyer, locale) },
-    { role: 'user', content: pregunta },
-  ];
-
-  const steps: VigiaStep[] = [];
-  const sources = new Set<string>();
-  const toolsUsadas = new Set<string>();
-  const casosTocados = new Set<string>();
-  let prompt = 0, completion = 0;
-
-  for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
-    /**
-     * `stream()` y no `create()`: además de los pedazos de texto, el helper
-     * ENSAMBLA las llamadas a herramientas que llegan partidas en fragmentos.
-     * Hacerlo a mano es acumular por índice y es donde se rompen estas cosas.
-     */
-    const corriendo = client.chat.completions.stream({
-      model: VIGIA_MODEL,
-      messages,
-      tools: TOOL_SPECS,
-    });
-
-    let escrito = 0;
-    const pedazos: string[] = [];
-    corriendo.on('content.delta', (d: { delta: string }) => { pedazos.push(d.delta); });
-
-    // Se emiten a medida que llegan, sin esperar a que termine la vuelta.
-    for await (const _chunk of corriendo) {
-      while (escrito < pedazos.length) {
-        yield { type: 'delta', text: pedazos[escrito]! };
-        escrito++;
-      }
-    }
-    while (escrito < pedazos.length) { yield { type: 'delta', text: pedazos[escrito]! }; escrito++; }
-
-    const res = await corriendo.finalChatCompletion();
-    prompt += res.usage?.prompt_tokens ?? 0;
-    completion += res.usage?.completion_tokens ?? 0;
-
-    const msg = res.choices[0]?.message;
-    if (!msg) break;
-
-    // Escribió algo y ADEMÁS pide herramientas: lo escrito era un preámbulo.
-    if (msg.tool_calls?.length && escrito > 0) yield { type: 'reset' };
-
-    // Sin herramientas pedidas: esto ya es la respuesta.
-    if (!msg.tool_calls?.length) {
-      const actions = await armarAcciones(lawyer, toolsUsadas, casosTocados);
-      yield {
-        type: 'done',
-        answer: {
-          answer: msg.content?.trim() || sinRespuesta(locale),
-          steps,
-          sources: [...sources],
-          actions,
-          usage: { prompt, completion, total: prompt + completion },
-          model: VIGIA_MODEL,
-        },
-      };
-      return;
-    }
-
-    messages.push(msg);
-
-    /**
-     * Las herramientas de una misma vuelta corren EN PARALELO.
-     *
-     * Antes se hacía `await` una por una: si el modelo pedía dos —resumen del
-     * caso y su facturación, que es lo normal cuando preguntan "cuánto debe"—
-     * la segunda esperaba a que terminara la primera sin necesitarla. Con dos
-     * consultas de ~1 s eso es un segundo entero de regalo en cada pregunta.
-     *
-     * El orden de los resultados NO importa para el modelo, pero sí que cada
-     * `tool_result` lleve su `tool_call_id`: se responde a la llamada, no a la
-     * posición.
-     */
-    const llamadas = msg.tool_calls.filter((c) => c.type === 'function');
-
-    const resultados = await Promise.all(llamadas.map(async (call) => {
-      let args: Record<string, unknown> = {};
-      try {
-        args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-      } catch {
-        // Argumentos rotos: se le devuelve el error al modelo en vez de tirar la
-        // request. Suele corregirse solo en la vuelta siguiente.
-        return { call, args, result: null };
-      }
-      return { call, args, result: await ejecutarHerramienta(lawyer, call.function.name, args) };
-    }));
-
-    for (const { call, args, result } of resultados) {
-      if (!result) {
-        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: 'ARGUMENTOS_INVALIDOS' }) });
-        continue;
-      }
-
-      toolsUsadas.add(call.function.name);
-      result.sources.forEach((s) => sources.add(s));
-      const paso = { tool: call.function.name, sources: result.sources, count: result.count };
-      steps.push(paso);
-      yield { type: 'step', step: paso };
-      if (typeof args.caso === 'string') casosTocados.add(args.caso.trim());
-
-      /**
-       * La búsqueda por nombre no recibe un caso, lo ENCUENTRA. Si dio con uno
-       * solo, ese es el botón: se busca a una persona para entrar a su caso, no
-       * para leer un código. Con varios no se elige por el abogado.
-       */
-      const encontrados = (result.data as { casos?: Array<{ caso?: string }> } | null)?.casos;
-      if (call.function.name === 'buscar_paciente' && encontrados?.length === 1 && encontrados[0]?.caso) {
-        casosTocados.add(encontrados[0].caso);
-      }
-
-      messages.push({
-        role: 'tool',
-        tool_call_id: call.id,
-        content: JSON.stringify(result.data),
-      });
-    }
-  }
-
-  // Se acabaron las vueltas sin una respuesta final.
-  yield {
-    type: 'done',
-    answer: {
-      answer: seQuedoSinVueltas(locale),
-      steps,
-      sources: [...sources],
-      actions: await armarAcciones(lawyer, toolsUsadas, casosTocados),
-      usage: { prompt, completion, total: prompt + completion },
-      model: VIGIA_MODEL,
-    },
-  };
+  return preguntar(VIGIA, lawyer, pregunta, locale);
 }
 
-/**
- * La versión de una sola respuesta, para quien no necesita el streaming
- * (scripts de prueba y cualquier consumidor futuro que solo quiera el
- * resultado). Consume el generador y devuelve lo último.
- */
-export async function preguntarAVigia(
+/** La versión de una sola respuesta. Misma firma que antes de la mudanza. */
+export function preguntarAVigia(
   lawyer: SessionLawyer,
   pregunta: string,
   locale: string,
 ): Promise<VigiaAnswer> {
-  let ultima: VigiaAnswer | null = null;
-  for await (const ev of preguntarAVigiaStream(lawyer, pregunta, locale)) {
-    if (ev.type === 'done') ultima = ev.answer;
-  }
-  if (!ultima) throw new Error('el agente no produjo respuesta');
-  return ultima;
+  return preguntarUnaVez(VIGIA, lawyer, pregunta, locale);
 }

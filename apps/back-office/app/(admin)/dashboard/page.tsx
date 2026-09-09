@@ -1,6 +1,8 @@
 import { db } from '@precision-medical/database';
 import { DashboardClient } from './dashboard-client';
 import { colaIntake } from '@/lib/cola-intake';
+import { atrasosRecepcion } from '@/lib/atrasos-recepcion';
+import { canAskSentinel } from '@/lib/sentinel-access';
 
 /**
  * B.29 — Panel de Recepción.
@@ -54,60 +56,37 @@ export default async function DashboardPage() {
    */
   const intake = await colaIntake();
 
-  const ahora = Date.now();
-  const haceUnaHora  = new Date(ahora - 60 * 60 * 1000);
-  const haceUnDia    = new Date(ahora - 24 * 60 * 60 * 1000);
-  const haceDosDias  = new Date(ahora - 48 * 60 * 60 * 1000);
+  /**
+   * Los tres atrasos y las dos pilas grandes.
+   *
+   * El criterio vive en `lib/atrasos-recepcion.ts` y ya no acá, porque ahora lo
+   * pregunta una SEGUNDA punta: la herramienta `atrasos_de_recepcion` de
+   * Sentinel. Si el panel y el agente lo definieran por su lado, el día que
+   * alguien mueva un umbral los dos números se contradicen en la misma sesión —
+   * es la misma razón por la que `colaIntake()` tampoco vive en su pantalla.
+   */
+  const atrasos = await atrasosRecepcion();
 
-  const [
-    newReferralsAged,   // NEW_REFERRAL > 1h sin portal enviado
-    intakeStalled,      // INTAKE_PENDING > 24h (el paciente no respondió)
-    confirmedNoSched,   // CONFIRMED > 48h sin agendar
-    intakePendiente,    // la pileta: de acá sale la cola de mañana
-    sinAgendar,         // confirmados esperando cita
-  ] = await Promise.all([
-    db.case.findMany({
-      where: { status: 'NEW_REFERRAL', deletedAt: null, createdAt: { lte: haceUnaHora } },
-      take: 10,
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true, caseCode: true, createdAt: true,
-        patient: { select: { firstName: true, lastName: true } },
-      },
-    }),
-    db.case.findMany({
-      where: { status: 'INTAKE_PENDING', deletedAt: null, intakeFormSentAt: { lte: haceUnDia } },
-      take: 10,
-      orderBy: { intakeFormSentAt: 'asc' },
-      select: {
-        id: true, caseCode: true, intakeFormSentAt: true,
-        patient: { select: { firstName: true, lastName: true } },
-      },
-    }),
-    db.case.findMany({
-      where: { status: 'CONFIRMED', deletedAt: null, firstAppointmentConfirmedAt: { lte: haceDosDias } },
-      take: 10,
-      orderBy: { firstAppointmentConfirmedAt: 'asc' },
-      select: {
-        id: true, caseCode: true, firstAppointmentConfirmedAt: true,
-        patient: { select: { firstName: true, lastName: true } },
-      },
-    }),
-    db.case.count({ where: { status: 'INTAKE_PENDING', deletedAt: null } }),
-    /**
-     * Confirmado y sin ninguna cita viva. `none` con los estados muertos
-     * excluidos, y no `appointments: { none: {} }` a secas: un caso cuya única
-     * cita se canceló SÍ está esperando que alguien lo agende, y con el `none`
-     * pelado quedaba invisible.
-     */
-    db.case.count({
-      where: {
-        status: 'CONFIRMED',
-        deletedAt: null,
-        appointments: { none: { status: { notIn: ['CANCELLED', 'NO_SHOW'] } } },
-      },
-    }),
-  ]);
+  /**
+   * Sentinel: la capacidad es OPT-IN, así que la caja no se dibuja para quien no
+   * la tiene. `configurado` se decide en el SERVIDOR — si falta la clave del
+   * proveedor, la caja se muestra bloqueada desde el arranque en vez de dejar
+   * preguntar al vacío y fallar después del clic. La variable nunca cruza al
+   * cliente: viaja el booleano, no el valor.
+   *
+   * El caso de ejemplo sale de la cola de HOY, no de un código inventado: la
+   * primera versión de Vigía sugería un código que no existía y el agente
+   * contestaba —correctamente— que no lo encontraba, con lo que parecía roto
+   * justo cuando funcionaba bien.
+   */
+  const puedeSentinel = await canAskSentinel();
+  const sentinel = puedeSentinel
+    ? {
+        configurado: !!process.env.OPENAI_API_KEY,
+        casoEjemplo: intake.titular?.caseCode ?? intake.filas[0]?.caseCode ?? null,
+      }
+    : null;
+  const { intakePendiente, sinAgendar } = atrasos;
 
   const aVista = (f: (typeof intake.filas)[number]) => ({
     caseId: f.caseId,
@@ -144,19 +123,17 @@ export default async function DashboardPage() {
         citasHoy: intake.citasHoy,
         titular: intake.titular ? aVista(intake.titular) : null,
       }}
+      sentinel={sentinel}
       numeros={{ citasHoy: intake.citasHoy, intakePendiente, sinAgendar }}
       alerts={{
-        newReferralsAged: newReferralsAged.map((c) => ({
-          id: c.id, caseCode: c.caseCode, createdAt: c.createdAt,
-          patientName: `${c.patient.firstName} ${c.patient.lastName}`,
+        newReferralsAged: atrasos.sinPortal.map((c) => ({
+          id: c.id, caseCode: c.caseCode, createdAt: c.desde, patientName: c.paciente ?? '—',
         })),
-        intakeStalled: intakeStalled.map((c) => ({
-          id: c.id, caseCode: c.caseCode, sentAt: c.intakeFormSentAt!,
-          patientName: `${c.patient.firstName} ${c.patient.lastName}`,
+        intakeStalled: atrasos.intakeSinRespuesta.map((c) => ({
+          id: c.id, caseCode: c.caseCode, sentAt: c.desde, patientName: c.paciente ?? '—',
         })),
-        confirmedNoSched: confirmedNoSched.map((c) => ({
-          id: c.id, caseCode: c.caseCode, confirmedAt: c.firstAppointmentConfirmedAt!,
-          patientName: `${c.patient.firstName} ${c.patient.lastName}`,
+        confirmedNoSched: atrasos.confirmadoSinAgenda.map((c) => ({
+          id: c.id, caseCode: c.caseCode, confirmedAt: c.desde, patientName: c.paciente ?? '—',
         })),
       }}
     />

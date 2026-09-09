@@ -12,6 +12,7 @@ import {
 } from '@/components/ui-phoenix';
 import { IntakePanel, type FilaVista } from './intake-panel';
 import { TitularIntake } from './titular-intake';
+import { SentinelBox } from './sentinel-box';
 
 /**
  * B.29 — Panel de Recepción.
@@ -38,7 +39,11 @@ import { TitularIntake } from './titular-intake';
  *     es una identidad con dos alcances, y la cara de clínica va en el felpudo
  *     que cruzan 12 de 12 personas»). La otra mitad —la caja de preguntar— falta
  *     todavía: el agente está atado al bufete en las ocho herramientas, así que
- *     la cara de clínica necesita su propio alcance y es un trabajo aparte.
+ *     la cara de clínica necesita su propio alcance y era un trabajo aparte.
+ *     **Ya está**: se llama Sentinel y vive en `sentinel-box.tsx`, arriba del
+ *     saludo. Son dos agentes con dos nombres (Erick, 2026-09-08) porque el
+ *     alcance se invierte: el del bufete ENCIERRA, el de la clínica no, así que
+ *     Sentinel no maneja nombres de pacientes y trabaja por código de caso.
  *  5. **Los KPI con burbuja de icono.** `KpiCard` ya aceptaba `icon`, `iconBg` e
  *     `iconColor` desde antes de que Vigía existiera; esta pantalla no los usaba.
  */
@@ -57,6 +62,8 @@ interface AlertsByKind {
 
 interface Props {
   alerts: AlertsByKind;
+  /** Sentinel: null = esta persona no tiene la capacidad. Ver `lib/sentinel-access.ts`. */
+  sentinel: { configurado: boolean; casoEjemplo: string | null } | null;
   /** Los tres que son una decisión. Ver el docblock de `page.tsx`. */
   numeros: { citasHoy: number; intakePendiente: number; sinAgendar: number };
   /** La cola del centinela — ver `intake-panel.tsx` y `lib/cola-intake.ts`. */
@@ -69,7 +76,7 @@ interface Props {
   };
 }
 
-export function DashboardClient({ alerts, numeros, intake }: Props) {
+export function DashboardClient({ alerts, numeros, intake, sentinel }: Props) {
   const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
   const totalAlerts =
@@ -100,6 +107,20 @@ export function DashboardClient({ alerts, numeros, intake }: Props) {
       <p className="text-2xl font-bold text-text-1 text-center pt-1">
         {t(saludoDelDia())}
       </p>
+
+      {/* ───── Sentinel ──────────────────────────────────────────────────────
+          Debajo del saludo y ARRIBA de todo lo demás, en columna angosta: es el
+          orden del portal legal, que es el que Erick aprobó. Solo aparece si la
+          persona tiene la capacidad; el candado lo resuelve el servidor y acá
+          llega como `null` o como datos. Esconder la caja no es esconder una
+          acción bloqueada: sin la capacidad, la función no existe para esa
+          cuenta. */}
+      {sentinel && (
+        <SentinelBox
+          configurado={sentinel.configurado}
+          casoEjemplo={sentinel.casoEjemplo}
+        />
+      )}
 
       {/* ───── Las dos cosas de hoy, una al lado de la otra ─────────────────
           Izquierda el caso que hay que destrabar, derecha el tamaño del trabajo.

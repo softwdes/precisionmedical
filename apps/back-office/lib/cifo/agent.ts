@@ -3,19 +3,19 @@ import { hoyEnClinica, preguntar, preguntarUnaVez } from '@/lib/agente/lazo';
 import type {
   AccionAgente, DefinicionAgente, EventoAgente, PasoAgente, RespuestaAgente,
 } from '@/lib/agente/tipos';
-import { SENTINEL_TOOLS } from './tools';
+import { CIFO_TOOLS } from './tools';
 import type { AlcanceClinica } from './alcance';
 
 /**
- * Sentinel · el agente de la clínica.
+ * CIFO · el agente de la clínica.
  *
  * Decisión de Erick, 2026-09-08: *"para los abogados sea Vigía y para nosotros
- * creamos el propio llamado Sentinel"*. Son dos productos con dos nombres, y no
+ * creamos el propio llamado CIFO"*. Son dos productos con dos nombres, y no
  * es cosmética — las herramientas, las preguntas y el riesgo de exponer datos
  * del paciente son distintos en cada lado. Llamarlos igual escondía justamente
  * la diferencia que hay que vigilar.
  *
- * Este archivo son las cuatro cosas que distinguen a Sentinel de cualquier otro
+ * Este archivo son las cuatro cosas que distinguen a CIFO de cualquier otro
  * agente: su alcance, su prompt, su registro de herramientas y sus botones. El
  * lazo, el streaming y el proveedor viven en `lib/agente/`, compartidos con
  * Vigía, para que un bug arreglado se arregle en los dos.
@@ -26,19 +26,26 @@ import type { AlcanceClinica } from './alcance';
  * lleva 27 preguntas en dos semanas y ni un abogado real.
  */
 
-export const SENTINEL_MODEL = process.env.SENTINEL_MODEL ?? process.env.VIGIA_MODEL ?? 'gpt-5.4-mini';
+/**
+ * La ENV sigue llamandose `SENTINEL_MODEL` a proposito: esta puesta en Vercel
+ * con ese nombre y renombrarla alla es un paso aparte. Ojo tambien con que
+ * `CIFO_MODEL` YA existe como env del CIFO del Admin (apps/web): si esto pasara
+ * a leer esa clave y alguien la define a nivel equipo, la clinica cambiaria de
+ * modelo sin que nadie lo pida.
+ */
+export const MODELO_CIFO = process.env.SENTINEL_MODEL ?? process.env.VIGIA_MODEL ?? 'gpt-5.4-mini';
 
-/** Los botones de Sentinel. El motor los trata como strings; el union vive acá. */
-export type SentinelActionKey =
+/** Los botones de CIFO. El motor los trata como strings; el union vive acá. */
+export type CifoActionKey =
   | 'workQueue'      // ir a la cola de intake del panel
   | 'openCase'       // abrir un caso concreto
   | 'notesBoard'     // la pantalla de supervisión de notas
   | 'firmRequests';  // los pedidos de bufetes
 
-export type SentinelStep = PasoAgente;
-export type SentinelAction = AccionAgente;
-export type SentinelEvent = EventoAgente;
-export type SentinelAnswer = RespuestaAgente;
+export type CifoStep = PasoAgente;
+export type CifoAction = AccionAgente;
+export type CifoEvent = EventoAgente;
+export type CifoAnswer = RespuestaAgente;
 
 function systemPrompt(alcance: AlcanceClinica, locale: string): string {
   const idioma = locale === 'es'
@@ -46,7 +53,7 @@ function systemPrompt(alcance: AlcanceClinica, locale: string): string {
     : '- Answer ALWAYS in English, even if the question is in Spanish. Keep it plain and professional.';
 
   return [
-    'Sos Sentinel, el asistente del panel de recepción de Precision Medical, una clínica de lesiones personales en Utah.',
+    'Sos CIFO, el asistente del panel de recepción de Precision Medical, una clínica de lesiones personales en Utah.',
     `Le respondés a ${alcance.nombre ?? 'alguien del equipo'}, del staff de la clínica.`,
     `Hoy es ${hoyEnClinica()}.`,
     '',
@@ -104,8 +111,8 @@ async function armarAcciones(
   _alcance: AlcanceClinica,
   toolsUsadas: Set<string>,
   codigos: Set<string>,
-): Promise<SentinelAction[]> {
-  const acciones: SentinelAction[] = [];
+): Promise<CifoAction[]> {
+  const acciones: CifoAction[] = [];
 
   // Un caso concreto gana: es el botón más útil de todos.
   if (codigos.size > 0) {
@@ -136,32 +143,32 @@ async function armarAcciones(
   return acciones.slice(0, 3);
 }
 
-/** Sentinel, en la forma que el motor entiende. */
-export const SENTINEL: DefinicionAgente<AlcanceClinica> = {
-  nombre: 'Sentinel',
-  modelo: SENTINEL_MODEL,
-  herramientas: SENTINEL_TOOLS,
+/** CIFO, en la forma que el motor entiende. */
+export const CIFO: DefinicionAgente<AlcanceClinica> = {
+  nombre: 'CIFO',
+  modelo: MODELO_CIFO,
+  herramientas: CIFO_TOOLS,
   systemPrompt,
   armarAcciones,
   // Sin `codigosTocados`: el default del motor (el argumento `caso`) alcanza,
-  // porque ninguna herramienta de Sentinel ENCUENTRA un caso — o lo recibe por
+  // porque ninguna herramienta de CIFO ENCUENTRA un caso — o lo recibe por
   // código, o devuelve una lista de códigos.
 };
 
 /** El lazo, en streaming. */
-export function preguntarASentinelStream(
+export function preguntarACifoStream(
   alcance: AlcanceClinica,
   pregunta: string,
   locale: string,
-): AsyncGenerator<SentinelEvent> {
-  return preguntar(SENTINEL, alcance, pregunta, locale);
+): AsyncGenerator<CifoEvent> {
+  return preguntar(CIFO, alcance, pregunta, locale);
 }
 
 /** La versión de una sola respuesta, para scripts de prueba. */
-export function preguntarASentinel(
+export function preguntarACifo(
   alcance: AlcanceClinica,
   pregunta: string,
   locale: string,
-): Promise<SentinelAnswer> {
-  return preguntarUnaVez(SENTINEL, alcance, pregunta, locale);
+): Promise<CifoAnswer> {
+  return preguntarUnaVez(CIFO, alcance, pregunta, locale);
 }

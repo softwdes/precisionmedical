@@ -9,7 +9,7 @@
  * Por qué existe este paquete: el lazo del agente acumula bugs ya encontrados
  * —el preámbulo que hay que borrar, las llamadas a herramientas que llegan
  * partidas, la ejecución en paralelo— y hay que escribir un SEGUNDO agente para
- * la clínica (Sentinel, Erick 2026-09-08). Copiar el archivo empieza igual y
+ * la clínica (CIFO, Erick 2026-09-08). Copiar el archivo empieza igual y
  * termina con el bug arreglado en una sola de las dos copias.
  *
  * Lo que el motor NO sabe: quién pregunta, qué puede ver, ni qué herramientas
@@ -32,7 +32,7 @@ export interface PasoAgente {
  * botón va.
  *
  * `key` es un string y no un union porque cada agente tiene sus propios
- * botones: los de Vigía abren listas del bufete, los de Sentinel van a abrir
+ * botones: los de Vigía abren listas del bufete, los de CIFO van a abrir
  * otras cosas. El union vive en el agente, no acá.
  */
 export interface AccionAgente {
@@ -81,7 +81,7 @@ export interface ResultadoHerramienta {
  * Una herramienta del agente.
  *
  * `A` es el ALCANCE: la sesión del abogado en Vigía, y lo que decidamos en
- * Sentinel. El motor lo recibe y lo pasa tal cual, sin mirarlo nunca: por eso
+ * CIFO. El motor lo recibe y lo pasa tal cual, sin mirarlo nunca: por eso
  * ninguna herramienta puede recibir un alcance que no venga de la sesión.
  *
  * `parameters` es el JSON Schema de los argumentos. Va como objeto y no como

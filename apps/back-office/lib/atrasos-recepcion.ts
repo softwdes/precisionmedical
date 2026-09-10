@@ -5,7 +5,7 @@ import { db } from '@precision-medical/database';
  *
  * Vivían dentro del `Promise.all` de `app/(admin)/dashboard/page.tsx`, que es
  * donde nacieron. Salieron acá el 2026-09-08 porque ahora los pregunta una
- * SEGUNDA punta: la herramienta `atrasos_de_recepcion` de Sentinel.
+ * SEGUNDA punta: la herramienta `atrasos_de_recepcion` de CIFO.
  *
  * Es la misma razón por la que `lib/cola-intake.ts` no vive en su pantalla: si
  * el panel y el agente definen "atrasado" por su lado, el día que alguien mueva
@@ -37,7 +37,7 @@ export interface FilaAtraso {
   caseCode: string;
   /**
    * Para la PANTALLA. La herramienta del agente lo descarta antes de devolver
-   * nada — ver `lib/sentinel/tools.ts`.
+   * nada — ver `lib/cifo/tools.ts`.
    */
   paciente: string | null;
   /** Desde cuándo espera: el evento que arrancó el reloj de este grupo. */

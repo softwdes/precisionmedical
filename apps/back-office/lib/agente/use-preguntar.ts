@@ -5,12 +5,12 @@ import * as React from 'react';
 /**
  * El lector del streaming del agente, del lado del navegador.
  *
- * Salió de `app/attorney/vigia/ask-box.tsx` para que Sentinel no lo copie. Es la
+ * Salió de `app/attorney/vigia/ask-box.tsx` para que CIFO no lo copie. Es la
  * misma razón que el lazo del servidor: lo valioso acá no es el diseño, es el
  * parseo de NDJSON partido, que es donde estas cosas se rompen.
  *
  * Lo que NO está acá: el cajón, los chips de sugerencia, los botones. Eso es
- * chrome y cada agente tiene el suyo — Vigía abre listas del bufete, Sentinel
+ * chrome y cada agente tiene el suyo — Vigía abre listas del bufete, CIFO
  * manda a la cola del panel. Se comparte la máquina, no la carrocería.
  */
 
@@ -55,7 +55,7 @@ const INICIAL: EstadoAgente = {
 };
 
 /**
- * @param endpoint La ruta NDJSON del agente (`/api/sentinel/ask`, `/api/attorney/vigia/ask`).
+ * @param endpoint La ruta NDJSON del agente (`/api/cifo/ask`, `/api/attorney/vigia/ask`).
  */
 export function usePreguntar(endpoint: string): EstadoAgente & {
   preguntar: (pregunta: string) => Promise<void>;

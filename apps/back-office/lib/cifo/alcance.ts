@@ -1,5 +1,5 @@
 /**
- * Sentinel · el alcance.
+ * CIFO · el alcance.
  *
  * En Vigía el alcance es `SessionLawyer` y hace un trabajo: **encierra** al
  * abogado en su bufete. Acá no encierra nada — recepción ve la clínica entera —

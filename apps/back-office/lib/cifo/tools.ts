@@ -10,7 +10,7 @@ import type { Herramienta, ResultadoHerramienta } from '@/lib/agente/tipos';
 import type { AlcanceClinica } from './alcance';
 
 /**
- * Sentinel · las herramientas de recepción.
+ * CIFO · las herramientas de recepción.
  *
  * Dos reglas gobiernan este archivo, y la segunda es la que lo hace distinto de
  * Vigía.
@@ -40,7 +40,7 @@ import type { AlcanceClinica } from './alcance';
  * pacientes, que existe y no pasa por ningún modelo.
  *
  * Consecuencia práctica: **saca el BAA del camino crítico.** Sin datos
- * identificables saliendo hacia el proveedor, Sentinel se puede construir y usar
+ * identificables saliendo hacia el proveedor, CIFO se puede construir y usar
  * mientras el acuerdo siga en trámite.
  *
  * **Los nombres de PROVIDER sí viajan** (`notas_sin_firmar`). Es una decisión
@@ -51,7 +51,7 @@ import type { AlcanceClinica } from './alcance';
  *
  * ── Y ninguna escribe ────────────────────────────────────────────────────────
  *
- * Sentinel es de solo lectura. Las acciones —llamar, mandar el formulario— las
+ * CIFO es de solo lectura. Las acciones —llamar, mandar el formulario— las
  * hace la persona apretando un botón de la pantalla, con su propio audit. El
  * agente propone; no ejecuta.
  */
@@ -394,11 +394,11 @@ export async function resumenDeCaso(args: { caso: string }): Promise<ResultadoHe
 /**
  * El catálogo que se le ofrece al modelo.
  *
- * Ninguna recibe el alcance: Sentinel ve la clínica entera y no hay filtro que
+ * Ninguna recibe el alcance: CIFO ve la clínica entera y no hay filtro que
  * heredar. Por eso las firmas son más simples que las de Vigía — y por eso la
  * garantía tuvo que mudarse a "ningún nombre sale de acá".
  */
-export const SENTINEL_TOOLS: readonly Herramienta<AlcanceClinica>[] = [
+export const CIFO_TOOLS: readonly Herramienta<AlcanceClinica>[] = [
   {
     name: 'pulso_del_dia',
     description: 'Cómo viene el día: citas de hoy por estado, cuántos están en el edificio, cuántos faltan por llegar, no-shows, cobrado hoy, y cuántos SMS/correos y llamadas se hicieron hoy. Usala para la primera pregunta de panorama.',

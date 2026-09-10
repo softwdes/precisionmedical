@@ -1,12 +1,12 @@
 /**
- * POST /api/sentinel/ask — le pregunta a Sentinel.
+ * POST /api/cifo/ask — le pregunta a CIFO.
  *
  * Espejo de `/api/attorney/vigia/ask`, con dos diferencias que importan:
  *
- * · **El candado es una capacidad opt-in**, no un menú. Sentinel contesta sobre
+ * · **El candado es una capacidad opt-in**, no un menú. CIFO contesta sobre
  *   los saldos de toda la clínica y las notas de todos los providers, así que no
- *   alcanza con "entrar al back-office" — hace falta `clinicModules.sentinel` en
- *   `true`, o ser SUPER_ADMIN/ADMIN. Ver `lib/sentinel-access.ts`.
+ *   alcanza con "entrar al back-office" — hace falta `clinicModules.cifo` en
+ *   `true`, o ser SUPER_ADMIN/ADMIN. Ver `lib/cifo-access.ts`.
  *
  * · **El alcance no achica nada.** En el portal legal la ruta pasa la sesión del
  *   abogado y cada herramienta se encierra en su bufete. Acá el alcance legítimo
@@ -20,9 +20,9 @@ import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
-import { canAskSentinel } from '@/lib/sentinel-access';
-import { preguntarASentinelStream, type SentinelAnswer } from '@/lib/sentinel/agent';
-import { alcanceDe } from '@/lib/sentinel/alcance';
+import { canAskCifo } from '@/lib/cifo-access';
+import { preguntarACifoStream, type CifoAnswer } from '@/lib/cifo/agent';
+import { alcanceDe } from '@/lib/cifo/alcance';
 import { resolveActor } from '@/lib/actor';
 
 // El lazo puede encadenar varias llamadas al modelo; el default de Vercel es corto.
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // La misma puerta que la pantalla. Se pregunta acá aparte de en la página
   // porque las APIs no pasan por los checks de página: esta ruta es su propia
   // puerta.
-  if (!(await canAskSentinel())) {
+  if (!(await canAskCifo())) {
     return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
   }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const locale = await getLocale();
   /**
    * El alcance sale de la sesión y se recorta a dos campos antes de llegar al
-   * prompt — ver `lib/sentinel/alcance.ts`. Nunca se pasa el `User` completo.
+   * prompt — ver `lib/cifo/alcance.ts`. Nunca se pasa el `User` completo.
    */
   const alcance = alcanceDe(user);
 
@@ -73,18 +73,18 @@ export async function POST(req: NextRequest): Promise<Response> {
    * por `\n` y listo.
    */
   const encoder = new TextEncoder();
-  let final: SentinelAnswer | null = null;
+  let final: CifoAnswer | null = null;
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const ev of preguntarASentinelStream(alcance, input.pregunta, locale)) {
+        for await (const ev of preguntarACifoStream(alcance, input.pregunta, locale)) {
           if (ev.type === 'done') final = ev.answer;
           controller.enqueue(encoder.encode(JSON.stringify(ev) + '\n'));
         }
       } catch (err) {
         // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
-        console.error('[sentinel] fallo la consulta', err);
+        console.error('[cifo] fallo la consulta', err);
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'error' }) + '\n'));
       } finally {
         controller.close();
@@ -100,6 +100,18 @@ export async function POST(req: NextRequest): Promise<Response> {
          */
         await writeAuditLog(db, {
           ...(await resolveActor(req.headers)),
+          /**
+           * Se queda `SENTINEL_ASK` aunque el agente ahora se llame CIFO.
+           *
+           * Ya hay **6 filas** con esa acción en la base. Cambiarla a `CIFO_ASK`
+           * partiría el historial en dos: quien busque "quién le preguntó al
+           * agente" tendría que saber que hubo un rename y buscar las dos, y el
+           * que no lo sepa va a ver seis consultas menos. El nombre de una acción
+           * de auditoría es un identificador de datos, no una etiqueta de UI.
+           *
+           * Si algún día se unifica, se migran las filas viejas en la misma
+           * pasada y recién ahí se cambia acá.
+           */
           action: 'SENTINEL_ASK',
           entityType: 'users',
           entityId: user.id,

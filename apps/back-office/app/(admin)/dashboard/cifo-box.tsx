@@ -8,7 +8,7 @@ import { Button } from '@precision/ui';
 import { usePreguntar } from '@/lib/agente/use-preguntar';
 
 /**
- * Sentinel · la caja de preguntar del panel de recepción.
+ * CIFO · la caja de preguntar del panel de recepción.
  *
  * Va ARRIBA del titular y de los números, en columna angosta y centrada. Es el
  * mismo lugar donde funcionó en el portal legal, y por la misma razón: a todo el
@@ -26,20 +26,20 @@ import { usePreguntar } from '@/lib/agente/use-preguntar';
 
 /** Herramienta → cómo se llama en la pantalla. Sin mapa, se muestra el nombre crudo. */
 const PASO_KEY: Record<string, string> = {
-  pulso_del_dia: 'sentinelStepPulse',
-  cola_de_intake: 'sentinelStepIntake',
-  notas_sin_firmar: 'sentinelStepNotes',
-  atrasos_de_recepcion: 'sentinelStepDelays',
-  saldos_y_cobros: 'sentinelStepMoney',
-  pedidos_de_bufetes: 'sentinelStepFirms',
-  resumen_de_caso: 'sentinelStepCase',
+  pulso_del_dia: 'cifoStepPulse',
+  cola_de_intake: 'cifoStepIntake',
+  notas_sin_firmar: 'cifoStepNotes',
+  atrasos_de_recepcion: 'cifoStepDelays',
+  saldos_y_cobros: 'cifoStepMoney',
+  pedidos_de_bufetes: 'cifoStepFirms',
+  resumen_de_caso: 'cifoStepCase',
 };
 
 const ACCION_KEY: Record<string, string> = {
-  workQueue: 'sentinelActWorkQueue',
-  openCase: 'sentinelActOpenCase',
-  notesBoard: 'sentinelActNotes',
-  firmRequests: 'sentinelActFirms',
+  workQueue: 'cifoActWorkQueue',
+  openCase: 'cifoActOpenCase',
+  notesBoard: 'cifoActNotes',
+  firmRequests: 'cifoActFirms',
 };
 
 /**
@@ -50,13 +50,13 @@ const ACCION_KEY: Record<string, string> = {
  * corrió: ofrecer justo lo que la persona acaba de preguntar es ruido.
  */
 const SEGUIMIENTOS: Array<{ tool: string; key: string }> = [
-  { tool: 'cola_de_intake', key: 'sentinelSuggest2' },
-  { tool: 'notas_sin_firmar', key: 'sentinelSuggest3' },
-  { tool: 'atrasos_de_recepcion', key: 'sentinelSuggest4' },
-  { tool: 'pulso_del_dia', key: 'sentinelSuggest1' },
+  { tool: 'cola_de_intake', key: 'cifoSuggest2' },
+  { tool: 'notas_sin_firmar', key: 'cifoSuggest3' },
+  { tool: 'atrasos_de_recepcion', key: 'cifoSuggest4' },
+  { tool: 'pulso_del_dia', key: 'cifoSuggest1' },
 ];
 
-export function SentinelBox({ configurado, casoEjemplo }: {
+export function CifoBox({ configurado, casoEjemplo }: {
   /** ¿Hay clave del proveedor en este entorno? Lo resuelve el SERVIDOR. */
   configurado: boolean;
   /** Un código de caso REAL para la cuarta sugerencia. Null = no se ofrece. */
@@ -67,7 +67,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
   const [texto, setTexto] = React.useState('');
   const [abierto, setAbierto] = React.useState(false);
   const { preguntada, cargando, parcial, pasos, res, error, preguntar, limpiar } =
-    usePreguntar('/api/sentinel/ask');
+    usePreguntar('/api/cifo/ask');
 
   const lanzar = React.useCallback(async (q: string) => {
     if (q.trim().length < 3) return;
@@ -79,20 +79,20 @@ export function SentinelBox({ configurado, casoEjemplo }: {
   const cerrar = (): void => { setAbierto(false); limpiar(); };
 
   const sugerencias = [
-    t('sentinelSuggest1'),
-    t('sentinelSuggest2'),
-    t('sentinelSuggest3'),
-    ...(casoEjemplo ? [`${t('sentinelStepCase')} ${casoEjemplo}`] : []),
+    t('cifoSuggest1'),
+    t('cifoSuggest2'),
+    t('cifoSuggest3'),
+    ...(casoEjemplo ? [`${t('cifoStepCase')} ${casoEjemplo}`] : []),
   ];
 
   const usadas = new Set((res?.steps ?? pasos).map((s) => s.tool));
   const seguir = SEGUIMIENTOS.filter((s) => !usadas.has(s.tool)).slice(0, 2);
 
   const estado = error
-    ? t('sentinelFailed')
+    ? t('cifoFailed')
     : cargando
-      ? (parcial ? t('sentinelWriting') : t('sentinelReading'))
-      : t('sentinelReady');
+      ? (parcial ? t('cifoWriting') : t('cifoReading'))
+      : t('cifoReady');
 
   return (
     <>
@@ -101,7 +101,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
           flaco con un botón al lado y se leía como un buscador — exactamente lo
           que el propio archivo de Vigía advierte y que yo cité en un comentario
           antes de construirlo mal (Erick lo marcó de una: "mirá el tamaño de
-          Vigía y mirá el tamaño de Sentinel").
+          Vigía y mirá el tamaño de CIFO").
 
           Misma anatomía que el portal legal: tarjeta `bg-bg-1 p-5`, etiqueta con
           la chispa arriba, el campo como una caja RECOGIDA sobre el fondo de la
@@ -114,7 +114,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
               ? <Sparkles className="w-4 h-4 text-brand-text" />
               : <Lock className="w-4 h-4 text-amber" />}
             <span className={`text-[10px] uppercase tracking-wider font-semibold ${configurado ? 'text-brand-text' : 'text-amber'}`}>
-              {t('sentinelAskLabel')}
+              {t('cifoAskLabel')}
             </span>
           </div>
 
@@ -126,15 +126,15 @@ export function SentinelBox({ configurado, casoEjemplo }: {
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               disabled={!configurado || cargando}
-              placeholder={t('sentinelPlaceholder')}
-              aria-label={t('sentinelAskLabel')}
+              placeholder={t('cifoPlaceholder')}
+              aria-label={t('cifoAskLabel')}
               className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[15px] text-text-1 placeholder:text-text-muted disabled:opacity-60"
             />
             <Button
               type="submit"
               size="icon"
               disabled={!configurado || cargando || texto.trim().length < 3}
-              aria-label={t('sentinelAsk')}
+              aria-label={t('cifoAsk')}
               className="shrink-0"
             >
               {cargando ? <Loader2 className="animate-spin" /> : <ArrowRight />}
@@ -147,7 +147,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
             <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-start gap-2">
               <Lock className="w-3.5 h-3.5 text-amber mt-0.5 shrink-0" />
               <span className="text-[11px] leading-relaxed text-text-2">
-                {t('sentinelNotConfigured')}
+                {t('cifoNotConfigured')}
               </span>
             </div>
           )}
@@ -158,7 +158,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
               una persona. */}
           <div className="flex justify-end">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">
-              {t('sentinelScopeShort')}
+              {t('cifoScopeShort')}
             </span>
           </div>
         </div>
@@ -189,7 +189,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
       {abierto && (
         <div
           role="complementary"
-          aria-label="Sentinel"
+          aria-label="CIFO"
           /* `pb-16` en móvil: la barra inferior de navegación es `fixed bottom-0
              z-40` igual que este cajón, y se monta después (`admin-shell.tsx`),
              así que sin el aire al pie tapaba los 64px de abajo — justo el pie
@@ -201,12 +201,12 @@ export function SentinelBox({ configurado, casoEjemplo }: {
           <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border shrink-0">
             <Sparkles className="w-3.5 h-3.5 text-brand-text" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-1">
-              Sentinel · {estado}
+              CIFO · {estado}
             </span>
             <button
               type="button"
               onClick={cerrar}
-              aria-label={t('sentinelClose')}
+              aria-label={t('cifoClose')}
               className="ml-auto rounded p-1 text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
             >
               <X className="w-4 h-4" />
@@ -234,7 +234,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
 
             {error && (
               <p className="text-[13px] text-rose">
-                {error === 'config' ? t('sentinelNotConfigured') : t('sentinelError')}
+                {error === 'config' ? t('cifoNotConfigured') : t('cifoError')}
               </p>
             )}
 
@@ -246,7 +246,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
             )}
 
             {!error && !res && !parcial && cargando && (
-              <p className="text-[13px] text-text-muted">{t('sentinelAsking')}</p>
+              <p className="text-[13px] text-text-muted">{t('cifoAsking')}</p>
             )}
 
             {/* Los botones NO los elige el modelo: se derivan de qué corrió. */}
@@ -274,7 +274,7 @@ export function SentinelBox({ configurado, casoEjemplo }: {
             {res && seguir.length > 0 && (
               <div className="flex flex-col gap-1.5 pt-1">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                  {t('sentinelFollowUp')}
+                  {t('cifoFollowUp')}
                 </span>
                 {seguir.map((s) => (
                   <button
@@ -295,10 +295,10 @@ export function SentinelBox({ configurado, casoEjemplo }: {
           <div className="shrink-0 px-5 py-3 border-t border-border flex flex-col gap-1">
             {res && (
               <span className="text-[10.5px] text-text-muted tabular-nums">
-                {res.sources.join(' · ')} · {res.usage.total} {t('sentinelTokens')}
+                {res.sources.join(' · ')} · {res.usage.total} {t('cifoTokens')}
               </span>
             )}
-            <span className="text-[10.5px] text-text-muted">{t('sentinelScope')}</span>
+            <span className="text-[10.5px] text-text-muted">{t('cifoScope')}</span>
           </div>
         </div>
       )}

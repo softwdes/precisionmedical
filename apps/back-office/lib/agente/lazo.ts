@@ -13,7 +13,7 @@ import type {
  * agnóstico: cambiar de proveedor es reescribir esto y nada más.
  *
  * Salió de `lib/vigia/agent.ts` (2026-09-08) con el comportamiento intacto,
- * para que el segundo agente —Sentinel, el de la clínica— no lo copie. Las
+ * para que el segundo agente —CIFO, el de la clínica— no lo copie. Las
  * cuatro decisiones que valen la pena explicar, y que son las que un fork
  * habría duplicado:
  *

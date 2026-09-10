@@ -901,6 +901,19 @@ const ATTORNEY_VIEW_MODULE = 'attorney';
 const NOTES_AUDIT_MODULE = 'notesAudit';
 
 /**
+ * CIFO, el agente del dashboard del Back-Office (antes se llamaba Sentinel).
+ *
+ * Va AL REVÉS que las tres capacidades de arriba: se tiene salvo que esta
+ * casilla lo quite, igual que un menú. Erick lo abrió a todo el back-office el
+ * 2026-09-10 — nació opt-in y con esa regla terminó en cero personas, porque
+ * nadie tenía la llave y ni siquiera existía esta casilla para darla.
+ *
+ * Por eso acá solo se guarda el `false`: la ausencia de la llave significa que
+ * lo tiene. Espejo de `apps/back-office/lib/cifo-module.ts`.
+ */
+const CIFO_MODULE = 'cifo';
+
+/**
  * Pedidos de bufetes: el menú del back-office donde se ve TODO lo que los
  * abogados pidieron desde su portal (a quién le llegó, si respondieron, quién y
  * qué). Opt-in como Notas clínicas — lista pacientes y casos de todos los
@@ -932,6 +945,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const [doctorView, setDoctorView] = useState(savedModules?.[DOCTOR_VIEW_MODULE] === true);
   const [attorneyView, setAttorneyView] = useState(savedModules?.[ATTORNEY_VIEW_MODULE] === true);
   const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
+  // CIFO al reves: se tiene salvo un `false` explicito.
+  const [cifo, setCifo] = useState(savedModules?.[CIFO_MODULE] !== false);
   const [firmRequests, setFirmRequests] = useState(savedModules?.[FIRM_REQUESTS_MODULE] === true);
 
   /**
@@ -996,6 +1011,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
       ...(doctorView   ? { [DOCTOR_VIEW_MODULE]:   true } : {}),
       ...(attorneyView ? { [ATTORNEY_VIEW_MODULE]: true } : {}),
       ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
+      // Solo se escribe el NO: la ausencia de la llave ya significa que lo tiene.
+      ...(cifo ? {} : { [CIFO_MODULE]: false }),
       ...(firmRequests ? { [FIRM_REQUESTS_MODULE]: true } : {}),
     };
     const clinicModulesPayload =
@@ -1189,6 +1206,26 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     <span className="block text-[12.5px] text-text-2">Notas clínicas</span>
                     <span className="block text-[11px] text-text-muted">
                       Supervisión. No se da por defecto: hay que marcarlo.
+                    </span>
+                  </span>
+                </label>
+
+                {/* CIFO va acá abajo y NO en la grilla, por lo mismo que Notas
+                    clínicas: es del Back-Office, no del portal. Pero al revés
+                    que su vecina, nace MARCADO — se destilda para quitarlo. */}
+                <label className="flex items-start gap-2.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-surface transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={cifo}
+                    onChange={() => setCifo(v => !v)}
+                    className="mt-0.5 h-3.5 w-3.5 accent-violet-500"
+                  />
+                  <span className="text-[11px] w-4 text-center">🤖</span>
+                  <span className="min-w-0">
+                    <span className="block text-[12.5px] text-text-2">CIFO en el Dashboard</span>
+                    <span className="block text-[11px] text-text-muted">
+                      El agente que contesta sobre el día. Lo tiene todo el
+                      Back-Office; destildá para quitárselo.
                     </span>
                   </span>
                 </label>

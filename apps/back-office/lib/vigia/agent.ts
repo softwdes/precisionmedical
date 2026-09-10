@@ -11,7 +11,7 @@ import { VIGIA_TOOLS } from './tools';
  * Vigía · el agente del portal legal.
  *
  * El lazo ya NO vive acá: se mudó a `lib/agente/lazo.ts` el 2026-09-08, cuando
- * Erick decidió que la clínica tenga su propio agente (Sentinel). Lo que queda
+ * Erick decidió que la clínica tenga su propio agente (CIFO). Lo que queda
  * en este archivo es lo único que distingue a Vigía de cualquier otro agente, y
  * son cuatro cosas:
  *

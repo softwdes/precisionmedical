@@ -5,16 +5,17 @@
  *
  * Reemplaza al <select> nativo del "Bandeja de…" del inbox: con decenas de
  * usuarios la lista se vuelve inmanejable sin poder escribir para filtrar.
- * Mismas mecánicas que UserMultiSelect: dropdown en PORTAL a document.body
- * con pointerEvents:'auto' (obligatorio dentro de un Dialog de Radix) y
- * reposicionamiento en scroll/resize.
+ *
+ * El panel lo pone `FloatingPanel` (igual que UserMultiSelect): acota el alto
+ * al lugar real y voltea hacia arriba si abajo no entra. Antes calculaba
+ * `top: rect.bottom + 4` con un `max-h-80` fijo y en un teléfono la lista
+ * terminaba fuera de la pantalla, sin forma de scrollear hasta ella.
  */
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Search as SearchIcon } from 'lucide-react';
+import { FloatingPanel } from '@/components/ui-phoenix/floating-panel';
 import type { MessagingUser } from './user-multi-select';
-import { usePortalWheelScroll } from './use-portal-wheel';
 
 interface Props {
   users: MessagingUser[];
@@ -32,15 +33,9 @@ export function UserSelect({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [mounted, setMounted] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({ visibility: 'hidden', pointerEvents: 'none' });
   const wrapRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setMounted(true); }, []);
-  usePortalWheelScroll(listRef, open);
 
   const selectedLabel =
     value === currentUserId ? myLabel : users.find((u) => u.id === value)?.name ?? myLabel;
@@ -51,32 +46,6 @@ export function UserSelect({
     ...users.filter((u) => u.id !== currentUserId && u.name.toLowerCase().includes(q)),
   ];
 
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current) {
-      setDropStyle({ visibility: 'hidden', pointerEvents: 'none' });
-      return;
-    }
-    const compute = () => {
-      const rect = wrapRef.current!.getBoundingClientRect();
-      setDropStyle({
-        position: 'fixed', top: rect.bottom + 4, left: rect.left,
-        width: Math.max(rect.width, 240), visibility: 'visible', pointerEvents: 'auto',
-      });
-    };
-    compute();
-    let scrollable: HTMLElement | null = wrapRef.current.parentElement;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open, options.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -107,9 +76,18 @@ export function UserSelect({
         <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
       </button>
 
-      {mounted && open && createPortal(
-        <div ref={dropRef} style={dropStyle}
-          className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl overflow-hidden">
+      {/* `scroll={false}`: el buscador es parte FIJA del panel y solo scrollea
+          la lista de abajo. Si scrolleara el panel entero, el campo se iría de
+          la vista apenas bajás por la lista. */}
+      <FloatingPanel
+        anchorRef={wrapRef}
+        panelRef={dropRef}
+        open={open}
+        maxHeight={320}
+        minWidth={240}
+        scroll={false}
+        className="border border-border-strong"
+      >
           <div className="relative border-b border-border/60">
             <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
@@ -123,8 +101,7 @@ export function UserSelect({
               className="w-full bg-transparent outline-none text-sm text-text-1 placeholder:text-text-muted pl-8 pr-3 py-2"
             />
           </div>
-          {/* Rueda: la maneja usePortalWheelScroll (listener nativo) — ver hook */}
-          <div ref={listRef} role="listbox" className="max-h-80 overflow-y-auto">
+          <div role="listbox" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {options.map((u) => (
               <button key={u.id} type="button" role="option" aria-selected={u.id === value}
                 onMouseDown={(e) => { e.preventDefault(); pick(u.id); }}
@@ -141,9 +118,7 @@ export function UserSelect({
               <div className="px-3 py-3 text-text-muted text-xs text-center">—</div>
             )}
           </div>
-        </div>,
-        document.body,
-      )}
+      </FloatingPanel>
     </div>
   );
 }

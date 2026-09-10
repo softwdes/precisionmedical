@@ -8,17 +8,16 @@
  * la consulta es sobre uno anterior — por eso los terminados siguen siendo
  * elegibles, agrupados abajo y atenuados, para que elegirlos sea deliberado.
  *
- * Mismas mecánicas de portal que UserSelect: dropdown en document.body con
- * pointerEvents:'auto' y rueda por listener nativo (trampas de Radix Dialog).
+ * El panel lo pone `FloatingPanel`, igual que UserSelect: acota el alto al
+ * lugar real y voltea si abajo no entra.
  * El buscador aparece solo con más de 6 casos — la mayoría tiene 1 o 2 y un
  * campo de texto ahí sería ruido.
  */
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Search as SearchIcon, Car, Stethoscope } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
-import { usePortalWheelScroll } from './use-portal-wheel';
+import { FloatingPanel } from '@/components/ui-phoenix/floating-panel';
 
 export interface MessagingCase {
   id: string;
@@ -102,15 +101,10 @@ interface Props {
 export function CaseSelect({ cases, value, onChange, disabled = false, loading = false, labels, formatDate }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [mounted, setMounted] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({ visibility: 'hidden', pointerEvents: 'none' });
   const wrapRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setMounted(true); }, []);
-  usePortalWheelScroll(listRef, open);
 
   const selected = cases.find((c) => c.id === value) ?? null;
   const showSearch = cases.length > 6;
@@ -123,32 +117,6 @@ export function CaseSelect({ cases, value, onChange, disabled = false, loading =
   const openCases = cases.filter((c) => isOpenCase(c.status) && match(c));
   const pastCases = cases.filter((c) => !isOpenCase(c.status) && match(c));
 
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current) {
-      setDropStyle({ visibility: 'hidden', pointerEvents: 'none' });
-      return;
-    }
-    const compute = () => {
-      const rect = wrapRef.current!.getBoundingClientRect();
-      setDropStyle({
-        position: 'fixed', top: rect.bottom + 4, left: rect.left,
-        width: Math.max(rect.width, 280), visibility: 'visible', pointerEvents: 'auto',
-      });
-    };
-    compute();
-    let scrollable: HTMLElement | null = wrapRef.current.parentElement;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open, openCases.length, pastCases.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -217,9 +185,17 @@ export function CaseSelect({ cases, value, onChange, disabled = false, loading =
         <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
       </button>
 
-      {mounted && open && createPortal(
-        <div ref={dropRef} style={dropStyle}
-          className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl overflow-hidden">
+      {/* `scroll={false}`: el buscador (cuando aparece) es parte FIJA del panel
+          y solo scrollea la lista de casos. */}
+      <FloatingPanel
+        anchorRef={wrapRef}
+        panelRef={dropRef}
+        open={open}
+        maxHeight={320}
+        minWidth={280}
+        scroll={false}
+        className="border border-border-strong"
+      >
           {showSearch && (
             <div className="relative border-b border-border/60">
               <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -239,7 +215,7 @@ export function CaseSelect({ cases, value, onChange, disabled = false, loading =
               />
             </div>
           )}
-          <div ref={listRef} role="listbox" className="max-h-72 overflow-y-auto">
+          <div role="listbox" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {openCases.map((c) => row(c, false))}
             {pastCases.length > 0 && (
               <div className="px-3 py-1 bg-bg-2/60 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
@@ -251,9 +227,7 @@ export function CaseSelect({ cases, value, onChange, disabled = false, loading =
               <div className="px-3 py-3 text-text-muted text-xs text-center">—</div>
             )}
           </div>
-        </div>,
-        document.body,
-      )}
+      </FloatingPanel>
     </div>
   );
 }

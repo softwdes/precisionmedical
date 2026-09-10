@@ -63,17 +63,41 @@ export interface FloatingPanelProps {
    * escribiendo. El scroll DE ADENTRO del panel no cuenta.
    */
   onScrollClose?: () => void;
+  /**
+   * Ref al div del panel, para quien necesite preguntar si un clic cayó
+   * ADENTRO — el caso típico es el "cerrar al clickear afuera" de un combobox,
+   * que sin esto se dispara también al arrastrar la barra de scroll del panel.
+   * Si no se pasa, el componente usa uno propio.
+   */
+  panelRef?: React.RefObject<HTMLDivElement | null>;
+  /**
+   * `false` cuando el panel NO scrollea como un todo porque tiene una parte
+   * fija — el caso es un combobox con buscador arriba: si scrollea el panel
+   * entero, el campo de búsqueda se va de la vista al bajar por la lista.
+   *
+   * Con `false` el panel queda `flex flex-col overflow-hidden` y el `maxHeight`
+   * calculado sigue mandando; adentro, la parte que scrollea se marca con
+   * `flex-1 min-h-0 overflow-y-auto` y es la única que se mueve.
+   */
+  scroll?: boolean;
+  /**
+   * Piso de ancho en px. `width: 'anchor'` copia al ancla y nada más, pero un
+   * trigger angosto puede dar un panel donde no entra el contenido (nombre +
+   * rol, código de caso + fecha). El techo sigue siendo la ventana.
+   */
+  minWidth?: number;
 }
 
 export function FloatingPanel({
   anchorRef, open, children, maxHeight = 208, className = '',
-  width = 'anchor', align = 'start', onScrollClose,
+  width = 'anchor', align = 'start', onScrollClose, panelRef: panelRefExterno, scroll = true, minWidth = 0,
 }: FloatingPanelProps): React.ReactElement | null {
   const [style, setStyle] = React.useState<React.CSSProperties>({ top: -9999, left: -9999, visibility: 'hidden' });
   /** `maxHeight` acotado al lugar que hay de verdad en el lado elegido. */
   const [alto, setAlto] = React.useState(maxHeight);
   const [host, setHost] = React.useState<HTMLElement | null>(null);
-  const panelRef = React.useRef<HTMLDivElement>(null);
+  const panelRefPropio = React.useRef<HTMLDivElement>(null);
+  const panelRef = panelRefExterno ?? panelRefPropio;
 
   /**
    * Dónde se monta: si el ancla vive dentro de un diálogo, **dentro del
@@ -104,7 +128,7 @@ export function FloatingPanel({
       // contenedor de sus hijos absolutos.
       const hostRect = enDialogo ? host.getBoundingClientRect() : null;
       const base = hostRect ?? { left: 0, top: 0, bottom: 0 };
-      const w = width === 'anchor' ? r.width : width;
+      const w = Math.max(width === 'anchor' ? r.width : width, minWidth);
       /**
        * Abajo si entra entero; si no, arriba si entra entero; y si no entra en
        * ninguno de los dos lados, el que tenga más lugar, con el alto ACOTADO a
@@ -174,7 +198,7 @@ export function FloatingPanel({
     <div
       ref={panelRef}
       style={{ ...style, maxHeight: alto }}
-      className={`z-[9999] overflow-y-auto overscroll-contain rounded-md bg-bg-1 shadow-xl shadow-black/50 ${className}`}
+      className={`z-[9999] ${scroll ? 'overflow-y-auto overscroll-contain' : 'flex flex-col overflow-hidden'} rounded-md bg-bg-1 shadow-xl shadow-black/50 ${className}`}
     >
       {children}
     </div>,

@@ -5,16 +5,24 @@
  *
  * A diferencia del primitivo `Autocomplete` (single-select contra endpoint),
  * acá la lista de staff es chica y ya está en memoria (la trae el dialog una
- * sola vez de /api/messages/users), así que el filtrado es local. El dropdown
- * va en un PORTAL a document.body por la misma trampa documentada del
- * Autocomplete: `fixed`/`absolute` dentro del transform de un DialogContent
- * queda recortado por el overflow del modal.
+ * sola vez de /api/messages/users), así que el filtrado es local.
+ *
+ * El panel lo pone `FloatingPanel`, que resuelve las tres cosas que este
+ * archivo hacía a mano y mal:
+ *  · el alto ACOTADO al lugar real y el volteo hacia arriba — antes era
+ *    `top: rect.bottom + 4` con un `max-h-80` fijo, y en un teléfono el panel
+ *    terminaba por debajo del borde inferior: como es `fixed`, la página no lo
+ *    alcanza scrolleando y la lista de usuarios quedaba cortada sin forma de
+ *    llegar al resto. Lo reportó Erick con una captura.
+ *  · la rueda del mouse dentro de un Dialog de Radix — el primitivo monta el
+ *    panel DENTRO del DialogContent, así que el scroll-lock no lo bloquea.
+ *    Por eso ya no hace falta `usePortalWheelScroll` ni el `pointerEvents:
+ *    'auto'` que necesitaba el portal a `document.body`.
  */
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import { X as XIcon } from 'lucide-react';
-import { usePortalWheelScroll } from './use-portal-wheel';
+import { FloatingPanel } from '@/components/ui-phoenix/floating-panel';
 
 export interface MessagingUser {
   id: string;
@@ -37,50 +45,14 @@ export function UserMultiSelect({
 }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({ visibility: 'hidden' });
   const wrapRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setMounted(true); }, []);
-  usePortalWheelScroll(dropRef, open);
 
   const taken = new Set([...selected.map((u) => u.id), ...excludeIds]);
   const options = users.filter(
     (u) => !taken.has(u.id) && u.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
-
-  useLayoutEffect(() => {
-    // `pointerEvents: 'auto'` es obligatorio: el Dialog de Radix pone
-    // pointer-events:none en el body mientras está abierto, y este dropdown
-    // vive portaleado en document.body — sin esto los clicks no llegan
-    // (mismo fix documentado en el primitivo Autocomplete).
-    if (!open || !wrapRef.current) {
-      setDropStyle({ visibility: 'hidden', pointerEvents: 'none' });
-      return;
-    }
-    const compute = () => {
-      const rect = wrapRef.current!.getBoundingClientRect();
-      setDropStyle({
-        position: 'fixed', top: rect.bottom + 4, left: rect.left,
-        width: rect.width, visibility: 'visible', pointerEvents: 'auto',
-      });
-    };
-    compute();
-    let scrollable: HTMLElement | null = wrapRef.current.parentElement;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open, options.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -131,21 +103,22 @@ export function UserMultiSelect({
         />
       </div>
 
-      {/* Rueda: la maneja usePortalWheelScroll (listener nativo) — ver hook */}
-      {mounted && open && options.length > 0 && createPortal(
-        <div ref={dropRef} style={dropStyle}
-          className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-80 overflow-y-auto">
-          {options.map((u) => (
-            <button key={u.id} type="button"
-              onMouseDown={(e) => { e.preventDefault(); onChange([...selected, u]); setQuery(''); }}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors">
-              <span className="text-text-1 truncate">{u.name}</span>
-              <span className="shrink-0 text-[10px] uppercase tracking-wider text-text-muted">{u.role}</span>
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
+      <FloatingPanel
+        anchorRef={wrapRef}
+        panelRef={dropRef}
+        open={open && options.length > 0}
+        maxHeight={320}
+        className="border border-border-strong"
+      >
+        {options.map((u) => (
+          <button key={u.id} type="button"
+            onMouseDown={(e) => { e.preventDefault(); onChange([...selected, u]); setQuery(''); }}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors">
+            <span className="text-text-1 truncate">{u.name}</span>
+            <span className="shrink-0 text-[10px] uppercase tracking-wider text-text-muted">{u.role}</span>
+          </button>
+        ))}
+      </FloatingPanel>
     </div>
   );
 }

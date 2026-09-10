@@ -171,6 +171,14 @@ export function ConsultationClient({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const desdeNotas = searchParams.get('desde') === 'notas';
+  /**
+   * UN solo destino de salida para las DOS puertas: el "Volver" de arriba y el
+   * "Guardar y salir" del pie de la nota. Estaba escrito en el `href` del Link;
+   * se sube a una const porque con la expresión repetida en dos lugares, el día
+   * que cambie el criterio de `?notas=1` una de las dos puertas se queda vieja
+   * y nadie lo nota hasta que alguien pierde la cola abierta.
+   */
+  const destinoAlSalir = desdeNotas ? '/doctor?notas=1' : '/doctor';
 
   // ── Mensajes del caso · el mismo bloque que Day Admission ─────────────────
   const mensajes = useMensajesDelCaso(patientContext.id, a.caseId ?? null);
@@ -372,7 +380,7 @@ export function ConsultationClient({
             nombre. Dos puertas a lo mismo son ruido, y en esta esquina se leía
             como chrome. */}
         <Link
-          href={desdeNotas ? '/doctor?notas=1' : '/doctor'}
+          href={destinoAlSalir}
           className="h-9 px-3 rounded-md border border-border text-text-2 text-xs font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5 shrink-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -697,6 +705,7 @@ export function ConsultationClient({
                 templates={templates}
                 userId={userId}
                 mergeData={mergeDataFromPatient(patientContext)}
+                onSaveExit={() => router.push(destinoAlSalir)}
               />
             </>
           )}

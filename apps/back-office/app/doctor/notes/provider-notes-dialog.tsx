@@ -226,7 +226,7 @@ export function ProviderNotesDialog({
         <div className="flex-1 min-h-0 overflow-y-auto">
           {visita
             ? <NotaDeLaVisita visita={visita} providerName={provider.providerName}
-                puedeSellar={puedeSellar} onSellada={onSellada} />
+                puedeSellar={puedeSellar} onSellada={onSellada} onSalir={onClose} />
             : <ListaDeVisitas
                 visitas={visitas} filtradas={filtradas} error={error}
                 onAbrir={setVisita} />}
@@ -508,11 +508,13 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
  *  · FIRMADA   — solo lectura. Una nota cerrada es inmutable por HIPAA y el PUT
  *    responde 409; mostrar un editor sería prometer algo que el server niega.
  */
-function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada }: {
+function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada, onSalir }: {
   visita: VisitaDelProvider;
   providerName: string;
   puedeSellar: boolean;
   onSellada: (appointmentId: string) => void;
+  /** Cierra el diálogo — es el "salir" del pie de la nota. */
+  onSalir: () => void;
 }): React.ReactElement {
   const t = useTranslations('phoenix.notesAudit');
   const [nota, setNota] = React.useState<VisitNoteData | null | undefined>(undefined);
@@ -630,6 +632,10 @@ function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada }: {
         /* Firmar es del médico. El servidor lo rechaza igual por rol; esto es la
            CARA de esa regla, para no ofrecer un botón que va a fallar. */
         canSign={false}
+        /* Acá "salir" es cerrar el diálogo: la pantalla de abajo es la cola de
+           notas sin cerrar, que es justo donde hay que volver para seguir con la
+           siguiente. Misma puerta que la X de la cabecera. */
+        onSaveExit={onSalir}
       />
     </div>
   );

@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock, Scissors,
+  Stethoscope, Unlock, Scissors, LogOut,
 } from 'lucide-react';
 import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -86,6 +86,20 @@ interface Props {
   canSign?: boolean;
   /** Aviso al padre tras guardar, para que recargue la nota */
   onSaved?: () => void;
+  /**
+   * Guardar y SALIR. El botón se dibuja solo si el padre pasa esta función,
+   * porque el destino no lo puede saber el editor: se monta en cuatro pantallas
+   * y cada una vuelve a un lugar distinto (la cola del día, Mi Día, cerrar el
+   * diálogo). Cada padre reusa la MISMA expresión de destino que ya usa su
+   * botón de volver, para que las dos puertas no se desincronicen.
+   *
+   * Por qué existe: el dato ya estaba a salvo —hay autoguardado cada 2,5 s,
+   * guardado al perder el foco y `flush()` con `keepalive` al desmontar—, pero
+   * `Save` se DESHABILITA cuando no hay cambios pendientes, así que justo
+   * después del autoguardado el doctor veía el botón gris y ninguna salida en la
+   * fila; el único llamativo que quedaba era "Finish note", que firma.
+   */
+  onSaveExit?: () => void;
   /**
    * Avisa cuando hay cambios sin guardar. Lo usa Day Admission para NO recargar
    * la nota mientras el asistente escribe: el refresco en vivo le pisaría el
@@ -160,6 +174,20 @@ type SectionField = typeof SECTIONS[number]['field'];
  */
 const AUTOSAVE_MS = 2_500;
 
+/**
+ * Una celda de la fila de acciones EN TELÉFONO: dos por fila, del mismo ancho, y
+ * el que queda impar toma la fila entera. Desde `sm` cada botón vuelve a medir
+ * su contenido y la fila es la de siempre.
+ *
+ * Se aplica botón por botón en vez de con un `[&>*]` en el contenedor porque
+ * `MedicalHistoryButton` devuelve un Fragment (el botón MÁS su diálogo), así que
+ * "los hijos del contenedor" no es lo mismo que "los botones" y el criterio
+ * dependería de que ese diálogo siga saliendo por un portal.
+ *
+ * El `0.25rem` es la mitad del `gap-2`.
+ */
+const CELDA_MOVIL = 'flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto';
+
 /** Preferencia local: qué secciones tienen la lista de snippets abierta (JSON de campos). */
 const SNIPPETS_PREF = 'pm.nota.snippets.secciones';
 /** Alto del editor de cada sección; la lista de snippets de adentro se estira con él. */
@@ -185,7 +213,7 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(function VisitNoteEditor({
-  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onDirtyChange, turno,
+  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onSaveExit, onDirtyChange, turno,
   onPuedeEscribirChange, mergeData = null,
 }: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -636,6 +664,32 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     setDirty(true);
   };
 
+  const [saliendo, setSaliendo] = React.useState(false);
+
+  /**
+   * Guarda lo que haya y recién entonces sale.
+   *
+   * **No sale si el guardado falló**, y esa es la regla que hace que el botón
+   * sea seguro: `save()` devuelve `false` en los tres choques reales que ya
+   * maneja —`STALE_NOTE` (otro guardó y hay que resolver la versión),
+   * `NOTE_IN_CONSULT` (el doctor entró mientras el asistente escribía) y
+   * `NOTE_ALREADY_SIGNED`—. Si en esos casos igual saliéramos, el doctor se
+   * llevaría la certeza de que quedó guardado cuando no quedó, que es peor que
+   * no tener el botón. El error ya está a la vista en la barra de arriba.
+   *
+   * Con la nota en solo lectura no hay nada que guardar y sale directo.
+   */
+  const guardarYSalir = async (): Promise<void> => {
+    if (!onSaveExit) return;
+    if (!soloLectura && dirty) {
+      setSaliendo(true);
+      const ok = await save();
+      setSaliendo(false);
+      if (!ok) return;
+    }
+    onSaveExit();
+  };
+
   const handleSign = async (): Promise<void> => {
     setSigning(true);
     // Guardar antes de firmar para no perder lo último escrito
@@ -662,7 +716,12 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   return (
     <div className="space-y-4">
       {/* Barra de estado y acciones */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/*
+        * En teléfono el estado va ARRIBA y los botones abajo ocupando el ancho,
+        * en vez de compartir la línea: con seis acciones el `justify-between`
+        * dejaba la fila ragged y el último botón solo y descolgado.
+        */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {isSigned ? (
             <>
@@ -689,10 +748,19 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {/* Va PRIMERO y fuera del `isSigned`: consultar la ficha del paciente
               no depende de si la nota está abierta o ya firmada. */}
-          {patientId && <MedicalHistoryButton patientId={patientId} />}
+          {patientId && <MedicalHistoryButton patientId={patientId} className={CELDA_MOVIL} />}
+          {isSigned && (
+            // `type="button"` explícito: antes esto era un `<a>` y no podía
+            // enviar nada. El primitivo `Button` no fija `type`, y este editor se
+            // monta en tres pantallas distintas — si alguna lo envuelve en un
+            // `<form>`, imprimir mandaría el formulario.
+            <Button type="button" variant="ghost" className={`h-9 gap-1.5 ${CELDA_MOVIL}`} onClick={() => setPrintNote(true)}>
+              <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
+            </Button>
+          )}
           {!soloLectura && (
             <>
               {/* Va PRIMERO y separado del grupo de la derecha: es destructivo y
@@ -707,41 +775,64 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
                 variant="ghost"
                 onClick={() => setConfirmClear(true)}
                 disabled={!notaTieneContenido()}
-                className="h-9 gap-1.5 text-text-2 hover:text-rose disabled:opacity-40"
+                className={`h-9 gap-1.5 text-text-2 hover:text-rose disabled:opacity-40 ${CELDA_MOVIL}`}
               >
                 <Eraser className="w-3.5 h-3.5" /> {t('noteClearAll')}
               </Button>
               {/* `ghost`, no un borde violeta a mano: un borde de color se lee
                   como aviso, y en el sistema el borde queda solo donde ES el
                   significado o donde no hay fondo que defina al control. */}
-              <Button variant="ghost" onClick={() => setTplTarget(null)} className="h-9 gap-1.5">
+              <Button variant="ghost" onClick={() => setTplTarget(null)} className={`h-9 gap-1.5 ${CELDA_MOVIL}`}>
                 <FileStack className="w-3.5 h-3.5" /> {t('noteLoadTemplate')}
               </Button>
-              <Button variant="outline" onClick={() => void save()} disabled={saving || !dirty} className="h-9 gap-1.5">
+              <Button variant="outline" onClick={() => void save()} disabled={saving || !dirty} className={`h-9 gap-1.5 ${CELDA_MOVIL}`}>
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('noteSave')}
               </Button>
+            </>
+          )}
+          {/*
+            * "Guardar y salir" va PEGADO a Save y ANTES de "Finish note", que es
+            * el que firma. Dos motivos: es la continuación natural de Save, y
+            * mete un botón de distancia con el que cierra la nota para siempre.
+            *
+            * NO se deshabilita con `!dirty`: salir siempre es válido, y el gris
+            * de Save justo después del autoguardado era parte del problema.
+            *
+            * Va FUERA del `!soloLectura`: una nota firmada —o una que este
+            * usuario no tiene el turno de escribir— tampoco tenía salida en esta
+            * fila, y ahí el rótulo es solo "Salir" porque no hay nada que
+            * guardar (decisión de Erick, 2026-09-10).
+            */}
+          {onSaveExit && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void guardarYSalir()}
+              disabled={saliendo}
+              className={`h-9 gap-1.5 ${CELDA_MOVIL}`}
+            >
+              {saliendo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+              {soloLectura ? t('noteExit') : t('noteSaveExit')}
+            </Button>
+          )}
+          {!soloLectura && (
+            <>
               {/* Firmar es del médico: el asistente escribe el borrador y el
                   doctor lo cierra desde su portal (el servidor también lo exige) */}
               {canSign ? (
-                <Button onClick={() => setConfirmSign(true)} disabled={signing} className="h-9 gap-1.5">
+                <Button onClick={() => setConfirmSign(true)} disabled={signing} className={`h-9 gap-1.5 ${CELDA_MOVIL}`}>
                   <ShieldCheck className="w-3.5 h-3.5" /> {t('noteFinish')}
                 </Button>
               ) : (
-                <span className="text-[11px] text-text-muted flex items-center gap-1.5">
+                // No es un botón: en teléfono toma la fila ENTERA en vez de
+                // media celda, porque es una frase y partida en dos líneas
+                // dentro de media columna se lee como un control roto.
+                <span className="basis-full sm:basis-auto text-[11px] text-text-muted flex items-center gap-1.5">
                   <Lock className="w-3 h-3" /> {t('noteSignDoctorOnly')}
                 </span>
               )}
             </>
-          )}
-          {isSigned && (
-            // `type="button"` explícito: antes esto era un `<a>` y no podía
-            // enviar nada. El primitivo `Button` no fija `type`, y este editor se
-            // monta en tres pantallas distintas — si alguna lo envuelve en un
-            // `<form>`, imprimir mandaría el formulario.
-            <Button type="button" variant="ghost" className="h-9 gap-1.5" onClick={() => setPrintNote(true)}>
-              <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
-            </Button>
           )}
         </div>
       </div>

@@ -16,6 +16,7 @@
  */
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ClipboardList, FileText, FlaskConical, Stethoscope, Bandage, Pill, CreditCard, FolderOpen, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
@@ -92,6 +93,7 @@ export function DoctorStepPanel({
   triage, hasTriage, servicesPanel, billingTotal, coverage, onRefresh, onSync, isOnline = false,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const router = useRouter();
 
   // ── Mensajes del caso ─────────────────────────────────────────────────────
   const mensajes = useMensajesDelCaso(patientId, servicesPanel.case?.id ?? null);
@@ -363,6 +365,13 @@ export function DoctorStepPanel({
                 canSign={false}
                 onSaved={() => { void loadNote(); }}
                 onDirtyChange={(d) => { noteDirty.current = d; }}
+                /* Sale a la COLA DEL DÍA con la ruta escrita, no con
+                   `router.back()` como el botón de la cabecera: `back()` depende
+                   del historial, y si se recargó la pantalla o se entró por un
+                   link directo devuelve a cualquier lado —o se va del sistema—.
+                   Acá el destino es el que pidió Erick: la lista de pacientes en
+                   espera (2026-09-10). */
+                onSaveExit={() => router.push('/admission')}
                 mergeData={patientContext ? mergeDataFromPatient(patientContext) : null}
                 /* EL TURNO. Mientras el doctor está adentro con el paciente, el
                    asistente ve la nota en vivo pero no la escribe: los dos

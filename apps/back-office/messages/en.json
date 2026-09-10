@@ -1458,7 +1458,9 @@
       "statusReadyOnline": "Ready · online",
       "triageOnlineNA": "No vitals · online visit",
       "vitalsSelfReported": "Patient-reported — online visit, not taken in clinic.",
-      "vitalsOnlineNone": "Online visit — no vitals taken in clinic."
+      "vitalsOnlineNone": "Online visit — no vitals taken in clinic.",
+      "noteSaveExit": "Save & exit",
+      "noteExit": "Exit"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

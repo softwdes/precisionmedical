@@ -1458,7 +1458,9 @@
       "statusReadyOnline": "Lista · online",
       "triageOnlineNA": "Sin vitales · visita online",
       "vitalsSelfReported": "Reportados por el paciente — visita online, no tomados en clínica.",
-      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica."
+      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica.",
+      "noteSaveExit": "Guardar y salir",
+      "noteExit": "Salir"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

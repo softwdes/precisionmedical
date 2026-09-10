@@ -5244,6 +5244,8 @@
       "managerPast": "Antes",
       "managerSince": "desde {date}",
       "managerNoFirm": "Elegí primero el bufete — la persona nueva se crea dentro de él.",
+      "managerEmailInvalid": "Correo inválido: falta el punto del dominio, como nombre@bufete.com. O dejalo vacío.",
+      "managerCheckFields": "Revisá {fields}.",
       "copy": "Copiar",
       "copied": "Copiado",
       "contactsTitle": "Contactos",

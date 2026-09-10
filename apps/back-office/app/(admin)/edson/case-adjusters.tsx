@@ -285,7 +285,9 @@ export function AdjustersSection({
   // Ver la nota en `ManagersSection`: el pie del modal tambien confirma lo que
   // quedo escrito acá, para que "Guardar cambios" haga lo que aparenta.
   useImperativeHandle(handleRef, () => ({
-    flush: async () => { if (adding && name.trim()) await assign(); },
+    // Devuelve si se puede seguir: el pie del modal se detiene con `false`.
+    // Acá no hay campo que pueda fallar la validación, así que siempre sigue.
+    flush: async () => { if (adding && name.trim()) await assign(); return true; },
   }));
 
   const fmt = (d: string) =>

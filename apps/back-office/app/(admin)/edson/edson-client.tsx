@@ -1494,8 +1494,14 @@ function TrackingDialog({
       // Primero lo que quedo escrito en las secciones: si Edson lleno el
       // formulario del encargado y pulso "Guardar cambios" sin tocar el boton
       // de adentro, se guarda igual.
-      await managersApi.current?.flush();
-      await adjustersApi.current?.flush();
+      //
+      // Si la seccion NO pudo guardar, se corta acá y el modal queda abierto:
+      // la seccion ya esta mostrando el motivo (p. ej. el correo del encargado
+      // mal escrito) y seguir de largo cerraria el dialogo llevandose el
+      // mensaje, con el encargado sin guardar y sin que nadie se enterara.
+      // `setSaving(false)` lo hace el `finally`.
+      if ((await managersApi.current?.flush()) === false) return;
+      if ((await adjustersApi.current?.flush()) === false) return;
 
       /*
        * Acotado se guarda SOLO la seccion visible y se sale.

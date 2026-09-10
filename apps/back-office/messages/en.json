@@ -5244,6 +5244,8 @@
       "managerPast": "Previously",
       "managerSince": "since {date}",
       "managerNoFirm": "Pick the law firm first — a new person is created inside it.",
+      "managerEmailInvalid": "Invalid email: the domain needs a dot, like name@firm.com. Or leave it empty.",
+      "managerCheckFields": "Check {fields}.",
       "copy": "Copy",
       "copied": "Copied",
       "contactsTitle": "Contacts",

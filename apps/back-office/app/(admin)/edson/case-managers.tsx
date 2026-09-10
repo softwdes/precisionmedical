@@ -73,6 +73,33 @@ export function managerName(m: Manager): string {
   return managerData(m).name || '—';
 }
 
+/**
+ * Correo con punto en el dominio — lo mismo que exige `z.string().email()` en
+ * la ruta. Se revisa ACÁ además de allá porque el 400 del servidor llegaba a la
+ * pantalla como el token crudo `INVALID_PAYLOAD`, que no dice ni qué campo es:
+ * Erick escribió `ed@test` y no había forma de saber que el problema era el
+ * correo (2026-09-10).
+ */
+const PARECE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Traduce el `details.fieldErrors` de Zod a los rótulos que el usuario ve.
+ *
+ * La ruta YA mandaba el campo exacto en `details` —medido: `ed@test` produce
+ * `{ fieldErrors: { email: ['Invalid email'] } }`— y la pantalla lo tiraba.
+ * Devuelve null cuando el error no trae campos (un union que falla parejo por
+ * las dos ramas no los trae) y ahí el llamador cae a su mensaje de siempre.
+ */
+function camposInvalidos(
+  json: unknown,
+  rotulo: (campo: string) => string | null,
+): string[] | null {
+  const detalles = (json as { details?: { fieldErrors?: Record<string, unknown> } })?.details;
+  const campos = detalles?.fieldErrors ? Object.keys(detalles.fieldErrors) : [];
+  const rotulos = campos.map(rotulo).filter((r): r is string => !!r);
+  return rotulos.length ? rotulos : null;
+}
+
 /** Carga los encargados de un caso. Compartido por el popover y el modal. */
 export function useManagers(caseId: string | null) {
   const [current, setCurrent] = useState<Manager[]>([]);
@@ -228,8 +255,16 @@ export function ManagersPopover({
 
 // ─── Sección del modal ───────────────────────────────────────────────────────
 
-/** Permite al modal guardar lo que quedo escrito sin agregar. */
-export interface SectionHandle { flush: () => Promise<void> }
+/**
+ * Permite al modal guardar lo que quedo escrito sin agregar.
+ *
+ * Devuelve `false` cuando quedo algo sin guardar y la seccion ya esta mostrando
+ * el motivo: el pie del modal tiene que DETENERSE ahi. Antes devolvia void, el
+ * pie seguia de largo y cerraba el dialogo — asi que el mensaje de "revisá el
+ * correo" aparecia y se lo llevaba el cierre, y el encargado no quedaba
+ * guardado sin que nadie se enterara (2026-09-10).
+ */
+export interface SectionHandle { flush: () => Promise<boolean> }
 
 export function ManagersSection({
   caseId, lawFirmId, firmMembers, onChanged, autoOpen, handleRef,
@@ -254,17 +289,40 @@ export function ManagersSection({
   const [phone, setPhone]     = useState('');
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
+  /** Marca el borde del campo: el mensaje solo no dice DÓNDE mirar. */
+  const [emailMal, setEmailMal] = useState(false);
 
   const assignedIds = new Set(current.map(m => m.lawyer?.id).filter(Boolean));
   const available   = firmMembers.filter(m => !assignedIds.has(m.id));
 
-  async function assign() {
+  /** Rotulo visible de cada campo, para nombrarlo en el error. */
+  const rotuloDeCampo = (campo: string): string | null => {
+    const rotulos: Record<string, string> = {
+      firstName: t('managerFirstName'),
+      lastName:  t('managerLastName'),
+      email:     t('managerEmail'),
+      phone:     t('managerPhone'),
+    };
+    return rotulos[campo] ?? null;
+  };
+
+  /** `true` si quedo guardado; `false` si hay un error a la vista. */
+  async function assign(): Promise<boolean> {
     setSaving(true); setError('');
     try {
+      const correo = email.trim();
+      // Se avisa ANTES de mandar: el mismo error del servidor no puede decir
+      // cuál de los cuatro campos está mal sin que la pantalla lo interprete.
+      if (mode === 'new' && correo && !PARECE_CORREO.test(correo)) {
+        // Solo se marca el campo: el motivo se dibuja debajo del input. Ponerlo
+        // TAMBIEN al pie repetiria el mismo texto dos veces en 60px.
+        setEmailMal(true);
+        return false;
+      }
       const body = mode === 'pick'
         ? { lawyerId: pickId }
         : { firstName: firstName.trim(), lastName: lastName.trim(),
-            email: email.trim() || null, phone: phone.trim() || null,
+            email: correo || null, phone: phone.trim() || null,
             memberRole: 'CASE_MANAGER' as const };
       const res  = await fetch(`/api/admin/cases/${caseId}/managers`, {
         method: 'POST',
@@ -276,13 +334,28 @@ export function ManagersSection({
         // Se muestra el error REAL del servidor. Un "Error al guardar" generico
         // deja al usuario sin saber si falto el bufete, si la persona ya estaba
         // o si el endpoint fallo.
-        setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
-        return;
+        //
+        // Y si el error trae CAMPOS, se nombran: sin esto la pantalla imprimia
+        // `INVALID_PAYLOAD` tal cual —el token interno de la ruta— mientras el
+        // dato de que el problema era el correo ya venia en `details`.
+        const campos = camposInvalidos(json, rotuloDeCampo);
+        const soloCorreo = campos?.length === 1 && campos[0] === t('managerEmail');
+        if (campos) setEmailMal(campos.includes(t('managerEmail')));
+        // Si el UNICO campo malo es el correo, alcanza con marcarlo: el motivo
+        // ya sale debajo del input. Este camino existe de verdad porque el
+        // chequeo del cliente es un poco mas laxo que el `.email()` del servidor.
+        setError(
+          soloCorreo ? ''
+          : campos   ? t('managerCheckFields', { fields: campos.join(', ') })
+          : json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`,
+        );
+        return false;
       }
-      setAdding(false); setPickId(''); setFirst(''); setLast(''); setEmail(''); setPhone('');
+      setAdding(false); setPickId(''); setFirst(''); setLast(''); setEmail(''); setPhone(''); setEmailMal(false);
       await reload();
       onChanged?.();
-    } catch { setError(t('errSave')); }
+      return true;
+    } catch { setError(t('errSave')); return false; }
     finally { setSaving(false); }
   }
 
@@ -301,8 +374,9 @@ export function ManagersSection({
     */
   useImperativeHandle(handleRef, () => ({
     flush: async () => {
-      if (adding && mode === 'new' && firstName.trim() && lastName.trim()) await assign();
-      else if (adding && mode === 'pick' && pickId) await assign();
+      if (adding && mode === 'new' && firstName.trim() && lastName.trim()) return assign();
+      if (adding && mode === 'pick' && pickId) return assign();
+      return true;   // no habia nada pendiente
     },
   }));
 
@@ -390,7 +464,31 @@ export function ManagersSection({
               </div>
               <div>
                 <Label htmlFor="cm-email">{t('managerEmail')}</Label>
-                <Input id="cm-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                <Input
+                  id="cm-email"
+                  type="email"
+                  value={email}
+                  aria-invalid={emailMal || undefined}
+                  aria-describedby={emailMal ? 'cm-email-err' : undefined}
+                  // `border-rose` es como marca un campo inválido el resto de
+                  // la app (ver `ui-phoenix/form-field.tsx`).
+                  className={emailMal ? '!border-rose focus:!border-rose' : undefined}
+                  // Al corregir se limpia solo: dejar el borde rojo y el
+                  // mensaje mientras ya se está reescribiendo es ruido.
+                  onChange={e => { setEmail(e.target.value); if (emailMal) { setEmailMal(false); setError(''); } }}
+                />
+                {/*
+                  * El motivo va DEBAJO DEL CAMPO, no al pie del formulario.
+                  * Pedido de Erick (2026-09-10): "no dice cuál es el error ni
+                  * marca el campo". Con el mensaje al pie hay que adivinar a
+                  * qué campo se refiere; acá el rótulo, el borde rojo y el
+                  * motivo están en el mismo lugar y se leen de una.
+                  */}
+                {emailMal && (
+                  <p id="cm-email-err" role="alert" className="mt-1 text-[11px] text-rose">
+                    {t('managerEmailInvalid')}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="cm-phone">{t('managerPhone')}</Label>
@@ -408,7 +506,7 @@ export function ManagersSection({
             >
               {saving ? '…' : t('managerAdd')}
             </Button>
-            <Button variant="outline" onClick={() => { setAdding(false); setError(''); }}>
+            <Button variant="outline" onClick={() => { setAdding(false); setError(''); setEmailMal(false); }}>
               <X className="w-3.5 h-3.5" />
             </Button>
           </div>

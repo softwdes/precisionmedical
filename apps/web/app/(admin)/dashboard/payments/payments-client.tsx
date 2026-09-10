@@ -645,7 +645,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       />
 
       <Dialog open={!!showMarkPaid} onOpenChange={(o) => { if (!o) setShowMarkPaid(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-md overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.markAsPaid')}</DialogTitle></DialogHeader>
           {(() => {
             const payment = items.find(i => i.id === showMarkPaid);
@@ -705,7 +705,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       </Dialog>
 
       <Dialog open={!!showReverse} onOpenChange={(o) => { if (!o) setShowReverse(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.reversePayment')}</DialogTitle></DialogHeader>
           <div className="space-y-1.5 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <Label>{t('payments.reverseReason')} *</Label>
@@ -723,7 +723,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       </Dialog>
 
       <Dialog open={!!showCancel} onOpenChange={(o) => { if (!o) setShowCancel(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.cancelPayment')}</DialogTitle></DialogHeader>
           <p className="text-small text-text-3 flex-1 py-2">{t('payments.cancelConfirm')}</p>
           <DialogFooter className="shrink-0">
@@ -738,7 +738,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       </Dialog>
 
       <Dialog open={!!showDeletePair} onOpenChange={(o) => { if (!o) setShowDeletePair(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.deletePair')}</DialogTitle></DialogHeader>
           <div className="flex-1 py-2 space-y-2">
             <p className="text-small text-text-3">{t('payments.deletePairConfirm')}</p>
@@ -756,7 +756,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       </Dialog>
 
       <Dialog open={!!showDeleteCancelled} onOpenChange={(o) => { if (!o) setShowDeleteCancelled(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.deleteCancelled')}</DialogTitle></DialogHeader>
           <div className="flex-1 py-2 space-y-2">
             <p className="text-small text-text-3">{t('payments.deleteCancelledConfirm')}</p>
@@ -847,7 +847,7 @@ function EditPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
+      <DialogContent className="flex flex-col sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{t('payments.editPayment')}</DialogTitle>
         </DialogHeader>
@@ -1077,7 +1077,7 @@ function CreatePaymentDialog({
     <>
     <ToastPortal toasts={paymentToasts} removeToast={removePaymentToast} />
     <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
-      <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
+      <DialogContent className="flex flex-col sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
         <style>{`
           @keyframes fadeUp {
             from { opacity: 0; transform: translateY(-6px); }

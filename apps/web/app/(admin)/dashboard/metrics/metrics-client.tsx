@@ -210,7 +210,7 @@ function ComputeDialog({ snapshot, month, onClose, onComputed }: { snapshot: Sna
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t('metrics.compute')} — {emp?.firstName} {emp?.lastName}</DialogTitle>
         </DialogHeader>

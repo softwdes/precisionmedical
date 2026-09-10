@@ -1603,7 +1603,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-emerald-text" />
@@ -1699,7 +1699,7 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
   const t = useTranslations();
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-rose-text">{t('users.deleteUser')}</DialogTitle>
         </DialogHeader>

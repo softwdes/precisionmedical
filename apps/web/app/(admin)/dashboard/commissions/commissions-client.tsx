@@ -279,7 +279,7 @@ function CreateCommissionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0"><DialogTitle>{t('commissions.createCommission')}</DialogTitle></DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="flex gap-2">
@@ -384,7 +384,7 @@ function MarkPaidDialog({ commissionId, onClose, onPaid }: { commissionId: strin
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0"><DialogTitle>{t('commissions.markPaid')}</DialogTitle></DialogHeader>
         <div className="space-y-1.5 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <Label>{t('commissions.paidProofUrl')}</Label>

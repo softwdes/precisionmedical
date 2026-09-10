@@ -1676,7 +1676,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
       {/* ═══════════ CORRECTION MODAL ═══════════ */}
       <Dialog open={!!correction} onOpenChange={open => { if (!open) setCorrection(null); }}>
-        <DialogContent className="max-w-md w-full">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[15px]">
               {corrMode === 'create' ? 'Registro manual' : 'Corregir registro'}

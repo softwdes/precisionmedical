@@ -433,7 +433,7 @@ function EditConfigDialog({ agent, onClose, onSaved }: { agent: Agent; onClose: 
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-md overflow-hidden">
         <DialogHeader className="shrink-0"><DialogTitle>{t('aiAgents.configTab')}</DialogTitle></DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="space-y-1.5">
@@ -519,7 +519,7 @@ function ReviewActionDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+      <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className={decision === 'APPROVED' ? 'text-emerald' : 'text-rose'}>
             {decision === 'APPROVED' ? t('aiAgents.approve') : t('aiAgents.reject')}

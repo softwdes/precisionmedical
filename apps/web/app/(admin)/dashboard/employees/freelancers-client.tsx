@@ -734,7 +734,7 @@ function FreelancerFormDialog({
       />
     )}
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
+      <DialogContent className="flex flex-col sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? t('freelancers.editTitle') : t('freelancers.newTitle')}</DialogTitle>
         </DialogHeader>

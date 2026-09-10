@@ -318,7 +318,7 @@ export function FreelancersPagosClient({
 
       {/* ─── Mark as Paid Dialog (con QR) ────────────────────── */}
       <Dialog open={!!showMarkPaid} onOpenChange={(o) => { if (!o) setShowMarkPaid(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] sm:max-w-md overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('freelancers.markAsPaid')}</DialogTitle></DialogHeader>
           {(() => {
             const pago = items.find(i => i.id === showMarkPaid);

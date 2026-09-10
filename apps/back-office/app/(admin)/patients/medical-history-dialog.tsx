@@ -321,7 +321,7 @@ function VisitInfoEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.visitInfoTitle')}
@@ -429,7 +429,7 @@ function HealthInfoEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.healthInfoTitle')}
@@ -552,7 +552,7 @@ function AddProblemDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0">
+      <DialogContent className="max-w-md p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProblemTitle')}
@@ -803,7 +803,7 @@ function SocialHistoryEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.socialHistoryTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -973,7 +973,7 @@ function AddMedicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0">
+      <DialogContent className="max-w-lg p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.newPrescriptionTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1203,7 +1203,7 @@ function AddSurgeryDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addSurgeryTitle')}
@@ -1314,7 +1314,7 @@ function AddProviderDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0">
+      <DialogContent className="max-w-md p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProviderTitle')}
@@ -1406,7 +1406,7 @@ function AllergiesEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.allergies')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1469,7 +1469,7 @@ function VaccinesEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.vaccinesTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1559,7 +1559,7 @@ function CognitiveEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.cognitiveTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1661,7 +1661,7 @@ function FunctionalEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.functionalTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1747,7 +1747,7 @@ function DevicesEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.devicesTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1819,7 +1819,7 @@ function SystemsReviewEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.systemsTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1891,7 +1891,7 @@ function HealthExamsEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.healthExamsTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -1988,7 +1988,7 @@ function AddCommentDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.addCommentTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
@@ -2074,7 +2074,7 @@ function AddFamilyHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0">
+      <DialogContent className="max-w-md p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addFamilyHistoryTitle')}
@@ -2188,7 +2188,7 @@ function AddHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md w-full p-0">
+      <DialogContent className="max-w-md p-0">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
             {t('mh.sub.addProblemTitle')}

@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock, Scissors, LogOut,
+  Stethoscope, Unlock, Scissors, LogOut, BellRing,
 } from 'lucide-react';
 import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -28,6 +28,7 @@ import { MedicalHistoryButton } from '@/components/patients/medical-history-butt
 import { resolveMergeFields, type SnippetMergeData } from '@/lib/snippet-merge';
 import type { SnippetSection } from '@/lib/snippet-sections';
 import { useSectionLabels } from '@/lib/use-section-labels';
+import { useCandadoNota } from '@/lib/use-candado-nota';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 import { VisitNotePrintDialog } from './visit-note-print-dialog';
@@ -338,7 +339,20 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
 
   /** El turno: solo lectura mientras el doctor está en la consulta. */
   const sinTurno = !!turno?.enConsulta && !tomadaUi;
-  const soloLectura = isSigned || sinTurno;
+
+  /**
+   * EL CANDADO. El que abrió la nota primero la edita; el resto la ve.
+   *
+   * `mio === null` es "todavía no se sabe" y NO bloquea: si el primer latido
+   * tarda, poner la nota en solo lectura mientras tanto haría parpadear el
+   * editor y le comería las primeras teclas al que sí la tiene.
+   *
+   * No se late en una nota firmada: es inmutable, no hay nada que bloquear.
+   */
+  const candado = useCandadoNota(appointmentId, !isSigned);
+  const bloqueadaPorOtro = candado.mio === false;
+
+  const soloLectura = isSigned || sinTurno || bloqueadaPorOtro;
 
   /**
    * En SOLO LECTURA la nota sí se actualiza con lo que trae el refresco en vivo.
@@ -381,14 +395,17 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
    * navegación.
    */
   const flush = React.useCallback((): void => {
-    if (isSigned || !tocadas.current.size && !dxTocado.current && !tplTocado.current) return;
+    // Con la nota bloqueada por otro no se intenta: el servidor lo rechaza igual
+    // y el texto en pantalla es de alguien que no tiene el candado.
+    if (isSigned || bloqueadaPorOtro) return;
+    if (!tocadas.current.size && !dxTocado.current && !tplTocado.current) return;
     void fetch(`/api/admin/visit-notes/${appointmentId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       keepalive: true,
       body: JSON.stringify(cuerpo()),
     }).catch(() => undefined);
-  }, [appointmentId, isSigned, cuerpo]);
+  }, [appointmentId, isSigned, bloqueadaPorOtro, cuerpo]);
 
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isSigned) return false;
@@ -408,8 +425,17 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         body: JSON.stringify(cuerpo()),
       });
       if (!res.ok) {
-        const d = await res.json() as { error?: string; note?: VisitNoteData; doctorName?: string };
+        const d = await res.json() as {
+          error?: string; note?: VisitNoteData; doctorName?: string; holderName?: string;
+        };
         setSaving(false);
+        if (d.error === 'NOTE_LOCKED') {
+          // El servidor aplica el candado por su cuenta. Se llega acá cuando el
+          // candado cambió de manos entre latido y guardado: el texto NO se
+          // pierde, sigue en pantalla y en `tocadas`.
+          setError(t('noteLockedSaveError', { name: d.holderName ?? '—' }));
+          return false;
+        }
         if (d.error === 'STALE_NOTE' && d.note) { resolverVersionNueva(d.note, enviadas); return false; }
         if (d.error === 'NOTE_IN_CONSULT') {
           // El doctor entró a la consulta mientras esta persona escribía. El
@@ -508,10 +534,13 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   React.useEffect(() => {
     // Con un conflicto sin resolver el autoguardado se detiene: reintentar solo
     // sería martillar el mismo 409 y tapar el aviso que la persona tiene que leer.
-    if (isSigned || sinTurno || conflicto || !dirty) return;
+    // `bloqueadaPorOtro` por el mismo motivo: el servidor va a devolver 409
+    // `NOTE_LOCKED` cada 2,5 s, y ese martilleo tapa el banner que dice quién
+    // la tiene, que es justo lo que la persona necesita leer.
+    if (isSigned || sinTurno || bloqueadaPorOtro || conflicto || !dirty) return;
     const id = setTimeout(() => { void save(); }, AUTOSAVE_MS);
     return () => clearTimeout(id);
-  }, [dirty, isSigned, sinTurno, conflicto, save, content, dx, templateId]);
+  }, [dirty, isSigned, sinTurno, bloqueadaPorOtro, conflicto, save, content, dx, templateId]);
 
   // Salidas: cambio de tab (desmontaje) y pestaña que se oculta. Las dos perdían
   // el texto porque el temporizador del autoguardado se cancelaba sin guardar.
@@ -540,6 +569,10 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     // guardado sigue siendo la nota entera y volvemos a pisar al otro.
     tocadas.current.add(field);
     setDirty(true);
+    // Sostiene el candado: los 10 minutos de inactividad se miden desde la
+    // última TECLA, no desde el último latido. Una pestaña abierta late igual
+    // mientras su dueño almuerza.
+    candado.marcarTecla();
   };
 
   // ── El puente con la mensajería ───────────────────────────────────────────
@@ -665,6 +698,13 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   };
 
   const [saliendo, setSaliendo] = React.useState(false);
+  /**
+   * Se apretó "Avisarle". El pedido viaja en el próximo latido, no en el clic:
+   * el botón se apaga en el acto para que nadie lo apriete tres veces mientras
+   * espera, y cuando el latido vuelve con `esperando` el botón se reemplaza por
+   * la hora del aviso.
+   */
+  const [avisando, setAvisando] = React.useState(false);
 
   /**
    * Guarda lo que haya y recién entonces sale.
@@ -840,6 +880,70 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       {isSigned && (
         <div className="rounded-md border border-emerald/25 bg-emerald/[0.06] px-3 py-2 text-[11px] text-emerald flex items-center gap-1.5">
           <Lock className="w-3.5 h-3.5" /> {t('noteLockedHint')}
+        </div>
+      )}
+
+      {/*
+        * ── EL CANDADO, los tres avisos ──────────────────────────────────────
+        *
+        * Amber y no rose: no es un error ni algo roto, es que otra persona está
+        * trabajando en la misma nota. El rose se reserva para lo que exige
+        * actuar (ver la regla de las alertas de vitales).
+        */}
+      {bloqueadaPorOtro && !isSigned && (
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="flex items-start gap-1.5 flex-1">
+            <Lock className="w-3.5 h-3.5 shrink-0 mt-[1px]" />
+            <span>
+              {t('noteLockedBy', {
+                name: candado.porNombre ?? '—',
+                time: candado.desde
+                  ? new Date(candado.desde).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit' })
+                  : '—',
+              })}
+            </span>
+          </span>
+          {/* Ya avisado: se muestra la HORA en vez del botón. Un botón que se
+              puede apretar cinco veces son cinco banners para el otro, y a la
+              tercera dejan de mirarlos. */}
+          {candado.esperando ? (
+            <span className="text-[11px] text-text-2 shrink-0">
+              {t('noteLockNudged', {
+                time: candado.esperando.desde
+                  ? new Date(candado.esperando.desde).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit' })
+                  : '—',
+              })}
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setAvisando(true); candado.avisar(); }}
+              disabled={avisando}
+              className="h-8 gap-1.5 shrink-0 w-full sm:w-auto"
+            >
+              <BellRing className="w-3.5 h-3.5" />
+              {avisando ? t('noteLockNudging') : t('noteLockNudge')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Al que TIENE la nota: llega en la respuesta de su propio latido, así que
+          aparece acá sin ningún canal nuevo. */}
+      {candado.mio === true && candado.esperando && (
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex items-center gap-1.5">
+          <BellRing className="w-3.5 h-3.5 shrink-0" />
+          {t('noteLockWanted', { name: candado.esperando.nombre ?? '—' })}
+        </div>
+      )}
+
+      {/* Se soltó por 10 minutos sin actividad. El texto NO se perdió: el
+          autoguardado corre cada 2,5 s, así que para cuando se cumplen los 10
+          minutos hace rato que está en la base. */}
+      {candado.soltado && (
+        <div className="rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2.5 text-[11.5px] text-cyan flex items-center gap-1.5">
+          <Check className="w-3.5 h-3.5 shrink-0" /> {t('noteLockReleased')}
         </div>
       )}
 

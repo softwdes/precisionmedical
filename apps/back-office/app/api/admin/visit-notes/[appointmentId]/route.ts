@@ -15,6 +15,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { nombreProvider, nombreProviderONull } from '@/lib/provider-name';
+import { evaluarCandado } from '@/lib/visit-note-lock';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -98,7 +99,14 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const existing = await db.visitNote.findUnique({
     where: { appointmentId },
-    select: { id: true, status: true, updatedAt: true },
+    select: {
+      id: true, status: true, updatedAt: true,
+      // El candado: se evalúa acá porque si el servidor no lo aplica, es
+      // decoración — el navegador de al lado puede guardar igual.
+      editingByUserId: true, editingByName: true, editingSince: true,
+      editingHeartbeatAt: true, editingTypedAt: true,
+      waitingByUserId: true, waitingByName: true, waitingSince: true,
+    },
   });
 
   // Nota firmada = inmutable (HIPAA)
@@ -132,6 +140,33 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       error: 'NOTE_IN_CONSULT',
       doctorName: nombreProviderONull(cita?.provider),
     }, { status: 409 });
+  }
+
+  /**
+   * EL CANDADO (2026-09-10). El que abrió la nota primero la edita; el resto la
+   * ve. Se aplica ACÁ y no solo en la pantalla: sin esto el candado sería un
+   * cartel, y el navegador del segundo usuario guardaría igual.
+   *
+   * No hay `takeover` para este caso a propósito: Erick decidió que **nadie
+   * puede arrebatarle la nota a otro**. Se libera sola —la pestaña dejó de
+   * latir, o 10 minutos sin tocar una tecla— o la suelta su dueño. Las dos
+   * cosas las evalúa `evaluarCandado` con los relojes de la fila, así que este
+   * chequeo no necesita ningún barrido programado.
+   *
+   * Va DESPUÉS del turno de la consulta y ANTES del control de versión: el turno
+   * es una regla del negocio (la consulta abierta manda) y el candado una regla
+   * de concurrencia; si el turno ya rechazó, el motivo que le sirve a la persona
+   * es el del turno, que nombra al doctor.
+   */
+  if (existing) {
+    const candado = evaluarCandado(existing, new Date());
+    if (candado.tomado && candado.porUserId !== actor.actorUserId) {
+      return NextResponse.json({
+        error: 'NOTE_LOCKED',
+        holderName: candado.porNombre,
+        since: candado.desde?.toISOString() ?? null,
+      }, { status: 409 });
+    }
   }
 
   /**

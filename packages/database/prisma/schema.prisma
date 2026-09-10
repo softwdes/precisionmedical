@@ -1324,11 +1324,44 @@ model VisitNote {
   signedById   String? // userId snapshot
   signedByName String? // nombre snapshot
 
+  // ─── EL CANDADO (2026-09-10) ────────────────────────────────────────────
+  /// Quién tiene la nota abierta AHORA. El que llega primero la edita y el resto
+  /// la ve en solo lectura — decisión de Erick.
+  ///
+  /// Se sostiene con un LATIDO y no con una bandera: sin fecha de latido, una
+  /// iPad que se duerme o una pestaña olvidada dejan la nota trabada con el
+  /// paciente esperando (es el motivo por el que el turno se decidía por la
+  /// consulta y no por presencia — ver el docblock del PUT). Con el latido el
+  /// candado vence solo, y así NINGÚN usuario necesita un botón para
+  /// arrebatarle la nota a otro: o la suelta, o se fue.
+  ///
+  /// El nombre va denormalizado, mismo criterio que `case_managers.assignedByName`:
+  /// la pantalla dice "Juan está editando" sin un join a `users` en cada latido.
+  editingByUserId     String?
+  editingByName       String?
+  /// Desde cuándo la tiene — es lo que ve el que espera ("desde 14:20").
+  editingSince        DateTime?
+  /// Último latido: dice que la PESTAÑA está viva.
+  editingHeartbeatAt  DateTime?
+  /// Última tecla: dice que la PERSONA está trabajando. Va aparte del latido
+  /// porque una pestaña abierta en otra ventana late igual mientras su dueño
+  /// almuerza, y la liberación por inactividad (10 min) mira esta.
+  editingTypedAt      DateTime?
+
+  /// Quién pidió la nota con el botón "Avisarle". El que la tiene lo recibe en
+  /// la RESPUESTA de su propio latido, así que el aviso le aparece dentro de la
+  /// nota que está escribiendo, sin ningún canal nuevo.
+  waitingByUserId     String?
+  waitingByName       String?
+  waitingSince        DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([appointmentId])
   @@index([status])
+  /// Barrido de candados vencidos: se busca por la fecha de latido.
+  @@index([editingHeartbeatAt])
   @@map("visit_notes")
 }
 

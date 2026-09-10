@@ -6,9 +6,16 @@
  * pasa por tRPC y solo la ven SUPER_ADMIN/ADMIN; acá se sirve directo, porque la
  * fn vive en ESTA base y no hay puente que cruzar.
  *
- * Se devuelve solo lo que la pista necesita —nombre, grupo, minutos, acciones y
- * áreas—; ni llamadas, ni SMS, ni el desglose acción por acción. Esos son datos
- * de gestión y esta pantalla la ve todo el equipo.
+ * Se devuelve solo lo que la pista necesita —nombre, grupo, minutos, acciones,
+ * áreas y la pantalla donde pasó más tiempo—; ni llamadas, ni SMS, ni el
+ * desglose acción por acción. Esos son datos de gestión y esta pantalla la ve
+ * todo el equipo.
+ *
+ * Del tiempo por módulo va SOLO EL TITULAR ("más tiempo en Facturación"), no el
+ * mapa completo (decisión de Erick, 2026-09-10): el hover tenía que responder
+ * "dónde trabajó más", y mandar los catorce módulos le daría a cualquiera del
+ * equipo el mapa entero del día de cualquier otro. Lo que la API no manda no se
+ * puede filtrar mal en el cliente.
  *
  * Decisión de Erick (31-ago-2026): nombres completos y visible para todos,
  * "porque es una carrera entre todos".
@@ -27,6 +34,9 @@ export interface RacerRow {
   activeMinutes: number;
   totalActions: number;
   families: Record<string, number>;
+  /** La pantalla donde pasó más tiempo — el hover del carril. Ver la nota de
+   *  arriba sobre por qué va el titular y no el mapa completo. */
+  topModule: { module: string; minutes: number } | null;
 }
 
 /** Medianoche de un día de la clínica, en UTC (DST-aware por fecha). */
@@ -49,6 +59,9 @@ interface Payload {
   users: Array<{ userId: string; name: string | null; email: string; role: string }>;
   audit: Array<{ userId: string; action: string; n: number }>;
   activity: Array<{ userId: string; minutes: number }>;
+  /** Minutos por módulo, ya repartidos en fracciones — suman `activity`
+   *  (20260910-metricas-reparto-fraccionado.sql). Traen un decimal. */
+  activityByModule?: Array<{ userId: string; module: string; minutes: number }>;
 }
 
 /**
@@ -105,6 +118,7 @@ export async function corredores(from: string, to: string): Promise<RacerRow[]> 
       activeMinutes: 0,
       totalActions: 0,
       families: emptyFamilies(),
+      topModule: null,
     });
   }
 
@@ -122,6 +136,20 @@ export async function corredores(from: string, to: string): Promise<RacerRow[]> 
   for (const g of m.activity) {
     const row = rows.get(g.userId);
     if (row) row.activeMinutes = g.minutes;
+  }
+
+  // El módulo top de cada uno. Se resuelve ACÁ y no en el navegador para no
+  // mandar el mapa completo (ver la nota del encabezado). `''` son las filas
+  // previas al registro de módulo: cuentan como 'other', igual que en el
+  // reporte del Admin.
+  for (const g of m.activityByModule ?? []) {
+    const row = rows.get(g.userId);
+    if (!row) continue;
+    const minutes = Number(g.minutes);
+    if (!(minutes > 0)) continue;
+    if (!row.topModule || minutes > row.topModule.minutes) {
+      row.topModule = { module: g.module || 'other', minutes };
+    }
   }
 
   // El orden final lo decide la pista (por ritmo); acá solo se sacan los que no

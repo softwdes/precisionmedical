@@ -41,10 +41,17 @@ export function presetRange(p: Preset): { from: string; to: string } | null {
 
 // ─── Formato ─────────────────────────────────────────────────────────────────
 
+/**
+ * `Math.round` y no el valor crudo: desde el reparto fraccionado
+ * (20260910-metricas-reparto-fraccionado.sql) los minutos POR MÓDULO vienen con
+ * decimales —un minuto compartido entre dos pantallas vale 0.5 en cada una— y
+ * sin redondear salía "1h 40.5m".
+ */
 export function fmtMinutes(min: number): string {
-  if (min <= 0) return '—';
-  const h = Math.floor(min / 60);
-  const m = min % 60;
+  const total = Math.round(min);
+  if (total <= 0) return '—';
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 

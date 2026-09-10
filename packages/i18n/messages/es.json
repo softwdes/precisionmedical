@@ -256,7 +256,23 @@
       "areaClinical": "Clínico",
       "areaFollowup": "Seguimiento",
       "areaCatalogs": "Catálogos",
-      "areaAi": "Vigía"
+      "areaAi": "Vigía",
+      "topModule": "Más tiempo en",
+      "totalActive": "Total activo",
+      "modDashboard": "Dashboard",
+      "modPatients": "Pacientes",
+      "modCalendar": "Calendario",
+      "modAdmission": "Admisión",
+      "modBilling": "Facturación",
+      "modEdson": "Bandeja Edson",
+      "modIntake": "Intake",
+      "modMessages": "Mensajería",
+      "modExternals": "Bufetes",
+      "modSettings": "Configuración",
+      "modDoctor": "Portal Médico",
+      "modAttorney": "Portal Legal",
+      "modVigia": "Vigía (IA)",
+      "modOther": "Sin módulo"
     }
   },
   "finanzas": {

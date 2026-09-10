@@ -63,7 +63,21 @@ export function CarreraDialog({
 }) {
   const t = useTranslations('phoenix.carrera');
   const [periodo, setPeriodo] = useState<Periodo>('hoy');
-  const [grupo, setGrupo] = useState<Grupo>('CLINIC');
+  /**
+   * Abre en "Todos", igual que el tab Métricas de apps/web.
+   *
+   * Antes abría en `CLINIC` y eso hacía que las dos pistas —la misma fn, el
+   * mismo día, el mismo rango— mostraran poblaciones distintas: la de acá sin
+   * los devs y la del Admin con ellos, que son el 81.6% del tiempo medido
+   * (2026-09-10). Comparar los dos números daba a entender que uno sumaba mal.
+   *
+   * Se iguala hacia "Todos" y no hacia "Clínica" por dos razones: es una
+   * carrera entre todos (Erick, 31-ago-2026) y el chip de grupo de cada carril
+   * ya evita que un dev primero se lea como que le ganó a recepción; y sobre
+   * todo, `crew` puede ser null —nadie se lo asignó todavía— y con el filtro
+   * puesto en un grupo esa gente no aparece en NINGUNA pista.
+   */
+  const [grupo, setGrupo] = useState<Grupo>('all');
   const [rows, setRows] = useState<RacerRow[] | null>(null);
   const [live, setLive] = useState(false);
 

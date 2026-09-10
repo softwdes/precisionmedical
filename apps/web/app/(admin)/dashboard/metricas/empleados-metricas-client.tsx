@@ -79,9 +79,14 @@ interface EmployeeRow {
   totalActions: number;
   /** Acciones agrupadas por área — las columnas de la tabla. */
   families: Record<string, number>;
-  /** Minutos por módulo. Puede sumar MÁS que activeMinutes: un minuto a caballo
-   *  entre dos pantallas cuenta en las dos. Es un reparto, no una partición. */
+  /** Minutos por módulo. Suma `activeMinutes` (±1 por redondeo): el minuto a
+   *  caballo entre dos pantallas vale 0.5 en cada una, así que estos valores
+   *  traen UN DECIMAL. Antes se sumaba entero a las dos y el desglose daba
+   *  hasta 25% más que el total. */
   minutesByModule: Record<string, number>;
+  /** La pantalla donde pasó más tiempo. La calcula el router para que la pista
+   *  la lea igual acá que en los caballitos del back-office. */
+  topModule: { module: string; minutes: number } | null;
   byAction: Record<string, number>;
 }
 
@@ -267,6 +272,18 @@ export function EmpleadosMetricasClient() {
   );
 
   /**
+   * Grupo activo, para el pie del KPI de tiempo.
+   *
+   * El total de arriba es una SUMA DE PERSONAS y hasta ahora no decía sobre
+   * quiénes: medido el 2026-09-10, el 81.6% de todo el tiempo del sistema son
+   * las cuatro cuentas de devs, así que "Todos" mostraba ~112 horas donde la
+   * clínica había trabajado ~21. Los caballitos del back-office abrían
+   * filtrados y este tab no, y de ahí venía la sensación de que uno de los dos
+   * sumaba mal. El número no estaba mal: le faltaba decir de quién era.
+   */
+  const crewLabel = crew === 'all' ? 'todos los grupos' : CREW_LABEL[crew];
+
+  /**
    * Los KPI de portada salen de `visible`, no de `rows`.
    *
    * Antes sumaban a TODOS, así que "41 citas creadas" eran en su mayoría
@@ -323,7 +340,12 @@ export function EmpleadosMetricasClient() {
           atendidas, y desde el 2026-08-05 Twilio las desvía a otro número, así
           que la tarjeta era un cero permanente para todos. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
+        {/* "Horas-hombre" y el grupo, explícitos: es la suma de N personas, no
+            el tiempo de una jornada. Sin eso, el mismo día se leía como 112h
+            acá y 21h en los caballitos de la clínica. */}
+        <KpiCard icon={Clock}        label="Tiempo activo"   value={fmtMinutes(totals.activeMinutes)}
+          sub={`horas-hombre · ${visible.length} ${visible.length === 1 ? 'persona' : 'personas'} · ${crewLabel}`}
+          color="bg-emerald/10 text-emerald" />
         <KpiCard icon={Phone}        label="Llamadas hechas" value={totals.callsMade}                 color="bg-brand/10 text-brand-text" />
         {/* Enviados arriba y entregados abajo, no un total suelto: "mando 40
             SMS" no dice nada si 30 rebotaron. La brecha entre los dos numeros
@@ -548,19 +570,38 @@ export function EmpleadosMetricasClient() {
               </div>
             </div>
 
-            {/* En qué módulos se fue el tiempo. Barras y no números sueltos:
-                lo que importa es la proporción, no el minuto exacto. */}
+            {/*
+              En qué módulos se fue el tiempo.
+
+              Las barras van sobre el TOTAL de la persona, no sobre su módulo
+              más grande. Antes eran relativas al mayor, así que la primera
+              siempre llegaba al 100% y un 3h junto a un 3h10m se veían casi
+              iguales: la barra comparaba los módulos entre sí y no decía qué
+              fracción de la jornada era cada uno.
+
+              Recién se puede: hasta el 2026-09-10 el desglose sumaba hasta 25%
+              más que el total (ver el .sql del reparto fraccionado), así que un
+              porcentaje sobre el total habría dado 125% repartido.
+            */}
             {Object.keys(detail.minutesByModule ?? {}).length > 0 && (
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-emerald" />
-                  Tiempo por módulo
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-emerald" />
+                    Tiempo por módulo
+                  </span>
+                  {/* El total, para que las partes tengan contra qué leerse. */}
+                  <span className="font-mono tabular-nums text-text-2 normal-case tracking-normal">
+                    {fmtMinutes(detail.activeMinutes)}
+                  </span>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(detail.minutesByModule)
                     .sort(([, a], [, b]) => b - a)
                     .map(([mod, mins]) => {
-                      const top = Math.max(...Object.values(detail.minutesByModule));
+                      const pct = detail.activeMinutes > 0
+                        ? Math.min(100, Math.round((mins / detail.activeMinutes) * 100))
+                        : 0;
                       return (
                         <div key={mod} className="flex items-center gap-2">
                           <span className="text-[11px] text-text-2 w-28 shrink-0 truncate">
@@ -569,11 +610,14 @@ export function EmpleadosMetricasClient() {
                           <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
                             <div
                               className="h-full rounded-full bg-emerald"
-                              style={{ width: `${top > 0 ? Math.round((mins / top) * 100) : 0}%` }}
+                              style={{ width: `${pct}%` }}
                             />
                           </div>
                           <span className="font-mono text-[11px] text-text-1 tabular-nums w-12 text-right shrink-0">
                             {fmtMinutes(mins)}
+                          </span>
+                          <span className="font-mono text-[10px] text-text-3 tabular-nums w-9 text-right shrink-0">
+                            {pct}%
                           </span>
                         </div>
                       );

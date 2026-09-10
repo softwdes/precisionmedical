@@ -256,7 +256,23 @@
       "areaClinical": "Clinical",
       "areaFollowup": "Follow-up",
       "areaCatalogs": "Catalogs",
-      "areaAi": "Vigía"
+      "areaAi": "Vigía",
+      "topModule": "Most time in",
+      "totalActive": "Total active",
+      "modDashboard": "Dashboard",
+      "modPatients": "Patients",
+      "modCalendar": "Calendar",
+      "modAdmission": "Admission",
+      "modBilling": "Billing",
+      "modEdson": "Edson inbox",
+      "modIntake": "Intake",
+      "modMessages": "Messaging",
+      "modExternals": "Law firms",
+      "modSettings": "Settings",
+      "modDoctor": "Provider portal",
+      "modAttorney": "Legal portal",
+      "modVigia": "Vigia (AI)",
+      "modOther": "No module"
     }
   },
   "finanzas": {

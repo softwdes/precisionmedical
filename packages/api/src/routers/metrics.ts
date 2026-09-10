@@ -60,8 +60,22 @@ export interface EmployeeActivityRow extends EmployeeHeadline {
   crew: Crew | null;
   /** Total exacto de minutos de uso: un minuto en dos módulos cuenta UNA vez. */
   activeMinutes: number;
-  /** Minutos por módulo. Puede sumar más que el total — es un reparto, no una partición. */
+  /**
+   * Minutos por módulo. Suma `activeMinutes` (±1 por redondeo): desde
+   * 20260910-metricas-reparto-fraccionado.sql el minuto compartido entre dos
+   * pantallas vale 0.5 en cada una, así que los valores traen UN DECIMAL.
+   * Antes se sumaba entero a cada módulo y el desglose daba hasta 25% más que
+   * el total.
+   */
   minutesByModule: Record<string, number>;
+  /**
+   * La pantalla donde pasó más tiempo. Redundante con `minutesByModule` acá
+   * —el Admin recibe el mapa entero—, pero es el mismo campo que sirve
+   * `/api/metrics/carrera` del back-office, que a propósito manda SOLO este
+   * titular. Que la pista lo lea de un solo lugar es lo que evita dos formas de
+   * calcular "el top" que con el tiempo dejarían de coincidir.
+   */
+  topModule: { module: string; minutes: number } | null;
   callsMade: number;
   callsAnswered: number;
   callsDurationSeconds: number;
@@ -80,7 +94,8 @@ export interface DoctorActivityRow {
   name: string;
   specialty: string | null;
   activeMinutes: number;
-  /** Minutos por módulo del portal médico (Mi Día, consulta, recetas…). */
+  /** Minutos por módulo del portal médico (Mi Día, consulta, recetas…), con el
+   *  minuto compartido repartido en fracciones — suma `activeMinutes`. */
   minutesByModule: Record<string, number>;
   /** Consultas cerradas (doctorDoneAt o checkout) en el rango. */
   consultations: number;
@@ -201,7 +216,7 @@ export const metricsRouter = router({
           name: u.name ?? u.email,
           role: u.role,
           crew: null,
-          activeMinutes: 0, minutesByModule: {},
+          activeMinutes: 0, minutesByModule: {}, topModule: null,
           callsMade: 0, callsAnswered: 0, callsDurationSeconds: 0,
           smsSent: 0, smsDelivered: 0,
           totalActions: 0, families: emptyFamilies(), byAction: {},
@@ -288,7 +303,22 @@ export const metricsRouter = router({
         // '' son las filas previas al registro de módulo: se agrupan como
         // 'other' para que el desglose no muestre una etiqueta vacía.
         const key = g.module || 'other';
-        row.minutesByModule[key] = (row.minutesByModule[key] ?? 0) + g.minutes;
+        // Redondeo a un decimal al acumular: '' y 'other' caen en la misma
+        // llave y sumar dos fracciones da 0.30000000000000004, que después
+        // aparece tal cual en el CSV.
+        row.minutesByModule[key] =
+          Math.round(((row.minutesByModule[key] ?? 0) + Number(g.minutes)) * 10) / 10;
+      }
+
+      // El módulo top, después de acumular: se calcula sobre el mapa ya sumado
+      // porque '' y 'other' caen en la misma llave, y con dos entradas sueltas
+      // el máximo podría salir de la mitad más chica.
+      for (const row of rows.values()) {
+        for (const [module, minutes] of Object.entries(row.minutesByModule)) {
+          if (minutes > 0 && (!row.topModule || minutes > row.topModule.minutes)) {
+            row.topModule = { module, minutes };
+          }
+        }
       }
 
       const totalOf = (r: EmployeeActivityRow): number =>
@@ -358,7 +388,10 @@ export const metricsRouter = router({
         const r = rows.get(g.providerId);
         if (!r) continue;
         const key = g.module || 'other';
-        r.minutesByModule[key] = (r.minutesByModule[key] ?? 0) + g.minutes;
+        // Mismo redondeo que en employeeActivity: las fracciones de '' y
+        // 'other' se suman en la misma llave.
+        r.minutesByModule[key] =
+          Math.round(((r.minutesByModule[key] ?? 0) + Number(g.minutes)) * 10) / 10;
       }
       for (const g of m.consultations) {
         const r = rows.get(g.providerId);

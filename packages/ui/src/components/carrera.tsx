@@ -38,11 +38,13 @@ import { Crown, Medal, Radio, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 /** "1h 24m" · "43m" · "—". Copiado de metricas-shared para no atar este
- *  componente compartido a una pantalla de apps/web. */
+ *  componente compartido a una pantalla de apps/web. Redondea por la misma
+ *  razón que allá: el tiempo por módulo llega fraccionado. */
 function fmtMinutes(min: number): string {
-  if (min <= 0) return '—';
-  const h = Math.floor(min / 60);
-  const m = min % 60;
+  const total = Math.round(min);
+  if (total <= 0) return '—';
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -95,6 +97,19 @@ export interface CarreraLabels {
   areas: Record<string, string>;
   /** Nombre corto de cada grupo, para el chip del carril. */
   crews: Record<Crew, string>;
+  /** Encabezado del hover: "Más tiempo en". */
+  topModule: string;
+  /** Pie del hover: "Total activo". */
+  totalActive: string;
+  /**
+   * Nombre de cada MÓDULO (pantalla), para el hover del carril.
+   *
+   * Ojo: son otra cosa que `areas`. Un área es un grupo de ACCIONES del audit
+   * log (cobros, citas, mensajería); un módulo es DÓNDE estuvo la persona.
+   * Comparten cuatro nombres y no son la misma lista: no hay área "Dashboard"
+   * ni módulo "Casos".
+   */
+  modules: Record<string, string>;
 }
 
 /**
@@ -149,6 +164,27 @@ export function carreraLabels(
       DEV:    t('chipDev'),
       COMMS:  t('chipComms'),
     },
+    topModule:   t('topModule'),
+    totalActive: t('totalActive'),
+    // El orden es el del reporte del Admin (misma lista que
+    // `activity-modules.ts` del back-office), para que las dos apps nombren
+    // igual la misma pantalla.
+    modules: {
+      dashboard: t('modDashboard'),
+      patients:  t('modPatients'),
+      calendar:  t('modCalendar'),
+      admission: t('modAdmission'),
+      billing:   t('modBilling'),
+      edson:     t('modEdson'),
+      intake:    t('modIntake'),
+      messages:  t('modMessages'),
+      externals: t('modExternals'),
+      settings:  t('modSettings'),
+      doctor:    t('modDoctor'),
+      attorney:  t('modAttorney'),
+      vigia:     t('modVigia'),
+      other:     t('modOther'),
+    },
   };
 }
 
@@ -160,6 +196,16 @@ export interface RacerRow {
   activeMinutes: number;
   totalActions: number;
   families: Record<string, number>;
+  /**
+   * La pantalla donde pasó MÁS tiempo, para el hover del carril. Sale ya
+   * resuelta de la API y no como el mapa completo: los caballitos los ve todo
+   * el equipo, así que se manda el titular ("más tiempo en Facturación") y no
+   * el mapa del día de cada persona (decisión de Erick, 2026-09-10).
+   *
+   * `null`/ausente = no hay desglose (rango viejo sin módulo, o la API no lo
+   * manda): el carril simplemente no muestra hover.
+   */
+  topModule?: { module: string; minutes: number } | null;
 }
 
 const MIN_MINUTES = CARRERA_MIN_MINUTES;
@@ -224,6 +270,15 @@ export function CarreraClient({
    */
   const [started, setStarted] = useState(false);
   const [introDone, setIntroDone] = useState(false);
+
+  /**
+   * Carril con el "dónde trabajó" abierto. Uno solo a la vez.
+   *
+   * Se abre al pasar el mouse y también al TOCAR, porque en el iPad y en el
+   * teléfono el hover no existe y el dato quedaría inalcanzable — la pista se
+   * mira desde la tablet de recepción tanto como desde una laptop.
+   */
+  const [dondeAbierto, setDondeAbierto] = useState<string | null>(null);
 
   // La largada espera a que HAYA corredores: en la primera carga los datos
   // llegan después del montaje, y disparándola con la lista vacía las barras
@@ -346,8 +401,47 @@ export function CarreraClient({
           const anim = introDone
             ? { transitionDuration: '1000ms', transitionDelay: '0ms' }
             : { transitionDuration: `${INTRO_MS}ms`, transitionDelay: `${Math.min(i * STAGGER_MS, STAGGER_MAX)}ms` };
+
+          /**
+           * "Dónde trabajó más", ya resuelto. Se exige `activeMinutes > 0`
+           * porque el porcentaje lo divide: sin minutos no hay proporción que
+           * mostrar, y el titular sin porcentaje no dice nada.
+           */
+          const donde = r.topModule && r.activeMinutes > 0
+            ? {
+                label: labels.modules[r.topModule.module] ?? r.topModule.module,
+                minutes: r.topModule.minutes,
+                // Tope en 100: el reparto fraccionado redondea a un decimal por
+                // módulo, así que un usuario con un solo módulo puede dar
+                // 100.02% y "100%" es la verdad.
+                pct: Math.min(100, Math.round((r.topModule.minutes / r.activeMinutes) * 100)),
+              }
+            : null;
+          const abierto = donde !== null && dondeAbierto === r.userId;
           return (
-            <div key={r.userId} className={cn('flex items-center gap-3', !r.qualified && 'opacity-45')}>
+            <div
+              key={r.userId}
+              className={cn('relative flex items-center gap-3', !r.qualified && 'opacity-45')}
+              /**
+               * Eventos de PUNTERO y no de mouse, filtrando por `pointerType`.
+               *
+               * Con `onMouseEnter` + `onClick` el toque no funcionaba: el
+               * navegador emite mouse sintético después del touch, así que
+               * `mouseenter` abría el panel y el `click` que venía atrás lo
+               * cerraba en el mismo gesto — tocar no hacía nada visible.
+               * Separando por tipo de puntero, el mouse abre al pasar y el
+               * dedo alterna al tocar, sin pisarse.
+               */
+              onPointerEnter={donde ? (e) => {
+                if (e.pointerType === 'mouse') setDondeAbierto(r.userId);
+              } : undefined}
+              onPointerLeave={donde ? (e) => {
+                if (e.pointerType === 'mouse') setDondeAbierto((v) => (v === r.userId ? null : v));
+              } : undefined}
+              onPointerDown={donde ? (e) => {
+                if (e.pointerType !== 'mouse') setDondeAbierto((v) => (v === r.userId ? null : r.userId));
+              } : undefined}
+            >
               {/* Posición */}
               <span className="w-6 shrink-0 text-right font-mono text-[11px] text-text-3 tabular-nums">
                 {pos ?? '—'}
@@ -445,6 +539,47 @@ export function CarreraClient({
                   {r.totalActions} {labels.actionsShort} · {fmtMinutes(r.activeMinutes)}
                 </div>
               </div>
+
+              {/* Dónde trabajó más.
+
+                  `absolute` y NUNCA `fixed`: la pista también vive dentro de un
+                  Dialog (el modal de los caballitos del back-office) y el
+                  `transform` del DialogContent encierra cualquier overlay
+                  `fixed`, que aparecería centrado en el diálogo en vez de al
+                  lado del carril.
+
+                  Cuelga de la FILA y no de la pista: la pista tiene
+                  `overflow-hidden` para recortar la barra, y ahí adentro el
+                  panel se cortaría. Y va hacia abajo (`top-full`) porque
+                  hacia arriba lo recortaría el borde del diálogo en el primer
+                  carril, que es justo el que más se mira. */}
+              {abierto && donde && (
+                <div
+                  role="tooltip"
+                  className="absolute top-full left-8 z-30 mt-1 w-56 rounded-lg border border-border bg-surface-2 px-3 py-2 shadow-lg pointer-events-none"
+                >
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">
+                    {labels.topModule}
+                  </div>
+                  <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                    <span className="text-[12px] text-text-1 truncate">{donde.label}</span>
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-text-1">
+                      {fmtMinutes(donde.minutes)}
+                    </span>
+                  </div>
+                  {/* La barra es sobre el TOTAL de la persona, así que el ancho
+                      se lee como fracción de su jornada y no contra los demás. */}
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface">
+                    <div className="h-full rounded-full bg-emerald" style={{ width: `${donde.pct}%` }} />
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between gap-2 text-[10px] text-text-3">
+                    <span className="tabular-nums">{donde.pct}%</span>
+                    <span className="tabular-nums">
+                      {labels.totalActive} {fmtMinutes(r.activeMinutes)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

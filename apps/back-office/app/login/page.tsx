@@ -62,6 +62,24 @@ function NeuralBackground(): React.ReactElement {
 export default function LoginPage(): React.ReactElement {
   const router       = useRouter();
   const searchParams = useSearchParams();
+  /**
+   * A dónde se entra después de autenticar — y se entra con `replace`, no con
+   * `push`.
+   *
+   * Con `push` el login queda en el historial, y desde la PWA eso se ve como un
+   * logout que no ocurrió: el aviso abre la ventana directo en
+   * `/doctor/messages`, el middleware —sin sesión— la manda a
+   * `/login?redirectTo=…` REEMPLAZANDO esa entrada, así que el login queda como
+   * el SUELO del historial de esa ventana. La persona entra, responde el
+   * mensaje, toca «atrás» una sola vez y aterriza de vuelta en el formulario.
+   * La sesión sigue viva y nadie hizo `signOut`, pero le pide la contraseña de
+   * nuevo y se lee como que se cayó (reportado en el teléfono, 2026-09-10).
+   *
+   * `replace` saca el login del historial: «atrás» sale de la app, que es lo
+   * que la persona espera. La otra mitad del arreglo está en el middleware —
+   * `/login` con sesión viva ya no dibuja el formulario— porque el `replace`
+   * solo no cubre el caso de volver desde una navegación más profunda.
+   */
   const redirectTo   = searchParams.get('redirectTo') || '/';
   const callbackErr  = searchParams.get('error');
   const reason       = searchParams.get('reason');
@@ -159,7 +177,7 @@ export default function LoginPage(): React.ReactElement {
       }
 
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error. Check your network and try again.');
@@ -186,7 +204,7 @@ export default function LoginPage(): React.ReactElement {
       if (verifyError) { setError('Invalid code. Try again.'); return; }
 
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error. Check your network and try again.');

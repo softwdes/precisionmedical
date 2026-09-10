@@ -12,6 +12,12 @@ import { createClient } from '@precision-medical/auth/client';
 export default function LoginPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
+  /**
+   * `replace`, no `push`: con `push` el login queda en el historial y un solo
+   * «atrás» vuelve al formulario con la sesión todavía viva, así que parece un
+   * logout que no ocurrió. La nota larga y el porqué de la PWA están en
+   * `apps/back-office/app/login/page.tsx`.
+   */
   const redirectTo   = searchParams.get('redirectTo') || '/';
   const callbackErr  = searchParams.get('error');
 
@@ -61,7 +67,7 @@ export default function LoginPage() {
       }
 
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error. Please check your network.');
@@ -84,7 +90,7 @@ export default function LoginPage() {
       });
       if (verifyError) { setError('Invalid code. Please try again.'); return; }
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error.');

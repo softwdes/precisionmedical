@@ -29,6 +29,11 @@ const STATUS_COOKIE      = 'pm_status'; // users.status cacheado junto al rol
 const MODULES_COOKIE     = 'pm_mods'; // JSON de pm_clinic_modules ('*' = sin restricción)
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
+/**
+ * El parámetro que marca "el login me rebotó al destino y no había sesión".
+ * Corta el círculo login → destino → login cuando la cookie está pero muerta.
+ */
+const MARCA_VENCIDA      = 'sesion';
 
 /**
  * Cuanto viven las cookies de permisos (rol, acceso y modulos).
@@ -189,7 +194,73 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     TWILIO_WEBHOOKS.has(pathname) ||
     pathname.startsWith('/api/scriptsure/webhook'); // DAW → nosotros, Basic Auth propio
 
-  if (isPublic) return NextResponse.next();
+  if (isPublic) {
+    /**
+     * `/login` con la sesión VIVA no dibuja el formulario: manda al destino.
+     *
+     * Sin esto la pantalla de login es alcanzable estando adentro, y desde el
+     * teléfono eso se lee como un logout que nunca ocurrió: el aviso abre la
+     * ventana en `/doctor/messages`, esta puerta —sin sesión— la manda a
+     * `/login?redirectTo=…` REEMPLAZANDO la entrada, así que el login queda como
+     * el suelo del historial de esa ventana. La persona entra, responde el
+     * mensaje, toca «atrás» UNA vez y vuelve al formulario con la sesión intacta
+     * (reportado en el teléfono, 2026-09-10). El `replace` del login saca esa
+     * entrada del historial; esto cubre lo que el `replace` no puede: volver
+     * desde una navegación más profunda, o el link del aviso llegando con la
+     * sesión ya viva.
+     *
+     * ── Por qué mira la COOKIE y no llama a `updateSession` ──────────────────
+     *
+     * Por dos razones, y las dos son de la misma familia que los bugs que
+     * venimos cerrando:
+     *
+     *   1. `updateSession` tiene su propia guarda para las rutas de auth y
+     *      manda a `/dashboard`, que acá es la pantalla de la CLÍNICA. El
+     *      provider tiene que caer en `/doctor` y el abogado en `/attorney`, y
+     *      sobre todo tienen que caer en el `redirectTo` — que es el mensaje que
+     *      vinieron a leer.
+     *   2. Esa guarda devuelve un `redirect` nuevo y en el camino PIERDE las
+     *      cookies que `getUser()` acaba de refrescar. Si Supabase rotó el
+     *      refresh token justo en este request, el teléfono se queda con el
+     *      viejo y el logout deja de ser fantasma: pasa de verdad, y en el
+     *      próximo request. Acá no se toca la sesión, así que no hay nada que
+     *      perder.
+     *
+     * La cookie no PRUEBA que la sesión sirva, solo que hay una. La verificación
+     * de verdad la hace la puerta del destino, con `updateSession`. Y para que
+     * una cookie muerta no rebote en círculo —login → destino → login— el salto
+     * de abajo marca la vuelta con `sesion=vencida` y acá se respeta esa marca.
+     */
+    // `reason` lo pone /api/auth/logout y `error` el callback de auth: ya decidió sacar a la persona y tiene
+    // un mensaje que mostrarle ('tu sesión venció'). Si saltáramos al destino,
+    // ese mensaje se perdería y el cierre por inactividad daría un rebote de
+    // más. Cuando el logout habla, esta guarda se calla.
+    const loginQuiereHablar =
+      request.nextUrl.searchParams.has(MARCA_VENCIDA) ||
+      request.nextUrl.searchParams.has('reason') ||
+      request.nextUrl.searchParams.has('error');
+
+    if (pathname === '/login' && !loginQuiereHablar) {
+      const hayCookieDeSesion = request.cookies
+        .getAll()
+        .some((c) => /^sb-.+-auth-token([.][0-9]+)?$/.test(c.name));
+
+      if (hayCookieDeSesion) {
+        const destino = request.nextUrl.searchParams.get('redirectTo');
+        const url = request.nextUrl.clone();
+        // Solo una ruta de ESTE sitio: `//otro.com` es una URL absoluta para el
+        // navegador, y `/login` sería el círculo que la marca evita.
+        url.pathname =
+          destino && destino.startsWith('/') && !destino.startsWith('//') && !destino.startsWith('/login')
+            ? destino
+            : '/';
+        url.search = '';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    return NextResponse.next();
+  }
 
   // Plantillas y Laboratorios del portal se mudaron bajo Configuración
   // (2026-09-05). La ruta vieja redirige PERMANENTE y ANTES de la puerta de
@@ -210,6 +281,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirectTo', pathname);
+    // La marca dice "vengo de acá y la sesión no servía", y es lo que evita el
+    // círculo: la guarda de arriba ve una cookie viva, salta al destino, y si
+    // acá resulta muerta vuelve al login UNA vez y se queda en el formulario.
+    url.searchParams.set(MARCA_VENCIDA, 'vencida');
     return NextResponse.redirect(url);
   }
 
@@ -652,6 +727,23 @@ export const config = {
      * next-pwa en `public/` hay que agregarlo acá**, y se comprueba con un
      * `curl` sin sesión — con sesión pasa igual y el bug no se ve.
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|workbox-.*\\.js|worker-.*\\.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /**
+     * `api/push/public-key` es la CUARTA pieza de la PWA que hay que dejar pasar,
+     * y la encontré por el mismo método que el worker: un `curl` sin sesión.
+     *
+     * Su docblock dice "no lleva autenticación a propósito, el worker corre sin
+     * las cookies de la página"… y el middleware la mandaba a `/login` igual.
+     * El comentario describía una intención que el ruteo no cumplía.
+     *
+     * Importa en el momento exacto para el que existe: el handler de
+     * `pushsubscriptionchange` la pide para rehacer una suscripción que el
+     * navegador acaba de rotar. Con sesión válida el `fetch` del SW manda las
+     * cookies y pasa; **con la sesión vencida —que es cuando más falta hace—
+     * recibía el 307 y la re-suscripción se caía en silencio.**
+     *
+     * Dejarla pasar no abre nada: devuelve la clave PÚBLICA de VAPID, la misma
+     * que ya viaja inlineada en el bundle de cada página.
+     */
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|workbox-.*\\.js|worker-.*\\.js|api/push/public-key|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

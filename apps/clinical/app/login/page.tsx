@@ -22,6 +22,12 @@ function LoginForm() {
   const t            = useTranslations('clinical.auth');
   const router       = useRouter();
   const searchParams = useSearchParams();
+  /**
+   * `replace`, no `push`: con `push` el login queda en el historial y un solo
+   * «atrás» vuelve al formulario con la sesión todavía viva, así que parece un
+   * logout que no ocurrió. La nota larga y el porqué de la PWA están en
+   * `apps/back-office/app/login/page.tsx`.
+   */
   const redirectTo   = searchParams.get('redirectTo') || '/';
   const callbackErr  = searchParams.get('error');
   const reason       = searchParams.get('reason');
@@ -72,7 +78,7 @@ function LoginForm() {
       }
 
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError(t('errNetwork'));
@@ -95,7 +101,7 @@ function LoginForm() {
       });
       if (verifyError) { setError(t('errInvalidCode')); return; }
       navigating = true;
-      router.push(redirectTo);
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError(t('errConnection'));

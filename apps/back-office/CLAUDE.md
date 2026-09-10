@@ -209,11 +209,24 @@ horizontalmente en laptops o pantallas pequeñas.
 
 El primitivo ya resuelve las dos cosas que salían mal cuando esto se escribía a mano:
 
-1. **El fondo de la celda fija es `bg-bg-1`, no `bg-bg-0`.** Tiene que ser opaco (si no
-   se ve el contenido que scrollea por debajo) y tiene que empatar con el fondo de la
-   fila. Dentro de `DataTable.Card` ese fondo es `bg-1`; `bg-0` es el fondo de la
-   **página** y es más oscuro, así que la columna quedaba como una franja de otro color.
-   Esta guía decía `bg-bg-0` y por eso el bug se repitió en varias pantallas.
+1. **El fondo de la celda fija tiene que EMPATAR con el de la fila.** No hay un token
+   correcto fijo: depende de sobre qué está apoyada la tabla.
+
+   | dónde vive la tabla | fondo de la celda fija |
+   |---|---|
+   | dentro de `DataTable.Card` | **`bg-bg-1`** |
+   | suelta sobre la página (sin Card) | **`bg-bg-0`** |
+
+   Tiene que ser **opaco** (si no, se ve pasar por debajo el contenido que scrollea).
+   Si no empata con la fila, la columna se lee como una franja de otro color.
+
+   > Esta guía decía antes, en absoluto, "el fondo es `bg-bg-1`, no `bg-bg-0`", y eso
+   > es falso la mitad de las veces. El 2026-09-10 casi hago un cambio masivo por
+   > creerle: las 4 tablas de la deuda de abajo usan `bg-bg-0` **y está bien**, porque
+   > cuelgan directo del `min-h-screen bg-bg-0` del shell — verificado subiendo la
+   > cadena de ancestros y comparando el color computado, que da idéntico.
+   > **Antes de "corregir" un fondo de celda fija, medí cuál es el primer ancestro
+   > opaco.** No lo deduzcas de esta tabla.
 2. **El hover.** `hover:bg-white/[0.02]` vive en el `<tr>` y queda tapado por el fondo
    opaco de la celda; el primitivo lo repone con una capa `::before` y el `group` de
    `DataTable.Row`, para que el resaltado cruce la fila entera.

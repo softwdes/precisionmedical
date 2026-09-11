@@ -128,7 +128,21 @@ export function AdminShell({
               sidebarCollapsed={collapsed}
               onToggleSidebar={() => handleCollapsedChange(!collapsed)}
               portal={variant === 'attorney' ? 'attorney' : 'clinic'}
-              canAskCifo={variant === 'admin' && canAskCifo}
+              /*
+               * El saludo de CIFO existe en DOS portales y dice cosas distintas
+               * en cada uno; el botón tiene que saber a cuál volver.
+               *
+               * El provider NO pasa por `canAskCifo`: esa capacidad gobierna
+               * PREGUNTARLE al agente —que es de la clínica y contesta con plata
+               * y casos de todos— y él no la tiene. Su saludo solo le muestra su
+               * propio día, así que lo ve siempre. El portal legal no lleva
+               * ninguno: allá el agente es Vigía.
+               */
+              cifo={
+                variant === 'doctor' ? '/doctor'
+                : variant === 'admin' && canAskCifo ? '/dashboard'
+                : null
+              }
             />
             {/* Aire al pie en móvil: la barra inferior mide 64px (pb-20), y en el
                 portal legal encima de ella flota el botón de referir (56px +

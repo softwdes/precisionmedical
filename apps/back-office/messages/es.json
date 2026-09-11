@@ -2760,7 +2760,14 @@
       "actionIntakeCompletedDev": "Intake completado (dev)",
       "actionAppointmentConfirmed": "Cita confirmada",
       "actionAppointmentScheduled": "Cita agendada",
-      "actionNoteAdded": "Nota agregada"
+      "actionNoteAdded": "Nota agregada",
+      "saludoProvEsperando": "{paciente} te está esperando hace {min} min.",
+      "saludoProvAtender": "Atender ahora",
+      "saludoProvCitas": "Tenés {citas} citas hoy y te faltan {faltan}.",
+      "saludoProvCitasListas": "Tenés {citas} citas hoy y ya las atendiste todas.",
+      "saludoProvNotas": "Te quedan {n} notas sin cerrar.",
+      "saludoProvVerNotas": "Ver mis notas",
+      "saludoProvCierre": "Que tengas buen día."
     },
     "calendar": {
       "weekdays": {

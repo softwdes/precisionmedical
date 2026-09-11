@@ -32,18 +32,25 @@ import { useTranslations } from 'next-intl';
 export const EVENTO_ABRIR = 'cifo:abrir-saludo';
 export const MARCA_ABRIR = 'cifo:abrir-al-llegar';
 
-export function CifoButton(): React.ReactElement {
+export function CifoButton({ destino }: {
+  /**
+   * Dónde vive el saludo en ESTE portal: `/dashboard` para recepción,
+   * `/doctor` para el provider. Va por prop y no se deduce de la ruta actual
+   * porque desde `/doctor/notes` la ruta no dice a cuál de los dos volver.
+   */
+  destino: string;
+}): React.ReactElement {
   const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
   const pathname = usePathname();
 
   const abrir = () => {
-    if (pathname === '/dashboard') {
+    if (pathname === destino) {
       window.dispatchEvent(new CustomEvent(EVENTO_ABRIR));
       return;
     }
     try { window.sessionStorage.setItem(MARCA_ABRIR, '1'); } catch { /* da igual */ }
-    router.push('/dashboard');
+    router.push(destino);
   };
 
   return (

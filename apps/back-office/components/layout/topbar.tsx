@@ -35,8 +35,11 @@ interface TopbarProps {
   onToggleSidebar?:  () => void;
   /** El portal legal usa su propia puerta de mensajes (ver `InboxBell`). */
   portal?: 'clinic' | 'attorney';
-  /** Muestra el botón de CIFO. Lo decide el shell — ver `admin-shell.tsx`. */
-  canAskCifo?: boolean;
+  /**
+   * Dónde vive el saludo de CIFO en este portal (`/dashboard` o `/doctor`), o
+   * `null` si no lo tiene. Lo decide el shell — ver `admin-shell.tsx`.
+   */
+  cifo?: string | null;
 }
 
 function generateSecurePassword(): string {
@@ -68,7 +71,7 @@ export function Topbar({
   sidebarCollapsed = false,
   onToggleSidebar,
   portal = 'clinic',
-  canAskCifo = false,
+  cifo = null,
 }: TopbarProps): React.ReactElement {
   const router        = useRouter();
   const currentLocale = useLocale();
@@ -230,7 +233,7 @@ export function Topbar({
           {/* CIFO — vuelve a abrir el saludo del día.
               Erick lo pidió acá, entre Mensajes y el ícono del celular: el
               saludo se cierra solo y quería poder traerlo de vuelta. */}
-          {canAskCifo && <CifoButton />}
+          {cifo && <CifoButton destino={cifo} />}
 
           {/* Avisos al celular — SOLO cuando hace falta un clic (apagado o
               bloqueado). Encendido se va de la barra y su estado queda en el

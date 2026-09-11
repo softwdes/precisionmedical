@@ -14,6 +14,7 @@ import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
 import { MyDayClient, type MyDayAppointment } from './my-day-client';
+import { CifoSaludoProvider } from './cifo-saludo-provider';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.nav');
@@ -144,15 +145,51 @@ export default async function DoctorMyDayPage({
     clinicName: a.clinic.name,
   }));
 
+  /**
+   * El saludo de CIFO, con los números de ESTE provider.
+   *
+   * Sale entero de `appointments`, que ya está armado arriba para pintar la
+   * lista: **cero consultas nuevas**. Es la misma regla que en el panel de
+   * recepción — si el saludo consultara por su cuenta, podría contradecir a la
+   * pantalla que está tapando.
+   *
+   * Solo cuando se mira HOY: esta pantalla navega por fecha con las flechas, y
+   * un "te esperan hace 12 minutos" mientras mirás el martes pasado sería
+   * mentira.
+   */
+  const esHoy = dateKey === todayKey;
+  const yaSalio = (s: string) => s === 'COMPLETED' || s === 'CHECKED_OUT';
+  // Ya llegó y todavía no entró: ni atendiéndose ni terminado. Ese es el que
+  // está sentado en la sala.
+  const enSala = appointments.find(
+    (a) => a.checkedInAt !== null && a.status !== 'IN_PROGRESS' && !yaSalio(a.status),
+  );
+  const saludo = {
+    hoy: todayKey,
+    citasHoy: appointments.length,
+    porAtender: appointments.filter((a) => !yaSalio(a.status)).length,
+    notasSinCerrar: pendingNotesTotal,
+    esperando: enSala
+      ? {
+          appointmentId: enSala.id,
+          paciente: `${enSala.patientFirstName} ${enSala.patientLastName}`.trim(),
+          minutos: Math.max(0, Math.round((Date.now() - new Date(enSala.checkedInAt!).getTime()) / 60_000)),
+        }
+      : null,
+  };
+
   return (
-    <MyDayClient
-      doctorName={`${provider.firstName} ${provider.lastName}`}
-      appointments={appointments}
-      unsignedTotal={pendingNotesTotal}
-      dateKey={dateKey}
-      isToday={dateKey === todayKey}
-      prevDate={prevDate}
-      nextDate={nextDate}
-    />
+    <>
+      {esHoy && <CifoSaludoProvider datos={saludo} />}
+      <MyDayClient
+        doctorName={`${provider.firstName} ${provider.lastName}`}
+        appointments={appointments}
+        unsignedTotal={pendingNotesTotal}
+        dateKey={dateKey}
+        isToday={esHoy}
+        prevDate={prevDate}
+        nextDate={nextDate}
+      />
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { canSeeFirmRequests } from '@/lib/firm-requests-access';
+import { canAskCifo } from '@/lib/cifo-access';
 import { getSessionUser } from '@/lib/session';
 
 // Back-Office · Admin layout
@@ -76,19 +77,27 @@ export default async function AdminLayout({ children }: { children: ReactNode })
    * primera consulta, así que su turno es después y no hay nada que ganar.
    */
   let puedeVerPedidos = false;
+  /** Habilita el botón de CIFO en la barra — ver `admin-shell.tsx`. */
+  let puedePreguntarCifo = false;
 
   try {
     const admin = createAdminClient();
-    const [fichaRes, verPedidos] = await Promise.all([
+    const [fichaRes, verPedidos, preguntarCifo] = await Promise.all([
       admin
         .from('users')
         .select('firstName, lastName, role')
         .eq('email', user.email ?? '')
         .single(),
       canSeeFirmRequests(),
+      // Va en el MISMO `Promise.all` a propósito: son dos llamadas de red al
+      // proyecto Admin y encadenarlas sumaba ~180 ms a cada carga completa.
+      // `canAskCifo` está memorizada por request, así que el dashboard la
+      // vuelve a pedir sin pagar de nuevo.
+      canAskCifo(),
     ]);
     const { data } = fichaRes;
     puedeVerPedidos = verPedidos;
+    puedePreguntarCifo = preguntarCifo;
 
     if (data) {
       userName  = `${data.firstName} ${data.lastName}`.trim();
@@ -129,6 +138,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userEmail={user.email ?? ''}
         allowedModules={allowedModules}
         canSeeFirmRequests={puedeVerPedidos}
+        canAskCifo={puedePreguntarCifo}
       >
         {children}
       </AdminShell>

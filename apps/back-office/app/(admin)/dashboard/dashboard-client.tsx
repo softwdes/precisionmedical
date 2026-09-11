@@ -13,6 +13,7 @@ import {
 import { IntakePanel, type FilaVista } from './intake-panel';
 import { TitularIntake } from './titular-intake';
 import { CifoBox } from './cifo-box';
+import { CifoBienvenida, type DatosBienvenida } from './cifo-bienvenida';
 
 /**
  * B.29 — Panel de Recepción.
@@ -74,9 +75,11 @@ interface Props {
     citasHoy: number;
     titular: FilaVista | null;
   };
+  /** Lo que dice CIFO al abrir el panel — ver `cifo-bienvenida.tsx`. */
+  bienvenida: DatosBienvenida;
 }
 
-export function DashboardClient({ alerts, numeros, intake, cifo }: Props) {
+export function DashboardClient({ alerts, numeros, intake, cifo, bienvenida }: Props) {
   const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
   const totalAlerts =
@@ -88,6 +91,10 @@ export function DashboardClient({ alerts, numeros, intake, cifo }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* La bienvenida se monta primera pero se pinta ENCIMA de todo (`fixed`):
+          decide sola si le toca aparecer hoy, y si no, no devuelve nada. */}
+      <CifoBienvenida datos={bienvenida} />
+
       <PageHeader
         title={t('title')}
         subtitle={

@@ -8,6 +8,7 @@ import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
 import { InboxBell } from '@/components/messaging/inbox-bell';
+import { CifoButton } from './cifo-button';
 import { PushToggle, PushAvisosMenuItem } from '@/components/PushToggle';
 import { ReleaseBell } from '@/components/release/release-bell';
 import { createClient } from '@precision-medical/auth/client';
@@ -34,6 +35,8 @@ interface TopbarProps {
   onToggleSidebar?:  () => void;
   /** El portal legal usa su propia puerta de mensajes (ver `InboxBell`). */
   portal?: 'clinic' | 'attorney';
+  /** Muestra el botón de CIFO. Lo decide el shell — ver `admin-shell.tsx`. */
+  canAskCifo?: boolean;
 }
 
 function generateSecurePassword(): string {
@@ -65,6 +68,7 @@ export function Topbar({
   sidebarCollapsed = false,
   onToggleSidebar,
   portal = 'clinic',
+  canAskCifo = false,
 }: TopbarProps): React.ReactElement {
   const router        = useRouter();
   const currentLocale = useLocale();
@@ -222,6 +226,11 @@ export function Topbar({
               se agrupan después, pegadas al avatar. La jerarquía visual sigue
               a la urgencia clínica: nada debe gritar más que un urgente. */}
           <InboxBell portal={portal} />
+
+          {/* CIFO — vuelve a abrir el saludo del día.
+              Erick lo pidió acá, entre Mensajes y el ícono del celular: el
+              saludo se cierra solo y quería poder traerlo de vuelta. */}
+          {canAskCifo && <CifoButton />}
 
           {/* Avisos al celular — SOLO cuando hace falta un clic (apagado o
               bloqueado). Encendido se va de la barra y su estado queda en el

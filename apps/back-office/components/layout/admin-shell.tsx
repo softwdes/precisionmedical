@@ -34,6 +34,16 @@ interface AdminShellProps {
   canAuditNotes?: boolean;
   /** Capacidad "pedidos de bufetes": agrega ese menú al final del back-office. Opt-in. */
   canSeeFirmRequests?: boolean;
+  /**
+   * Capacidad de CIFO: pone su botón en la barra para volver a abrir el saludo.
+   *
+   * Va por prop y no se resuelve en el Topbar porque el Topbar es cliente y
+   * esto se decide con dos llamadas al proyecto Admin. Y hace falta un permiso
+   * de verdad, no `portal === 'clinic'`: el portal MÉDICO monta este mismo
+   * shell con variant 'doctor', que también mapea a 'clinic', y CIFO no es
+   * de los providers.
+   */
+  canAskCifo?: boolean;
   /** Bloque libre al pie del menú lateral (Portal Legal: tarjeta de oficina). */
   sidebarBelowNav?: React.ReactNode;
   /** Contadores por menú (Portal Legal: referidos pendientes). */
@@ -51,6 +61,7 @@ export function AdminShell({
   canViewAsDoctor = false,
   canAuditNotes = false,
   canSeeFirmRequests = false,
+  canAskCifo = false,
   sidebarBelowNav = null,
   sidebarBadges = null,
 }: AdminShellProps): React.ReactElement {
@@ -117,6 +128,7 @@ export function AdminShell({
               sidebarCollapsed={collapsed}
               onToggleSidebar={() => handleCollapsedChange(!collapsed)}
               portal={variant === 'attorney' ? 'attorney' : 'clinic'}
+              canAskCifo={variant === 'admin' && canAskCifo}
             />
             {/* Aire al pie en móvil: la barra inferior mide 64px (pb-20), y en el
                 portal legal encima de ella flota el botón de referir (56px +

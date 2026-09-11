@@ -1,5 +1,6 @@
 import { db } from '@precision-medical/database';
 import { claveDia, ZONA_CLINICA } from '@/lib/fechas';
+import { citasDeHoy, rangoDeHoy } from '@/lib/citas-de-hoy';
 import { colaIntake, DIAS_VENTANA } from '@/lib/cola-intake';
 import {
   atrasosRecepcion, HORAS_SIN_PORTAL,
@@ -61,21 +62,6 @@ const MAX_FILAS = 25;
 /** Decimal de Prisma → número. */
 const n = (v: unknown): number => (v == null ? 0 : Number(v));
 
-/** Los bordes de hoy en la zona de la CLÍNICA, no en la del servidor. */
-function rangoDeHoy(): { desde: Date; hasta: Date } {
-  const hoy = claveDia(new Date());
-  const [y, m, d] = hoy.split('-').map(Number);
-  // El desfase real de esa fecha sale de cómo se ve el mediodía UTC en la zona
-  // de la clínica: 6 horas en verano, 7 en invierno. Fijar uno rompe medio año.
-  const tentativo = Date.UTC(y!, m! - 1, d!, 12, 0, 0);
-  const horaLocal = Number(
-    new Intl.DateTimeFormat('en-US', { timeZone: ZONA_CLINICA, hour12: false, hour: '2-digit' })
-      .format(new Date(tentativo)),
-  );
-  const desde = new Date(Date.UTC(y!, m! - 1, d!, 12 - horaLocal, 0, 0));
-  return { desde, hasta: new Date(desde.getTime() + 86_400_000) };
-}
-
 /** `YYYY-MM-DD` en la zona de la clínica. */
 const iso = (d: Date | null | undefined): string | null => (d ? claveDia(d) : null);
 
@@ -91,12 +77,16 @@ const horasDesde = (d: Date): number => Math.floor((Date.now() - d.getTime()) / 
 export async function pulsoDelDia(): Promise<ResultadoHerramienta> {
   const { desde, hasta } = rangoDeHoy();
 
-  const [porEstado, cobradoHoy, enviosHoy, llamadasHoy] = await Promise.all([
-    db.appointment.groupBy({
-      by: ['status'],
-      where: { scheduledFor: { gte: desde, lt: hasta } },
-      _count: true,
-    }),
+  /**
+   * Las citas salen de `citasDeHoy()`, compartido con el saludo del dashboard.
+   *
+   * Antes el `groupBy` estaba acá adentro. Se fue a `lib/citas-de-hoy.ts` cuando
+   * el saludo de CIFO necesitó el mismo número: si lo copiaba, el día que
+   * alguien decida que las canceladas también cuentan, la pantalla diría 24 y el
+   * agente 22 — en la misma sesión y sin forma de saber cuál miente.
+   */
+  const [citas, cobradoHoy, enviosHoy, llamadasHoy] = await Promise.all([
+    citasDeHoy(),
     db.appointmentBilling.aggregate({
       _sum: { amountPaid: true },
       where: { updatedAt: { gte: desde, lt: hasta } },
@@ -105,19 +95,9 @@ export async function pulsoDelDia(): Promise<ResultadoHerramienta> {
     db.callLog.count({ where: { createdAt: { gte: desde } } }),
   ]);
 
-  const cuenta = (...estados: string[]): number =>
-    porEstado.filter((g) => estados.includes(g.status)).reduce((a, g) => a + g._count, 0);
-
   return {
     data: {
-      // El total excluye las canceladas: no son trabajo de hoy.
-      citasHoy: porEstado.filter((g) => g.status !== 'CANCELLED').reduce((a, g) => a + g._count, 0),
-      porEstado: Object.fromEntries(porEstado.map((g) => [g.status, g._count])),
-      enElEdificio: cuenta('CHECKED_IN', 'IN_PROGRESS'),
-      yaSalieron: cuenta('COMPLETED', 'CHECKED_OUT'),
-      sinLlegarTodavia: cuenta('SCHEDULED', 'CONFIRMED', 'PENDING'),
-      noShowHoy: cuenta('NO_SHOW'),
-      canceladasHoy: cuenta('CANCELLED'),
+      ...citas,
       cobradoHoy: n(cobradoHoy._sum.amountPaid),
       // Los dos canales de contacto del día, para poder comparar el esfuerzo.
       sms0EmailsEnviadosHoy: enviosHoy,

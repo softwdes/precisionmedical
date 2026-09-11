@@ -3,6 +3,9 @@ import { DashboardClient } from './dashboard-client';
 import { colaIntake } from '@/lib/cola-intake';
 import { atrasosRecepcion } from '@/lib/atrasos-recepcion';
 import { canAskCifo } from '@/lib/cifo-access';
+import { citasDeHoy } from '@/lib/citas-de-hoy';
+import { contarLiensSinFirmaCerrados } from '@/lib/liens-sin-firma';
+import { claveDia } from '@/lib/fechas';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 /**
@@ -114,6 +117,41 @@ export default async function DashboardPage({ searchParams }: {
         casoEjemplo: intake.titular?.caseCode ?? intake.filas[0]?.caseCode ?? null,
       }
     : null;
+  /**
+   * El saludo de CIFO — los tres números y la razón para NO mostrarlo.
+   *
+   * Las dos consultas nuevas son baratas a propósito: un `groupBy` de las citas
+   * del día (compartido con la herramienta `pulso_del_dia`, para que el saludo y
+   * el agente no puedan dar cifras distintas) y un `count` de liens. Nada de
+   * llamar a `pulsoDelDia()` para leerle un campo: eso agregaba tres consultas
+   * —cobros, mensajes y llamadas— a cada carga de la pantalla más transitada.
+   *
+   * ── El urgente NO calla al saludo: lo encabeza ─────────────────────────────
+   *
+   * La primera versión escondía el saludo entero cuando había un caso TARDE o
+   * AHORA, con el argumento de que esa mañana la pantalla tiene una sola misión.
+   * **Medido, esa regla lo apagaba siempre**: a las 14 h del 2026-09-10 el
+   * titular ya estaba en TARDE, y a media jornada casi siempre hay alguien
+   * atrasado. La función habría quedado invisible en producción sin que nadie
+   * entendiera por qué.
+   *
+   * Así que se da vuelta: si hay alguien esperando, CIFO **lo dice en la primera
+   * línea** y ofrece el botón para abrirlo. Sirve a la urgencia en vez de
+   * competir con ella, que era la preocupación real detrás de la regla vieja.
+   */
+  const [citas, liens] = await Promise.all([citasDeHoy(), contarLiensSinFirmaCerrados()]);
+  const t = intake.titular;
+  const bienvenida = {
+    hoy: claveDia(new Date()),
+    citasHoy: citas.citasHoy,
+    sinLlegarTodavia: citas.sinLlegarTodavia,
+    sinIntakeFirmado: intake.filas.length,
+    liensCerradosSinFirma: liens,
+    urgente: t && (t.nivel === 'TARDE' || t.nivel === 'AHORA')
+      ? { caseId: t.caseId, caseCode: t.caseCode, tarde: t.nivel === 'TARDE' }
+      : null,
+  };
+
   const { intakePendiente, sinAgendar } = atrasos;
 
   const aVista = (f: (typeof intake.filas)[number]) => ({
@@ -153,6 +191,7 @@ export default async function DashboardPage({ searchParams }: {
         titular: intake.titular ? aVista(intake.titular) : null,
       }}
       cifo={cifo}
+      bienvenida={bienvenida}
       numeros={{ citasHoy: intake.citasHoy, intakePendiente, sinAgendar }}
       alerts={{
         newReferralsAged: atrasos.sinPortal.map((c) => ({

@@ -258,6 +258,15 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
       </div>
 
       {/* Table */}
+      {/* Las celdas fijas de abajo van `bg-bg-1` y no `bg-bg-0`: tienen que ser
+          opacas (si no se ve pasar por debajo lo que scrollea) y empatar con el
+          fondo de la fila, que acá lo pone ESTA tarjeta. Estaban en `bg-bg-0`
+          —el fondo de la PÁGINA, más oscuro— y la columna se leía como una
+          franja de otro color: medido, `srgb .039 .055 .102` contra
+          `srgb .059 .082 .141`. No hay un token correcto fijo, depende de sobre
+          qué se apoya la tabla: `patients-client` usa `bg-bg-0` y está bien
+          porque cuelga del shell, y `call-history-dialog` esquiva el problema
+          con un contenedor SIN fondo. */}
       <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
@@ -310,7 +319,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                     className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}
                   >
                     {/* Fecha */}
-                    <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2.5 whitespace-nowrap text-text-muted font-mono text-[11px]">
+                    <td className="sticky left-0 z-10 bg-bg-1 px-4 py-2.5 whitespace-nowrap text-text-muted font-mono text-[11px]">
                       {fmtDate(log.createdAt)}
                     </td>
 
@@ -350,7 +359,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                     </td>
 
                     {/* Metadata */}
-                    <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 hidden xl:table-cell">
+                    <td className="sticky right-0 z-10 bg-bg-1 px-3 py-2.5 hidden xl:table-cell">
                       {log.metadata && Object.keys(log.metadata).length > 0 ? (
                         <span className="text-[10px] text-text-muted italic line-clamp-1">
                           {Object.entries(log.metadata).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}

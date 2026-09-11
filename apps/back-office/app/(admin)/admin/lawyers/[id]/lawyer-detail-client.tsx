@@ -1076,7 +1076,7 @@ function CaseTableRow({
 
   return (
     <tr className="hover:bg-white/[0.02] transition-colors">
-      <td className="sticky left-0 z-10 bg-bg-0 px-4 py-1.5">
+      <td className="sticky left-0 z-10 bg-bg-1 px-4 py-1.5">
         <span className="font-mono text-xs text-text-1">{row.caseCode}</span>
       </td>
       <td className="px-4 py-1.5">
@@ -1123,7 +1123,7 @@ function CaseTableRow({
           <span className="text-[10px] text-text-muted">Pendiente</span>
         )}
       </td>
-      <td className="sticky right-0 z-10 bg-bg-0 px-4 py-1.5">
+      <td className="sticky right-0 z-10 bg-bg-1 px-4 py-1.5">
         <button
           ref={btnRef}
           onClick={onMenuToggle}

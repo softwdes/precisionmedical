@@ -43,7 +43,13 @@ export function AppLayout({
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         {/* Main content */}
-        <div className="flex flex-1 flex-col md:ml-[240px]">
+        {/* `min-w-0` es lo que impide que la app entera se arrastre de costado en
+            un teléfono. Un ítem flex tiene `min-width: auto` por default, o sea
+            que NO puede achicarse por debajo del ancho mínimo de su contenido:
+            bastaba una barra de tabs de 437px adentro para que esta columna
+            midiera 477 dentro de un padre de 380 (medido a 390px). El sidebar no
+            tenía nada que ver — está `fixed` y fuera de pantalla. */}
+        <div className="flex min-w-0 flex-1 flex-col md:ml-[240px]">
           <Topbar
             onMenuClick={() => setSidebarOpen(true)}
             userName={userName}

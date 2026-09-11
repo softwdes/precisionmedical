@@ -101,6 +101,27 @@ const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
 type ApiGuard = [module: string, pattern: RegExp, scope: 'all' | 'write'];
 
 const MODULE_API_ROUTES: ApiGuard[] = [
+  /**
+   * El agente de la CLÍNICA. Va bajo `dashboard` porque es de esa pantalla.
+   *
+   * ── Por qué hacía falta, y qué estaba abierto ──────────────────────────────
+   *
+   * `/api/cifo/ask` no estaba en esta tabla, así que `apiGuardModule` devolvía
+   * `null` y la rama de DOCTOR/PROVIDER la dejaba pasar. Del otro lado, la ruta
+   * solo chequea `canAskCifo()`, y desde que esa capacidad pasó de opt-in a
+   * **opt-out** (`modules?.cifo !== false`, 2026-09-10) un provider sin la llave
+   * puesta da `true`.
+   *
+   * O sea: la caja no se dibujaba en su portal, pero un `fetch` a mano
+   * contestaba — y entre las herramientas de CIFO está `saldos_y_cobros`, que
+   * devuelve lo cargado, lo pagado y el saldo de TODA la clínica más los diez
+   * casos con más deuda. Es exactamente el patrón que veníamos catalogando: el
+   * cambio de regla no rompió nada y abrió una puerta de costado.
+   *
+   * El provider tiene su propio saludo de CIFO —`app/doctor/page.tsx`— y ese no
+   * pasa por acá: se arma en el servidor con SUS citas y no llama a ninguna API.
+   */
+  ['dashboard', /^\/api\/cifo(\/|$)/,             'all'],
   ['billing',   /^\/api\/admin\/billing(\/|$)/,    'all'],
   ['settings',  /^\/api\/admin\/audit-logs(\/|$)/, 'all'],
   ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances|clinics|employees)(\/|$)/, 'write'],

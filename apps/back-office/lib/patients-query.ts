@@ -38,8 +38,33 @@ const soloDigitos = (v: string | null | undefined) => (v ?? '').replace(/\D/g, '
 export interface FiltroPacientes {
   q?: string;
   inactiveOnly: boolean;
-  /** Portal médico: solo pacientes con al menos una cita de este provider. */
+  /** Portal médico: recorte a los pacientes de este provider. */
   providerId?: string | null;
+}
+
+/**
+ * Qué es "mi paciente" para un provider: **lo atiendo o lo traje yo**.
+ *
+ * Era solo lo primero (`appointments.some`), y con eso el alta rápida del
+ * portal —que el provider ahora tiene— quedaba en un callejón: daba de alta a
+ * un paciente, el paciente todavía no tenía ninguna cita, y por lo tanto no
+ * aparecía en su lista ni podía abrir su ficha. Creaba algo que no podía ver.
+ *
+ * `providerReferrerId` es el provider que REFIRIÓ al paciente, ya existe y está
+ * indexado; el alta desde el portal lo sella con el provider de la sesión. Que
+ * también lo vea quien lo trajo es la misma regla, no una excepción.
+ *
+ * Se usa igual para la lista y para el guard de la ficha — `lib/patient-access`
+ * importa esta función para no escribir la regla dos veces.
+ */
+export function alcanceDelProvider(providerId?: string | null): Prisma.PatientWhereInput {
+  if (!providerId) return {};
+  return {
+    OR: [
+      { appointments: { some: { providerId } } },
+      { providerReferrerId: providerId },
+    ],
+  };
 }
 
 /**
@@ -86,9 +111,7 @@ export async function wherePacientes(
     ? { status: 'INACTIVE' }
     : { NOT: { status: 'INACTIVE' } };
 
-  const providerScope: Prisma.PatientWhereInput = providerId
-    ? { appointments: { some: { providerId } } }
-    : {};
+  const providerScope = alcanceDelProvider(providerId);
 
   const termino = (q ?? '').trim();
   if (!termino) return { AND: [statusFilter, providerScope] };
@@ -134,7 +157,7 @@ export function alcanceBase(
   return {
     AND: [
       inactiveOnly ? { status: 'INACTIVE' } : { NOT: { status: 'INACTIVE' } },
-      providerId ? { appointments: { some: { providerId } } } : {},
+      alcanceDelProvider(providerId),
     ],
   };
 }

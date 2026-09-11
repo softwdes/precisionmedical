@@ -84,6 +84,12 @@ interface NewCaseDialogProps {
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string; specialtyCatalogIds?: string[] }>;
   initialState?: NewCaseInitialState | null;
   agentName?: string;
+  /**
+   * Cuarta opción del selector: el alta rápida (paciente + caso en un modal).
+   * Vive en otro diálogo, así que este se cierra y el contenedor abre aquel.
+   * Sin esta prop la tarjeta no aparece.
+   */
+  onQuickRegister?: () => void;
 }
 
 /** Mismos valores que el enum del schema y que patient-create-dialog. */
@@ -112,7 +118,7 @@ const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
   'urgent care':     ['GENERAL', 'OTHER'],
 };
 
-export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName }: NewCaseDialogProps) {
+export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName, onQuickRegister }: NewCaseDialogProps) {
   const router = useRouter();
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
@@ -789,7 +795,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto scroll-thin">
-            <PreCallStep onConfirm={handleStartCall} onCancel={() => onOpenChange(false)} initialMode={precallInitialMode} />
+            <PreCallStep
+              onConfirm={handleStartCall}
+              onCancel={() => onOpenChange(false)}
+              initialMode={precallInitialMode}
+              onQuickRegister={onQuickRegister && (() => { onOpenChange(false); onQuickRegister(); })}
+            />
           </div>
         </DialogContent>
       </Dialog>

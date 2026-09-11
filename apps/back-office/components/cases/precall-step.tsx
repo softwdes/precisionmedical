@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
-  User, ClipboardList, Lock,
+  User, UserPlus, ClipboardList, Lock,
 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
@@ -85,10 +85,18 @@ export function PreCallStep({
   onConfirm,
   onCancel,
   initialMode,
+  onQuickRegister,
 }: {
   onConfirm: (result: PreCallResult) => void;
   onCancel: () => void;
   initialMode?: PreCallMode;
+  /**
+   * Abre el alta rápida (paciente + caso en un solo modal). No es un `mode` de
+   * este componente: es OTRO diálogo, y anidar un Dialog dentro de otro es la
+   * receta para que el de abajo quede sin foco y sin scroll. El contenedor
+   * cierra este y abre aquel.
+   */
+  onQuickRegister?: () => void;
 }) {
   const t = useTranslations('phoenix.frontOffice.precall');
   // El sello del paciente dado de baja vive en el namespace del calendario, que
@@ -229,6 +237,28 @@ export function PreCallStep({
             tone="amber"
             onClick={() => onConfirm({ mode: 'manual', firstName: '', lastName: '', phone: '' })}
           />
+          {/**
+            * Alta rápida — un solo modal con lo básico y el referido.
+            *
+            * Las otras tres llevan al wizard largo (4 pasos: paciente,
+            * accidente, legal, cita). Esta es para el mostrador apurado y para
+            * el provider: se elige MVA o GM y el CASO SE CREA SOLO, porque las
+            * citas cuelgan del caso y un paciente sin caso no se puede agendar.
+            * Un GM sin accidente igual necesita su caso, y es el que más entra
+            * por acá.
+            *
+            * Solo aparece cuando el contenedor sabe abrirla — ver
+            * `onQuickRegister`.
+            */}
+          {onQuickRegister && (
+            <ModeCard
+              icon={UserPlus}
+              title={t('quickTitle')}
+              subtitle={t('quickSubtitle')}
+              tone="emerald"
+              onClick={onQuickRegister}
+            />
+          )}
         </div>
 
         <div className="rounded-md border border-border bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">

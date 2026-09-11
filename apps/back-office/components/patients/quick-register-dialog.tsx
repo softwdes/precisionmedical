@@ -47,13 +47,23 @@ const SELECT = `${INPUT} appearance-none`;
 
 // ─── ReferredBy Select — lista de firmas cargada desde DB ────────────────────
 
-function ReferredBySelect({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  const [firms, setFirms] = useState<string[]>([]);
+/**
+ * El valor es el **id** del bufete, no su nombre.
+ *
+ * Guardaba el `label` y por eso el referido no se podía guardar: la API pide
+ * `referrer.lawFirmId` para escribir `Patient.lawyerReferrerId`, y con el
+ * nombre no hay forma de resolverlo sin adivinar. El dato existía en la
+ * respuesta del autocomplete y se tiraba en el `.map`.
+ */
+function ReferredBySelect({ value, onChange, placeholder, otherLabel }: {
+  value: string; onChange: (v: string) => void; placeholder: string; otherLabel: string;
+}) {
+  const [firms, setFirms] = useState<Array<{ id: string; label: string }>>([]);
 
   useEffect(() => {
     fetch('/api/admin/lawyers/autocomplete')
       .then(r => r.json())
-      .then(j => setFirms((j.results ?? []).map((f: { label: string }) => f.label)))
+      .then(j => setFirms((j.results ?? []).map((f: { id: string; label: string }) => ({ id: f.id, label: f.label }))))
       .catch(() => {});
   }, []);
 
@@ -65,9 +75,9 @@ function ReferredBySelect({ value, onChange, placeholder }: { value: string; onC
     >
       <option value="">{placeholder}</option>
       {firms.map(f => (
-        <option key={f} value={f}>{f}</option>
+        <option key={f.id} value={f.id}>{f.label}</option>
       ))}
-      <option value="__otro__">Otro…</option>
+      <option value="__otro__">{otherLabel}</option>
     </select>
   );
 }
@@ -190,10 +200,18 @@ interface SuccessInfo {
   portalUrl:   string;
 }
 
-function QrSuccessPanel({ info, onNewPatient, onClose }: {
+function QrSuccessPanel({ info, onNewPatient, onClose, patientsBase }: {
   info: SuccessInfo;
   onNewPatient: () => void;
   onClose: () => void;
+  /**
+   * Dónde vive la ficha del paciente para QUIEN está mirando: `/patients` en la
+   * clínica, `/doctor/patients` en el portal. Estaba escrito fijo, así que al
+   * provider "Ver paciente" le abría una pestaña nueva en una ruta
+   * administrativa y el middleware lo rebotaba a `/doctor` — un botón que no
+   * lleva a ningún lado.
+   */
+  patientsBase: string;
 }) {
   const t = useTranslations('quickRegister');
   const [copied,    setCopied]    = useState(false);
@@ -294,7 +312,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
               {t('qrNewRecord')}
             </Button>
             <Button
-              onClick={() => window.open(`/patients/${info.patientId}`, '_blank')}
+              onClick={() => window.open(`${patientsBase}/${info.patientId}`, '_blank')}
               className="flex items-center justify-center gap-1.5 text-xs"
             >
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -320,11 +338,20 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /**
+   * Provider de la sesión cuando el alta se hace desde el portal médico.
+   *
+   * Se guarda como "quién trajo al paciente" (`Patient.providerReferrerId`), y
+   * de eso depende que el provider VEA lo que acaba de crear: su lista y su
+   * ficha se recortan por "lo atiendo o lo traje yo", y un paciente recién dado
+   * de alta todavía no tiene ninguna cita.
+   */
+  providerId?: string;
 }
 
 type SaveMode = 'exit' | 'form' | 'qr';
 
-export function QuickRegisterDialog({ open, onOpenChange }: Props) {
+export function QuickRegisterDialog({ open, onOpenChange, providerId }: Props) {
   const t      = useTranslations('quickRegister');
   /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
      tres pantallas que crean casos y no se duplican por namespace. */
@@ -464,8 +491,33 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           },
           insurance:    { primaryInsuranceId: null },
           caseType:     isMVA ? 'MVA' : 'GENERAL',
-          source:       (howFound || 'WALK_IN') as 'WALK_IN',
-          formDelivery: mode === 'form' ? 'SEND_NOW' : null,
+          /**
+           * El REFERIDO del paciente. Los dos campos estaban en pantalla y no
+           * viajaban: se elegía el bufete que mandó al paciente y el dato se
+           * perdía al guardar. Por eso `Patient.lawyerReferrerId` estaba casi
+           * vacío (59 de 6.264) — ver el comentario de `referrer` en la API.
+           *
+           * Con bufete elegido y sin fuente, la fuente ES el bufete: quien carga
+           * no tiene por qué decir dos veces lo mismo.
+           */
+          ...(referredBy && referredBy !== '__otro__'
+            ? { referrer: { lawFirmId: referredBy } }
+            : {}),
+          source: (howFound || (referredBy && referredBy !== '__otro__' ? 'LAW_FIRM' : 'WALK_IN')) as 'WALK_IN',
+          /* Texto libre: gana el de "Referido por" — es más específico que "de
+             qué manera nos encontró". */
+          sourceOther: referredByFreeText.trim() || howFoundOther.trim() || null,
+          ...(providerId ? { providerReferrerId: providerId } : {}),
+          /**
+           * `formDelivery` era el string 'SEND_NOW' y la API espera
+           * `{ sendEmail, sendSms }` desde que el envío se partió por canal.
+           * Con el contrato viejo zod rechazaba el alta entera con 422: el botón
+           * "Guardar y enviar formulario" no guardaba NADA. No se vio porque
+           * este diálogo llevaba seis semanas sin botón que lo abriera.
+           */
+          formDelivery: mode === 'form'
+            ? { sendEmail: !!email.trim(), sendSms: !!phone.replace(/\D/g, '') }
+            : null,
           consents: {
             hipaa: false, assignedParties: false,
             treatment: false, financial: false, medicalHistory: false,
@@ -557,6 +609,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
               info={successInfo}
               onNewPatient={reset}
               onClose={() => { router.refresh(); reset(); onOpenChange(false); }}
+              patientsBase={providerId ? '/doctor/patients' : '/patients'}
             />
           ) : (
 
@@ -664,6 +717,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                       value={referredBy}
                       onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }}
                       placeholder={t('selectOption')}
+                      otherLabel={t('referralOther')}
                     />
                     {referredBy === '__otro__' && (
                       <input

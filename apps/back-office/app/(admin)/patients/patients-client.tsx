@@ -2978,7 +2978,13 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       )}
 
       {/* ─── Quick Register ──────────────────────────────────────────────────── */}
-      <QuickRegisterDialog open={quickRegister} onOpenChange={setQuickRegister} />
+      {/* En el portal se sella quién trajo al paciente: sin eso el provider no
+          vería en "Mis pacientes" al que acaba de dar de alta. */}
+      <QuickRegisterDialog
+        open={quickRegister}
+        onOpenChange={setQuickRegister}
+        providerId={scopeProviderId}
+      />
 
       {/* ─── Send Portal Link ────────────────────────────────────────────────── */}
       <SendPortalDialog

@@ -2000,7 +2000,9 @@
         "startSearchBtn": "Continue → Create Case / Appointment",
         "patientVerifyTitle": "Verify patient",
         "patientVerifyHint": "Confirm this is the right patient before continuing.",
-        "pasteHint": "Type it, or paste with Ctrl+V"
+        "pasteHint": "Type it, or paste with Ctrl+V",
+        "quickTitle": "Quick patient registration",
+        "quickSubtitle": "Basic details and referral · pick MVA or GM and the case is created for you"
       },
       "newCase": {
         "dialogTitle": "New call · Create case",
@@ -3411,7 +3413,7 @@
       "searching": "Searching…",
       "btnSearch": "Search",
       "btnClear": "Clear",
-      "btnQuickRegister": "Quick register",
+      "btnQuickRegister": "New patient",
       "colPatient": "Patient",
       "colContact": "Email",
       "colCases": "Cases",
@@ -4142,7 +4144,8 @@
       "archivosNoCases": "This patient has no cases yet. Photos will be saved once the first case is created.",
       "photoReplace": "Replace",
       "photoDelete": "Delete",
-      "photoOpenCamera": "Open camera"
+      "photoOpenCamera": "Open camera",
+      "btnQuickRegisterTooltip": "Quick registration: basic details and referral · pick MVA or GM and the case is created for you"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

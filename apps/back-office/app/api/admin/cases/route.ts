@@ -25,6 +25,7 @@ import {
   casePrefixFor, resolveGuardian, GuardianIsSelfError,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkPatientStaff } from '@/lib/patient-access';
 import {
   quienUsaEsteContacto, probableMismaPersona, type PacienteConEseContacto,
 } from '@/lib/contactos-compartidos';
@@ -123,6 +124,25 @@ const InputSchema = z.object({
     'CLINIC_STAFF', 'CHIROPRACTOR', 'REFERRAL', 'INSURANCE',
     'MEDICAL_INSURANCE', 'TIKTOK', 'OTHER',
   ]).default('WALK_IN'),
+  /**
+   * El texto libre del origen, cuando el enum no alcanza: "OTHER" elegido a
+   * mano, o un bufete que todavía no está dado de alta. Va a
+   * `Patient.referralSourceOther`, que existe justo para esto.
+   *
+   * El alta rápida ya mostraba los dos campos de texto y no los mandaba a
+   * ningún lado: quien escribía "me mandó la clínica de la 8" veía el dato
+   * desaparecer al guardar.
+   */
+  sourceOther: z.string().max(120).nullable().optional(),
+  /**
+   * El PROVIDER que trajo al paciente. Lo manda el alta rápida del portal
+   * médico con el provider de la sesión.
+   *
+   * No es un adorno de reporte: es lo que hace que el paciente aparezca en "Mis
+   * pacientes" el minuto después de crearlo, cuando todavía no tiene ninguna
+   * cita — ver `alcanceDelProvider` en `lib/patients-query.ts`.
+   */
+  providerReferrerId: z.string().cuid().nullable().optional(),
 
   // ─── Appointment (opcional · si se agenda en la llamada) ────────────
   appointment: z.object({
@@ -223,6 +243,19 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  /**
+   * Dar de alta paciente + caso. Esta ruta no verificaba NADA, y hasta hoy el
+   * único cerco era que el botón viviera en una pantalla de mostrador.
+   *
+   * Ahora el alta rápida también está en el portal médico (Erick, 2026-09-11:
+   * el provider da de alta MVA o GM eligiendo el tipo), así que la puerta tiene
+   * que existir de verdad: `write` deja pasar al staff de la clínica y a los
+   * providers, y deja afuera a CONTADOR y AUDITOR_AI, que no dan de alta a
+   * nadie. El alcance por paciente no aplica — todavía no hay paciente.
+   */
+  const acceso = await checkPatientStaff({ write: true });
+  if (acceso.deny) return acceso.deny;
+
   const actor = await resolveActor(req.headers);
   // Se resuelve acá y no dentro de la transacción: `cookies()` no tiene nada que
   // ver con la DB y no hay razón para tenerlo adentro del lock.
@@ -549,12 +582,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
      * campo se deja escribir — y lo que se escribe tiene que guardarse. Rellenar
      * un null no es corromper demografía; pisar una fecha que ya está, sí.
      */
-    const dobActual = parsed.existingPatientId
-      ? (await tx.patient.findUnique({
+    // `providerReferrerId` viaja en la misma consulta: se necesita para no
+    // reescribir quién trajo al paciente cuando se le abre un caso nuevo.
+    const fichaActual = parsed.existingPatientId
+      ? await tx.patient.findUnique({
           where:  { id: parsed.existingPatientId },
-          select: { dateOfBirth: true },
-        }))?.dateOfBirth ?? null
+          select: { dateOfBirth: true, providerReferrerId: true },
+        })
       : null;
+    const dobActual = fichaActual?.dateOfBirth ?? null;
 
     // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
     //                     demografía (nombre, teléfono) para evitar corrupción
@@ -573,6 +609,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                esquema. Solo se toca si vino: no se pisa con null un referido que
                ya estaba cargado de un caso anterior. */
             ...(parsed.referrer && { lawyerReferrerId: parsed.referrer.lawFirmId }),
+            /* Mismo criterio con el texto libre. `referralSource` NO se toca en
+               un paciente que ya existe: el wizard siempre manda `source` (con
+               default WALK_IN), así que pisarlo convertiría "referido por el
+               bufete" en "vino caminando" al abrirle el segundo caso. */
+            ...(parsed.sourceOther && { referralSourceOther: parsed.sourceOther }),
+            /* Un paciente que ya existe conserva quién lo trajo la primera vez.
+               Solo se sella si estaba vacío: el segundo caso no reescribe la
+               historia del primero. */
+            ...(parsed.providerReferrerId && !fichaActual?.providerReferrerId
+              ? { providerReferrerId: parsed.providerReferrerId }
+              : {}),
             ...(guardianPatientId ? {
               guardianPatientId,
               guardianRelation: parsed.guardian?.relation ?? null,
@@ -594,6 +641,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             accidentType: parsed.accident.type,
             /* El REFERIDO. Antes era `parsed.legal.lawFirmId` (el representante). */
             lawyerReferrerId: parsed.referrer?.lawFirmId ?? null,
+            /**
+             * De dónde vino el paciente. El `source` se guardaba SOLO en el
+             * caso, así que `Patient.referralSource` quedaba vacío en las altas
+             * nuevas — y esa es la columna que mira la ficha, el lien y
+             * cualquier corte por origen. El caso conserva el suyo: un paciente
+             * puede volver por otra vía.
+             */
+            referralSource: parsed.source,
+            ...(parsed.sourceOther && { referralSourceOther: parsed.sourceOther }),
+            ...(parsed.providerReferrerId && { providerReferrerId: parsed.providerReferrerId }),
             status: 'NEW',
             ...(guardianPatientId ? {
               guardianPatientId,

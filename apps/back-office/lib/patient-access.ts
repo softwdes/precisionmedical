@@ -52,6 +52,7 @@ import { getDbUserByEmail } from './actor';
 import {
   getSessionProvider, getSessionRole, PORTAL_ONLY_ROLES,
 } from './get-session-provider';
+import { alcanceDelProvider } from './patients-query';
 
 /**
  * Roles que pueden CORREGIR la ficha de un paciente.
@@ -118,8 +119,14 @@ export async function checkPatientAccess(
   // El staff administrativo ve la clínica entera; el recorte es del portal.
   if (!actor.portalOnly) return { actor };
 
-  const suyo = await db.appointment.findFirst({
-    where: { patientId, providerId: actor.providerId! },
+  /**
+   * "Mi paciente" = lo atiendo **o lo traje yo**. La regla vive en
+   * `patients-query.ts` y es la misma que recorta la lista: si el guard fuera
+   * más estricto que la lista, el provider vería filas que no puede abrir — y
+   * si fuera más laxo, la lista escondería lo que la API sí entrega.
+   */
+  const suyo = await db.patient.findFirst({
+    where: { AND: [{ id: patientId }, alcanceDelProvider(actor.providerId)] },
     select: { id: true },
   });
   if (!suyo) return no('OUT_OF_SCOPE', 403);

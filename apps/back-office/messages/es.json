@@ -2000,7 +2000,9 @@
         "startSearchBtn": "Continuar → Crear caso / Cita",
         "patientVerifyTitle": "Verificar paciente",
         "patientVerifyHint": "Confirma que es el paciente correcto antes de continuar.",
-        "pasteHint": "Escribí, o pegá el número con Ctrl+V"
+        "pasteHint": "Escribí, o pegá el número con Ctrl+V",
+        "quickTitle": "Alta rápida de paciente",
+        "quickSubtitle": "Datos básicos y su referido · elegís MVA o GM y el caso se crea solo"
       },
       "newCase": {
         "dialogTitle": "Nueva llamada · Crear caso",
@@ -3411,7 +3413,7 @@
       "searching": "Buscando…",
       "btnSearch": "Buscar",
       "btnClear": "Limpiar",
-      "btnQuickRegister": "Registro rápido",
+      "btnQuickRegister": "Nuevo paciente",
       "colPatient": "Paciente",
       "colContact": "Correo electrónico",
       "colCases": "Casos",
@@ -4142,7 +4144,8 @@
       "archivosNoCases": "Este paciente no tiene casos registrados. Las fotos se guardarán cuando se cree el primer caso.",
       "photoReplace": "Reemplazar",
       "photoDelete": "Eliminar",
-      "photoOpenCamera": "Abrir cámara"
+      "photoOpenCamera": "Abrir cámara",
+      "btnQuickRegisterTooltip": "Alta rápida: datos básicos y su referido · elegís MVA o GM y el caso se crea solo"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

@@ -12,6 +12,7 @@ import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
+import { alcanceDelProvider } from '@/lib/patients-query';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.pageTitles');
@@ -31,9 +32,16 @@ export default async function DoctorPatientDetailPage({
   const { id } = await params;
   const { case: caseId, tab } = await searchParams;
 
-  // Guard de alcance: el paciente debe haber tenido cita con este doctor
-  const hasRelation = await prisma.appointment.findFirst({
-    where: { patientId: id, providerId: provider.id },
+  /**
+   * Guard de alcance: el paciente lo atiende este doctor, o lo trajo él.
+   *
+   * La segunda mitad es por el alta rápida del portal: recién creado todavía no
+   * tiene citas, y con el guard viejo el provider abría un 404 sobre el
+   * paciente que acababa de dar de alta. Misma regla que recorta su lista —
+   * ver `alcanceDelProvider`.
+   */
+  const hasRelation = await prisma.patient.findFirst({
+    where: { AND: [{ id }, alcanceDelProvider(provider.id)] },
     select: { id: true },
   });
   if (!hasRelation) notFound();

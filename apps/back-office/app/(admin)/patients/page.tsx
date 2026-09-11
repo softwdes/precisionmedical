@@ -9,6 +9,7 @@ import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { PatientsData, PatientsTableSkeleton } from './patients-data';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
+import { tamanoDePagina } from '@/lib/patients-page';
 
 // ---------------------------------------------------------------------------
 // Page — shell renderiza de inmediato, datos hacen streaming
@@ -22,7 +23,7 @@ export default async function PatientsPage({
   const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab } = await searchParams;
   const page   = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
-  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '10', 10) || 10));
+  const PAGE_SIZE = tamanoDePagina(sizeParam);
 
   return (
     <div className="p-4 sm:p-6">

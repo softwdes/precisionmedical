@@ -4,53 +4,17 @@
  * Versión API del server component de pacientes.
  * Permite búsqueda client-side sin navegación completa de página.
  *
- * ⚠️ El recorte del portal médico se decide ACÁ, con la sesión — nunca con lo
- * que manda el cliente. Ver `alcanceDelProvider()`.
+ * ⚠️ El recorte del portal médico se decide con la SESIÓN — nunca con lo que
+ * manda el cliente. Vive en `alcanceDePacientes()` (`lib/patient-access.ts`),
+ * compartido hoy con el autocomplete y hermano de los guards por paciente.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
-import { getSessionProvider, getSessionRole, PORTAL_ONLY_ROLES } from '@/lib/get-session-provider';
-
-const DEFAULT_PAGE_SIZE = 10;
-
-/**
- * A qué provider se limita esta consulta, resuelto contra la SESIÓN.
- *
- * `/doctor/patients` reúsa la lista administrativa: el server component la
- * pinta con `scopeProviderId` (el doctor de sesión), pero apenas el usuario
- * escribe en el buscador o pasa de página, el cliente refresca por esta API —
- * y hasta ahora mandaba el id como query param, que esta ruta aceptaba tal
- * cual. Dos formas de saltearlo, las dos con solo editar la URL:
- *
- *   · cambiar el id  → la lista de pacientes de OTRO médico
- *   · borrar el param → el padrón completo de la clínica
- *
- * La primera página se veía recortada, así que el agujero no se notaba.
- *
- * Ahora el param solo dice "quiero el modo recortado"; QUIÉN es el provider lo
- * dice `getSessionProvider()`, que además respeta "ver como otro doctor" (la
- * cookie solo vale con la capacidad, ver ese helper). Y un rol que vive solo en
- * el portal queda recortado SIEMPRE, mande o no el param.
- */
-async function alcanceDelProvider(pedido: string): Promise<
-  { ok: true; providerId: string | null } | { ok: false }
-> {
-  const role       = await getSessionRole();
-  const portalOnly = !!role && PORTAL_ONLY_ROLES.has(role);
-
-  // Staff administrativo que no pidió el modo recortado: lista completa.
-  if (!pedido && !portalOnly) return { ok: true, providerId: null };
-
-  const provider = await getSessionProvider();
-
-  // Sin ficha de Provider no hay nada que recortar. Para un rol del portal eso
-  // es 403 y no "toda la clínica": es exactamente el caso que abría el agujero.
-  if (!provider) return portalOnly ? { ok: false } : { ok: true, providerId: null };
-
-  return { ok: true, providerId: provider.id };
-}
+import { alcanceDePacientes } from '@/lib/patient-access';
+import { tamanoDePagina } from '@/lib/patients-page';
+import { wherePacientes } from '@/lib/patients-query';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -58,54 +22,22 @@ export async function GET(req: NextRequest) {
   const page         = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
   // Antes era una constante 15 hardcodeada: el server renderizaba 10 filas y
   // apenas montaba el cliente esta API las reemplazaba por 15, asi que la
-  // grilla "crecia sola" despues de cargar. Ahora respeta el mismo size que
-  // usa la pagina (mismo clamp que app/(admin)/patients/page.tsx).
-  const PAGE_SIZE = Math.min(50, Math.max(5,
-    parseInt(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
+  // grilla "crecia sola" despues de cargar. Ahora el numero y su clamp son los
+  // mismos que usan las dos paginas y el cliente — ver `lib/patients-page.ts`.
+  const PAGE_SIZE = tamanoDePagina(searchParams.get('size'));
   const inactiveOnly = searchParams.get('inactive') === '1';
 
   // Portal médico. El param es solo la SEÑAL de que se quiere el modo recortado;
   // el id sale de la sesión.
-  const alcance = await alcanceDelProvider(searchParams.get('providerId') ?? '');
+  const alcance = await alcanceDePacientes(searchParams.get('providerId') ?? '');
   if (!alcance.ok) {
     return NextResponse.json({ error: 'NO_PROVIDER_PROFILE' }, { status: 403 });
   }
   const providerId = alcance.providerId;
 
-  const statusFilter = inactiveOnly
-    ? { status: 'INACTIVE' as const }
-    : { NOT: { status: 'INACTIVE' as const } };
-
-  const providerScope = providerId
-    ? { appointments: { some: { providerId } } }
-    : {};
-
-  const qParts = q ? q.split(/\s+/).filter(Boolean) : [];
-  const fullNameClauses = qParts.length >= 2
-    ? [
-        { firstName: { contains: qParts[0]!, mode: 'insensitive' as const }, lastName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const } },
-        { firstName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const }, lastName: { contains: qParts[0]!, mode: 'insensitive' as const } },
-      ]
-    : [];
-
-  const where = q
-    ? {
-        AND: [
-          statusFilter,
-          providerScope,
-          {
-            OR: [
-              ...fullNameClauses,
-              { firstName:   { contains: q, mode: 'insensitive' as const } },
-              { lastName:    { contains: q, mode: 'insensitive' as const } },
-              { email:       { contains: q, mode: 'insensitive' as const } },
-              { phone:       { contains: q, mode: 'insensitive' as const } },
-              { patientCode: { contains: q, mode: 'insensitive' as const } },
-            ],
-          },
-        ],
-      }
-    : { AND: [statusFilter, providerScope] };
+  // El filtro es el MISMO que usa el render del servidor — ver
+  // `lib/patients-query.ts`. Estaba escrito dos veces y ya había divergido.
+  const where = await wherePacientes({ q, inactiveOnly, providerId });
 
   const [patients, total] = await Promise.all([
     db.patient.findMany({

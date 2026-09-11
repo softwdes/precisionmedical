@@ -10,19 +10,25 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
-import { getSessionUser } from '@/lib/session';
+import { checkPatientAccess } from '@/lib/patient-access';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  // La respuesta trae la ficha entera —incluido el SSN— y esta ruta no estaba
-  // pidiendo sesión. El middleware deja pasar `/api/*` sin chequear módulos, así
-  // que el único cerco era que nadie supiera la URL.
-  const user = await getSessionUser();
-  if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-
   const { id } = await params;
+
+  /**
+   * La respuesta trae la ficha entera —incluido el SSN— y esta ruta no estaba
+   * pidiendo sesión. El middleware deja pasar `/api/*` sin chequear módulos, así
+   * que el único cerco era que nadie supiera la URL.
+   *
+   * Pedir sesión tampoco alcanzaba: el portal médico abre este historial desde
+   * la nota, y con solo "hay alguien logueado" un provider leía el de cualquier
+   * paciente de la clínica. El alcance lo pone `checkPatientAccess`.
+   */
+  const acceso = await checkPatientAccess(id);
+  if (acceso.deny) return acceso.deny;
 
   const patient = await db.patient.findUnique({
     where: { id },

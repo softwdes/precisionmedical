@@ -4128,7 +4128,21 @@
       "linkContactCancel": "Cancel",
       "linkContactSharedPhone": "It is a shared or clinic phone",
       "linkContactSharedPhoneHint": "Not a family tie: unrelated people use it. The record is created without a link, and the review is logged.",
-      "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages."
+      "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
+      "menuAuditHistorySoon": "Not available yet",
+      "menuRestore": "Restore patient",
+      "tooltipStaffOnly": "Front desk handles this — not available in the provider portal",
+      "photosStaffOnly": "Front desk uploads the ID photos. You can view them here, not edit them.",
+      "errorSave": "Couldn't save. Try again.",
+      "errorNetwork": "Network error. Try again.",
+      "errorDelete": "Couldn't delete.",
+      "errorRestore": "Couldn't restore.",
+      "errorCancelCase": "Couldn't cancel the case.",
+      "archivosTitle": "Files",
+      "archivosNoCases": "This patient has no cases yet. Photos will be saved once the first case is created.",
+      "photoReplace": "Replace",
+      "photoDelete": "Delete",
+      "photoOpenCamera": "Open camera"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

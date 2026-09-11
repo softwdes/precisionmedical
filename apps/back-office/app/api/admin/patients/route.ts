@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, Prisma, nextPatientCode } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkPatientStaff } from '@/lib/patient-access';
 import {
   quienUsaEsteContacto, probableMismaPersona,
 } from '@/lib/contactos-compartidos';
@@ -60,6 +61,14 @@ const CreateSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  /**
+   * Dar de alta a un paciente es trabajo de mostrador — el botón vive solo en
+   * `/patients` y el portal médico no lo tiene. La ruta no lo verificaba, así
+   * que la regla existía únicamente en el render. Ver `lib/patient-access.ts`.
+   */
+  const acceso = await checkPatientStaff({ admin: true });
+  if (acceso.deny) return acceso.deny;
+
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {

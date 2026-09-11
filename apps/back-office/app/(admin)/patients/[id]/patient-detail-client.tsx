@@ -16,7 +16,7 @@ import { fecha, fechaCalendario, edad } from '@/lib/fechas';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 // El diálogo de edición es el mismo que usa la lista de pacientes. Había una
 // segunda implementación acá (más simple y ya divergida: seguía bloqueando el
 // guardado por falta de tutor y no veía el vínculo real), y mantener dos
@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { PatientEditDialog } from '../patient-edit-dialog';
 import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
 import { ContactoCompartidoNota } from '@/components/patients/contacto-compartido-nota';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -141,6 +142,8 @@ const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = 
 export function PatientDetailClient({ patient, doctorMode = false }: { patient: PatientData; doctorMode?: boolean }) {
   const t = useTranslations('phoenix.patients');
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Estadísticas del paciente
   const totalCases = patient.cases.length;
@@ -358,22 +361,24 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
               <CaseRow
                 key={c.id}
                 case={c}
-                /* El doctor abre el caso en SU ruta, no en la de front-office
-                   (que su rol ni puede navegar). Antes acá iba `undefined`: veía
-                   la lista completa de casos del paciente y ninguno hacía nada
-                   al tocarlo — un callejón, no una restricción. El alcance lo
-                   pone el server, que ya valida a nivel paciente. */
-                onClick={() => router.push(doctorMode ? `/doctor/case/${c.id}` : `/front-office/${c.id}`)}
+                /**
+                 * El caso se abre COMO MODAL sobre la ficha, igual que en la
+                 * lista: `?case=<id>` en esta misma URL. Había tres caminos
+                 * para lo mismo —la lista abría el modal, la ficha del admin
+                 * navegaba a `/front-office/<id>` (destino marcado como
+                 * obsoleto) y la del portal a `/doctor/case/<id>`—, así que el
+                 * mismo caso se veía de dos formas distintas según desde dónde
+                 * lo tocaras, y volver atrás desde la página completa perdía la
+                 * ficha. El alcance sigue en el server: `CaseUrlModal` revalida
+                 * el caso contra la sesión antes de renderizar nada.
+                 */
+                onClick={() => router.push(conCasoAbierto(pathname, searchParams, c.id), { scroll: false })}
               />
             ))}
           </div>
         )}
       </InfoCard>
 
-      {/* Footer note */}
-      <div className="text-xs text-text-muted text-center pt-2 border-t border-border/40">
-        Phase 1A · mock data · sin PHI real · 2026-06-07
-      </div>
     </div>
   );
 }

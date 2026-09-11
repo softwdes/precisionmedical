@@ -16,6 +16,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, calcAge } from '@precision-medical/database';
+import { checkPatientStaff, alcanceDePacientes } from '@/lib/patient-access';
 
 function fullNameOR(q: string) {
   const parts = q.trim().split(/\s+/).filter(Boolean);
@@ -40,12 +41,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
    */
   const allowEmpty = searchParams.get('allowEmpty') === '1';
 
+  const acceso = await checkPatientStaff();
+  if (acceso.deny) return acceso.deny;
+  const { portalOnly } = acceso.actor;
+
   if (q.length < 2 && !allowEmpty) {
     return NextResponse.json({ results: [] });
   }
 
+  /**
+   * `allowEmpty` sin término devuelve "los más recientes", y el compositor de
+   * mensajes del portal médico lo usa: al abrirlo, un provider recibía ocho
+   * pacientes de la clínica —con teléfono y correo en el subtítulo— sin haber
+   * buscado a nadie. Buscar POR NOMBRE sigue viendo todo (así puede agendar a
+   * quien le derivan), pero la lista que aparece sola es la SUYA.
+   */
+  const alcance = !q && portalOnly ? await alcanceDePacientes('1') : null;
+  if (alcance && !alcance.ok) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  const recorte = alcance?.ok && alcance.providerId
+    ? { appointments: { some: { providerId: alcance.providerId } } }
+    : {};
+
   const patients = await db.patient.findMany({
     where: {
+      ...recorte,
       ...(excludeId ? { id: { not: excludeId } } : {}),
       // Sin término de búsqueda no hay filtro: son "los más recientes".
       ...(q.length > 0
@@ -93,10 +112,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         email:        p.email ?? '',
         // ISO corto (YYYY-MM-DD) para que entre directo en un <input type="date">
         dateOfBirth:  p.dateOfBirth ? p.dateOfBirth.toISOString().slice(0, 10) : '',
-        addressLine1: p.addressLine1 ?? '',
-        addressCity:  p.addressCity ?? '',
-        addressState: p.addressState ?? '',
-        addressZip:   p.addressZip ?? '',
+        /**
+         * El domicilio viaja solo para el formulario del APODERADO, que es una
+         * pantalla de mostrador (alta de caso y edición de la ficha). El portal
+         * médico usa este mismo endpoint para elegir destinatario en el
+         * compositor de mensajes, donde la dirección no se muestra ni se usa:
+         * no hay por qué mandarla.
+         */
+        addressLine1: portalOnly ? '' : p.addressLine1 ?? '',
+        addressCity:  portalOnly ? '' : p.addressCity ?? '',
+        addressState: portalOnly ? '' : p.addressState ?? '',
+        addressZip:   portalOnly ? '' : p.addressZip ?? '',
         age,
         // El UI usa esto para marcar en rose y bloquear la selección
         isMinor: age !== null && age < 18,

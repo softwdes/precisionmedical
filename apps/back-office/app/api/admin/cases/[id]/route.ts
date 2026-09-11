@@ -8,6 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, casePrefixFor } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkCaseAccess } from '@/lib/patient-access';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -69,6 +70,16 @@ const PatchSchema = z.object({
 
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResponse> {
   const { id } = await params;
+
+  /**
+   * El botón que llama a esto vive en la lista de pacientes (el lápiz de cada
+   * caso), y esa lista la comparten el back-office y el portal médico. La ruta
+   * no verificaba nada: un provider editaba el caso de cualquier paciente de la
+   * clínica. El alcance es el del PACIENTE del caso — ver `lib/patient-access`.
+   */
+  const acceso = await checkCaseAccess(id, { write: true });
+  if (acceso.deny) return acceso.deny;
+
   const body = await req.json().catch(() => ({}));
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 422 });
@@ -292,6 +303,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
 
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<NextResponse> {
   const { id } = await params;
+
+  // Archivar el caso es trabajo de mostrador, igual que archivar al paciente —
+  // y el botón ya estaba escondido en el portal médico.
+  const acceso = await checkCaseAccess(id, { admin: true });
+  if (acceso.deny) return acceso.deny;
 
   const existing = await db.case.findUnique({
     where: { id },

@@ -12,6 +12,7 @@ import {
   resolveGuardian, GuardianIsSelfError, type GuardianResolution,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkPatientAccess } from '@/lib/patient-access';
 import { quienUsaEsteContacto } from '@/lib/contactos-compartidos';
 import { isCipher } from '@/lib/decrypt';
 import { Prisma } from '@precision-medical/database';
@@ -98,6 +99,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  /**
+   * Quién corrige, y la ficha de quién. Esta ruta no verificaba NADA: el único
+   * cerco era el middleware, que deja pasar toda `/api/admin/patients/*` a un
+   * rol del portal a propósito (las pantallas compartidas la consumen). Un
+   * provider podía reescribir la ficha —SSN incluido— de cualquier paciente de
+   * la clínica con un `fetch`. Ver `lib/patient-access.ts`.
+   */
+  const acceso = await checkPatientAccess(id, { write: true });
+  if (acceso.deny) return acceso.deny;
 
   const existing = await db.patient.findUnique({
     where: { id },
@@ -339,6 +350,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  /**
+   * Archivar es trabajo de mostrador, y además es DESTRUCTIVO: cancela las
+   * citas futuras del paciente (ver abajo). El botón ya estaba escondido en el
+   * portal médico, pero la ruta no lo sabía — cualquiera con sesión podía
+   * archivar a cualquiera. `admin: true` deja afuera a los roles del portal
+   * aunque el paciente sea suyo.
+   */
+  const acceso = await checkPatientAccess(id, { admin: true });
+  if (acceso.deny) return acceso.deny;
 
   const existing = await db.patient.findUnique({
     where: { id },

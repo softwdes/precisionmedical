@@ -4128,7 +4128,21 @@
       "linkContactCancel": "Cancelar",
       "linkContactSharedPhone": "Es un número compartido o de la clínica",
       "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
-      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro."
+      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
+      "menuAuditHistorySoon": "Todavía no está disponible",
+      "menuRestore": "Restaurar paciente",
+      "tooltipStaffOnly": "Lo hace recepción — no está disponible en el portal médico",
+      "photosStaffOnly": "Las fotos de identificación las carga recepción. Acá se ven, no se editan.",
+      "errorSave": "No se pudo guardar. Intenta de nuevo.",
+      "errorNetwork": "Error de red. Intenta de nuevo.",
+      "errorDelete": "No se pudo eliminar.",
+      "errorRestore": "No se pudo restaurar.",
+      "errorCancelCase": "No se pudo cancelar el caso.",
+      "archivosTitle": "Archivos",
+      "archivosNoCases": "Este paciente no tiene casos registrados. Las fotos se guardarán cuando se cree el primer caso.",
+      "photoReplace": "Reemplazar",
+      "photoDelete": "Eliminar",
+      "photoOpenCamera": "Abrir cámara"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

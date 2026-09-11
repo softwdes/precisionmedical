@@ -13,8 +13,19 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptScalars, decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
+import { checkPatientStaff } from '@/lib/patient-access';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  /**
+   * Sesión propia, no prestada del middleware. La búsqueda por nombre NO se
+   * recorta al provider a propósito (decisión de Erick 2026-09-11): el portal
+   * médico agenda desde su calendario con este mismo endpoint, y a un doctor le
+   * derivan pacientes que todavía no atendió. Lo que sí se cerró es ABRIR el
+   * expediente —ficha, casos, documentos, historial—, que es donde está el PHI.
+   */
+  const acceso = await checkPatientStaff();
+  if (acceso.deny) return acceso.deny;
+
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') ?? '').trim();
 

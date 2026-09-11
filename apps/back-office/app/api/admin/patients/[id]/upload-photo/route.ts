@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkPatientAccess } from '@/lib/patient-access';
 import {
   validarFoto, subirFoto, conFotoNueva, sinFoto, borrarObjeto, esPhotoType,
 } from '@/lib/intake-photos';
@@ -28,6 +29,16 @@ async function casoMasReciente(patientId: string) {
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { id: patientId } = await ctx.params;
+
+  /**
+   * El documento de identidad lo carga admisión, no la consulta — es la misma
+   * decisión que ya tomaba la ficha del paciente (`onEditPhoto` llega undefined
+   * en el portal médico). La lista la contradecía: abría el mismo diálogo con
+   * los botones vivos, y la ruta aceptaba a cualquiera con sesión. Ahora las
+   * tres capas dicen lo mismo (Erick, 2026-09-11).
+   */
+  const acceso = await checkPatientAccess(patientId, { admin: true });
+  if (acceso.deny) return acceso.deny;
 
   const patient = await db.patient.findUnique({
     where:  { id: patientId },
@@ -73,6 +84,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { id: patientId } = await ctx.params;
   const photoType = req.nextUrl.searchParams.get('photoType');
+
+  // Borrar un documento de identidad, con la misma puerta que subirlo.
+  const acceso = await checkPatientAccess(patientId, { admin: true });
+  if (acceso.deny) return acceso.deny;
 
   if (!esPhotoType(photoType)) {
     return NextResponse.json({ error: 'INVALID_TYPE' }, { status: 400 });

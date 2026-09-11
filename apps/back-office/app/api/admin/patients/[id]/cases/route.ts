@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
+import { checkPatientAccess } from '@/lib/patient-access';
 
 /** GET /api/admin/patients/:id/cases — casos de un paciente para el selector de citas */
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  // Es el expediente del paciente (accidente, notas, consentimientos): mismo
+  // alcance que el resto de la ficha. Ver `lib/patient-access.ts`.
+  const acceso = await checkPatientAccess(id);
+  if (acceso.deny) return acceso.deny;
 
   const rawCases = await db.case.findMany({
     where: { patientId: id, deletedAt: null },

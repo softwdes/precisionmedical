@@ -14,12 +14,18 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { checkPatientAccess } from '@/lib/patient-access';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  // Hermana de DELETE: restaurar es la misma decisión de mostrador y va con la
+  // misma puerta. Ver `lib/patient-access.ts`.
+  const acceso = await checkPatientAccess(id, { admin: true });
+  if (acceso.deny) return acceso.deny;
 
   const existing = await db.patient.findUnique({
     where: { id },

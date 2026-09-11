@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.pageTitles');
@@ -19,13 +20,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function DoctorPatientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ case?: string; tab?: string }>;
 }) {
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
   const { id } = await params;
+  const { case: caseId, tab } = await searchParams;
 
   // Guard de alcance: el paciente debe haber tenido cita con este doctor
   const hasRelation = await prisma.appointment.findFirst({
@@ -68,7 +72,15 @@ export default async function DoctorPatientDetailPage({
 
   if (!patient) notFound();
 
-  // Mismo cast que /patients/[id] — deuda técnica conocida, safe en runtime.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <PatientDetailClient patient={patient as any} doctorMode />;
+  return (
+    <>
+      {/* Mismo cast que /patients/[id] — deuda técnica conocida, safe en runtime. */}
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <PatientDetailClient patient={patient as any} doctorMode />
+
+      {/* El caso abre como modal sobre la ficha, igual que en Mis Pacientes. El
+          server revalida que la cita sea de este doctor. */}
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider.id} />
+    </>
+  );
 }

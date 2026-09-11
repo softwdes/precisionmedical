@@ -12,6 +12,7 @@ import { Suspense } from 'react';
 import { PatientsData, PatientsTableSkeleton } from '@/app/(admin)/patients/patients-data';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
+import { tamanoDePagina } from '@/lib/patients-page';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.nav');
@@ -29,7 +30,7 @@ export default async function DoctorPatientsPage({
   const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
-  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '10', 10) || 10));
+  const PAGE_SIZE = tamanoDePagina(sizeParam);
 
   return (
     <div className="p-0 sm:p-2">

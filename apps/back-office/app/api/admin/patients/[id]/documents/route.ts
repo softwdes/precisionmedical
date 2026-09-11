@@ -30,12 +30,18 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { checkPatientAccess } from '@/lib/patient-access';
 
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id: patientId } = await ctx.params;
+
+  // Documentos del expediente: mismo alcance que la ficha. Sin esto un provider
+  // listaba los papeles de cualquier paciente de la clínica.
+  const acceso = await checkPatientAccess(patientId);
+  if (acceso.deny) return acceso.deny;
 
   /**
    * Sin filtro de archivado a propósito: `Patient` no tiene `deletedAt` —el

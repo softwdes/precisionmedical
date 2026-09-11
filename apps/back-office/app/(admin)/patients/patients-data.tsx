@@ -15,6 +15,7 @@ import { createAdminClient } from '@precision-medical/auth/admin';
 import { Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
+import { wherePacientes, alcanceBase } from '@/lib/patients-query';
 
 /** Skeleton del Suspense boundary — compartido por /patients y /doctor/patients */
 export function PatientsTableSkeleton() {
@@ -92,41 +93,9 @@ export async function PatientsData({
     }
   } catch { /* fallback: sin nombre */ }
 
-  const statusFilter = inactiveOnly
-    ? { status: 'INACTIVE' as const }
-    : { NOT: { status: 'INACTIVE' as const } };
-
-  // Portal médico: solo pacientes con cita de este doctor
-  const providerScope = scopeProviderId
-    ? { appointments: { some: { providerId: scopeProviderId } } }
-    : {};
-
-  const qParts = q ? q.trim().split(/\s+/).filter(Boolean) : [];
-  const fullNameClauses = qParts.length >= 2
-    ? [
-        { firstName: { contains: qParts[0]!, mode: 'insensitive' as const }, lastName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const } },
-        { firstName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const }, lastName: { contains: qParts[0]!, mode: 'insensitive' as const } },
-      ]
-    : [];
-
-  const where = q
-    ? {
-        AND: [
-          statusFilter,
-          providerScope,
-          {
-            OR: [
-              ...fullNameClauses,
-              { firstName:   { contains: q, mode: 'insensitive' as const } },
-              { lastName:    { contains: q, mode: 'insensitive' as const } },
-              { email:       { contains: q, mode: 'insensitive' as const } },
-              { phone:       { contains: q, mode: 'insensitive' as const } },
-              { patientCode: { contains: q, mode: 'insensitive' as const } },
-            ],
-          },
-        ],
-      }
-    : { AND: [statusFilter, providerScope] };
+  // Mismo filtro que la API que refresca esta lista al teclear — vive en
+  // `lib/patients-query.ts` para que no puedan volver a divergir.
+  const where = await wherePacientes({ q, inactiveOnly, providerId: scopeProviderId });
 
   const [patients, total, inactiveTotal, activeTotal, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
@@ -154,8 +123,8 @@ export async function PatientsData({
       take:  PAGE_SIZE,
     }),
     db.patient.count({ where }),
-    db.patient.count({ where: { AND: [{ status: 'INACTIVE' }, providerScope] } }),
-    db.patient.count({ where: { AND: [{ NOT: { status: 'INACTIVE' as const } }, providerScope] } }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: true,  providerId: scopeProviderId }) }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: false, providerId: scopeProviderId }) }),
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },

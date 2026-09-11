@@ -6,6 +6,7 @@ import { db, type UserRole } from '@precision-medical/database';
 import { writeAuditLog } from '@precision-medical/database/audit';
 import { resolveActor, getDbUserByEmail } from '@/lib/actor';
 import { getSessionUser } from '@/lib/session';
+import { checkPatientAccess } from '@/lib/patient-access';
 import type { MedicalHistoryData } from './medical-history-dialog';
 import { validarHistorial, type CodigoValidacion } from '@/lib/medical-history-schema';
 
@@ -114,6 +115,15 @@ export async function updateMedicalHistory(
     if (!dbUser || !PUEDEN_EDITAR_HISTORIAL.includes(dbUser.role)) {
       return { ok: false, code: 'sinPermiso' };
     }
+
+    /**
+     * …y la ficha de QUIÉN. El chequeo de arriba resolvió el rol y se quedó ahí:
+     * un provider tiene el rol habilitado, así que podía reescribir el historial
+     * de cualquier paciente de la clínica —el `patientId` llega del cliente—. El
+     * mismo guard que cierra las rutas de la ficha le pone alcance.
+     */
+    const alcance = await checkPatientAccess(patientId, { write: true });
+    if (alcance.deny) return { ok: false, code: 'sinPermiso' };
 
     const existing = await db.patient.findUnique({
       where: { id: patientId },

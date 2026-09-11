@@ -18,13 +18,17 @@ import { db as prisma } from '@precision-medical/database';
 // objeto entero, así que una columna nueva del schema queda cubierta sola.
 import { decryptScalars } from '@/lib/decrypt';
 import { PatientDetailClient } from './patient-detail-client';
+import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export default async function PatientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ case?: string; tab?: string }>;
 }) {
   const { id } = await params;
+  const { case: caseId, tab } = await searchParams;
 
   const patient = await prisma.patient.findUnique({
     where: { id },
@@ -76,6 +80,15 @@ export default async function PatientDetailPage({
   // Cast: Prisma enum types ($Enums.CaseStatus, CaseTypeWorkflow, etc.) no son
   // directamente assignables a las string unions del client. Mismo pattern que
   // front-office/page.tsx — deuda técnica conocida, safe en runtime.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <PatientDetailClient patient={decryptScalars(patient) as any} />;
+  return (
+    <>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <PatientDetailClient patient={decryptScalars(patient) as any} />
+
+      {/* El caso abierto viaja en `?case=` de ESTA ficha — misma mecánica que
+          la lista, así que recargar vuelve a la ficha con el caso encima en vez
+          de aterrizar en otra pantalla. */}
+      <CaseUrlModal caseId={caseId} tab={tab} />
+    </>
+  );
 }

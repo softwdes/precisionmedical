@@ -197,6 +197,16 @@ export interface ArchivosDialogProps {
    * Se muestra igual, no se esconde — el staff tiene que ver por qué no puede.
    */
   tieneCaso?: boolean;
+  /**
+   * Portal médico: las fotos se VEN, no se cargan.
+   *
+   * Es la decisión que ya tomaba la ficha del paciente («el doctor mira, no
+   * carga», `patient-detail-client.tsx`) y que la lista contradecía: abría este
+   * mismo diálogo con los botones vivos, así que la misma acción estaba
+   * permitida o prohibida según desde dónde se llegara. Confirmado por Erick el
+   * 2026-09-11; la API lo hace cumplir aunque alguien llame el endpoint a mano.
+   */
+  soloLectura?: boolean;
   onClose: () => void;
 }
 
@@ -374,7 +384,7 @@ function formatBytes(bytes: number | null): string {
 }
 
 export function ArchivosDialog({
-  patientId, firstName, lastName, fotos, tieneCaso = true, onClose,
+  patientId, firstName, lastName, fotos, tieneCaso = true, soloLectura = false, onClose,
 }: ArchivosDialogProps) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
@@ -461,16 +471,20 @@ export function ArchivosDialog({
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
-        <DialogTitle className="sr-only">{firstName} {lastName} — Archivos</DialogTitle>
+        <DialogTitle className="sr-only">{firstName} {lastName} — {t('archivosTitle')}</DialogTitle>
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-text-1">{firstName} {lastName}</h2>
           <p className="text-[12px] text-text-muted mt-0.5">{t('archivosSubtitle')}</p>
         </div>
 
         <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
-          {!tieneCaso && (
+          {soloLectura ? (
+            <div className="rounded-md border border-cyan/30 bg-cyan/10 px-4 py-3 text-[12px] text-cyan">
+              {t('photosStaffOnly')}
+            </div>
+          ) : !tieneCaso && (
             <div className="rounded-md border border-amber/30 bg-amber/10 px-4 py-3 text-[12px] text-amber">
-              Este paciente no tiene casos registrados. Las fotos se guardarán cuando se cree el primer caso.
+              {t('archivosNoCases')}
             </div>
           )}
 
@@ -517,39 +531,45 @@ export function ArchivosDialog({
                     ) : url ? (
                       <>
                         <img src={url} alt={label} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 hover:bg-black/50 transition-colors group">
-                          <button
-                            onClick={() => fileRefs.current[key]?.click()}
-                            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5 text-white" />
-                            <span className="text-[10px] text-white font-medium">Reemplazar</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(key)}
-                            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-rose" />
-                            <span className="text-[10px] text-rose font-medium">Eliminar</span>
-                          </button>
-                        </div>
+                        {!soloLectura && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 hover:bg-black/50 transition-colors group">
+                            <button
+                              onClick={() => fileRefs.current[key]?.click()}
+                              className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 text-white" />
+                              <span className="text-[10px] text-white font-medium">{t('photoReplace')}</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(key)}
+                              className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose" />
+                              <span className="text-[10px] text-rose font-medium">{t('photoDelete')}</span>
+                            </button>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <button
-                        disabled={!tieneCaso}
+                        disabled={!tieneCaso || soloLectura}
                         onClick={() => setCameraSlot(key)}
                         className="flex flex-col items-center gap-2 text-text-muted py-6 hover:text-text-2 transition-colors disabled:cursor-not-allowed group"
+                        title={soloLectura ? t('photosStaffOnly') : undefined}
                       >
                         <Camera className="w-7 h-7 opacity-30 group-hover:opacity-60 transition-opacity" />
-                        <span className="text-[10px] opacity-0 group-hover:opacity-60 transition-opacity">Abrir cámara</span>
+                        {!soloLectura && (
+                          <span className="text-[10px] opacity-0 group-hover:opacity-60 transition-opacity">{t('photoOpenCamera')}</span>
+                        )}
                       </button>
                     )}
                   </div>
 
                   {err && <p className="px-3 text-[10px] text-rose mb-1">{err}</p>}
 
-                  {/* Action buttons */}
-                  <div className="flex gap-1.5 px-3 py-2">
+                  {/* Action buttons — en el portal médico no hay ninguno: la
+                      foto se mira. El aviso de arriba dice por qué. */}
+                  <div className={`flex gap-1.5 px-3 py-2 ${soloLectura ? 'hidden' : ''}`}>
                     <button
                       disabled={!tieneCaso || isLoading}
                       onClick={() => setCameraSlot(key)}

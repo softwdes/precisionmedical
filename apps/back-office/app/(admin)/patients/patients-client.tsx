@@ -32,6 +32,7 @@ import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/mes
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
 import { progresoIntake, type MissingKey } from '@/lib/intake-progreso';
+import { PATIENTS_PAGE_SIZE, PATIENTS_PAGE_SIZES } from '@/lib/patients-page';
 import QRCode from 'qrcode';
 
 function fmtPhone(raw: string): string {
@@ -420,6 +421,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
   caseId: string; open: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const tWiz   = useTranslations('caseWizard');
+  const t      = useTranslations('phoenix.patients');
   const [detail, setDetail]     = useState<CaseDetail | null>(null);
   const [loading, setLoading]   = useState(false);
   const [saving, setSaving]     = useState(false);
@@ -475,11 +477,11 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.message ?? 'Error al guardar.'); return; }
+      if (!res.ok) { setError(json.message ?? t('errorSave')); return; }
       onSaved();
       onClose();
     } catch {
-      setError('Error de red. Intenta de nuevo.');
+      setError(t('errorNetwork'));
     } finally {
       setSaving(false);
     }
@@ -1336,7 +1338,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.message ?? 'Error al guardar.');
+      setError(json.message ?? t('errorSave'));
       return false;
     }
     return true;
@@ -1363,7 +1365,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.message ?? 'Error al guardar.');
+      setError(json.message ?? t('errorSave'));
       return false;
     }
     return true;
@@ -1389,7 +1391,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
         if (!(await saveMedical(updated))) return;
         setInsurances(updated);
       }
-    } catch { setError('Error de red.'); }
+    } catch { setError(t('errorNetwork')); }
     finally { setSaving(false); }
   }
 
@@ -1399,14 +1401,14 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
     try {
       if (id === AUTO_ENTRY_ID) {
         const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, { method: 'DELETE' });
-        if (!res.ok) { setError('Error al eliminar.'); return; }
+        if (!res.ok) { setError(t('errorDelete')); return; }
         setInsurances(prev => prev.filter(i => i.id !== AUTO_ENTRY_ID));
       } else {
         const updated = insurances.filter(i => i.id !== id);
         if (!(await saveMedical(updated))) return;
         setInsurances(updated);
       }
-    } catch { setError('Error de red.'); }
+    } catch { setError(t('errorNetwork')); }
     finally { setSaving(false); }
   }
 
@@ -1745,8 +1747,29 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // Sync si el servidor devuelve datos nuevos (navegación de página)
   useEffect(() => { setLocalPatients(patients); setLocalTotal(total); setLocalPages(totalPages); }, [patients, total, totalPages]);
 
+  /**
+   * El servidor ya sirvió ESTA búsqueda: lo que pintó el render inicial.
+   *
+   * Sin esta marca el efecto corría en el montaje con el campo vacío y pedía la
+   * lista de nuevo — cada visita a Pacientes ejecutaba la consulta dos veces (la
+   * pesada: findMany de ~45 columnas + tres counts sobre el padrón) y tiraba el
+   * render del servidor. Y peor: ese refetch no llevaba `page`, así que entrar
+   * directo a `?page=3` mostraba la página 3 medio segundo y volvía sola a la 1,
+   * con la URL reescrita sin `page`.
+   *
+   * Se compara contra `q` y no contra un booleano "ya monté": si el usuario
+   * vuelve al término que ya estaba en la URL (escribe, borra, reescribe), lo
+   * que hay en pantalla es exactamente eso y tampoco hace falta pedirlo.
+   */
+  const servidoPorElServidor = useRef((q ?? '').trim());
+
   useEffect(() => {
     const val = searchValue.trim();
+
+    if (val === servidoPorElServidor.current) {
+      setIsSearching(false);
+      return;
+    }
 
     // Spinner inmediato solo si hay término; limpiar debe sentirse instantáneo
     setIsSearching(!!val);
@@ -1771,9 +1794,25 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           setLocalTotal(data.total ?? 0);
           setLocalPages(data.totalPages ?? 1);
         });
-        // Actualizar URL sin navegar (para compartir) — sin exponer providerId
-        params.delete('providerId');
-        const qs = params.toString();
+        servidoPorElServidor.current = val;
+
+        /**
+         * La URL que queda tiene que poder RECARGARSE y dar esta pantalla.
+         *
+         * Se reconstruye con los nombres que lee la página, no con los de la
+         * API: el filtro de archivados viaja como `inactive=1` en el fetch pero
+         * la página lo lee de `showInactive`. Escribiendo el de la API, buscar
+         * dentro de Archivados y recargar devolvía a Activos — y la búsqueda
+         * seguía ahí, así que parecía que el paciente había "revivido".
+         *
+         * `page` se omite a propósito: una búsqueda nueva empieza en la primera
+         * página, que es lo que acaba de pedir el fetch.
+         */
+        const url = new URLSearchParams();
+        if (val) url.set('q', val);
+        if (inactiveOnly) url.set('showInactive', '1');
+        if (pageSize !== PATIENTS_PAGE_SIZE) url.set('size', String(pageSize));
+        const qs = url.toString();
         history.replaceState(null, '', `${basePath}${qs ? `?${qs}` : ''}`);
       } finally {
         setIsSearching(false);
@@ -1908,13 +1947,13 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       const res = await fetch(`/api/admin/patients/${deleteTarget.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setDeleteError(json.message ?? 'Error al eliminar.');
+        setDeleteError(json.message ?? t('errorDelete'));
         return;
       }
       setDeleteTarget(null);
       router.refresh();
     } catch {
-      setDeleteError('Error de red. Intenta de nuevo.');
+      setDeleteError(t('errorNetwork'));
     } finally {
       setDeleting(false);
     }
@@ -1927,7 +1966,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     try {
       const res = await fetch(`/api/admin/cases/${deleteCaseTarget.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setDeleteCaseError(json.message ?? 'Error al cancelar.'); return; }
+      if (!res.ok) { setDeleteCaseError(json.message ?? t('errorCancelCase')); return; }
       const pid = Object.keys(expandedCases).find(k => (expandedCases[k] ?? []).some(c => c.id === deleteCaseTarget.id));
       setDeleteCaseTarget(null);
       if (pid) {
@@ -1942,7 +1981,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         }
       }
     } catch {
-      setDeleteCaseError('Error de red. Intenta de nuevo.');
+      setDeleteCaseError(t('errorNetwork'));
     } finally {
       setDeletingCase(false);
     }
@@ -1959,11 +1998,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     try {
       const res = await fetch(`/api/admin/patients/${restoreTarget.id}/restore`, { method: 'POST' });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setRestoreError(json.message ?? 'Error al restaurar.'); return; }
+      if (!res.ok) { setRestoreError(json.message ?? t('errorRestore')); return; }
       setRestoreTarget(null);
       router.refresh();
     } catch {
-      setRestoreError('Error de red. Intenta de nuevo.');
+      setRestoreError(t('errorNetwork'));
     } finally {
       setRestoring(false);
     }
@@ -1998,23 +2037,32 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const qUrl = searchParamsHook.get('q') ?? '';
   const pageUrl = Math.max(0, parseInt(searchParamsHook.get('page') ?? '0', 10) || 0);
 
-  function buildPageUrl(p: number, size = pageSize) {
+  /**
+   * URL de la lista con estos parámetros. Una sola función para la paginación,
+   * el selector de filas y las pestañas: cada una armaba la suya y perdía lo
+   * que la otra acababa de poner.
+   *
+   * El `size` viaja salvo que sea el default (`PATIENTS_PAGE_SIZE`). La
+   * comparación era contra `15`, un número que ya no es el default de nadie:
+   * elegir 15 filas y pasar de página volvía a 10, porque justo ese valor se
+   * omitía de la URL.
+   */
+  function listaUrl({ page: p = pageUrl, size = pageSize, inactive = inactiveOnly, q: term = qUrl } = {}) {
     const params = new URLSearchParams();
-    if (qUrl) params.set('q', qUrl);
+    if (term) params.set('q', term);
     if (p > 0) params.set('page', String(p));
-    if (inactiveOnly) params.set('showInactive', '1');
-    if (size !== 15) params.set('size', String(size));
+    if (inactive) params.set('showInactive', '1');
+    if (size !== PATIENTS_PAGE_SIZE) params.set('size', String(size));
     const qs = params.toString();
     return `${basePath}${qs ? `?${qs}` : ''}`;
   }
 
-  function toggleInactiveUrl() {
-    const params = new URLSearchParams();
-    if (qUrl) params.set('q', qUrl);
-    if (!inactiveOnly) params.set('showInactive', '1');
-    const qs = params.toString();
-    return `${basePath}${qs ? `?${qs}` : ''}`;
-  }
+  /** Cambiar de página o de tamaño: el tamaño nuevo manda y se vuelve al inicio. */
+  const buildPageUrl = (p: number, size = pageSize) =>
+    listaUrl({ page: size === pageSize ? p : 0, size });
+
+  /** Pestaña Activos / Archivados — conserva búsqueda y filas por página. */
+  const tabUrl = (inactive: boolean) => listaUrl({ page: 0, inactive });
 
   return (
     <>
@@ -2141,25 +2189,41 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               importaba) y mantenerlo habría sido una segunda implementación del
               mismo flujo lista para desviarse — el mismo patrón que ya causó
               bugs con calcAge y los generadores de código duplicados. */}
-          {!doctorMode && (
-            <button
-              type="button"
-              onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald text-white text-sm font-medium hover:bg-emerald/90 transition-colors whitespace-nowrap"
-              title={t('btnCreatePatientCaseTooltip')}
-            >
-              <PhoneOutgoing className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('btnCreatePatientCase')}</span>
-              <span className="sm:hidden">{t('btnCreateShort')}</span>
-            </button>
-          )}
+          {/**
+            * En el PORTAL MÉDICO el mismo botón abre DIRECTO el alta rápida.
+            *
+            * El provider también da de alta pacientes —MVA o GM, eligiendo el
+            * tipo— y entra por el mismo lugar que la clínica (Erick,
+            * 2026-09-11). Lo que no recibe es el selector de escenarios: sus
+            * otras tres opciones son de mostrador (marcar por Twilio, buscar a
+            * quién llamar, alta con bufete y seguros), y el dial-pad no es algo
+            * que se abra de refilón desde la consulta.
+            */}
+          <button
+            type="button"
+            onClick={() => {
+              if (doctorMode) { setQuickRegister(true); return; }
+              setNewCaseInitial(null);
+              setNewCaseOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald text-white text-sm font-medium hover:bg-emerald/90 transition-colors whitespace-nowrap"
+            title={doctorMode ? t('btnQuickRegisterTooltip') : t('btnCreatePatientCaseTooltip')}
+          >
+            {doctorMode
+              ? <UserPlus className="w-3.5 h-3.5" />
+              : <PhoneOutgoing className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">
+              {doctorMode ? t('btnQuickRegister') : t('btnCreatePatientCase')}
+            </span>
+            <span className="sm:hidden">{t('btnCreateShort')}</span>
+          </button>
         </div>
       </div>
 
       {/* Tabs: Activos / Archivados */}
       <div className="flex items-center gap-1 border-b border-border mb-2">
         <a
-          href={`${basePath}${qUrl ? `?q=${encodeURIComponent(qUrl)}` : ''}`}
+          href={tabUrl(false)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             !inactiveOnly
               ? 'border-brand text-brand-text'
@@ -2175,7 +2239,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           </span>
         </a>
         <a
-          href={`${basePath}?showInactive=1${qUrl ? `&q=${encodeURIComponent(qUrl)}` : ''}`}
+          href={tabUrl(true)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             inactiveOnly
               ? 'border-amber text-amber'
@@ -2374,7 +2438,16 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         <PhoneCall className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald transition-colors" />
                       </button>
                     ) : (
-                      <span title={t('tooltipNoPhone')}>
+                      /**
+                       * Bloqueado, y diciendo POR QUÉ. Los dos motivos caían en
+                       * el mismo `else` con el mismo cartel, así que en el
+                       * portal médico el ícono decía "sin teléfono registrado"
+                       * sobre un paciente que lo tenía anotado: la razón era el
+                       * rol, no el dato. Un cartel que miente es peor que no
+                       * tener cartel — manda a recepción a "arreglar" una ficha
+                       * que está completa.
+                       */
+                      <span title={doctorMode && p.phone ? t('tooltipStaffOnly') : t('tooltipNoPhone')}>
                         <PhoneCall className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
@@ -2399,7 +2472,13 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand-text' : 'text-text-muted group-hover:text-brand-text'}`} />
                       </button>
                     ) : (
-                      <span title={!p.email ? t('tooltipNoEmail') : t('tooltipNoCase')}>
+                      // Mismo criterio que el teléfono: en el portal el motivo
+                      // es el rol, y el cartel tiene que decir eso.
+                      <span title={
+                        doctorMode && p.latestCase && p.email ? t('tooltipStaffOnly')
+                        : !p.email ? t('tooltipNoEmail')
+                        : t('tooltipNoCase')
+                      }>
                         <Mail className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
@@ -2735,7 +2814,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand cursor-pointer"
             aria-label={t('rowsPerPage')}
           >
-            {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+            {PATIENTS_PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           {localPages > 0 && (
             <span className="ml-2" aria-live="polite" aria-atomic="true">
@@ -3070,6 +3149,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           lastName={archivosTarget.lastName}
           fotos={fotosDelCaso(archivosTarget.latestCase?.consentsData)}
           tieneCaso={!!archivosTarget.latestCase}
+          soloLectura={doctorMode}
           onClose={() => setArchivosTarget(null)}
         />
       )}
@@ -3125,7 +3205,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuMedicalHistory')}
             </button>
-            <button disabled
+            {/* Deshabilitado pero explicado: estaba en gris, sin cartel, y la
+                única lectura posible era "algo se rompió". Ver
+                `regla-historial-sale-del-audit-log` — la pantalla existe como
+                pendiente, el dato ya está en `before`/`after` del audit log. */}
+            <button disabled title={t('menuAuditHistorySoon')}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
               <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuAuditHistory')}
             </button>
@@ -3136,7 +3220,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 {p.status === 'INACTIVE' ? (
                   <button onClick={() => { setRestoreTarget(p); setRestoreError(''); setOpenMenuId(null); }}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-emerald hover:bg-emerald/10 transition-colors text-left">
-                    <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Restaurar paciente
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" /> {t('menuRestore')}
                   </button>
                 ) : (
                   <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
@@ -3255,6 +3339,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         providers={providers}
         initialState={newCaseInitial}
         agentName={agentName}
+        onQuickRegister={() => setQuickRegister(true)}
       />
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}

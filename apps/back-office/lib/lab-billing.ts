@@ -29,7 +29,7 @@ export async function syncLabBilling(appointmentId: string): Promise<void> {
     db.labOrder.findMany({
       // Anulados fuera: el estudio no se le hizo al paciente.
       where: { appointmentId, status: { not: 'VOIDED' } },
-      select: { id: true, studyName: true, studyCode: true },
+      select: { id: true, studyName: true, studyCode: true, billingType: true },
     }),
     db.appointmentBilling.findMany({
       where: { appointmentId, labOrderId: { not: null } },
@@ -57,9 +57,28 @@ export async function syncLabBilling(appointmentId: string): Promise<void> {
     const price = order.studyCode ? priceByCode.get(order.studyCode) ?? null : null;
     const prev = byOrder.get(order.id);
 
+    /*
+     * QUIÉN PAGA EL ESTUDIO — regla de Erick (2026-09-10):
+     *
+     *   CLIENT  → LabCorp le factura a la CLÍNICA, y la clínica se lo cobra al
+     *             paciente (compra al costo, revende al precio público).
+     *   el resto → LabCorp le factura al SEGURO, así que **la clínica NO le
+     *             cobra al paciente**. Cobrarle igual sería cobrar dos veces por
+     *             el mismo estudio, una a cada lado.
+     *
+     * `null` cuenta como CLIENT: es lo que tienen las órdenes viejas, creadas
+     * cuando el tipo estaba fijo en CLIENT y no se elegía. Tratarlas como
+     * "seguro" les borraría un cobro legítimo ya emitido.
+     *
+     * No se hace `continue`: si el estudio pasó de CLIENT a seguro, su cobro
+     * tiene que RETIRARSE, y eso pasa abajo con los "stale" — que ya respetan la
+     * regla de no borrar plata cobrada.
+     */
+    const loPagaElPaciente = order.billingType === null || order.billingType === 'CLIENT';
+
     // Sin precio no se cobra. Si tenía cobro y el precio se borró del catálogo,
     // cae abajo con los "stale" y se retira si nadie pagó.
-    if (price === null || price <= 0) continue;
+    if (!loPagaElPaciente || price === null || price <= 0) continue;
 
     if (prev) {
       const paid = prev.payments.reduce((sum, p) => sum + Number(p.amount), 0);

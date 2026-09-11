@@ -1467,7 +1467,17 @@
       "statusReadyOnline": "Lista · online",
       "triageOnlineNA": "Sin vitales · visita online",
       "vitalsSelfReported": "Reportados por el paciente — visita online, no tomados en clínica.",
-      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica."
+      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica.",
+      "labReqGenerar": "Generar orden",
+      "labReqGenerando": "Generando…",
+      "labReqEmitida": "Orden {number} — ya emitida. Está en Documentos del paciente y del caso.",
+      "labReqSinNpi": "No se puede emitir: {name} no tiene NPI cargado, y el laboratorio identifica la orden por ese número. Se carga en Configuración → Providers.",
+      "labReqError": "No se pudo generar la orden. Probá de nuevo; si sigue, avisá a sistemas.",
+      "labWhoPays": "Quién paga el estudio",
+      "labWhoPays_CLIENT": "La clínica",
+      "labWhoPays_PRIVATE": "El seguro",
+      "labWhoPaysHint_CLIENT": "El laboratorio le factura a la clínica, y el estudio se le cobra al paciente al precio del catálogo.",
+      "labWhoPaysHint_PRIVATE": "El laboratorio le factura al seguro. El estudio NO se le cobra al paciente en la clínica."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

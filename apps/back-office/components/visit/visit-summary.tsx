@@ -32,6 +32,14 @@ import { LabOrderPrintDialog } from './lab-order-print-dialog';
 import { VisitNotePrintDialog } from './visit-note-print-dialog';
 import { AlertaVitales } from './alerta-vitales';
 
+/** Lo que devuelve la ruta de requisición sobre un grupo ya emitido. */
+interface ReqEstado {
+  number: string;
+  generatedAt: string;
+  generatedByName: string | null;
+  documentId: string | null;
+}
+
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
 export interface SummaryTriage {
   systolicMmhg: number | null;
@@ -360,6 +368,60 @@ export function VisitSummary({
     () => [...new Set(labs.filter((l) => l.status !== 'VOIDED' && l.groupId).map((l) => l.groupId as string))],
     [labs],
   );
+
+  /**
+   * ── La REQUISICIÓN de cada grupo ──────────────────────────────────────────
+   *
+   * `undefined` = todavía no se preguntó · `null` = no está emitida · objeto =
+   * emitida. Los tres estados hacen falta: si "no se sabe" y "no existe" fueran
+   * lo mismo, el botón diría "Generar orden" durante el parpadeo inicial de una
+   * orden que YA está emitida, y alguien la generaría dos veces.
+   */
+  const [requis, setRequis] = React.useState<Record<string, ReqEstado | null>>({});
+  const [generando, setGenerando] = React.useState<string | null>(null);
+  const [errorReq, setErrorReq] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let vivo = true;
+    for (const g of printGroups) {
+      if (requis[g] !== undefined) continue;
+      fetch(`/api/admin/lab-orders/${appointmentId}/requisition?groupId=${encodeURIComponent(g)}`)
+        .then((r) => (r.ok ? r.json() : { requisicion: null }))
+        .then((d: { requisicion: ReqEstado | null }) => {
+          if (vivo) setRequis((p) => ({ ...p, [g]: d.requisicion ?? null }));
+        })
+        .catch(() => { if (vivo) setRequis((p) => ({ ...p, [g]: null })); });
+    }
+    return () => { vivo = false; };
+  }, [printGroups, appointmentId, requis]);
+
+  async function generarOrden(groupId: string): Promise<void> {
+    setGenerando(groupId);
+    setErrorReq(null);
+    try {
+      const res = await fetch(`/api/admin/lab-orders/${appointmentId}/requisition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // El motivo se dice entero: "no se pudo" no le sirve a nadie con el
+        // paciente esperando. Sin NPI válido la hoja no se emite — ver la ruta.
+        setErrorReq(d.error === 'PROVIDER_SIN_NPI'
+          ? t('labReqSinNpi', { name: d.providerName ?? '—' })
+          : t('labReqError'));
+        return;
+      }
+      setRequis((p) => ({ ...p, [groupId]: d.requisicion }));
+      // Abre la hoja recién emitida: el paso siguiente del flujo es imprimirla.
+      setPrintGroup(groupId);
+    } catch {
+      setErrorReq(t('labReqError'));
+    } finally {
+      setGenerando(null);
+    }
+  }
 
   // Totales por quién paga — mismo desglose que el tab de cargos, para que la
   // salida y el cobro digan el mismo número.
@@ -834,17 +896,50 @@ export function VisitSummary({
                 entregarle la hoja al paciente (Erick 2026-08-08). Sin esto el
                 asistente tenía que salir del Resumen a buscarla al tab Labs.
                 Solo del lado del asistente: el doctor no imprime. */}
-            {isAssistant && printGroups.map((g, i) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setPrintGroup(g)}
-                className="text-[11px] font-semibold text-violet-text hover:underline inline-flex items-center gap-1"
-              >
-                <Printer className="w-3 h-3" />
-                {printGroups.length > 1 ? `${t('labPrintOrder')} ${i + 1}` : t('labPrintOrder')}
-              </button>
-            ))}
+            {/*
+              * "Generar orden" vive ACÁ y no en el tab de Labs por el mismo
+              * motivo que el botón de imprimir: el flujo real es terminar la
+              * cita, consultarle al paciente si está de acuerdo, y recién ahí
+              * emitir la hoja (Erick, 2026-09-11). Es el mismo componente en
+              * Mi Día y en Day Admission, así que cae en las dos pantallas.
+              *
+              * Emitida o no, el botón cambia — no se ofrece "Generar" dos veces:
+              * ese número es el que casa la muestra con la orden.
+              */}
+            {isAssistant && printGroups.map((g, i) => {
+              const req = requis[g];
+              const sufijo = printGroups.length > 1 ? ` ${i + 1}` : '';
+              if (req === undefined) {
+                return <span key={g} className="text-[11px] text-text-muted">…</span>;
+              }
+              if (req) {
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setPrintGroup(g)}
+                    title={t('labReqEmitida', { number: req.number })}
+                    className="text-[11px] font-semibold text-violet-text hover:underline inline-flex items-center gap-1"
+                  >
+                    <Printer className="w-3 h-3" />
+                    {t('labPrintOrder')}{sufijo}
+                    <span className="font-mono text-text-muted">{req.number}</span>
+                  </button>
+                );
+              }
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  disabled={generando === g}
+                  onClick={() => void generarOrden(g)}
+                  className="text-[11px] font-semibold text-emerald hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+                >
+                  <FileText className="w-3 h-3" />
+                  {generando === g ? t('labReqGenerando') : `${t('labReqGenerar')}${sufijo}`}
+                </button>
+              );
+            })}
             <button type="button" onClick={() => onFix('labs')} className="text-[11px] font-semibold text-violet-text hover:underline">
               {t('sumOpenLabs')}
             </button>
@@ -872,6 +967,13 @@ export function VisitSummary({
                 <span className="text-[11px] text-text-muted">{t(`labCollection_${l.collectionSite}`)}</span>
               </div>
             ))}
+          </div>
+        )}
+        {/* El motivo va DENTRO de la tarjeta, debajo de los estudios: el botón
+            vive en la cabecera y un error ahí arriba se pierde entre acciones. */}
+        {errorReq && (
+          <div className="mt-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11.5px] text-rose">
+            {errorReq}
           </div>
         )}
       </Card>

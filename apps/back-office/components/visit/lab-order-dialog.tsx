@@ -68,14 +68,29 @@ interface Props {
 }
 
 /**
- * LabCorp SIEMPRE le factura a la clínica (Erick 2026-08-08): la clínica compra
- * el estudio al costo y se lo revende al paciente al precio público. Por eso el
- * tipo de facturación es CONSTANTE y salió del formulario — no es una
- * preferencia, es la única opción correcta. Marcar "Patient" haría que LabCorp
- * le facture al paciente además de lo que ya le cobra la clínica: doble cobro.
- * Se sigue enviando para que la hoja impresa se lo diga al laboratorio.
+ * QUIÉN PAGA EL ESTUDIO — dos opciones, decisión de Erick (2026-09-10).
+ *
+ *   CLIENT  → LabCorp le factura a la CLÍNICA, y la clínica se lo cobra al
+ *             paciente (compra al costo, revende al precio público).
+ *   PRIVATE → LabCorp le factura al SEGURO. La hoja imprime `THIRD PARTY`, que
+ *             es lo que dicen las órdenes reales, y **la clínica NO le cobra al
+ *             paciente**: ver `lib/lab-billing.ts`.
+ *
+ * ── Por qué esto REEMPLAZA una constante ──────────────────────────────────
+ * Hasta el 2026-09-10 esto era `const BILLING_TYPE = 'CLIENT'`, con un
+ * comentario de Erick del 8-ago que decía que era "la única opción correcta"
+ * porque marcar otra cosa haría que LabCorp le facturara al paciente ADEMÁS de
+ * lo que le cobra la clínica: doble cobro. Esa regla sigue siendo cierta en su
+ * lado — lo que cambió es que ahora **el cobro de la clínica sigue a la
+ * elección**: si va al seguro, no se emite el cargo al paciente. Sin ese
+ * cableado, abrir el selector habría reintroducido el doble cobro que la
+ * constante evitaba.
+ *
+ * Solo dos y no las seis de MedUSA (Patient · Medicaid · Medicare · Worker
+ * Comp): Erick pidió dos, y cada opción de más es una forma más de mandar una
+ * orden con la facturación equivocada.
  */
-const BILLING_TYPE = 'CLIENT' as const;
+type QuienPaga = 'CLIENT' | 'PRIVATE';
 
 /**
  * Topes de texto, IGUALES a los del server (`/api/admin/lab-orders`).
@@ -121,6 +136,12 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
    *  se piden bajo "Más opciones" para que el formulario se lea de un vistazo. */
   const [moreOpen, setMoreOpen] = React.useState(false);
   const [collectionSite, setCollectionSite] = React.useState<'IN_HOUSE' | 'EXTERNAL'>('EXTERNAL');
+  /**
+   * Arranca en CLIENT porque es lo que era hasta ahora y lo que corresponde a la
+   * mayoría: el default no puede ser el que le cobra a un seguro que quizás no
+   * existe. Elegir seguro es un acto deliberado.
+   */
+  const [quienPaga, setQuienPaga] = React.useState<QuienPaga>('CLIENT');
   const [sampleDate, setSampleDate] = React.useState(todayKey);
   const [center, setCenter] = React.useState('');
   const [dx, setDx] = React.useState<string[]>([]);
@@ -189,6 +210,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
     setQ(''); setResults([]); setStudies([]);
     setIndication(''); setUrgency('ROUTINE'); setMoreOpen(false);
     setCollectionSite('EXTERNAL'); setSampleDate(todayKey()); setCenter('');
+    setQuienPaga('CLIENT');
     setError(null);
   }, [open]);
 
@@ -238,7 +260,7 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
         studies,
         clinicalIndication: indication.trim(),
         urgency,
-        billingType: BILLING_TYPE,
+        billingType: quienPaga,
         collectionSite,
         sampleDate: sampleDate || null,
         preferredCenter: collectionSite === 'EXTERNAL' ? (center.trim() || null) : null,
@@ -611,6 +633,38 @@ export function LabOrderDialog({ open, onClose, userId, onCreate, defaultProvide
                         ))}
                       </div>
                     </div>
+                  </div>
+
+                  {/*
+                    * QUIÉN PAGA. Mismo control segmentado que urgencia y sitio
+                    * de toma — es una elección de dos, no un menú.
+                    *
+                    * Debajo va lo que significa en PLATA, porque el rótulo solo
+                    * no lo dice: "Seguro" no deja ver que el paciente entonces
+                    * NO paga el estudio en la clínica, y esa es justo la
+                    * consecuencia que alguien tiene que entender antes de elegir.
+                    */}
+                  <div>
+                    <label className={labelCls}>{t('labWhoPays')}</label>
+                    <div className={segTrack}>
+                      {(['CLIENT', 'PRIVATE'] as const).map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setQuienPaga(q)}
+                          className={`${segItem} ${
+                            quienPaga === q
+                              ? 'bg-violet/15 text-violet-text'
+                              : 'text-text-muted hover:text-text-1'
+                          }`}
+                        >
+                          {t(`labWhoPays_${q}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[11px] text-text-muted">
+                      {t(quienPaga === 'CLIENT' ? 'labWhoPaysHint_CLIENT' : 'labWhoPaysHint_PRIVATE')}
+                    </p>
                   </div>
 
                   {/* Centro preferido — solo si el paciente va afuera */}

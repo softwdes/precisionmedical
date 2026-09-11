@@ -1484,6 +1484,53 @@ model LabOrder {
   @@map("lab_orders")
 }
 
+/// La REQUISICIÓN: la hoja que el paciente lleva al laboratorio.
+///
+/// Una fila por GRUPO de estudios (`LabOrder.groupId`), no por estudio: una
+/// orden son N estudios en UNA hoja con UN número. Se crea cuando alguien
+/// aprieta "Generar orden" —después de consultarle al paciente— y no antes:
+/// hasta ese momento los estudios son un borrador que se edita, y un número de
+/// requisición emitido para algo que todavía cambia no identifica nada.
+///
+/// El número NO se vuelve a emitir si se regenera el PDF. Es el identificador
+/// que el laboratorio usa para casar la muestra con la orden; si cambiara, el
+/// tubo ya etiquetado dejaría de corresponder.
+///
+/// Ver `lib/lab-requisition.ts` para el formato y el rango de la secuencia.
+model LabRequisition {
+  id String @id @default(cuid())
+
+  /// Grupo de estudios que salen en esta hoja.
+  groupId String @unique
+
+  /// `#######-PM`, el mismo formato que emite MedUSA hoy. Sale de la secuencia
+  /// `lab_requisition_seq`, en un RANGO DISTINTO del de ellos para que nunca
+  /// choque con un número que MedUSA ya haya emitido.
+  number String @unique
+
+  /// Con qué se factura ESTA hoja. Se congela acá y no se lee de `LabOrder`
+  /// porque la hoja impresa dice "Bill Type" y esa hoja ya está en la calle:
+  /// si después alguien cambia el tipo en el estudio, el papel no cambia.
+  billingType LabBillingType
+
+  /// Snapshot del prescriptor. LabCorp identifica la orden por el NPI, así que
+  /// se guarda el que se imprimió — no el que el provider tenga mañana.
+  providerId   String?
+  providerName String?
+  providerNpi  String?
+
+  generatedAt     DateTime @default(now())
+  generatedById   String?
+  generatedByName String?
+
+  /// El PDF congelado, como fila de `patient_documents`. Así la misma hoja se
+  /// ve en Documentos del paciente y del caso sin generar nada dos veces.
+  documentId String?
+
+  @@index([generatedAt])
+  @@map("lab_requisitions")
+}
+
 // ─── B.19 Prescriptions ────────────────────────────────────────────────────────
 
 enum RxStatus {

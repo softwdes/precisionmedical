@@ -13,7 +13,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
-  FlaskConical, Scan, HeartPulse, Plus, Printer, Loader2, Upload, FileText,
+  FlaskConical, Scan, HeartPulse, Plus, Printer, Loader2, Upload, FileText, FileCheck2,
   ChevronDown, ChevronRight, AlertTriangle, Building2, Home, Trash2,
 } from 'lucide-react';
 import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
@@ -122,6 +122,16 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
   const [printGroup, setPrintGroup] = React.useState<string | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
+  /**
+   * Requisiciones ya emitidas, por grupo — solo para MOSTRAR el número.
+   *
+   * Emitirla se hace desde el Resumen, que es donde vive el flujo: se termina la
+   * cita, se le consulta al paciente y recién ahí se genera. Acá se ve si ya
+   * salió y con qué número, que es lo que alguien necesita saber al mirar los
+   * estudios.
+   */
+  const [requis, setRequis] = React.useState<Record<string, { number: string } | null>>({});
+
   const load = React.useCallback(async (): Promise<void> => {
     try {
       const res = await fetch(`/api/admin/lab-orders/${appointmentId}`);
@@ -202,6 +212,22 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
     return [...map.entries()].sort((a, b) =>
       new Date(b[1][0].orderedAt).getTime() - new Date(a[1][0].orderedAt).getTime());
   }, [orders]);
+
+  // Se pregunta una sola vez por grupo: la requisición no cambia una vez emitida.
+  React.useEffect(() => {
+    let vivo = true;
+    for (const [, items] of groups) {
+      const g = items[0]?.groupId;
+      if (!g || requis[g] !== undefined) continue;
+      fetch(`/api/admin/lab-orders/${appointmentId}/requisition?groupId=${encodeURIComponent(g)}`)
+        .then((r) => (r.ok ? r.json() : { requisicion: null }))
+        .then((d: { requisicion: { number: string } | null }) => {
+          if (vivo) setRequis((p) => ({ ...p, [g]: d.requisicion ?? null }));
+        })
+        .catch(() => { if (vivo) setRequis((p) => ({ ...p, [g]: null })); });
+    }
+    return () => { vivo = false; };
+  }, [groups, appointmentId, requis]);
 
   const studyRow = (o: LabOrderRow, showDate = false): React.ReactElement => {
     const Icon = CATEGORY_ICON[o.orderType] ?? FlaskConical;
@@ -328,6 +354,22 @@ export function LabsTab({ appointmentId, userId, defaultProviderId = null }: Pro
                     <TagPill label={t(`labBilling_${head.billingType}`)} colorClass="bg-white/5 text-text-2 border-border" />
                   )}
                   <div className="flex-1" />
+                  {/*
+                    * La requisición va en la CABECERA del grupo, no en cada
+                    * estudio: la orden es del GRUPO —los estudios pedidos juntos
+                    * salen en una hoja con UN número—, así que repetir el mismo
+                    * número al lado de cada análisis sugeriría que hay una orden
+                    * por estudio. Acá abajo cuelgan todos los del grupo.
+                    */}
+                  {head.groupId && requis[head.groupId] && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[11px] text-emerald"
+                      title={t('labReqEmitida', { number: requis[head.groupId]!.number })}
+                    >
+                      <FileCheck2 className="w-3.5 h-3.5" />
+                      <span className="font-mono">{requis[head.groupId]!.number}</span>
+                    </span>
+                  )}
                   {head.groupId && (
                     <button
                       type="button"

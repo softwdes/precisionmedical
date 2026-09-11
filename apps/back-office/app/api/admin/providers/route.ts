@@ -8,6 +8,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { npiValido } from '@/lib/npi';
 
 /** Genera cláusulas OR para búsqueda por nombre completo (ej. "Juan Pérez") */
 function fullNameOR(q: string) {
@@ -68,6 +69,23 @@ const ProviderInputSchema = z.object({
     'PAIN_MANAGEMENT', 'PHYSICAL_THERAPY', 'PSYCHOLOGY', 'RADIOLOGY',
   ]),
   licenseNumber: z.string().max(100).nullable().optional(),
+  /**
+   * NPI — campo PROPIO, separado de la licencia.
+   *
+   * La pantalla tenía un solo campo rotulado "Número de Licencia / NPI" que
+   * escribía en `licenseNumber`, así que la columna `npi` nunca se llenó desde
+   * la app: medido el 2026-09-10, de 20 providers el único valor en `npi` era
+   * relleno que no pasa el verificador, y el único NPI real estaba en el campo
+   * de licencia. Son dos identificadores distintos — la licencia es estatal, el
+   * NPI es nacional — y LabCorp exige el NPI en la orden.
+   *
+   * Se valida acá y no solo en la pantalla: el dígito verificador es lo que
+   * distingue un NPI de diez dígitos cualesquiera, y es la única barrera contra
+   * que vuelva a entrar un `9906372145`.
+   */
+  npi: z.string().trim()
+    .refine((v) => v === '' || npiValido(v), { message: 'NPI inválido' })
+    .nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'TERMINATED']).default('ACTIVE'),
   employeeId: z.string().nullable().optional(),
 });
@@ -92,6 +110,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       phone: parsed.phone ?? null,
       specialty: parsed.specialty,
       licenseNumber: parsed.licenseNumber ?? null,
+      npi: parsed.npi ? parsed.npi.trim() : null,
       status: parsed.status,
     },
   });
@@ -136,6 +155,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       phone: parsed.phone ?? null,
       specialty: parsed.specialty,
       licenseNumber: parsed.licenseNumber ?? null,
+      npi: parsed.npi ? parsed.npi.trim() : null,
       status: parsed.status,
       employeeId: parsed.employeeId !== undefined ? parsed.employeeId : undefined,
     },

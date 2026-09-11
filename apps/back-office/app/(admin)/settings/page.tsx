@@ -190,6 +190,7 @@ export default async function SettingsPage() {
         phone: p.phone,
         specialty: p.specialty,
         licenseNumber: p.licenseNumber,
+        npi: p.npi,
         status: p.status,
         appointmentCount: p._count.appointments,
         employeeId: p.employeeId ?? null,

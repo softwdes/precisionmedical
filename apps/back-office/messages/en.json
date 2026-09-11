@@ -1467,7 +1467,17 @@
       "statusReadyOnline": "Ready · online",
       "triageOnlineNA": "No vitals · online visit",
       "vitalsSelfReported": "Patient-reported — online visit, not taken in clinic.",
-      "vitalsOnlineNone": "Online visit — no vitals taken in clinic."
+      "vitalsOnlineNone": "Online visit — no vitals taken in clinic.",
+      "labReqGenerar": "Generate order",
+      "labReqGenerando": "Generating…",
+      "labReqEmitida": "Order {number} — already issued. It's in the patient's and the case's Documents.",
+      "labReqSinNpi": "Can't issue it: {name} has no NPI on file, and the lab identifies the order by that number. Add it in Settings → Providers.",
+      "labReqError": "Couldn't generate the order. Try again; if it persists, let IT know.",
+      "labWhoPays": "Who pays for the test",
+      "labWhoPays_CLIENT": "The clinic",
+      "labWhoPays_PRIVATE": "Insurance",
+      "labWhoPaysHint_CLIENT": "The lab bills the clinic, and the test is charged to the patient at catalog price.",
+      "labWhoPaysHint_PRIVATE": "The lab bills insurance. The test is NOT charged to the patient at the clinic."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

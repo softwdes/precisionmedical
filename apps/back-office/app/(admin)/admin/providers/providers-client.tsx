@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, Phone, Mail, Pencil, Trash2, Link2, LinkIcon } from 'lucide-react';
+import { npiValido, npiFormaSospechosa } from '@/lib/npi';
 import {
   Button,
   Input,
@@ -34,6 +35,7 @@ interface Provider {
   phone: string | null;
   specialty: string;
   licenseNumber: string | null;
+  npi: string | null;
   status: string;
   appointmentCount: number;
   employeeId: string | null;
@@ -82,6 +84,7 @@ const EMPTY_FORM = {
   phone: '',
   specialty: 'GENERAL' as string,
   licenseNumber: '',
+  npi: '',
   status: 'ACTIVE' as string,
   employeeId: '' as string,
 };
@@ -107,6 +110,10 @@ export function ProvidersClient({ providers, stats }: Props) {
   const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
+  /** Vacío es válido: el NPI no es obligatorio para dar de alta al provider, lo
+      es para EMITIR una orden de laboratorio, y eso se avisa allá. */
+  const npiMal = form.npi.trim() !== '' && !npiValido(form.npi);
+
   const filtered = providers.filter((p) => {
     if (search) {
       const q = search.toLowerCase();
@@ -131,6 +138,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       phone:         p.phone ?? '',
       specialty:     p.specialty,
       licenseNumber: p.licenseNumber ?? '',
+      npi:           p.npi ?? '',
       status:        p.status,
       employeeId:    p.employeeId ?? '',
     });
@@ -139,6 +147,9 @@ export function ProvidersClient({ providers, stats }: Props) {
   }
 
   async function handleSave() {
+    // El servidor lo rechaza igual; esto es para que el motivo se vea en el
+    // campo y no como un error genérico al final del formulario.
+    if (npiMal) { setError('Revisá el NPI: no pasa el dígito verificador.'); return; }
     setSaving(true);
     setError(null);
     try {
@@ -236,9 +247,51 @@ export function ProvidersClient({ providers, stats }: Props) {
           </select>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="licenseNumber">Número de Licencia / NPI</Label>
-        <Input id="licenseNumber" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="NPI o licencia estatal" />
+      {/*
+        * Licencia y NPI son DOS campos, no uno.
+        *
+        * Había un solo input rotulado "Número de Licencia / NPI" que escribía
+        * solo en `licenseNumber`, así que la columna `npi` no se podía llenar
+        * desde acá y quedó vacía: medido el 2026-09-10, de 20 providers el
+        * único valor en `npi` era relleno que no pasa el verificador, y el
+        * único NPI real de la clínica estaba escrito en el campo de licencia.
+        * Son identificadores distintos —la licencia es estatal, el NPI es
+        * nacional— y **LabCorp exige el NPI en la orden de laboratorio**: sin
+        * él la hoja no se procesa.
+        */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="licenseNumber">Número de licencia</Label>
+          <Input id="licenseNumber" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="Licencia estatal" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="npi">NPI</Label>
+          <Input
+            id="npi"
+            value={form.npi}
+            onChange={set('npi')}
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="10 dígitos"
+            aria-invalid={npiMal || undefined}
+            className={npiMal ? '!border-rose focus:!border-rose' : undefined}
+          />
+          {/* El verificador es lo que separa un NPI de diez dígitos cualquiera:
+              `9906372145` tiene diez y es falso. Se avisa al escribir, no al
+              guardar, porque el número se copia de otra pantalla y el error se
+              corrige en el acto. */}
+          {npiMal && (
+            <p className="text-[11px] text-rose">
+              Ese NPI no es válido. Son 10 dígitos y el último es un verificador —
+              revisá que no falte o sobre un número.
+            </p>
+          )}
+          {!npiMal && form.npi.trim() !== '' && npiFormaSospechosa(form.npi) && (
+            <p className="text-[11px] text-amber">
+              Válido, pero los NPI reales empiezan en 1 o 2. Verificá que sea el correcto.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Vínculo con empleado HR */}

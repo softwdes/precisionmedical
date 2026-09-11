@@ -268,7 +268,11 @@ function Panel({
       {/* El clic de adentro no cierra: solo el del fondo. */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-0 sm:gap-4 w-full max-w-3xl"
+        /* `100dvh` y no `100vh`: en el navegador del teléfono la barra de
+           direcciones se suma y resta, y con `vh` el pie del globo queda
+           debajo de ella. Si en un teléfono bajo algo no entrara, scrollea
+           acá adentro en vez de cortarse. */
+        className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-0 sm:gap-4 w-full max-w-3xl max-h-[calc(100dvh-2rem)] overflow-y-auto"
       >
         {/*
           SON DOS CIFOS, y ese es el punto (Erick, 2026-09-10): `cifo-saluda`
@@ -285,13 +289,24 @@ function Panel({
           la hace el navegador con `transition-all`; no hay animación a mano.
         */}
         <img
-          src={fase === 'entrada' ? '/cifo-saluda.webp' : '/cifo-escribe.webp'}
+          src={fase === 'entrada' ? '/cifo-saluda.gif' : '/cifo-escribe.gif'}
           alt=""
           aria-hidden="true"
-          className={`shrink-0 select-none pointer-events-none drop-shadow-2xl transition-all duration-700 ease-out ${
+          /*
+            En MÓVIL CIFO se apoya sobre el globo y lo pisa un poco (`-mb-4`),
+            en vez de quedar flotando arriba con aire en medio: en una columna
+            angosta el aire los lee como dos cosas sueltas, y pisándose se leen
+            como uno que habla. En escritorio van lado a lado y no hace falta.
+
+            Y 112px en el teléfono, no 96: a 96 el robot se lee como un ícono.
+          */
+          /* `relative z-10` porque CIFO va ANTES que el globo en el DOM: sin
+             esto, al pisarse en móvil el globo le pasa por encima y le corta
+             los pies. */
+          className={`shrink-0 relative z-10 select-none pointer-events-none drop-shadow-2xl transition-all duration-700 ease-out ${
             fase === 'entrada'
-              ? 'w-52 sm:w-72 animate-in zoom-in-75 duration-500'
-              : 'w-24 sm:w-40 -mb-1'
+              ? 'w-56 sm:w-72 animate-in zoom-in-75 duration-500'
+              : 'w-28 sm:w-40 -mb-4 sm:-mb-1'
           }`}
         />
 
@@ -303,7 +318,7 @@ function Panel({
           de lo que no se muestra—, así que el truco es un pixel transparente.
         */}
         {fase === 'entrada' && (
-          <img src="/cifo-escribe.webp" alt="" aria-hidden="true" className="absolute w-px h-px opacity-0 pointer-events-none" />
+          <img src="/cifo-escribe.gif" alt="" aria-hidden="true" className="absolute w-px h-px opacity-0 pointer-events-none" />
         )}
 
         {/*
@@ -313,7 +328,7 @@ function Panel({
           segundos.
         */}
         {fase === 'hablando' && (
-          <div className="relative flex-1 min-w-0 w-full rounded-lg bg-bg-1 p-5 pr-12 shadow-2xl animate-in fade-in slide-in-from-left-3 duration-500">
+          <div className="relative flex-1 min-w-0 w-full rounded-lg bg-bg-1 p-5 pr-14 sm:pr-12 shadow-2xl animate-in fade-in slide-in-from-left-3 duration-500">
             {/* Acá iría el sonido, y por eso NO está todavía: el navegador BLOQUEA
                 el audio que arranca solo en una página con la que nadie interactuó
                 aún, que es exactamente este caso —primera carga del día, recién
@@ -323,7 +338,7 @@ function Panel({
               type="button"
               onClick={onCerrar}
               aria-label={t('saludoCerrar')}
-              className="absolute top-2.5 right-2.5 h-9 w-9 inline-flex items-center justify-center rounded text-text-muted hover:text-text-1 hover:bg-white/[0.04]"
+              className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded text-text-muted hover:text-text-1 hover:bg-white/[0.04]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -350,7 +365,11 @@ function Panel({
                       <button
                         type="button"
                         onClick={() => { linea.boton!.ir(); onCerrar(); }}
-                        className={`h-7 px-2.5 rounded text-[11.5px] font-semibold transition-colors ${
+                        /* 40px en el teléfono, 28 en escritorio. A 28 no se
+                           acierta con el pulgar — es la Regla #4, y el mismo
+                           criterio con el que ayer se subieron los botones de
+                           la cola de intake. */
+                        className={`h-10 sm:h-7 px-3.5 sm:px-2.5 rounded text-[12.5px] sm:text-[11.5px] font-semibold transition-colors ${
                           linea.urgente
                             ? 'bg-rose/15 text-rose hover:bg-rose/25'
                             : 'bg-brand/15 text-brand hover:bg-brand/25'

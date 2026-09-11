@@ -70,7 +70,7 @@ export function CifoButton(): React.ReactElement {
         directo sobre el botón, igual que los íconos de línea de al lado.
       */}
       <img
-        src="/cifo-saluda.webp"
+        src="/cifo-saluda.gif"
         alt=""
         aria-hidden="true"
         className="h-8 w-8 object-contain select-none"

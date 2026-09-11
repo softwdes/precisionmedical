@@ -479,7 +479,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               gradientClass="bg-gradient-cyan"
               photoUrl={caseInfo.patient.photoUrl}
               onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}
-              editLabel={t('photoEdit')}
+              editLabel={tp('photoEdit')}
             />
             <span>
               <span className="block">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</span>
@@ -580,7 +580,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   gradientClass="bg-gradient-cyan"
                   photoUrl={caseInfo.patient.photoUrl}
                   onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}
-                  editLabel={t('photoEdit')}
+                  editLabel={tp('photoEdit')}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-text-1 font-bold text-base leading-tight">

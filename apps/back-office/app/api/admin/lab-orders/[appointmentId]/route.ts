@@ -10,6 +10,10 @@
  *   Crea una orden con N estudios. Se guarda UNA FILA POR ESTUDIO con un
  *   `groupId` común: se imprimen juntos, pero cada estudio sigue su propio
  *   estado y resultado.
+ *
+ * PATCH /api/admin/lab-orders/[appointmentId]
+ *   Cambia quién paga un grupo entero (clínica o seguro). Mueve plata: ver el
+ *   comentario del handler.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -214,4 +218,98 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ groupId, orders }, { status: 201 });
+}
+
+const BillingPatchSchema = z.object({
+  groupId: z.string().min(1),
+  /**
+   * Solo las dos que ofrece el diálogo. Los otros valores del enum
+   * (`MEDICAID`, `MEDICARE`, `WORKERS_COMP`, `PATIENT`) existen en la base por
+   * la migración y nadie los elige desde la app: dejarlos entrar por acá sería
+   * abrir una puerta que la pantalla no tiene.
+   */
+  billingType: z.enum(['CLIENT', 'PRIVATE']),
+});
+
+/**
+ * PATCH /api/admin/lab-orders/[appointmentId]
+ *   Cambia quién paga TODO un grupo de estudios.
+ *
+ * Existe por una sola razón: la hoja que paga el seguro se frena cuando el caso
+ * no tiene póliza, y el paciente no puede quedarse sin estudios porque no traía
+ * la tarjeta. La otra salida es que lo pague la clínica.
+ *
+ * Cambia el grupo entero y no un estudio: la hoja lleva UNA letra de
+ * facturación, así que dejar cambiar uno solo fabricaría justo el grupo
+ * mezclado que la ruta de requisición tiene que rechazar.
+ *
+ * ⚠️ Esto MUEVE PLATA. `CLIENT` significa que el laboratorio le factura a la
+ * clínica y el estudio se le cobra al paciente al precio del catálogo; con
+ * `PRIVATE` no se le cobra nada. Por eso se llama a `syncLabBilling`, que crea
+ * o retira esos cobros, y por eso la pantalla lo pregunta en vez de hacerlo
+ * sola.
+ */
+export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  const { appointmentId } = await ctx.params;
+  const { deny } = await checkAppointmentAccess(appointmentId);
+  if (deny) return deny;
+
+  let body: z.infer<typeof BillingPatchSchema>;
+  try { body = BillingPatchSchema.parse(await req.json()); }
+  catch (err) {
+    return NextResponse.json(
+      { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
+      { status: 400 },
+    );
+  }
+
+  /*
+   * Con la hoja ya emitida, no.
+   *
+   * El papel salió con su letra impresa y su código de barras, y el laboratorio
+   * ya lo tiene o lo va a tener: cambiar quién paga de este lado dejaría la
+   * hoja diciendo una cosa y la base otra. Se anula y se emite de nuevo.
+   */
+  const emitida = await db.labRequisition.findUnique({
+    where: { groupId: body.groupId },
+    select: { number: true },
+  });
+  if (emitida) {
+    return NextResponse.json(
+      { error: 'REQUISICION_YA_EMITIDA', number: emitida.number },
+      { status: 409 },
+    );
+  }
+
+  const antes = await db.labOrder.findMany({
+    where: { appointmentId, groupId: body.groupId, status: { not: 'VOIDED' } },
+    select: { id: true, billingType: true, studyName: true },
+  });
+  if (antes.length === 0) return NextResponse.json({ error: 'GRUPO_VACIO' }, { status: 404 });
+
+  await db.labOrder.updateMany({
+    where: { appointmentId, groupId: body.groupId, status: { not: 'VOIDED' } },
+    data: { billingType: body.billingType },
+  });
+
+  // Pasar a CLIENT crea el cobro del estudio; volver a PRIVATE lo retira.
+  await syncLabBilling(appointmentId);
+
+  const orders = await db.labOrder.findMany({
+    where: { groupId: body.groupId },
+    orderBy: { studyName: 'asc' },
+    select: ORDER_SELECT,
+  });
+
+  await writeAuditLog(db, {
+    ...(await resolveActor(req.headers)),
+    action: 'SET_LAB_ORDER_BILLING',
+    entityType: 'Appointment',
+    entityId: appointmentId,
+    before: { billingTypes: [...new Set(antes.map((o) => o.billingType ?? null))] },
+    after: { billingType: body.billingType },
+    metadata: { groupId: body.groupId, studies: antes.length },
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
+
+  return NextResponse.json({ orders });
 }

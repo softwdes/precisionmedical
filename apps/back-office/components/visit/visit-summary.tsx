@@ -40,6 +40,21 @@ interface ReqEstado {
   documentId: string | null;
 }
 
+/**
+ * El grupo que la ruta frenó porque paga el seguro y falta la póliza.
+ *
+ * Es un estado propio y no un mensaje de error porque no se resuelve leyéndolo:
+ * lleva las dos salidas que el asistente tiene con el paciente delante.
+ */
+interface BloqueoSeguro {
+  groupId: string;
+  /** `null` cuando la cita no tiene caso: ahí no hay dónde cargar la póliza. */
+  caseId: string | null;
+  aseguradora: string | null;
+  faltaPoliza: boolean;
+  faltaAseguradora: boolean;
+}
+
 /** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
 export interface SummaryTriage {
   systolicMmhg: number | null;
@@ -380,6 +395,24 @@ export function VisitSummary({
   const [requis, setRequis] = React.useState<Record<string, ReqEstado | null>>({});
   const [generando, setGenerando] = React.useState<string | null>(null);
   const [errorReq, setErrorReq] = React.useState<string | null>(null);
+  /**
+   * El freno del seguro, con lo que hace falta para levantarlo.
+   *
+   * Separado de `errorReq` a propósito: un texto rojo que dice "falta la
+   * póliza" deja al asistente sin saber dónde se carga, y así fue como este
+   * dato terminó en el 2% de los casos con seguro. Acá se carga sin salir.
+   */
+  const [bloqueoSeguro, setBloqueoSeguro] = React.useState<BloqueoSeguro | null>(null);
+  const [poliza, setPoliza] = React.useState('');
+  const [guardandoSeguro, setGuardandoSeguro] = React.useState(false);
+
+  /** La lista de estudios, después de un cambio que la altera. */
+  const recargarLabs = React.useCallback(async (): Promise<void> => {
+    await fetch(`/api/admin/lab-orders/${appointmentId}`)
+      .then((r) => r.json())
+      .then((d: { orders?: LabOrderRow[] }) => setLabs(d.orders ?? []))
+      .catch(() => undefined);
+  }, [appointmentId]);
 
   React.useEffect(() => {
     let vivo = true;
@@ -398,6 +431,7 @@ export function VisitSummary({
   async function generarOrden(groupId: string): Promise<void> {
     setGenerando(groupId);
     setErrorReq(null);
+    setBloqueoSeguro(null);
     try {
       const res = await fetch(`/api/admin/lab-orders/${appointmentId}/requisition`, {
         method: 'POST',
@@ -406,11 +440,29 @@ export function VisitSummary({
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // El motivo se dice entero: "no se pudo" no le sirve a nadie con el
-        // paciente esperando. Sin NPI válido la hoja no se emite — ver la ruta.
-        setErrorReq(d.error === 'PROVIDER_SIN_NPI'
-          ? t('labReqSinNpi', { name: d.providerName ?? '—' })
-          : t('labReqError'));
+        /*
+         * El motivo se dice entero: "no se pudo" no le sirve a nadie con el
+         * paciente esperando.
+         *
+         * El del seguro no es un mensaje sino un panel: se puede resolver acá
+         * mismo, así que abre el formulario en vez de contar lo que pasó.
+         */
+        if (d.error === 'SEGURO_INCOMPLETO') {
+          setPoliza('');
+          setBloqueoSeguro({
+            groupId,
+            caseId: d.caseId ?? null,
+            aseguradora: d.aseguradora ?? null,
+            faltaPoliza: d.faltaPoliza !== false,
+            faltaAseguradora: d.faltaAseguradora === true,
+          });
+          return;
+        }
+        setErrorReq(
+          d.error === 'PROVIDER_SIN_NPI' ? t('labReqSinNpi', { name: d.providerName ?? '—' })
+          : d.error === 'GRUPO_MIXTO' ? t('labReqGrupoMixto')
+          : t('labReqError'),
+        );
         return;
       }
       setRequis((p) => ({ ...p, [groupId]: d.requisicion }));
@@ -420,6 +472,66 @@ export function VisitSummary({
       setErrorReq(t('labReqError'));
     } finally {
       setGenerando(null);
+    }
+  }
+
+  /**
+   * Carga la póliza y vuelve a intentar la hoja en la misma acción.
+   *
+   * Reintenta solo a propósito: el asistente ya pidió "Generar orden" y lo
+   * único que faltaba era este número. Pedirle el botón de nuevo sería cobrarle
+   * dos clicks por un dato que acaba de dar.
+   */
+  async function guardarPolizaYGenerar(): Promise<void> {
+    const b = bloqueoSeguro;
+    if (!b?.caseId || !poliza.trim()) return;
+    setGuardandoSeguro(true);
+    setErrorReq(null);
+    try {
+      const res = await fetch(`/api/admin/cases/${b.caseId}/policy-number`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policyNumber: poliza.trim() }),
+      });
+      if (!res.ok) { setErrorReq(t('labReqError')); return; }
+      setBloqueoSeguro(null);
+      await generarOrden(b.groupId);
+    } catch {
+      setErrorReq(t('labReqError'));
+    } finally {
+      setGuardandoSeguro(false);
+    }
+  }
+
+  /**
+   * La otra salida: que el estudio lo pague la clínica.
+   *
+   * Esto le CREA un cobro al paciente —el precio del catálogo— así que lo dice
+   * el panel antes de apretarlo, y no pasa en silencio. Después hay que
+   * recargar estudios y cargos: esta misma pantalla muestra los dos, y dejar el
+   * total viejo abajo mientras arriba cambió quién paga es peor que no mostrar
+   * nada.
+   */
+  async function pasarAClinicaYGenerar(): Promise<void> {
+    const b = bloqueoSeguro;
+    if (!b) return;
+    setGuardandoSeguro(true);
+    setErrorReq(null);
+    try {
+      const res = await fetch(`/api/admin/lab-orders/${appointmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: b.groupId, billingType: 'CLIENT' }),
+      });
+      if (!res.ok) { setErrorReq(t('labReqError')); return; }
+      setBloqueoSeguro(null);
+      await Promise.all([recargarLabs(), loadVisitExtras()]);
+      router.refresh();
+      await generarOrden(b.groupId);
+    } catch {
+      setErrorReq(t('labReqError'));
+    } finally {
+      setGuardandoSeguro(false);
     }
   }
 
@@ -974,6 +1086,63 @@ export function VisitSummary({
         {errorReq && (
           <div className="mt-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11.5px] text-rose">
             {errorReq}
+          </div>
+        )}
+        {/*
+          * El freno del seguro, con sus dos salidas.
+          *
+          * En ámbar y no en rojo: no es una falla del sistema, es un dato que
+          * falta — y quien lo está leyendo lo puede resolver sin moverse de acá.
+          */}
+        {bloqueoSeguro && (
+          <div className="mt-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 space-y-2.5">
+            <div className="text-[11.5px] font-semibold text-amber">{t('labReqSinPolizaTitulo')}</div>
+            <div className="text-[11px] leading-relaxed text-amber/90">
+              {!bloqueoSeguro.caseId
+                ? t('labReqSinCaso')
+                : bloqueoSeguro.faltaAseguradora
+                  ? t('labReqSinAseguradora')
+                  : t('labReqSinPolizaAyuda', { carrier: bloqueoSeguro.aseguradora ?? '—' })}
+            </div>
+
+            {/* El campo solo aparece cuando hay dónde guardarlo. Sin caso, o sin
+                aseguradora cargada, un input suelto prometería algo que no puede
+                cumplir: queda la otra salida. */}
+            {bloqueoSeguro.caseId && !bloqueoSeguro.faltaAseguradora && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={poliza}
+                  onChange={(e) => setPoliza(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && poliza.trim()) void guardarPolizaYGenerar(); }}
+                  placeholder={t('labReqPolizaLabel')}
+                  maxLength={60}
+                  autoFocus
+                  className="flex-1 h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 placeholder:text-text-muted outline-none focus:ring-1 focus:ring-violet/40"
+                />
+                <Button
+                  onClick={() => void guardarPolizaYGenerar()}
+                  disabled={!poliza.trim() || guardandoSeguro || generando !== null}
+                  className="w-full sm:w-auto shrink-0"
+                >
+                  {guardandoSeguro ? t('labReqGenerando') : t('labReqPolizaGuardar')}
+                </Button>
+              </div>
+            )}
+
+            <div className="pt-0.5">
+              <Button
+                variant="outline"
+                onClick={() => void pasarAClinicaYGenerar()}
+                disabled={guardandoSeguro || generando !== null}
+                className="w-full sm:w-auto"
+              >
+                {t('labReqPasarAClinica')}
+              </Button>
+              {/* Lo que cuesta esa salida, dicho ANTES de apretarla. */}
+              <div className="mt-1 text-[10.5px] leading-relaxed text-text-muted">
+                {t('labReqPasarAClinicaAyuda')}
+              </div>
+            </div>
           </div>
         )}
       </Card>

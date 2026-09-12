@@ -1477,7 +1477,16 @@
       "labWhoPays_CLIENT": "The clinic",
       "labWhoPays_PRIVATE": "Insurance",
       "labWhoPaysHint_CLIENT": "The lab bills the clinic, and the test is charged to the patient at catalog price.",
-      "labWhoPaysHint_PRIVATE": "The lab bills insurance. The test is NOT charged to the patient at the clinic."
+      "labWhoPaysHint_PRIVATE": "The lab bills insurance. The test is NOT charged to the patient at the clinic.",
+      "labReqSinPolizaTitulo": "Policy number is missing",
+      "labReqSinPolizaAyuda": "This order is billed to insurance, and {carrier} bills against the policy number. Enter it here and the sheet is generated right away.",
+      "labReqSinAseguradora": "This order is billed to insurance, but the case has no carrier on file. Add it in the patient's case — or have the clinic pay for it.",
+      "labReqSinCaso": "This order is billed to insurance, but the appointment has no case, so there's nowhere to store the policy. Create the case first, or have the clinic pay for it.",
+      "labReqPolizaLabel": "Policy number",
+      "labReqPolizaGuardar": "Save and generate",
+      "labReqPasarAClinica": "Have the clinic pay",
+      "labReqPasarAClinicaAyuda": "The lab bills the clinic and the test is charged to the patient at catalog price. Who changed it is recorded.",
+      "labReqGrupoMixto": "The tests in this order don't share the same billing type, and the sheet carries only one. Fix it in the Labs tab before generating it."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

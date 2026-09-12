@@ -148,6 +148,56 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }, { status: 409 });
   }
 
+  /*
+   * QUIÉN PAGA — y el freno cuando el que paga es un tercero.
+   *
+   * La letra sale del primer estudio, y eso solo vale mientras el grupo entero
+   * comparta el tipo. Hoy lo comparte: el diálogo pone uno solo para toda la
+   * tanda y no hay ni un grupo mezclado en los 245 que existen. Pero nada lo
+   * impide en la base —basta agregar un estudio a un grupo ya creado— y una
+   * hoja que le factura al seguro estudios que el paciente tenía que pagar es
+   * un error que nadie ve hasta que llega la factura. Si viene mezclado no se
+   * adivina: se frena.
+   */
+  const tiposDelGrupo = new Set(estudios.map((e) => e.billingType ?? null));
+  if (tiposDelGrupo.size > 1) {
+    return NextResponse.json({ error: 'GRUPO_MIXTO' }, { status: 409 });
+  }
+  const facturacion = letraFacturacion(estudios[0]?.billingType ?? null);
+
+  /*
+   * SIN PÓLIZA NO SE EMITE UNA ORDEN QUE PAGA UN TERCERO.
+   *
+   * `X` significa que la cuenta le llega a la aseguradora, y sin número de
+   * póliza no hay contra qué facturar: el laboratorio la rechaza, o la cobra
+   * después contra el paciente. Frena por el mismo motivo que el NPI —mejor
+   * acá, con el paciente todavía en el mostrador, que con un papel que vuelve.
+   *
+   * Va ANTES de `siguienteNumeroRequisicion()` a propósito: ese número sale de
+   * una secuencia y el que se consume no vuelve. Un chequeo después de pedirlo
+   * frenaría la hoja igual, pero dejando un hueco en la numeración que el
+   * laboratorio ve como una requisición perdida.
+   *
+   * De 834 casos con seguro, 829 tienen la aseguradora cargada y solo 17 la
+   * póliza (medido 2026-09-11): lo que falta es el número, casi nunca el
+   * nombre. Por eso la pantalla pide UN campo y no un formulario de seguro.
+   */
+  if (facturacion === 'X') {
+    const poliza = (cita.case?.primaryPolicyNumber ?? '').trim();
+    const aseguradora = (cita.case?.primaryInsurance?.name ?? '').trim();
+    if (!poliza || !aseguradora) {
+      return NextResponse.json({
+        error: 'SEGURO_INCOMPLETO',
+        // `null` cuando la cita no tiene caso: ahí no hay dónde cargar la
+        // póliza, y la pantalla tiene que decir eso y no ofrecer un campo.
+        caseId: cita.case?.id ?? null,
+        aseguradora: aseguradora || null,
+        faltaPoliza: !poliza,
+        faltaAseguradora: !aseguradora,
+      }, { status: 409 });
+    }
+  }
+
   const cfg = await configLab();
   const numero = await siguienteNumeroRequisicion();
   const ahora = new Date();
@@ -159,7 +209,6 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const icd10 = [...new Set(estudios.flatMap((e) => e.icd10Codes))];
   const indicacion = estudios.find((e) => e.clinicalIndication?.trim())?.clinicalIndication ?? '';
-  const facturacion = letraFacturacion(estudios[0]?.billingType ?? null);
 
   /*
    * El seguro del caso para el código. `claimsAddress` es un texto libre de una
@@ -179,9 +228,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   /*
    * La CARGA del código: la orden entera en el formato `MEDUSAP2.1` que
    * escanea el laboratorio. Varios campos van vacíos porque no los tenemos
-   * (SSN en el 4,8% de los pacientes, póliza en el 4,6% de los casos, dirección
-   * de la aseguradora en el 22%) — decisión de Erick, 2026-09-11: se genera
-   * igual con lo que hay. Los que van vacíos están dichos en `ereq-payload.ts`.
+   * (SSN en el 4,8% de los pacientes, dirección de la aseguradora en el 22%) —
+   * decisión de Erick, 2026-09-11: se genera igual con lo que hay. Los que van
+   * vacíos están dichos en `ereq-payload.ts`.
+   *
+   * La póliza es la excepción: acá abajo puede ir vacía, pero solo en las
+   * órdenes `C`. Si paga un tercero, el freno de arriba ya no dejó llegar.
    */
   const soloDigitos = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '');
   const carga = construirCargaEreq({

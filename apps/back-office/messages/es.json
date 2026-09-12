@@ -1477,7 +1477,16 @@
       "labWhoPays_CLIENT": "La clínica",
       "labWhoPays_PRIVATE": "El seguro",
       "labWhoPaysHint_CLIENT": "El laboratorio le factura a la clínica, y el estudio se le cobra al paciente al precio del catálogo.",
-      "labWhoPaysHint_PRIVATE": "El laboratorio le factura al seguro. El estudio NO se le cobra al paciente en la clínica."
+      "labWhoPaysHint_PRIVATE": "El laboratorio le factura al seguro. El estudio NO se le cobra al paciente en la clínica.",
+      "labReqSinPolizaTitulo": "Falta el número de póliza",
+      "labReqSinPolizaAyuda": "Esta orden la paga el seguro, y {carrier} factura contra el número de póliza. Cargalo acá y la hoja se genera enseguida.",
+      "labReqSinAseguradora": "Esta orden la paga el seguro, pero el caso no tiene aseguradora cargada. Se completa en el caso del paciente — o hacé que la pague la clínica.",
+      "labReqSinCaso": "Esta orden la paga el seguro, pero la cita no tiene caso: no hay dónde guardar la póliza. Creá el caso primero, o hacé que la pague la clínica.",
+      "labReqPolizaLabel": "N° de póliza",
+      "labReqPolizaGuardar": "Guardar y generar",
+      "labReqPasarAClinica": "Que la pague la clínica",
+      "labReqPasarAClinicaAyuda": "El laboratorio le factura a la clínica y el estudio se le cobra al paciente al precio del catálogo. Queda registrado quién lo cambió.",
+      "labReqGrupoMixto": "Los estudios de esta orden no tienen el mismo tipo de facturación, y la hoja lleva uno solo. Corregilo en el tab de Labs antes de generarla."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

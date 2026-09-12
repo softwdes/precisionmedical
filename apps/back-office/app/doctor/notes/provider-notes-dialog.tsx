@@ -102,6 +102,12 @@ export function ProviderNotesDialog({
   const [visita, setVisita] = React.useState<VisitaDelProvider | null>(null);
   /** ¿Esta sesión puede sellar el desenlace de una cita ajena? Lo dice el server. */
   const [puedeSellar, setPuedeSellar] = React.useState(false);
+  /**
+   * ¿Estas notas son las del que está mirando? Lo dice el server comparando
+   * contra el provider REAL de la sesión, no contra el suplantado por "ver como
+   * doctor". Solo con esto en `true` se habilita la firma.
+   */
+  const [esPropio, setEsPropio] = React.useState(false);
 
   /**
    * Las visitas se piden UNA vez, sin los filtros: son pocas por provider y
@@ -114,8 +120,12 @@ export function ProviderNotesDialog({
       try {
         const res = await fetch(`/api/admin/notes/provider/${provider.providerId}?estado=none,draft,signed`);
         if (!res.ok) { if (vivo) setError(t('errLoad')); return; }
-        const d = await res.json() as { visitas: VisitaDelProvider[]; puedeSellar?: boolean };
-        if (vivo) { setVisitas(d.visitas); setPuedeSellar(d.puedeSellar === true); }
+        const d = await res.json() as { visitas: VisitaDelProvider[]; puedeSellar?: boolean; esPropio?: boolean };
+        if (vivo) {
+          setVisitas(d.visitas);
+          setPuedeSellar(d.puedeSellar === true);
+          setEsPropio(d.esPropio === true);
+        }
       } catch { if (vivo) setError(t('errLoad')); }
     })();
     return () => { vivo = false; };
@@ -226,7 +236,8 @@ export function ProviderNotesDialog({
         <div className="flex-1 min-h-0 overflow-y-auto">
           {visita
             ? <NotaDeLaVisita visita={visita} providerName={provider.providerName}
-                puedeSellar={puedeSellar} onSellada={onSellada} onSalir={onClose} />
+                puedeSellar={puedeSellar} esPropio={esPropio}
+                onSellada={onSellada} onSalir={onClose} />
             : <ListaDeVisitas
                 visitas={visitas} filtradas={filtradas} error={error}
                 onAbrir={setVisita} />}
@@ -503,15 +514,20 @@ function SellarDesenlace({ visita, puedeSellar, onSellada }: {
  *  · SIN NOTA  — no hay nada que abrir. El provider atendió y no escribió; lo
  *    que corresponde es pedírsela, no ofrecer un editor en blanco. (Decisión de
  *    Erick: el supervisor no documenta un acto clínico en el que no estuvo.)
- *  · BORRADOR  — el editor real, el mismo del portal. Con la firma apagada:
- *    `canSign={false}`, y el servidor la rechaza igual por rol.
+ *  · BORRADOR  — el editor real, el mismo del portal. La firma se habilita SOLO
+ *    si la nota es del que mira (`esPropio`): un supervisor no cierra el
+ *    documento de otro. Antes estaba apagada para todos, y eso dejaba al propio
+ *    provider sin poder firmar su borrador desde acá — tenía que salir a
+ *    buscarlo a la cola de Mi Día (corregido 2026-09-12).
  *  · FIRMADA   — solo lectura. Una nota cerrada es inmutable por HIPAA y el PUT
  *    responde 409; mostrar un editor sería prometer algo que el server niega.
  */
-function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada, onSalir }: {
+function NotaDeLaVisita({ visita, providerName, puedeSellar, esPropio, onSellada, onSalir }: {
   visita: VisitaDelProvider;
   providerName: string;
   puedeSellar: boolean;
+  /** La nota es del provider de la sesión — lo decide el server. */
+  esPropio: boolean;
   onSellada: (appointmentId: string) => void;
   /** Cierra el diálogo — es el "salir" del pie de la nota. */
   onSalir: () => void;
@@ -629,9 +645,11 @@ function NotaDeLaVisita({ visita, providerName, puedeSellar, onSellada, onSalir 
         note={nota}
         templates={plantillas}
         userId={null}
-        /* Firmar es del médico. El servidor lo rechaza igual por rol; esto es la
-           CARA de esa regla, para no ofrecer un botón que va a fallar. */
-        canSign={false}
+        /* Firma solo el dueño de la nota. El servidor valida lo MISMO contra el
+           email real de la sesión, así que esto no abre nada: es la cara de esa
+           regla, para no ofrecer un botón que va a fallar ni esconder uno que
+           iba a funcionar. */
+        canSign={esPropio}
         /* Acá "salir" es cerrar el diálogo: la pantalla de abajo es la cola de
            notas sin cerrar, que es justo donde hay que volver para seguir con la
            siguiente. Misma puerta que la X de la cabecera. */

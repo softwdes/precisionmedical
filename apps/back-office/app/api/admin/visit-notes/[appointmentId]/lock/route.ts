@@ -58,17 +58,65 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const body = BodySchema.safeParse(await req.json().catch(() => ({})));
   const { typed = false, notify = false } = body.success ? body.data : {};
 
-  const nota = await db.visitNote.findUnique({
+  const ahora = new Date();
+
+  let nota = await db.visitNote.findUnique({
     where: { appointmentId },
     select: CAMPOS,
   });
 
-  // Sin nota todavía (el editor se abre antes de que exista la fila) no hay nada
-  // que bloquear: el primer guardado la crea y ahí el candado empieza a valer.
+  /*
+   * LA NOTA QUE TODAVÍA NO EXISTE.
+   *
+   * El editor se abre antes de que haya fila, y el candado vive EN la fila. Sin
+   * esto, dos personas que abrían una nota nueva casi a la vez recibían las dos
+   * `mio: true`: la primera en guardar creaba la fila con su candado y la
+   * segunda descubría al guardar que no podía, con su texto en pantalla y sin
+   * dónde ponerlo (2026-09-11).
+   *
+   * Se crea en la PRIMERA TECLA, no al abrir. Crearla al abrir haría que la
+   * pantalla de supervisión de notas —que cuenta las filas DRAFT— reportara
+   * "borrador" en toda visita que alguien apenas miró: sería fabricar un
+   * registro clínico que nadie escribió. Con la primera tecla el borrador
+   * empieza cuando de verdad empieza, y el candado existe desde que hay algo
+   * que proteger.
+   */
   if (!nota) {
-    return NextResponse.json({
-      mio: true, porNombre: null, desde: null, esperando: null,
-    } satisfies RespuestaCandado);
+    if (!typed) {
+      // Nadie escribió nada todavía: no hay nada que bloquear ni que crear.
+      return NextResponse.json({
+        mio: true, porNombre: null, desde: null, esperando: null,
+      } satisfies RespuestaCandado);
+    }
+
+    try {
+      await db.visitNote.create({
+        data: {
+          appointmentId,
+          editingByUserId: yo,
+          editingByName: miNombre,
+          editingSince: ahora,
+          editingHeartbeatAt: ahora,
+          editingTypedAt: ahora,
+        },
+      });
+      return NextResponse.json({
+        mio: true, porNombre: miNombre, desde: ahora.toISOString(), esperando: null,
+      } satisfies RespuestaCandado);
+    } catch {
+      /*
+       * La otra pestaña la creó en el mismo instante — `appointmentId` es único,
+       * así que una de las dos pierde. La que pierde NO se queda con el candado:
+       * relee y sigue por el camino normal, donde va a ver que la tiene el otro.
+       * Este catch ES la resolución de la carrera, no un descarte de error.
+       */
+      nota = await db.visitNote.findUnique({ where: { appointmentId }, select: CAMPOS });
+      if (!nota) {
+        return NextResponse.json({
+          mio: true, porNombre: null, desde: null, esperando: null,
+        } satisfies RespuestaCandado);
+      }
+    }
   }
 
   // Una nota firmada es inmutable: no se bloquea porque no se edita.
@@ -78,7 +126,6 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     } satisfies RespuestaCandado);
   }
 
-  const ahora = new Date();
   const estado = evaluarCandado(nota, ahora);
 
   // ── Lo tiene OTRO y el candado vale ────────────────────────────────────────

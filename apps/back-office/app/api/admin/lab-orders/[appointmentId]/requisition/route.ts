@@ -37,7 +37,90 @@ const SERVICE_KEY = (process.env.SUPABASE_STORAGE_SERVICE_KEY
   ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!;
 const BUCKET = 'case-documents';
 
-const BodySchema = z.object({ groupId: z.string().min(1) });
+const BodySchema = z.object({
+  groupId: z.string().min(1),
+  /**
+   * El seguro con el que se emite ESTA hoja, cuando no es el del caso.
+   *
+   * El paciente puede querer pagar la orden con su seguro médico, o con una
+   * membresía de otra clínica que funciona como seguro (Erick, 2026-09-12), y el
+   * encargado se lo pregunta con el paciente delante. Si no viene, se usa el del
+   * caso — que es lo que pasaba siempre hasta ahora, solo que ahora se ve antes
+   * de emitir en vez de descubrirse en el papel.
+   *
+   * Texto libre: LabCorp no valida contra catálogo y una membresía no es una
+   * aseguradora. Ver el comentario del modelo `LabRequisition`.
+   */
+  seguro: z.object({
+    nombre: z.string().trim().min(1).max(120),
+    poliza: z.string().trim().max(60).default(''),
+    direccion: z.string().trim().max(200).default(''),
+  }).optional(),
+});
+
+export interface SeguroHoja {
+  nombre: string;
+  poliza: string;
+  direccion: string;
+}
+
+/**
+ * Con qué seguro saldría la hoja si se emitiera ahora, y de dónde sale.
+ *
+ * `ULTIMA` gana sobre `CASO` a propósito: si la orden anterior de este caso se
+ * facturó a la membresía del paciente, la próxima arranca igual en vez de
+ * volver al seguro del accidente y obligar a re-tipear (Erick, 2026-09-12).
+ * Es una sugerencia, no una decisión: el encargado la ve y la confirma.
+ */
+async function seguroSugerido(
+  caseId: string | null,
+  delCaso: SeguroHoja | null,
+): Promise<{ seguro: SeguroHoja | null; origen: 'CASO' | 'ULTIMA' | null }> {
+  if (caseId) {
+    /*
+     * `lab_requisitions` no tiene caso: se llega por el grupo → los estudios →
+     * la cita. El join multiplica filas por estudio, pero con ORDER BY + LIMIT 1
+     * da igual: se quiere la más reciente, no contarlas.
+     */
+    const ultima = await db.$queryRaw<Array<{ nombre: string; poliza: string | null; direccion: string | null }>>`
+      SELECT lr."insuranceName" AS nombre,
+             lr."insurancePolicy" AS poliza,
+             lr."insuranceAddress" AS direccion
+        FROM lab_requisitions lr
+        JOIN lab_orders lo   ON lo."groupId" = lr."groupId"
+        JOIN appointments a  ON a.id = lo."appointmentId"
+       WHERE a."caseId" = ${caseId}
+         AND lr."insuranceName" IS NOT NULL
+         AND lr."insuranceName" <> ''
+         -- Las anuladas NO sugieren: si una hoja se anuló justamente porque el
+         -- seguro estaba mal, repetirlo sería volver a proponer el error.
+         AND lr."voidedAt" IS NULL
+       ORDER BY lr."generatedAt" DESC
+       LIMIT 1`;
+    const u = ultima[0];
+    if (u) return {
+      seguro: { nombre: u.nombre, poliza: u.poliza ?? '', direccion: u.direccion ?? '' },
+      origen: 'ULTIMA',
+    };
+  }
+  return delCaso ? { seguro: delCaso, origen: 'CASO' } : { seguro: null, origen: null };
+}
+
+/** El seguro del caso, en la forma que espera la hoja. */
+function seguroDeCase(c: {
+  primaryPolicyNumber: string | null;
+  primaryInsurance: { name: string; claimsAddress: string | null } | null;
+} | null): SeguroHoja | null {
+  if (!c?.primaryInsurance) return null;
+  return {
+    nombre: c.primaryInsurance.name,
+    poliza: c.primaryPolicyNumber ?? '',
+    // `claimsAddress` es un texto libre de una sola línea: va entero y ciudad,
+    // estado y ZIP quedan vacíos. Partirlo por comas sería adivinar dónde
+    // termina la calle, y una dirección mal partida es peor que una sin partir.
+    direccion: c.primaryInsurance.claimsAddress ?? '',
+  };
+}
 
 /** `C` = a la clínica · `X` = al seguro. Ver `lib/ereq-payload.ts`. */
 function letraFacturacion(billingType: string | null): 'C' | 'X' {
@@ -55,12 +138,21 @@ function fechaHojaLabCorp(d: Date): string {
 const fechaCorta = (d: Date) =>
   `${dosDigitos(d.getMonth() + 1)}/${dosDigitos(d.getDate())}/${d.getFullYear()}`;
 
+/**
+ * La requisición VIGENTE de un grupo, o `null`.
+ *
+ * `findFirst` y no `findUnique`: un grupo puede tener varias requisiciones a lo
+ * largo del tiempo —las anuladas se quedan como constancia— pero una sola sin
+ * anular. Esa unicidad la garantiza un índice parcial en la base; ver el
+ * comentario del modelo `LabRequisition`.
+ */
 async function estadoDeGrupo(groupId: string) {
-  return db.labRequisition.findUnique({
-    where: { groupId },
+  return db.labRequisition.findFirst({
+    where: { groupId, voidedAt: null },
     select: {
       number: true, generatedAt: true, generatedByName: true,
       documentId: true, billingType: true, providerName: true, providerNpi: true,
+      insuranceName: true, insurancePolicy: true,
     },
   });
 }
@@ -73,7 +165,42 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const groupId = req.nextUrl.searchParams.get('groupId');
   if (!groupId) return NextResponse.json({ error: 'MISSING_GROUP' }, { status: 400 });
 
-  return NextResponse.json({ requisicion: await estadoDeGrupo(groupId) });
+  const yaEsta = await estadoDeGrupo(groupId);
+  if (yaEsta) return NextResponse.json({ requisicion: yaEsta });
+
+  /*
+   * Todavía no emitida: se dice CON QUÉ saldría.
+   *
+   * Hasta hoy la hoja usaba el seguro del caso en silencio y nadie veía cuál
+   * hasta que el papel estaba impreso. Devolverlo acá es lo que le permite a la
+   * pantalla mostrarlo ANTES, que es cuando el encargado todavía puede
+   * preguntarle al paciente.
+   */
+  const estudios = await db.labOrder.findMany({
+    where: { appointmentId, groupId, status: { not: 'VOIDED' } },
+    select: { billingType: true },
+  });
+  const cita = await db.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      case: {
+        select: {
+          id: true, primaryPolicyNumber: true,
+          primaryInsurance: { select: { name: true, claimsAddress: true } },
+        },
+      },
+    },
+  });
+  const caso = cita?.case ?? null;
+  const { seguro, origen } = await seguroSugerido(caso?.id ?? null, seguroDeCase(caso));
+
+  return NextResponse.json({
+    requisicion: null,
+    facturacion: letraFacturacion(estudios[0]?.billingType ?? null),
+    seguro,
+    origen,
+    tieneCaso: !!caso,
+  });
 }
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
@@ -182,14 +309,32 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
    * póliza (medido 2026-09-11): lo que falta es el número, casi nunca el
    * nombre. Por eso la pantalla pide UN campo y no un formulario de seguro.
    */
+  /*
+   * El seguro ELEGIDO manda sobre el del caso.
+   *
+   * Si el encargado eligió otro —el seguro médico del paciente, o una membresía
+   * de otra clínica— se valida y se imprime ESE. El del caso sigue intacto: lo
+   * leen el HCFA, el libro mayor y el settlement, y cambiarlo desde acá movería
+   * plata en módulos que nadie está mirando en este momento.
+   */
+  const elegido: SeguroHoja | null = body.data.seguro
+    ? {
+        nombre: body.data.seguro.nombre,
+        poliza: body.data.seguro.poliza,
+        direccion: body.data.seguro.direccion,
+      }
+    : seguroDeCase(cita.case ?? null);
+
   if (facturacion === 'X') {
-    const poliza = (cita.case?.primaryPolicyNumber ?? '').trim();
-    const aseguradora = (cita.case?.primaryInsurance?.name ?? '').trim();
+    const poliza = (elegido?.poliza ?? '').trim();
+    const aseguradora = (elegido?.nombre ?? '').trim();
     if (!poliza || !aseguradora) {
       return NextResponse.json({
         error: 'SEGURO_INCOMPLETO',
-        // `null` cuando la cita no tiene caso: ahí no hay dónde cargar la
-        // póliza, y la pantalla tiene que decir eso y no ofrecer un campo.
+        // `null` cuando la cita no tiene caso: ahí no hay dónde GUARDAR la
+        // póliza en el caso, y la pantalla lo dice en vez de ofrecer el campo.
+        // (Elegir otro seguro solo para esta hoja sigue siendo posible: eso no
+        // se guarda en el caso sino en la requisición.)
         caseId: cita.case?.id ?? null,
         aseguradora: aseguradora || null,
         faltaPoliza: !poliza,
@@ -211,17 +356,17 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const indicacion = estudios.find((e) => e.clinicalIndication?.trim())?.clinicalIndication ?? '';
 
   /*
-   * El seguro del caso para el código. `claimsAddress` es un texto libre de una
-   * sola línea, así que va entero en el campo de dirección y los de ciudad,
-   * estado y ZIP quedan vacios: partirlo por comas seria adivinar donde termina
-   * la calle, y una direccion mal partida es peor que una sin partir.
+   * El seguro que va al código de barras: el ELEGIDO, que por defecto es el del
+   * caso. Ciudad, estado y ZIP quedan vacíos porque la dirección es un texto
+   * libre de una sola línea y partirla por comas sería adivinar dónde termina
+   * la calle — una dirección mal partida es peor que una sin partir.
    */
-  const seguroDelCaso = cita.case?.primaryInsurance
+  const seguroDeLaHoja = elegido
     ? {
-        nombre: cita.case.primaryInsurance.name,
-        direccion: cita.case.primaryInsurance.claimsAddress ?? '',
+        nombre: elegido.nombre,
+        direccion: elegido.direccion,
         ciudad: '', estado: '', zip: '',
-        poliza: cita.case.primaryPolicyNumber ?? '',
+        poliza: elegido.poliza,
       }
     : undefined;
 
@@ -264,7 +409,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       edadMeses: edad?.meses ?? 0,
       edadDias: edad?.dias ?? 0,
     },
-    seguro: seguroDelCaso,
+    seguro: seguroDeLaHoja,
     provider: {
       apellido: cita.provider!.lastName,
       nombre: cita.provider!.firstName,
@@ -368,6 +513,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       providerId: cita.provider!.id,
       providerName: `${cita.provider!.lastName}, ${cita.provider!.firstName}`,
       providerNpi: npi,
+      // La foto del seguro con el que salió esta hoja. Se guarda aunque sea el
+      // del caso: mañana el caso puede cambiar de aseguradora y este papel ya
+      // está en la calle con el nombre viejo adentro del código de barras.
+      insuranceName: elegido?.nombre || null,
+      insurancePolicy: elegido?.poliza || null,
+      insuranceAddress: elegido?.direccion || null,
       generatedById: actor.actorUserId,
       generatedByName: actor.actorName,
       documentId: doc?.id ?? null,
@@ -375,7 +526,19 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: {
       number: true, generatedAt: true, generatedByName: true,
       documentId: true, billingType: true, providerName: true, providerNpi: true,
+      insuranceName: true, insurancePolicy: true,
     },
+  });
+
+  /*
+   * Cierra el círculo con las anuladas: desde la hoja vieja se llega a la que la
+   * reemplazó sin tener que buscar por fecha. `updateMany` y no `update` porque
+   * un grupo puede haberse anulado más de una vez, y todas las que todavía no
+   * tienen reemplazo apuntan a esta.
+   */
+  await db.labRequisition.updateMany({
+    where: { groupId, voidedAt: { not: null }, replacedByNumber: null },
+    data: { replacedByNumber: numero },
   });
 
   await writeAuditLog(db, {
@@ -392,6 +555,11 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       documentId: doc?.id ?? null, appointmentId,
       // Deja constancia de por que esa hoja no esta en Documentos.
       sinCaso: caseId === null,
+      // Con qué seguro salió, y si fue el del caso o uno elegido a mano. Sin
+      // esto no hay forma de reconstruir por qué una hoja se facturó a alguien
+      // que no figura en el caso.
+      seguro: elegido?.nombre ?? null,
+      seguroElegidoAMano: !!body.data.seguro,
     },
   });
 

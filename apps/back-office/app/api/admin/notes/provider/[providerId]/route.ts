@@ -16,7 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { canAuditNotes } from '@/lib/notes-audit-access';
-import { getSessionRole, PORTAL_ONLY_ROLES } from '@/lib/get-session-provider';
+import { getSessionRole, PORTAL_ONLY_ROLES, getOwnSessionProvider } from '@/lib/get-session-provider';
 import {
   COVERAGE_FIELDS, resolveCoverage, serializeCoverage, type CoverageDTO,
 } from '@/lib/coverage';
@@ -118,7 +118,25 @@ export async function GET(
   const rol = await getSessionRole();
   const puedeSellar = !!rol && !PORTAL_ONLY_ROLES.has(rol);
 
+  /*
+   * ¿Las notas que se están mirando son las DEL QUE MIRA?
+   *
+   * Esta pantalla es de supervisión y por eso la firma nace apagada: nadie
+   * documenta un acto clínico en el que no estuvo. Pero la regla que se quiso
+   * poner era "no firmes la de OTRO", y estaba escrita como "no firmes, punto":
+   * un provider que abría su propio borrador acá tampoco podía cerrarlo, y
+   * tenía que salir a buscarlo a la cola de Mi Día (Erick, 2026-09-12).
+   *
+   * `getOwnSessionProvider` y no `getSessionProvider`: con "ver como doctor"
+   * activo, el segundo devuelve al doctor SUPLANTADO. Firmar en nombre de otro
+   * porque se está mirando su portal es exactamente lo que no queremos — y el
+   * servidor de la firma compara contra el email REAL, así que además la
+   * pantalla estaría prometiendo algo que el server niega.
+   */
+  const propio = await getOwnSessionProvider();
+  const esPropio = propio?.id === providerId;
+
   return NextResponse.json({
-    visitas, total: visitas.length, truncado: rows.length === LIMIT, puedeSellar,
+    visitas, total: visitas.length, truncado: rows.length === LIMIT, puedeSellar, esPropio,
   });
 }

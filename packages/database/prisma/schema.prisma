@@ -1510,7 +1510,21 @@ model LabRequisition {
   id String @id @default(cuid())
 
   /// Grupo de estudios que salen en esta hoja.
-  groupId String @unique
+  ///
+  /// ⚠️ NO lleva `@unique` acá, pero SÍ es único en la base — con un índice
+  /// PARCIAL que Prisma no sabe expresar:
+  ///
+  ///     CREATE UNIQUE INDEX ... ON lab_requisitions("groupId")
+  ///       WHERE "voidedAt" IS NULL;
+  ///
+  /// Un grupo puede tener VARIAS requisiciones a lo largo del tiempo —las
+  /// anuladas quedan— pero **una sola vigente**. Sacar el `@unique` a secas
+  /// habría dejado emitir dos hojas vivas para el mismo grupo, que es justo lo
+  /// que la unicidad estaba cuidando. Ver `20260912-lab-requisicion-anular.sql`.
+  ///
+  /// Por eso las lecturas van con `findFirst({ where: { groupId, voidedAt: null } })`
+  /// y nunca con `findUnique`.
+  groupId String
 
   /// `#######-PM`, el mismo formato que emite MedUSA hoy. Sale de la secuencia
   /// `lab_requisition_seq`, en un RANGO DISTINTO del de ellos para que nunca
@@ -1528,6 +1542,24 @@ model LabRequisition {
   providerName String?
   providerNpi  String?
 
+  /// Snapshot del SEGURO con el que se emitió esta hoja, por el mismo motivo
+  /// que el prescriptor: es lo que quedó impreso y lo que viaja en el código de
+  /// barras.
+  ///
+  /// Vive acá y NO en el caso a propósito. El seguro del caso (`primaryInsurance`)
+  /// lo leen el HCFA, el libro mayor, el settlement y facturación —12 rutas— y es
+  /// el del accidente. Este es "quién paga ESTA orden", que puede ser otro: el
+  /// paciente elige su seguro médico, o una membresía de otra clínica que
+  /// funciona como seguro (Erick, 2026-09-12).
+  ///
+  /// Texto libre y no una relación a `InsuranceCarrier`: LabCorp no valida contra
+  /// ningún catálogo —en el código de barras el seguro son tres strings— y una
+  /// membresía no es una aseguradora. Obligar a elegir del catálogo llenaría de
+  /// fichas inventadas uno que ya tiene 220 de 351 marcadas como "OTHER".
+  insuranceName    String?
+  insurancePolicy  String?
+  insuranceAddress String?
+
   generatedAt     DateTime @default(now())
   generatedById   String?
   generatedByName String?
@@ -1536,7 +1568,27 @@ model LabRequisition {
   /// ve en Documentos del paciente y del caso sin generar nada dos veces.
   documentId String?
 
+  /// ── ANULACIÓN ────────────────────────────────────────────────────────────
+  ///
+  /// La hoja se emite con un número que ya salió impreso, así que corregir un
+  /// error no es editar: es ANULAR y volver a emitir con un número nuevo. El
+  /// viejo NO se reusa — puede estar en una muestra o en el mostrador del
+  /// laboratorio, y dos hojas distintas con el mismo número no identifican nada.
+  ///
+  /// La fila anulada se queda. Es la constancia de que ese número existió, quién
+  /// lo anuló y por qué; borrarla escondería un papel que puede estar circulando.
+  voidedAt     DateTime?
+  voidedById   String?
+  voidedByName String?
+  /// Por qué se anuló, en las palabras de quien la anuló. Sirve en el mostrador
+  /// cuando el laboratorio pregunta por qué le llegó una hoja anulada.
+  voidReason   String?
+  /// El número que la reemplazó, si se volvió a emitir. Cierra el círculo: desde
+  /// la anulada se llega a la buena sin buscar por fecha.
+  replacedByNumber String?
+
   @@index([generatedAt])
+  @@index([groupId])
   @@map("lab_requisitions")
 }
 

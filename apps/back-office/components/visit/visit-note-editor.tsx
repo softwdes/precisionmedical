@@ -17,7 +17,9 @@ import { localeApp } from '@/lib/fechas';
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Button } from '@precision/ui';
+import {
+  Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
   Stethoscope, Unlock, Scissors, LogOut, BellRing,
@@ -291,6 +293,15 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   const [confirmClear, setConfirmClear] = React.useState(false);
   const [dxPickerMode, setDxPickerMode] = React.useState<'ICD10' | 'SNOMED' | null>(null);
   const [confirmSign, setConfirmSign] = React.useState(false);
+  /** El aviso de "salís sin firmar" antes de cerrar. */
+  const [preguntarFirma, setPreguntarFirma] = React.useState(false);
+  /**
+   * La firma vino del botón "Firmar y salir": al terminar hay que SALIR, no
+   * quedarse en la nota. Sin esto el doctor firmaba y seguía mirando la misma
+   * pantalla, teniendo que apretar salir otra vez — que es justo el paso de más
+   * que este diálogo vino a sacar.
+   */
+  const [salirTrasFirmar, setSalirTrasFirmar] = React.useState(false);
   const [signing, setSigning] = React.useState(false);
 
   // Ref con el estado más reciente para que el autosave no capture valores viejos
@@ -719,7 +730,18 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
    *
    * Con la nota en solo lectura no hay nada que guardar y sale directo.
    */
-  const guardarYSalir = async (): Promise<void> => {
+  /**
+   * ¿Tiene algo escrito?
+   *
+   * Mismo criterio que el servidor de la firma, que rechaza una nota vacía
+   * (`NOTE_EMPTY`): se quitan las etiquetas y se mira si queda texto. Sirve para
+   * NO preguntarle a nadie si quiere firmar una nota en blanco — sería ofrecer
+   * un botón que el server va a rechazar.
+   */
+  const tieneContenido = (['chiefComplaint', 'hpi', 'assessment', 'plan'] as const)
+    .some((k) => (content[k] ?? '').replace(/<[^>]*>/g, '').trim().length > 0);
+
+  const salirDeVerdad = async (): Promise<void> => {
     if (!onSaveExit) return;
     if (!soloLectura && dirty) {
       setSaliendo(true);
@@ -728,6 +750,26 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       if (!ok) return;
     }
     onSaveExit();
+  };
+
+  /**
+   * Salir con la nota sin firmar no es un error, pero sí es una decisión.
+   *
+   * Antes se salía derecho y la nota quedaba en borrador sin que nadie dijera
+   * nada; la levantaba después la cola de notas sin cerrar, a veces semanas
+   * más tarde. Preguntar acá es el momento en que el doctor todavía tiene la
+   * visita fresca (Erick, 2026-09-12).
+   *
+   * Solo se pregunta si la puede firmar ÉL y hay algo escrito. Al asistente —que
+   * no firma— y a una nota en blanco se sale sin molestarlos.
+   */
+  const guardarYSalir = async (): Promise<void> => {
+    if (!onSaveExit) return;
+    if (!soloLectura && canSign && !isSigned && tieneContenido) {
+      setPreguntarFirma(true);
+      return;
+    }
+    await salirDeVerdad();
   };
 
   const handleSign = async (): Promise<void> => {
@@ -745,6 +787,13 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         return;
       }
       setConfirmSign(false);
+      if (salirTrasFirmar) {
+        setSalirTrasFirmar(false);
+        // Ya está firmada y guardada: se sale directo, sin pasar por
+        // `guardarYSalir` (que volvería a preguntar por la firma).
+        onSaveExit?.();
+        return;
+      }
       router.refresh();
     } catch {
       setError(t('noteSignError'));
@@ -890,7 +939,11 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         * trabajando en la misma nota. El rose se reserva para lo que exige
         * actuar (ver la regla de las alertas de vitales).
         */}
-      {bloqueadaPorOtro && !isSigned && (
+      {/* `!candado.soltado && !candado.cedida`: al soltarse —por los 10 minutos
+          o a propósito— el candado queda en `mio: false` SIN dueño, y sin esta
+          guarda salía este cartel diciendo "— está editando desde —" al lado del
+          que explica que se soltó. Dos carteles, y el primero mentía. */}
+      {bloqueadaPorOtro && !isSigned && !candado.soltado && !candado.cedida && (
         <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex flex-col sm:flex-row sm:items-center gap-2">
           <span className="flex items-start gap-1.5 flex-1">
             <Lock className="w-3.5 h-3.5 shrink-0 mt-[1px]" />
@@ -932,9 +985,31 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       {/* Al que TIENE la nota: llega en la respuesta de su propio latido, así que
           aparece acá sin ningún canal nuevo. */}
       {candado.mio === true && candado.esperando && (
-        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex items-center gap-1.5">
-          <BellRing className="w-3.5 h-3.5 shrink-0" />
-          {t('noteLockWanted', { name: candado.esperando.nombre ?? '—' })}
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="flex items-start gap-1.5 flex-1">
+            <BellRing className="w-3.5 h-3.5 shrink-0 mt-[1px]" />
+            {t('noteLockWanted', { name: candado.esperando.nombre ?? '—' })}
+          </span>
+          {/* Cierra el círculo del aviso: sin este botón, el único modo de
+              cederla era salir de la pantalla. Soltar NO es lo mismo que
+              perderla: el texto ya está guardado (autoguardado cada 2,5 s) y
+              quien suelta se queda mirándola en solo lectura. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => candado.soltar()}
+            className="h-8 gap-1.5 shrink-0 w-full sm:w-auto"
+          >
+            <Unlock className="w-3.5 h-3.5" /> {t('noteLockRelease')}
+          </Button>
+        </div>
+      )}
+
+      {/* La soltó a propósito. Distinto del vencimiento por inactividad: acá fue
+          una decisión, y el mensaje lo dice para que no parezca que se cayó. */}
+      {candado.cedida && (
+        <div className="rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2.5 text-[11.5px] text-cyan flex items-center gap-1.5">
+          <Unlock className="w-3.5 h-3.5 shrink-0" /> {t('noteLockGaveUp')}
         </div>
       )}
 
@@ -1214,6 +1289,47 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           onCancel={() => setTplPorConfirmar(null)}
         />
       )}
+      {/*
+        * Salir con la nota abierta: se pregunta, no se asume.
+        *
+        * Tres salidas y no dos, porque las tres son cosas distintas: firmar,
+        * dejarla abierta a propósito, o volver a la nota. Un ConfirmDialog
+        * obligaría a que cerrar el diálogo signifique una de ellas, y "me
+        * equivoqué de botón" terminaría saliendo de la nota.
+        */}
+      <Dialog open={preguntarFirma} onOpenChange={(v) => { if (!v) setPreguntarFirma(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('noteExitUnsignedTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="px-4 sm:px-6 pb-1 text-[12.5px] leading-relaxed text-text-2">
+            {t('noteExitUnsignedBody')}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              onClick={() => { setPreguntarFirma(false); setSalirTrasFirmar(true); setConfirmSign(true); }}
+              className="w-full sm:w-auto gap-1.5"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> {t('noteExitSignNow')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setPreguntarFirma(false); void salirDeVerdad(); }}
+              className="w-full sm:w-auto"
+            >
+              {t('noteExitLeaveOpen')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setPreguntarFirma(false)}
+              className="text-[11px] font-semibold text-text-muted hover:underline sm:mr-auto"
+            >
+              {t('noteExitKeepEditing')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {confirmSign && (
         <ConfirmDialog
           open
@@ -1221,7 +1337,10 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           description={t('noteSignConfirm')}
           confirmLabel={t('noteFinish')}
           onConfirm={() => void handleSign()}
-          onCancel={() => setConfirmSign(false)}
+          // Arrepentirse de la confirmación también cancela el "y salir": si no,
+          // la próxima firma —hecha desde el botón normal— saldría de la nota
+          // sola, sin que nadie se lo haya pedido.
+          onCancel={() => { setConfirmSign(false); setSalirTrasFirmar(false); }}
         />
       )}
 

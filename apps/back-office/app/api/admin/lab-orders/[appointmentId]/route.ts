@@ -270,8 +270,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
    * ya lo tiene o lo va a tener: cambiar quién paga de este lado dejaría la
    * hoja diciendo una cosa y la base otra. Se anula y se emite de nuevo.
    */
-  const emitida = await db.labRequisition.findUnique({
-    where: { groupId: body.groupId },
+  // La VIGENTE. Una anulada no frena nada: el grupo volvió a estar sin emitir.
+  const emitida = await db.labRequisition.findFirst({
+    where: { groupId: body.groupId, voidedAt: null },
     select: { number: true },
   });
   if (emitida) {

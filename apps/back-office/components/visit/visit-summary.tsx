@@ -38,6 +38,33 @@ interface ReqEstado {
   generatedAt: string;
   generatedByName: string | null;
   documentId: string | null;
+  /** Con qué seguro salió. Es la foto del momento, no el seguro de hoy del caso. */
+  insuranceName?: string | null;
+  insurancePolicy?: string | null;
+}
+
+/** Un seguro tal como va a la hoja. Texto libre: puede ser una membresía. */
+interface SeguroHoja {
+  nombre: string;
+  poliza: string;
+  direccion: string;
+}
+
+/**
+ * Con qué saldría la hoja de un grupo que TODAVÍA no se emitió.
+ *
+ * Hasta hoy esto no se mostraba: la hoja usaba el seguro del caso en silencio y
+ * nadie veía cuál hasta que el papel salía impreso. Mostrarlo antes es lo que le
+ * permite al encargado preguntarle al paciente —"¿lo cargamos a este seguro o a
+ * otro?"— con tiempo de cambiarlo (Erick, 2026-09-12).
+ */
+interface SeguroPrevio {
+  /** `X` = lo paga un tercero (ahí importa cuál). `C` = lo paga la clínica. */
+  facturacion: 'C' | 'X';
+  seguro: SeguroHoja | null;
+  /** `ULTIMA` = el de la orden anterior de este caso · `CASO` = el del caso. */
+  origen: 'CASO' | 'ULTIMA' | null;
+  tieneCaso: boolean;
 }
 
 /**
@@ -402,6 +429,22 @@ export function VisitSummary({
    * póliza" deja al asistente sin saber dónde se carga, y así fue como este
    * dato terminó en el 2% de los casos con seguro. Acá se carga sin salir.
    */
+  /** Con qué saldría cada grupo todavía no emitido. */
+  const [previo, setPrevio] = React.useState<Record<string, SeguroPrevio>>({});
+  /**
+   * El seguro que el encargado eligió A MANO para un grupo, cuando el paciente
+   * dijo que lo paga con otro. Estado aparte del sugerido: así se distingue
+   * "esto es lo que había" de "esto lo eligió alguien", y solo lo elegido viaja
+   * en el POST.
+   */
+  const [seguroElegido, setSeguroElegido] = React.useState<Record<string, SeguroHoja>>({});
+  /** El grupo cuyo seguro se está editando ahora, o `null`. */
+  const [editandoSeguro, setEditandoSeguro] = React.useState<string | null>(null);
+  /** El grupo cuya hoja se está por anular, y el motivo que se está tipeando. */
+  const [anulando, setAnulando] = React.useState<string | null>(null);
+  const [motivoAnular, setMotivoAnular] = React.useState('');
+  const [formSeguro, setFormSeguro] = React.useState<SeguroHoja>({ nombre: '', poliza: '', direccion: '' });
+
   const [bloqueoSeguro, setBloqueoSeguro] = React.useState<BloqueoSeguro | null>(null);
   const [poliza, setPoliza] = React.useState('');
   const [guardandoSeguro, setGuardandoSeguro] = React.useState(false);
@@ -420,8 +463,22 @@ export function VisitSummary({
       if (requis[g] !== undefined) continue;
       fetch(`/api/admin/lab-orders/${appointmentId}/requisition?groupId=${encodeURIComponent(g)}`)
         .then((r) => (r.ok ? r.json() : { requisicion: null }))
-        .then((d: { requisicion: ReqEstado | null }) => {
-          if (vivo) setRequis((p) => ({ ...p, [g]: d.requisicion ?? null }));
+        .then((d: { requisicion: ReqEstado | null } & Partial<SeguroPrevio>) => {
+          if (!vivo) return;
+          setRequis((p) => ({ ...p, [g]: d.requisicion ?? null }));
+          // Solo cuando NO está emitida: en una ya emitida el seguro que vale
+          // es el que quedó impreso, y ese viene dentro de `requisicion`.
+          if (!d.requisicion && d.facturacion) {
+            setPrevio((p) => ({
+              ...p,
+              [g]: {
+                facturacion: d.facturacion!,
+                seguro: d.seguro ?? null,
+                origen: d.origen ?? null,
+                tieneCaso: d.tieneCaso ?? false,
+              },
+            }));
+          }
         })
         .catch(() => { if (vivo) setRequis((p) => ({ ...p, [g]: null })); });
     }
@@ -436,7 +493,9 @@ export function VisitSummary({
       const res = await fetch(`/api/admin/lab-orders/${appointmentId}/requisition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId }),
+        // El seguro solo viaja si alguien lo eligió a mano: si no, la ruta usa
+        // el del caso, que es lo que venía haciendo siempre.
+        body: JSON.stringify({ groupId, seguro: seguroElegido[groupId] }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -472,6 +531,39 @@ export function VisitSummary({
       setErrorReq(t('labReqError'));
     } finally {
       setGenerando(null);
+    }
+  }
+
+  /**
+   * Anula la hoja emitida de un grupo.
+   *
+   * No emite la nueva: deja el grupo "sin emitir" y el botón de Generar vuelve
+   * solo. Es a propósito — casi siempre se anula para cambiar algo (el seguro,
+   * el prescriptor), y reemitir de una sacaría otro número con los mismos datos
+   * malos. El que anula ahora corrige y después emite.
+   */
+  async function anularOrden(groupId: string): Promise<void> {
+    if (motivoAnular.trim().length < 3) return;
+    setGuardandoSeguro(true);
+    setErrorReq(null);
+    try {
+      const res = await fetch(`/api/admin/lab-orders/${appointmentId}/requisition/void`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId, motivo: motivoAnular.trim() }),
+      });
+      if (!res.ok) { setErrorReq(t('labReqError')); return; }
+      setAnulando(null);
+      setMotivoAnular('');
+      // El grupo vuelve a "no se preguntó": el efecto lo consulta de nuevo y
+      // trae el estado sin emitir, con su seguro sugerido.
+      setRequis((p) => { const n = { ...p }; delete n[groupId]; return n; });
+      setPrevio((p) => { const n = { ...p }; delete n[groupId]; return n; });
+      router.refresh();
+    } catch {
+      setErrorReq(t('labReqError'));
+    } finally {
+      setGuardandoSeguro(false);
     }
   }
 
@@ -1081,6 +1173,173 @@ export function VisitSummary({
             ))}
           </div>
         )}
+        {/*
+          * QUIÉN PAGA LA HOJA, dicho antes de emitirla.
+          *
+          * Solo en las órdenes que paga un tercero: en una CLIENT paga la
+          * clínica y no hay nada que elegir. Es la línea que le permite al
+          * encargado preguntarle al paciente "¿lo cargamos a este seguro o a
+          * otro?" mientras todavía se puede cambiar.
+          */}
+        {isAssistant && printGroups.map((g, i) => {
+          const req = requis[g];
+          const pv = previo[g];
+          const sufijo = printGroups.length > 1 ? ` ${i + 1}` : '';
+
+          /*
+           * Emitida: se dice con qué SALIÓ, y se ofrece ANULAR.
+           *
+           * No se ofrece "cambiar": el papel ya está impreso y puede estar
+           * pegado en una muestra. Corregir es anular esa hoja y emitir otra con
+           * un número nuevo, que es lo que hace este botón.
+           */
+          if (req) {
+            if (anulando === g) {
+              return (
+                <div key={g} className="mt-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2.5 space-y-2">
+                  <div className="text-[11.5px] font-semibold text-rose">
+                    {t('labReqAnularTitulo', { number: req.number })}
+                  </div>
+                  <div className="text-[11px] leading-relaxed text-rose/90">{t('labReqAnularAviso')}</div>
+                  <input
+                    value={motivoAnular}
+                    onChange={(e) => setMotivoAnular(e.target.value)}
+                    placeholder={t('labReqAnularMotivo')}
+                    maxLength={300}
+                    autoFocus
+                    className="w-full h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 placeholder:text-text-muted outline-none focus:ring-1 focus:ring-rose/40"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      onClick={() => void anularOrden(g)}
+                      disabled={motivoAnular.trim().length < 3 || guardandoSeguro}
+                      className="w-full sm:w-auto"
+                    >
+                      {t('labReqAnularConfirmar')}
+                    </Button>
+                    <Button variant="outline" onClick={() => setAnulando(null)} className="w-full sm:w-auto">
+                      {t('labReqSeguroCancelar')}
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={g} className="mt-2 flex items-center gap-2 flex-wrap text-[11px] text-text-muted">
+                <span>
+                  {req.insuranceName
+                    ? t('labReqSeguroEmitidaCon', {
+                        orden: `${req.number}${sufijo}`,
+                        carrier: req.insuranceName,
+                        poliza: req.insurancePolicy || '—',
+                      })
+                    : t('labReqEmitidaClinica', { orden: `${req.number}${sufijo}` })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setMotivoAnular(''); setAnulando(g); }}
+                  className="font-semibold text-rose hover:underline"
+                >
+                  {t('labReqAnular')}
+                </button>
+              </div>
+            );
+          }
+          if (!pv || pv.facturacion !== 'X') return null;
+
+          const actual = seguroElegido[g] ?? pv.seguro;
+          const editando = editandoSeguro === g;
+
+          if (editando) {
+            return (
+              <div key={g} className="mt-2 rounded-md bg-bg-2/40 p-3 space-y-2">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {t('labReqSeguroTitulo')}
+                </div>
+                {/* Una columna en el teléfono: son dos campos de texto y
+                    apretarlos al lado no entra en 375px. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    value={formSeguro.nombre}
+                    onChange={(e) => setFormSeguro((f) => ({ ...f, nombre: e.target.value }))}
+                    placeholder={t('labReqSeguroNombre')}
+                    maxLength={120}
+                    autoFocus
+                    className="h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 placeholder:text-text-muted outline-none focus:ring-1 focus:ring-violet/40"
+                  />
+                  <input
+                    value={formSeguro.poliza}
+                    onChange={(e) => setFormSeguro((f) => ({ ...f, poliza: e.target.value }))}
+                    placeholder={t('labReqSeguroPoliza')}
+                    maxLength={60}
+                    className="h-9 rounded-md bg-bg-2 px-3 text-sm text-text-1 placeholder:text-text-muted outline-none focus:ring-1 focus:ring-violet/40"
+                  />
+                </div>
+                <div className="text-[10.5px] leading-relaxed text-text-muted">
+                  {t('labReqSeguroAyuda')}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={() => {
+                      setSeguroElegido((p) => ({ ...p, [g]: { ...formSeguro } }));
+                      setEditandoSeguro(null);
+                    }}
+                    disabled={!formSeguro.nombre.trim() || !formSeguro.poliza.trim()}
+                    className="w-full sm:w-auto"
+                  >
+                    {t('labReqSeguroGuardar')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditandoSeguro(null)} className="w-full sm:w-auto">
+                    {t('labReqSeguroCancelar')}
+                  </Button>
+                  {/* Solo si hay algo que deshacer. */}
+                  {seguroElegido[g] && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSeguroElegido((p) => { const n = { ...p }; delete n[g]; return n; });
+                        setEditandoSeguro(null);
+                      }}
+                      className="text-[11px] font-semibold text-text-muted hover:underline sm:ml-auto"
+                    >
+                      {t('labReqSeguroVolverAlCaso')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={g} className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
+              <span className="text-text-muted">{t('labReqSeFacturaA')}{sufijo}:</span>
+              {actual ? (
+                <span className="text-text-2 font-semibold">
+                  {actual.nombre}
+                  {actual.poliza && <span className="text-text-muted font-normal"> · {actual.poliza}</span>}
+                </span>
+              ) : (
+                <span className="text-amber font-semibold">{t('labReqSeguroNinguno')}</span>
+              )}
+              {/* De dónde salió la sugerencia. Sin esto, "AAA" aparece solo y
+                  nadie sabe si lo eligió alguien o lo puso el sistema. */}
+              {!seguroElegido[g] && pv.origen === 'ULTIMA' && (
+                <span className="text-text-muted">({t('labReqSeguroDeUltima')})</span>
+              )}
+              {seguroElegido[g] && <TagPill label={t('labReqSeguroElegido')} colorClass="bg-violet/15 text-violet-text border-violet/30" />}
+              <button
+                type="button"
+                onClick={() => {
+                  setFormSeguro(actual ? { ...actual } : { nombre: '', poliza: '', direccion: '' });
+                  setEditandoSeguro(g);
+                }}
+                className="font-semibold text-violet-text hover:underline"
+              >
+                {t('labReqCambiarSeguro')}
+              </button>
+            </div>
+          );
+        })}
         {/* El motivo va DENTRO de la tarjeta, debajo de los estudios: el botón
             vive en la cabecera y un error ahí arriba se pierde entre acciones. */}
         {errorReq && (

@@ -29,8 +29,16 @@ import { useTranslations } from 'next-intl';
  * montarse. `session` y no `local` a propósito: si el navegador se cierra con la
  * marca puesta, no queremos que el saludo salte solo en la próxima sesión.
  */
-export const EVENTO_ABRIR = 'cifo:abrir-saludo';
-export const MARCA_ABRIR = 'cifo:abrir-al-llegar';
+/**
+ * Se IMPORTAN y se reexportan: un `export … from` suelto publica los nombres
+ * pero no los trae al ámbito de este archivo, y acá abajo se usan los dos.
+ *
+ * La reexportación se queda para no romper a quien los importaba desde este
+ * archivo, que era su casa hasta que el saludo se mudó al paquete.
+ */
+import { EVENTO_ABRIR, MARCA_ABRIR } from '@precision-medical/agente/saludo';
+export { EVENTO_ABRIR, MARCA_ABRIR };
+
 
 export function CifoButton({ destino }: {
   /**

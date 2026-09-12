@@ -1,9 +1,10 @@
 import { puedePreguntarACifo } from '@/lib/cifo/acceso';
-import { visitasDelDia } from '@/lib/cifo/phoenix';
+import { visitasDelDia, claveDia } from '@/lib/cifo/phoenix';
 import { cajasBajoMinimo } from '@/lib/audit/cajas-bajo-minimo';
 import { createAdminClient } from '@precision-medical/auth';
 import { CifoBox } from './cifo-box';
 import { CifoAviso } from './cifo-aviso';
+import { CifoSaludoAdmin } from './cifo-saludo-admin';
 
 /**
  * El bloque de CIFO en el panel del Admin: el aviso del día y la caja.
@@ -34,8 +35,25 @@ export async function CifoPanel(): Promise<React.ReactElement | null> {
     cajasBajoMinimo(createAdminClient()).catch(() => []),
   ]);
 
+  const cajasVista = cajas.map((c) => ({
+    nombre: c.name, moneda: c.currency, saldo: c.balance, falta: c.falta,
+  }));
+
   return (
     <div className="space-y-3">
+      {/* El muñeco que saluda al cargar. Se decide solo si le toca aparecer hoy
+          (una vez por día por persona) y si no, no devuelve nada. */}
+      <CifoSaludoAdmin
+        datos={{
+          hoy: claveDia(new Date()),
+          visitas: visitas && {
+            dia: visitas.dia, esHoy: visitas.esHoy,
+            total: visitas.total, porClinica: visitas.porClinica,
+          },
+          cajas: cajasVista,
+        }}
+      />
+
       <CifoAviso
         visitas={visitas && {
           dia: visitas.dia,

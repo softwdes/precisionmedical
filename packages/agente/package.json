@@ -7,10 +7,13 @@
     ".": "./src/index.ts",
     "./tipos": "./src/tipos.ts",
     "./lazo": "./src/lazo.ts",
-    "./use-preguntar": "./src/use-preguntar.ts"
+    "./use-preguntar": "./src/use-preguntar.ts",
+    "./saludo": "./src/saludo.tsx"
   },
   "dependencies": {
-    "openai": "^7.5.0"
+    "openai": "^7.5.0",
+    "next-intl": "^3.21.1",
+    "lucide-react": "^0.460.0"
   },
   "devDependencies": {
     "@precision-medical/tsconfig": "workspace:*",

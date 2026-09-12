@@ -1,5 +1,7 @@
 import { createAdminClient } from '@precision-medical/auth';
 import { sendAuditAlertEmail } from '@precision-medical/api';
+import { cajasBajoMinimo } from './cajas-bajo-minimo';
+import { MODELO_CIFO_ADMIN } from '@/lib/cifo/agente';
 
 interface FindingInsert {
   severity: 'critical' | 'warning' | 'info';
@@ -60,24 +62,10 @@ export async function runAuditScan(
     //   - solo cajas "aperturadas" con >=1 transaccion
     //   Cajas desactivadas o recien creadas sin uso NO son hallazgos
     //   validos y disparaban falsos positivos al auditor.
-    (async () => {
-      const { data: boxes } = await supabase
-        .from('cash_boxes')
-        .select('id, name, currency, balance, lowBalanceThreshold')
-        .eq('is_active', true);
-      const below = (boxes ?? []).filter(
-        (b: { balance: number; lowBalanceThreshold: number }) =>
-          Number(b.balance) < Number(b.lowBalanceThreshold),
-      );
-      if (below.length === 0) return [];
-      const ids = below.map((b: { id: string }) => b.id);
-      const { data: txData } = await supabase
-        .from('cash_transactions')
-        .select('cashBoxId')
-        .in('cashBoxId', ids);
-      const seen = new Set((txData ?? []).map((t: { cashBoxId: string }) => t.cashBoxId));
-      return below.filter((b: { id: string }) => seen.has(b.id));
-    })(),
+    // La regla se mudó a `cajas-bajo-minimo.ts` (2026-09-12) SIN cambiarla: las
+    // dos guardas de arriba son las mismas, y ahora las comparte la herramienta
+    // de CIFO. Una segunda copia se habría separado de esta en el primer cambio.
+    cajasBajoMinimo(supabase),
 
     // CHECK 2 + 3: Duplicate payments within 24h for same employee / amount / period
     supabase
@@ -188,11 +176,28 @@ export async function runAuditScan(
     }
   }
 
-  // ── AI enrichment via OpenRouter (non-fatal) ──────────────
-
-  if (process.env.AI_PROVIDER === 'openrouter' && process.env.OPENROUTER_API_KEY) {
+  /**
+   * ── El resumen redactado, al MISMO proveedor que CIFO (no fatal) ──────────
+   *
+   * Antes esto llamaba a OpenRouter con `poolside/laguna-m.1:free`, un modelo
+   * que fue **retirado del catálogo** (verificado el 2026-09-12 contra los 445
+   * disponibles: no está). O sea que esta llamada fallaba TODOS LOS DÍAS desde
+   * hace meses y caía en el `catch` vacío de abajo, sin dejar rastro.
+   *
+   * Nadie lo notó porque lo importante seguía llegando: las detecciones son
+   * reglas SQL y no dependen del modelo, así que el correo y la campana
+   * funcionaban. Lo único que faltaba era este párrafo.
+   *
+   * Ahora usa la misma clave y el mismo modelo que CIFO. Con eso muere el último
+   * modelo fantasma del sistema, y el día que se cambie el modelo se cambia en
+   * un solo lugar.
+   *
+   * Sigue siendo NO FATAL a propósito: si el proveedor no contesta, el auditor
+   * entrega sus hallazgos igual. El resumen es un adorno útil, no el trabajo.
+   */
+  if (process.env.OPENAI_API_KEY) {
     try {
-      const model = process.env.OPENROUTER_MODEL ?? 'poolside/laguna-m.1:free';
+      const model = MODELO_CIFO_ADMIN;
       const summary =
         findings.length > 0
           ? findings.map(f => `[${f.severity.toUpperCase()}][${f.module}] ${f.description}`).join('\n')
@@ -203,18 +208,16 @@ export async function runAuditScan(
           ? `Eres un auditor financiero de una clínica médica. Analiza estos hallazgos y proporciona un resumen de riesgo en 2 oraciones en español:\n${summary}`
           : 'Eres un auditor financiero. No se detectaron anomalías en el escaneo rutinario. Confirma brevemente en 1 oración en español.';
 
-      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.precisionmedicalcare.com',
-          'X-Title': 'Precision Medical Audit Agent',
         },
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 200,
+          max_completion_tokens: 200,
         }),
       });
 

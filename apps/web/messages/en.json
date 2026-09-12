@@ -415,14 +415,18 @@
     "sentryDesc": "Error monitoring"
   },
   "cifo": {
-    "greeting": "Hi Erick, I'm CIFO. I'm ready to help you.",
-    "placeholder": "Ask me something...",
-    "thinking": "Thinking...",
-    "listening": "Listening...",
-    "mute": "Mute",
-    "unmute": "Unmute",
-    "close": "Close CIFO",
-    "open": "Open CIFO"
+    "label": "CIFO",
+    "placeholder": "Ask about cash boxes, payments or visits…",
+    "ask": "Ask",
+    "notConfigured": "The provider key is not set up. Let the tech team know.",
+    "scope": "Scope: company money and clinic workload · no patient data",
+    "error": "I could not answer this time. Please try again.",
+    "action": {
+      "verCajas": "Open cash boxes",
+      "verPagos": "Open payments",
+      "verFreelancers": "Open freelancers",
+      "verBilleteras": "Open wallets"
+    }
   },
   "notifications": {
     "title": "Notifications",

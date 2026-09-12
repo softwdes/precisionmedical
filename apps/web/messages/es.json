@@ -415,14 +415,18 @@
     "sentryDesc": "Monitoreo de errores"
   },
   "cifo": {
-    "greeting": "Hola Erick, soy CIFO. Estoy listo para ayudarte.",
-    "placeholder": "Pregúntame algo...",
-    "thinking": "Pensando...",
-    "listening": "Escuchando...",
-    "mute": "Silenciar",
-    "unmute": "Activar sonido",
-    "close": "Cerrar CIFO",
-    "open": "Abrir CIFO"
+    "label": "CIFO",
+    "placeholder": "Preguntale sobre las cajas, los pagos o las visitas…",
+    "ask": "Preguntar",
+    "notConfigured": "Falta configurar la clave del proveedor. Avisale al equipo técnico.",
+    "scope": "Alcance: la plata de la empresa y el volumen de las clínicas · sin datos de pacientes",
+    "error": "No pude contestar esta vez. Probá de nuevo.",
+    "action": {
+      "verCajas": "Ver las cajas",
+      "verPagos": "Ver los pagos",
+      "verFreelancers": "Ver freelancers",
+      "verBilleteras": "Ver billeteras"
+    }
   },
   "notifications": {
     "title": "Notificaciones",

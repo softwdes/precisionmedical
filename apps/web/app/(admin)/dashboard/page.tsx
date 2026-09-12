@@ -1,3 +1,4 @@
+import { CifoPanel } from './cifo-panel';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
@@ -50,6 +51,9 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
 
   return (
     <>
+      {/* CIFO arriba de todo: el volumen del día manda sobre el resto del panel. */}
+      <CifoPanel />
+
       <DashboardClient
         kpis={unwrap(kpis, null)}
         activity={unwrap(activity, [])}

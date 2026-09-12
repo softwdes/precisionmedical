@@ -1,0 +1,21 @@
+{
+  "name": "@precision-medical/agente",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tipos": "./src/tipos.ts",
+    "./lazo": "./src/lazo.ts",
+    "./use-preguntar": "./src/use-preguntar.ts"
+  },
+  "dependencies": {
+    "openai": "^7.5.0"
+  },
+  "devDependencies": {
+    "@precision-medical/tsconfig": "workspace:*",
+    "react": "^19.0.0",
+    "typescript": "^5.6.3",
+    "@types/react": "^19.0.0"
+  }
+}

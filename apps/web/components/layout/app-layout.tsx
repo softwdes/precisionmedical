@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
-import { CifoChat } from './cifo-chat';
 import { BottomNav } from './bottom-nav';
 import { RoleProvider } from '@/contexts/role-context';
 import type { Role } from '@/lib/permissions';
@@ -63,7 +62,6 @@ export function AppLayout({
           </main>
         </div>
 
-        <CifoChat />
 
         {/* Bottom nav estilo app nativa — solo en movil (<md). El boton
             "Mas" reusa el mismo toggle del sidebar drawer. */}

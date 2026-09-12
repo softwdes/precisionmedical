@@ -75,13 +75,22 @@ export function CifoSaludoProvider({ datos }: { datos: DatosSaludoProvider }): R
   }
 
   /**
-   * El día. Sin botón a propósito: la lista completa ya está DEBAJO de este
-   * globo — mandarlo a la pantalla en la que ya está sería un clic para nada.
+   * El día, en tres versiones y no dos.
+   *
+   * Con la agenda vacía, "tenés 0 citas hoy y ya las atendiste todas" es un
+   * sinsentido —no atendió a nadie, no había nadie— y así se vio en pantalla
+   * (Erick, 2026-09-11). El caso de cero es un TERCER estado, no el de "ya
+   * terminaste" con el número en cero.
+   *
+   * Sin botón a propósito: la lista completa ya está DEBAJO de este globo —
+   * mandarlo a la pantalla en la que ya está sería un clic para nada.
    */
   lineas.push({
-    texto: datos.porAtender > 0
-      ? t('saludoProvCitas', { citas: datos.citasHoy, faltan: datos.porAtender })
-      : t('saludoProvCitasListas', { citas: datos.citasHoy }),
+    texto: datos.citasHoy === 0
+      ? t('saludoProvSinCitas')
+      : datos.porAtender > 0
+        ? t('saludoProvCitas', { citas: datos.citasHoy, faltan: datos.porAtender })
+        : t('saludoProvCitasListas', { citas: datos.citasHoy }),
   });
 
   if (datos.notasSinCerrar > 0) {

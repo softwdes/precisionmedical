@@ -2777,7 +2777,8 @@
       "saludoProvCitasListas": "Tenés {citas} citas hoy y ya las atendiste todas.",
       "saludoProvNotas": "Te quedan {n} notas sin cerrar.",
       "saludoProvVerNotas": "Ver mis notas",
-      "saludoProvCierre": "Que tengas buen día."
+      "saludoProvCierre": "Que tengas buen día.",
+      "saludoProvSinCitas": "Hoy no tenés citas agendadas."
     },
     "calendar": {
       "weekdays": {

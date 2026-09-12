@@ -2777,7 +2777,8 @@
       "saludoProvCitasListas": "You have {citas} appointments today and you've seen them all.",
       "saludoProvNotas": "You have {n} notes still open.",
       "saludoProvVerNotas": "See my notes",
-      "saludoProvCierre": "Have a good one."
+      "saludoProvCierre": "Have a good one.",
+      "saludoProvSinCitas": "You have no appointments booked today."
     },
     "calendar": {
       "weekdays": {

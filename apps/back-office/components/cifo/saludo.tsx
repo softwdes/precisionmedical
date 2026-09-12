@@ -188,21 +188,29 @@ function Panel({ lineas, auto, onCerrar }: {
       <div
         onClick={(e) => e.stopPropagation()}
         /*
-          `max-h-full` y no `max-h-[calc(100dvh-2rem)]`.
+          ⚠️ ACÁ NO VA `overflow`. NUNCA. El scroll vive dentro del globo.
 
-          El cálculo a mano restaba el `p-4` del padre… que el padre YA había
-          restado, así que el hijo pedía exactamente el alto disponible y con el
-          redondeo de subpíxeles se pasaba por una fracción: el navegador sacaba
-          una barra de scroll permanente aunque sobrara medio metro de pantalla
-          (se veía en escritorio, Erick 2026-09-11). `max-h-full` se mide contra
-          la caja de contenido del padre —que es la pantalla menos su padding—,
-          así que la cuenta la hace el navegador y no yo.
+          Regla de Erick (2026-09-11), y es estructural, no de gusto: este
+          contenedor envuelve a CIFO **y** al globo, así que cualquier barra suya
+          aparece al costado del robot, flotando sobre el fondo oscuro y sin nada
+          que la explique. Lo único que puede crecer es el texto → el scroll es
+          del texto, y va adentro de la tarjeta, donde está la X.
 
-          `overflow-y-auto` se queda: en un teléfono bajo y en horizontal el
-          globo con cuatro frases sí puede no entrar, y ahí vale más scrollear
-          que cortar. Con `auto` la barra aparece SOLO si hace falta.
+          Encima este es el contenedor que MÁS fácil desborda por unos pocos
+          píxeles, porque sus hijos usan márgenes negativos para pisarse
+          (`-mb-4` en móvil, y hasta recién un `sm:-mb-1` en escritorio que con
+          `items-end` colgaba cuatro píxeles por debajo de la línea del flex).
+          Con `overflow` puesto, esos cuatro píxeles sacaban una barra de
+          pantalla completa.
+
+          Se intentó arreglar DOS veces tocando el tope —`calc(100dvh-2rem)` y
+          después `max-h-full`— y las dos fallaron, porque el problema nunca fue
+          el tope sino QUIÉN scrollea.
+
+          Cómo se reconoce en una captura: **el pulgar ocupa casi todo el riel**.
+          Eso dice "me paso por poquito", no "no entra".
         */
-        className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-0 sm:gap-4 w-full max-w-3xl max-h-full overflow-y-auto overscroll-contain"
+        className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-0 sm:gap-4 w-full max-w-3xl"
       >
         {/*
           SON DOS CIFOS, y ese es el punto (Erick, 2026-09-10): `cifo-saluda`
@@ -225,7 +233,7 @@ function Panel({ lineas, auto, onCerrar }: {
           className={`shrink-0 relative z-10 select-none pointer-events-none drop-shadow-2xl transition-all duration-700 ease-out ${
             fase === 'entrada'
               ? 'w-56 sm:w-72 animate-in zoom-in-75 duration-500'
-              : 'w-28 sm:w-40 -mb-4 sm:-mb-1'
+              : 'w-28 sm:w-40 -mb-4 sm:mb-0'
           }`}
         />
 
@@ -250,7 +258,11 @@ function Panel({ lineas, auto, onCerrar }: {
           <div className="relative flex-1 min-w-0 w-full rounded-lg bg-bg-1 p-5 pr-14 sm:pr-12 shadow-2xl animate-in fade-in slide-in-from-left-3 duration-500">
             {/* La X está desde el primer segundo. Hacerla esperar no agrega
                 nada: quien lo quiere leer lo lee igual, y a quien está apurado
-                lo dejás mirando una animación con un paciente esperando. */}
+                lo dejás mirando una animación con un paciente esperando.
+
+                Va FUERA del área que scrollea, así que no se va para arriba si
+                alguna vez hay que scrollear: es la salida, y una salida que
+                desaparece al mover la rueda no es una salida. */}
             <button
               type="button"
               onClick={onCerrar}
@@ -264,7 +276,23 @@ function Panel({ lineas, auto, onCerrar }: {
               {t('saludoTitulo')}
             </p>
 
-            <div className="space-y-2">
+            {/*
+              El scroll vive ACÁ ADENTRO, y nunca en el contenedor de afuera
+              (Erick, 2026-09-11: *"el scroll debería aparecer adentro del modal
+              donde está la X y no afuera"*).
+
+              Y tiene razón más allá del gusto: el contenedor de afuera también
+              envuelve a CIFO, así que su barra aparecía al costado del robot,
+              flotando sobre el fondo oscuro y sin nada que la explicara. Acá
+              queda pegada al texto, que es lo único que puede crecer.
+
+              El tope es `70dvh` y no una cuenta contra el padre: así el margen
+              es amplio y la barra **no puede** salir por un redondeo de
+              subpíxeles, que fue lo que la hizo aparecer las dos veces
+              anteriores. Con cuatro frases cortas nunca se llega; existe para el
+              teléfono en horizontal, o el día que alguien agregue seis líneas.
+            */}
+            <div className="space-y-2 max-h-[70dvh] overflow-y-auto overscroll-contain">
               {lineas.map((linea, i) => {
                 if (i > visibles.length - 1) return null;
                 const texto = visibles[i] ?? '';

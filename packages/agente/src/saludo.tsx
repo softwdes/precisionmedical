@@ -187,7 +187,7 @@ function Panel({ lineas, auto, onCerrar }: {
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-bg-0/70 backdrop-blur-sm animate-in fade-in duration-300"
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-bg-0/85 backdrop-blur-md animate-in fade-in duration-300"
       onClick={onCerrar}
       role="dialog"
       aria-modal="true"

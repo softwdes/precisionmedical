@@ -1,6 +1,7 @@
 import { puedePreguntarACifo } from '@/lib/cifo/acceso';
 import { visitasDelDia, claveDia } from '@/lib/cifo/phoenix';
 import { cajasBajoMinimo } from '@/lib/audit/cajas-bajo-minimo';
+import { salariosPorVencer } from '@/lib/audit/salarios-por-vencer';
 import { createAdminClient } from '@precision-medical/auth';
 import { CifoBox } from './cifo-box';
 import { CifoAviso } from './cifo-aviso';
@@ -30,9 +31,10 @@ export async function CifoPanel(): Promise<React.ReactElement | null> {
    * muestra lo que sí tiene en vez de caerse entero. Un dashboard que se rompe
    * porque un número no llegó es peor que uno al que le falta un número.
    */
-  const [visitas, cajas] = await Promise.all([
+  const [visitas, cajas, salarios] = await Promise.all([
     visitasDelDia().catch(() => null),
     cajasBajoMinimo(createAdminClient()).catch(() => []),
+    salariosPorVencer(createAdminClient()).catch(() => ({ hoy: 0, enTresDias: 0 })),
   ]);
 
   const cajasVista = cajas.map((c) => ({
@@ -51,10 +53,12 @@ export async function CifoPanel(): Promise<React.ReactElement | null> {
             total: visitas.total, porClinica: visitas.porClinica,
           },
           cajas: cajasVista,
+          salarios,
         }}
       />
 
       <CifoAviso
+        salarios={salarios}
         visitas={visitas && {
           dia: visitas.dia,
           esHoy: visitas.esHoy,

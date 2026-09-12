@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Wallet } from 'lucide-react';
+import { CalendarDays, Wallet, BadgeDollarSign } from 'lucide-react';
 
 /**
  * El aviso de CIFO en el Admin: cómo viene el día, en una línea por cosa.
@@ -37,16 +37,20 @@ export interface CajaVista {
   falta: number;
 }
 
-export function CifoAviso({ visitas, cajas }: {
+export function CifoAviso({ visitas, cajas, salarios }: {
   /** `null` si la clínica no respondió: el panel muestra el resto igual. */
   visitas: VisitasVista | null;
   cajas: CajaVista[];
+  /** Salarios pendientes que vencen — misma regla que el cron de avisos. */
+  salarios: { hoy: number; enTresDias: number };
 }): React.ReactElement | null {
   const router = useRouter();
 
+  const haySalarios = salarios.hoy > 0 || salarios.enTresDias > 0;
+
   // Sin nada que decir, no se dibuja. Una tarjeta vacía ocupa el mismo lugar
   // que una con información y no aporta ninguna.
-  if (!visitas && cajas.length === 0) return null;
+  if (!visitas && cajas.length === 0 && !haySalarios) return null;
 
   const dia = visitas
     ? new Date(`${visitas.dia}T12:00:00Z`).toLocaleDateString('es-ES', {
@@ -83,6 +87,29 @@ export function CifoAviso({ visitas, cajas }: {
                 </>
               )}
           </p>
+        </div>
+      )}
+
+      {/* Los salarios primero entre las excepciones: tienen fecha. */}
+      {haySalarios && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <BadgeDollarSign className={`w-4 h-4 shrink-0 ${salarios.hoy > 0 ? 'text-rose' : 'text-amber'}`} />
+          <p className={`text-sm ${salarios.hoy > 0 ? 'text-rose font-semibold' : 'text-text-1'}`}>
+            {salarios.hoy > 0
+              ? <>{salarios.hoy} {salarios.hoy === 1 ? 'salario vence' : 'salarios vencen'} <strong>hoy</strong>.</>
+              : <>{salarios.enTresDias} {salarios.enTresDias === 1 ? 'salario vence' : 'salarios vencen'} en 3 días.</>}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/dashboard/employees?tab=pagos')}
+            className={`h-10 sm:h-7 px-3.5 sm:px-2.5 rounded text-[12.5px] sm:text-[11.5px] font-semibold transition-colors ${
+              salarios.hoy > 0
+                ? 'bg-rose/15 text-rose hover:bg-rose/25'
+                : 'bg-amber/15 text-amber hover:bg-amber/25'
+            }`}
+          >
+            Ver los pagos
+          </button>
         </div>
       )}
 

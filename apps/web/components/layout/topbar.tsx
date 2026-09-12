@@ -8,6 +8,7 @@ import { cn } from '@precision/ui';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { useTheme } from '@/components/providers/theme-provider';
 import { Bell, Search, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
+import { CifoButton } from './cifo-button';
 import { api as trpc } from '@/lib/trpc/client';
 import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
 import { NotificationsDrawer } from './notifications-drawer';
@@ -193,6 +194,10 @@ export function Topbar({
             si este aparato suena. Solo se dibuja cuando hace falta un clic
             —apagado o bloqueado—, así que encendido no le roba lugar a nada. */}
         <PushToggle />
+
+        {/* CIFO — trae de vuelta el saludo del día. Va pegado a la campana:
+            los dos son "lo que el sistema tiene para decirte". */}
+        <CifoButton />
 
         {/* Notifications */}
         <button

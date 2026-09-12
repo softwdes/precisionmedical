@@ -76,12 +76,34 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-brand shadow-glow">
-            <span className="text-xs font-extrabold text-white tracking-widest">LM</span>
+          {/*
+            El MISMO logo que el back-office, el portal médico y el legal: la
+            cruz con el electro, dibujada en SVG.
+
+            Acá había un cuadradito con las letras "LM" escritas como texto —
+            el Admin nunca tuvo archivo de logo (Erick, 2026-09-12: *"el logo
+            sigue siendo LM y el nuevo es distinto para back office, provider,
+            etc"*). Era la única de las cuatro apps con marca propia.
+
+            Va en SVG y no como imagen por la misma razón que en las otras: se
+            pinta nítido en cualquier tamaño y el color del electro cambia por
+            portal sin necesitar un archivo por variante.
+          */}
+          <div className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0 bg-gradient-brand shadow-glow">
+            <svg width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95" />
+              <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95" />
+              <path
+                d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18"
+                stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+              />
+            </svg>
           </div>
-          <div>
-            <p className="text-small font-extrabold tracking-tight text-text-1">LM Super Admin</p>
-            <p className="text-tiny text-text-3 uppercase tracking-wider">Precision Medical</p>
+          <div className="min-w-0">
+            {/* El nombre de la EMPRESA arriba y el portal debajo — el mismo
+                orden que las otras tres apps, para que se lean como familia. */}
+            <p className="text-small font-extrabold tracking-tight text-text-1 truncate">Precision Medical</p>
+            <p className="text-tiny text-text-3 uppercase tracking-wider truncate">Super Admin</p>
           </div>
           <button
             onClick={onClose}

@@ -34,6 +34,8 @@ export interface DatosSaludoAdmin {
     porClinica: Record<string, number>;
   } | null;
   cajas: Array<{ nombre: string; moneda: string; saldo: number; falta: number }>;
+  /** Salarios pendientes que vencen — misma regla que el cron de avisos. */
+  salarios: { hoy: number; enTresDias: number };
 }
 
 export function CifoSaludoAdmin({ datos }: { datos: DatosSaludoAdmin }): React.ReactElement | null {
@@ -54,6 +56,28 @@ export function CifoSaludoAdmin({ datos }: { datos: DatosSaludoAdmin }): React.R
         ? `No hay visitas agendadas para ${cuando}.`
         : `Hay ${v.total} ${v.total === 1 ? 'visita' : 'visitas'} ${cuando}${reparto ? ` — ${reparto}` : ''}.`,
       boton: { etiqueta: 'Ver métricas', ir: () => router.push('/dashboard/metricas') },
+    });
+  }
+
+  /**
+   * Los salarios que vencen, ANTES que las cajas: una nómina que vence hoy
+   * tiene fecha y consecuencia; una caja corta se puede reponer mañana.
+   *
+   * El botón lleva al mismo lugar que la notificación de la campana
+   * (`/dashboard/employees?tab=pagos`), para que el aviso y el correo no
+   * manden a dos sitios distintos por la misma cosa.
+   */
+  if (datos.salarios.hoy > 0 || datos.salarios.enTresDias > 0) {
+    const s = datos.salarios;
+    lineas.push({
+      texto: s.hoy > 0
+        ? `${s.hoy} ${s.hoy === 1 ? 'salario vence' : 'salarios vencen'} HOY.`
+        : `${s.enTresDias} ${s.enTresDias === 1 ? 'salario vence' : 'salarios vencen'} en 3 días.`,
+      urgente: s.hoy > 0,
+      boton: {
+        etiqueta: 'Ver los pagos',
+        ir: () => router.push('/dashboard/employees?tab=pagos'),
+      },
     });
   }
 

@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { puedeEscribirLaCita } from '@/lib/appointment-scope';
+import { parACm, parAKg } from '@/lib/medidas';
 
 export async function PUT(
   req: NextRequest,
@@ -81,25 +82,32 @@ export async function PUT(
 
     const lbs = typeof body.weightLbs === 'number' ? body.weightLbs : 0;
     const oz  = typeof body.weightOz  === 'number' ? body.weightOz  : 0;
+    /* La conversión sale de `lib/medidas.ts` y ya no se reescribe acá: era la
+       TERCERA copia de la misma cuenta (el formulario tenía la suya y el
+       archivo compartido la de verdad), con sus propias constantes —28.3495 g
+       por onza en vez de 35.27396195 onzas por kg, que da igual hasta que
+       alguien toca una sola de las tres. */
     const kg  = typeof body.weightKg === 'number' && body.weightKg > 0
       ? dec2(body.weightKg)
-      : (lbs > 0 || oz > 0 ? dec2(((lbs * 16 + oz) * 28.3495) / 1000) : null);
+      : (lbs > 0 || oz > 0 ? dec2(parAKg(lbs, oz) ?? 0) : null);
 
     const ft = typeof body.heightFt === 'number' ? body.heightFt : 0;
     const inches = typeof body.heightIn === 'number' ? body.heightIn : 0;
     const cm = typeof body.heightCm === 'number' && body.heightCm > 0
       ? dec2(body.heightCm)
-      : (ft > 0 || inches > 0 ? dec2((ft * 12 + inches) * 2.54) : null);
+      : (ft > 0 || inches > 0 ? dec2(parACm(ft, inches) ?? 0) : null);
 
     const data = {
       // Height
       heightFt:       ft  || null,
       heightIn:       inches || null,
       heightCm:       cm,
+      heightComment:  str(body.heightComment),
       // Weight
       weightLbs:      lbs || null,
       weightOz:       oz  || null,
       weightKg:       kg,
+      weightComment:  str(body.weightComment),
       // BP 1st
       systolicMmhg:   n(body.systolicMmhg),
       diastolicMmhg:  n(body.diastolicMmhg),

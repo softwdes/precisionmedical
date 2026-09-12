@@ -239,7 +239,9 @@ export default async function DoctorConsultationPage({
         triage: tr
           ? {
               heightFt: tr.heightFt, heightIn: tr.heightIn, heightCm: tr.heightCm,
+              heightComment: tr.heightComment,
               weightLbs: tr.weightLbs, weightOz: tr.weightOz, weightKg: tr.weightKg,
+              weightComment: tr.weightComment,
               systolicMmhg: tr.systolicMmhg, diastolicMmhg: tr.diastolicMmhg,
               systolicMmhg2: tr.systolicMmhg2, diastolicMmhg2: tr.diastolicMmhg2,
               pulseBpm: tr.pulseBpm, pulseBpm2: tr.pulseBpm2,

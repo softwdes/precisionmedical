@@ -45,6 +45,8 @@ function useEtiquetas(): Record<ClaveVital, string> {
     temperatura: t('vitTemp'),
     oxigeno:     t('vitO2'),
     dolor:       t('vitPain'),
+    altura:      t('vitHeight'),
+    peso:        t('vitWeight'),
   };
 }
 
@@ -221,6 +223,16 @@ function CriteriosDialog({ onClose }: { onClose: () => void }): React.ReactEleme
             <p className="flex items-start gap-1.5">
               <TriangleAlert className="w-3.5 h-3.5 text-amber shrink-0 mt-px" />
               <span>{t('criteriaImpossible')}</span>
+            </p>
+            {/* Altura y peso no están en la tabla de arriba porque no tienen
+                umbral clínico — un metro sesenta no es ni bueno ni malo. Su
+                rango se dice acá, con los números leídos de `UMBRALES` para que
+                no puedan divergir de lo que el código evalúa. */}
+            <p className="text-text-muted">
+              {t('criteriaSizeRange', {
+                alturaMin: UMBRALES.altura.posible[0], alturaMax: UMBRALES.altura.posible[1],
+                pesoMin: UMBRALES.peso.posible[0],     pesoMax: UMBRALES.peso.posible[1],
+              })}
             </p>
             <p className="text-text-muted">{t('criteriaNotAdvice')}</p>
           </div>

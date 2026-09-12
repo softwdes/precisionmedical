@@ -1202,14 +1202,23 @@ model TriageRecord {
   appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   // ─── Height ──────────────────────────────────────────────────────────────
+  /// `heightFt` + `heightIn` son UN PAR (5 ft 6 in), no dos unidades sueltas.
+  /// El valor real es `heightCm`; el par se deriva de ahí y es el que leen la
+  /// nota impresa, el triaje de `apps/clinical` y el SQL de métricas.
   heightFt Int? // pies
-  heightIn Int? // pulgadas
+  heightIn Int? // pulgadas — el RESTO, siempre 0-11
   heightCm Float? // cms auto-calculado (stored for audit)
+  /// Texto libre sobre cómo se tomó la medida ("de pie, sin zapatos", "acostado
+  /// por el collar"). Replica el `Comment` que tiene MedUSA bajo Height, que es
+  /// donde hoy la asistente anota eso a mano (Erick, 2026-09-11).
+  heightComment String?
 
   // ─── Weight ───────────────────────────────────────────────────────────────
+  /// Mismo par que la altura: `weightOz` es el RESTO, siempre 0-15.
   weightLbs Int?
   weightOz  Int?
   weightKg  Float? // kgs auto-calculado
+  weightComment String?
 
   // ─── Blood Pressure (1st) ────────────────────────────────────────────────
   systolicMmhg  Int?

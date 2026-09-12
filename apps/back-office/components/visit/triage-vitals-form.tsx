@@ -36,6 +36,7 @@ import { Video, Activity, AlertTriangle, Clock, RefreshCw, Save } from 'lucide-r
 import { Button } from '@precision/ui';
 import { Section, SectionDivider } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
+import { cmToPar, kgToPar, parACm, parAKg } from '@/lib/medidas';
 import { AlertaVitales } from './alerta-vitales';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -43,7 +44,9 @@ import { AlertaVitales } from './alerta-vitales';
 /** La fila `triage_records` como la sirve la API. */
 export interface TriageRecord {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
+  heightComment: string | null;
   weightLbs: number | null; weightOz: number | null; weightKg: number | null;
+  weightComment: string | null;
   systolicMmhg: number | null; diastolicMmhg: number | null;
   pulseBpm: number | null; respiratoryRate: number | null;
   tempFahrenheit: number | null; tempCelsius: number | null;
@@ -59,8 +62,8 @@ export interface TriageRecord {
 
 /** Todo string: son valores de `<input>`, no números hasta que se guardan. */
 export interface VitalsState {
-  heightFt: string; heightIn: string; heightCm: string;
-  weightLbs: string; weightOz: string; weightKg: string;
+  heightFt: string; heightIn: string; heightCm: string; heightComment: string;
+  weightLbs: string; weightOz: string; weightKg: string; weightComment: string;
   systolicMmhg: string; diastolicMmhg: string;
   pulseBpm: string; respiratoryRate: string;
   tempFahrenheit: string; tempCelsius: string;
@@ -75,8 +78,8 @@ export interface VitalsState {
 }
 
 export const EMPTY_VITALS: VitalsState = {
-  heightFt: '', heightIn: '', heightCm: '',
-  weightLbs: '', weightOz: '', weightKg: '',
+  heightFt: '', heightIn: '', heightCm: '', heightComment: '',
+  weightLbs: '', weightOz: '', weightKg: '', weightComment: '',
   systolicMmhg: '', diastolicMmhg: '',
   pulseBpm: '', respiratoryRate: '',
   tempFahrenheit: '', tempCelsius: '',
@@ -109,10 +112,8 @@ export const EMPTY_VITALS: VitalsState = {
  * (`Float`), y las otras casillas se derivan de ellos. Los factores son los
  * exactos, no aproximados, para que los cuatro números cierren entre sí.
  */
-const CM_POR_PIE      = 30.48;
-const CM_POR_PULGADA  = 2.54;
-const LBS_POR_KG      = 2.2046226218;
-const OZ_POR_KG       = 35.27396195;
+/* La aritmética del par vive en `lib/medidas.ts`: acá adentro no se podía
+   probar sin copiarla, y de esa copia dependen las notas impresas. */
 
 /** Redondeo a 2 decimales, sin arrastrar el `.00` cuando es redondo. */
 function dec2(n: number): string {
@@ -163,30 +164,6 @@ function cToF(c: string): string {
  * pantalla. Los cm son el valor real, así que el par sale derivado de ellos y
  * ninguno de los dos miente.
  */
-/**
- * ⚠️ El redondeo del resto TIENE que acarrear.
- *
- * `Math.round(totalIn % 12)` devuelve 12 cuando el resto pasa de 11.5, y eso
- * guardaba **"5 ft 12 in"** — que no existe. Pasaba en cuatro bandas de 1,26 cm:
- * 120,65-121,91 · 151,14-152,40 · **181,62-182,88** · 212,10-213,36. La tercera
- * es un adulto de 5'11½"-6'0", o sea de las más comunes que hay.
- *
- * No era teórico: al encontrarlo había **4 de 86 registros con `heightIn` ≥ 12 y
- * 20 con `weightOz` ≥ 16** ya guardados. Y este par lo leen la nota IMPRESA, el
- * triaje de `apps/clinical` (el v2, todavía en uso) y el SQL de métricas de
- * doctores — así que hay notas impresas que dicen "5 ft 12 in".
- *
- * Se redondea el TOTAL primero y después se reparte: así el acarreo sale solo y
- * no hay forma de que el resto llegue al tope.
- */
-function cmToPar(cm: number): { ft: number; inches: number } {
-  const totalIn = Math.round(cm / CM_POR_PULGADA);
-  return { ft: Math.floor(totalIn / 12), inches: totalIn % 12 };
-}
-function kgToPar(kg: number): { lbs: number; oz: number } {
-  const totalOz = Math.round(kg * OZ_POR_KG);
-  return { lbs: Math.floor(totalOz / 16), oz: totalOz % 16 };
-}
 
 export function triageToState(tr: TriageRecord | null): VitalsState {
   if (!tr) return EMPTY_VITALS;
@@ -197,20 +174,29 @@ export function triageToState(tr: TriageRecord | null): VitalsState {
    * Si una fila vieja no los tiene (se guardó solo el par), se reconstruyen
    * leyendo ese par como lo que era: 5 ft 7 in = 5·12+7 pulgadas.
    */
-  const cm = tr.heightCm
-    ?? (((tr.heightFt ?? 0) * 12 + (tr.heightIn ?? 0)) * CM_POR_PULGADA || null);
-  const kg = tr.weightKg
-    ?? ((((tr.weightLbs ?? 0) * 16 + (tr.weightOz ?? 0)) / OZ_POR_KG) || null);
+  const cm = tr.heightCm ?? (parACm(tr.heightFt ?? null, tr.heightIn ?? null) || null);
+  const kg = tr.weightKg ?? (parAKg(tr.weightLbs ?? null, tr.weightOz ?? null) || null);
 
   const tempC  = fToC(tr.tempFahrenheit?.toString() ?? '');
   const tempC2 = fToC(tr.tempFahrenheit2?.toString() ?? '');
+  /*
+   * El par se MUESTRA como par —5 ft 6 in— y no como total.
+   *
+   * Antes acá salía "5.5 ft · 66 in · 167.64 cm": tres formas del mismo número,
+   * y ninguna coincidía con lo que la fila tenía guardado en `heightIn`. La
+   * pantalla decía 66 pulgadas y la columna guardaba 6. Ahora dicen lo mismo.
+   */
+  const parAlturaVista = cm ? cmToPar(cm) : null;
+  const parPesoVista   = kg ? kgToPar(kg) : null;
   return {
-    heightFt:         cm ? dec2(cm / CM_POR_PIE)     : '',
-    heightIn:         cm ? dec2(cm / CM_POR_PULGADA) : '',
+    heightFt:         parAlturaVista ? String(parAlturaVista.ft)     : '',
+    heightIn:         parAlturaVista ? String(parAlturaVista.inches) : '',
     heightCm:         cm ? dec2(cm)                  : '',
-    weightLbs:        kg ? dec2(kg * LBS_POR_KG)     : '',
-    weightOz:         kg ? dec2(kg * OZ_POR_KG)      : '',
+    heightComment:    tr.heightComment                ?? '',
+    weightLbs:        parPesoVista ? String(parPesoVista.lbs) : '',
+    weightOz:         parPesoVista ? String(parPesoVista.oz)  : '',
     weightKg:         kg ? dec2(kg)                  : '',
+    weightComment:    tr.weightComment                ?? '',
     systolicMmhg:     tr.systolicMmhg?.toString()     ?? '',
     diastolicMmhg:    tr.diastolicMmhg?.toString()    ?? '',
     pulseBpm:         tr.pulseBpm?.toString()         ?? '',
@@ -254,9 +240,11 @@ function stateToPayload(v: VitalsState): Record<string, unknown> {
     heightCm:         cm ?? undefined,
     heightFt:         parAltura?.ft,
     heightIn:         parAltura?.inches,
+    heightComment:    v.heightComment.trim() || undefined,
     weightKg:         kg ?? undefined,
     weightLbs:        parPeso?.lbs,
     weightOz:         parPeso?.oz,
+    weightComment:    v.weightComment.trim() || undefined,
     systolicMmhg:     int(v.systolicMmhg),
     diastolicMmhg:    int(v.diastolicMmhg),
     pulseBpm:         int(v.pulseBpm),
@@ -316,8 +304,9 @@ function VField({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-function VInput({ value, onChange, placeholder, type = 'number', step }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; step?: string;
+function VInput({ value, onChange, onBlur, placeholder, type = 'number', step }: {
+  value: string; onChange: (v: string) => void; onBlur?: () => void;
+  placeholder?: string; type?: string; step?: string;
 }) {
   return (
     <input
@@ -325,6 +314,10 @@ function VInput({ value, onChange, placeholder, type = 'number', step }: {
       step={step}
       value={value}
       onChange={e => onChange(e.target.value)}
+      /* El acarreo del par (5 ft 14 in → 6 ft 2 in) se resuelve al SALIR del
+         campo, no mientras se teclea: reescribirle el número bajo el cursor
+         hace saltar la selección y pelea con el teclado. */
+      onBlur={onBlur}
       /* Default '—' y no un número de ejemplo: los placeholders eran "5", "150",
          "120", "98.6"… indistinguibles de datos reales de un vistazo. En una
          pantalla clínica eso hace creer que ya se tomaron los signos vitales
@@ -425,40 +418,102 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
     }
 
     /**
-     * Un setter por casilla: se conserva EXACTO lo que se tipeó y se recalculan
-     * las otras dos desde el pivote (cm / kg).
+     * ── Pies + pulgadas son UN PAR, no dos unidades ────────────────────────
+     *
+     * Antes las tres casillas eran la misma altura escrita de tres formas: 5 ft
+     * = 60 in = 152,4 cm. Escribir 5 en pies te ponía 60 en pulgadas, y escribir
+     * 6 ahí no daba 5'6" sino "6 pulgadas de alto". El usuario lo reportó como
+     * "no me deja editar" (Erick, 2026-09-11) — y tenía razón en el efecto: la
+     * casilla aceptaba el 6, pero le borraba los pies.
+     *
+     * Ahora se lee como lo lee cualquiera y como ya se GUARDABA: el par entra,
+     * los cm salen. Es el modelo del sistema viejo (MedUSA), donde el par se
+     * teclea de un lado y las conversiones aparecen del otro.
+     *
+     * El pivote sigue siendo cm: es el valor real que se guarda, y de ahí sale
+     * el par entero que leen la nota impresa, `apps/clinical` y el SQL de
+     * métricas.
      *
      * Nunca se reescribe la casilla que el usuario está usando: redondearle el
-     * texto mientras escribe hace saltar el cursor y pelea con el teclado.
+     * texto mientras escribe hace saltar el cursor. El acarreo se resuelve al
+     * salir del campo, en `normalizarAltura`.
      */
     function setAltura(campo: 'heightFt' | 'heightIn' | 'heightCm', texto: string): void {
-      const n = val(texto);
-      const cm = n === null ? null
-        : campo === 'heightCm' ? n
-        : campo === 'heightFt' ? n * CM_POR_PIE
-        : n * CM_POR_PULGADA;
-      setVitals(prev => ({
-        ...prev,
-        heightFt: campo === 'heightFt' ? texto : cm ? dec2(cm / CM_POR_PIE)     : '',
-        heightIn: campo === 'heightIn' ? texto : cm ? dec2(cm / CM_POR_PULGADA) : '',
-        heightCm: campo === 'heightCm' ? texto : cm ? dec2(cm)                  : '',
-      }));
+      setVitals(prev => {
+        // Los cm son la otra puerta de entrada: quien mide en centímetros los
+        // escribe y el par se arma solo.
+        if (campo === 'heightCm') {
+          const cm = val(texto);
+          const par = cm !== null ? cmToPar(cm) : null;
+          return {
+            ...prev,
+            heightCm: texto,
+            heightFt: par ? String(par.ft)     : '',
+            heightIn: par ? String(par.inches) : '',
+          };
+        }
+        const siguiente: VitalsState = {
+          ...prev,
+          heightFt: campo === 'heightFt' ? texto : prev.heightFt,
+          heightIn: campo === 'heightIn' ? texto : prev.heightIn,
+        };
+        // Las dos vacías es "sin cargar", no cero: `parACm` devuelve null.
+        const cm = parACm(val(siguiente.heightFt), val(siguiente.heightIn));
+        return { ...siguiente, heightCm: cm === null ? '' : dec2(cm) };
+      });
       dirty();
     }
 
+    /** Libras + onzas, mismo criterio que pies + pulgadas. El pivote es kg. */
     function setPeso(campo: 'weightLbs' | 'weightOz' | 'weightKg', texto: string): void {
-      const n = val(texto);
-      const kg = n === null ? null
-        : campo === 'weightKg'  ? n
-        : campo === 'weightLbs' ? n / LBS_POR_KG
-        : n / OZ_POR_KG;
-      setVitals(prev => ({
-        ...prev,
-        weightLbs: campo === 'weightLbs' ? texto : kg ? dec2(kg * LBS_POR_KG) : '',
-        weightOz:  campo === 'weightOz'  ? texto : kg ? dec2(kg * OZ_POR_KG)  : '',
-        weightKg:  campo === 'weightKg'  ? texto : kg ? dec2(kg)              : '',
-      }));
+      setVitals(prev => {
+        if (campo === 'weightKg') {
+          const kg = val(texto);
+          const par = kg !== null ? kgToPar(kg) : null;
+          return {
+            ...prev,
+            weightKg:  texto,
+            weightLbs: par ? String(par.lbs) : '',
+            weightOz:  par ? String(par.oz)  : '',
+          };
+        }
+        const siguiente: VitalsState = {
+          ...prev,
+          weightLbs: campo === 'weightLbs' ? texto : prev.weightLbs,
+          weightOz:  campo === 'weightOz'  ? texto : prev.weightOz,
+        };
+        const kg = parAKg(val(siguiente.weightLbs), val(siguiente.weightOz));
+        return { ...siguiente, weightKg: kg === null ? '' : dec2(kg) };
+      });
       dirty();
+    }
+
+    /**
+     * El acarreo, al salir del campo.
+     *
+     * Solo cuando lo hay de verdad: 5 ft 14 in se reacomoda a 6 ft 2 in, pero un
+     * "5 ft ·  (vacío)" se respeta tal cual. Rellenar la otra mitad con un 0
+     * obliga a borrarlo antes de poder escribir las pulgadas, que es
+     * exactamente la fricción que este arreglo vino a sacar.
+     */
+    function normalizarAltura(): void {
+      setVitals(prev => {
+        const inch = val(prev.heightIn);
+        const cm = val(prev.heightCm);
+        if (inch === null || inch < 12 || cm === null) return prev;
+        const par = cmToPar(cm);
+        return { ...prev, heightFt: String(par.ft), heightIn: String(par.inches) };
+      });
+    }
+
+    function normalizarPeso(): void {
+      setVitals(prev => {
+        const oz = val(prev.weightOz);
+        const kg = val(prev.weightKg);
+        if (oz === null || oz < 16 || kg === null) return prev;
+        const par = kgToPar(kg);
+        return { ...prev, weightLbs: String(par.lbs), weightOz: String(par.oz) };
+      });
     }
     function setTempF(val: string): void {
       setVitals(prev => ({ ...prev, tempFahrenheit: val, tempCelsius: fToC(val) }));
@@ -576,6 +631,10 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
           className="mb-3"
           edad={edadPaciente}
           vitales={{
+            /* Acá es donde se comete el error de carga, con la persona todavía
+               tecleando: es el único lugar donde avisar sirve para corregirlo. */
+            heightCm:         numero(vitals.heightCm),
+            weightKg:         numero(vitals.weightKg),
             systolicMmhg:     entero(vitals.systolicMmhg),
             diastolicMmhg:    entero(vitals.diastolicMmhg),
             pulseBpm:         entero(vitals.pulseBpm),
@@ -602,16 +661,34 @@ export const TriageVitalsForm = React.forwardRef<TriageVitalsFormHandle, TriageV
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-stretch">
           <VitalGroup icon={<span>📏</span>} title={t('vitHeight')}>
             <div className="grid grid-cols-3 gap-2">
-              <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={v => setAltura('heightFt', v)} step="0.01" /></VField>
-              <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={v => setAltura('heightIn', v)} step="0.01" /></VField>
+              {/* Pies y pulgadas son el PAR que se teclea; los cm, la cuenta.
+                  `step="1"` en el par: no existe medio pie ni 6,5 pulgadas en
+                  una ficha clínica, y la flechita del navegador ahora avanza de
+                  a una pulgada en vez de a una centésima. */}
+              <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={v => setAltura('heightFt', v)} onBlur={normalizarAltura} step="1" /></VField>
+              <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={v => setAltura('heightIn', v)} onBlur={normalizarAltura} step="1" /></VField>
               <VField label={t('vitCms')}><VInput value={vitals.heightCm} onChange={v => setAltura('heightCm', v)} placeholder="—" step="0.01" /></VField>
+            </div>
+            {/* El comentario de la medida — "de pie, sin zapatos", "acostado por
+                el collar". Va DEBAJO y a lo ancho, no como cuarta columna: es
+                texto y competiría con tres casillas de números de 3 caracteres.
+                Es el mismo lugar que ocupa en MedUSA. */}
+            <div className="mt-2">
+              <VField label={t('vitMeasureComment')}>
+                <VInput value={vitals.heightComment} onChange={v => setV('heightComment', v)} type="text" placeholder="…" />
+              </VField>
             </div>
           </VitalGroup>
           <VitalGroup icon={<span>⚖️</span>} title={t('vitWeight')}>
             <div className="grid grid-cols-3 gap-2">
-              <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={v => setPeso('weightLbs', v)} step="0.01" /></VField>
-              <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={v => setPeso('weightOz', v)} step="0.01" /></VField>
+              <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={v => setPeso('weightLbs', v)} onBlur={normalizarPeso} step="1" /></VField>
+              <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={v => setPeso('weightOz', v)} onBlur={normalizarPeso} step="1" /></VField>
               <VField label="kg"><VInput value={vitals.weightKg} onChange={v => setPeso('weightKg', v)} placeholder="—" step="0.01" /></VField>
+            </div>
+            <div className="mt-2">
+              <VField label={t('vitMeasureComment')}>
+                <VInput value={vitals.weightComment} onChange={v => setV('weightComment', v)} type="text" placeholder="…" />
+              </VField>
             </div>
           </VitalGroup>
           <VitalGroup icon={<span>💓</span>} title={t('vitBloodPressure')}>

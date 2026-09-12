@@ -1486,7 +1486,8 @@
       "labReqPolizaGuardar": "Save and generate",
       "labReqPasarAClinica": "Have the clinic pay",
       "labReqPasarAClinicaAyuda": "The lab bills the clinic and the test is charged to the patient at catalog price. Who changed it is recorded.",
-      "labReqGrupoMixto": "The tests in this order don't share the same billing type, and the sheet carries only one. Fix it in the Labs tab before generating it."
+      "labReqGrupoMixto": "The tests in this order don't share the same billing type, and the sheet carries only one. Fix it in the Labs tab before generating it.",
+      "criteriaSizeRange": "Height and weight have no clinical threshold —they aren't a finding— so they're not in the table. We only flag a number that can't belong to a person: outside {alturaMin}–{alturaMax} cm or {pesoMin}–{pesoMax} kg."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -2616,7 +2617,8 @@
       "outsideClinics": "+{count} at another facility",
       "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",
       "chargePending": "Payment pending",
-      "chargePendingHint": "Click to charge in the case finances"
+      "chargePendingHint": "Click to charge in the case finances",
+      "vitMeasureComment": "Measurement comment"
     },
     "dashboard": {
       "title": "Reception Dashboard",

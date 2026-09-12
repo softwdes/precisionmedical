@@ -40,7 +40,9 @@ import { edadEnAnios } from '@/lib/vitales-alerta';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
+  heightComment: string | null;
   weightLbs: number | null; weightOz: number | null; weightKg: number | null;
+  weightComment: string | null;
   systolicMmhg: number | null; diastolicMmhg: number | null;
   systolicMmhg2: number | null; diastolicMmhg2: number | null;
   pulseBpm: number | null; pulseBpm2: number | null;

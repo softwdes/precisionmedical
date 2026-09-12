@@ -1486,7 +1486,8 @@
       "labReqPolizaGuardar": "Guardar y generar",
       "labReqPasarAClinica": "Que la pague la clínica",
       "labReqPasarAClinicaAyuda": "El laboratorio le factura a la clínica y el estudio se le cobra al paciente al precio del catálogo. Queda registrado quién lo cambió.",
-      "labReqGrupoMixto": "Los estudios de esta orden no tienen el mismo tipo de facturación, y la hoja lleva uno solo. Corregilo en el tab de Labs antes de generarla."
+      "labReqGrupoMixto": "Los estudios de esta orden no tienen el mismo tipo de facturación, y la hoja lleva uno solo. Corregilo en el tab de Labs antes de generarla.",
+      "criteriaSizeRange": "Altura y peso no tienen umbral clínico —no son un hallazgo— y por eso no están en la tabla. Solo se avisa cuando el número no puede ser de una persona: fuera de {alturaMin}–{alturaMax} cm o de {pesoMin}–{pesoMax} kg."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -2616,7 +2617,8 @@
       "outsideClinics": "+{count} en otro centro",
       "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",
       "chargePending": "Falta cobrar",
-      "chargePendingHint": "Clic para cobrar en Finanzas del caso"
+      "chargePendingHint": "Clic para cobrar en Finanzas del caso",
+      "vitMeasureComment": "Comentario de la medida"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

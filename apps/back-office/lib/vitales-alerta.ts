@@ -43,9 +43,17 @@ const ORDEN: Record<NivelVital, number> = {
   NORMAL: 0, PEDIATRICO: 1, ATENCION: 2, IMPOSIBLE: 3, CRITICO: 4,
 };
 
-/** Cada signo que sabemos evaluar. */
+/**
+ * Cada signo que sabemos evaluar.
+ *
+ * `altura` y `peso` son distintos al resto: NO tienen umbral clínico. Un metro
+ * sesenta no es ni bueno ni malo. Están acá solo para atajar el error de carga
+ * —había dos triajes guardados que dicen que el paciente mide 170 pies— y por
+ * eso su único nivel posible es `IMPOSIBLE`.
+ */
 export type ClaveVital =
-  | 'presion' | 'pulso' | 'respiracion' | 'temperatura' | 'oxigeno' | 'dolor';
+  | 'presion' | 'pulso' | 'respiracion' | 'temperatura' | 'oxigeno' | 'dolor'
+  | 'altura' | 'peso';
 
 export interface Umbral {
   /** Fuera de esto es un error de carga, no un hallazgo clínico. */
@@ -79,6 +87,18 @@ export const UMBRALES: Record<Exclude<ClaveVital, 'presion' | 'dolor'>, Umbral> 
   /** El dolor es auto-reportado y no tiene rojo: ya se pintaba ámbar desde 7 en
    *  Mi Día y se respeta ese corte para no cambiarle el significado a nadie. */
   dolor:        { posible: [0, 10],    critico: [null, null], atencion: [null, 7] },
+  /*
+   * Altura y peso: SOLO `posible`. Sin crítico ni atención a propósito — no son
+   * un hallazgo clínico y pintarlos de ámbar por ser altos o bajos sería opinar
+   * sobre el cuerpo del paciente.
+   *
+   * Los extremos están anchos para que no moleste a nadie real: un recién
+   * nacido mide ~50 cm y pesa ~3 kg, y la persona más alta registrada llegó a
+   * 272 cm. Lo que atajan es el dedo resbalado —170 escrito en la casilla de
+   * pies da 5.374 cm— no el caso raro.
+   */
+  altura:       { posible: [30, 280],  critico: [null, null], atencion: [null, null] },
+  peso:         { posible: [0.3, 500], critico: [null, null], atencion: [null, null] },
 };
 
 export interface Hallazgo {
@@ -112,6 +132,13 @@ function limiteDe(v: number, u: Umbral, unidad = ''): string | null {
 }
 
 export interface VitalesLeidos {
+  /**
+   * Opcionales para no romper a los que ya llaman con los seis clínicos. Se
+   * mandan en cm y kg porque ese es el valor real que se guarda: el par de
+   * pies/pulgadas se deriva de acá, no al revés.
+   */
+  heightCm?: number | null;
+  weightKg?: number | null;
   systolicMmhg: number | null;
   diastolicMmhg: number | null;
   pulseBpm: number | null;
@@ -191,6 +218,9 @@ export function hallazgosVitales(
     simple('temperatura', v.tempFahrenheit2 ?? null, UMBRALES.temperatura, 2, '°F'),
     simple('oxigeno',     v.o2Saturation,          UMBRALES.oxigeno,     1, '%'),
     simple('dolor',       v.painScale,             UMBRALES.dolor,       1, '/10'),
+    /* Altura y peso no tienen 2ª toma: no se vuelven a medir en la misma visita. */
+    simple('altura',      v.heightCm ?? null,      UMBRALES.altura,      1, ' cm'),
+    simple('peso',        v.weightKg ?? null,      UMBRALES.peso,        1, ' kg'),
   ];
 
   return crudos

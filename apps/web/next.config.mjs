@@ -15,6 +15,7 @@ const withSerwist = withSerwistInit({
 const nextConfig = {
   transpilePackages: [
     '@precision/ui',
+    '@precision-medical/agente',
     '@precision-medical/auth',
     '@precision-medical/api',
     '@precision-medical/database',

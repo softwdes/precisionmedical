@@ -61,6 +61,7 @@ const nextConfig = {
   },
   transpilePackages: [
     '@precision/ui',
+    '@precision-medical/agente',
     '@precision-medical/auth',
     '@precision-medical/database',
     '@precision-medical/i18n',

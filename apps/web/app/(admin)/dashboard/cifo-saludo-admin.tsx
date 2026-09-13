@@ -35,7 +35,7 @@ export interface DatosSaludoAdmin {
   } | null;
   cajas: Array<{ nombre: string; moneda: string; saldo: number; falta: number }>;
   /** Salarios pendientes que vencen — misma regla que el cron de avisos. */
-  salarios: { hoy: number; enTresDias: number };
+  salarios: { hoy: number; enTresDias: number; montoHoy: Record<string, number> };
 }
 
 export function CifoSaludoAdmin({ datos }: { datos: DatosSaludoAdmin }): React.ReactElement | null {
@@ -69,9 +69,10 @@ export function CifoSaludoAdmin({ datos }: { datos: DatosSaludoAdmin }): React.R
    */
   if (datos.salarios.hoy > 0 || datos.salarios.enTresDias > 0) {
     const s = datos.salarios;
+    const monto = Object.entries(s.montoHoy).map(([m, t]) => `${m} ${t.toFixed(2)}`).join(' + ');
     lineas.push({
       texto: s.hoy > 0
-        ? `${s.hoy} ${s.hoy === 1 ? 'salario vence' : 'salarios vencen'} HOY.`
+        ? `${s.hoy} ${s.hoy === 1 ? 'salario vence' : 'salarios vencen'} HOY${monto ? ` — ${monto}` : ''}.`
         : `${s.enTresDias} ${s.enTresDias === 1 ? 'salario vence' : 'salarios vencen'} en 3 días.`,
       urgente: s.hoy > 0,
       boton: {

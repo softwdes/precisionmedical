@@ -7,6 +7,14 @@ export interface SalariosPorVencer {
   hoy: number;
   /** Vencen exactamente en 3 días — el mismo aviso anticipado que manda el cron. */
   enTresDias: number;
+  /**
+   * Cuánto suman los que vencen HOY, por moneda.
+   *
+   * Va por moneda y no en un total único porque la nómina está en BOB, USD y
+   * PEN: sumarlas daría un número que no significa nada. Lo mostraba el modal
+   * que esto reemplaza, y es lo que convierte "2 salarios" en una decisión.
+   */
+  montoHoy: Record<string, number>;
 }
 
 /**
@@ -42,7 +50,7 @@ export async function salariosPorVencer(supabase: ClienteAdmin): Promise<Salario
 
   const { data } = await supabase
     .from('payments')
-    .select('id, scheduledDate, status')
+    .select('id, scheduledDate, status, amountLocal, currencyLocal')
     .eq('status', 'PENDING')
     .gte('scheduledDate', desde.toISOString())
     .lte('scheduledDate', hasta.toISOString());
@@ -50,9 +58,21 @@ export async function salariosPorVencer(supabase: ClienteAdmin): Promise<Salario
   const diaDe = (iso: string): string =>
     new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
-  const filas = (data ?? []) as Array<{ scheduledDate: string }>;
+  const filas = (data ?? []) as Array<{
+    scheduledDate: string; amountLocal: unknown; currencyLocal: string;
+  }>;
+
+  const deHoy = filas.filter((p) => diaDe(p.scheduledDate) === fechaUtah(0));
+
+  const montoHoy: Record<string, number> = {};
+  for (const p of deHoy) {
+    const m = p.currencyLocal ?? '—';
+    montoHoy[m] = Math.round(((montoHoy[m] ?? 0) + Number(p.amountLocal ?? 0)) * 100) / 100;
+  }
+
   return {
-    hoy: filas.filter((p) => diaDe(p.scheduledDate) === fechaUtah(0)).length,
+    hoy: deHoy.length,
     enTresDias: filas.filter((p) => diaDe(p.scheduledDate) === fechaUtah(3)).length,
+    montoHoy,
   };
 }

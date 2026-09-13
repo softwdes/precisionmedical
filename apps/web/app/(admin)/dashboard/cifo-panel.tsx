@@ -34,7 +34,7 @@ export async function CifoPanel(): Promise<React.ReactElement | null> {
   const [visitas, cajas, salarios] = await Promise.all([
     visitasDelDia().catch(() => null),
     cajasBajoMinimo(createAdminClient()).catch(() => []),
-    salariosPorVencer(createAdminClient()).catch(() => ({ hoy: 0, enTresDias: 0 })),
+    salariosPorVencer(createAdminClient()).catch(() => ({ hoy: 0, enTresDias: 0, montoHoy: {} })),
   ]);
 
   const cajasVista = cajas.map((c) => ({

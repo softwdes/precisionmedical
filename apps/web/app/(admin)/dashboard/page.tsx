@@ -3,7 +3,6 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
 import { DashboardClient } from './dashboard-client';
-import { SalaryAlertModal } from '@/components/SalaryAlertModal';
 import { getCurrentUserRole } from '@/lib/auth/get-role';
 import { can } from '@/lib/permissions';
 
@@ -65,7 +64,6 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
         commissionsSummary={unwrap(commissionsSummary, null)}
         topReferrers={unwrap(topReferrers, null)}
       />
-      <SalaryAlertModal />
     </>
   );
 }

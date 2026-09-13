@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 /**
  * El puente entre el botón de la barra y el saludo.
@@ -63,12 +62,14 @@ export interface LineaSaludo {
   boton?: { etiqueta: string; ir: () => void };
 }
 
-export function SaludoCifo({ lineas, hoy, clave }: {
+export function SaludoCifo({ lineas, hoy, clave, cerrar = 'Close' }: {
   lineas: LineaSaludo[];
   /** `YYYY-MM-DD` en la zona de la clínica — la marca de "ya lo vi". */
   hoy: string;
   /** Llave de `localStorage`. Una por portal: ver el encabezado. */
   clave: string;
+  /** Etiqueta accesible de la X, en el idioma de la app. */
+  cerrar?: string;
 }): React.ReactElement | null {
   const [abierto, setAbierto] = React.useState<null | 'auto' | 'manual'>(null);
 
@@ -112,7 +113,7 @@ export function SaludoCifo({ lineas, hoy, clave }: {
   }, []);
 
   if (!abierto) return null;
-  return <Panel lineas={lineas} auto={abierto === 'auto'} onCerrar={() => setAbierto(null)} />;
+  return <Panel lineas={lineas} auto={abierto === 'auto'} titulo={TITULO} cerrar={cerrar} onCerrar={() => setAbierto(null)} />;
 }
 
 /**
@@ -121,13 +122,35 @@ export function SaludoCifo({ lineas, hoy, clave }: {
  * Separado a propósito: así los hooks del tipeo se montan cuando el saludo
  * aparece de verdad y no en cada carga de la pantalla para no hacer nada.
  */
-function Panel({ lineas, auto, onCerrar }: {
+/**
+ * Los dos únicos textos del componente, y por qué NO salen de `next-intl`.
+ *
+ * La primera versión hacía `useTranslations('phoenix.dashboard')` — el
+ * namespace del back-office, que es donde nació. Al montarlo en el Admin, ese
+ * namespace no existe y la etiqueta salió en pantalla como
+ * **`PHOENIX.DASHBOARD.SALUDOTITULO`** (Erick lo vio en producción, 2026-09-12).
+ *
+ * Es la trampa clásica de mudar un componente a un paquete: el código viaja, el
+ * archivo de traducciones no. Y no lo caza `tsc` ni el build — `t()` devuelve la
+ * clave cruda en vez de fallar.
+ *
+ * La solución es que el paquete no dependa del i18n de NINGUNA app:
+ *
+ * · `titulo` es **"CIFO"**, un nombre propio. Se escribe igual en los dos
+ *   idiomas, así que traducirlo nunca tuvo sentido.
+ * · `cerrar` es la etiqueta accesible de la X. Entra por prop para que cada app
+ *   la pase en su idioma, con un default en inglés que es el estándar de ARIA.
+ */
+const TITULO = 'CIFO';
+
+function Panel({ lineas, auto, titulo, cerrar, onCerrar }: {
   lineas: LineaSaludo[];
   /** `false` cuando lo abrió el botón de la barra: entonces NO se cierra solo. */
   auto: boolean;
+  titulo: string;
+  cerrar: string;
   onCerrar: () => void;
 }): React.ReactElement {
-  const t = useTranslations('phoenix.dashboard');
 
   /**
    * Dos tiempos: CIFO entra SOLO al centro, y recién después habla.
@@ -191,7 +214,7 @@ function Panel({ lineas, auto, onCerrar }: {
       onClick={onCerrar}
       role="dialog"
       aria-modal="true"
-      aria-label={t('saludoTitulo')}
+      aria-label={titulo}
     >
       {/* El clic de adentro no cierra: solo el del fondo. */}
       <div
@@ -275,14 +298,14 @@ function Panel({ lineas, auto, onCerrar }: {
             <button
               type="button"
               onClick={onCerrar}
-              aria-label={t('saludoCerrar')}
+              aria-label={cerrar}
               className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded text-text-muted hover:text-text-1 hover:bg-white/[0.04]"
             >
               <X className="w-4 h-4" />
             </button>
 
             <p className="text-[10px] uppercase tracking-wider font-semibold text-brand mb-2">
-              {t('saludoTitulo')}
+              {titulo}
             </p>
 
             {/*

@@ -42,11 +42,17 @@ export function CifoAviso({ visitas, cajas, salarios }: {
   visitas: VisitasVista | null;
   cajas: CajaVista[];
   /** Salarios pendientes que vencen — misma regla que el cron de avisos. */
-  salarios: { hoy: number; enTresDias: number };
+  salarios: { hoy: number; enTresDias: number; montoHoy: Record<string, number> };
 }): React.ReactElement | null {
   const router = useRouter();
 
   const haySalarios = salarios.hoy > 0 || salarios.enTresDias > 0;
+
+  /** El monto por moneda: la nómina está en BOB, USD y PEN, y sumarlas no
+      significa nada. Es lo que convierte "2 salarios" en una decisión. */
+  const montoTexto = Object.entries(salarios.montoHoy)
+    .map(([moneda, total]) => `${moneda} ${total.toFixed(2)}`)
+    .join(' + ');
 
   // Sin nada que decir, no se dibuja. Una tarjeta vacía ocupa el mismo lugar
   // que una con información y no aporta ninguna.
@@ -96,7 +102,7 @@ export function CifoAviso({ visitas, cajas, salarios }: {
           <BadgeDollarSign className={`w-4 h-4 shrink-0 ${salarios.hoy > 0 ? 'text-rose' : 'text-amber'}`} />
           <p className={`text-sm ${salarios.hoy > 0 ? 'text-rose font-semibold' : 'text-text-1'}`}>
             {salarios.hoy > 0
-              ? <>{salarios.hoy} {salarios.hoy === 1 ? 'salario vence' : 'salarios vencen'} <strong>hoy</strong>.</>
+              ? <>{salarios.hoy} {salarios.hoy === 1 ? 'salario vence' : 'salarios vencen'} <strong>hoy</strong>{montoTexto ? <> — {montoTexto}</> : null}.</>
               : <>{salarios.enTresDias} {salarios.enTresDias === 1 ? 'salario vence' : 'salarios vencen'} en 3 días.</>}
           </p>
           <button

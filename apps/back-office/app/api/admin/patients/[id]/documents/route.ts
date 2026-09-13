@@ -39,6 +39,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { createClient } from '@supabase/supabase-js';
 import { checkPatientAccess } from '@/lib/patient-access';
 
@@ -100,6 +101,9 @@ export async function GET(
       isFolder: false,
       // Sin `s3Key` no hay archivo que descargar: es una fila muerta.
       s3Key:    { not: null },
+      // Los de la papelera no salen en la ficha del paciente. La papelera vive
+      // en el tab Documentos del caso, que es donde se borran y se restauran.
+      ...VIGENTES,
       OR: [
         ...(caseIds.length ? [{ caseId: { in: caseIds } }] : []),
         /**

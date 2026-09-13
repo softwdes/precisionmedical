@@ -3763,12 +3763,30 @@ model PatientDocument {
 
   createdByUserId String?
 
+  /// ── BORRADO LÓGICO ───────────────────────────────────────────────────────
+  ///
+  /// Eliminar un documento NO borra la fila: la marca. Antes se borraba de
+  /// verdad, y como el archivo del bucket SÍ quedaba, el resultado era lo peor
+  /// de los dos mundos — el PDF seguía ocupando espacio para siempre y nadie
+  /// podía recuperarlo, porque el nombre, el paciente y la carpeta se habían
+  /// perdido con la fila (Erick, 2026-09-13).
+  ///
+  /// ⚠️ TODA consulta que liste documentos tiene que filtrar `deletedAt: null`.
+  /// Son once lugares, y uno de ellos es el portal del abogado: un documento que
+  /// la clínica borró no puede reaparecerle a un tercero. Se filtran con
+  /// `VIGENTES` de `lib/documentos.ts` para que se vean todos de un grep.
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedByName String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([patientId])
   @@index([caseId])
   @@index([parentId])
+  /// Las listas filtran por caso Y por no-borrado en la misma consulta.
+  @@index([caseId, deletedAt])
   @@map("patient_documents")
 }
 

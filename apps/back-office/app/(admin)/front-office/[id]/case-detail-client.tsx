@@ -115,6 +115,8 @@ interface CaseInfo {
     photoUrl: string | null;
     /** Las cuatro fotos de identificación del caso — ver `case-detail-data.ts`. */
     fotos: Record<string, string>;
+    /** Las que están en la papelera — para poder ofrecer "recuperar". */
+    fotosEliminadas?: Record<string, { url: string; at: string; by: string | null }>;
     /** Contacto compartido en familia — alimenta el cartel bajo el correo/teléfono. */
     contactRelation: string | null;
     sharesEmail: boolean;
@@ -1005,6 +1007,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           firstName={caseInfo.patient.firstName}
           lastName={caseInfo.patient.lastName}
           fotos={caseInfo.patient.fotos}
+          fotosEliminadas={caseInfo.patient.fotosEliminadas}
           onClose={() => setArchivosOpen(false)}
         />
       )}

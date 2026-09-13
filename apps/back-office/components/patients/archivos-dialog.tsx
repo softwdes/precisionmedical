@@ -24,7 +24,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Camera, FileText, FolderOpen, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { Camera, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
@@ -34,6 +34,20 @@ export type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | '
 /** Las fotos guardadas en el `consentsData` de un caso. */
 export function fotosDelCaso(consentsData: unknown): Record<string, string> {
   return ((consentsData ?? {}) as Record<string, unknown>).photos as Record<string, string> ?? {};
+}
+
+/**
+ * Las que están en la PAPELERA de ese caso.
+ *
+ * Eliminar una foto ya no la borra: la mueve acá y deja el archivo en el bucket
+ * (Erick, 2026-09-13). Se lee del mismo JSON que las vigentes, así que quien ya
+ * llamaba a `fotosDelCaso` tiene esto a un renglón de distancia.
+ */
+export interface FotoEnPapelera { url: string; at: string; by: string | null }
+
+export function fotosEliminadasDelCaso(consentsData: unknown): Record<string, FotoEnPapelera> {
+  const v = ((consentsData ?? {}) as Record<string, unknown>).photosEliminadas;
+  return (v as Record<string, FotoEnPapelera>) ?? {};
 }
 
 // ── In-App Camera (getUserMedia) ────────────────────────────────────────────
@@ -191,6 +205,12 @@ export interface ArchivosDialogProps {
    * `fotosDelCaso()` para sacarlas del JSON.
    */
   fotos?: Record<string, string> | null;
+  /**
+   * Las que están en la papelera — con `fotosEliminadasDelCaso()`. Opcional: si
+   * no viene, el recuadro vacío no ofrece recuperar, que es el comportamiento
+   * de antes. Nadie ve un botón que no puede funcionar.
+   */
+  fotosEliminadas?: Record<string, FotoEnPapelera> | null;
   /**
    * `false` cuando el paciente no tiene ningún caso: sin caso no hay dónde
    * guardar la foto, así que los slots quedan deshabilitados con su aviso.
@@ -406,7 +426,8 @@ function formatBytes(bytes: number | null): string {
 }
 
 export function ArchivosDialog({
-  patientId, firstName, lastName, fotos, tieneCaso = true, soloLectura = false, onClose,
+  patientId, firstName, lastName, fotos, fotosEliminadas, tieneCaso = true,
+  soloLectura = false, onClose,
 }: ArchivosDialogProps) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
@@ -415,6 +436,15 @@ export function ArchivosDialog({
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(initialPhotos);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting]   = useState<Record<string, boolean>>({});
+  /**
+   * Qué recuadros tienen algo en la papelera.
+   *
+   * Arranca de lo que vino del caso y se actualiza al borrar y al recuperar,
+   * sin recargar: el que acaba de borrar por error tiene que ver el "recuperar"
+   * al instante, no después de cerrar y abrir el diálogo.
+   */
+  const [recuperables, setRecuperables] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(Object.keys(fotosEliminadas ?? {}).map((k) => [k, true])));
   const [errors, setErrors]       = useState<Record<string, string>>({});
 
   /**
@@ -493,15 +523,51 @@ export function ArchivosDialog({
   }
 
   async function handleDelete(photoKey: PhotoKey) {
+    /*
+     * Preguntar antes. Este botón borraba de un clic y sin aviso.
+     *
+     * Ahora además la foto va a la PAPELERA en vez de borrarse del bucket, así
+     * que el aviso dice que se puede recuperar — y es verdad (Erick,
+     * 2026-09-13). La confirmación se queda igual: recuperable no es lo mismo
+     * que gratis, y el recuadro queda vacío delante del paciente.
+     *
+     * Se usa `window.confirm` y no el `ConfirmDialog` del sistema a propósito:
+     * este diálogo ya está dentro de otro modal, y en el tab Documentos se vio
+     * que apilar dos capas de overlay deja el segundo por debajo. Acá el cartel
+     * del navegador siempre queda arriba.
+     */
+    if (!window.confirm(t('photoDeleteConfirm'))) return;
     setErrors(p => ({ ...p, [photoKey]: '' }));
     setDeleting(p => ({ ...p, [photoKey]: true }));
     try {
       const res = await fetch(`/api/admin/patients/${patientId}/upload-photo?photoType=${photoKey}`, { method: 'DELETE' });
       if (res.ok) {
         setPhotoUrls(p => { const n = { ...p }; delete n[photoKey]; return n; });
+        setRecuperables(p => ({ ...p, [photoKey]: true }));
         router.refresh();
       } else {
         setErrors(p => ({ ...p, [photoKey]: 'Error al eliminar.' }));
+      }
+    } catch {
+      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+    } finally {
+      setDeleting(p => ({ ...p, [photoKey]: false }));
+    }
+  }
+
+  /** Traer la foto de vuelta de la papelera. Sin confirmación: no destruye nada. */
+  async function handleRestore(photoKey: PhotoKey) {
+    setErrors(p => ({ ...p, [photoKey]: '' }));
+    setDeleting(p => ({ ...p, [photoKey]: true }));
+    try {
+      const res = await fetch(`/api/admin/patients/${patientId}/upload-photo?photoType=${photoKey}`, { method: 'PATCH' });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.url) {
+        setPhotoUrls(p => ({ ...p, [photoKey]: d.url as string }));
+        setRecuperables(p => { const n = { ...p }; delete n[photoKey]; return n; });
+        router.refresh();
+      } else {
+        setErrors(p => ({ ...p, [photoKey]: t('photoRestoreError') }));
       }
     } catch {
       setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
@@ -627,6 +693,21 @@ export function ArchivosDialog({
                   </div>
 
                   {err && <p className="px-3 text-[10px] text-rose mb-1">{err}</p>}
+
+                  {/* La foto está en la PAPELERA: el recuadro se ve vacío pero
+                      el archivo sigue ahí. Se ofrece traerla de vuelta justo
+                      donde se la borró, que es donde el que se equivocó está
+                      mirando. Desaparece al sacar una foto nueva: ahí la vieja
+                      ya no es lo que se quiere. */}
+                  {!soloLectura && !url && recuperables[key] && (
+                    <button
+                      onClick={() => void handleRestore(key)}
+                      disabled={isDel}
+                      className="mx-3 mb-1 flex items-center justify-center gap-1 py-1 rounded-md border border-emerald/30 bg-emerald/10 text-[10.5px] font-medium text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-40"
+                    >
+                      <RotateCcw className="w-3 h-3" /> {t('photoRestore')}
+                    </button>
+                  )}
 
                   {/* Action buttons — en el portal médico no hay ninguno: la
                       foto se mira. El aviso de arriba dice por qué. */}

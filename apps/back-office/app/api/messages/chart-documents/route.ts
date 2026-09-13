@@ -7,6 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { requireMessagingActor } from '@/lib/messaging';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!patientId) return NextResponse.json({ error: 'Falta patientId' }, { status: 400 });
 
   const documents = await db.patientDocument.findMany({
-    where: { patientId, isFolder: false, s3Key: { not: null } },
+    where: { patientId, isFolder: false, s3Key: { not: null }, ...VIGENTES },
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, mimeType: true, createdAt: true },
   });

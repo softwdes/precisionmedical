@@ -10,10 +10,11 @@ import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw, X, FileArchive, CloudUpload,
+  RefreshCw, X, FileArchive, CloudUpload, RotateCcw,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -280,13 +281,25 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   const [uploading, setUploading]           = useState(false);
   const [previewItem, setPreviewItem]       = useState<DocItem | null>(null);
   const [deleting, setDeleting]             = useState<string | null>(null);
+  /** El item esperando confirmación de borrado, o `null`. */
+  const [porBorrar, setPorBorrar]           = useState<DocItem | null>(null);
+  /**
+   * La PAPELERA: es la misma lista con el filtro dado vuelta, no otra pantalla.
+   *
+   * Vive acá, al lado de donde se borra, porque el que se equivoca es el que se
+   * da cuenta — y mandarlo a pedirle la restauración a alguien convierte cada
+   * error en un ticket (Erick, 2026-09-13). No la ve el portal del abogado:
+   * este tab es de back office y providers.
+   */
+  const [verPapelera, setVerPapelera]       = useState(false);
 
-  const load = useCallback(async (parentId: string | null) => {
+  const load = useCallback(async (parentId: string | null, papelera = false) => {
     setLoading(true);
     setError(null);
     setSelected(new Set());
     try {
-      const qs = parentId ? `?parentId=${parentId}` : '';
+      const partes = [parentId ? `parentId=${parentId}` : '', papelera ? 'papelera=1' : ''].filter(Boolean);
+      const qs = partes.length ? `?${partes.join('&')}` : '';
       const res = await fetch(`${api}/documents${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -298,7 +311,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
     }
   }, [api]);
 
-  useEffect(() => { load(currentParentId); }, [load, currentParentId]);
+  useEffect(() => { load(currentParentId, verPapelera); }, [load, currentParentId, verPapelera]);
 
   function navigateInto(folder: DocItem) {
     setBreadcrumb(prev => [...prev, { id: folder.id, name: folder.name }]);
@@ -345,7 +358,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNewFolderOpen(false);
       setNewFolderName('');
-      load(currentParentId);
+      load(currentParentId, verPapelera);
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertCreateFolder'));
     } finally {
@@ -397,7 +410,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         });
       }
       setUploadOpen(false);
-      load(currentParentId);
+      load(currentParentId, verPapelera);
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertUploadError'));
     } finally {
@@ -405,15 +418,25 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
     }
   }
 
-  async function handleDelete(item: DocItem) {
+  /**
+   * Pedir la confirmación. El borrado real lo hace `confirmarBorrado`.
+   *
+   * Se cambió el `window.confirm` del navegador por el diálogo del sistema: el
+   * gris del navegador no se ve como el resto, y en algunos contextos embebidos
+   * directamente no aparece — ahí el clic borraba sin preguntar nada.
+   */
+  function handleDelete(item: DocItem) {
     if (item.isFolder && item._count.children > 0) {
       alert(t('alertFolderNotEmpty', { name: item.name, count: item._count.children }));
       return;
     }
-    const pregunta = item.isFolder
-      ? t('confirmDeleteFolder', { name: item.name })
-      : t('confirmDeleteFile',   { name: item.name });
-    if (!window.confirm(pregunta)) return;
+    setPorBorrar(item);
+  }
+
+  async function confirmarBorrado() {
+    const item = porBorrar;
+    if (!item) return;
+    setPorBorrar(null);
     setDeleting(item.id);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'DELETE' });
@@ -421,9 +444,30 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         const data = await res.json();
         throw new Error(data.message ?? `HTTP ${res.status}`);
       }
-      load(currentParentId);
+      load(currentParentId, verPapelera);
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertDeleteError'));
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  /** Traerlo de vuelta de la papelera. Lo puede hacer cualquiera que vea esto. */
+  async function handleRestore(item: DocItem) {
+    setDeleting(item.id);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // El único caso que no es un fallo: su carpeta también está borrada, y
+        // restaurar el archivo solo lo dejaría colgando de algo invisible.
+        throw new Error(data.error === 'CARPETA_ELIMINADA'
+          ? t('alertRestoreFolderFirst', { name: data.carpeta ?? '—' })
+          : (data.message ?? `HTTP ${res.status}`));
+      }
+      load(currentParentId, verPapelera);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('alertRestoreError'));
     } finally {
       setDeleting(null);
     }
@@ -510,11 +554,26 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="outline" size="sm" onClick={() => load(currentParentId)} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={() => load(currentParentId, verPapelera)} disabled={loading}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
+            {/* La PAPELERA. Es lectura + restaurar, así que no depende de
+                `readOnly`… salvo restaurar, que sí (ver el botón de la fila).
+                El icono se queda encendido mientras está activa, para que se
+                note que lo que se está viendo no es la carpeta normal. */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setVerPapelera((v) => !v)}
+              disabled={loading}
+              title={t('trashTitle')}
+              className={`gap-1.5 ${verPapelera ? 'text-rose' : ''}`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{verPapelera ? t('trashExit') : t('trashOpen')}</span>
+            </Button>
             {/* Recargar se queda: es lectura. Crear carpeta y subir, no. */}
-            {!readOnly && (
+            {!readOnly && !verPapelera && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
                   <FolderPlus className="w-3.5 h-3.5" />
@@ -664,7 +723,20 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                       )}
                       {/* Descargar SÍ, borrar NO: el bufete se lleva copia del
                           expediente, pero no lo modifica. */}
-                      {!readOnly && (
+                      {/* En la papelera el botón es el opuesto: restaurar. Si
+                          siguiera siendo el de borrar, no haría nada —ya está
+                          borrado— y se leería como que la acción falló. */}
+                      {!readOnly && verPapelera && (
+                        <button
+                          onClick={() => void handleRestore(item)}
+                          disabled={deleting === item.id}
+                          className="p-1 rounded text-text-muted hover:text-emerald transition-colors disabled:opacity-50"
+                          title={t('restoreTitle')}
+                        >
+                          {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      {!readOnly && !verPapelera && (
                         <button
                           onClick={() => handleDelete(item)}
                           disabled={deleting === item.id}
@@ -728,6 +800,23 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           item={previewItem}
           onClose={() => setPreviewItem(null)}
           onDownload={item => { handleDownload(item); setPreviewItem(null); }}
+        />
+      )}
+
+      {/* La confirmación de borrado, con el diálogo del sistema y no el del
+          navegador. El texto DICE que se puede recuperar: prometerlo sin que
+          fuera cierto era el problema de antes, y ahora es verdad. */}
+      {porBorrar && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={porBorrar.isFolder ? t('confirmDeleteFolderTitle') : t('confirmDeleteFileTitle')}
+          description={`${porBorrar.isFolder
+            ? t('confirmDeleteFolder', { name: porBorrar.name })
+            : t('confirmDeleteFile', { name: porBorrar.name })} ${t('confirmDeleteRecoverable')}`}
+          confirmLabel={tc('delete')}
+          onConfirm={() => void confirmarBorrado()}
+          onCancel={() => setPorBorrar(null)}
         />
       )}
     </>

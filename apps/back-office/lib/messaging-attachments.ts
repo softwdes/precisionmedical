@@ -10,6 +10,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 
 const SUPABASE_URL = (process.env.SUPABASE_STORAGE_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!;
 const SERVICE_KEY = (process.env.SUPABASE_STORAGE_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!;
@@ -51,8 +52,10 @@ export async function firmarAdjunto(id: string): Promise<AdjuntoFirmado> {
   let bucket = BUCKET;
   let key = att.fileUrl;
   if (!key && att.patientDocumentId) {
-    const doc = await db.patientDocument.findUnique({
-      where: { id: att.patientDocumentId },
+    // Si el documento se eliminó, el adjunto del mensaje deja de servirse:
+    // cae en el `SOURCE_DOCUMENT_GONE` de abajo, que es exactamente eso.
+    const doc = await db.patientDocument.findFirst({
+      where: { id: att.patientDocumentId, ...VIGENTES },
       select: { s3Key: true },
     });
     if (!doc?.s3Key) return { ok: false, status: 410, error: 'SOURCE_DOCUMENT_GONE', threadId: att.entry.threadId };

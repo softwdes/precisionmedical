@@ -11,6 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { VIGENTES, ELIMINADOS } from '@/lib/documentos';
 
 const CreateSchema = z.object({
   name:     z.string().trim().min(1).max(255),
@@ -28,6 +29,8 @@ export async function GET(
   const { id: caseId } = await ctx.params;
   const { searchParams } = new URL(req.url);
   const parentId = searchParams.get('parentId') ?? null;
+  /** La papelera es la MISMA lista con el filtro dado vuelta, no otra pantalla. */
+  const verPapelera = searchParams.get('papelera') === '1';
 
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
@@ -38,7 +41,8 @@ export async function GET(
   }
 
   const docs = await db.patientDocument.findMany({
-    where: { caseId, parentId },
+    // `papelera=1` invierte el filtro: es la misma lista, viendo los eliminados.
+    where: { caseId, parentId, ...(verPapelera ? ELIMINADOS : VIGENTES) },
     orderBy: [{ isFolder: 'desc' }, { name: 'asc' }],
     select: {
       id: true,
@@ -83,8 +87,11 @@ export async function POST(
   }
 
   if (parsed.parentId) {
-    const parent = await db.patientDocument.findUnique({
-      where: { id: parsed.parentId },
+    // `findFirst` y no `findUnique`: hay que exigir además que la carpeta no
+    // esté en la papelera, y `findUnique` solo acepta campos únicos. Crear algo
+    // dentro de una carpeta eliminada lo dejaría invisible al instante.
+    const parent = await db.patientDocument.findFirst({
+      where: { id: parsed.parentId, ...VIGENTES },
       select: { id: true, isFolder: true, caseId: true },
     });
     if (!parent || parent.caseId !== caseId || !parent.isFolder) {

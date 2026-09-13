@@ -13,7 +13,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkPatientAccess } from '@/lib/patient-access';
 import {
-  validarFoto, subirFoto, conFotoNueva, sinFoto, borrarObjeto, esPhotoType,
+  validarFoto, subirFoto, conFotoNueva, aPapelera, desdePapelera, esPhotoType,
 } from '@/lib/intake-photos';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -96,16 +96,26 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   const latestCase = await casoMasReciente(patientId);
   if (!latestCase) return NextResponse.json({ error: 'NO_CASE_FOUND' }, { status: 404 });
 
-  const { consents, urlPrevia } = sinFoto(latestCase.consentsData, photoType);
+  const actor = await resolveActor(req.headers);
+
+  /*
+   * A la PAPELERA, no al borrado.
+   *
+   * Antes esto sacaba la URL del JSON y además borraba el archivo del bucket
+   * (`borrarObjeto`), así que una foto de identidad eliminada por error no se
+   * recuperaba de ninguna manera. Ahora la URL se guarda en
+   * `consentsData.photosEliminadas` y el archivo se queda donde está — que es
+   * exactamente lo que permite traerla de vuelta (Erick, 2026-09-13).
+   */
+  const { consents, habia } = aPapelera(latestCase.consentsData, photoType, actor.actorName ?? null);
+  // Idempotente: si ya no estaba, no es un error.
+  if (!habia) return NextResponse.json({ ok: true, yaEstaba: true });
 
   await db.case.update({
     where: { id: latestCase.id },
     data:  { consentsData: consents },
   });
 
-  borrarObjeto(urlPrevia); // best-effort
-
-  const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
@@ -117,4 +127,46 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * PATCH /api/admin/patients/[id]/upload-photo?photoType=…
+ *   Recupera una foto de la papelera y la devuelve a su recuadro.
+ *
+ * Misma puerta que borrarla: el que se equivoca es el que se da cuenta.
+ */
+export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  const { id: patientId } = await ctx.params;
+  const photoType = req.nextUrl.searchParams.get('photoType');
+
+  const acceso = await checkPatientAccess(patientId, { admin: true });
+  if (acceso.deny) return acceso.deny;
+
+  if (!esPhotoType(photoType)) {
+    return NextResponse.json({ error: 'INVALID_TYPE' }, { status: 400 });
+  }
+
+  const latestCase = await casoMasReciente(patientId);
+  if (!latestCase) return NextResponse.json({ error: 'NO_CASE_FOUND' }, { status: 404 });
+
+  const vuelta = desdePapelera(latestCase.consentsData, photoType);
+  if (!vuelta) return NextResponse.json({ error: 'NADA_QUE_RECUPERAR' }, { status: 404 });
+
+  await db.case.update({
+    where: { id: latestCase.id },
+    data:  { consentsData: vuelta.consents },
+  });
+
+  const actor = await resolveActor(req.headers);
+  await writeAuditLog(db, {
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
+    action:      'STAFF_PHOTO_RESTORE',
+    entityType:  'Case',
+    entityId:    latestCase.id,
+    metadata:    { photoType, patientId },
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
+
+  return NextResponse.json({ ok: true, url: vuelta.url });
 }

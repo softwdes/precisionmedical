@@ -206,7 +206,15 @@ export function conFotoNueva(
 ): object {
   const prev   = (consentsData ?? {}) as Record<string, unknown>;
   const photos = (prev.photos ?? {}) as Record<string, string>;
-  return { ...prev, photos: { ...photos, [photoType]: url } };
+  /*
+   * Subir una foto nueva VACÍA la papelera de ese recuadro. Si no, "recuperar"
+   * pisaría la foto que se acaba de tomar con la vieja, que es lo contrario de
+   * lo que espera cualquiera. El archivo viejo queda huérfano en el bucket —
+   * mismo costo que aceptamos con los documentos, a cambio de no borrar nada.
+   */
+  const papelera = { ...fotosEliminadasDe(consentsData) };
+  delete papelera[photoType];
+  return { ...prev, photos: { ...photos, [photoType]: url }, photosEliminadas: papelera };
 }
 
 /** Las fotos guardadas en el `consentsData` de un caso. */
@@ -224,4 +232,59 @@ export function sinFoto(
   const urlPrevia = photos[photoType];
   delete photos[photoType];
   return { consents: { ...prev, photos }, urlPrevia };
+}
+
+// ─── La papelera de las fotos ────────────────────────────────────────────────
+//
+// Las fotos NO son filas de `patient_documents`: son URLs dentro del JSON
+// `consentsData` del caso. Así que su papelera vive en el mismo JSON, en vez de
+// en una tabla — no hace falta migración y el dato viaja con el caso.
+//
+// Antes eliminar una foto de identidad la borraba del bucket y no había vuelta
+// atrás. Ahora se mueve acá y el archivo se queda (Erick, 2026-09-13).
+
+export interface FotoEliminada {
+  url: string;
+  /** ISO. Para poder decir "eliminada el …" sin inventar la fecha. */
+  at: string;
+  by: string | null;
+}
+
+/** Las fotos que están en la papelera de un caso. */
+export function fotosEliminadasDe(consentsData: unknown): Record<string, FotoEliminada> {
+  const v = ((consentsData ?? {}) as Record<string, unknown>).photosEliminadas;
+  return (v as Record<string, FotoEliminada>) ?? {};
+}
+
+/**
+ * Mueve la foto a la papelera. El archivo del bucket NO se toca — es lo que
+ * hace posible traerla de vuelta.
+ */
+export function aPapelera(
+  consentsData: unknown,
+  photoType: PhotoType,
+  quien: string | null,
+): { consents: object; habia: boolean } {
+  const prev   = (consentsData ?? {}) as Record<string, unknown>;
+  const photos = { ...fotosDe(consentsData) };
+  const url = photos[photoType];
+  if (!url) return { consents: prev, habia: false };
+  delete photos[photoType];
+  const papelera = { ...fotosEliminadasDe(consentsData) };
+  papelera[photoType] = { url, at: new Date().toISOString(), by: quien };
+  return { consents: { ...prev, photos, photosEliminadas: papelera }, habia: true };
+}
+
+/** La trae de vuelta al recuadro. `null` si no había nada que recuperar. */
+export function desdePapelera(
+  consentsData: unknown,
+  photoType: PhotoType,
+): { consents: object; url: string } | null {
+  const papelera = { ...fotosEliminadasDe(consentsData) };
+  const guardada = papelera[photoType];
+  if (!guardada?.url) return null;
+  delete papelera[photoType];
+  const prev   = (consentsData ?? {}) as Record<string, unknown>;
+  const photos = { ...fotosDe(consentsData), [photoType]: guardada.url };
+  return { consents: { ...prev, photos, photosEliminadas: papelera }, url: guardada.url };
 }

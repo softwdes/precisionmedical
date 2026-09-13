@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { resolveActor, type ResolvedActor } from '@/lib/actor';
 import { firmCaseFilter } from '@/lib/attorney-portal';
 
@@ -157,7 +158,7 @@ export async function sanitizeAttachments(
   let chart: SanitizedAttachment[] = [];
   if (chartIds.length > 0 && patientId) {
     const docs = await db.patientDocument.findMany({
-      where: { id: { in: chartIds }, patientId, isFolder: false, s3Key: { not: null } },
+      where: { id: { in: chartIds }, patientId, isFolder: false, s3Key: { not: null }, ...VIGENTES },
       select: { id: true, name: true },
     });
     chart = docs.map((d) => {

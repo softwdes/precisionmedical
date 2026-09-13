@@ -4200,7 +4200,10 @@
       "linkContactCancel": "Cancel",
       "linkContactSharedPhone": "It is a shared or clinic phone",
       "linkContactSharedPhoneHint": "Not a family tie: unrelated people use it. The record is created without a link, and the review is logged.",
-      "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages."
+      "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
+      "photoDeleteConfirm": "Delete this photo? It goes to the trash: you can restore it from the same slot.",
+      "photoRestore": "Restore",
+      "photoRestoreError": "Couldn't restore it."
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",
@@ -4855,7 +4858,16 @@
         "alertDownloadS3": "Download will be available when S3 storage is configured.",
         "alertDownloadError": "Error generating download link",
         "alertBulkS3": "Bulk download will be available when S3 storage is configured.",
-        "placeholderFolder": "Folder name"
+        "placeholderFolder": "Folder name",
+        "confirmDeleteFolderTitle": "Delete folder",
+        "confirmDeleteFileTitle": "Delete file",
+        "confirmDeleteRecoverable": "It goes to the trash: if this was a mistake, you can restore it from there.",
+        "trashOpen": "Trash",
+        "trashExit": "Leave the trash",
+        "trashTitle": "See deleted items and restore them",
+        "restoreTitle": "Restore",
+        "alertRestoreError": "Couldn't restore it.",
+        "alertRestoreFolderFirst": "Restore the folder \"{name}\" first: otherwise the file comes back inside something nobody can see."
       }
     },
     "settings": {

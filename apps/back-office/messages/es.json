@@ -4200,7 +4200,10 @@
       "linkContactCancel": "Cancelar",
       "linkContactSharedPhone": "Es un número compartido o de la clínica",
       "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
-      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro."
+      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
+      "photoDeleteConfirm": "¿Eliminar esta foto? Va a la papelera: podés recuperarla desde el mismo recuadro.",
+      "photoRestore": "Recuperar",
+      "photoRestoreError": "No se pudo recuperar."
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",
@@ -4855,7 +4858,16 @@
         "alertDownloadS3": "La descarga estará disponible cuando se configure el almacenamiento S3.",
         "alertDownloadError": "Error al generar enlace de descarga",
         "alertBulkS3": "La descarga masiva estará disponible cuando se configure el almacenamiento S3.",
-        "placeholderFolder": "Nombre de la carpeta"
+        "placeholderFolder": "Nombre de la carpeta",
+        "confirmDeleteFolderTitle": "Eliminar carpeta",
+        "confirmDeleteFileTitle": "Eliminar archivo",
+        "confirmDeleteRecoverable": "Va a la papelera: si te equivocaste, lo podés recuperar desde ahí.",
+        "trashOpen": "Papelera",
+        "trashExit": "Salir de la papelera",
+        "trashTitle": "Ver lo eliminado y recuperarlo",
+        "restoreTitle": "Recuperar",
+        "alertRestoreError": "No se pudo recuperar.",
+        "alertRestoreFolderFirst": "Recuperá primero la carpeta \"{name}\": si no, el archivo vuelve adentro de algo que nadie ve."
       }
     },
     "settings": {

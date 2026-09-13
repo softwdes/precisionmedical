@@ -43,6 +43,7 @@
  */
 
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 
 const SUPABASE_URL = (process.env.SUPABASE_STORAGE_URL
   ?? process.env.SUPABASE_URL
@@ -74,7 +75,10 @@ function nombreSeguro(nombre: string): string {
 /** La carpeta de mensajería del caso; la crea la primera vez. */
 async function carpetaDelCaso(caseId: string, patientId: string | null): Promise<string | null> {
   const existente = await db.patientDocument.findFirst({
-    where:  { caseId, isFolder: true, name: CARPETA_MENSAJERIA, parentId: null },
+    // Si alguien mandó la carpeta de mensajería a la papelera, no se reusa: se
+    // crea una nueva. Colgar adjuntos nuevos de una carpeta eliminada los
+    // dejaría invisibles desde el primer día.
+    where:  { caseId, isFolder: true, name: CARPETA_MENSAJERIA, parentId: null, ...VIGENTES },
     select: { id: true },
   });
   if (existente) return existente.id;

@@ -22,6 +22,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { casoDelAbogado } from '@/lib/attorney-case-scope';
 
 export async function GET(
@@ -35,7 +36,8 @@ export async function GET(
   const parentId = req.nextUrl.searchParams.get('parentId') || null;
 
   const documents = await db.patientDocument.findMany({
-    where:   { caseId, parentId },
+    // El portal del abogado NO tiene papelera: lo eliminado no le existe.
+    where:   { caseId, parentId, ...VIGENTES },
     orderBy: [{ isFolder: 'desc' }, { name: 'asc' }],
     select: {
       id: true, name: true, isFolder: true, s3Key: true,

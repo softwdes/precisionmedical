@@ -10,6 +10,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { createClient } from '@supabase/supabase-js';
 import { casoDelAbogado } from '@/lib/attorney-case-scope';
 
@@ -29,8 +30,9 @@ export async function GET(
   const { caseId, deny } = await casoDelAbogado(id);
   if (deny) return deny;
 
-  const doc = await db.patientDocument.findUnique({
-    where:  { id: docId },
+  // El abogado nunca descarga uno que la clínica eliminó.
+  const doc = await db.patientDocument.findFirst({
+    where:  { id: docId, ...VIGENTES },
     select: { id: true, caseId: true, s3Key: true, isFolder: true, name: true },
   });
 

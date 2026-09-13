@@ -5,6 +5,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { createClient } from '@supabase/supabase-js';
 
 // Storage vive en el proyecto Phoenix (kiqlh…) — vars dedicadas con fallback legacy.
@@ -21,8 +22,9 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id: caseId, docId } = await ctx.params;
 
-  const doc = await db.patientDocument.findUnique({
-    where: { id: docId },
+  // Uno en la papelera no se descarga: para el que pide el link, está eliminado.
+  const doc = await db.patientDocument.findFirst({
+    where: { id: docId, ...VIGENTES },
     select: { id: true, caseId: true, s3Key: true, isFolder: true, name: true },
   });
 

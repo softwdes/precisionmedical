@@ -28,6 +28,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { VIGENTES } from '@/lib/documentos';
 import { createClient } from '@supabase/supabase-js';
 import { checkPatientAccess } from '@/lib/patient-access';
 
@@ -48,8 +49,9 @@ export async function GET(
   const acceso = await checkPatientAccess(patientId);
   if (acceso.deny) return acceso.deny;
 
-  const doc = await db.patientDocument.findUnique({
-    where: { id: docId },
+  // Uno en la papelera no se descarga: para quien pide el link, está eliminado.
+  const doc = await db.patientDocument.findFirst({
+    where: { id: docId, ...VIGENTES },
     select: {
       id: true, name: true, isFolder: true, s3Key: true,
       patientId: true, caseId: true,

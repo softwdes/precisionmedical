@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import type { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-detail-client';
 import { getSessionUser } from '@/lib/session';
 import { getDbUserByEmail } from '@/lib/actor';
+import { fotosConRespaldo } from '@/lib/fotos-identidad';
 
 /**
  * Carga del detalle de caso — compartida por las CUATRO superficies que lo
@@ -216,6 +217,30 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
     },
   });
 
+  /**
+   * Las cuatro fotos de identidad, completadas con las que el paciente trae del
+   * v2 cuando el caso no las tiene.
+   *
+   * Sin esto, la ficha de un paciente migrado decía "faltan la foto, la licencia
+   * y la tarjeta del seguro" teniendo las cuatro guardadas: el aviso y el avatar
+   * leen de acá, y las del v2 no viven en `consentsData` sino colgando de la
+   * PERSONA (ver `lib/fotos-identidad.ts`).
+   */
+  const fotosDelCaso = (() => {
+    const cd = caseRecord.consentsData as Record<string, unknown> | null;
+    return (cd?.photos as Record<string, string> | undefined) ?? {};
+  })();
+  const fotos = await fotosConRespaldo(caseRecord.patient.id, fotosDelCaso);
+  /**
+   * Las que están en la papelera. Van al cliente para que el recuadro vacío
+   * pueda ofrecer "recuperar" también acá, y no solo en la sesión en la que se
+   * borró la foto.
+   */
+  const fotosEliminadas = (() => {
+    const cd = caseRecord.consentsData as Record<string, unknown> | null;
+    return (cd?.photosEliminadas as Record<string, { url: string; at: string; by: string | null }> | undefined) ?? {};
+  })();
+
   return {
     caseInfo: {
       id: caseRecord.id,
@@ -244,18 +269,14 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
          * porque el diálogo que las administra se abre desde esta pantalla y
          * necesita saber cuáles ya existen para no mostrarlas como vacías.
          *
-         * ⚠️ Viven en `Case.consentsData`, no en el paciente: `Patient` no tiene
-         * columna de foto. Un paciente con dos casos tiene las de ESTE caso.
+         * ⚠️ Las del intake de v3 viven en `Case.consentsData` (`Patient` no tiene
+         * columna de foto), así que un paciente con dos casos ve las de ESTE
+         * caso. Las migradas del v2 cuelgan de la PERSONA y entran como
+         * respaldo — resuelto arriba con `fotosConRespaldo`.
          */
-        fotos: (() => {
-          const cd = caseRecord.consentsData as Record<string, unknown> | null;
-          return (cd?.photos as Record<string, string> | undefined) ?? {};
-        })(),
-        photoUrl: (() => {
-          const cd = caseRecord.consentsData as Record<string, unknown> | null;
-          const photos = cd?.photos as Record<string, string> | undefined;
-          return photos?.selfie ?? null;
-        })(),
+        fotos,
+        fotosEliminadas,
+        photoUrl: fotos.selfie ?? null,
       },
       lawFirm: caseRecord.lawFirm,
       attorney: caseRecord.attorney,

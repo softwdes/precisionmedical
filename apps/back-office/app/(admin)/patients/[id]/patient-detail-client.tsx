@@ -23,7 +23,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 // formularios para la misma tabla garantizaba que cada arreglo se hiciera en uno
 // solo — es la duplicación que ya nos pasó con calcAge y los generadores de código.
 import { PatientEditDialog } from '../patient-edit-dialog';
-import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
+import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
 import { ContactoCompartidoNota } from '@/components/patients/contacto-compartido-nota';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import {
@@ -165,6 +165,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
   const [archivosOpen, setArchivosOpen] = useState(false);
   const casoReciente = patient.cases[0] ?? null;
   const fotos = fotosDelCaso(casoReciente?.consentsData);
+  const fotosEliminadas = fotosEliminadasDelCaso(casoReciente?.consentsData);
 
   const patientStatusColors = PATIENT_STATUS_COLORS[patient.status];
   const PATIENT_STATUS_LABEL_KEYS: Record<PatientStatus, string> = {
@@ -248,6 +249,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
           firstName={patient.firstName}
           lastName={patient.lastName}
           fotos={fotos}
+          fotosEliminadas={fotosEliminadas}
           tieneCaso={!!casoReciente}
           onClose={() => setArchivosOpen(false)}
         />

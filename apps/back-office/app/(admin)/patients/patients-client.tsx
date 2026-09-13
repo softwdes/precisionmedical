@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
-import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
+import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { etiquetaEstado } from '@/lib/appointment-style';
@@ -61,6 +61,25 @@ interface CaseRow {
   firstAppointment: { scheduledFor: string } | null;
   lastAppointment:  { scheduledFor: string } | null;
 }
+
+/**
+ * Un caso que ya terminó su recorrido. Se pinta al 55% en el panel de casos:
+ * con doce casos, lo que se busca es cuáles siguen vivos, y bajarles la
+ * opacidad a los demás responde esa pregunta sin leer una sola fecha.
+ * `CANCELLED` entra acá aunque sea "fuera de ruta" — tampoco está en curso.
+ */
+const CASOS_CERRADOS = new Set(['CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED']);
+
+/**
+ * Capa de hover de una celda — copiada del primitivo `DataTable`, que es donde
+ * vive la versión canónica (ver `HOVER_OVERLAY` ahí). Va en TODAS las celdas de
+ * la fila, incluidas las fijas: componerla encima es lo que hace que el
+ * resaltado cruce la fila entera en vez de cortarse donde empieza un fondo
+ * opaco. Cuando esta tabla se migre al primitivo, esto se borra.
+ */
+const HOVER_CELDA =
+  'relative before:absolute before:inset-0 before:pointer-events-none ' +
+  'before:bg-white/[0.02] before:opacity-0 group-hover:before:opacity-100 before:transition-opacity';
 
 const CASE_TYPE_LABEL: Record<string, string> = {
   MVA: 'MVA',
@@ -1632,6 +1651,24 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const router = useRouter();
   const searchParamsHook = useSearchParams();
 
+  /**
+   * Estados del CASO, traducidos. Las claves ya existían en
+   * `phoenix.patients.caseStatus` y el panel de casos mostraba el enum crudo
+   * ("INTAKE_PENDING") porque nadie las había cableado acá.
+   */
+  const CASE_STATUS_LABEL: Record<string, string> = {
+    NEW_REFERRAL:     t('caseStatus.NEW_REFERRAL'),
+    INTAKE_PENDING:   t('caseStatus.INTAKE_PENDING'),
+    INTAKE_COMPLETED: t('caseStatus.INTAKE_COMPLETED'),
+    CONFIRMED:        t('caseStatus.CONFIRMED'),
+    ACTIVE:           t('caseStatus.ACTIVE'),
+    MMI:              t('caseStatus.MMI'),
+    CLOSED:           t('caseStatus.CLOSED'),
+    SETTLED:          t('caseStatus.SETTLED'),
+    ARCHIVED:         t('caseStatus.ARCHIVED'),
+    CANCELLED:        t('caseStatus.CANCELLED'),
+  };
+
   const STATUS_LABEL: Record<string, string> = {
     NEW:        t('patientStatus.NEW'),
     ACTIVE:     t('patientStatus.ACTIVE'),
@@ -2295,7 +2332,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           <tbody>
             {patients.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-text-muted text-sm">
+                <td colSpan={8} className="px-4 py-10 text-center text-text-muted text-sm">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   {/* De la URL viva, por lo mismo que los links: buscar no
                       navega, así que con la prop una búsqueda sin resultados
@@ -2306,13 +2343,31 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             )}
             {localPatients.map((p) => (
               <Fragment key={p.id}>
-              <tr className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
+              {/**
+                * El hover se pinta CELDA POR CELDA, no cambiando el fondo de la
+                * fila.
+                *
+                * Estaba como `hover:bg-white/[0.02]` en el `<tr>`, y las dos
+                * celdas fijas (Paciente y Acciones) pintan su propio fondo
+                * opaco encima — así que el resaltado aparecía SOLO en las
+                * columnas del medio, como si se encendiera una franja. Es la
+                * trampa que el CLAUDE.md documenta para las tablas con celdas
+                * fijas escritas a mano, y esta es una de las cuatro que la
+                * tenían. `HOVER_CELDA` es la misma capa `::before` que usa el
+                * primitivo `DataTable`, activada por el `group` de la fila: se
+                * compone SOBRE el fondo de cada celda en vez de reemplazarlo,
+                * así que cruza la fila entera.
+                *
+                * La fila abierta además se tiñe de `brand`: el panel de abajo
+                * lleva el mismo tinte, y juntos se leen como un bloque.
+                */}
+              <tr className={`group border-b border-row-sep ${expandedIds.has(p.id) ? 'bg-brand/[0.04]' : ''}`}>
                 {/* Chevron expand */}
-                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2 w-[220px]">
+                <td className={`sticky left-0 z-10 bg-bg-0 px-4 py-2 w-[220px] ${HOVER_CELDA}`}>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
-                      className="p-1.5 rounded text-text-muted hover:text-brand-text transition-colors shrink-0"
+                      className={`p-1.5 rounded transition-colors shrink-0 ${expandedIds.has(p.id) ? "text-brand-text" : "text-text-muted hover:text-brand-text"}`}
                       title={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-label={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-expanded={expandedIds.has(p.id)}
@@ -2339,7 +2394,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Contact */}
-                <td className="px-4 py-2 hidden sm:table-cell w-[220px]">
+                <td className={`px-4 py-2 hidden sm:table-cell w-[220px] ${HOVER_CELDA}`}>
                   {/* Una sola linea (estandar de listas §4). Muestra el CORREO,
                       no el telefono: llamar va a ser una accion del menu "..."
                       (igual que v2, que en esta columna pone el email). */}
@@ -2361,10 +2416,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Casos */}
-                <td className="px-3 py-2 hidden md:table-cell w-[100px] text-center">
+                <td className={`px-3 py-2 hidden md:table-cell w-[100px] text-center ${HOVER_CELDA}`}>
                   <button
                     onClick={() => toggleExpand(p.id)}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand-text transition-colors tabular-nums"
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold transition-colors tabular-nums ${expandedIds.has(p.id) ? "bg-brand/20 border border-transparent text-brand-text" : "bg-bg-2 border border-border text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand-text"}`}
                     title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                     aria-label={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
@@ -2373,7 +2428,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Estado */}
-                <td className="px-4 py-2 hidden sm:table-cell w-[100px]">
+                <td className={`px-4 py-2 hidden sm:table-cell w-[100px] ${HOVER_CELDA}`}>
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -2381,7 +2436,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-2 hidden lg:table-cell w-[220px]">
+                <td className={`px-4 py-2 hidden lg:table-cell w-[220px] ${HOVER_CELDA}`}>
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2420,7 +2475,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Formulario */}
-                <td className="px-3 py-2 hidden lg:table-cell w-[100px]">
+                <td className={`px-3 py-2 hidden lg:table-cell w-[100px] ${HOVER_CELDA}`}>
                   <div className="flex items-center gap-1.5">
                     {/* Llamar — va primero. Solo habilitado si hay telefono. */}
                     {p.phone && !doctorMode ? (
@@ -2507,12 +2562,12 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
 
                 {/* Created */}
-                <td className="hidden xl:table-cell px-4 py-2 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
+                <td className={`hidden xl:table-cell px-4 py-2 text-[11px] text-text-muted tabular-nums whitespace-nowrap ${HOVER_CELDA}`}>
                   {fecha(p.createdAt)}
                 </td>
 
                 {/* Acciones */}
-                <td className="sticky right-0 z-10 bg-bg-0 px-4 py-2">
+                <td className={`sticky right-0 z-10 bg-bg-0 px-4 py-2 ${HOVER_CELDA}`}>
                   <div className="flex justify-end">
                     <button
                       onClick={(e) => openMenu(p.id, e.currentTarget)}
@@ -2528,269 +2583,204 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </td>
               </tr>
 
-              {/* ── Fila expandida: casos del paciente ── */}
-              {/* Fondo mas marcado + borde izquierdo de acento: es lo que
-                  visualmente "cuelga" el bloque de su fila padre. Antes con
-                  bg-white/[0.03] casi no se distinguia del resto. */}
+              {/* ── Fila expandida: los casos del paciente ────────────────────
+                  Era una TABLA adentro de la tabla: su propio juego de
+                  encabezados grises competía con el de arriba y el ojo no sabía
+                  cuál era de quién. Y el bloque arrancaba pegado al borde
+                  izquierdo, a 220px del nombre del que cuelga, así que nada lo
+                  ataba a su fila.
+
+                  Ahora cada caso es una FILA-TARJETA y el panel se indenta bajo
+                  el nombre, con la barra de acento ahí. Con un caso se ve
+                  liviano y con doce sigue leyéndose igual — que es el punto: hay
+                  pacientes con doce (Erick, 2026-09-13).
+
+                  La misma tarjeta sirve para teléfono y escritorio: antes había
+                  dos implementaciones (`md:hidden` + `hidden md:block`) que se
+                  mantenían por separado y ya habían divergido en qué acciones
+                  ofrecía cada una. */}
               {expandedIds.has(p.id) && (
-                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-bg-2/60 border-b border-row-sep">
-                  <td colSpan={7} className="px-6 py-3 overflow-x-auto border-l-[3px] border-brand">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
-                        <span className="text-[11px] uppercase tracking-wider font-bold text-text-2 flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-brand-text" /> {t('patientCases')}
-                          <span className="font-mono text-[10px] font-normal text-text-muted ml-1">
+                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-brand/[0.04] border-b border-row-sep">
+                  {/* colSpan 8, no 7: la tabla tiene OCHO columnas y con siete el
+                      panel dejaba una franja muerta bajo Acciones — se veía como
+                      un corte a la derecha del bloque. */}
+                  <td colSpan={8} className="p-0">
+                    <div className="pl-8 sm:pl-10 pr-3 sm:pr-4 pb-3">
+                      <div className="border-l-2 border-brand pl-3.5">
+                        <div className="flex items-center justify-between flex-wrap gap-2 py-2">
+                          <span className="text-[11px] text-text-muted">
                             {p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                           </span>
-                        </span>
-                        {!inactiveOnly && (
-                          <button
-                            onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors"
-                          >
-                            <Plus className="w-3 h-3" /> {t('btnAddCase')}
-                          </button>
-                        )}
-                      </div>
-
-                      {loadingCases[p.id] && (
-                        <p className="text-[11px] text-text-muted py-2">{t('loadingCases')}</p>
-                      )}
-
-                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length === 0 && (
-                        <p className="text-[11px] text-text-muted py-2">{t('noCasesRegistered')}</p>
-                      )}
-
-                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
-                        <>
-                        {/* Mobile cards */}
-                        <div className="md:hidden divide-y divide-white/[0.06]">
-                          {(expandedCases[p.id] ?? []).map((c) => {
-                            return (
-                              <div key={c.id} className="py-2 flex flex-col gap-1.5">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1.5">
-                                    {c.caseType === 'MVA' ? <Car className="w-3 h-3 text-text-muted shrink-0" /> : <Stethoscope className="w-3 h-3 text-text-muted shrink-0" />}
-                                    <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
-                                    <TagPill label={c.status} colorClass={
-                                      c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
-                                      : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
-                                      : 'bg-brand/10 text-brand-text border-brand/20'
-                                    } />
-                                  </div>
-                                  <div className="flex items-center gap-0.5">
-                                    {/* El doctor también ve el caso — su ruta propia se
-                                        intercepta como modal desde Mis Pacientes */}
-                                    <button onClick={() => abrirCaso(c.id)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
-                                    {currentUserId && (
-                                      <button onClick={() => openCaseMessages(p, c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={tMsg('tooltipCaseMessages')} aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}><MessageSquare className="w-3 h-3" /></button>
-                                    )}
-                                    <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseApptTarget(c)} className="p-2 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')} aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}><CalendarDays className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                                  {c.caseType && <span className="text-[10px] text-text-muted">{CASE_TYPE_LABEL[c.caseType] ?? c.caseType}</span>}
-                                  {c.accidentDate && <span className="text-[10px] text-text-muted tabular-nums">{fechaCalendario(c.accidentDate)}</span>}
-                                </div>
-                                {/* Etapa del CASO — misma info que la columna
-                                    Progreso del desktop (la admision ya esta en
-                                    la fila colapsada del paciente) */}
-                                <CaseStageProgress
-                                  status={c.status}
-                                  labels={{
-                                    admission: t('caseStageAdmission'),
-                                    treatment: t('caseStageTreatment'),
-                                    closure:   t('caseStageClosure'),
-                                    cancelled: t('caseStageCancelled'),
-                                  }}
-                                />
-                              </div>
-                            );
-                          })}
+                          {!inactiveOnly && (
+                            <button
+                              onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand/15 text-brand-text text-[11px] font-medium hover:bg-brand/25 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" /> {t('btnAddCase')}
+                            </button>
+                          )}
                         </div>
-                        {/* Desktop table */}
-                        <div className="hidden md:block overflow-x-auto">
-                          <table className="w-full min-w-[640px] border-collapse">
-                            <thead>
-                              <tr className="bg-bg-0 border-b border-row-sep">
-                                <th className="sticky left-0 z-10 bg-bg-0 text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
-                                {/* Descripcion era la UNICA sin ancho, asi que
-                                    absorbia todo el sobrante y se veia enorme y
-                                    vacia, robandole lugar a Progreso. Ahora
-                                    todas tienen ancho y los headers no envuelven
-                                    ("Accident date" se partia en 2 lineas y
-                                    duplicaba la altura de la fila). */}
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[180px] whitespace-nowrap">{t('colDescription')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px] whitespace-nowrap">{t('colAccidentDate')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px] whitespace-nowrap">{t('colFirstAppt')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px] whitespace-nowrap">{t('colLastAppt')}</th>
-                                {/* 230px para coincidir con el td (ver fix del truncate de Progreso) */}
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[230px] whitespace-nowrap">{t('colProgress')}</th>
-                                <th className="sticky right-0 z-10 bg-bg-0 text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">{t('colActions')}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(expandedCases[p.id] ?? []).map((c, idx) => {
-                                return (
-                                  <tr
-                                    key={c.id}
-                                    className="bg-bg-0 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors"
-                                  >
-                                    {/* Código caso */}
-                                    <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2">
-                                      <div className="flex items-center gap-1.5">
-                                        {c.caseType === 'MVA' ? <Car className="w-3 h-3 text-text-muted shrink-0" /> : <Stethoscope className="w-3 h-3 text-text-muted shrink-0" />}
-                                        <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
-                                      </div>
+
+                        {loadingCases[p.id] && (
+                          <p className="text-[11px] text-text-muted py-2">{t('loadingCases')}</p>
+                        )}
+
+                        {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length === 0 && (
+                          <p className="text-[11px] text-text-muted py-2">{t('noCasesRegistered')}</p>
+                        )}
+
+                        {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
+                          /* Con más de cinco casos la lista scrollea sola en vez
+                             de empujar media pantalla hacia abajo. El tope deja
+                             ver ~5 tarjetas y media, así que se nota que sigue. */
+                          <div className={`flex flex-col gap-1.5 ${
+                            (expandedCases[p.id] ?? []).length > 5 ? 'max-h-[286px] overflow-y-auto pr-1.5' : ''
+                          }`}>
+                            {(expandedCases[p.id] ?? []).map((c) => {
+                              const cerrado = CASOS_CERRADOS.has(c.status);
+                              const esMva   = c.caseType === 'MVA';
+                              const IconoTipo = esMva ? Car : Stethoscope;
+                              /* El tipo se lee por color ANTES que por texto. Un
+                                 caso cerrado no lo necesita: lo suyo es quedarse
+                                 atrás, así que va en gris. */
+                              const colorTipo = cerrado ? 'text-text-muted' : esMva ? 'text-cyan' : 'text-violet-text';
+                              /* Una sola línea de metadatos en vez de cuatro
+                                 columnas: descripción, y las fechas que de
+                                 verdad ubican al caso en el tiempo. */
+                              const meta = [
+                                c.accidentNotes,
+                                c.accidentDate ? `${t('colAccidentDate')} ${fechaCalendario(c.accidentDate)}` : null,
+                                c.firstAppointment ? `${t('colFirstAppt')} ${fmtApptDate(c.firstAppointment.scheduledFor)}` : null,
+                                c.lastAppointment ? `${t('colLastAppt')} ${fmtApptDate(c.lastAppointment.scheduledFor)}` : null,
+                              ].filter(Boolean).join(' · ');
+
+                              return (
+                                <div
+                                  key={c.id}
+                                  className={`flex items-center gap-3 rounded-md bg-bg-2 px-3 py-2.5 transition-opacity ${
+                                    cerrado ? 'opacity-55 hover:opacity-100' : ''
+                                  }`}
+                                >
+                                  <IconoTipo className={`w-4 h-4 shrink-0 ${colorTipo}`} aria-hidden="true" />
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[12px] font-mono text-text-1">{c.caseCode}</span>
                                       <TagPill
-                                        label={c.status}
+                                        label={CASE_STATUS_LABEL[c.status] ?? c.status}
                                         colorClass={
                                           c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
+                                          : cerrado                ? 'bg-bg-2 text-text-muted border-border'
                                           : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
                                           : 'bg-brand/10 text-brand-text border-brand/20'
                                         }
                                       />
-                                    </td>
+                                      {c.caseType && (
+                                        <span className="text-[10px] text-text-muted">
+                                          {CASE_TYPE_LABEL[c.caseType] ?? c.caseType}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {meta && (
+                                      <div className="text-[11px] text-text-muted truncate mt-0.5" title={meta}>{meta}</div>
+                                    )}
+                                  </div>
 
-                                    {/* Tipo (caseType: MVA / GM) */}
-                                    <td className="px-3 py-2">
-                                      <span className="text-[11px] font-medium text-text-2">
-                                        {c.caseType ? (CASE_TYPE_LABEL[c.caseType] ?? c.caseType) : '—'}
-                                      </span>
-                                    </td>
+                                  {/* La etapa del CASO — la fila colapsada ya
+                                      muestra el progreso de ADMISIÓN, que es otra
+                                      cosa. En teléfono no entra y se va. */}
+                                  <div className="hidden sm:block w-[150px] shrink-0">
+                                    <CaseStageProgress
+                                      status={c.status}
+                                      labels={{
+                                        admission: t('caseStageAdmission'),
+                                        treatment: t('caseStageTreatment'),
+                                        closure:   t('caseStageClosure'),
+                                        cancelled: t('caseStageCancelled'),
+                                      }}
+                                    />
+                                  </div>
 
-                                    {/* Descripción (accidentNotes) */}
-                                    <td className="px-3 py-2 max-w-[180px]">
-                                      <span className="text-[11px] text-text-2 line-clamp-2">{c.accidentNotes ?? '—'}</span>
-                                    </td>
-
-                                    {/* Fecha accidente */}
-                                    <td className="px-3 py-2">
-                                      <span className="text-[11px] text-text-2 tabular-nums">
-                                        {c.accidentDate ? fechaCalendario(c.accidentDate) : <span className="text-text-muted">—</span>}
-                                      </span>
-                                    </td>
-
-                                    {/* 1ª cita */}
-                                    <td className="px-3 py-2">
-                                      <span className="text-[11px] text-text-2 tabular-nums">
-                                        {c.firstAppointment ? fmtApptDate(c.firstAppointment.scheduledFor) : <span className="text-text-muted">N/D</span>}
-                                      </span>
-                                    </td>
-
-                                    {/* Última cita */}
-                                    <td className="px-3 py-2">
-                                      <span className="text-[11px] text-text-2 tabular-nums">
-                                        {c.lastAppointment ? fmtApptDate(c.lastAppointment.scheduledFor) : <span className="text-text-muted">N/D</span>}
-                                      </span>
-                                    </td>
-
-                                    {/* Progreso del CASO por etapas — la fila
-                                        colapsada ya muestra el progreso de
-                                        ADMISION (badge + faltantes); repetirlo
-                                        aca era informacion duplicada. Esta es la
-                                        otra dimension: en que punto del recorrido
-                                        esta el caso (criterio de v2). */}
-                                    <td className="px-3 py-2 w-[230px] max-w-[230px]">
-                                      <CaseStageProgress
-                                        status={c.status}
-                                        labels={{
-                                          admission: t('caseStageAdmission'),
-                                          treatment: t('caseStageTreatment'),
-                                          closure:   t('caseStageClosure'),
-                                          cancelled: t('caseStageCancelled'),
-                                        }}
-                                      />
-                                    </td>
-
-                                    {/* Acciones */}
-                                    <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2">
-                                      <div className="flex items-center justify-end gap-0.5">
-                                        {/* Ver caso — para el doctor va a su ruta propia,
-                                            que Mis Pacientes intercepta como modal */}
+                                  {/* Acciones. En teléfono quedan las tres que se
+                                      usan de parado —ver, mensajes, citas—; el
+                                      resto aparece desde `sm`, porque siete
+                                      íconos de 24px no entran en 375px sin
+                                      comerse el código del caso. */}
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <button
+                                      onClick={() => abrirCaso(c.id)}
+                                      className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                                      title={t('tooltipViewCase')}
+                                      aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                    {currentUserId && (
+                                      <button
+                                        onClick={() => openCaseMessages(p, c)}
+                                        className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+                                        title={tMsg('tooltipCaseMessages')}
+                                        aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setCaseApptTarget(c)}
+                                      className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
+                                      title={t('tooltipViewAppts')}
+                                      aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}
+                                    >
+                                      <CalendarDays className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => setCaseEditTarget(c)}
+                                      className="hidden sm:inline-flex p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+                                      title={t('tooltipEditCase')}
+                                      aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => setPdfCaseId(c.id)}
+                                      className="hidden sm:inline-flex p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
+                                      title={t('tooltipDownloadPdf')}
+                                      aria-label={`${t('tooltipDownloadPdf')} — ${c.caseCode}`}
+                                    >
+                                      <Printer className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => setCaseQrTarget(c)}
+                                      className="hidden sm:inline-flex p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
+                                      title={t('tooltipPatientQr')}
+                                      aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}
+                                    >
+                                      <QrCode className="w-3.5 h-3.5" />
+                                    </button>
+                                    {/* Cancelar va último, en rojo y separado:
+                                        pegado a editar, un misclick cancelaba un
+                                        caso (criterio de v2). */}
+                                    {!doctorMode && (
+                                      <>
+                                        <span aria-hidden="true" className="hidden sm:block w-px h-4 bg-border mx-1" />
                                         <button
-                                          onClick={() => abrirCaso(c.id)}
-                                          className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                                          title={t('tooltipViewCase')}
-                                          aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
+                                          onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
+                                          className="hidden sm:inline-flex p-1.5 rounded text-rose/60 hover:text-rose hover:bg-rose/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                          title={t('tooltipCancelCase')}
+                                          aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
+                                          disabled={c.status === 'CANCELLED'}
                                         >
-                                          <Eye className="w-3 h-3" />
+                                          <Trash2 className="w-3.5 h-3.5" />
                                         </button>
-                                        {/* Mensajes DE ESTE CASO — historial
-                                            acotado + nuevo mensaje ya anclado */}
-                                        {currentUserId && (
-                                          <button
-                                            onClick={() => openCaseMessages(p, c)}
-                                            className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-                                            title={tMsg('tooltipCaseMessages')}
-                                            aria-label={`${tMsg('tooltipCaseMessages')} — ${c.caseCode}`}
-                                          >
-                                            <MessageSquare className="w-3 h-3" />
-                                          </button>
-                                        )}
-                                        <button
-                                          onClick={() => setCaseEditTarget(c)}
-                                          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-                                          title={t('tooltipEditCase')}
-                                          aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}
-                                        >
-                                          <Pencil className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => setCaseApptTarget(c)}
-                                          className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                                          title={t('tooltipViewAppts')}
-                                          aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}
-                                        >
-                                          <CalendarDays className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => setPdfCaseId(c.id)}
-                                          className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                                          title={t('tooltipDownloadPdf')}
-                                          aria-label={`${t('tooltipDownloadPdf')} — ${c.caseCode}`}
-                                        >
-                                          <Printer className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          onClick={() => setCaseQrTarget(c)}
-                                          className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-                                          title={t('tooltipPatientQr')}
-                                          aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}
-                                        >
-                                          <QrCode className="w-3 h-3" />
-                                        </button>
-                                        {/* Eliminar va ULTIMO, en rojo y separado
-                                            del resto — antes estaba pegado a
-                                            editar y un misclick en filas de 24px
-                                            cancelaba un caso (criterio de v2). */}
-                                        {!doctorMode && (
-                                          <>
-                                            <span aria-hidden="true" className="w-px h-4 bg-border mx-1" />
-                                            <button
-                                              onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
-                                              className="p-1.5 rounded text-rose/60 hover:text-rose hover:bg-rose/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                              title={t('tooltipCancelCase')}
-                                              aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
-                                              disabled={c.status === 'CANCELLED'}
-                                            >
-                                              <Trash2 className="w-3 h-3" />
-                                            </button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                        </>
-                      )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -3154,6 +3144,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           firstName={archivosTarget.firstName}
           lastName={archivosTarget.lastName}
           fotos={fotosDelCaso(archivosTarget.latestCase?.consentsData)}
+          fotosEliminadas={fotosEliminadasDelCaso(archivosTarget.latestCase?.consentsData)}
           tieneCaso={!!archivosTarget.latestCase}
           soloLectura={doctorMode}
           onClose={() => setArchivosTarget(null)}

@@ -63,9 +63,21 @@ export interface AvisosControl {
   estado: EstadoAvisos;
   trabajando: boolean;
   /** Pide el permiso y suscribe este navegador. */
-  encender: () => Promise<void>;
+  encender: (opts?: { rehacer?: boolean }) => Promise<void>;
   /** Da de baja la suscripción de este navegador. */
   apagar: () => Promise<void>;
+  /**
+   * Rehace la suscripción de este navegador: la borra y la crea de nuevo.
+   *
+   * Es la salida manual para cuando los avisos dejan de llegar sin que nada lo
+   * diga. Pasa de verdad: Chrome rota la suscripción por su cuenta, o alguien
+   * desinstala y reinstala la app, y la fila guardada queda apuntando a un
+   * endpoint muerto que FCM sigue aceptando sin error. En la base se ve sana.
+   *
+   * Apagar y volver a prender NO alcanza: `subscribe()` devuelve la MISMA
+   * suscripción que ya existe. Por eso esto da de baja primero.
+   */
+  reactivar: () => Promise<void>;
 }
 
 export function usePushAvisos(): AvisosControl {
@@ -124,7 +136,7 @@ export function usePushAvisos(): AvisosControl {
     return () => window.removeEventListener(PUSH_AVISOS_EVENT, onCambio);
   }, [leerEstado]);
 
-  const encender = useCallback(async (): Promise<void> => {
+  const encender = useCallback(async (opts?: { rehacer?: boolean }): Promise<void> => {
     if (!clavePublica) return;
     setTrabajando(true);
     try {
@@ -136,6 +148,28 @@ export function usePushAvisos(): AvisosControl {
       }
 
       const reg = await navigator.serviceWorker.ready;
+
+      /**
+       * Rehacer: se da de baja la suscripción actual ANTES de crear la nueva.
+       *
+       * Sin esto, `subscribe()` devuelve la MISMA suscripción que ya existe
+       * —incluida la que quedó muerta tras un desinstalar/reinstalar— y el
+       * problema no se mueve. Se avisa al servidor primero: si el `unsubscribe`
+       * fallara después, la fila muerta ya está borrada y no queda basura
+       * recibiendo envíos al vacío.
+       */
+      if (opts?.rehacer) {
+        const vieja = await reg.pushManager.getSubscription();
+        if (vieja) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: vieja.endpoint }),
+          }).catch(() => undefined);
+          await vieja.unsubscribe().catch(() => undefined);
+        }
+      }
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: claveABytes(clavePublica),
@@ -152,12 +186,26 @@ export function usePushAvisos(): AvisosControl {
         // se enciende" y no hay forma de saber por qué sin adivinar. Le costó
         // un ida y vuelta entero a la versión del back-office (Samsung, 9-sep).
         const detalle = await res.text().catch(() => '');
+        /**
+         * El 409 tiene su propio cartel porque tiene ARREGLO y lo hace la
+         * persona: significa que su cuenta todavía no existe en la base de la
+         * clínica, y se provisiona sola entrando una vez al back-office. Con el
+         * "no se pudieron cambiar los avisos" genérico veía un botón que no
+         * prende y el motivo se quedaba en la consola — la misma lección del
+         * Samsung, repetida en la otra app.
+         */
+        if (res.status === 409) {
+          setEstado('apagado');
+          anunciarCambio();
+          toast.error(t('push.noClinicAccount'));
+          return;
+        }
         throw new Error(`alta rechazada (${res.status}) ${detalle} · endpoint: ${new URL(sub.endpoint).hostname}`);
       }
 
       setEstado('encendido');
       anunciarCambio();
-      toast.success(t('push.onDone'));
+      toast.success(opts?.rehacer ? t('push.redone') : t('push.onDone'));
     } catch (e) {
       console.error('[push] alta falló', e);
       toast.error(t('push.error'));
@@ -193,5 +241,9 @@ export function usePushAvisos(): AvisosControl {
     }
   }, [t]);
 
-  return { estado, trabajando, encender, apagar };
+  const reactivar = useCallback(async (): Promise<void> => {
+    await encender({ rehacer: true });
+  }, [encender]);
+
+  return { estado, trabajando, encender, apagar, reactivar };
 }

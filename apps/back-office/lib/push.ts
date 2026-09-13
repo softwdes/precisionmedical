@@ -44,6 +44,23 @@ export interface AvisoPush {
   /** A dónde lleva el toque. Ruta relativa: el SW la resuelve contra su origen. */
   url: string;
   /**
+   * ¿Esa ruta existe SOLO en el back-office?
+   *
+   * La bandeja de mensajes sí: vive en `clinic` (y en `/doctor` y `/attorney`,
+   * que son este mismo app). El Admin es otro dominio y no tiene bandeja, así
+   * que una ruta relativa mandada a una suscripción del Admin abre
+   * `admin.lienmaster.net/messages`, que **no existe**. El aviso llega, suena,
+   * y el toque no lleva a ningún lado.
+   *
+   * No se puede resolver en el Service Worker como el prefijo del portal: el de
+   * allá no sabe nada de este dominio. Se resuelve acá, que es el único lugar
+   * que conoce el `origin` de cada suscripción.
+   *
+   * Los avisos cuya pantalla existe en las DOS apps —`/dashboard`, por
+   * ejemplo— NO lo llevan: a cada quien le conviene abrir la suya.
+   */
+  soloEnLaClinica?: boolean;
+  /**
    * Agrupador. Dos avisos con el mismo `tag` se REEMPLAZAN en vez de apilarse:
    * cinco mensajes seguidos dejan una notificación, no cinco.
    */
@@ -114,6 +131,53 @@ export function pushConfigurado(): boolean {
 }
 
 /**
+ * Los hosts que sirve ESTE app. Cuarto lugar donde aparecen los mismos
+ * patrones —la ruta del manifest, las puertas por host del middleware y el
+ * worker son los otros tres—; si un día se agrega un portal, se agrega en los
+ * cuatro o el nuevo queda a medias.
+ */
+const PORTALES_PROPIOS = /^(clinic|providers?|attorney)[.]/;
+
+/**
+ * La base absoluta de este app, para los avisos que salen a otro dominio.
+ *
+ * Sale de la misma variable que usa el link de activación del portal legal
+ * (`lib/lawyer-access.ts`), así que no se inventa una fuente nueva. Si no está
+ * definida, `destinoPara` deja la ruta relativa: peor que hoy, imposible.
+ */
+const BASE_PROPIA = process.env.NEXT_PUBLIC_APP_URL?.replace(/[/]+$/, '') ?? null;
+
+/**
+ * A dónde tiene que llevar el toque en ESTE dispositivo.
+ *
+ * Amanda y los dueños solo usan el Admin (decisión de Erick, 2026-09-13): su
+ * PWA está instalada en `admin.lienmaster.net` y ahí no hay bandeja. Para esas
+ * suscripciones el aviso de un mensaje viaja con la URL **absoluta** de la
+ * clínica, y el Service Worker del Admin abre una pestaña en el dominio que sí
+ * la tiene. Para todo el resto la ruta sigue siendo relativa y cada worker le
+ * pone el prefijo de su portal.
+ */
+function destinoPara(aviso: AvisoPush, origin: string): string {
+  if (!aviso.soloEnLaClinica) return aviso.url;
+
+  if (!BASE_PROPIA) {
+    // Sin base no se puede armar el link absoluto y el aviso sale como antes.
+    // Se avisa en el log porque si no esto es una funcion apagada que nadie ve:
+    // el aviso llega, suena, y el toque no lleva a ningun lado.
+    console.warn('[push] falta NEXT_PUBLIC_APP_URL: el aviso a', origin, 'sale con ruta relativa');
+    return aviso.url;
+  }
+
+  let host: string;
+  try { host = new URL(origin).hostname; } catch { return aviso.url; }
+
+  // Un host propio resuelve la ruta solo; localhost es el dev de esta app.
+  if (PORTALES_PROPIOS.test(host) || host === 'localhost') return aviso.url;
+
+  return `${BASE_PROPIA}${aviso.url}`;
+}
+
+/**
  * Le manda un aviso a estas personas, en TODOS sus dispositivos suscriptos.
  *
  * Nunca lanza: un aviso que falla no puede tumbar el mensaje que lo originó.
@@ -132,15 +196,14 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
   if (!configurar()) return;
 
   const subs = await db.$queryRaw<
-    Array<{ id: string; endpoint: string; p256dh: string; auth: string }>
+    Array<{ id: string; endpoint: string; p256dh: string; auth: string; origin: string }>
   >`
-    SELECT "id", "endpoint", "p256dh", "auth"
+    SELECT "id", "endpoint", "p256dh", "auth", "origin"
       FROM "push_subscriptions"
      WHERE "userId" = ANY(${destinatarios}::text[])
   `;
   if (subs.length === 0) return;
 
-  const payload = JSON.stringify(aviso);
   const muertas: string[] = [];
   const vivas: string[] = [];
 
@@ -149,7 +212,7 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          payload,
+          JSON.stringify({ ...aviso, url: destinoPara(aviso, s.origin) }),
           // 4 h de TTL: un aviso de mensaje que llega al otro día no sirve, y
           // dejarlo colgado en el push service solo genera ruido tardío.
           {
@@ -205,6 +268,9 @@ export async function avisarMensajeNuevo(
     cuerpo: remitente ? `de ${remitente}` : 'Tenés un mensaje sin leer',
     // El SW le pone el prefijo del portal según su origen — ver `worker/index.js`.
     url: `/messages?thread=${threadId}`,
+    // La bandeja no existe en el Admin: para una suscripción de ese dominio
+    // este destino sale absoluto. Ver `destinoPara`.
+    soloEnLaClinica: true,
     // Un tag por HILO: dos respuestas al mismo hilo se reemplazan; dos hilos
     // distintos son dos avisos, porque son dos conversaciones.
     tag: `hilo-${threadId}`,

@@ -1174,7 +1174,7 @@
     "off": "Activar los avisos en este aparato",
     "blocked": "Avisos bloqueados por el navegador",
     "askTitle": "Avisos en este aparato",
-    "askBody": "Te avisamos en el teléfono cuando haya cajas bajo el mínimo o pagos para revisar, aunque tengas la app cerrada.",
+    "askBody": "Te avisamos en el teléfono cuando te llegue un mensaje o haya algo que revisar en el día, aunque tengas la app cerrada.",
     "askPrivacy": "El aviso solo dice de qué se trata. Nunca muestra nombres de pacientes ni montos: se dibuja en la pantalla de bloqueo, a la vista de cualquiera.",
     "blockedTitle": "Los avisos están bloqueados",
     "blockedBody": "Este navegador tiene los avisos bloqueados para el sitio. Para activarlos hay que permitirlos desde los ajustes del navegador; desde acá no se puede volver a pedir.",
@@ -1184,6 +1184,12 @@
     "saving": "Activando...",
     "onDone": "Avisos activados en este aparato",
     "offDone": "Avisos desactivados en este aparato",
-    "error": "No se pudieron cambiar los avisos"
+    "error": "No se pudieron cambiar los avisos",
+    "onTitle": "Avisos activados",
+    "onBody": "Este teléfono recibe los avisos aunque tengas la app cerrada. Si dejaron de llegar, tocá Reactivar: eso rehace la suscripción, que es lo que se rompe sin avisar.",
+    "redo": "Reactivar avisos",
+    "redone": "Listo, la suscripción se rehizo",
+    "disable": "Desactivar",
+    "noClinicAccount": "Tu cuenta todavía no existe en la base de la clínica. Entrá una vez al Back-Office y volvé a intentarlo."
   }
 }

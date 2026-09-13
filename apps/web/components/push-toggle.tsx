@@ -39,13 +39,17 @@ import { usePushAvisos } from '@/lib/push-avisos';
  * recién cuando ya dijo que sí.
  */
 function DialogoAvisos({
-  abierto, onOpenChange, bloqueado, trabajando, onEncender,
+  abierto, onOpenChange, bloqueado, encendido = false, trabajando, onEncender, onApagar, onReactivar,
 }: {
   abierto: boolean;
   onOpenChange: (v: boolean) => void;
   bloqueado: boolean;
+  /** Ya está activado: el diálogo pasa a ser el de rehacer o apagar. */
+  encendido?: boolean;
   trabajando: boolean;
   onEncender: () => void;
+  onApagar?: () => void;
+  onReactivar?: () => void;
 }): React.ReactElement {
   const t = useTranslations();
 
@@ -55,11 +59,45 @@ function DialogoAvisos({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
             <Smartphone className="w-4 h-4 text-brand-text" aria-hidden="true" />
-            {bloqueado ? t('push.blockedTitle') : t('push.askTitle')}
+            {encendido ? t('push.onTitle') : bloqueado ? t('push.blockedTitle') : t('push.askTitle')}
           </DialogTitle>
         </DialogHeader>
 
-        {bloqueado ? (
+        {encendido ? (
+          <div className="space-y-3">
+            <p className="text-sm text-text-2 leading-relaxed">{t('push.onBody')}</p>
+            {/* La acción PRINCIPAL del estado encendido no es apagar: es
+                rehacer. Quien abre esto teniéndolo en verde casi siempre viene
+                de "dice activado y no me llegan", que es el fallo de la
+                suscripción muerta — ver `reactivar` en `usePushAvisos`. */}
+            <button
+              type="button"
+              onClick={onReactivar}
+              disabled={trabajando}
+              className="w-full h-9 rounded-md border border-emerald/40 bg-emerald/15 text-sm font-semibold text-emerald-text hover:bg-emerald/25 transition-colors disabled:opacity-60"
+            >
+              {trabajando ? t('push.saving') : t('push.redo')}
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="flex-1 h-9 rounded-md border border-border bg-bg-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+              >
+                {t('push.close')}
+              </button>
+              {/* Apagar es la acción SECUNDARIA: el botón está pero no invita. */}
+              <button
+                type="button"
+                onClick={onApagar}
+                disabled={trabajando}
+                className="flex-1 h-9 rounded-md border border-border bg-bg-2 text-sm text-text-2 hover:text-rose-text hover:border-rose/30 transition-colors disabled:opacity-60"
+              >
+                {trabajando ? t('push.saving') : t('push.disable')}
+              </button>
+            </div>
+          </div>
+        ) : bloqueado ? (
           <div className="space-y-3">
             <p className="text-sm text-text-2 leading-relaxed">{t('push.blockedBody')}</p>
             <button
@@ -153,7 +191,7 @@ export function PushToggle(): React.ReactElement | null {
  */
 export function PushAvisosMenuItem({ onNavigate }: { onNavigate: () => void }): React.ReactElement | null {
   const t = useTranslations();
-  const { estado, trabajando, encender, apagar } = usePushAvisos();
+  const { estado, trabajando, encender, apagar, reactivar } = usePushAvisos();
   const [preguntando, setPreguntando] = useState(false);
 
   if (estado === 'cargando' || estado === 'no-soportado') return null;
@@ -171,8 +209,15 @@ export function PushAvisosMenuItem({ onNavigate }: { onNavigate: () => void }): 
         type="button"
         disabled={trabajando}
         onClick={() => {
-          if (encendido) { onNavigate(); void apagar(); return; }
-          // Apagado o bloqueado: el diálogo explica antes de tocar el navegador.
+          /**
+           * Encendido NO apaga de un toque.
+           *
+           * Antes sí, y eso dejaba a alguien sin avisos por rozar la fila —y
+           * peor: a quien venía de "dice activado y no me llega" le ofrecía lo
+           * único que NO arregla ese caso. Ahora el diálogo pone primero
+           * rehacer la suscripción, que es el arreglo real, y apagar queda de
+           * acción secundaria.
+           */
           onNavigate();
           setPreguntando(true);
         }}
@@ -197,8 +242,11 @@ export function PushAvisosMenuItem({ onNavigate }: { onNavigate: () => void }): 
         abierto={preguntando}
         onOpenChange={setPreguntando}
         bloqueado={bloqueado}
+        encendido={encendido}
         trabajando={trabajando}
         onEncender={() => { void encender().then(() => setPreguntando(false)); }}
+        onApagar={() => { void apagar().then(() => setPreguntando(false)); }}
+        onReactivar={() => { void reactivar().then(() => setPreguntando(false)); }}
       />
     </>
   );

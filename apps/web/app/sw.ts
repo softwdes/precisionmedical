@@ -157,8 +157,29 @@ self.addEventListener('notificationclick', (event) => {
   ev.notification.close();
   const destino = (ev.notification.data as { url?: string } | null)?.url ?? '/';
 
+  /**
+   * Un destino de OTRO dominio se abre en pestaña, no se navega.
+   *
+   * La bandeja de mensajes vive en el back-office y este app no la tiene, así
+   * que para los avisos de mensaje el servidor manda la URL absoluta de la
+   * clínica (ver `destinoPara` en `back-office/lib/push.ts`). Y `client.navigate()`
+   * **rechaza** si la URL es de otro origen: sin esta rama el toque enfocaba la
+   * ventana del Admin, la navegación fallaba en silencio y el aviso parecía
+   * muerto. `openWindow` sí puede cruzar de dominio.
+   */
+  const externo = (() => {
+    try { return new URL(destino, self.location.origin).origin !== self.location.origin; }
+    catch { return false; }
+  })();
+
   ev.waitUntil(
     (async () => {
+      if (externo) {
+        await self.clients.openWindow(destino);
+        await actualizarMarca();
+        return;
+      }
+
       const abiertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
 
       // Si la app ya está abierta se REUSA esa ventana: abrir una segunda deja
@@ -180,4 +201,59 @@ self.addEventListener('notificationclick', (event) => {
 
 self.addEventListener('notificationclose', (event) => {
   (event as NotificationEvent).waitUntil(actualizarMarca());
+});
+
+/**
+ * El navegador renovó o invalidó la suscripción por su cuenta: se rehace SOLA.
+ *
+ * Esto ya existía en el worker del back-office y faltaba acá, que es donde
+ * están Amanda y los dueños —ellos solo usan el Admin—. Sin esto, cuando Chrome
+ * rota una suscripción (le pasa por su cuenta, y también al reinstalar o
+ * limpiar datos del sitio), la fila guardada apunta a un endpoint muerto: FCM
+ * lo sigue aceptando sin error, en la base se ve sana, y al teléfono no llega
+ * nada. El fallo es invisible por los dos lados.
+ *
+ * La clave pública se PIDE al servidor en vez de leerla del bundle: este
+ * archivo lo compila serwist aparte y no hay garantía de que la variable de
+ * Next entre acá. Pedirla es una llamada y no depende de cómo compile nadie.
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const ev = event as ExtendableEvent & {
+    oldSubscription?: PushSubscription;
+    newSubscription?: PushSubscription;
+  };
+
+  ev.waitUntil(
+    (async () => {
+      try {
+        const res = await fetch('/api/push/public-key');
+        const clave = res.ok ? ((await res.json()) as { key?: string }).key : null;
+        if (!clave) return;
+
+        // La vieja, si el navegador la dejó, para que el servidor la borre.
+        const vieja = ev.oldSubscription ?? (await self.registration.pushManager.getSubscription());
+        if (vieja) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: vieja.endpoint }),
+          }).catch(() => undefined);
+        }
+
+        const nueva = ev.newSubscription ?? (await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: clave,
+        }));
+
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nueva.toJSON()),
+        });
+      } catch (e) {
+        // Si falla, queda el botón "Reactivar avisos" como salida manual.
+        console.error('[sw] no se pudo rehacer la suscripción', e);
+      }
+    })(),
+  );
 });

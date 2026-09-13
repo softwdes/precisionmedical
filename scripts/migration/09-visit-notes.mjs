@@ -1,159 +1,168 @@
 /**
- * Migration 09 — Visit Notes + Vitals
- * v2 tables: notes (336), vitals (336, ~30 con data real)
- * v3 model: VisitNote + inline vitals fields
+ * Migración 09 — Notas clínicas, vitales y diagnósticos
  *
- * Cada nota se asocia a un appointmentId y caseId.
- * Solo migramos filas cuyo appointmentId tenga map en v3.
+ *   notes           354 → `visit_notes`
+ *   vitals          354 → las columnas de signos de la misma nota
+ *   note_diagnosic   79 → `visit_note_diagnoses`
+ *
+ * ── Por qué "354" y no "1.864" ──────────────────────────────────────────────
+ * El lector de CSV viejo cortaba por línea y las notas son HTML con saltos
+ * adentro: cada nota larga se partía en varias filas falsas. Con el parser
+ * arreglado son 354 — exactamente las mismas que `vitals`, una toma de signos
+ * por nota, que es la prueba de que ahora está bien contado.
+ *
+ * ── El join de los vitales ──────────────────────────────────────────────────
+ * Es `notes.id_vital` → `vitals.id_vital`, NO la cita. Por eso en julio no entró
+ * ni un signo vital. Ojo igual: en el v2 casi no hay datos —cada columna viene
+ * 94-97 % vacía, hay unas 20 presiones en toda la base—. Que entren pocos no es
+ * un error del script.
+ *
+ * ── Nombres de columna ──────────────────────────────────────────────────────
+ *   v2 heightFeet/bpSystolic/pulse/tempF   →   v3 heightFt/systolicMmhg/pulseBpm/tempFahrenheit
+ *
+ * Uso:  node 09-visit-notes.mjs [--dry]
  */
-import 'dotenv/config'
-import { readFileSync, writeFileSync } from 'fs'
-import { parseCSV } from './utils/csv.mjs'
+import './utils/env.mjs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { leerRegistros } from './utils/csv.mjs'
+import { buscarCsv } from './utils/export.mjs'
 import { getPool, closePool, cuid } from './utils/db.mjs'
 
-const NOTES_CSV  = `${process.env.CSV_DIR}/DBA2/notes_202607131802.csv`
-const VITALS_CSV = `${process.env.CSV_DIR}/DBA2/vitals_202607131802.csv`
-const MAP_FILE   = './id-maps/notes.json'
+const DRY = process.argv.includes('--dry')
+const MAPS = join(import.meta.dirname, 'id-maps')
+const MAP_FILE = join(MAPS, 'notes.json')
 
-function loadMap(file) {
-  try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return {} }
+const leerMapa = n => {
+  const f = join(MAPS, n)
+  if (!existsSync(f)) throw new Error(`Falta id-maps/${n}`)
+  return JSON.parse(readFileSync(f, 'utf8'))
 }
 
-function parseNum(s) {
-  const n = parseFloat(s)
-  return isNaN(n) ? null : n
+const txt = v => {
+  const s = (v ?? '').trim()
+  return s === '' || s === '<p></p>' || s === '<p><br></p>' ? null : s
+}
+const nro = v => {
+  if (v === null || v === undefined || String(v).trim() === '') return null
+  const n = Number(String(v).replace(',', '.'))
+  return Number.isFinite(n) ? n : null
+}
+const entero = v => {
+  const n = nro(v)
+  return n === null ? null : Math.round(n)
 }
 
-function parseDate(s) {
-  if (!s || s === 'null') return null
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d
+async function leerTodo(prefijo) {
+  const filas = []
+  for await (const r of leerRegistros(buscarCsv(prefijo))) filas.push(r)
+  return filas
 }
 
-function hasVitalData(v) {
-  if (!v) return false
-  const fields = [
-    v.heightFeet, v.heightInches, v.weightLbs, v.bpSystolic, v.bpDiastolic,
-    v.pulse, v.respiratoryRate, v.tempF, v.pain, v.O2,
-  ]
-  return fields.some(f => f && f !== 'null' && f !== '0' && f !== '')
-}
+async function run() {
+  const mapaCitas = leerMapa('appointments.json')
 
-async function main() {
-  const pool = getPool()
-
-  const apptMap  = loadMap('./id-maps/appointments.json')
-  const casesMap = loadMap('./id-maps/cases.json')
-
-  console.log('📋 Leyendo CSVs notes + vitals...')
-  const [notesRows, vitalsRows] = await Promise.all([
-    parseCSV(NOTES_CSV),
-    parseCSV(VITALS_CSV),
+  const [notas, vitales, diagnosticos] = await Promise.all([
+    leerTodo('notes'), leerTodo('vitals'), leerTodo('note_diagnosic'),
   ])
-  console.log(`   Notes: ${notesRows.length} | Vitals: ${vitalsRows.length}`)
+  const vitalPorId = new Map(vitales.map(v => [v.id_vital, v]))
 
-  // Indexar vitals por id_vital
-  const vitalsByIdVital = {}
-  for (const v of vitalsRows) {
-    if (v.id_vital) vitalsByIdVital[String(v.id_vital)] = v
-  }
+  const db = getPool()
+  const idMap = existsSync(MAP_FILE) ? JSON.parse(readFileSync(MAP_FILE, 'utf8')) : {}
+  let insertadas = 0, sinCita = 0, vacias = 0, conVitales = 0, fallidas = 0
 
-  // Verificar columnas de visit_notes disponibles
-  const { rows: cols } = await pool.query(`
-    SELECT column_name FROM information_schema.columns
-    WHERE table_name = 'visit_notes' AND table_schema = 'public'
-  `)
-  const colNames = new Set(cols.map(c => c.column_name))
-  console.log(`   visit_notes columnas: ${[...colNames].slice(0, 12).join(', ')}...`)
+  for (const n of notas) {
+    const appointmentId = n.appointmentId ? mapaCitas[n.appointmentId] : null
+    if (!appointmentId) { sinCita++; continue }
+    if (idMap[n.id]) continue
 
-  const idMap = {}
-  let inserted = 0, noAppt = 0
+    const v = n.id_vital ? (vitalPorId.get(n.id_vital) ?? {}) : {}
+    const tieneVitales = Object.entries(v).some(([k, x]) => k !== 'id_vital' && nro(x) !== null)
+    const tieneTexto = [n.complaint, n.history, n.reviewsystem, n.physical, n.assessments, n.plan]
+      .some(x => txt(x) !== null)
+    if (!tieneTexto && !tieneVitales) { vacias++; continue }
 
-  for (const row of notesRows) {
-    const v2ApptId = String(row.appointmentId)
-    const v3ApptId = apptMap[v2ApptId]
-    if (!v3ApptId) { noAppt++; continue }
-
-    const v2CaseId = String(row.caseId)
-    const v3CaseId = casesMap[v2CaseId] || null
-
-    // Obtener vitals correspondientes
-    const v = vitalsByIdVital[String(row.id_vital)] || null
-    const hasVitals = hasVitalData(v)
-
-    const newId = cuid()
-    idMap[String(row.id)] = newId
-
-    // Status: isClosed=true → SIGNED, else DRAFT
-    const status = (row.isClosed === 'true' || row.isClosed === '1') ? 'SIGNED' : 'DRAFT'
+    if (DRY) { insertadas++; if (tieneVitales) conVitales++; continue }
 
     try {
-      // Construir SQL dinámico según columnas existentes
-      const fields  = ['id', '"appointmentId"', '"status"', '"createdAt"', '"updatedAt"']
-      const vals    = [newId, v3ApptId, status, parseDate(row.createdAt) || new Date(), new Date()]
-      let p = vals.length + 1
-
-      if (colNames.has('caseId') && v3CaseId) {
-        fields.push('"caseId"'); vals.push(v3CaseId)
-      }
-      if (colNames.has('chiefComplaint') && row.complaint) {
-        fields.push('"chiefComplaint"'); vals.push(row.complaint.substring(0, 2000))
-      }
-      if (colNames.has('historyOfPresentIllness') && row.history) {
-        fields.push('"historyOfPresentIllness"'); vals.push(row.history.substring(0, 5000))
-      }
-      if (colNames.has('reviewOfSystems') && row.reviewsystem) {
-        fields.push('"reviewOfSystems"'); vals.push(row.reviewsystem.substring(0, 5000))
-      }
-      if (colNames.has('physicalExamination') && row.physical) {
-        fields.push('"physicalExamination"'); vals.push(row.physical.substring(0, 5000))
-      }
-      if (colNames.has('assessment') && row.assessments) {
-        fields.push('"assessment"'); vals.push(row.assessments.substring(0, 5000))
-      }
-      if (colNames.has('plan') && row.plan) {
-        fields.push('"plan"'); vals.push(row.plan.substring(0, 5000))
-      }
-      if (colNames.has('transcription') && row.transcription) {
-        fields.push('"transcription"'); vals.push(row.transcription.substring(0, 10000))
-      }
-
-      // Vitals (si hay data y columnas existen)
-      if (hasVitals && v) {
-        const vitalFieldMap = {
-          heightFeet: 'heightFt', heightInches: 'heightIn',
-          weightLbs: 'weightLbs', bpSystolic: 'systolicMmhg', bpDiastolic: 'diastolicMmhg',
-          pulse: 'pulseBpm', pain: 'painScore', O2: 'o2Pct',
-        }
-        for (const [v2Field, v3Field] of Object.entries(vitalFieldMap)) {
-          if (colNames.has(v3Field) && v[v2Field]) {
-            const n = parseNum(v[v2Field])
-            if (n !== null) { fields.push(`"${v3Field}"`); vals.push(n) }
-          }
-        }
-      }
-
-      const placeholders = fields.map((_, i) => `$${i + 1}`).join(',')
-      await pool.query(`
-        INSERT INTO visit_notes (${fields.join(',')})
-        VALUES (${placeholders})
-        ON CONFLICT (id) DO NOTHING
-      `, vals)
-
-      inserted++
+      const { rows } = await db.query(
+        `INSERT INTO visit_notes (
+           id, "appointmentId",
+           "chiefComplaint", hpi, ros, "physicalExam", assessment, plan,
+           "heightFt","heightIn","heightCm","weightLbs","weightOz","weightKg",
+           "systolicMmhg","diastolicMmhg","pulseBpm","respRate",
+           "tempFahrenheit","tempCelsius","painScale","o2Saturation","onRoomAir",
+           status, "signedAt", "signedByName", "createdAt", "updatedAt"
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,
+           $9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+           $24::"VisitNoteStatus",$25::timestamp,$26,
+           COALESCE($27::timestamp,NOW()),NOW()
+         )
+         RETURNING id`,
+        [
+          cuid(), appointmentId,
+          txt(n.complaint), txt(n.history), txt(n.reviewsystem),
+          txt(n.physical), txt(n.assessments),
+          // La transcripción del v2 no tiene columna propia en v3: se anexa al
+          // plan rotulada, que es donde un provider la va a buscar.
+          [txt(n.plan), txt(n.transcription) && `\n\n— Transcripción (v2) —\n${txt(n.transcription)}`]
+            .filter(Boolean).join('') || null,
+          entero(v.heightFeet), entero(v.heightInches), nro(v.heightCms),
+          nro(v.weightLbs), nro(v.weightOz), nro(v.weightKgs),
+          entero(v.bpSystolic), entero(v.bpDiastolic), entero(v.pulse), entero(v.respiratoryRate),
+          nro(v.tempF), nro(v.tempC), entero(v.pain), entero(v.O2),
+          v.onRoomAir === 'true' ? true : (v.onRoomAir === 'false' ? false : null),
+          n.isClosed === 'true' ? 'SIGNED' : 'DRAFT',
+          n.isClosed === 'true' ? (n.updatedAt || n.createdAt || null) : null,
+          txt(n.doctorSignature),
+          n.createdAt || null,
+        ],
+      )
+      idMap[n.id] = rows[0].id
+      insertadas++
+      if (tieneVitales) conVitales++
     } catch (e) {
-      console.warn(`   ⚠️  Row ${row.id}: ${e.message.substring(0, 100)}`)
+      console.log(`  ⚠️  nota ${n.id}: ${e.message.split('\n')[0]}`)
+      fallidas++
     }
   }
 
-  writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
+  if (!DRY) writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
 
-  console.log('\n✅ Visit notes completado:')
-  console.log(`   Insertados      : ${inserted}`)
-  console.log(`   Sin appt map    : ${noAppt}`)
-  console.log(`   ID-map          : ${MAP_FILE}`)
+  // ─── Diagnósticos de la nota ──────────────────────────────────────────────
+  // `note_diagnosic.diagnosticId` apunta al catálogo ICD del v2. En v3 el
+  // catálogo YA está (98.252 filas de `diagnoses`) y no se re-migró, así que el
+  // puente es el CÓDIGO, no el id: se busca el ICD-10 del v2 y se resuelve
+  // contra el catálogo de acá.
+  let dx = 0, dxSinNota = 0, dxSinCodigo = 0
+  if (!DRY && diagnosticos.length) {
+    const catalogo = await leerTodo('_diagnostics_')
+    const icdPorId = new Map(catalogo.map(d => [d.id, d.icdCode ?? null]))
+    const { rows: v3dx } = await db.query(`SELECT id, "icd10Code", "icd10Description" FROM diagnoses`)
+    const porCodigo = new Map(v3dx.map(r => [String(r.icd10Code).toUpperCase(), r]))
 
+    for (const d of diagnosticos) {
+      const noteId = idMap[d.noteId]
+      if (!noteId) { dxSinNota++; continue }
+      const codigo = icdPorId.get(d.diagnosticId)
+      const enV3 = codigo ? porCodigo.get(String(codigo).toUpperCase()) : null
+      if (!enV3) { dxSinCodigo++; continue }
+      try {
+        await db.query(
+          `INSERT INTO visit_note_diagnoses (id, "noteId", "icd10Code", "icd10Label", "diagnosisId", "sortOrder")
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [cuid(), noteId, enV3.icd10Code, enV3.icd10Description, enV3.id, dx],
+        )
+        dx++
+      } catch { dxSinCodigo++ }
+    }
+  }
+
+  console.log(`\n📊 Notas${DRY ? ' (dry)' : ''}: ${insertadas} · ${conVitales} con signos vitales`)
+  console.log(`   ${sinCita} sin cita importada · ${vacias} vacías (sin texto ni signos) · ${fallidas} fallidas`)
+  console.log(`   diagnósticos: ${dx} · ${dxSinNota} sin nota · ${dxSinCodigo} sin código en el catálogo`)
   await closePool()
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1) })
+run().catch(e => { console.error(e); process.exit(1) })

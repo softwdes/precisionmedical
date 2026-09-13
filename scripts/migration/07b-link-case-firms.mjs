@@ -1,112 +1,174 @@
 /**
- * Migration 07b — Link cases to law firms and attorneys
+ * Migración 07b — Vincular cada caso con su bufete y su abogado
  *
- * Uses case_externs CSV to populate:
- *   - Case.lawFirmId   (from companyId → companies → v3 Lawyer)
- *   - Case.attorneyId  (from responsibleExternId → users_extern → v3 Lawyer)
+ * Reemplaza a la versión de julio, que buscaba el bufete con `firmName ILIKE` y
+ * por eso el id-map de companies terminó con 15 entradas. Ahora:
+ *
+ * ── Pasada 1 · `case_externs` (el vínculo explícito del v2) ─────────────────
+ *   companyId            → `Case.lawFirmId`     (261 filas / 256 casos)
+ *   responsibleExternId  → `Case.attorneyId`    (161)
+ *   assistantExternId    → `Case.paralegalId`   (148)
+ * Todo por id-map, no por nombre.
+ *
+ * ── Pasada 2 · los campos cifrados de `cases` (el hallazgo) ────────────────
+ * El v2 guarda además, cifrado en el propio caso, `reference` = el BUFETE que
+ * refirió (522 casos) y `preferredLawyer` = el abogado (423). Son MÁS del doble
+ * de los que tienen vínculo explícito. Se descifran y se emparejan por nombre
+ * **exacto y sin ambigüedad** contra lo ya importado; si el nombre coincide con
+ * dos fichas, no se asigna.
+ *
+ * La pasada 2 **no pisa nunca** lo que puso la 1: el vínculo explícito manda.
+ *
+ * Uso:  node 07b-link-case-firms.mjs [--dry]
  */
-import 'dotenv/config'
-import { readFileSync, writeFileSync } from 'fs'
-import { parseCSV } from './utils/csv.mjs'
+import './utils/env.mjs'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { leerRegistros } from './utils/csv.mjs'
+import { buscarCsv } from './utils/export.mjs'
+import { decrypt } from './utils/decrypt.mjs'
 import { getPool, closePool } from './utils/db.mjs'
 
-const CSV_EXTERNS   = `${process.env.CSV_DIR}/DBA2/case_externs_202607131834.csv`
-const CSV_COMPANIES = `${process.env.CSV_DIR}/companies_202607141002.csv`
-const CSV_USERS_EXT = `${process.env.CSV_DIR}/LM DBA 1/users_extern_202607121236.csv`
-const CASES_MAP     = './id-maps/cases.json'
-const ATTORNEYS_MAP = './id-maps/attorneys.json'
+const DRY = process.argv.includes('--dry')
+const MAPS = join(import.meta.dirname, 'id-maps')
+
+const leerMapa = n => {
+  const f = join(MAPS, n)
+  if (!existsSync(f)) throw new Error(`Falta id-maps/${n}`)
+  return JSON.parse(readFileSync(f, 'utf8'))
+}
+
+const norm = s => (s ?? '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[.,]/g, '').replace(/\s*&\s*/g, ' and ')
+  .replace(/\b(llc|llp|pc|pllc|pa|inc)\b/g, '')
+  .replace(/\s+/g, ' ').trim()
+
+const val = v => {
+  if (!v) return null
+  const t = decrypt(String(v))
+  if (t === null) return null
+  const s = String(t).trim()
+  return s === '' || /^e:/.test(s) ? null : s
+}
+
+async function leerTodo(prefijo) {
+  const filas = []
+  for await (const r of leerRegistros(buscarCsv(prefijo))) filas.push(r)
+  return filas
+}
+
+/** nombre normalizado → id, pero SOLO si es único. Los repetidos se descartan. */
+function indicePorNombre(filas, nombreDe) {
+  const m = new Map()
+  for (const f of filas) {
+    const k = norm(nombreDe(f))
+    if (!k) continue
+    if (m.has(k)) m.set(k, null)        // ambiguo: se anula
+    else m.set(k, f.id)
+  }
+  return m
+}
 
 async function run() {
-  const pool = getPool()
+  const mapaCasos = leerMapa('cases.json')
+  const mapaBufetes = leerMapa('companies.json')
+  const mapaAbogados = leerMapa('attorneys.json')
 
-  // Load id-maps
-  const casesMap     = JSON.parse(readFileSync(CASES_MAP, 'utf8'))
-  const attorneysMap = JSON.parse(readFileSync(ATTORNEYS_MAP, 'utf8'))
+  const [externs, casos] = await Promise.all([leerTodo('case_externs'), leerTodo('cases')])
+  const db = getPool()
 
-  // Load CSVs
-  const externs   = await parseCSV(CSV_EXTERNS)
-  const companies = await parseCSV(CSV_COMPANIES)
-  const usersExt  = await parseCSV(CSV_USERS_EXT)
+  // ─── Pasada 1 ─────────────────────────────────────────────────────────────
+  let p1Bufete = 0, p1Abogado = 0, p1Paralegal = 0, sinCaso = 0
+  for (const r of externs) {
+    const caseId = mapaCasos[r.caseId]
+    if (!caseId) { sinCaso++; continue }
 
-  console.log(`📋 case_externs: ${externs.length} filas`)
-  console.log(`📋 companies: ${companies.length} filas`)
-  console.log(`📋 users_extern: ${usersExt.length} filas`)
+    const lawFirmId = r.companyId ? (mapaBufetes[r.companyId] ?? null) : null
+    const attorneyId = r.responsibleExternId ? (mapaAbogados[r.responsibleExternId] ?? null) : null
+    const paralegalId = r.assistantExternId ? (mapaAbogados[r.assistantExternId] ?? null) : null
+    if (!lawFirmId && !attorneyId && !paralegalId) continue
 
-  // Build company UUID → v3 Lawyer.id map
-  // Companies are stored as Lawyers with entityType = LAW_FIRM in v3
-  // Query DB to match by name since we don't have a companies id-map
-  console.log('\n🔍 Construyendo mapa companies v2 UUID → v3 Lawyer.id...')
-  const companyMap = {}
-  for (const co of companies) {
-    const { rows } = await pool.query(
-      `SELECT id FROM lawyers WHERE "firmName" ILIKE $1 AND "deletedAt" IS NULL LIMIT 1`,
-      [co.name.trim()]
+    if (!DRY) {
+      // COALESCE en la COLUMNA: si el caso ya tiene bufete de otra fila de
+      // case_externs, no se pisa.
+      await db.query(
+        `UPDATE cases SET
+           "lawFirmId"   = COALESCE("lawFirmId", $2),
+           "attorneyId"  = COALESCE("attorneyId", $3),
+           "paralegalId" = COALESCE("paralegalId", $4)
+         WHERE id = $1`,
+        [caseId, lawFirmId, attorneyId, paralegalId],
+      )
+    }
+    if (lawFirmId) p1Bufete++
+    if (attorneyId) p1Abogado++
+    if (paralegalId) p1Paralegal++
+  }
+
+  // ─── Pasada 2 ─────────────────────────────────────────────────────────────
+  const { rows: bufetes } = await db.query(
+    `SELECT id, "firmName" AS nombre FROM lawyers WHERE "entityType" = 'FIRM' AND "deletedAt" IS NULL`,
+  )
+  const { rows: personas } = await db.query(
+    `SELECT id, COALESCE("firstName",'') || ' ' || COALESCE("lastName",'') AS nombre
+       FROM lawyers WHERE "entityType" <> 'FIRM' AND "deletedAt" IS NULL`,
+  )
+  const porBufete = indicePorNombre(bufetes, f => f.nombre)
+  const porPersona = indicePorNombre(personas, f => f.nombre)
+
+  let p2Bufete = 0, p2Abogado = 0, sinMatchBufete = new Set(), sinMatchAbogado = new Set()
+
+  for (const c of casos) {
+    const caseId = mapaCasos[c.id]
+    if (!caseId) continue
+
+    const refBufete = val(c.reference)
+    const refAbogado = val(c.preferredLawyer)
+    if (!refBufete && !refAbogado) continue
+
+    const idBufete = refBufete ? porBufete.get(norm(refBufete)) : null
+    const idAbogado = refAbogado ? porPersona.get(norm(refAbogado)) : null
+    if (refBufete && !idBufete) sinMatchBufete.add(refBufete)
+    if (refAbogado && !idAbogado) sinMatchAbogado.add(refAbogado)
+    if (!idBufete && !idAbogado) continue
+
+    if (!DRY) {
+      const { rowCount } = await db.query(
+        `UPDATE cases SET
+           "lawFirmId"  = COALESCE("lawFirmId", $2),
+           "attorneyId" = COALESCE("attorneyId", $3)
+         WHERE id = $1
+           AND ("lawFirmId" IS NULL OR "attorneyId" IS NULL)`,
+        [caseId, idBufete, idAbogado],
+      )
+      if (rowCount === 0) continue
+    }
+    if (idBufete) p2Bufete++
+    if (idAbogado) p2Abogado++
+  }
+
+  // ─── Resultado ────────────────────────────────────────────────────────────
+  console.log(`\n📊 Pasada 1 — vínculo explícito de case_externs${DRY ? ' (dry)' : ''}`)
+  console.log(`   bufete ${p1Bufete} · abogado ${p1Abogado} · paralegal ${p1Paralegal} · ${sinCaso} filas sin caso importado`)
+  console.log(`\n📊 Pasada 2 — nombres descifrados del propio caso`)
+  console.log(`   bufete ${p2Bufete} · abogado ${p2Abogado}`)
+  console.log(`   sin match: ${sinMatchBufete.size} nombres de bufete y ${sinMatchAbogado.size} de abogado que no están en el catálogo`)
+  if (sinMatchBufete.size) {
+    console.log(`   ej. bufetes: ${[...sinMatchBufete].slice(0, 6).join(' · ')}`)
+  }
+
+  if (!DRY) {
+    const { rows } = await db.query(
+      `SELECT COUNT(*) FILTER (WHERE "lawFirmId" IS NOT NULL)::int AS bufete,
+              COUNT(*) FILTER (WHERE "attorneyId" IS NOT NULL)::int AS abogado,
+              COUNT(*) FILTER (WHERE "paralegalId" IS NOT NULL)::int AS paralegal,
+              COUNT(*)::int AS total
+         FROM cases WHERE "deletedAt" IS NULL`,
     )
-    if (rows.length > 0) {
-      companyMap[co.id] = rows[0].id
-    } else {
-      console.log(`  ⚠️  No encontrado en v3: "${co.name}" (${co.id})`)
-    }
+    const r = rows[0]
+    console.log(`\n👉 De ${r.total} casos: ${r.bufete} con bufete · ${r.abogado} con abogado · ${r.paralegal} con paralegal`)
   }
-  console.log(`  ✅ ${Object.keys(companyMap).length}/${companies.length} companies mapeadas`)
-
-  // Save company map for future use
-  writeFileSync('./id-maps/companies.json', JSON.stringify(companyMap, null, 2))
-
-  // Build users_extern numeric ID → v3 Lawyer.id map (individual attorneys)
-  // attorneys.json keys are numeric strings from users_extern.id
-  // usersExt has id (numeric) and userId (UUID from users table)
-  const externPersonMap = {}
-  for (const u of usersExt) {
-    const v3Id = attorneysMap[String(u.id)]
-    if (v3Id) externPersonMap[String(u.id)] = v3Id
-  }
-  console.log(`\n🔍 Attorneys mapeados: ${Object.keys(externPersonMap).length}/${usersExt.length}`)
-
-  // Process case_externs — update Case.lawFirmId and Case.attorneyId
-  let updated = 0, noCase = 0, noFirm = 0, noAttorney = 0, skipped = 0
-
-  for (const row of externs) {
-    const v3CaseId = casesMap[String(row.caseId)]
-    if (!v3CaseId) { noCase++; continue }
-
-    const v3FirmId     = row.companyId         ? companyMap[row.companyId]                     : null
-    const v3AttorneyId = row.responsibleExternId ? externPersonMap[String(row.responsibleExternId)] : null
-
-    if (!v3FirmId && !v3AttorneyId) { skipped++; continue }
-    if (row.companyId && !v3FirmId) noFirm++
-    if (row.responsibleExternId && !v3AttorneyId) noAttorney++
-
-    // Only update fields that have values — don't overwrite existing data
-    const updates = []
-    const values  = []
-    let idx = 1
-
-    if (v3FirmId) {
-      updates.push(`"lawFirmId" = $${idx++}`)
-      values.push(v3FirmId)
-    }
-    if (v3AttorneyId) {
-      updates.push(`"attorneyId" = $${idx++}`)
-      values.push(v3AttorneyId)
-    }
-
-    values.push(v3CaseId)
-    await pool.query(
-      `UPDATE cases SET ${updates.join(', ')} WHERE id = $${idx} AND "deletedAt" IS NULL`,
-      values
-    )
-    updated++
-  }
-
-  console.log('\n✅ Vinculación completada:')
-  console.log(`   Casos actualizados : ${updated}`)
-  console.log(`   Sin case map        : ${noCase}`)
-  console.log(`   Sin firma/abogado   : ${skipped}`)
-  console.log(`   Firm no encontrada  : ${noFirm}`)
-  console.log(`   Attorney no mapeado : ${noAttorney}`)
-  console.log(`   id-map companies   → ./id-maps/companies.json`)
-
   await closePool()
 }
 

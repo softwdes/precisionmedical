@@ -1,162 +1,108 @@
 /**
- * Migration 07 — Case Externs (signatures)
- * - Actualiza cases con lawFirmId y primaryAttorneyId usando los maps de v2
- * - Sube las firmas base64 a Supabase Storage bucket "intake-signatures"
- * - Guarda URLs en case_externs table (si existe) o en Case directamente
+ * Migración 07 — Firmas del acuerdo (lien) desde `case_externs`
  *
- * NOTA: las firmas en v2 son base64 PNG (~100KB c/u). Las subimos a Storage
- * y guardamos la URL pública en la tabla case_signatures (nueva) o en un
- * campo de Case si se decide así.
+ * ── El bug que arregla ──────────────────────────────────────────────────────
  *
- * Por ahora: creamos tabla case_signatures en DB si no existe, e insertamos.
+ * La versión de julio subía las firmas a Storage y las insertaba en una tabla
+ * `case_signatures` **que se creaba a sí misma** con `CREATE TABLE IF NOT
+ * EXISTS`. Esa tabla no existe en el esquema de v3 (la base responde 404): las
+ * firmas quedaban en un rincón que ninguna pantalla lee.
+ *
+ * La tabla de verdad es `lien_signatures`, y de ella cuelga todo el flujo legal:
+ * `hasSigned` del portal del bufete, el desbloqueo del PDF del acuerdo (el
+ * endpoint devuelve 409 sin firma) y la cola de "liens sin firma" de Vigía. Con
+ * las firmas en el lugar equivocado, los 256 casos con bufete aparecían **todos
+ * sin firmar** y Vigía abría con 256 alertas falsas.
+ *
+ * ── Qué trae ────────────────────────────────────────────────────────────────
+ *
+ *   456 firmas de PACIENTE  ·  37 firmas de ABOGADO
+ *
+ * Vienen en el propio CSV como `data:image/png;base64,…` —no en el S3— así que
+ * esto no espera a las llaves de AWS. Se guardan tal cual en `signatureSvg`, que
+ * es lo que el esquema pide ("base64 PNG o SVG path data") y lo que escribe el
+ * pad de firma del portal.
+ *
+ * Idempotente: no duplica una firma que ya esté para ese caso y ese firmante.
+ *
+ * Uso:  node 07-case-externs.mjs [--dry]
  */
-import 'dotenv/config'
-import { readFileSync, writeFileSync } from 'fs'
-import { parseCSV } from './utils/csv.mjs'
+import './utils/env.mjs'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { leerRegistros } from './utils/csv.mjs'
+import { buscarCsv } from './utils/export.mjs'
 import { getPool, closePool, cuid } from './utils/db.mjs'
 
-const CSV      = `${process.env.CSV_DIR}/DBA2/case_externs_202607131834.csv`
-const MAP_FILE = './id-maps/case-externs.json'
+const DRY = process.argv.includes('--dry')
+const MAPS = join(import.meta.dirname, 'id-maps')
 
-function loadMap(file) {
-  try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return {} }
-}
+async function run() {
+  const casesMap = join(MAPS, 'cases.json')
+  if (!existsSync(casesMap)) throw new Error('Falta id-maps/cases.json — correr antes 05-cases.mjs')
+  const mapaCasos = JSON.parse(readFileSync(casesMap, 'utf8'))
 
-// Supabase Storage upload via REST API
-async function uploadSignatureToStorage(bucket, path, base64Data) {
-  const supabaseUrl = process.env.SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY
+  const filas = []
+  for await (const r of leerRegistros(buscarCsv('case_externs'))) filas.push(r)
 
-  if (!supabaseUrl || !supabaseKey) {
-    // Sin credenciales de Storage — skip upload, retornar null
-    return null
-  }
+  const db = getPool()
 
-  const buffer = Buffer.from(base64Data, 'base64')
-  const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`
+  // Lo que ya está, para no duplicar en una re-corrida.
+  const { rows: yaHay } = await db.query(
+    `SELECT "caseId", "signerType" FROM lien_signatures`,
+  )
+  const existe = new Set(yaHay.map(r => `${r.caseId}|${r.signerType}`))
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'image/png',
-      'x-upsert': 'true',
-    },
-    body: buffer,
-  })
+  let paciente = 0, abogado = 0, sinCaso = 0, repetidas = 0, fallidas = 0
 
-  if (!resp.ok) {
-    const txt = await resp.text()
-    throw new Error(`Storage upload failed: ${resp.status} ${txt}`)
-  }
-
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
-}
-
-async function main() {
-  const pool = getPool()
-
-  const casesMap     = loadMap('./id-maps/cases.json')
-  const companiesMap = loadMap('./id-maps/companies.json')
-  const attorneysMap = loadMap('./id-maps/attorneys.json')
-
-  console.log('📋 Leyendo CSV case_externs...')
-  const rows = await parseCSV(CSV)
-  console.log(`   Total: ${rows.length}`)
-
-  // Asegurar columna signatureExempt en cases (si no existe, ignoramos error)
-  await pool.query(`
-    ALTER TABLE cases ADD COLUMN IF NOT EXISTS "signatureExempt" BOOLEAN DEFAULT FALSE
-  `).catch(() => {})
-
-  // Asegurar tabla case_signatures
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS case_signatures (
-      id                  TEXT PRIMARY KEY,
-      "caseId"            TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
-      "patientName"       TEXT,
-      "patientSignatureUrl" TEXT,
-      "responsibleName"   TEXT,
-      "responsibleSignatureUrl" TEXT,
-      "isSignatureExempt" BOOLEAN DEFAULT FALSE,
-      "createdAt"         TIMESTAMPTZ DEFAULT NOW(),
-      "updatedAt"         TIMESTAMPTZ DEFAULT NOW()
-    )
-  `).catch(() => {})
-
-  const hasStorage = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
-  if (!hasStorage) {
-    console.log('   ⚠️  SUPABASE_URL / SUPABASE_SERVICE_KEY no configurados — se saltará upload de firmas')
-  }
-
-  const idMap = {}
-  let done = 0, noCase = 0, sigErr = 0
-
-  for (const row of rows) {
-    const v2CaseId = String(row.caseId)
-    const v3CaseId = casesMap[v2CaseId]
-    if (!v3CaseId) { noCase++; continue }
-
-    let patientSigUrl    = null
-    let responsibleSigUrl = null
-
-    if (hasStorage) {
-      try {
-        if (row.patientSignatureBase64 && row.patientSignatureBase64.length > 10) {
-          patientSigUrl = await uploadSignatureToStorage(
-            'intake-signatures',
-            `cases/${v3CaseId}/patient-sig.png`,
-            row.patientSignatureBase64
-          )
-        }
-        if (row.responsibleSignatureBase64 && row.responsibleSignatureBase64.length > 10) {
-          responsibleSigUrl = await uploadSignatureToStorage(
-            'intake-signatures',
-            `cases/${v3CaseId}/responsible-sig.png`,
-            row.responsibleSignatureBase64
-          )
-        }
-      } catch (e) {
-        sigErr++
-        console.warn(`   ⚠️  Upload sig error case ${v3CaseId}: ${e.message}`)
-      }
+  for (const r of filas) {
+    const caseId = mapaCasos[r.caseId]
+    if (!caseId) {
+      if (r.patientSignatureBase64 || r.responsibleSignatureBase64) sinCaso++
+      continue
     }
 
-    const newId = cuid()
-    idMap[String(row.id)] = newId
+    const firmas = [
+      { tipo: 'PATIENT',  png: r.patientSignatureBase64,     nombre: r.patientNameSignature },
+      { tipo: 'ATTORNEY', png: r.responsibleSignatureBase64, nombre: r.responsibleNameSignature },
+    ]
 
-    await pool.query(`
-      INSERT INTO case_signatures
-        (id, "caseId", "patientName", "patientSignatureUrl",
-         "responsibleName", "responsibleSignatureUrl", "isSignatureExempt",
-         "createdAt", "updatedAt")
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      ON CONFLICT (id) DO NOTHING
-    `, [
-      newId,
-      v3CaseId,
-      row.patientNameSignature   || null,
-      patientSigUrl,
-      row.responsibleNameSignature || null,
-      responsibleSigUrl,
-      row.isSignatureExempt === 'true' || row.isSignatureExempt === '1',
-      row.createdAt ? new Date(row.createdAt) : new Date(),
-      new Date(),
-    ])
+    for (const f of firmas) {
+      if (!f.png) continue
+      if (existe.has(`${caseId}|${f.tipo}`)) { repetidas++; continue }
+      if (DRY) { f.tipo === 'PATIENT' ? paciente++ : abogado++; continue }
 
-    done++
-    if (done % 100 === 0) console.log(`   ... ${done}/${rows.length - noCase}`)
+      try {
+        await db.query(
+          `INSERT INTO lien_signatures
+             (id, "caseId", "signerType", "signerName", "signatureSvg", "signedAt", "createdAt")
+           VALUES ($1,$2,$3::"lien_signer_type",$4,$5,COALESCE($6::timestamp, NOW()),NOW())`,
+          [
+            cuid(), caseId, f.tipo,
+            // `signerName` es NOT NULL: si el v2 no guardó el nombre, se deja
+            // constancia de que la firma existe igual.
+            (f.nombre ?? '').trim() || (f.tipo === 'PATIENT' ? 'Paciente (v2)' : 'Abogado (v2)'),
+            f.png, r.createdAt || null,
+          ],
+        )
+        existe.add(`${caseId}|${f.tipo}`)
+        f.tipo === 'PATIENT' ? paciente++ : abogado++
+      } catch (e) {
+        console.log(`  ⚠️  firma ${f.tipo} del caso v2 ${r.caseId}: ${e.message.split('\n')[0]}`)
+        fallidas++
+      }
+    }
   }
 
-  writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
-
-  console.log('\n✅ Case externs completado:')
-  console.log(`   Procesados   : ${done}`)
-  console.log(`   Sin case map : ${noCase}`)
-  console.log(`   Errores sig  : ${sigErr}`)
-  console.log(`   ID-map       : ${MAP_FILE}`)
-
+  console.log(`\n📊 Firmas del lien${DRY ? ' (dry)' : ''}: ${paciente} de paciente · ${abogado} de abogado`)
+  console.log(`   ${repetidas} ya estaban · ${sinCaso} con firma pero sin caso importado · ${fallidas} fallidas`)
+  if (!DRY && abogado) {
+    const { rows } = await db.query(
+      `SELECT COUNT(DISTINCT "caseId")::int AS n FROM lien_signatures WHERE "signerType" = 'ATTORNEY'`,
+    )
+    console.log(`   👉 ${rows[0].n} casos quedan marcados como FIRMADOS por el abogado (PDF del acuerdo desbloqueado)`)
+  }
   await closePool()
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1) })
+run().catch(e => { console.error(e); process.exit(1) })

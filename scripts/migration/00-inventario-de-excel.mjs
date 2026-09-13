@@ -21,13 +21,33 @@
 import './utils/env.mjs'
 import ExcelJS from 'exceljs'
 import { readdirSync, writeFileSync, statSync } from 'fs'
+
 import { join, extname, basename } from 'path'
-import { parseCSV } from './utils/csv.mjs'
+import { leerFilas } from './utils/csv.mjs'
 
 const args = process.argv.slice(2)
 const CONVERTIR = args.includes('--convertir')
 const CARPETA = args.find(a => !a.startsWith('--')) ?? process.env.CSV_DIR
 const REPORTE = join(import.meta.dirname, 'inventario.json')
+
+/** Filas que se guardan por hoja para perfilar las columnas. */
+const MUESTRA = 400
+
+/**
+ * Cuánto se imprime.
+ *
+ * Con 60 archivos, volcar cada columna de cada uno son más de mil líneas y el
+ * inventario deja de servir para lo que sirve: ver de un vistazo qué llegó.
+ * Por defecto va una línea por hoja; `--detalle` abre todas las columnas y
+ * `--detalle=cases,appointments` solo esas. El JSON siempre sale completo.
+ */
+const DETALLE_ARG = args.find(a => a === '--detalle' || a.startsWith('--detalle='))
+const DETALLE_TODO = DETALLE_ARG === '--detalle'
+const DETALLE_SOLO = DETALLE_ARG?.startsWith('--detalle=')
+  ? DETALLE_ARG.slice(10).split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+  : []
+const conDetalle = nombre =>
+  DETALLE_TODO || DETALLE_SOLO.some(p => nombre.toLowerCase().includes(p))
 
 if (!CARPETA) {
   console.error('Falta la carpeta: pasala como argumento o poné CSV_DIR en scripts/migration/.env')
@@ -62,7 +82,10 @@ const ESPERADAS = [
   { nombre: "authorized", patron: /^authorized/i, v3: 'authorized_dependents',   script: '15-authorized-dependents' },
 ]
 
-const destino = nombre => ESPERADAS.find(e => e.patron.test(nombre)) ?? null
+// Los export traen nombres como `_diagnostics__202609120145`: el guion bajo de
+// adelante es del dump, no de la tabla, y sin sacarlo el patrón `^diagnostics`
+// no engancha y el archivo se reporta como "no llegó" teniéndolo delante.
+const destino = nombre => ESPERADAS.find(e => e.patron.test(nombre.replace(/^_+/, ''))) ?? null
 
 // ─── Normalizar celdas ──────────────────────────────────────────────────────
 // ExcelJS no devuelve strings: devuelve objetos para fórmulas, texto con
@@ -96,17 +119,43 @@ const ES = {
   booleano: v => /^(true|false|0|1)$/i.test(v),
 }
 
-function perfilar(valores) {
-  const llenos = valores.filter(v => v !== null && v !== '')
-  const marcas = []
+/**
+ * Perfilador INCREMENTAL: una columna, fila por fila, sin guardar las filas.
+ *
+ * La primera versión guardaba una muestra y sacaba los porcentajes de ahí, y el
+ * número salía mentiroso justo donde más importa: la muestra son las primeras
+ * filas del dump, o sea las MÁS VIEJAS. En `documents` daba "95 % sin caso"
+ * mirando 400 filas de 16.977 — las de cuando el sistema todavía no usaba
+ * casos—. Acumulando contadores el archivo se recorre entero, la memoria no
+ * crece y el porcentaje es el de verdad.
+ */
+function nuevoPerfil() {
+  return { total: 0, llenos: 0, coincidencias: {}, ejemplos: [] }
+}
+
+function acumular(p, v) {
+  p.total++
+  if (v === null || v === '') return
+  p.llenos++
   for (const [nombre, test] of Object.entries(ES)) {
-    if (llenos.length && llenos.filter(v => test(v)).length / llenos.length > 0.8) marcas.push(nombre)
+    if (test(v)) p.coincidencias[nombre] = (p.coincidencias[nombre] ?? 0) + 1
   }
+  if (p.ejemplos.length < 2) p.ejemplos.push(v.length > 38 ? v.slice(0, 38) + '…' : v)
+}
+
+function cerrarPerfil(p) {
+  const marcas = Object.entries(p.coincidencias)
+    .filter(([, n]) => p.llenos && n / p.llenos > 0.8)
+    .map(([nombre]) => nombre)
+  const crudo = p.total ? ((p.total - p.llenos) / p.total) * 100 : 100
   return {
-    vacios: valores.length - llenos.length,
-    pctVacio: valores.length ? Math.round(((valores.length - llenos.length) / valores.length) * 100) : 100,
+    vacios: p.total - p.llenos,
+    // Un 99,6 % redondeaba a "100 % vacío" al lado de dos ejemplos reales, que
+    // se lee como un error de la herramienta. Si hay AL MENOS UN valor, el tope
+    // es 99.
+    pctVacio: p.llenos > 0 ? Math.min(99, Math.round(crudo)) : 100,
     marcas,
-    muestra: llenos.slice(0, 2).map(v => (v.length > 38 ? v.slice(0, 38) + '…' : v)),
+    muestra: p.ejemplos,
   }
 }
 
@@ -136,11 +185,41 @@ async function leerExcel(ruta) {
   return hojas
 }
 
-async function leerCsv(ruta) {
-  const rows = await parseCSV(ruta)
-  if (rows.length === 0) return []
-  const headers = Object.keys(rows[0])
-  return [{ nombre: basename(ruta, '.csv'), headers, filas: rows.map(r => headers.map(h => r[h])) }]
+/**
+ * CSV por STREAMING: guarda una muestra y cuenta el resto.
+ *
+ * `parseCSV` arma un objeto por fila; con los export del v2 —`snomed_icd_map`
+ * son 88 MB, `case_consents` 44 MB— eso es cargar el archivo entero en memoria
+ * solo para mirarle los encabezados. Para perfilar columnas alcanza con las
+ * primeras filas, y el total se cuenta sin guardar nada.
+ *
+ * Nota: cuenta LÍNEAS, igual que `parseCSV`, que tampoco soporta saltos de
+ * línea dentro de un campo entrecomillado. Si un archivo los tuviera, el número
+ * es alto y el import lo va a sufrir igual — se ve en la muestra.
+ */
+async function leerCsv(ruta, muestra = MUESTRA) {
+  let headers = null
+  let perfiles = null
+  const filas = []          // solo para `--convertir`, que necesita el contenido
+  let total = 0
+
+  // `leerFilas` respeta los saltos de línea DENTRO de un campo entrecomillado.
+  // Contando líneas, `notes` daba 1.864 "filas" que en realidad eran pedazos de
+  // notas largas (ver el encabezado de `utils/csv.mjs`).
+  for await (const campos of leerFilas(ruta)) {
+    if (headers === null) {
+      headers = campos.map(h => (h ?? '').trim())
+      perfiles = headers.map(nuevoPerfil)
+      continue
+    }
+    if (campos.length === 1 && campos[0] === null) continue   // línea en blanco
+    total++
+    headers.forEach((_, i) => acumular(perfiles[i], plano(campos[i])))
+    if (filas.length < muestra) filas.push(campos)
+  }
+
+  if (!headers) return []
+  return [{ nombre: basename(ruta, '.csv'), headers, filas, perfiles, total }]
 }
 
 // ─── Corrida ────────────────────────────────────────────────────────────────
@@ -176,23 +255,45 @@ async function run() {
       const d = destino(base) ?? destino(basename(archivo, extname(archivo)))
       if (d) vistos.add(d.script)
 
-      console.log(`── ${etiqueta}  (${kb} KB · ${hoja.filas.length} filas · ${hoja.headers.length} columnas)`)
-      console.log(d ? `   → ${d.v3}   [${d.script}]` : '   → ⚠️  no reconocida: nadie la importa hoy')
-
+      const filas = hoja.total ?? hoja.filas.length
       const columnas = hoja.headers.map((h, i) => {
-        const perfil = perfilar(hoja.filas.map(f => plano(f[i])))
-        return { columna: h || `(col ${i + 1})`, ...perfil }
+        // El CSV ya viene perfilado de la pasada por streaming; el Excel se
+        // perfila acá, que sus hojas entran enteras en memoria sin drama.
+        const p = hoja.perfiles?.[i] ?? (() => {
+          const acc = nuevoPerfil()
+          for (const f of hoja.filas) acumular(acc, plano(f[i]))
+          return acc
+        })()
+        return { columna: h || `(col ${i + 1})`, ...cerrarPerfil(p) }
       })
 
-      for (const c of columnas) {
-        const marcas = c.marcas.length ? `  [${c.marcas.join(' ')}]` : ''
-        const vacio = c.pctVacio >= 50 ? `  ⚠️ ${c.pctVacio}% vacío` : ''
-        console.log(`   · ${c.columna.padEnd(24)} ${(c.muestra.join(' | ') || '—').padEnd(40)}${marcas}${vacio}`)
+      const cifradasAca = columnas.filter(c => c.marcas.includes('cifrado')).map(c => c.columna)
+      const vaciasAca   = columnas.filter(c => c.pctVacio === 100).length
+
+      if (conDetalle(etiqueta)) {
+        console.log(`── ${etiqueta}  (${kb} KB · ${filas} filas · ${hoja.headers.length} columnas)`)
+        console.log(d ? `   → ${d.v3}   [${d.script}]` : '   → ⚠️  no reconocida: nadie la importa hoy')
+        for (const c of columnas) {
+          const marcas = c.marcas.length ? `  [${c.marcas.join(' ')}]` : ''
+          const vacio = c.pctVacio >= 50 ? `  ⚠️ ${c.pctVacio}% vacío` : ''
+          console.log(`   · ${c.columna.padEnd(26)} ${(c.muestra.join(' | ') || '—').padEnd(42)}${marcas}${vacio}`)
+        }
+        console.log()
+      } else {
+        // Una línea por hoja: nombre · filas · columnas · a dónde va · señales.
+        const senal = [
+          cifradasAca.length ? `🔐${cifradasAca.length}` : '',
+          vaciasAca ? `∅${vaciasAca}` : '',
+        ].filter(Boolean).join(' ')
+        const destinoTxt = d ? d.v3 : '⚠️ sin destino'
+        console.log(
+          `${etiqueta.padEnd(46)} ${String(filas).padStart(7)} filas ` +
+          `${String(hoja.headers.length).padStart(3)} col  ${destinoTxt.padEnd(24)} ${senal}`,
+        )
       }
-      console.log()
 
       inventario.push({
-        archivo, hoja: hoja.nombre, filas: hoja.filas.length,
+        archivo, hoja: hoja.nombre, filas, muestreado: hoja.muestreado ?? false,
         destino: d?.v3 ?? null, script: d?.script ?? null, columnas,
       })
 

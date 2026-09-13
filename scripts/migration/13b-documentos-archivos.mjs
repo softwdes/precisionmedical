@@ -55,6 +55,26 @@ const FALLIDOS = join(import.meta.dirname, 'documentos-fallidos.json')
 const MIME_OK = /^[a-z]+\/[a-z0-9.+-]+$/i
 const mimeSano = m => (m && MIME_OK.test(m) ? m : 'application/octet-stream')
 
+/**
+ * Clave que Supabase Storage acepta.
+ *
+ * S3 guarda cualquier cosa en el nombre; Supabase rechaza con `Invalid key` todo
+ * lo que no sea ASCII. Son 26 archivos del v2 con tilde o apóstrofo en el nombre
+ * del paciente (`Naomi Alcántara-idcard-011526.pdf`): existen, bajan bien de S3 y
+ * el destino los rebota.
+ *
+ * Se les quita el acento y se sube con la clave saneada — pero entonces la clave
+ * ya NO es la del v2, así que hay que **corregir también la fila** de
+ * `patient_documents`, o el botón de descargar apunta a un archivo que no está.
+ * Esa corrección la hace el propio script al final.
+ */
+function claveSegura(k) {
+  return k
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // á → a
+    .replace(/[^\x20-\x7E]/g, '')                        // cualquier otro no-ASCII
+    .replace(/['"`]/g, '')                               // comillas y apóstrofos
+}
+
 function faltaEnv() {
   const req = ['V2_S3_BUCKET', 'V2_S3_ACCESS_KEY_ID', 'V2_S3_SECRET_ACCESS_KEY',
                'SUPABASE_STORAGE_URL', 'SUPABASE_STORAGE_SERVICE_KEY']
@@ -127,6 +147,8 @@ async function run() {
   )
 
   const hechos = new Set(yaHechos)
+  /** Archivos que se subieron con la clave saneada — hay que corregir su fila. */
+  const renombrados = []
   const fallidos = []
   let copiados = 0, saltados = 0, bytes = 0
 
@@ -139,12 +161,16 @@ async function run() {
       }))
       const cuerpo = Buffer.from(await obj.Body.transformToByteArray())
 
+      const destino = claveSegura(doc.s3Key)
       const { error } = await supa.storage
         .from(BUCKET_DESTINO)
-        .upload(doc.s3Key, cuerpo, { contentType: mimeSano(doc.mimeType), upsert: false })
+        .upload(destino, cuerpo, { contentType: mimeSano(doc.mimeType), upsert: false })
 
       // "ya existe" no es un fallo: es una corrida anterior que llegó hasta acá.
       if (error && !/exists|duplicate/i.test(error.message)) throw new Error(error.message)
+
+      // Si hubo que sanear la clave, la fila tiene que apuntar a la nueva.
+      if (destino !== doc.s3Key) renombrados.push({ id: doc.id, clave: destino })
 
       hechos.add(doc.id)
       copiados++
@@ -168,6 +194,17 @@ async function run() {
 
   writeFileSync(PROGRESO, JSON.stringify([...hechos]))
   if (fallidos.length) writeFileSync(FALLIDOS, JSON.stringify(fallidos, null, 2))
+
+  // Las filas cuya clave hubo que sanear: sin esto el archivo está subido y el
+  // botón de descargar apunta a la ruta vieja, con tilde, que no existe.
+  if (renombrados.length) {
+    const db = getPool()
+    for (const r of renombrados) {
+      await db.query(`UPDATE patient_documents SET "s3Key" = $1 WHERE id = $2`, [r.clave, r.id])
+    }
+    await closePool()
+    console.log(`   ${renombrados.length} claves saneadas (tenían tilde o apóstrofo) y corregidas en la base`)
+  }
 
   console.log(`\n📊 ${copiados} copiados · ${saltados} salteados · ${fallidos.length} fallidos · ${(bytes / 1073741824).toFixed(2)} GB`)
   if (fallidos.length) {

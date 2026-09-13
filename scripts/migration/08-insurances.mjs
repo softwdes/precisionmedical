@@ -1,141 +1,222 @@
 /**
- * Migration 08 — Insurances
- * v2: insurances.patientId (liga al paciente)
- * v3: InsuranceCarrier liga al Case vía Case.primaryInsuranceId / secondaryInsuranceId
+ * Migración 08 — Seguros (`insurances` del v2)
  *
- * Estrategia:
- * 1. Por cada insurance v2, buscar el case del paciente (puede haber N cases → tomamos el más reciente)
- * 2. Insertar en insurance_carriers
- * 3. UPDATE cases SET primaryInsuranceId/secondaryInsuranceId según priority (primary=1, secondary=2)
- * 4. Genera id-maps/insurances.json
+ * El v2 guarda UNA tabla con los dos tipos y colgada del PACIENTE:
+ *     general 884  (seguro de salud)   ·   auto 276  (el del accidente, con PIP)
+ *
+ * v3 los separa, y a nivel CASO:
+ *   · salud → `Case.primaryInsuranceId` + `primaryPolicyNumber`
+ *   · auto  → una fila en `case_auto_insurances`, que es prácticamente la misma
+ *             columna por columna (póliza, PIP, n° de reclamo, ajustador, lien)
+ * Y el catálogo de aseguradoras vive aparte, en `insurance_carriers`.
+ *
+ * ── Del paciente al caso ────────────────────────────────────────────────────
+ * El seguro es de la PERSONA, así que se aplica a sus casos:
+ *   · salud: a todos los casos del paciente que no tengan seguro todavía.
+ *   · auto : a sus casos MVA (si no tiene ninguno, a todos) — el PIP es del
+ *            accidente, y un caso GM no lo usa.
+ * Nunca pisa un dato ya cargado.
+ *
+ * ── Ajustadores ─────────────────────────────────────────────────────────────
+ * `adjusterName/Phone/Fax/Email` se convierten en `insurance_adjusters` (uno por
+ * aseguradora y nombre) y además quedan copiados como texto en la fila del caso
+ * (`adjusterNameRaw`, `adjusterPhoneRaw`): así el dato se ve aunque la ficha del
+ * ajustador se archive.
+ *
+ * Uso:  node 08-insurances.mjs [--dry]
  */
-import 'dotenv/config'
-import { readFileSync, writeFileSync } from 'fs'
-import { parseCSV } from './utils/csv.mjs'
+import './utils/env.mjs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { leerRegistros } from './utils/csv.mjs'
+import { buscarCsv } from './utils/export.mjs'
 import { getPool, closePool, cuid } from './utils/db.mjs'
 
-const CSV      = `${process.env.CSV_DIR}/DBA2/insurances_202607131826.csv`
-const MAP_FILE = './id-maps/insurances.json'
+const DRY = process.argv.includes('--dry')
+const MAPS = join(import.meta.dirname, 'id-maps')
+const MAP_FILE = join(MAPS, 'insurances.json')
 
-function loadMap(file) {
-  try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return {} }
+const norm = s => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
+
+const NO_ES_TELEFONO = new Set(['n/a', 'na', 'none', 'null', '-', '.'])
+function telefono(raw) {
+  if (!raw) return null
+  const t = String(raw).trim()
+  if (NO_ES_TELEFONO.has(t.toLowerCase())) return null
+  const d = t.replace(/\D/g, '')
+  if (/^0+$/.test(d)) return null
+  if (d.length === 11 && d.startsWith('1')) {
+    const n = d.slice(1)
+    return `(${n.slice(0, 3)}) ${n.slice(3, 6)}-${n.slice(6)}`
+  }
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+  return t
 }
 
-function parseDate(s) {
-  if (!s || s === 'null') return null
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d
+/**
+ * `shortCode` es NOT NULL y se usa como avatar del carrier (máx. 4 caracteres).
+ * Iniciales si el nombre tiene varias palabras ("State Farm" → SF), si no las
+ * primeras letras ("Aetna" → AETN).
+ */
+function sigla(nombre) {
+  const palabras = (nombre ?? '').replace(/[^A-Za-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+  if (palabras.length === 0) return '?'
+  if (palabras.length === 1) return palabras[0].slice(0, 4).toUpperCase()
+  return palabras.map(p => p[0]).join('').slice(0, 4).toUpperCase()
 }
 
-function parseDecimal(s) {
-  const n = parseFloat(s)
-  return isNaN(n) ? 0 : n
+const pip = v => {
+  const s = norm(v)
+  if (s === 'yes' || s === 'si') return 'YES'
+  if (s === 'no') return 'NO'
+  return 'UNKNOWN'
 }
 
-// v2 type: "auto" | "general" → v3 InsuranceType enum
-function mapType(type) {
-  const t = (type || '').toLowerCase()
-  if (t === 'auto') return 'PIP'
-  return 'OTHER'
+const limpio = v => {
+  const s = (v ?? '').trim()
+  return s === '' || NO_ES_TELEFONO.has(s.toLowerCase()) ? null : s
 }
 
-function shortCode(name) {
-  const words = name.trim().split(/\s+/).filter(Boolean)
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase().substring(0, 4)
-  return name.substring(0, 4).toUpperCase()
-}
+async function run() {
+  const pacientesMap = join(MAPS, 'patients.json')
+  if (!existsSync(pacientesMap)) throw new Error('Falta id-maps/patients.json')
+  const mapaPacientes = JSON.parse(readFileSync(pacientesMap, 'utf8'))
 
-async function main() {
-  const pool = getPool()
+  const filas = []
+  for await (const r of leerRegistros(buscarCsv('insurances'))) filas.push(r)
 
-  const patientsMap = loadMap('./id-maps/patients.json')
-  const casesMap    = loadMap('./id-maps/cases.json')
+  const db = getPool()
 
-  console.log('📋 Leyendo CSV insurances v2...')
-  const rows = await parseCSV(CSV)
-  console.log(`   Total: ${rows.length}`)
-
-  // Construir lookup: v3PatientId → [v3CaseId, ...] (ordenados por fecha DESC)
-  // Necesitamos saber a qué case asignar. Consultamos la DB.
-  console.log('   Cargando cases de DB...')
-  const { rows: dbCases } = await pool.query(
-    `SELECT id, "patientId", "createdAt" FROM cases ORDER BY "createdAt" DESC`
+  // Casos por paciente, para saber a cuál colgar cada seguro.
+  const { rows: casos } = await db.query(
+    `SELECT id, "patientId", "caseType", "primaryInsuranceId" FROM cases WHERE "deletedAt" IS NULL`,
   )
-  // patientId → array de caseIds (más reciente primero)
-  const casesByPatient = {}
-  for (const c of dbCases) {
-    if (!casesByPatient[c.patientId]) casesByPatient[c.patientId] = []
-    casesByPatient[c.patientId].push(c.id)
+  const casosDe = new Map()
+  for (const c of casos) {
+    if (!casosDe.has(c.patientId)) casosDe.set(c.patientId, [])
+    casosDe.get(c.patientId).push(c)
   }
 
-  // También necesitamos saber qué tipo de insurance_carriers acepta v3
-  // Verificamos si la tabla existe con el schema esperado
-  const { rows: cols } = await pool.query(`
-    SELECT column_name FROM information_schema.columns
-    WHERE table_name = 'insurance_carriers' AND table_schema = 'public'
-  `)
-  const colNames = new Set(cols.map(c => c.column_name))
-  console.log(`   Columnas insurance_carriers: ${[...colNames].join(', ')}`)
+  // ─── 1. Catálogo de aseguradoras ──────────────────────────────────────────
+  const { rows: yaHay } = await db.query(`SELECT id, name FROM insurance_carriers WHERE "deletedAt" IS NULL`)
+  const carrierPorNombre = new Map(yaHay.map(r => [norm(r.name), r.id]))
 
-  const idMap = {}
-  let inserted = 0, noPatient = 0, noCase = 0, caseUpdated = 0
+  const nombres = new Map()   // normalizado → nombre "bonito" (el más frecuente)
+  for (const f of filas) {
+    const n = limpio(f.companyName)
+    if (!n) continue
+    const k = norm(n)
+    const e = nombres.get(k) ?? { nombre: n, veces: 0 }
+    e.veces++
+    nombres.set(k, e)
+  }
 
-  for (const row of rows) {
-    const v2PatientId = String(row.patientId)
-    const v3PatientId = patientsMap[v2PatientId]
-    if (!v3PatientId) { noPatient++; continue }
-
-    const v3Cases = casesByPatient[v3PatientId] || []
-    if (v3Cases.length === 0) { noCase++; continue }
-
-    const newId = cuid()
-    const isPrimary = (row.priority === '1' || row.priority === 'primary' || !row.priority)
-    const insType   = mapType(row.type)
-
-    // Insertar en insurance_carriers
-    // Solo usamos columnas que sabemos que existen
-    // insurance_carriers en v3 es catálogo (deduplicado por nombre)
-    const companyName = (row.companyName || 'Unknown').trim().substring(0, 200)
-    let realV3Id = newId
-    try {
-      const sc = shortCode(companyName)
-      const { rows: upserted } = await pool.query(`
-        INSERT INTO insurance_carriers
-          (id, name, "legalName", "shortCode", type, "isActive", "createdAt", "updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
-        ON CONFLICT (name) DO UPDATE SET "updatedAt" = NOW()
-        RETURNING id
-      `, [newId, companyName, companyName, sc, insType, true])
-      realV3Id = upserted[0]?.id || newId
-      inserted++
-    } catch (e) {
-      console.warn(`   ⚠️  Insert error row ${row.id}: ${e.message.substring(0,80)}`)
-      continue
-    }
-
-    idMap[String(row.id)] = realV3Id
-
-    // Asignar al case más reciente del paciente
-    const targetCaseId = v3Cases[0]
-    const field = isPrimary ? 'primaryInsuranceId' : 'secondaryInsuranceId'
-
-    await pool.query(
-      `UPDATE cases SET "${field}" = $1, "updatedAt" = NOW() WHERE id = $2 AND "${field}" IS NULL`,
-      [realV3Id, targetCaseId]
+  let carriersNuevos = 0
+  for (const [k, e] of nombres) {
+    if (carrierPorNombre.has(k)) continue
+    if (DRY) { carriersNuevos++; continue }
+    const id = cuid()
+    const { rows } = await db.query(
+      `INSERT INTO insurance_carriers (id, name, "shortCode", type, "isActive", "createdAt", "updatedAt")
+       VALUES ($1,$2,$3,'OTHER'::"InsuranceType",true,NOW(),NOW())
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [id, e.nombre, sigla(e.nombre)],
     )
-    caseUpdated++
+    if (rows[0]) { carrierPorNombre.set(k, rows[0].id); carriersNuevos++ }
   }
 
-  writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
+  // ─── 2. Ajustadores ───────────────────────────────────────────────────────
+  const ajustadorPorClave = new Map()
+  let ajustadores = 0
+  if (!DRY) {
+    for (const f of filas) {
+      const nombre = limpio(f.adjusterName)
+      const carrierId = carrierPorNombre.get(norm(limpio(f.companyName) ?? ''))
+      if (!nombre || !carrierId) continue
+      const k = `${carrierId}|${norm(nombre)}`
+      if (ajustadorPorClave.has(k)) continue
+      const id = cuid()
+      const { rows } = await db.query(
+        `INSERT INTO insurance_adjusters
+           (id, "insuranceCarrierId", name, phone, phone2, fax, email, status, "createdAt", "updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'ACTIVE'::"ExternalStatus",NOW(),NOW())
+         RETURNING id`,
+        [id, carrierId, nombre, telefono(f.adjusterPhone), telefono(f.adjusterOtherPhone),
+         limpio(f.adjusterFax), limpio(f.adjusterEmail)],
+      )
+      ajustadorPorClave.set(k, rows[0].id)
+      ajustadores++
+    }
+  }
 
-  console.log('\n✅ Insurances completado:')
-  console.log(`   Insertados      : ${inserted}`)
-  console.log(`   Cases actualizados: ${caseUpdated}`)
-  console.log(`   Sin patient map : ${noPatient}`)
-  console.log(`   Sin cases       : ${noCase}`)
-  console.log(`   ID-map          : ${MAP_FILE}`)
+  // ─── 3. Seguros a los casos ───────────────────────────────────────────────
+  const idMap = {}
+  let salud = 0, auto = 0, sinPaciente = 0, sinCaso = 0, borrados = 0
 
+  for (const f of filas) {
+    if (f.status === 'DELETED') { borrados++; continue }
+
+    const patientId = mapaPacientes[f.patientId]
+    if (!patientId) { sinPaciente++; continue }
+
+    const suyos = casosDe.get(patientId) ?? []
+    if (suyos.length === 0) { sinCaso++; continue }
+
+    const carrierId = carrierPorNombre.get(norm(limpio(f.companyName) ?? '')) ?? null
+
+    if (f.type === 'auto') {
+      // El PIP es del accidente: va a los casos MVA. Si no tiene ninguno, a todos.
+      const destino = suyos.filter(c => c.caseType === 'MVA')
+      const objetivo = destino.length ? destino : suyos
+      for (const c of objetivo) {
+        if (DRY) { auto++; continue }
+        const ajustador = ajustadorPorClave.get(`${carrierId}|${norm(limpio(f.adjusterName) ?? '')}`) ?? null
+        try {
+          await db.query(
+            `INSERT INTO case_auto_insurances
+               (id, "caseId", "carrierId", "carrierNameRaw", "policyId", "lossDate",
+                "pipAvailable", "claimNum", "adjusterId", "adjusterNameRaw", "adjusterPhoneRaw",
+                comments, "fullLien", "createdAt", "updatedAt")
+             VALUES ($1,$2,$3,$4,$5,$6::timestamp,$7::"PipAvailability",$8,$9,$10,$11,$12,$13,NOW(),NOW())`,
+            [cuid(), c.id, carrierId, limpio(f.companyName), limpio(f.policyNumber),
+             f.effectiveDate || null, pip(f.isPIPAvailable), limpio(f.claimNumber),
+             ajustador, limpio(f.adjusterName), telefono(f.adjusterPhone),
+             limpio(f.comment), f.fullLien === 'true'],
+          )
+          idMap[f.id] = c.id
+          auto++
+        } catch (e) {
+          console.log(`  ⚠️  seguro auto ${f.id}: ${e.message.split('\n')[0]}`)
+        }
+      }
+    } else {
+      // Salud: a los casos que todavía no tienen seguro primario.
+      for (const c of suyos) {
+        if (c.primaryInsuranceId) continue
+        if (DRY) { salud++; continue }
+        await db.query(
+          `UPDATE cases SET "primaryInsuranceId" = COALESCE("primaryInsuranceId", $2),
+                            "primaryPolicyNumber" = COALESCE("primaryPolicyNumber", $3)
+             WHERE id = $1`,
+          [c.id, carrierId, limpio(f.policyNumber)],
+        )
+        c.primaryInsuranceId = carrierId    // que el siguiente seguro no lo pise
+        idMap[f.id] = c.id
+        salud++
+      }
+    }
+  }
+
+  if (!DRY) writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
+
+  console.log(`\n📊 Seguros${DRY ? ' (dry)' : ''}`)
+  console.log(`   aseguradoras nuevas en el catálogo : ${carriersNuevos}`)
+  console.log(`   ajustadores                        : ${ajustadores}`)
+  console.log(`   pólizas de SALUD aplicadas a casos : ${salud}`)
+  console.log(`   seguros de AUTO (PIP) en casos     : ${auto}`)
+  console.log(`   ${borrados} borrados · ${sinPaciente} sin paciente · ${sinCaso} sin casos`)
   await closePool()
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1) })
+run().catch(e => { console.error(e); process.exit(1) })

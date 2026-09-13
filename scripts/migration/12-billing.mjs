@@ -1,169 +1,162 @@
 /**
- * Migration 12 — Billing (costs + payments)
- * v2: costs (6,159) + payments (323)
- * v3: AppointmentBilling (1:1 con Appointment) + BillingPayment
+ * Migración 12 — Facturación: cargos (`costs`) y pagos (`payments`)
  *
- * Depende de:
- *   id-maps/appointments.json
- *   id-maps/insurances.json (para payments con source=insurance)
+ *   costs    6.995 → `appointment_billing`  (una cuenta por cita)
+ *   payments   591 → `billing_payments`     (los pagos de esa cuenta)
+ *
+ * ── Detalles que importan ───────────────────────────────────────────────────
+ *
+ * · `appointment_billing.appointmentId` es obligatorio: un cargo cuya cita no se
+ *   importó (borrada, sin caso, de la clínica de prueba) no tiene dónde ir.
+ * · El pago cuelga del CARGO (`costId` → `billingId`), así que primero los
+ *   cargos y después los pagos, con el id-map en el medio.
+ * · `source` y `method` del v2 mapean casi 1:1; el método viene a veces en
+ *   español ("Tarjeta", "Efectivo", "Cheque") y se normaliza.
+ * · Los tres `paymentType*` del v2 —uno por origen— se funden en la única
+ *   columna `paymentType` de v3, que es texto libre justamente para esto
+ *   (`copay`, `direct_insurance`, `contractual_obligation`, `deductible`…).
+ * · `status = cancelled` entra como CANCELLED, no se descarta: un pago anulado
+ *   es parte del historial de la cuenta.
+ *
+ * Uso:  node 12-billing.mjs [--dry]
  */
-import 'dotenv/config'
-import { readFileSync, writeFileSync } from 'fs'
-import { parseCSV } from './utils/csv.mjs'
+import './utils/env.mjs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { leerRegistros } from './utils/csv.mjs'
+import { buscarCsv } from './utils/export.mjs'
 import { getPool, closePool, cuid } from './utils/db.mjs'
 
-const COSTS_CSV    = `${process.env.CSV_DIR}/DBA2/costs_202607131826.csv`
-const PAYMENTS_CSV = `${process.env.CSV_DIR}/DBA2/payments_202607131829.csv`
-const MAP_FILE     = './id-maps/billing.json'
+const DRY = process.argv.includes('--dry')
+const MAPS = join(import.meta.dirname, 'id-maps')
+const MAP_FILE = join(MAPS, 'billing.json')
 
-function loadMap(file) {
-  try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return {} }
+const leerMapa = n => {
+  const f = join(MAPS, n)
+  if (!existsSync(f)) throw new Error(`Falta id-maps/${n}`)
+  return JSON.parse(readFileSync(f, 'utf8'))
 }
 
-function parseDecimal(s) {
-  const n = parseFloat(s)
-  return isNaN(n) ? 0 : n
+const num = v => {
+  const n = Number(String(v ?? '').replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(n) ? n : 0
 }
 
-function parseDate(s) {
-  if (!s || s === 'null') return null
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d
-}
-
-function mapPaymentSource(src) {
-  const s = (src || '').toLowerCase()
+const origen = v => {
+  const s = String(v ?? '').toLowerCase()
   if (s === 'insurance') return 'INSURANCE'
-  if (s === 'patient')   return 'PATIENT'
-  if (s === 'lawyer')    return 'LAWYER'
+  if (s === 'lawyer') return 'LAWYER'
   return 'PATIENT'
 }
 
-function mapPaymentMethod(m) {
-  const s = (m || '').toLowerCase()
-  if (s === 'check')    return 'CHECK'
-  if (s === 'card')     return 'CARD'
-  if (s === 'cash')     return 'CASH'
-  if (s.includes('transfer') || s.includes('wire')) return 'TRANSFER'
+const metodo = v => {
+  const s = String(v ?? '').toLowerCase()
+  if (/check|cheque/.test(s)) return 'CHECK'
+  if (/card|tarjeta/.test(s)) return 'CARD'
+  if (/cash|efectivo/.test(s)) return 'CASH'
+  if (/transfer|transferencia/.test(s)) return 'TRANSFER'
   return 'NONE'
 }
 
-function mapPaymentStatus(s) {
-  const st = (s || '').toUpperCase()
-  if (st === 'CANCELLED' || st === 'CANCELED') return 'CANCELLED'
-  if (st === 'PENDING')  return 'PENDING'
+const estadoPago = v => {
+  const s = String(v ?? '').toLowerCase()
+  if (s === 'cancelled' || s === 'canceled') return 'CANCELLED'
+  if (s === 'pending') return 'PENDING'
   return 'COMPLETED'
 }
 
-async function main() {
-  const pool = getPool()
+async function leerTodo(prefijo) {
+  const filas = []
+  for await (const r of leerRegistros(buscarCsv(prefijo))) filas.push(r)
+  return filas
+}
 
-  const apptMap  = loadMap('./id-maps/appointments.json')
-  const insMap   = loadMap('./id-maps/insurances.json')
+async function run() {
+  const mapaCitas = leerMapa('appointments.json')
+  const mapaCasos = leerMapa('cases.json')
 
-  console.log('📋 Leyendo CSVs costs + payments...')
-  const [costsRows, paymentsRows] = await Promise.all([
-    parseCSV(COSTS_CSV),
-    parseCSV(PAYMENTS_CSV),
-  ])
-  console.log(`   Costs: ${costsRows.length} | Payments: ${paymentsRows.length}`)
+  const [costos, pagos] = await Promise.all([leerTodo('costs'), leerTodo('payments')])
+  const db = getPool()
 
-  // Indexar payments por costId (v2)
-  const paymentsByCost = {}
-  for (const p of paymentsRows) {
-    const cid = String(p.costId)
-    if (!paymentsByCost[cid]) paymentsByCost[cid] = []
-    paymentsByCost[cid].push(p)
+  // ─── 1. Cargos ────────────────────────────────────────────────────────────
+  const idMap = existsSync(MAP_FILE) ? JSON.parse(readFileSync(MAP_FILE, 'utf8')) : {}
+  let cargos = 0, sinCita = 0, repetidos = 0, fallidos = 0
+  let totalFacturado = 0, totalCobrado = 0
+
+  for (const c of costos) {
+    const appointmentId = c.appointmentId ? mapaCitas[c.appointmentId] : null
+    if (!appointmentId) { sinCita++; continue }
+    // Re-corrida: lo que ya se insertó no se repite. `appointment_billing` NO
+    // tiene unique sobre `appointmentId` en la base (aunque el modelo lo sugiera),
+    // así que el `ON CONFLICT` no existe y el que cuida es el id-map.
+    if (idMap[c.id]) { repetidos++; continue }
+
+    totalFacturado += num(c.totalCost)
+    totalCobrado += num(c.amountPaid)
+    if (DRY) { cargos++; continue }
+
+    const nuevoId = cuid()
+    try {
+      const { rows } = await db.query(
+        `INSERT INTO appointment_billing
+           (id, "appointmentId", "caseId", "totalCost", discount, "insuranceCovered",
+            "amountPaid", "balanceDue", "createdAt", "updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamp,NOW()),NOW())
+         RETURNING id`,
+        [nuevoId, appointmentId, c.caseId ? (mapaCasos[c.caseId] ?? null) : null,
+         num(c.totalCost), num(c.discount), num(c.insuranceCovered),
+         num(c.amountPaid), num(c.balanceDue), c.createdAt || null],
+      )
+      if (rows[0]) { idMap[c.id] = rows[0].id; cargos++ } else { repetidos++ }
+    } catch (e) {
+      console.log(`  ⚠️  cargo ${c.id}: ${e.message.split('\n')[0]}`)
+      fallidos++
+    }
+    if (cargos % 250 === 0) writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
   }
 
-  const idMap = {}   // v2 cost id → v3 billing id
-  let billingInserted = 0, payInserted = 0, noAppt = 0
+  if (!DRY) writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
 
-  const BATCH = 50  // smaller batch due to payments sub-loop
-  const allCosts = costsRows
+  // ─── 2. Pagos ─────────────────────────────────────────────────────────────
+  const mapaSeguros = existsSync(join(MAPS, 'insurances.json'))
+    ? JSON.parse(readFileSync(join(MAPS, 'insurances.json'), 'utf8'))
+    : {}
+  let pagados = 0, sinCargo = 0, fallidosPago = 0, montoPagos = 0
 
-  for (let i = 0; i < allCosts.length; i++) {
-    const row = allCosts[i]
-    const v2ApptId = String(row.appointmentId)
-    const v3ApptId = apptMap[v2ApptId]
+  for (const p of pagos) {
+    const billingId = p.costId ? idMap[p.costId] : null
+    if (!billingId) { sinCargo++; continue }
 
-    if (!v3ApptId) { noAppt++; continue }
-
-    const billingId = cuid()
-    idMap[String(row.id)] = billingId
-
-    const v2CaseId = row.caseId || null
+    montoPagos += num(p.amount)
+    if (DRY) { pagados++; continue }
 
     try {
-      await pool.query(`
-        INSERT INTO appointment_billing
-          (id, "appointmentId", "totalCost", discount, "insuranceCovered",
-           "amountPaid", "balanceDue", "createdAt", "updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-        ON CONFLICT ("appointmentId") DO NOTHING
-      `, [
-        billingId,
-        v3ApptId,
-        parseDecimal(row.totalCost),
-        parseDecimal(row.discount),
-        parseDecimal(row.insuranceCovered),
-        parseDecimal(row.amountPaid),
-        parseDecimal(row.balanceDue),
-        parseDate(row.createdAt) || new Date(),
-        new Date(),
-      ])
-      billingInserted++
+      await db.query(
+        `INSERT INTO billing_payments
+           (id, "billingId", source, "paymentType", amount, method, status,
+            notes, "paidAt", "createdAt", "updatedAt")
+         VALUES ($1,$2,$3::"billing_payment_source",$4,$5,$6::"billing_payment_method",
+                 $7::"billing_payment_status",$8,COALESCE($9::timestamp,NOW()),
+                 COALESCE($9::timestamp,NOW()),NOW())`,
+        [cuid(), billingId, origen(p.source),
+         // Los tres campos del v2 son excluyentes: se toma el que venga.
+         p.paymentTypeInsurance || p.paymentTypeLawyer || p.paymentTypePatient || null,
+         num(p.amount), metodo(p.method), estadoPago(p.status),
+         p.notes || null, p.createdAt || null],
+      )
+      pagados++
     } catch (e) {
-      console.warn(`   ⚠️  Billing row ${row.id}: ${e.message.substring(0,80)}`)
-      continue
-    }
-
-    // Migrar payments de este cost
-    const payments = paymentsByCost[String(row.id)] || []
-    for (const p of payments) {
-      const v3InsId = insMap[String(p.insuranceId || '')] || null
-      const payId   = cuid()
-      try {
-        await pool.query(`
-          INSERT INTO billing_payments
-            (id, "billingId", source, "paymentType", amount, method, status,
-             "insuranceCarrierId", notes, "paidAt", "createdAt", "updatedAt")
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          payId,
-          billingId,
-          mapPaymentSource(p.source),
-          p.paymentTypeInsurance || p.paymentTypePatient || p.paymentTypeLawyer || null,
-          parseDecimal(p.amount),
-          mapPaymentMethod(p.method),
-          mapPaymentStatus(p.status),
-          v3InsId,
-          p.notes || null,
-          parseDate(p.createdAt),
-          parseDate(p.createdAt) || new Date(),
-          new Date(),
-        ])
-        payInserted++
-      } catch (e) {
-        console.warn(`   ⚠️  Payment row ${p.id}: ${e.message.substring(0,80)}`)
-      }
-    }
-
-    if (i > 0 && i % 1000 === 0) {
-      console.log(`   ... ${i}/${allCosts.length} costs procesados`)
+      console.log(`  ⚠️  pago ${p.id}: ${e.message.split('\n')[0]}`)
+      fallidosPago++
     }
   }
 
-  writeFileSync(MAP_FILE, JSON.stringify(idMap, null, 2))
-
-  console.log('\n✅ Billing completado:')
-  console.log(`   Billing insertados : ${billingInserted}`)
-  console.log(`   Payments insertados: ${payInserted}`)
-  console.log(`   Sin appt map       : ${noAppt}`)
-  console.log(`   ID-map             : ${MAP_FILE}`)
-
+  const usd = n => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  console.log(`\n📊 Facturación${DRY ? ' (dry)' : ''}`)
+  console.log(`   cargos  : ${cargos} · ${sinCita} sin cita importada · ${repetidos} ya estaban · ${fallidos} fallidos`)
+  console.log(`   pagos   : ${pagados} · ${sinCargo} sin cargo · ${fallidosPago} fallidos`)
+  console.log(`   facturado ${usd(totalFacturado)} · cobrado ${usd(totalCobrado)} · en pagos ${usd(montoPagos)}`)
   await closePool()
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1) })
+run().catch(e => { console.error(e); process.exit(1) })

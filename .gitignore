@@ -75,3 +75,25 @@ apps/web/public/swe-worker-*.js.map
 
 # Config local de Claude Code — rutas y permisos de esta maquina, no del repo
 .claude/settings.local.json
+
+# ─── PHI: los export del v2 NUNCA van al repo ────────────────────────────────
+# `Migracion/` son los CSV crudos de MedUSA: 6.182 pacientes con nombre, SSN,
+# teléfono y firmas. Estaba SIN ignorar y sin trackear, o sea a un `git add -A`
+# de quedar publicado — y en este repo ya pasó una vez (el commit 605154f7 subió
+# secretos y estuvieron 7 semanas en GitHub; un revert no los saca del historial).
+# Lo mismo para cualquier respaldo de la base.
+Migracion/
+respaldo-*/
+*.ndjson
+
+# Salidas de los scripts de migración: llevan datos de pacientes o del staff.
+# `inventario.json` guarda 2 valores de MUESTRA por columna — o sea correos y
+# nombres reales—; los id-maps son la tabla de equivalencias v2↔v3.
+scripts/migration/id-maps/
+scripts/migration/inventario.json
+scripts/migration/mapa-doctores.json
+scripts/migration/pacientes-a-fusionar.json
+scripts/migration/companies-duplicados.json
+scripts/migration/bufetes-fuera-del-catalogo.json
+scripts/migration/documentos-progreso.json
+scripts/migration/documentos-fallidos.json

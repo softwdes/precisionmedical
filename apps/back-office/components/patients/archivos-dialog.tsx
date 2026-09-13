@@ -232,7 +232,18 @@ export interface ArchivosDialogProps {
  * tiene esta persona?"— y navegar tres niveles de carpetas por cada uno de tres
  * casos la responde peor.
  */
-function ArchivosDelPaciente({ patientId }: { patientId: string }) {
+function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
+  patientId: string;
+  /**
+   * Las fotos de identidad que la persona trae del v2, ya firmadas.
+   *
+   * Viajan hacia ARRIBA en vez de pedirlas de nuevo desde el diálogo porque
+   * salen de la misma respuesta que esta lista: dos componentes pidiendo el
+   * mismo endpoint al abrir es una llamada de más y, peor, dos verdades que se
+   * pueden desincronizar.
+   */
+  onFotosPaciente?: (fotos: Record<string, string>) => void;
+}) {
   const t = useTranslations('phoenix.patients');
   const tc = useTranslations('phoenix.common');
   const viewer = useFileViewer(t('archivosDownloadError'));
@@ -259,6 +270,7 @@ function ArchivosDelPaciente({ patientId }: { patientId: string }) {
         if (!vivo) return;
         setCasos(data.casos ?? []);
         setDocs(data.documentos ?? []);
+        onFotosPaciente?.(data.fotosPaciente ?? {});
       } catch (e) {
         if (vivo) setError(e instanceof Error ? e.message : 'Error');
       } finally {
@@ -266,13 +278,23 @@ function ArchivosDelPaciente({ patientId }: { patientId: string }) {
       }
     })();
     return () => { vivo = false; };
+    // `onFotosPaciente` queda FUERA de las dependencias a propósito: si alguien
+    // la pasa como arrow inline, incluirla vuelve a pedir el endpoint en cada
+    // render del padre.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
-  /** Abre un archivo del expediente en el visor, con su URL firmada. */
+  /**
+   * Abre un archivo del expediente en el visor, con su URL firmada.
+   *
+   * Va por la ruta del PACIENTE y no por la del caso porque acá se listan las
+   * dos cosas: los papeles de sus casos y los suyos sin caso (las fotos de
+   * identidad del v2). Antes esto arrancaba con `if (!doc.caseId) return`, o
+   * sea: los archivos sin caso se listaban y el clic no hacía nada.
+   */
   async function abrir(doc: { id: string; name: string; caseId: string | null }) {
-    if (!doc.caseId) return;
     try {
-      const res = await fetch(`/api/admin/cases/${doc.caseId}/documents/${doc.id}/download`);
+      const res = await fetch(`/api/admin/patients/${patientId}/documents/${doc.id}/download`);
       const data = await res.json();
       if (!res.ok) { alert(data.message ?? t('archivosDownloadError')); return; }
       viewer.show({ fileName: data.name ?? doc.name, url: data.url, downloadUrl: data.downloadUrl });
@@ -395,6 +417,22 @@ export function ArchivosDialog({
   const [deleting, setDeleting]   = useState<Record<string, boolean>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
 
+  /**
+   * Fotos que la PERSONA trae del v2 (`patients/<id>/personal/…`), servidas con
+   * URL firmada desde el bucket privado. Las llena la lista de archivos, que ya
+   * pide ese endpoint.
+   *
+   * Son el respaldo, no lo principal: si el caso tiene su propia foto, gana esa
+   * —es la más nueva y la que el staff cargó para ESTE expediente—. Y como no
+   * viven en `consentsData`, no se pueden borrar desde acá: el botón de eliminar
+   * solo aparece sobre las del caso, que es lo único que el endpoint sabe
+   * borrar. Sacar una foto nueva sí funciona y pasa a tener prioridad sola.
+   */
+  const [fotosPaciente, setFotosPaciente] = useState<Record<string, string>>({});
+
+  /** Recuadros cuya imagen no cargó — ver el comentario en el render. */
+  const [fallidas, setFallidas] = useState<Record<string, boolean>>({});
+
   const PHOTO_SLOTS: { key: PhotoKey; label: string; capture: 'user' | 'environment' }[] = [
     { key: 'selfie',             label: t('photoSlotSelfie'),       capture: 'user' },
     { key: 'insuranceCardFront', label: t('photoSlotInsCardFront'), capture: 'environment' },
@@ -407,6 +445,10 @@ export function ArchivosDialog({
 
   async function handleFile(photoKey: PhotoKey, file: File) {
     setErrors(p => ({ ...p, [photoKey]: '' }));
+    // Si el recuadro había quedado marcado como "no cargó", la foto nueva tiene
+    // que poder mostrarse: sin esto el preview se suprimía y parecía que la
+    // subida no había funcionado.
+    setFallidas(f => ({ ...f, [photoKey]: false }));
 
     // Compress/resize to ≤1.5MB before upload (Vercel body limit is 4.5MB,
     // multipart overhead + JPEG at 1920×1080 can exceed it)
@@ -506,7 +548,15 @@ export function ArchivosDialog({
           {/* Fotos de identificación */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {PHOTO_SLOTS.map(({ key, label }) => {
-              const url       = photoUrls[key] ?? null;
+              // La del caso gana; la del v2 (de la persona) es el respaldo.
+              const delCaso   = photoUrls[key] ?? null;
+              const candidata = delCaso ?? fotosPaciente[key] ?? null;
+              // Si la imagen no carga —el archivo no llegó a Storage, o la
+              // firma venció con el diálogo abierto— se muestra el recuadro
+              // vacío, que invita a sacar la foto. Un ícono de imagen rota no
+              // le dice nada a nadie y encima parece un error de la pantalla.
+              const url       = fallidas[key] ? null : candidata;
+              const esDelV2   = !delCaso && !!fotosPaciente[key];
               const isLoading = uploading[key] ?? false;
               const isDel     = deleting[key] ?? false;
               const err       = errors[key] ?? '';
@@ -530,7 +580,12 @@ export function ArchivosDialog({
                       <RefreshCw className="w-6 h-6 animate-spin text-text-muted opacity-50" />
                     ) : url ? (
                       <>
-                        <img src={url} alt={label} className="w-full h-full object-cover" />
+                        <img
+                          src={url}
+                          alt={label}
+                          className="w-full h-full object-cover"
+                          onError={() => setFallidas(f => ({ ...f, [key]: true }))}
+                        />
                         {!soloLectura && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 hover:bg-black/50 transition-colors group">
                             <button
@@ -540,13 +595,19 @@ export function ArchivosDialog({
                               <RefreshCw className="w-3.5 h-3.5 text-white" />
                               <span className="text-[10px] text-white font-medium">{t('photoReplace')}</span>
                             </button>
-                            <button
-                              onClick={() => handleDelete(key)}
-                              className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose" />
-                              <span className="text-[10px] text-rose font-medium">{t('photoDelete')}</span>
-                            </button>
+                            {/* Solo la del caso se puede borrar: el endpoint
+                                borra de `consentsData`, y la del v2 no está
+                                ahí. Un botón que no puede cumplir es peor que
+                                no tenerlo. */}
+                            {!esDelV2 && (
+                              <button
+                                onClick={() => handleDelete(key)}
+                                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose" />
+                                <span className="text-[10px] text-rose font-medium">{t('photoDelete')}</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </>
@@ -590,7 +651,7 @@ export function ArchivosDialog({
             })}
           </div>
 
-          <ArchivosDelPaciente patientId={patientId} />
+          <ArchivosDelPaciente patientId={patientId} onFotosPaciente={setFotosPaciente} />
         </div>
 
         <div className="px-6 py-3 border-t border-border flex justify-end">

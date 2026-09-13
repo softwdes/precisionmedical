@@ -256,7 +256,7 @@
       "areaClinical": "Clínico",
       "areaFollowup": "Seguimiento",
       "areaCatalogs": "Catálogos",
-      "areaAi": "Vigía",
+      "areaAi": "CIFO",
       "topModule": "Más tiempo en",
       "totalActive": "Total activo",
       "modDashboard": "Dashboard",
@@ -271,7 +271,7 @@
       "modSettings": "Configuración",
       "modDoctor": "Portal Médico",
       "modAttorney": "Portal Legal",
-      "modVigia": "Vigía (IA)",
+      "modVigia": "CIFO (IA)",
       "modOther": "Sin módulo"
     }
   },

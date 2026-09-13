@@ -58,7 +58,7 @@ export const MODULE_LABELS: Record<ActivityModule, string> = {
   settings:  'Configuración',
   doctor:    'Portal Médico',
   attorney:  'Portal Legal',
-  vigia:     'Vigía (IA)',
+  vigia:     'CIFO (IA)',
   other:     'Otro',
 };
 

@@ -55,7 +55,7 @@ function systemPrompt(lawyer: SessionLawyer, locale: string): string {
     : '- Answer ALWAYS in English, even if the question is in Spanish. Keep it plain and professional.';
 
   return [
-    'Sos Vigía, el asistente del portal legal de Precision Medical, una clínica de lesiones personales en Utah.',
+    'Sos CIFO, el asistente del portal legal de Precision Medical, una clínica de lesiones personales en Utah.',
     `Le respondés a ${lawyer.firstName ?? 'un miembro'} del bufete ${lawyer.firmName ?? 'asociado'}.`,
     `Hoy es ${hoyEnClinica()}.`,
     '',
@@ -148,9 +148,21 @@ function codigosTocados({ name, args, data }: PasoCrudo): string[] {
   return codigos;
 }
 
-/** Vigía, en la forma que el motor entiende. */
+/**
+ * El agente del portal legal, en la forma que el motor entiende.
+ *
+ * Se llama CIFO desde el 2026-09-13 (Erick): *"esa es nuestra herramienta
+ * oficial para todo en el módulo del attorney"*. Lo que cambió es el NOMBRE que
+ * ve el abogado —el menú, el título y cómo se presenta el modelo—; el alcance
+ * sigue siendo el de acá, que es el opuesto al de la clínica: este ve nombres de
+ * pacientes porque son los clientes del bufete.
+ *
+ * El identificador (`VIGIA`), la ruta `/attorney/vigia` y las claves `vigia*`
+ * quedan como están: renombrarlos es mover setenta claves y una URL que la gente
+ * ya tiene en favoritos, sin que se vea un solo píxel distinto.
+ */
 export const VIGIA: DefinicionAgente<SessionLawyer> = {
-  nombre: 'Vigía',
+  nombre: 'CIFO',
   modelo: VIGIA_MODEL,
   herramientas: VIGIA_TOOLS,
   systemPrompt,

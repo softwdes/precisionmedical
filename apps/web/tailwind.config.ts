@@ -8,6 +8,10 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './lib/**/*.{js,ts,jsx,tsx,mdx}',
     '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
+    // Ver el comentario gemelo en `apps/back-office/tailwind.config.ts`: sin
+    // este glob, las clases que solo viven en `packages/agente` no se emiten y
+    // el saludo de CIFO se rompe sin un solo error. Acá faltaban doce.
+    '../../packages/agente/src/**/*.{js,ts,jsx,tsx}',
   ],
 };
 

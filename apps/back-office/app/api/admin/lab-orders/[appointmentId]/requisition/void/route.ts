@@ -86,6 +86,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
    * Documentos trunca los nombres largos por la derecha: "(ANULADA)" al final
    * es justo lo que desaparece.
    */
+  // A propósito SIN el filtro de `VIGENTES`: si alguien ya mandó la hoja a la
+  // papelera, renombrarla igual es correcto — cuando la restaure, va a decir
+  // que está anulada.
   if (vigente.documentId) {
     const doc = await db.patientDocument.findUnique({
       where: { id: vigente.documentId },

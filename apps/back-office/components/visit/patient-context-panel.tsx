@@ -127,7 +127,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         aria-expanded={mobileOpen}
         className="lg:hidden w-full rounded-lg bg-bg-2/30 px-3 py-2 min-h-11 flex items-center gap-2.5 hover:bg-white/[0.02] transition-colors"
       >
-        <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
+        <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} photoUrl={p.photoUrl} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
         <div className="min-w-0 flex-1 text-left">
           <div className="text-[12px] font-bold text-text-1 truncate">{p.lastName}, {p.firstName}</div>
           <div className="text-[10px] text-text-muted truncate">{t('ctxToggle')}</div>
@@ -142,7 +142,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       {/* Identidad + datos personales */}
       <div className="rounded-lg bg-bg-2/30 p-3 space-y-3">
         <div className="flex items-center gap-2.5">
-          <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={10} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
+          <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={10} photoUrl={p.photoUrl} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
           <div className="min-w-0">
             <div className="text-[13px] font-bold text-text-1 truncate">{p.lastName}, {p.firstName}</div>
             {age !== null && <div className="text-[10.5px] text-text-muted">{age} {t('yearsShort')}</div>}

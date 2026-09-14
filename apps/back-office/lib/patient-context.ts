@@ -15,6 +15,7 @@
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderONull } from './provider-name';
 import { conDetalleDeReceta, type MedicationConDetalle } from './medication-details';
+import { fotosDelPaciente } from './fotos-identidad';
 
 // ─── El tipo que consume el panel ─────────────────────────────────────────────
 
@@ -36,6 +37,12 @@ export interface PatientContext {
   preferredPharmacy: string | null;
   employer: string | null;
   providerName: string | null;
+  /**
+   * Selfie del paciente, ya firmada — la resuelve `buildPatientContextConRecetas`.
+   * El provider confirma que atiende a quien cree; el builder sincrónico la deja
+   * en null porque no consulta.
+   */
+  photoUrl: string | null;
   insurance: {
     primaryName: string | null;
     primaryPolicy: string | null;
@@ -170,6 +177,8 @@ export function buildPatientContext(
     preferredPharmacy: dec(p.preferredPharmacy) ?? null,
     employer: dec(p.employer) ?? null,
     providerName: nombreProviderONull(p.providerReferrer),
+    // La resuelve la capa async; acá no se consulta nada.
+    photoUrl: null,
     insurance: {
       primaryName: c?.primaryInsurance?.name ?? null,
       primaryPolicy: c?.primaryPolicyNumber ?? null,
@@ -203,8 +212,23 @@ export async function buildPatientContextConRecetas(
   c: PatientContextCaseInput | null,
 ): Promise<PatientContext> {
   const ctx = buildPatientContext(p, c);
+  /**
+   * La foto va acá por la misma razón que las recetas: necesita una consulta y
+   * el builder de arriba es sincrónico.
+   *
+   * Se pide SOLO la de la persona (`patient_documents`, las 3.142 migradas del
+   * v2) y no la del caso: la del caso vive dentro de `consentsData`, un JSON con
+   * todos los consentimientos, y traerlo entero para sacarle una URL no se paga
+   * — la tienen 7 casos de 2.992. Si algún día el intake de v3 carga selfies en
+   * volumen, se suma `fotosConRespaldo` y listo.
+   */
+  const [medications, fotos] = await Promise.all([
+    conDetalleDeReceta(p.id, ctx.history.medications),
+    fotosDelPaciente(p.id).catch(() => ({} as Record<string, string>)),
+  ]);
   return {
     ...ctx,
-    history: { ...ctx.history, medications: await conDetalleDeReceta(p.id, ctx.history.medications) },
+    photoUrl: fotos.selfie ?? null,
+    history: { ...ctx.history, medications },
   };
 }

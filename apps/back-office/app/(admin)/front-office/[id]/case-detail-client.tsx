@@ -481,7 +481,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
             <PersonAvatar
               firstName={caseInfo.patient.firstName}
               lastName={caseInfo.patient.lastName}
-              size={12}
+              size={16}
               gradientClass="bg-gradient-cyan"
               photoUrl={caseInfo.patient.photoUrl}
               onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}
@@ -582,7 +582,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                 <PersonAvatar
                   firstName={caseInfo.patient.firstName}
                   lastName={caseInfo.patient.lastName}
-                  size={12}
+                  size={20}
                   gradientClass="bg-gradient-cyan"
                   photoUrl={caseInfo.patient.photoUrl}
                   onEditPhoto={isReadOnly ? undefined : () => setArchivosOpen(true)}

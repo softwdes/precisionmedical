@@ -30,7 +30,7 @@ export interface PersonAvatarProps {
   lastName?: string | null;
   /** Si querés gradient diferente al default brand. Ej: `bg-gradient-cyan` */
   gradientClass?: string;
-  size?: 6 | 8 | 9 | 10 | 12;
+  size?: 6 | 8 | 9 | 10 | 12 | 16 | 20;
   /** URL de foto real — si se provee, se muestra la imagen en lugar de las iniciales */
   photoUrl?: string | null;
   /**
@@ -52,12 +52,23 @@ export interface PersonAvatarProps {
   editLabel?: string;
 }
 
+/**
+ * La escala llegaba hasta 12 (48px), y ese era el tamaño de la foto en la
+ * tarjeta del caso: no alcanzaba para reconocer una cara, que es para lo único
+ * que sirve una foto de identidad en el mostrador (Erick, 2026-09-13).
+ *
+ *  · 16 (64px) — encabezados de página. Más que esto haría que el título de la
+ *    pantalla midiera lo que mide la foto.
+ *  · 20 (80px) — dentro de una tarjeta, donde hay lugar y la cara es el dato.
+ */
 const SIZE_CLASSES = {
   6:  'w-6 h-6 text-[9px]',
   8:  'w-8 h-8 text-[10px]',
   9:  'w-9 h-9 text-[11px]',
   10: 'w-10 h-10 text-xs',
   12: 'w-12 h-12 text-sm',
+  16: 'w-16 h-16 text-lg',
+  20: 'w-20 h-20 text-xl',
 } as const;
 
 /** Tamaño del ícono de cámara del overlay, por tamaño de avatar. */
@@ -67,6 +78,8 @@ const ICON_CLASSES = {
   9:  'w-3 h-3',
   10: 'w-3.5 h-3.5',
   12: 'w-4 h-4',
+  16: 'w-5 h-5',
+  20: 'w-6 h-6',
 } as const;
 
 export function PersonAvatar({

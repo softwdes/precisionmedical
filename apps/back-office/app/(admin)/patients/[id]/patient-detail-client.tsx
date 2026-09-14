@@ -193,7 +193,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
             <PersonAvatar
               firstName={patient.firstName}
               lastName={patient.lastName}
-              size={10}
+              size={16}
               gradientClass="bg-gradient-brand"
               photoUrl={fotos.selfie ?? null}
               onEditPhoto={doctorMode ? undefined : () => setArchivosOpen(true)}

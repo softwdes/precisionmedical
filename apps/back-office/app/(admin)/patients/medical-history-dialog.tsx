@@ -54,7 +54,13 @@ export type MedicalHistoryData = {
     bloodTestDate?: string; normalResults?: boolean;
     colonoscopyYear?: string; abnormal?: boolean;
   };
-  socialHistory?:    { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
+  socialHistory?:    {
+    work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string;
+    /** El comentario de CADA campo; `notes` es el de toda la sección. */
+    workNote?: string; childrenNote?: string;
+    tobaccoNote?: string; alcoholNote?: string; drugsNote?: string;
+    notes?: string;
+  };
   comments?:         Array<{ id: string; date: string; text: string; author?: string }>;
 };
 
@@ -157,13 +163,32 @@ function SideSection({
   );
 }
 
-function SideRow({ label, value, na = 'N/A' }: { label: string; value?: string | null; na?: string }) {
+function SideRow({ label, value, na = 'N/A', nota }: {
+  label: string; value?: string | null; na?: string;
+  /** Comentario del campo — debajo del valor, para no competir con él. */
+  nota?: string | null;
+}) {
   return (
     <div className="flex items-start justify-between gap-2 text-[11px]">
       <span className="text-text-muted shrink-0">{label}:</span>
-      <span className="text-text-1 text-right">{value || na}</span>
+      <span className="text-right">
+        <span className="text-text-1 block">{value || na}</span>
+        {nota && <span className="block text-[10px] italic text-text-muted mt-0.5">{nota}</span>}
+      </span>
     </div>
   );
+}
+
+/**
+ * El comentario de un consumo, debajo de su píldora.
+ *
+ * Va en cursiva y gris a propósito: el dato que se compara es el estado
+ * —"Actual"— y el comentario es el matiz. Si tuviera el mismo peso, la sección
+ * volvería a leerse como cinco párrafos, que es de lo que la sacó el enum.
+ */
+function NotaDeCampo({ texto }: { texto?: string | null }) {
+  if (!texto) return null;
+  return <p className="text-[10px] italic text-text-muted mt-1 leading-snug">{texto}</p>;
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -722,23 +747,74 @@ const CONSUMO_COLOR: Record<string, string> = {
   CURRENT: 'bg-amber/10 text-amber border-amber/20',
 };
 
-function ConsumoSelect({ label, value, onChange }: {
-  label: string; value: string; onChange: (v: string) => void;
+/** El select de consumo, sin su etiqueta: la pone la fila. */
+function ConsumoControl({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useTranslations('phoenix.patients');
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+    >
+      <option value="">{t('mh.sub.consumoNotSet')}</option>
+      {CONSUMO_VALORES.map(v => (
+        <option key={v} value={v}>{t(`mh.sub.consumo${v}`)}</option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * El encabezado de las dos columnas. Se dibuja una vez por bloque, no por fila:
+ * repetir "Comentario" cinco veces es ruido, y sin ningún encabezado la caja de
+ * la derecha no se entiende hasta que alguien la toca.
+ *
+ * Desaparece en teléfono junto con las columnas.
+ */
+function CabeceraNotas() {
+  const t = useTranslations('phoenix.patients');
+  return (
+    <div className="hidden sm:grid grid-cols-2 gap-4 mb-1">
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.sub.colField')}</span>
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.sub.colComments')}</span>
+    </div>
+  );
+}
+
+/**
+ * Una fila del historial social: el campo a la izquierda, su comentario
+ * enfrente.
+ *
+ * `items-end` alinea la caja de la derecha con el control y no con la etiqueta,
+ * que es lo que hace que las dos columnas se lean a la misma altura. El
+ * textarea arranca en UN renglón y crece al escribir: con tres renglones fijos,
+ * tres comentarios vacíos ocupan más alto que todo el resto del formulario.
+ *
+ * Vive a nivel de módulo y no adentro del diálogo: un componente declarado
+ * dentro de otro se recrea en cada render y React lo desmonta y monta de nuevo
+ * — así perdía el foco a cada tecla el buscador de la lista de usuarios.
+ */
+function FilaConNota({ label, control, nota, onNota }: {
+  label: string;
+  control: React.ReactNode;
+  nota: string;
+  onNota: (v: string) => void;
 }) {
   const t = useTranslations('phoenix.patients');
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs text-text-muted">{label}</label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-      >
-        <option value="">{t('mh.sub.consumoNotSet')}</option>
-        {CONSUMO_VALORES.map(v => (
-          <option key={v} value={v}>{t(`mh.sub.consumo${v}`)}</option>
-        ))}
-      </select>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 sm:items-end py-2">
+      <div className="space-y-1.5">
+        <label className="text-xs text-text-muted">{label}</label>
+        {control}
+      </div>
+      <textarea maxLength={LARGO_LARGO}
+        rows={1}
+        value={nota}
+        onChange={e => onNota(e.target.value)}
+        placeholder={t('mh.sub.fieldNotePlaceholder')}
+        aria-label={`${t('mh.sub.colComments')} — ${label}`}
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-[13px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+      />
     </div>
   );
 }
@@ -781,6 +857,12 @@ function SocialHistoryEditDialog({
   const [tobacco,  setTobacco]  = useState(initial?.tobacco  ?? '');
   const [alcohol,  setAlcohol]  = useState(initial?.alcohol  ?? '');
   const [drugs,    setDrugs]    = useState(initial?.drugs    ?? '');
+  const [workNote,     setWorkNote]     = useState(initial?.workNote     ?? '');
+  const [childrenNote, setChildrenNote] = useState(initial?.childrenNote ?? '');
+  const [tobaccoNote,  setTobaccoNote]  = useState(initial?.tobaccoNote  ?? '');
+  const [alcoholNote,  setAlcoholNote]  = useState(initial?.alcoholNote  ?? '');
+  const [drugsNote,    setDrugsNote]    = useState(initial?.drugsNote    ?? '');
+  const [notes,        setNotes]        = useState(initial?.notes        ?? '');
 
   function handleSave() {
     // Los vacíos se omiten, no se mandan como '': el esquema espera el enum o
@@ -792,6 +874,12 @@ function SocialHistoryEditDialog({
         ...(tobacco ? { tobacco } : {}),
         ...(alcohol ? { alcohol } : {}),
         ...(drugs   ? { drugs }   : {}),
+        ...(workNote.trim()     ? { workNote: workNote.trim() }         : {}),
+        ...(childrenNote.trim() ? { childrenNote: childrenNote.trim() } : {}),
+        ...(tobaccoNote.trim()  ? { tobaccoNote: tobaccoNote.trim() }   : {}),
+        ...(alcoholNote.trim()  ? { alcoholNote: alcoholNote.trim() }   : {}),
+        ...(drugsNote.trim()    ? { drugsNote: drugsNote.trim() }       : {}),
+        ...(notes.trim()        ? { notes: notes.trim() }               : {}),
       },
     } as Partial<MedicalHistoryData>;
     startTransition(async () => {
@@ -811,31 +899,75 @@ function SocialHistoryEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="rounded-md bg-bg-2/40 p-4 space-y-3">
-            <p className="text-sm font-semibold text-text-1">{t('mh.workAndFamily')}</p>
-            <div className="space-y-1.5">
-              <label className="text-xs text-text-muted">{t('mh.sub.workLabel')}</label>
-              <input maxLength={LARGO_CORTO}
-                value={work}
-                onChange={e => setWork(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+        {/**
+          * Campos a la izquierda, comentarios enfrente — el layout de Medusa
+          * (Erick, 2026-09-13).
+          *
+          * En teléfono la columna se pliega y el comentario baja debajo de su
+          * campo: dos columnas de 160px no alcanzan ni para el select.
+          */}
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div className="rounded-md bg-bg-2/40 p-4">
+            <p className="text-sm font-semibold text-text-1 mb-3">{t('mh.workAndFamily')}</p>
+            <CabeceraNotas />
+            <div className="divide-y divide-row-sep">
+              <FilaConNota
+                nota={workNote} onNota={setWorkNote}
+                label={t('mh.sub.workLabel')}
+                control={
+                  <input maxLength={LARGO_CORTO}
+                    value={work}
+                    onChange={e => setWork(e.target.value)}
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                  />
+                }
               />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-text-muted">{t('mh.sub.childrenLabel')}</label>
-              <input maxLength={LARGO_CORTO}
-                value={children}
-                onChange={e => setChildren(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              <FilaConNota
+                nota={childrenNote} onNota={setChildrenNote}
+                label={t('mh.sub.childrenLabel')}
+                control={
+                  <input maxLength={LARGO_CORTO}
+                    value={children}
+                    onChange={e => setChildren(e.target.value)}
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                  />
+                }
               />
             </div>
           </div>
 
-          <div className="rounded-md bg-bg-2/40 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <ConsumoSelect label={t('mh.tobaccoUse')} value={tobacco} onChange={setTobacco} />
-            <ConsumoSelect label={t('mh.alcoholUse')} value={alcohol} onChange={setAlcohol} />
-            <ConsumoSelect label={t('mh.drugUse')}    value={drugs}   onChange={setDrugs} />
+          <div className="rounded-md bg-bg-2/40 p-4">
+            <p className="text-sm font-semibold text-text-1 mb-3">{t('mh.sub.consumoTitle')}</p>
+            <CabeceraNotas />
+            <div className="divide-y divide-row-sep">
+              <FilaConNota
+                nota={tobaccoNote} onNota={setTobaccoNote}
+                label={t('mh.tobaccoUse')}
+                control={<ConsumoControl value={tobacco} onChange={setTobacco} />}
+              />
+              <FilaConNota
+                nota={alcoholNote} onNota={setAlcoholNote}
+                label={t('mh.alcoholUse')}
+                control={<ConsumoControl value={alcohol} onChange={setAlcohol} />}
+              />
+              <FilaConNota
+                nota={drugsNote} onNota={setDrugsNote}
+                label={t('mh.drugUse')}
+                control={<ConsumoControl value={drugs} onChange={setDrugs} />}
+              />
+            </div>
+          </div>
+
+          {/* Comentarios generales: lo que no es de ningún campo. */}
+          <div className="bg-brand/[0.06] border-l-2 border-brand p-4">
+            <p className="text-xs font-semibold text-text-1 mb-2">{t('mh.sub.generalComments')}</p>
+            <textarea maxLength={LARGO_LARGO}
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={t('mh.sub.generalCommentsPlaceholder')}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-[13px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
           </div>
         </div>
 
@@ -2487,8 +2619,8 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
               <div className="space-y-2">
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.workAndFamily')}</p>
-                  <SideRow na={t('mh.na')} label={t('mh.work')}     value={mh.socialHistory?.work} />
-                  <SideRow na={t('mh.na')} label={t('mh.children')} value={mh.socialHistory?.children} />
+                  <SideRow na={t('mh.na')} label={t('mh.work')}     value={mh.socialHistory?.work} nota={mh.socialHistory?.workNote} />
+                  <SideRow na={t('mh.na')} label={t('mh.children')} value={mh.socialHistory?.children} nota={mh.socialHistory?.childrenNote} />
                 </div>
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -2499,6 +2631,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                     <span className="text-text-muted">{t('mh.status')}:</span>
                     <ConsumoPill value={mh.socialHistory?.tobacco} />
                   </div>
+                  <NotaDeCampo texto={mh.socialHistory?.tobaccoNote} />
                 </div>
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -2509,6 +2642,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                     <span className="text-text-muted">{t('mh.status')}:</span>
                     <ConsumoPill value={mh.socialHistory?.alcohol} />
                   </div>
+                  <NotaDeCampo texto={mh.socialHistory?.alcoholNote} />
                 </div>
                 <div className="rounded-md bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -2519,7 +2653,18 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                     <span className="text-text-muted">{t('mh.status')}:</span>
                     <ConsumoPill value={mh.socialHistory?.drugs} />
                   </div>
+                  <NotaDeCampo texto={mh.socialHistory?.drugsNote} />
                 </div>
+                {/* Lo que no es de ningún campo. Con la barra de acento para que
+                    se distinga de los bloques de datos de arriba. */}
+                {mh.socialHistory?.notes && (
+                  <div className="bg-brand/[0.06] border-l-2 border-brand px-2.5 py-2">
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">
+                      {t('mh.sub.generalComments')}
+                    </p>
+                    <p className="text-[11px] text-text-2 leading-snug whitespace-pre-line">{mh.socialHistory.notes}</p>
+                  </div>
+                )}
               </div>
             </SideSection>
 

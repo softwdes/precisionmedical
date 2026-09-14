@@ -54,7 +54,14 @@ export interface PatientContext {
     medications: MedicationConDetalle[];
     surgeries: Array<{ procedure: string; date?: string }>;
     familyHistory: Array<{ relation: string; condition: string }>;
-    socialHistory: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string } | null;
+    socialHistory: {
+      work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string;
+      /** Los comentarios por campo y el general — ver `socialHistory` en
+       *  `medical-history-schema`. Sin esto el matiz se queda en la ficha y no
+       *  llega a la consulta, que es donde se lee el historial. */
+      workNote?: string; childrenNote?: string;
+      tobaccoNote?: string; alcoholNote?: string; drugsNote?: string; notes?: string;
+    } | null;
   };
 }
 

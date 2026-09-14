@@ -149,9 +149,23 @@ const SECCIONES = {
    *
    * `work` y `children` siguen libres: son texto por naturaleza.
    */
+  /**
+   * Cada campo lleva SU comentario, y la sección uno general (pedido de Erick,
+   * 2026-09-13, con el layout de Medusa: campos a la izquierda, comentarios
+   * enfrente).
+   *
+   * El estado sigue siendo vocabulario cerrado —"Actual" es "Actual"— y el
+   * matiz va al lado: "actual, un paquete cada dos días, quiere dejar". Sin
+   * esto, quien atiende tenía que elegir entre perder el detalle o ensuciar el
+   * dato estructurado, que es justo lo que el enum vino a evitar.
+   */
   socialHistory: { valor: z.object({
     work: largo.optional(), children: largo.optional(),
     tobacco: consumo.optional(), alcohol: consumo.optional(), drugs: consumo.optional(),
+    workNote: largo.optional(), childrenNote: largo.optional(),
+    tobaccoNote: largo.optional(), alcoholNote: largo.optional(), drugsNote: largo.optional(),
+    /** El comentario general de la sección — el que no es de ningún campo. */
+    notes: largo.optional(),
   }).strict() },
   comments: { fila: z.object({
     id: z.string(), date: z.string(), text: largo, author: corto.optional(),

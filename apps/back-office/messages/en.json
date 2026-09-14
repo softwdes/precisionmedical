@@ -1513,7 +1513,8 @@
       "statusReadyOnline": "Ready · online",
       "triageOnlineNA": "No vitals · online visit",
       "vitalsSelfReported": "Patient-reported — online visit, not taken in clinic.",
-      "vitalsOnlineNone": "Online visit — no vitals taken in clinic."
+      "vitalsOnlineNone": "Online visit — no vitals taken in clinic.",
+      "ctxGeneralComments": "General comments"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -4132,7 +4133,13 @@
             "halfSibling": "Half sibling",
             "adoptiveParent": "Adoptive parent",
             "other": "Other"
-          }
+          },
+          "consumoTitle": "Tobacco, alcohol & drugs",
+          "colField": "Field",
+          "colComments": "Comments",
+          "fieldNotePlaceholder": "—",
+          "generalComments": "General comments",
+          "generalCommentsPlaceholder": "Anything that doesn't belong to a single field"
         }
       },
       "tooltipCallPatient": "Call {phone}",

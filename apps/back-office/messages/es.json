@@ -1513,7 +1513,8 @@
       "statusReadyOnline": "Lista · online",
       "triageOnlineNA": "Sin vitales · visita online",
       "vitalsSelfReported": "Reportados por el paciente — visita online, no tomados en clínica.",
-      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica."
+      "vitalsOnlineNone": "Visita online — sin signos vitales tomados en clínica.",
+      "ctxGeneralComments": "Comentarios generales"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -4132,7 +4133,13 @@
             "halfSibling": "Medio hermano(a)",
             "adoptiveParent": "Padre/Madre adoptivo(a)",
             "other": "Otro"
-          }
+          },
+          "consumoTitle": "Tabaco, alcohol y drogas",
+          "colField": "Campo",
+          "colComments": "Comentarios",
+          "fieldNotePlaceholder": "—",
+          "generalComments": "Comentarios generales",
+          "generalCommentsPlaceholder": "Lo que no es de ningún campo en particular"
         }
       },
       "tooltipCallPatient": "Llamar al {phone}",

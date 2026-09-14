@@ -44,6 +44,18 @@ function Row({ label, value }: { label: string; value: React.ReactNode }): React
   );
 }
 
+/**
+ * El comentario de un campo del historial social.
+ *
+ * Cursiva y gris, debajo del valor: lo que el provider compara de un vistazo es
+ * el estado ("Actual"), y esto es el matiz. Con el mismo peso volvería a leerse
+ * como un párrafo.
+ */
+function Nota({ texto }: { texto?: string | null }): React.ReactElement | null {
+  if (!texto) return null;
+  return <p className="text-[10.5px] italic text-text-muted leading-snug pb-[3px]">{texto}</p>;
+}
+
 function Section({
   title, icon: Icon, children, defaultOpen = true, count,
 }: {
@@ -290,19 +302,29 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
               <div className="rounded-md bg-bg-2/40 px-3 py-2">
                 <div className="text-[9.5px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">{t('ctxWorkFamily')}</div>
                 <Row label={t('ctxWork')} value={social.work} />
+                <Nota texto={social.workNote} />
                 <Row label={t('ctxChildren')} value={social.children} />
+                <Nota texto={social.childrenNote} />
               </div>
             )}
             {[
-              { label: t('ctxTobacco'), value: social.tobacco },
-              { label: t('ctxAlcohol'), value: social.alcohol },
-              { label: t('ctxDrugs'), value: social.drugs },
-            ].map(({ label, value }) => (
+              { label: t('ctxTobacco'), value: social.tobacco, nota: social.tobaccoNote },
+              { label: t('ctxAlcohol'), value: social.alcohol, nota: social.alcoholNote },
+              { label: t('ctxDrugs'),   value: social.drugs,   nota: social.drugsNote },
+            ].map(({ label, value, nota }) => (
               <div key={label} className="rounded-md bg-bg-2/40 px-3 py-2">
                 <div className="text-[9.5px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">{label}</div>
                 <Row label={t('ctxStatus')} value={value} />
+                <Nota texto={nota} />
               </div>
             ))}
+            {/* El comentario general de la sección. */}
+            {social.notes && (
+              <div className="rounded-md bg-brand/[0.06] border-l-2 border-brand px-3 py-2">
+                <div className="text-[9.5px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">{t('ctxGeneralComments')}</div>
+                <p className="text-[11.5px] text-text-2 leading-snug whitespace-pre-line">{social.notes}</p>
+              </div>
+            )}
           </div>
         )}
       </Section>

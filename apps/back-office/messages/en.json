@@ -4507,7 +4507,15 @@
       "frFilterClinic": "Clinic",
       "frColClinic": "Clinic",
       "frColLastReply": "Last reply",
-      "frNoReplyYet": "No reply yet"
+      "frNoReplyYet": "No reply yet",
+      "refChoiceTitle": "Register {name}",
+      "refChoiceSubtitle": "Pick how to enter them. The firm details are already filled in.",
+      "refChoiceFrom": "Referred by {firm}. Their details are already filled in.",
+      "refChoiceFullTitle": "With case and appointment",
+      "refChoiceFullDesc": "The full three-step intake: patient, case and a booked appointment.",
+      "refChoiceQuickTitle": "Quick registration",
+      "refChoiceQuickDesc": "The minimum for the patient and their case to exist. Book the appointment later.",
+      "refChoiceNote": "Either way the referring firm and attorney are saved, and the referral is marked as created."
     },
     "sms": {
       "title": "SMS history",

@@ -335,6 +335,24 @@ function QrSuccessPanel({ info, onNewPatient, onClose, patientsBase }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+/** Lo que un referido del bufete puede precargar acá. Todo opcional. */
+export interface ReferidoPrecarga {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  /** `YYYY-MM-DD`, como lo espera el input de fecha. */
+  dateOfBirth?: string;
+  language?: 'es' | 'en';
+  caseType?: 'MVA' | 'GENERAL';
+  accidentDate?: string;
+  description?: string;
+  /** El bufete que refirió, ya resuelto a su id — no el nombre. */
+  lawFirmId?: string;
+  lawFirm?: string;
+  attorney?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -356,6 +374,22 @@ interface Props {
    */
   initialFirstName?: string;
   initialLastName?: string;
+  /**
+   * Precarga COMPLETA, hoy solo desde un REFERIDO del bufete.
+   *
+   * Es el camino corto del referido: el mismo dato que llena el wizard de tres
+   * pasos entra acá, y el que atiende solo confirma y guarda. Lo que no viene
+   * (el bufete no lo sabe) se deja vacío para que lo complete la clínica.
+   */
+  initial?: ReferidoPrecarga;
+  /**
+   * El referido que se está convirtiendo. Viaja al POST para que el referido
+   * pase a CREADO y el bufete deje de verlo como "sin respuesta".
+   *
+   * Sin esto, convertir por el camino corto dejaba el referido PENDIENTE para
+   * siempre: la API ya sabía marcarlo, era el diálogo el que no lo mandaba.
+   */
+  referralId?: string;
   /**
    * Se llama apenas el alta responde OK, ANTES de que el diálogo se cierre o
    * muestre el panel del QR — así quien lo abrió ya tiene el paciente aunque el
@@ -379,7 +413,7 @@ interface Props {
 type SaveMode = 'exit' | 'form' | 'qr';
 
 export function QuickRegisterDialog({
-  open, onOpenChange, providerId, initialFirstName, initialLastName, onCreated,
+  open, onOpenChange, providerId, initialFirstName, initialLastName, initial, referralId, onCreated,
 }: Props) {
   const t      = useTranslations('quickRegister');
   /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
@@ -450,7 +484,32 @@ export function QuickRegisterDialog({
     if (!open) return;
     if (initialFirstName !== undefined) setFirstName(initialFirstName);
     if (initialLastName  !== undefined) setLastName(initialLastName);
-  }, [open, initialFirstName, initialLastName]);
+    /**
+     * La precarga del referido pisa lo que venga del buscador: si llegamos acá
+     * desde un referido, el dato del bufete es el bueno. Campo por campo y solo
+     * si vino algo, para no borrar lo que ya escribió quien atiende.
+     */
+    const i = initial;
+    if (!i) return;
+    if (i.firstName)    setFirstName(i.firstName);
+    if (i.lastName)     setLastName(i.lastName);
+    if (i.phone)        setPhone(i.phone);
+    if (i.email)        setEmail(i.email);
+    if (i.dateOfBirth)  setDob(i.dateOfBirth);
+    if (i.language)     setLanguage(i.language);
+    if (i.caseType)     setCaseType(i.caseType);
+    if (i.accidentDate) setAccidentDate(i.accidentDate);
+    if (i.description)  setDescription(i.description);
+    if (i.lawFirmId)    setLawFirmId(i.lawFirmId);
+    if (i.lawFirm)      setLawFirm(i.lawFirm);
+    if (i.attorney)     setAttorney(i.attorney);
+    /**
+     * Con bufete referidor, la FUENTE es el bufete. Lo dejamos puesto para que
+     * no haya que decir dos veces lo mismo — es la misma regla que ya aplica el
+     * guardado cuando hay bufete elegido y no hay fuente.
+     */
+    if (i.lawFirmId) { setReferredBy(i.lawFirmId); setHowFound('LAW_FIRM'); }
+  }, [open, initialFirstName, initialLastName, initial]);
 
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setPhone('');
@@ -513,6 +572,9 @@ export function QuickRegisterDialog({
         body: JSON.stringify({
           // Solo en el reintento — ver `handleSave`.
           ...(contacto ? { contactoYaRevisado: true, contactLink: contacto.vinculo } : {}),
+          // Cierra el círculo del referido: la API lo marca CREADO y ata el hilo
+          // al caso, de forma idempotente (el mensaje les llegó a cuatro personas).
+          ...(referralId ? { referralId } : {}),
           patient: {
             firstName:         firstName.trim(),
             lastName:          lastName.trim(),

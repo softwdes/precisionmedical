@@ -4507,7 +4507,15 @@
       "frFilterClinic": "Clínica",
       "frColClinic": "Clínica",
       "frColLastReply": "Última respuesta",
-      "frNoReplyYet": "Sin respuesta todavía"
+      "frNoReplyYet": "Sin respuesta todavía",
+      "refChoiceTitle": "Dar de alta a {name}",
+      "refChoiceSubtitle": "Elegí cómo cargarlo. Los datos del bufete ya vienen puestos.",
+      "refChoiceFrom": "Referido por {firm}. Sus datos ya vienen puestos.",
+      "refChoiceFullTitle": "Con caso y cita",
+      "refChoiceFullDesc": "El alta completa de tres pasos: paciente, caso y turno agendado.",
+      "refChoiceQuickTitle": "Registro rápido",
+      "refChoiceQuickDesc": "Lo mínimo para que el paciente y su caso existan. La cita se agenda después.",
+      "refChoiceNote": "Por cualquiera de los dos caminos se guarda el bufete y el abogado que refirieron, y el referido queda marcado como creado."
     },
     "sms": {
       "title": "Historial de SMS",

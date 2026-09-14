@@ -23,7 +23,8 @@ import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { lugarDelAccidente, notasDelReferido, type ReferidoParaWizard } from '@/lib/referidos/referido';
-import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
+import { QuickRegisterDialog, type ReferidoPrecarga } from '@/components/patients/quick-register-dialog';
+import { ReferralChoiceDialog } from '@/components/cases/referral-choice-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
 import { CarreraDialog } from '@/components/patients/carrera-dialog';
@@ -1729,7 +1730,35 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           lawFirm: { id: ref.firm.id, label: ref.firm.label, subtitle: ref.firm.subtitle },
           attorney: ref.attorney ? { id: ref.attorney.id, label: ref.attorney.label, subtitle: ref.attorney.subtitle } : null,
         });
-        setNewCaseOpen(true);
+        /**
+         * Y la precarga del camino corto, con los MISMOS datos. Se arman las dos
+         * acá y no dentro de cada diálogo: el referido se resuelve una sola vez y
+         * la elección no vuelve a pedirle nada al servidor.
+         */
+        setReferidoRapido({
+          firstName: p.cliente.firstName,
+          lastName: p.cliente.lastName,
+          phone: p.cliente.phone,
+          email: p.cliente.email ?? undefined,
+          dateOfBirth: p.cliente.dateOfBirth ?? undefined,
+          language: p.cliente.language,
+          caseType: 'MVA',
+          accidentDate: p.accidente.date,
+          description: notasDelReferido(p, {
+            seguro: tMsg('refLblInsurance'), poliza: tMsg('refLblPolicy'), reclamo: tMsg('refLblClaim'),
+            ajustador: tMsg('refLblAdjuster'), tercero: tMsg('refLblThirdParty'),
+            notaDelBufete: tMsg('refLblNote'),
+          }),
+          lawFirmId: ref.firm.id,
+          lawFirm: ref.firm.label,
+          attorney: ref.attorney?.label ?? undefined,
+        });
+        // El wizard ya no se abre solo: primero se elige el camino.
+        setReferidoElegir({
+          id: ref.id,
+          clientName: `${p.cliente.firstName} ${p.cliente.lastName}`.trim(),
+          firmName: ref.firm.label,
+        });
       })
       .catch(() => undefined);
     return () => { cancelado = true; };
@@ -1741,6 +1770,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [editTarget,   setEditTarget]   = useState<PatientRow | null>(null);
   const [viewTarget,   setViewTarget]   = useState<PatientRow | null>(null);
   const [quickRegister, setQuickRegister] = useState(false);
+  /**
+   * El referido que se está por dar de alta: abre la elección de camino.
+   * `null` = no venimos de un referido y el registro rápido es el de siempre.
+   */
+  const [referidoElegir, setReferidoElegir] = useState<{ id: string; clientName: string; firmName: string | null } | null>(null);
+  /** La precarga para el camino corto. Sobrevive a cerrar la elección. */
+  const [referidoRapido, setReferidoRapido] = useState<ReferidoPrecarga | null>(null);
+  /** El referido que viaja en el POST del camino corto, para marcarlo creado. */
+  const [referidoRapidoId, setReferidoRapidoId] = useState<string | null>(null);
   // Set, no un id unico: se pueden tener varios pacientes expandidos a la vez
   const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set());
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
@@ -3006,8 +3044,29 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           vería en "Mis pacientes" al que acaba de dar de alta. */}
       <QuickRegisterDialog
         open={quickRegister}
-        onOpenChange={setQuickRegister}
+        onOpenChange={(o) => {
+          setQuickRegister(o);
+          // Al cerrarlo se suelta el referido: el próximo alta manual no puede
+          // heredar ni los datos ni el id del que acabamos de convertir.
+          if (!o) { setReferidoRapido(null); setReferidoRapidoId(null); }
+        }}
         providerId={scopeProviderId}
+        initial={referidoRapido ?? undefined}
+        referralId={referidoRapidoId ?? undefined}
+      />
+
+      {/* ─── Referido del bufete: con qué camino lo damos de alta ───────────── */}
+      <ReferralChoiceDialog
+        open={!!referidoElegir}
+        onOpenChange={(o) => { if (!o) setReferidoElegir(null); }}
+        clientName={referidoElegir?.clientName ?? ''}
+        firmName={referidoElegir?.firmName ?? null}
+        onCasoYCita={() => { setReferidoElegir(null); setNewCaseOpen(true); }}
+        onRegistroRapido={() => {
+          setReferidoRapidoId(referidoElegir?.id ?? null);
+          setReferidoElegir(null);
+          setQuickRegister(true);
+        }}
       />
 
       {/* ─── Send Portal Link ────────────────────────────────────────────────── */}

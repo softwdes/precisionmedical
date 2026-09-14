@@ -20,7 +20,7 @@
  */
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslations, useLocale } from 'next-intl';
 import { Button, Textarea, Badge } from '@precision/ui';
@@ -75,7 +75,22 @@ export function MensajesClient(): React.ReactElement {
   const qc = useQueryClient();
 
   const [carpeta, setCarpeta] = useState<Carpeta>('inbox');
-  const [abierto, setAbierto] = useState<string | null>(null);
+
+  /**
+   * El hilo que pide la URL (`?thread=…`), si viene uno.
+   *
+   * Es el aterrizaje del aviso del celular: el Service Worker del Admin traduce
+   * `/messages?thread=X` a esta pantalla, y tocar la notificación tiene que
+   * abrir ESE mensaje, no la lista para que la persona lo busque.
+   *
+   * Se lee de `window.location` en el inicializador y no con `useSearchParams`
+   * a propósito: ese hook obliga a envolver la pantalla en un `Suspense` y acá
+   * el dato se necesita una sola vez, al abrir.
+   */
+  const [abierto, setAbierto] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('thread');
+  });
   const [respuesta, setRespuesta] = useState('');
 
   const lista = useQuery({
@@ -94,16 +109,23 @@ export function MensajesClient(): React.ReactElement {
   });
 
   /**
-   * Marcar leído es fuego y olvido a propósito: si falla, el hilo se queda en
-   * negrita. Molesto y honesto — mucho mejor que decir "leído" sin que el otro
-   * lado se haya enterado.
+   * Marcar leído va en un efecto y no en el clic, para que también valga cuando
+   * el hilo viene de la URL — que es el caso del aviso del celular.
+   *
+   * Es fuego y olvido a propósito: si falla, el hilo se queda en negrita.
+   * Molesto y honesto, mucho mejor que decir "leído" sin que el otro lado se
+   * haya enterado.
    */
+  useEffect(() => {
+    if (!abierto) return;
+    void pedir(`${abierto}/read`, { method: 'POST' })
+      .then(() => qc.invalidateQueries({ queryKey: ['clinica-mensajes'] }))
+      .catch(() => undefined);
+  }, [abierto, qc]);
+
   const abrir = (id: string): void => {
     setAbierto(id);
     setRespuesta('');
-    void pedir(`${id}/read`, { method: 'POST' })
-      .then(() => qc.invalidateQueries({ queryKey: ['clinica-mensajes'] }))
-      .catch(() => undefined);
   };
 
   const responder = useMutation({

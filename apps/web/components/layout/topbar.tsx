@@ -13,6 +13,7 @@ import { api as trpc } from '@/lib/trpc/client';
 import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
 import { NotificationsDrawer } from './notifications-drawer';
 import { PushToggle, PushAvisosMenuItem } from '@/components/push-toggle';
+import { SobreClinica } from '@/components/messaging/sobre-clinica';
 import { CommandPalette } from './command-palette';
 import { toast } from 'sonner';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
@@ -193,6 +194,11 @@ export function Topbar({
             el buzón de las notificaciones internas y esto es la preferencia de
             si este aparato suena. Solo se dibuja cuando hace falta un clic
             —apagado o bloqueado—, así que encendido no le roba lugar a nada. */}
+        {/* El sobre va PEGADO al teléfono de los avisos: son la misma
+            familia —a dónde me llegan las cosas— y así queda igual que en
+            la clínica, donde Erick los pidió juntos (2026-09-13). */}
+        <SobreClinica />
+
         <PushToggle />
 
         {/* CIFO — trae de vuelta el saludo del día. Va pegado a la campana:

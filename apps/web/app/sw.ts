@@ -83,9 +83,24 @@ serwist.addEventListeners();
  * Trae SOLO un titular: sin nombre de paciente ni detalle, porque esto se
  * dibuja en la pantalla de bloqueo.
  *
- * A diferencia del worker del back-office, acá NO hay que traducir la ruta
- * según el dominio: el Admin es un solo host y no sirve tres portales.
+ * Y sí hay que traducir la ruta, como hace el worker del back-office con sus
+ * portales: el servidor manda `/messages?thread=X` porque el mismo hilo lo leen
+ * la clínica, el provider, el abogado y el Admin, cada uno en su pantalla. El
+ * que sabe cómo se llama la de acá es este worker.
  */
+
+/**
+ * La bandeja del Admin vive en `/dashboard/mensajes`.
+ *
+ * Antes, un aviso de mensaje para alguien del Admin salía con la URL ABSOLUTA
+ * de la clínica y el toque lo sacaba a otro dominio. Era lo correcto mientras
+ * acá no hubiera bandeja; desde que la hay, el aviso abre la pantalla de esta
+ * misma app y la persona no se entera de que existe otra.
+ */
+function rutaDelAdmin(url: string): string {
+  const PREFIJO = '/messages';
+  return url.startsWith(PREFIJO) ? '/dashboard/mensajes' + url.slice(PREFIJO.length) : url;
+}
 interface AvisoPush {
   titulo?: string;
   cuerpo?: string;
@@ -145,7 +160,7 @@ self.addEventListener('push', (event) => {
         tag: aviso.tag || 'pm-aviso',
         requireInteraction: false,
         silent: false,
-        data: { url: aviso.url || '/' },
+        data: { url: rutaDelAdmin(aviso.url || '/') },
       });
       await actualizarMarca();
     })(),

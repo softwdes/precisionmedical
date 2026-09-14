@@ -138,6 +138,9 @@ export function pushConfigurado(): boolean {
  */
 const PORTALES_PROPIOS = /^(clinic|providers?|attorney)[.]/;
 
+/** El Admin, que desde 2026-09-14 tiene su propia bandeja y su propia ruta. */
+const ADMIN = /^admin[.]/;
+
 /**
  * La base absoluta de este app, para los avisos que salen a otro dominio.
  *
@@ -171,8 +174,19 @@ function destinoPara(aviso: AvisoPush, origin: string): string {
   let host: string;
   try { host = new URL(origin).hostname; } catch { return aviso.url; }
 
-  // Un host propio resuelve la ruta solo; localhost es el dev de esta app.
-  if (PORTALES_PROPIOS.test(host) || host === 'localhost') return aviso.url;
+  /**
+   * Un host que sabe traducir la ruta la resuelve solo.
+   *
+   * Nuestros tres portales siempre supieron (el worker les pone el prefijo), y
+   * desde que el Admin tiene su propia bandeja, también. Su Service Worker
+   * reescribe `/messages` a `/dashboard/mensajes`, así que mandarle la URL
+   * absoluta de la clínica ahora lo sacaría de su app sin motivo.
+   *
+   * La rama absoluta se queda para un origen que NO conozcamos: ahí no hay a
+   * quién preguntarle cómo se llama la pantalla, y sacar a la persona a la
+   * clínica es mejor que dejarla en una ruta que no existe.
+   */
+  if (PORTALES_PROPIOS.test(host) || ADMIN.test(host) || host === 'localhost') return aviso.url;
 
   return `${BASE_PROPIA}${aviso.url}`;
 }

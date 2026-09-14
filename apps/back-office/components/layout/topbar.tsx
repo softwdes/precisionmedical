@@ -230,16 +230,19 @@ export function Topbar({
               a la urgencia clínica: nada debe gritar más que un urgente. */}
           <InboxBell portal={portal} />
 
-          {/* CIFO — vuelve a abrir el saludo del día.
-              Erick lo pidió acá, entre Mensajes y el ícono del celular: el
-              saludo se cierra solo y quería poder traerlo de vuelta. */}
-          {cifo && <CifoButton destino={cifo} />}
-
-          {/* Avisos al celular — SOLO cuando hace falta un clic (apagado o
-              bloqueado). Encendido se va de la barra y su estado queda en el
-              menú del avatar: no hay nada más que tocar, y acá al lado de
-              ReleaseBell dos campanas se confundían. Ver `PushToggle`. */}
+          {/* Avisos al celular, PEGADO a Mensajes.
+              Erick, 2026-09-13: "el icono del celular debía estar al costado de
+              mensajes como todos los demás". Supera a la instrucción anterior,
+              que ponía a CIFO en el medio — el teléfono y el sobre son la misma
+              familia (a dónde me llegan las cosas), y CIFO es otra cosa.
+              A diferencia del Admin, acá se dibuja en TODOS los estados,
+              también encendido: esconderlo al aceptar dejaba sin puerta a quien
+              necesita apagarlo o rehacer la suscripción. Ver `PushToggle`. */}
           <PushToggle />
+
+          {/* CIFO — vuelve a abrir el saludo del día: se cierra solo y Erick
+              quería poder traerlo de vuelta. */}
+          {cifo && <CifoButton destino={cifo} />}
 
           {/* Novedades del sistema. Antes habia aca un boton de campana de
               adorno: sin onClick, sin consultar nada y con un 2 escrito en

@@ -106,12 +106,15 @@ export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t('refTitle')}</DialogTitle>
           <DialogDescription>{t('refSubtitle')}</DialogDescription>
         </DialogHeader>
 
+        {/* El cuerpo scrollea solo: antes scrolleaba el diálogo entero y en un
+            teléfono el botón de enviar quedaba fuera de la pantalla. */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {enviado ? (
           <div className="space-y-3">
             <div className="flex items-start gap-3 rounded-md border border-emerald/30 bg-emerald/10 px-4 py-3">
@@ -204,6 +207,8 @@ export function ReferralDialog({ open, onClose, firmName, attorneyName, onSent }
             )}
           </div>
         )}
+
+        </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="secondary" onClick={onClose} className="w-full sm:w-auto">

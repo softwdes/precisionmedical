@@ -94,7 +94,7 @@ function Fila({ f, onPedir }: { f: FilaVista; onPedir: (f: FilaVista) => void })
       <TagPill label={t(verbo.key)} colorClass={verbo.tone} compact />
       <span className="pr-4 flex items-center gap-1">
         <IconAction icon={MessageSquarePlus} label={t('vigiaReqCta')} stopPropagation onClick={() => onPedir(f)} />
-        <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
       </span>
     </div>
   );

@@ -140,7 +140,7 @@ export function CaseListDialog({ kind, onClose }: {
                   compact
                 />
               )}
-              <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
             </button>
           ))}
         </div>

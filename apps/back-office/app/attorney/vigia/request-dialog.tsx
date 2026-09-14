@@ -137,12 +137,15 @@ export function RequestDialog({ caso, asunto, cuerpo, desk: deskInicial = null, 
 
   return (
     <Dialog open={!!caso} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t('vigiaReqTitle')}</DialogTitle>
           <DialogDescription>{t('vigiaReqSubtitle', { caso: caso ?? '' })}</DialogDescription>
         </DialogHeader>
 
+        {/* El cuerpo scrollea solo: antes scrolleaba el diálogo entero y en un
+            teléfono el botón de enviar quedaba fuera de la pantalla. */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {enviado ? (
           <div className="flex items-start gap-3 rounded-md border border-emerald/30 bg-emerald/10 px-4 py-3">
             <Check className="w-4 h-4 text-emerald mt-0.5 shrink-0" />
@@ -254,6 +257,8 @@ export function RequestDialog({ caso, asunto, cuerpo, desk: deskInicial = null, 
             )}
           </div>
         )}
+
+        </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="secondary" onClick={onClose} className="w-full sm:w-auto">

@@ -223,6 +223,25 @@ export function usePushAvisos(): AvisosControl {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub.toJSON()),
       });
+      /**
+       * Si el servidor no la guardó, la suscripción del navegador NO se queda.
+       *
+       * Es el detalle que convirtió un error en un bug mudo: el navegador ya
+       * había creado la suscripción, el servidor fallaba, y al releer el estado
+       * el control la encontraba y lo daba por ENCENDIDO. En el Admin, encendido
+       * esconde el icono — así que la persona veía un error, el botón
+       * desaparecía, y quedaba en el peor lugar posible: parece activado y no
+       * puede llegar nada, porque el servidor no sabe que existe.
+       *
+       * Reportado en el teléfono (Erick, 2026-09-13). Se deshace la suscripción
+       * para que el estado diga la verdad y el botón siga estando.
+       */
+      const deshacer = async (): Promise<void> => {
+        await sub.unsubscribe().catch(() => undefined);
+        setEstado('apagado');
+        anunciarCambio();
+      };
+
       if (!res.ok) {
         /**
          * El motivo del servidor va a la consola con el host del endpoint.
@@ -233,6 +252,7 @@ export function usePushAvisos(): AvisosControl {
          * navegador de un Samsung emitía un endpoint que el servidor no aceptaba.
          */
         const detalle = await res.text().catch(() => '');
+        await deshacer();
         throw new Error(`alta rechazada (${res.status}) ${detalle} · endpoint: ${new URL(sub.endpoint).hostname}`);
       }
 

@@ -1,6 +1,10 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import withSerwistInit from '@serwist/next';
 import { withSentryConfig } from '@sentry/nextjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
@@ -13,6 +17,36 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /**
+   * El binario de Prisma, para que viaje en el paquete serverless.
+   *
+   * ── Por qué hacía falta acá, si esta app casi no usa Prisma ────────────────
+   *
+   * Justamente por eso. El ÚNICO archivo del Admin que lo toca es
+   * `app/api/push/subscribe/route.ts`, que resuelve el id de la persona en la
+   * base de la clínica antes de guardar su suscripción. Como no hay otro camino
+   * que lo ejercite, el faltante no se notaba en ninguna pantalla: solo rompía
+   * el botón de activar los avisos, y de una forma que parecía otra cosa.
+   *
+   * El síntoma que lo destapó (Erick, 2026-09-13, en el teléfono): aceptaba el
+   * permiso, salía "no se pudieron cambiar los avisos" y **después desaparecía
+   * el icono**. El navegador ya había creado la suscripción; el servidor no
+   * pudo guardarla; y al releer el estado, el control la encontraba y la daba
+   * por encendida — el peor lugar posible, porque se ve activado y no puede
+   * llegar nada.
+   *
+   * `transpilePackages` no alcanza: compila el paquete, pero el `.so.node` es
+   * un binario nativo que el trazado de Next no sigue solo en un monorepo de
+   * pnpm. Es la misma configuración que `apps/back-office` lleva desde que se
+   * desplegó, con el mismo comentario.
+   */
+  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingIncludes: {
+    '/**': [
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/libquery_engine-rhel-openssl-3.0.x.so.node',
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/schema.prisma',
+    ],
+  },
   transpilePackages: [
     '@precision/ui',
     '@precision-medical/agente',

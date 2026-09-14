@@ -22,6 +22,33 @@
  * El allowlist es el freno: mientras esté seteado, un correo a cualquier
  * dirección que no esté en la lista NO sale. Es lo que evita que una prueba se
  * le escape a un paciente real por un clic equivocado.
+ *
+ * ─── Los dos carriles ────────────────────────────────────────────────────
+ *
+ * El punto 1 y el 2 tienen restricciones DISTINTAS, y hasta ahora compartían
+ * el mismo freno. Eso obligaba a elegir entre dos cosas malas: o el allowlist
+ * frenaba también los avisos que nunca llevaron PHI —y el abogado no se
+ * enteraba de su mensaje—, o se abría el allowlist entero y con él se abría el
+ * correo del portal, que sí lleva PHI y sí necesita el BAA.
+ *
+ * Ahora son dos carriles:
+ *
+ *   · CON PHI (default) — el correo del portal: nombre del paciente, código de
+ *     caso, magic link a su formulario. Sigue acotado por `EMAIL_TEST_ALLOWLIST`
+ *     y NO se abre hasta que haya un proveedor con BAA firmado.
+ *
+ *   · SIN PHI (`sinPhi: true`) — avisos que dicen que PASÓ algo, sin decir de
+ *     quién: "tenés un mensaje en el portal". Seguro sin BAA de forma
+ *     permanente, así que puede salir a destinatarios reales. Se abre con
+ *     `EMAIL_AVISOS_SIN_PHI=true`; sin esa variable se comporta como antes y
+ *     pasa por el allowlist igual que todo lo demás.
+ *
+ * `sinPhi` es una AFIRMACIÓN de quien llama sobre el contenido que armó, no una
+ * verificación: nadie puede leer el html y decidir si adentro hay PHI. Por eso
+ * el default es `false` —quien no dice nada queda del lado restringido— y por
+ * eso solo debería ponerlo en `true` un módulo cuyo texto esté fijo en el
+ * código y no interpole datos del paciente. Hoy hay exactamente uno:
+ * `lib/mensajeria/aviso-abogado.ts`.
  */
 
 import { db } from '@precision-medical/database';
@@ -70,6 +97,15 @@ const ALLOWLIST_ENV = (process.env.EMAIL_TEST_ALLOWLIST ?? '').trim();
 /** `*` explícito = canal abierto (BAA firmado). Cualquier otra cosa restringe. */
 const UNRESTRICTED = ALLOWLIST_ENV === '*';
 
+/**
+ * Abre el carril SIN PHI a destinatarios reales, sin tocar el carril con PHI.
+ *
+ * Default `false` a propósito: prender el correo en un entorno nuevo no puede
+ * tener como efecto lateral que empiecen a salir avisos a abogados de verdad.
+ * Que eso pase tiene que ser una decisión escrita en algún lado.
+ */
+const AVISOS_SIN_PHI = process.env.EMAIL_AVISOS_SIN_PHI === 'true';
+
 const TEST_ALLOWLIST_RAW = ALLOWLIST_ENV
   .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
@@ -99,9 +135,15 @@ const TEST_ALLOWLIST = TEST_ALLOWLIST_RAW.filter((e) => {
   return true;
 });
 
-/** ¿Este destino está habilitado para las pruebas? */
+/**
+ * ¿Este destino está en la lista? Responde SOLO eso.
+ *
+ * Quién puede saltearse la lista (el `*`, el carril sin PHI) se decide en
+ * `sendEmail`, no acá: con la excepción metida adentro había dos lugares que
+ * contestaban "¿puede salir?" y el de arriba tenía que acordarse de consultar
+ * al de abajo.
+ */
 function allowedInTests(to: string): boolean {
-  if (UNRESTRICTED) return true;
   if (TEST_ALLOWLIST.length === 0) return false;   // falla cerrado
   const addr   = to.toLowerCase();
   const domain = addr.slice(addr.lastIndexOf('@'));   // incluye la arroba
@@ -118,6 +160,16 @@ export interface SendEmailArgs {
   caseId?: string | null;
   sentByUserId?: string | null;
   sentByName?: string | null;
+  /**
+   * El contenido de ESTE correo no lleva PHI — ni nombre de paciente, ni código
+   * de caso, ni diagnóstico, ni nada que diga que alguien es paciente.
+   *
+   * Solo para textos fijos en el código. Si el asunto o el cuerpo interpolan
+   * algo que viene de la base, no lo pongas: `patientId`/`caseId` acá al lado
+   * son la trazabilidad del envío y no dicen nada del contenido, así que un
+   * correo puede estar vinculado a un caso y aun así no nombrarlo.
+   */
+  sinPhi?: boolean;
 }
 
 export interface SendEmailResult {
@@ -174,10 +226,18 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
   }
   if (!EMAIL_RE.test(to)) return fail('INVALID_TO', `dirección no válida: "${to}"`);
 
+  /**
+   * El carril sin PHI se salta el allowlist — ese es todo el punto de tenerlo
+   * aparte. Lo que NO se saltea es `EMAIL_ENABLED` ni la validación del
+   * destino: sigue siendo un correo y sigue apagándose con el interruptor
+   * general.
+   */
+  const saltaAllowlist = UNRESTRICTED || (args.sinPhi === true && AVISOS_SIN_PHI);
+
   // El freno de la etapa de prueba. Si la variable venia solo con dominios
   // publicos, quedo vacia tras el filtro — y "vacia" significa "sin
   // restriccion", que seria exactamente lo contrario de lo que se quiso.
-  if (!UNRESTRICTED && TEST_ALLOWLIST.length === 0) {
+  if (!saltaAllowlist && TEST_ALLOWLIST.length === 0) {
     return fail('NOT_IN_TEST_ALLOWLIST',
       TEST_ALLOWLIST_RAW.length > 0
         ? 'EMAIL_TEST_ALLOWLIST solo tenia dominios publicos, que no se aceptan ' +
@@ -185,7 +245,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
         : 'EMAIL_TEST_ALLOWLIST no esta configurada. Sin ella no se manda nada: ' +
           'listá las direcciones de prueba, o poné "*" cuando el BAA este firmado.');
   }
-  if (!allowedInTests(to)) {
+  if (!saltaAllowlist && !allowedInTests(to)) {
     return fail(
       'NOT_IN_TEST_ALLOWLIST',
       `el correo está en modo prueba: "${to}" no está autorizado. ` +
@@ -254,8 +314,20 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
 }
 
 /** Solo para diagnóstico: si el canal está en modo prueba y con qué alcance. */
-export function emailMode(): { enabled: boolean; testMode: boolean; allowed: number } {
-  return { enabled: EMAIL_ENABLED, testMode: !UNRESTRICTED, allowed: TEST_ALLOWLIST.length };
+export function emailMode(): {
+  enabled: boolean;
+  /** El carril CON PHI sigue acotado por el allowlist. */
+  testMode: boolean;
+  allowed: number;
+  /** El carril SIN PHI sale a destinatarios reales. */
+  avisosSinPhi: boolean;
+} {
+  return {
+    enabled: EMAIL_ENABLED,
+    testMode: !UNRESTRICTED,
+    allowed: TEST_ALLOWLIST.length,
+    avisosSinPhi: AVISOS_SIN_PHI,
+  };
 }
 
 // `TWILIO_ACCOUNT_SID` no se usa en el request (la Basic auth va con la API

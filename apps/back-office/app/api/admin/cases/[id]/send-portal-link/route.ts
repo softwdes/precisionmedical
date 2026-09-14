@@ -33,8 +33,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
-import { sendEmail } from '@/lib/email';
-import { buildPortalSms, portalEmailHtml } from '@/lib/portal-message';
+import { sendEmail, emailMode } from '@/lib/email';
+import { buildPortalSms, buildPortalEmail, portalEmailHtml } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
 import { obtenerPortalToken } from '@/lib/portal-token';
 
@@ -114,6 +114,18 @@ export async function GET(
         ? `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim()
         : null,
     },
+    /**
+     * En qué estado está el canal de correo, para que la pastilla del diálogo
+     * lo diga de verdad.
+     *
+     * Estaba escrita en duro como "Prueba". Eso es correcto HOY, pero no lo
+     * decide el componente: lo decide `EMAIL_TEST_ALLOWLIST` en el entorno. Con
+     * la etiqueta fija, el día que se abra el canal la pantalla va a seguir
+     * diciendo "Prueba" —y recepción no le va a creer al sistema— o peor, si
+     * alguien "actualiza" la etiqueta a mano sin que el entorno haya cambiado,
+     * va a decir "Live" con el allowlist todavía puesto.
+     */
+    email: emailMode(),
   });
 }
 
@@ -255,6 +267,17 @@ export async function POST(
     portalUrl,
   });
 
+  // A quién se saluda en el correo: el paciente, o el apoderado del menor.
+  const nombreDestinatario = `${destino.firstName} ${destino.lastName ?? ''}`.trim();
+
+  // El respaldo de asunto y cuerpo cuando el caller no los manda. Mismo
+  // armador que usa la vista previa del diálogo.
+  const correoPorDefecto = buildPortalEmail({
+    lang: idioma,
+    nombreDestinatario: nombreDestinatario || nombrePaciente,
+    nombrePaciente: (paraMenor || canalCompartido) ? nombrePaciente : null,
+  });
+
   // Si el paciente ya completó el form y se re-envía, limpiar intakeFormCompletedAt
   // para que el portal lo permita llenar de nuevo.
   const isResend = caseRecord.status === 'INTAKE_COMPLETED';
@@ -298,12 +321,23 @@ export async function POST(
   const emailResult = parsed.via === 'EMAIL'
     ? await sendEmail({
         to: destino.email!,
-        toName: `${destino.firstName} ${destino.lastName ?? ''}`.trim() || null,
-        subject: idioma === 'es'
-          ? `Complete su formulario de registro · caso ${caseRecord.caseCode}`
-          : `Complete your registration form · case ${caseRecord.caseCode}`,
-        html: portalEmailHtml(messageBody, portalUrl, idioma),
-        text: messageBody,
+        toName: nombreDestinatario || null,
+        /**
+         * El asunto y el cuerpo que escribió recepción MANDAN.
+         *
+         * El diálogo los deja editar, los muestra en la vista previa y los
+         * manda en el POST — y hasta acá el servidor los descartaba y armaba
+         * los suyos. Recepción redactaba un mensaje, lo revisaba, apretaba
+         * enviar, y al paciente le llegaba otra cosa: el texto del SMS, con el
+         * "responda STOP para no recibir mas mensajes" adentro de un correo.
+         *
+         * El default es el MISMO que muestra el diálogo (`buildPortalEmail`),
+         * así que un caller que no manda nada —el alta de caso, el registro
+         * rápido— no sale peor que uno que sí.
+         */
+        subject: parsed.subject?.trim() || correoPorDefecto.subject,
+        html: portalEmailHtml(parsed.body?.trim() || correoPorDefecto.body, portalUrl, idioma),
+        text: parsed.body?.trim() || correoPorDefecto.body,
         patientId: caseRecord.patient.id,
         caseId: caseId,
         sentByUserId: actor.actorUserId,

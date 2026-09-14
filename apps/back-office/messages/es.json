@@ -4564,7 +4564,11 @@
       "paginationNav": "Paginación del historial de SMS",
       "pageInfo": "Página {page} de {total}",
       "prevPage": "Página anterior",
-      "nextPage": "Página siguiente"
+      "nextPage": "Página siguiente",
+      "filterChannel": "Canal",
+      "channelSms": "SMS",
+      "channelEmail": "Correo",
+      "channelAll": "Todos"
     },
     "calls": {
       "payModalTitle": "Pago del caso",
@@ -5481,6 +5485,18 @@
       "desactualizado": "Datos del {fecha}. Se actualizan una vez por semana, hasta que haya integración en vivo.",
       "estadoActiva": "Al día",
       "estadoVencida": "Vencida"
+    },
+    "portalEnvio": {
+      "canalEmail": "el correo",
+      "canalSms": "el SMS",
+      "tituloFallo": "El formulario no se envió.",
+      "enPrueba": "No salió {canal}: el correo está en modo prueba y esta dirección no está autorizada.",
+      "dadoDeBaja": "No salió {canal}: el paciente respondió STOP y se dio de baja.",
+      "canalApagado": "No salió {canal}: el canal está apagado.",
+      "destinoInvalido": "No salió {canal}: el destino no es válido.",
+      "sinRed": "No salió {canal}: no hubo conexión.",
+      "falloGenerico": "No salió {canal}.",
+      "usaElQr": "El caso se creó igual. Usá el QR o el enlace de abajo para que complete el formulario."
     }
   },
   "caseWizard": {

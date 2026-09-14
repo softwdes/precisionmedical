@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { buildPortalSms, MAGIC_LINK_PLACEHOLDER, smsSegments } from '@/lib/portal-message';
+import { buildPortalSms, buildPortalEmail, MAGIC_LINK_PLACEHOLDER, smsSegments } from '@/lib/portal-message';
 import {
   Send, MessageSquare, Mail, AlertCircle, Check,
   Phone, Copy, Clock,
@@ -69,8 +69,18 @@ export interface PortalRecipient {
   nombrePaciente: string | null;
 }
 
+/** En qué estado está el canal de correo. Lo resuelve el server, no el componente. */
+export interface EstadoEmail {
+  enabled: boolean;
+  /** El correo con PHI está acotado por `EMAIL_TEST_ALLOWLIST`. */
+  testMode: boolean;
+  allowed: number;
+  avisosSinPhi: boolean;
+}
+
 export function usePortalRecipient(caseId: string | null | undefined, open: boolean) {
   const [recipient, setRecipient] = useState<PortalRecipient | null>(null);
+  const [emailState, setEmailState] = useState<EstadoEmail | null>(null);
   const [loading,   setLoading]   = useState(false);
 
   useEffect(() => {
@@ -79,15 +89,17 @@ export function usePortalRecipient(caseId: string | null | undefined, open: bool
     setLoading(true);
     fetch(`/api/admin/cases/${caseId}/send-portal-link`)
       .then(res => (res.ok ? res.json() : null))
-      .then((data: { ok?: boolean; recipient?: PortalRecipient } | null) => {
-        if (!cancelled && data?.ok && data.recipient) setRecipient(data.recipient);
+      .then((data: { ok?: boolean; recipient?: PortalRecipient; email?: EstadoEmail } | null) => {
+        if (cancelled || !data?.ok) return;
+        if (data.recipient) setRecipient(data.recipient);
+        if (data.email)     setEmailState(data.email);
       })
       .catch(() => { /* fallback: se gatea con los datos del paciente */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [open, caseId]);
 
-  return { recipient, loading };
+  return { recipient, loading, emailState };
 }
 
 // ─── i18n (UI labels + message templates, switch with lang toggle) ─────────────
@@ -98,7 +110,7 @@ function ui(lang: Lang) {
     expiresHdr:   'el link no vence hasta revocarlo',
     via:          'Enviar por',
     viaTwilio:    'vía Twilio',
-    viaMailgun:   'vía Twilio · en pruebas',
+    viaEmail:     'vía Twilio',
     langLabel:    'Idioma del mensaje',
     subjectLbl:   'Asunto',
     bodyLbl:      'Mensaje',
@@ -139,7 +151,7 @@ function ui(lang: Lang) {
     expiresHdr:   'link stays valid until revoked',
     via:          'Send via',
     viaTwilio:    'via Twilio',
-    viaMailgun:   'via Twilio · testing',
+    viaEmail:     'via Twilio',
     langLabel:    'Message language',
     subjectLbl:   'Subject',
     bodyLbl:      'Message',
@@ -191,27 +203,11 @@ function smsTemplate(lang: Lang, _firstName: string, caseCode: string, nombrePac
   return buildPortalSms({ lang, caseCode, nombrePaciente, portalUrl: MAGIC_LINK_PLACEHOLDER });
 }
 
-function emailSubject(lang: Lang, fullName: string, nombrePaciente: string | null): string {
-  if (nombrePaciente) {
-    return lang === 'es'
-      ? `Recordatorio: completa el formulario de ${nombrePaciente}`
-      : `Reminder: complete the information form for ${nombrePaciente}`;
-  }
-  return lang === 'es'
-    ? `Recordatorio: completa tu formulario, ${fullName}`
-    : `Reminder: complete your information form, ${fullName}`;
-}
-
-function emailBody(lang: Lang, fullName: string, nombrePaciente: string | null): string {
-  if (nombrePaciente) {
-    return lang === 'es'
-      ? `Hola ${fullName},\n\nComo responsable legal de ${nombrePaciente}, tu clínica te recuerda completar su formulario de información antes de la próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar el registro.\n\nGracias,\nPrecision Medical`
-      : `Hello ${fullName},\n\nAs the legal guardian of ${nombrePaciente}, your clinic is reminding you to complete their information form before the next visit.\n\nUse the secure link that will follow to complete the registration.\n\nThank you,\nPrecision Medical`;
-  }
-  return lang === 'es'
-    ? `Hola ${fullName},\n\nTu clínica te recuerda completar tu formulario de información antes de tu próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar tu registro.\n\nGracias,\nPrecision Medical`
-    : `Hello ${fullName},\n\nYour clinic is reminding you to complete your information form before your next visit.\n\nUse the secure link that will follow to complete your registration.\n\nThank you,\nPrecision Medical`;
-}
+/**
+ * El asunto y el cuerpo por defecto los arma `lib/portal-message.ts`, igual que
+ * el SMS. Estaban escritos acá Y en el servidor: recepción veía este texto en
+ * la vista previa, lo editaba, y al paciente le llegaba el del servidor.
+ */
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -292,7 +288,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
   // El destinatario real puede ser el tutor (menor con responsable legal
   // vinculado) — lo resuelve el server con la misma regla que usa al enviar.
-  const { recipient: resolved, loading: resolvingDest } = usePortalRecipient(caseInfo?.id, open);
+  const { recipient: resolved, loading: resolvingDest, emailState } = usePortalRecipient(caseInfo?.id, open);
 
   /**
    * La PANTALLA va en el idioma del staff · el MENSAJE en el del paciente.
@@ -347,8 +343,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
   // Sync email subject/body when lang or recipient changes
   useEffect(() => {
     if (!caseInfo || !destName) return;
-    setSubject(emailSubject(lang, destName, nombrePaciente));
-    setBody(emailBody(lang, destName, nombrePaciente));
+    const porDefecto = buildPortalEmail({ lang, nombreDestinatario: destName, nombrePaciente });
+    setSubject(porDefecto.subject);
+    setBody(porDefecto.body);
   }, [lang, destName, nombrePaciente, caseInfo]);
 
   if (!caseInfo || !dest) return null;
@@ -584,14 +581,17 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 icon={MessageSquare} label="SMS" sub={L.viaTwilio} badge="Live"
                 onClick={() => setChannel('SMS')}
               />
-              {/* Badge "Prueba" y no "Live": el correo YA sale por Twilio, pero
-                  su Email API es "Powered by SendGrid" y Twilio no firma BAA
-                  para SendGrid. Hasta contratar un proveedor que lo cubra,
-                  EMAIL_TEST_ALLOWLIST acota los destinos y un envío a alguien
-                  fuera de la lista se rechaza con el motivo. */}
+              {/* La pastilla sale del ESTADO REAL del canal, no de una
+                  constante. Hoy dice "Prueba" porque la Email API de Twilio es
+                  "Powered by SendGrid", Twilio no firma BAA para SendGrid, y
+                  EMAIL_TEST_ALLOWLIST acota los destinos — un envío a alguien
+                  fuera de la lista se rechaza con el motivo. El día que se
+                  contrate un proveedor con BAA y se abra el allowlist, esto
+                  pasa a "Live" solo, sin que nadie tenga que acordarse. */}
               <ChannelTab
                 active={channel === 'EMAIL'} disabled={!canSendEmail} color="brand"
-                icon={Mail} label="Email" sub={L.viaMailgun} badge="Prueba"
+                icon={Mail} label="Email" sub={L.viaEmail}
+                badge={emailState ? (emailState.testMode ? 'Prueba' : 'Live') : undefined}
                 onClick={() => setChannel('EMAIL')}
               />
             </div>

@@ -86,6 +86,16 @@ export async function avisarAbogadosPorEmail(args: AvisoAbogadoArgs): Promise<vo
       subject: t.subject,
       html,
       text,
+      /**
+       * Este es el carril sin PHI, y el de arriba es todo el contenido: los
+       * textos de `TEXTOS` son fijos y lo único que se interpola es el nombre
+       * de QUIEN ESCRIBE —staff de la clínica— y el id del hilo.
+       *
+       * ⚠️ Si algún día acá entra el nombre del paciente, el código de caso o
+       * el asunto del mensaje, hay que sacar esta línea. El allowlist deja de
+       * proteger este envío en cuanto está puesta.
+       */
+      sinPhi: true,
       caseId: args.caseId ?? null,
       patientId: args.patientId ?? null,
       sentByUserId: args.autorUserId,

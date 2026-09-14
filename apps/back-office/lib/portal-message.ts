@@ -75,17 +75,67 @@ export function smsSegments(text: string): { chars: number; segments: number; gs
 }
 
 /**
+ * Asunto y cuerpo por defecto del correo del portal.
+ *
+ * Vive acá y no en el diálogo por la misma razón que el SMS: el diálogo lo
+ * muestra para que recepción lo edite, y el servidor lo usa cuando el envío
+ * viene de un caller que no abre diálogo (el alta de caso, el registro
+ * rápido). Con una copia en cada lado, el día que se corrija el texto se
+ * corrige la mitad de los envíos.
+ *
+ * NO es el texto del SMS. El SMS lleva el prefijo del remitente y el "STOP
+ * para no recibir mas mensajes" que exige el operador; meter eso en un correo
+ * es mandarle al paciente una instrucción que no aplica —no hay nada a lo que
+ * responder STOP— y que además lo hace parecer publicidad. El correo tiene su
+ * propio cuerpo, y el link va en el botón.
+ */
+export function buildPortalEmail(args: {
+  lang: PortalMessageLang;
+  /** A quién se saluda: el paciente, o el apoderado del menor. */
+  nombreDestinatario: string;
+  /** Nombre del menor cuando el destinatario es el apoderado. */
+  nombrePaciente?: string | null;
+}): { subject: string; body: string } {
+  const { lang, nombreDestinatario, nombrePaciente } = args;
+
+  if (nombrePaciente) {
+    return lang === 'es'
+      ? {
+          subject: `Recordatorio: completa el formulario de ${nombrePaciente}`,
+          body: `Hola ${nombreDestinatario},\n\nComo responsable legal de ${nombrePaciente}, tu clínica te recuerda completar su formulario de información antes de la próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar el registro.\n\nGracias,\nPrecision Medical`,
+        }
+      : {
+          subject: `Reminder: complete the information form for ${nombrePaciente}`,
+          body: `Hello ${nombreDestinatario},\n\nAs the legal guardian of ${nombrePaciente}, your clinic is reminding you to complete their information form before the next visit.\n\nUse the secure link that will follow to complete the registration.\n\nThank you,\nPrecision Medical`,
+        };
+  }
+
+  return lang === 'es'
+    ? {
+        subject: `Recordatorio: completa tu formulario, ${nombreDestinatario}`,
+        body: `Hola ${nombreDestinatario},\n\nTu clínica te recuerda completar tu formulario de información antes de tu próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar tu registro.\n\nGracias,\nPrecision Medical`,
+      }
+    : {
+        subject: `Reminder: complete your information form, ${nombreDestinatario}`,
+        body: `Hello ${nombreDestinatario},\n\nYour clinic is reminding you to complete your information form before your next visit.\n\nUse the secure link that will follow to complete your registration.\n\nThank you,\nPrecision Medical`,
+      };
+}
+
+/**
  * Cuerpo HTML del correo del portal.
  *
  * Deliberadamente sobrio: un correo de clínica con gradientes y logos grandes
  * se parece más a marketing, y los filtros lo tratan peor. Texto claro, un
  * botón, y el link visible abajo para quien no vea el botón.
  *
- * El `text` plano que acompaña es el MISMO cuerpo del SMS. No se duplica el
- * mensaje: si algún día cambia, cambia en un solo lado.
+ * `cuerpo` es texto plano con saltos de línea —el que arma `buildPortalEmail`,
+ * o el que escribió recepción en el diálogo—. Los párrafos se respetan: antes
+ * esto colapsaba todo a una sola línea con un `replace(/\s{2,}/g, ' ')`, que
+ * para el cuerpo del SMS daba igual (es una sola oración) pero convertía una
+ * carta de cuatro párrafos en un ladrillo.
  */
 export function portalEmailHtml(
-  body: string,
+  cuerpo: string,
   portalUrl: string,
   lang: PortalMessageLang,
 ): string {
@@ -94,16 +144,26 @@ export function portalEmailHtml(
     ? 'Si el botón no funciona, copie este enlace en su navegador:'
     : 'If the button does not work, copy this link into your browser:';
 
-  // El cuerpo lleva el link al final; en el correo va en el botón, no repetido.
-  const intro = body.replace(portalUrl, '').replace(/\s{2,}/g, ' ').trim();
+  // El link va en el botón. Si el cuerpo ya lo trae (pasa cuando el caller
+  // manda el texto del SMS), se saca para no repetirlo dos veces.
+  const texto = cuerpo.split(portalUrl).join('').trim();
+
+  // Un párrafo por bloque separado con línea en blanco; los saltos sueltos de
+  // adentro (la firma, por ejemplo) quedan como <br/>.
+  const parrafos = texto
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#111827;">${escapeHtml(p).replaceAll('\n', '<br/>')}</p>`)
+    .join('');
 
   return [
     '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f6f7f9;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">',
     '<div style="max-width:520px;margin:0 auto;padding:28px 18px;">',
     '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:26px;">',
     '<p style="margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;">Precision Medical Care</p>',
-    `<p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#111827;">${escapeHtml(intro)}</p>`,
-    `<p style="margin:0 0 22px;"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">${cta}</a></p>`,
+    parrafos,
+    `<p style="margin:8px 0 22px;"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">${cta}</a></p>`,
     `<p style="margin:0;font-size:11px;line-height:1.6;color:#6b7280;">${fallback}<br/><span style="color:#4f46e5;word-break:break-all;">${escapeHtml(portalUrl)}</span></p>`,
     '</div></div></body></html>',
   ].join('');

@@ -13,6 +13,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
+import { enviarPortal, describirFallo, type CanalPortal } from '@/lib/enviar-portal';
+import { useToast } from '@/components/ui-phoenix';
 import {
   UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
   Check, Copy, ExternalLink, RotateCcw,
@@ -419,6 +421,8 @@ export function QuickRegisterDialog({
   /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
      tres pantallas que crean casos y no se duplican por namespace. */
   const tcw    = useTranslations('caseWizard');
+  const tpe    = useTranslations('phoenix.portalEnvio');
+  const toast  = useToast();
   const router = useRouter();
   /** GM ya existente del paciente — se ofrece abrirlo en vez de crear otro. */
   const [gmExistente, setGmExistente] = useState<{ id: string; caseCode: string } | null>(null);
@@ -677,8 +681,52 @@ export function QuickRegisterDialog({
         caseCode:    json.case?.caseCode ?? null,
       });
 
+      /**
+       * El envío REAL del formulario.
+       *
+       * `formDelivery` en el POST de arriba no manda nada: marca la intención y
+       * ya. Este diálogo confiaba en eso, así que "Guardar y enviar formulario"
+       * guardaba y no enviaba —seis semanas sin que se notara, porque tampoco
+       * había forma de enterarse: el caso quedaba marcado como enviado igual—.
+       *
+       * Va después de `onCreated` a propósito: el alta ya está hecha y quien
+       * nos abrió ya la tiene. Lo que sigue es el formulario, y si no sale, el
+       * paciente igual existe.
+       */
+      const caseIdCreado = json.case?.id ?? '';
+      if (mode === 'form' && caseIdCreado) {
+        const canales: CanalPortal[] = [
+          ...(email.trim()                ? ['EMAIL' as const] : []),
+          ...(phone.replace(/\D/g, '')    ? ['SMS'   as const] : []),
+        ];
+        if (canales.length > 0) {
+          const envio = await enviarPortal({
+            caseId: caseIdCreado,
+            canales,
+            language: language === 'en' ? 'en' : 'es',
+          });
+          if (envio.fallidos.length > 0) {
+            /**
+             * El aviso va por TOAST, y el diálogo se cierra igual.
+             *
+             * La tentación es dejarlo abierto con el error adentro, pero acá el
+             * paciente YA se creó: el único botón que queda a mano es
+             * "Guardar", y volver a apretarlo crea el alta de nuevo. Un error
+             * que invita a duplicar al paciente es peor que el envío que falló.
+             *
+             * El toast dura más que el default porque hay que leer el motivo y
+             * decidir algo, no solo enterarse.
+             */
+            toast.info(
+              `${tpe('tituloFallo')} ${envio.fallidos.map((r) => describirFallo(r, tpe)).join(' · ')}`,
+              { durationMs: 9000 },
+            );
+          }
+        }
+      }
+
       if (mode === 'qr') {
-        const caseId = json.case?.id ?? '';
+        const caseId = caseIdCreado;
         let portalUrl = `/portal?case=${caseId}`;
         if (caseId) {
           const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });

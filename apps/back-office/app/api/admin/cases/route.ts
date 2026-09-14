@@ -718,15 +718,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           consentsSignedAt:    new Date(),
           consentSignaturePng: parsed.consents.signatureDataUrl ?? null,
         } : {}),
-        // Si en la llamada se agenda cita Y se manda formulario, marca timestamps
-        intakeFormSentAt: (parsed.formDelivery?.sendEmail || parsed.formDelivery?.sendSms) ? now : null,
-        intakeFormSentVia: parsed.formDelivery?.sendEmail && parsed.formDelivery?.sendSms
-          ? 'EMAIL_AND_SMS'
-          : parsed.formDelivery?.sendEmail
-          ? 'EMAIL'
-          : parsed.formDelivery?.sendSms
-          ? 'SMS'
-          : null,
+        /**
+         * `intakeFormSentAt` / `intakeFormSentVia` NO se marcan acá.
+         *
+         * Esta ruta NUNCA mandó el formulario: escribía los dos timestamps y un
+         * audit log `SEND_PORTAL_LINK` marcado `phase: '1A_mock'`, y no llamaba
+         * a `sendSms` ni a `sendEmail`. El wizard de alta lo tapaba llamando a
+         * `send-portal-link` por su cuenta después de crear el caso; el
+         * registro rápido no, así que "Guardar y enviar formulario" no mandaba
+         * nada y el caso quedaba igual marcado como enviado.
+         *
+         * El único que marca enviado es el que envía: `send-portal-link`, y
+         * recién cuando el operador lo aceptó. Si el envío falla, el caso queda
+         * sin marca — que es la verdad, y lo que deja que alguien lo reintente.
+         */
+
         firstAppointmentConfirmedAt: parsed.appointment ? now : null,
         firstAppointmentConfirmedById: parsed.appointment ? actor.actorUserId : null,
       },
@@ -903,30 +909,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // ─── Audit log adicional: envío de formulario ───────────────────────
-  if (parsed.formDelivery?.sendEmail || parsed.formDelivery?.sendSms) {
-    const channels = [
-      parsed.formDelivery.sendEmail ? 'EMAIL' : null,
-      parsed.formDelivery.sendSms   ? 'SMS'   : null,
-    ].filter(Boolean).join('+');
-    await writeAuditLog(db, {
-      actorType: actor.actorType,
-      actorUserId: actor.actorUserId,
-      actorRole: actor.actorRole,
-      action: 'SEND_PORTAL_LINK',
-      entityType: 'cases',
-      entityId: result.case.id,
-      ipAddress: actor.ipAddress,
-      userAgent: actor.userAgent,
-      metadata: {
-        caseCode: result.case.caseCode,
-        via: channels,
-        language: parsed.patient.preferredLanguage,
-        viaB2: true,
-        phase: '1A_mock',
-      },
-    });
-  }
+  /**
+   * Acá había un segundo audit log `SEND_PORTAL_LINK` con `phase: '1A_mock'`.
+   *
+   * Se fue con el resto del envío falso. Un `SEND_PORTAL_LINK` en el historial
+   * tiene que significar que se intentó un envío real y que quedó escrito cómo
+   * salió; este escribía la INTENCIÓN y encima duplicaba la entrada cuando el
+   * wizard llamaba a `send-portal-link` a continuación — dos envíos en el
+   * historial por un solo formulario.
+   *
+   * La intención no se pierde: el audit log de creación de más arriba ya
+   * guarda `formDelivery` en su metadata.
+   */
 
   // ─── Referido de bufete → CREATED (idempotente si otro lo convirtió antes) ──
   let referido: { ok: boolean; convertedByName?: string | null } | null = null;

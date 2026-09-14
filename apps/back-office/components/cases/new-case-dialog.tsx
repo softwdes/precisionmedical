@@ -30,6 +30,7 @@ import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-ste
 import { calcAge, isMinor } from '@precision-medical/database/age';
 import { ActiveCallBar } from './active-call-bar';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
+import { enviarPortal, describirFallo } from '@/lib/enviar-portal';
 import {
   ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
 } from '@/components/patients/contacto-compartido-dialog';
@@ -127,6 +128,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // `phoenix.calendar` (prevWeek/nextWeek) pero acá estaban escritas a mano en
   // español, así que "Sem. ant." / "Sem. sig." salían igual con la UI en inglés.
   const tcal = useTranslations('phoenix.calendar');
+  const tpe  = useTranslations('phoenix.portalEnvio');
 
   // ─── Twilio Voice ──────────────────────────────────────────────────────
   const twilio = useTwilioDevice();
@@ -295,6 +297,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     appointmentScheduled: boolean;
     portalUrl: string | null;
     qrDataUrl: string | null;
+    /**
+     * Los canales que NO salieron. El caso se creó igual —por eso esto vive en
+     * `success` y no en `error`—, pero la pantalla tiene que decirlo: antes el
+     * envío fallido se veía idéntico al entregado y el paciente se quedaba sin
+     * formulario sin que nadie se enterara.
+     */
+    falloEnvio: string[];
   } | null>(null);
   const [copied, setCopied]   = useState(false);
 
@@ -708,6 +717,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       // just generate-portal-token for display only.
       let portalUrl: string | null = null;
       let qrDataUrl: string | null = null;
+      let falloEnvio: string[] = [];
       try {
         const channels: Array<'EMAIL' | 'SMS'> = [
           ...(emailOn ? ['EMAIL' as const] : []),
@@ -715,17 +725,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         ];
 
         if (channels.length > 0) {
-          // Send via each selected channel. Use first response for the portal URL.
-          const results = await Promise.all(
-            channels.map((via) =>
-              fetch(`/api/admin/cases/${caseId}/send-portal-link`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ via, language }),
-              }).then((r) => r.json()),
-            ),
-          );
-          portalUrl = results[0]?.sent?.portalUrl ?? null;
+          /**
+           * Antes esto leía `results[0]?.sent?.portalUrl` y tiraba el resto.
+           * `sent.error` venía en la misma respuesta —el server siempre lo
+           * mandó— y se descartaba: un correo rechazado por el allowlist
+           * llegaba a la pantalla verde igual que uno aceptado.
+           */
+          const envio = await enviarPortal({ caseId, canales: channels, language });
+          portalUrl  = envio.portalUrl;
+          falloEnvio = envio.fallidos.map((r) => describirFallo(r, tpe));
         } else {
           // Sin canal de entrega — solo se genera el token para mostrarlo.
           const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
@@ -743,8 +751,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         }
       } catch (e) { console.error('[NewCase] token error:', e); }
 
-      console.log('[NewCase] setSuccess →', { caseCode: data.case.caseCode, portalUrl, hasQr: !!qrDataUrl });
-      setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl });
+      console.log('[NewCase] setSuccess →', { caseCode: data.case.caseCode, portalUrl, hasQr: !!qrDataUrl, falloEnvio });
+      setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl, falloEnvio });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error creating case');
     } finally {
@@ -1104,6 +1112,28 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   </div>
                 </div>
               </div>
+
+              {/**
+                * El envío que no salió.
+                *
+                * En ámbar y no en rojo, y debajo del verde y no en lugar de él:
+                * el caso SÍ se creó, lo que falló es el formulario. Y va arriba
+                * del QR a propósito — el QR es exactamente la salida cuando el
+                * envío no llegó, así que el aviso tiene que explicar por qué
+                * mirarlo.
+                */}
+              {success.falloEnvio.length > 0 && (
+                <div className="rounded-lg border border-amber/30 bg-amber/10 p-3 flex items-start gap-2.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber shrink-0 mt-px" />
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="text-amber font-semibold text-[12px]">{tpe('tituloFallo')}</div>
+                    {success.falloEnvio.map((msg) => (
+                      <div key={msg} className="text-[11px] text-amber/90 leading-relaxed">{msg}</div>
+                    ))}
+                    <div className="text-[11px] text-text-muted leading-relaxed pt-0.5">{tpe('usaElQr')}</div>
+                  </div>
+                </div>
+              )}
 
               {/* QR + Link */}
               {success.portalUrl ? (

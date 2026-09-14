@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
-import { ChevronLeft, ChevronRight, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal } from 'lucide-react';
 import { EmptyState, FilterPill, PersonAvatar, StatusPill, TableFooter, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 
@@ -23,10 +23,13 @@ type Status = 'QUEUED' | 'SENT' | 'DELIVERED' | 'UNDELIVERED' | 'FAILED';
 type StatusFilter = 'all' | 'DELIVERED' | 'NOT_DELIVERED';
 type PeriodFilter = 0 | 1 | 7 | 30;
 type Scope = 'mine' | 'all';
+type Channel = 'SMS' | 'EMAIL';
+type ChannelFilter = Channel | 'ALL';
 
 interface Row {
   id: string;
   status: Status;
+  channel: Channel;
   toAddress: string;
   body: string;
   errorCode: number | null;
@@ -68,6 +71,13 @@ export function SmsHistoryDialog({
   const [scope, setScope]       = useState<Scope>('mine');
   const [status, setStatus]     = useState<StatusFilter>('all');
   const [period, setPeriod]     = useState<PeriodFilter>(0);
+  /**
+   * Arranca en SMS, que es lo que esta pantalla mostró siempre. El correo
+   * estaba en la misma tabla y el endpoint lo filtraba: cada envío del portal
+   * por email dejaba su fila con su estado y su motivo de falla, y no había
+   * dónde verla.
+   */
+  const [channel, setChannel]   = useState<ChannelFilter>('SMS');
   const [page, setPage]         = useState(0);
   const [data, setData]         = useState<Response | null>(null);
   const [loading, setLoading]   = useState(false);
@@ -76,11 +86,11 @@ export function SmsHistoryDialog({
 
   const filtered = status !== 'all' || period !== 0;
 
-  const load = useCallback(async (s: Scope, p: number, st: StatusFilter, per: PeriodFilter) => {
+  const load = useCallback(async (s: Scope, p: number, st: StatusFilter, per: PeriodFilter, ch: ChannelFilter) => {
     setLoading(true);
     setError(false);
     try {
-      const params = new URLSearchParams({ scope: s, page: String(p), size: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ scope: s, page: String(p), size: String(PAGE_SIZE), channel: ch });
       if (st !== 'all') params.set('status', st);
       if (per !== 0) {
         // El día se corta en la zona de la clínica, no en UTC.
@@ -99,8 +109,8 @@ export function SmsHistoryDialog({
 
   useEffect(() => {
     if (!open) return;
-    void load(scope, page, status, period);
-  }, [open, scope, page, status, period, load]);
+    void load(scope, page, status, period, channel);
+  }, [open, scope, page, status, period, channel, load]);
 
   const rows       = data?.messages ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -145,6 +155,12 @@ export function SmsHistoryDialog({
             ))}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterChannel')}</span>
+            {([['SMS', t('channelSms')], ['EMAIL', t('channelEmail')], ['ALL', t('channelAll')]] as [ChannelFilter, string][]).map(([k, l]) => (
+              <FilterPill key={k} active={channel === k} onClick={() => { setChannel(k); setPage(0); }} label={l} />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterStatus')}</span>
             {([['all', t('filterAllStatus')], ['DELIVERED', t('statusDelivered')], ['NOT_DELIVERED', t('filterNotDelivered')]] as [StatusFilter, string][]).map(([k, l]) => (
               <FilterPill key={k} active={status === k} onClick={() => { setStatus(k); setPage(0); }} label={l} />
@@ -165,7 +181,7 @@ export function SmsHistoryDialog({
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(scope, page, status, period)}
+                onClick={() => void load(scope, page, status, period, channel)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -195,7 +211,7 @@ export function SmsHistoryDialog({
                       {rows.map(r => (
                         <tr key={r.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors align-top">
                           <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2">
-                            <Recipient row={r} unknownLabel={t('unregistered')} />
+                            <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
                           </td>
                           <td className="px-4 py-2">
                             <StatusPill state={statusState(r.status)} label={statusLabel(r.status)} />
@@ -238,7 +254,7 @@ export function SmsHistoryDialog({
               <ul className={`md:hidden space-y-2 transition-opacity duration-150 ${loading ? 'opacity-40' : 'opacity-100'}`}>
                 {rows.map(r => (
                   <li key={r.id} className="rounded-lg border border-border bg-bg-1 p-3 space-y-2">
-                    <Recipient row={r} unknownLabel={t('unregistered')} />
+                    <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusPill state={statusState(r.status)} label={statusLabel(r.status)} />
                       {r.errorCode != null && <span className="font-mono text-[9.5px] text-rose">#{r.errorCode}</span>}
@@ -289,8 +305,27 @@ export function SmsHistoryDialog({
  * A quién se le mandó. Con paciente reconocido: nombre + código. Sin reconocer:
  * el número en ámbar — mismo criterio que el historial de llamadas.
  */
-function Recipient({ row, unknownLabel }: { row: Row; unknownLabel: string }) {
-  const phone = formatUsPhone(row.toAddress);
+function Recipient({ row, unknownLabel, mostrarCanal }: {
+  row: Row;
+  unknownLabel: string;
+  /** Solo con el filtro en "Todos": con un canal elegido, repetirlo por fila sobra. */
+  mostrarCanal?: boolean;
+}) {
+  /**
+   * `toAddress` no siempre es un teléfono. En una fila de EMAIL es una
+   * dirección de correo, y `formatUsPhone` sobre "juan@gmail.com" no devuelve
+   * un correo legible — devuelve el resultado de tratar sus dígitos como un
+   * número.
+   */
+  const destino = row.channel === 'EMAIL' ? row.toAddress : formatUsPhone(row.toAddress);
+
+  const marca = mostrarCanal
+    ? <Mail className="w-3 h-3 shrink-0 text-text-muted" aria-hidden />
+    : null;
+  const marcaSms = mostrarCanal
+    ? <MessageSquare className="w-3 h-3 shrink-0 text-text-muted" aria-hidden />
+    : null;
+  const icono = row.channel === 'EMAIL' ? marca : marcaSms;
 
   if (!row.patient) {
     return (
@@ -299,7 +334,10 @@ function Recipient({ row, unknownLabel }: { row: Row; unknownLabel: string }) {
           ?
         </div>
         <div className="min-w-0">
-          <div className="font-mono text-[12px] text-amber truncate">{phone}</div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {icono}
+            <span className="font-mono text-[12px] text-amber truncate">{destino}</span>
+          </div>
           <div className="text-[10px] text-text-muted">{unknownLabel}</div>
         </div>
       </div>
@@ -313,8 +351,11 @@ function Recipient({ row, unknownLabel }: { row: Row; unknownLabel: string }) {
         <div className="font-semibold text-text-1 text-[12.5px] truncate">
           {row.patient.firstName} {row.patient.lastName}
         </div>
-        <div className="font-mono text-[10px] text-text-muted truncate">
-          {[row.patient.patientCode, phone].filter(Boolean).join(' · ')}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {icono}
+          <span className="font-mono text-[10px] text-text-muted truncate">
+            {[row.patient.patientCode, destino].filter(Boolean).join(' · ')}
+          </span>
         </div>
       </div>
     </div>

@@ -4564,7 +4564,11 @@
       "paginationNav": "SMS history pagination",
       "pageInfo": "Page {page} of {total}",
       "prevPage": "Previous page",
-      "nextPage": "Next page"
+      "nextPage": "Next page",
+      "filterChannel": "Channel",
+      "channelSms": "SMS",
+      "channelEmail": "Email",
+      "channelAll": "All"
     },
     "calls": {
       "payModalTitle": "Case payment",
@@ -5481,6 +5485,18 @@
       "desactualizado": "Data as of {fecha}. Refreshed once a week, until live integration is in place.",
       "estadoActiva": "Current",
       "estadoVencida": "Expired"
+    },
+    "portalEnvio": {
+      "canalEmail": "the email",
+      "canalSms": "the SMS",
+      "tituloFallo": "The form was not sent.",
+      "enPrueba": "{canal} did not go out: email is in test mode and this address is not authorized.",
+      "dadoDeBaja": "{canal} did not go out: the patient replied STOP and opted out.",
+      "canalApagado": "{canal} did not go out: the channel is turned off.",
+      "destinoInvalido": "{canal} did not go out: the destination is not valid.",
+      "sinRed": "{canal} did not go out: there was no connection.",
+      "falloGenerico": "{canal} did not go out.",
+      "usaElQr": "The case was still created. Use the QR code or the link below so they can complete the form."
     }
   },
   "caseWizard": {

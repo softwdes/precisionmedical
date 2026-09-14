@@ -27,6 +27,19 @@ const NOT_DELIVERED = ['UNDELIVERED', 'FAILED'] as const;
 const QuerySchema = z.object({
   /** `mine` = los que mandé yo · `all` = todos (supervisión). */
   scope:  z.enum(['mine', 'all']).default('mine'),
+  /**
+   * Qué canal se mira.
+   *
+   * Estaba fijo en `'SMS'` adentro del `where`, y `message_logs` guarda las dos
+   * cosas: cada correo del portal escribe su fila igual que un SMS, con su
+   * estado y su motivo de falla. Simplemente no había forma de verlos —el
+   * historial los filtraba— así que un correo rechazado por el allowlist
+   * quedaba registrado en una tabla que nadie podía consultar desde la app.
+   *
+   * El default sigue siendo SMS para no cambiarle la pantalla a quien ya la
+   * usa; el filtro de canal es lo que abre el resto.
+   */
+  channel: z.enum(['SMS', 'EMAIL', 'ALL']).default('SMS'),
   /** `FAILED` agrupa UNDELIVERED + FAILED: al que mira le importa "no llegó". */
   status: z.enum(['DELIVERED', 'QUEUED', 'SENT', 'FAILED', 'NOT_DELIVERED']).optional(),
   from:   z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
@@ -75,8 +88,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : { status: query.status }
     : {};
 
+  // `ALL` = sin cláusula de canal. Los contadores de abajo usan el mismo
+  // filtro: si mostraran siempre los de SMS, las pastillas dirían un número y
+  // la tabla otro.
+  const channelWhere: Prisma.MessageLogWhereInput =
+    query.channel === 'ALL' ? {} : { channel: query.channel };
+
   const where: Prisma.MessageLogWhereInput = {
-    channel: 'SMS',
+    ...channelWhere,
     ...(query.scope === 'mine' && myUserId ? { sentByUserId: myUserId } : {}),
     ...statusWhere,
     ...(query.from || query.to ? { createdAt } : {}),
@@ -90,6 +109,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       take: query.size,
       select: {
         id: true, providerMessageId: true, status: true,
+        channel: true,
         toAddress: true, body: true,
         errorCode: true, errorMessage: true,
         sentByUserId: true, sentByName: true,
@@ -99,15 +119,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     }),
     db.messageLog.count({ where }),
-    db.messageLog.count({ where: { channel: 'SMS', ...(myUserId ? { sentByUserId: myUserId } : { id: '' }) } }),
-    db.messageLog.count({ where: { channel: 'SMS' } }),
-    db.messageLog.count({ where: { channel: 'SMS', status: { in: [...NOT_DELIVERED] } } }),
+    db.messageLog.count({ where: { ...channelWhere, ...(myUserId ? { sentByUserId: myUserId } : { id: '' }) } }),
+    db.messageLog.count({ where: channelWhere }),
+    db.messageLog.count({ where: { ...channelWhere, status: { in: [...NOT_DELIVERED] } } }),
   ]);
 
   // Mismo reconocimiento que el historial de llamadas: un SMS a un número que
   // no quedó vinculado igual pertenece a alguien.
+  //
+  // Solo para SMS: en una fila de EMAIL, `toAddress` es una dirección de
+  // correo, y pasarla por `phoneKey` da una clave sin sentido que puede
+  // engancharse con la de otro paciente. Preferible no reconocer a nadie que
+  // ponerle a un correo el nombre equivocado.
   const byPhoneKey = await findPatientsByPhoneKeys(
-    rows.filter(r => !r.patient).map(r => phoneKey(r.toAddress)),
+    rows.filter(r => !r.patient && r.channel === 'SMS').map(r => phoneKey(r.toAddress)),
   );
 
   // Nombre de quien lo mandó, si la fila no lo tiene denormalizado.
@@ -130,12 +155,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const messages = rows.map((r) => {
-    const matched  = r.patient ? null : byPhoneKey.get(phoneKey(r.toAddress)) ?? null;
+    const matched  = r.patient || r.channel !== 'SMS'
+      ? null
+      : byPhoneKey.get(phoneKey(r.toAddress)) ?? null;
     const resolved = r.patient ?? matched?.[0] ?? null;
     return {
       id: r.id,
       providerMessageId: r.providerMessageId,
       status: r.status,
+      channel: r.channel,
       toAddress: r.toAddress,
       body: r.body,
       errorCode: r.errorCode,

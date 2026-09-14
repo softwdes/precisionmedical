@@ -281,3 +281,91 @@ export async function marcarReferidoCreado(args: {
 
   return { ok: true };
 }
+
+/**
+ * El referido NO va: la clínica lo descarta y el bufete se entera por qué.
+ *
+ * Existía el estado `DISCARDED` en la base desde el primer día y **no había
+ * forma de llegar a él**: un referido que no servía quedaba PENDIENTE para
+ * siempre y el bufete lo veía eternamente como "sin respuesta" en su carpeta de
+ * Enviados. Eso es peor que un "no": es un silencio que parece desidia nuestra.
+ *
+ * Por eso descartar **escribe en el hilo**, no solo cambia un estado. El motivo
+ * viaja como una respuesta normal, así que le llega a la bandeja del bufete, le
+ * enciende el contador y le queda en el historial. Un descarte mudo no serviría
+ * de nada.
+ *
+ * Reusa `convertedBy*` / `convertedAt` a propósito: esas tres columnas son
+ * "quién lo resolvió y cuándo", y resolver es tanto crearlo como descartarlo.
+ * Agregar tres columnas gemelas obligaría a una migración para no decir nada
+ * nuevo — y acá las migraciones las corre Erick a mano.
+ *
+ * Idempotente como su hermana: cuatro personas reciben el mismo mensaje, y la
+ * segunda que aprieta tiene que ver quién se le adelantó, no pisar el registro.
+ */
+export async function descartarReferido(args: {
+  referralId: string;
+  actor: ActorConIdentidad;
+  /** Lo que la clínica le contesta al bufete. Ya viene con el motivo adentro. */
+  textoRespuesta: string;
+}): Promise<{ ok: true } | { ok: false; status: ReferidoStatus; convertedByName: string | null }> {
+  const ref = await db.firmReferral.findUnique({
+    where: { id: args.referralId },
+    select: { id: true, status: true, convertedByName: true, threadId: true, thread: { select: { recipients: { select: { userId: true } } } } },
+  });
+  if (!ref) return { ok: false, status: 'DISCARDED', convertedByName: null };
+  if (ref.status !== 'PENDING') return { ok: false, status: ref.status as ReferidoStatus, convertedByName: ref.convertedByName };
+
+  const now = new Date();
+  await db.$transaction([
+    db.firmReferral.update({
+      where: { id: ref.id },
+      data: {
+        status: 'DISCARDED',
+        convertedByUserId: args.actor.actorUserId,
+        convertedByName: args.actor.actorName,
+        convertedAt: now,
+      },
+    }),
+    db.messageEntry.create({
+      data: {
+        threadId: ref.threadId,
+        kind: 'REPLY',
+        authorUserId: args.actor.actorUserId,
+        authorName: args.actor.actorName,
+        body: args.textoRespuesta,
+        sentAt: now,
+      },
+    }),
+    db.messageRecipient.createMany({
+      data: [{ threadId: ref.threadId, userId: args.actor.actorUserId, userName: args.actor.actorName, kind: 'SENDER' as const, lastReadAt: now }],
+      skipDuplicates: true,
+    }),
+  ]);
+  await reviveThread(ref.threadId, now);
+  await db.messageRecipient.updateMany({
+    where: { threadId: ref.threadId, userId: args.actor.actorUserId },
+    data: { lastReadAt: now },
+  });
+
+  await writeAuditLog(db, {
+    ...args.actor,
+    action: 'FIRM_REFERRAL_DISCARDED',
+    entityType: 'FirmReferral',
+    entityId: ref.id,
+    metadata: { threadId: ref.threadId },
+  }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
+
+  // Mismo criterio que al convertir: se espera, porque pasa una vez por referido
+  // y `after()` ataría este lib al contexto de un request. Ver la nota de arriba.
+  await avisarAbogadosPorEmail({
+    threadId: ref.threadId,
+    userIds: ref.thread.recipients.map((r) => r.userId),
+    autorUserId: args.actor.actorUserId,
+    autorNombre: args.actor.actorName,
+    caseId: null,
+    patientId: null,
+  }).catch((e) => { console.error('[referidos] aviso al abogado:', e); });
+
+  return { ok: true };
+}

@@ -4515,7 +4515,16 @@
       "refChoiceFullDesc": "The full three-step intake: patient, case and a booked appointment.",
       "refChoiceQuickTitle": "Quick registration",
       "refChoiceQuickDesc": "The minimum for the patient and their case to exist. Book the appointment later.",
-      "refChoiceNote": "Either way the referring firm and attorney are saved, and the referral is marked as created."
+      "refChoiceNote": "Either way the referring firm and attorney are saved, and the referral is marked as created.",
+      "referralDiscard": "Discard",
+      "referralDiscardTitle": "Discard this referral",
+      "referralDiscardDesc": "Tell the firm why it will not be taken. What you write reaches them as a reply to this same message.",
+      "referralDiscardPlaceholder": "E.g. the client is already our patient with another open case.",
+      "referralDiscardOk": "Referral discarded and the firm was told",
+      "referralDiscardError": "Could not discard the referral",
+      "referralDiscardedBy": "Discarded by {name}",
+      "referralAlreadyResolved": "{name} already handled it",
+      "refDiscardedReply": "We will not take this referral."
     },
     "sms": {
       "title": "SMS history",

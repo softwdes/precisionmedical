@@ -25,7 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Reply, ReplyAll, Forward, StickyNote, FolderLock, Send, Lock, CalendarDays, Paperclip, Printer, Briefcase, Pencil, ArrowUpRight, Check, CheckCheck,
-  LayoutTemplate, CheckSquare, UserPlus, Scale, Archive, ArchiveRestore,
+  LayoutTemplate, CheckSquare, UserPlus, Scale, Archive, ArchiveRestore, XCircle,
 } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -187,6 +187,9 @@ export function ThreadViewDialog({
   };
   const [sealNote, setSealNote] = useState('');
   const [askSealNote, setAskSealNote] = useState(false);
+  /** Descartar el referido: el motivo es obligatorio, va al hilo como respuesta. */
+  const [descartando, setDescartando] = useState(false);
+  const [motivoDescarte, setMotivoDescarte] = useState('');
 
   const fmtDt = (iso: string) =>
     new Date(iso).toLocaleString(locale === 'es' ? 'es-MX' : 'en-US', {
@@ -319,6 +322,43 @@ export function ThreadViewDialog({
    */
   const miFila = thread?.recipients.find((r) => r.userId === currentUserId);
   const archivadoParaMi = !!(miFila?.archivedAt || miFila?.deletedAt);
+  /**
+   * Descartar el referido. El motivo viaja al hilo como respuesta, así que el
+   * bufete se entera de por qué — que es el punto de todo esto.
+   *
+   * El 409 no es un error del usuario: es que otra de las cuatro personas que
+   * recibieron el mensaje se adelantó. Se lo dice con nombre y se refresca, en
+   * vez de mostrar "algo salió mal".
+   */
+  const descartarReferidoAqui = async (): Promise<void> => {
+    const refId = thread?.referral?.id;
+    if (!refId || motivoDescarte.trim() === '') return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/referrals/${refId}/discard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo: motivoDescarte.trim() }),
+      });
+      if (res.status === 409) {
+        const j = (await res.json().catch(() => null)) as { by?: string | null } | null;
+        toast.error(t('referralAlreadyResolved', { name: j?.by ?? '—' }));
+        setDescartando(false);
+        onChanged?.();
+        return;
+      }
+      if (!res.ok) throw new Error();
+      toast.success(t('referralDiscardOk'));
+      setDescartando(false);
+      onChanged?.();
+      onClose();
+    } catch {
+      toast.error(t('referralDiscardError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const doArchive = async (archived: boolean): Promise<void> => {
     if (!thread) return;
     setBusy(true);
@@ -466,6 +506,14 @@ export function ThreadViewDialog({
               thread.referral.status === 'PENDING' ? (
                 <div className="flex items-center gap-3 flex-wrap rounded-md border border-violet/30 bg-violet/10 px-3 py-2">
                   <span className="text-[11px] text-violet flex-1 min-w-[200px]">{t('referralPendingHint')}</span>
+                  {/* Descartar está al lado de crear y NO escondido: un referido
+                      que no va tiene que poder cerrarse, si no queda pendiente
+                      para siempre y el bufete lo ve como "sin respuesta". Pesa
+                      menos que crear porque el camino normal es crear. */}
+                  <Button size="sm" variant="secondary" onClick={() => { setMotivoDescarte(''); setDescartando(true); }}>
+                    <XCircle />
+                    {t('referralDiscard')}
+                  </Button>
                   <Button size="sm" onClick={() => router.push(`/patients?referral=${thread.referral!.id}`)}>
                     <UserPlus />
                     {t('referralCreateCase')}
@@ -476,7 +524,14 @@ export function ThreadViewDialog({
                   <Check className="w-3.5 h-3.5 shrink-0" />
                   {t('referralCreatedBy', { name: thread.referral.convertedByName ?? '—' })}
                 </div>
-              ) : null
+              ) : (
+                /* Descartado: se dice quién y se deja ahí. El motivo ya está en
+                   el hilo como una respuesta, que es donde se lee mejor. */
+                <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">
+                  <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  {t('referralDiscardedBy', { name: thread.referral.convertedByName ?? '—' })}
+                </div>
+              )
             )}
             {thread && (
               <div className="text-[11px] text-text-muted space-y-0.5">
@@ -811,6 +866,37 @@ export function ThreadViewDialog({
       </Dialog>
 
       {/* Sellar: ¿con nota final? */}
+      {/* ─── Descartar el referido ───────────────────────────────────────────
+          El motivo es OBLIGATORIO: sin él, descartar le deja al bufete el mismo
+          silencio de antes, solo que con un sello encima. Lo que se escriba acá
+          le llega como respuesta al hilo. */}
+      <Dialog open={descartando} onOpenChange={(v) => { if (!v) setDescartando(false); }}>
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-text-1 text-base font-semibold">
+              <XCircle className="w-4 h-4 text-text-muted" />
+              {t('referralDiscardTitle')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-6 space-y-2">
+            <p className="text-text-muted text-sm leading-relaxed">{t('referralDiscardDesc')}</p>
+            <textarea
+              value={motivoDescarte} onChange={(e) => setMotivoDescarte(e.target.value)}
+              placeholder={t('referralDiscardPlaceholder')} rows={3} maxLength={1000}
+              className="w-full rounded-md border border-border bg-bg-2/40 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand resize-none" />
+          </div>
+          <DialogFooter className="px-6 py-5 flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDescartando(false)} disabled={busy} className="w-full sm:w-auto">
+              {t('btnCancel')}
+            </Button>
+            <Button variant="secondary" disabled={busy || motivoDescarte.trim() === ''}
+              onClick={() => { void descartarReferidoAqui(); }} className="w-full sm:w-auto">
+              {t('referralDiscard')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={askSealNote} onOpenChange={(v) => { if (!v) setAskSealNote(false); }}>
         <DialogContent className="max-w-md p-0">
           <DialogHeader className="px-6 pt-6 pb-2">

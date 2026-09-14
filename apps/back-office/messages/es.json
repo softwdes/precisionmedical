@@ -4515,7 +4515,16 @@
       "refChoiceFullDesc": "El alta completa de tres pasos: paciente, caso y turno agendado.",
       "refChoiceQuickTitle": "Registro rápido",
       "refChoiceQuickDesc": "Lo mínimo para que el paciente y su caso existan. La cita se agenda después.",
-      "refChoiceNote": "Por cualquiera de los dos caminos se guarda el bufete y el abogado que refirieron, y el referido queda marcado como creado."
+      "refChoiceNote": "Por cualquiera de los dos caminos se guarda el bufete y el abogado que refirieron, y el referido queda marcado como creado.",
+      "referralDiscard": "Descartar",
+      "referralDiscardTitle": "Descartar este referido",
+      "referralDiscardDesc": "Decile al bufete por qué no se va a tomar. Lo que escribas le llega como respuesta a este mismo mensaje.",
+      "referralDiscardPlaceholder": "Ej: el cliente ya es paciente nuestro con otro caso abierto.",
+      "referralDiscardOk": "Referido descartado y respondido al bufete",
+      "referralDiscardError": "No se pudo descartar el referido",
+      "referralDiscardedBy": "Descartado por {name}",
+      "referralAlreadyResolved": "{name} ya lo resolvió",
+      "refDiscardedReply": "No vamos a tomar este referido."
     },
     "sms": {
       "title": "Historial de SMS",

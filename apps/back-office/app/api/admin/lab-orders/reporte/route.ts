@@ -24,7 +24,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
-import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionProvider, getSessionRole, PORTAL_ONLY_ROLES } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { clasificarOrden, esOtroSeguro, type EstadoOrden } from '@/lib/reporte-labs';
 
@@ -65,7 +65,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser();
   if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-  const scope = req.nextUrl.searchParams.get('scope') === 'mine' ? 'mine' : 'clinic';
+  /*
+   * ── EL ALCANCE LO DECIDE EL ROL, NO EL PARÁMETRO ──────────────────────────
+   *
+   * Esta ruta devuelve nombre, código de paciente, caso y seguro de TODA la
+   * clínica cuando el alcance es `clinic`. Y llega hasta acá un provider: las
+   * rutas `lab-*` están deliberadamente FUERA de las que el middleware cierra,
+   * porque las usa el portal médico (ver el comentario del middleware). O sea
+   * que sin este chequeo, un provider pedía `?scope=clinic` —o no mandaba nada—
+   * y recibía los pacientes de todos los demás.
+   *
+   * Dos candados, y el segundo es el que cierra:
+   *  1. El default es `mine`. Una llamada sin parámetro falla hacia lo ANGOSTO.
+   *  2. Un rol de portal (DOCTOR / PROVIDER) NUNCA obtiene `clinic`, pida lo que
+   *     pida. La pantalla que manda `clinic` es Day Admission, que es del staff.
+   *
+   * Lo encontró pm-1a al revisar el commit, y tenía razón en que estaba abierto.
+   */
+  const pedido = req.nextUrl.searchParams.get('scope') === 'clinic' ? 'clinic' : 'mine';
+  const rol = await getSessionRole();
+  const esDePortal = !!rol && PORTAL_ONLY_ROLES.has(rol);
+  const scope: 'mine' | 'clinic' = esDePortal ? 'mine' : pedido;
 
   /*
    * `mine` = las del provider de la sesión, igual que la cola de notas sin

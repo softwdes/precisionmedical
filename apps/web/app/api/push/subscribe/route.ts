@@ -2,6 +2,26 @@
  * POST   /api/push/subscribe → guarda la suscripción de ESTE navegador.
  * DELETE /api/push/subscribe → la borra (el usuario apagó los avisos).
  *
+ * ── Por qué NO se usa Prisma acá, aunque el modelo viva en Prisma ──────────
+ *
+ * Porque el `DATABASE_URL` de este proyecto apunta a la base del **Admin**, y
+ * lo que esta ruta necesita está en la de la **clínica**. Con Prisma, en
+ * producción, esto moría con:
+ *
+ *     PrismaClientInitializationError
+ *     Can't reach database server at db.ztyahz….supabase.co:5432
+ *
+ * Dos cosas mal en una sola línea: el proyecto equivocado, y el puerto directo
+ * —que además está muerto desde afuera; acá se entra por el pooler—. Medido en
+ * los logs de Vercel el 2026-09-13, después de un rato largo buscándolo en el
+ * lugar equivocado (creí que faltaba el binario del motor; no era).
+ *
+ * Cambiar `DATABASE_URL` no era la salida: no se sabe qué más del Admin lo usa.
+ * Así que se entra por el puente que este app YA tiene y que YA está en
+ * producción — el mismo `clienteClinica()` con el que CIFO muestra las visitas
+ * del día en el panel. Una credencial menos que adivinar y un motor nativo
+ * menos que empaquetar.
+ *
  * ── El puente que hace falta acá y NO en back-office ────────────────────────
  *
  * Esta app autentica contra el proyecto **Admin**, pero `push_subscriptions`
@@ -23,7 +43,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@precision-medical/auth/server';
-import { db } from '@precision-medical/database';
+import { clienteClinica } from '@/lib/cifo/phoenix';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -89,12 +109,18 @@ function revisarEndpoint(url: string): { ok: true; conocido: boolean } | { ok: f
  * sesión. Esa diferencia ya dejó gente sin provisionar antes.
  */
 async function idEnPhoenix(email: string): Promise<string | null> {
-  const filas = await db.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "users"
-     WHERE "email" ILIKE ${email} AND "deletedAt" IS NULL
-     LIMIT 1
-  `;
-  return filas[0]?.id ?? null;
+  const { data, error } = await clienteClinica()
+    .from('users')
+    .select('id')
+    .ilike('email', email)
+    .is('deletedAt', null)
+    .limit(1);
+
+  if (error) {
+    console.error('[push] no se pudo buscar la cuenta en la clinica:', error.message);
+    return null;
+  }
+  return (data?.[0] as { id: string } | undefined)?.id ?? null;
 }
 
 /** Email de la sesión de Admin, o null si no hay sesión. */
@@ -145,31 +171,38 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const userAgent = req.headers.get('user-agent')?.slice(0, 300) ?? null;
 
   /**
-   * SQL crudo por el mismo motivo que en back-office: `db.pushSubscription` no
-   * existe hasta correr `prisma generate`, y regenerar el cliente en Windows
-   * con dev servers levantados falla por el dll bloqueado.
-   *
-   * El `id` va explícito porque `@default(cuid())` NO existe en la base — el
-   * schema se aplicó con `db push` y todo insert que lo omita muere en
-   * silencio. Trampa ya documentada del proyecto.
-   *
    * El `userId` se reasigna en el conflicto a propósito: en un aparato
    * compartido, el último que aceptó es el que debe recibir.
+   *
+   * `createdAt` se reescribe al reaceptar. Es la única diferencia con el SQL
+   * que había antes y no cambia nada: ese campo no lo lee nadie. A cambio, el
+   * alta es una sola llamada en vez de "buscar y después decidir".
    */
-  await db.$executeRaw`
-    INSERT INTO "push_subscriptions"
-           ("id", "userId", "origin", "endpoint", "p256dh", "auth", "userAgent", "createdAt", "updatedAt")
-    VALUES (${crypto.randomUUID()}, ${userId}, ${origin}, ${endpoint},
-            ${p256dh}, ${auth}, ${userAgent}, NOW(), NOW())
-    ON CONFLICT ("endpoint") DO UPDATE
-       SET "userId"       = EXCLUDED."userId",
-           "origin"       = EXCLUDED."origin",
-           "p256dh"       = EXCLUDED."p256dh",
-           "auth"         = EXCLUDED."auth",
-           "userAgent"    = EXCLUDED."userAgent",
-           "failureCount" = 0,
-           "updatedAt"    = NOW()
-  `;
+  const { error } = await clienteClinica()
+    .from('push_subscriptions')
+    .upsert(
+      {
+        // El `id` va explícito porque `@default(cuid())` NO existe en la base:
+        // el schema se aplicó con `db push` y todo insert que lo omita muere.
+        // Trampa ya documentada del proyecto.
+        id: crypto.randomUUID(),
+        userId,
+        origin,
+        endpoint,
+        p256dh,
+        auth,
+        userAgent,
+        failureCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { onConflict: 'endpoint' },
+    );
+
+  if (error) {
+    console.error('[push] no se pudo guardar la suscripcion:', error.message);
+    return NextResponse.json({ error: 'No se pudo guardar' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
@@ -186,10 +219,11 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   if (!endpoint) return NextResponse.json({ error: 'Falta el endpoint' }, { status: 400 });
 
   // Acotado al dueño: nadie apaga los avisos de otro mandando su endpoint.
-  await db.$executeRaw`
-    DELETE FROM "push_subscriptions"
-     WHERE "endpoint" = ${endpoint} AND "userId" = ${userId}
-  `;
+  await clienteClinica()
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint)
+    .eq('userId', userId);
 
   return NextResponse.json({ ok: true });
 }

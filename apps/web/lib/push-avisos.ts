@@ -209,10 +209,46 @@ export function usePushAvisos(): AvisosControl {
         }
       }
 
-      const sub = await reg.pushManager.subscribe({
+      const crear = (): Promise<PushSubscription> => reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: claveABytes(clavePublica),
       });
+
+      /**
+       * Si ya hay una suscripción atada a OTRA clave pública, se rehace sola.
+       *
+       * El navegador se niega a crear una segunda suscripción con una
+       * `applicationServerKey` distinta de la que usó la primera: tira
+       * `InvalidStateError` y ahí muere. Y pasa de verdad — el 2026-09-13 medí
+       * las dos claves en producción y **no coincidían**: el Admin firmaba con
+       * una y la clínica con otra. El día que se empareja una de las dos, todo
+       * el que ya había aceptado queda atado a la clave vieja.
+       *
+       * Sin esto la persona queda en un callejón: le sale "no se pudieron
+       * cambiar los avisos" cada vez, y la única salida sería borrar los datos
+       * del sitio — que nadie hace ni tiene por qué saber.
+       *
+       * Así que ante CUALQUIER fallo del alta se mira si hay una vieja, se la
+       * da de baja (avisándole al servidor primero, para no dejar una fila
+       * apuntando a un endpoint muerto) y se intenta una sola vez más. Si vuelve
+       * a fallar, se propaga: dos intentos ya no son un problema de estado.
+       */
+      let sub: PushSubscription;
+      try {
+        sub = await crear();
+      } catch (e) {
+        const vieja = await reg.pushManager.getSubscription();
+        if (!vieja) throw e;
+
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: vieja.endpoint }),
+        }).catch(() => undefined);
+        await vieja.unsubscribe().catch(() => undefined);
+
+        sub = await crear();
+      }
 
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',

@@ -17,7 +17,7 @@
  * propia bandeja.
  */
 
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, after, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
@@ -26,6 +26,7 @@ import { lawyerCaseFilter, canSeeVigia } from '@/lib/attorney-portal';
 import { resolveActor } from '@/lib/actor';
 import { ESCRITORIOS_DE_PEDIDO, esTemaDe } from '@/lib/mensajeria/escritorios';
 import { destinatariosDeEscritorio } from '@/lib/mensajeria/escritorios-server';
+import { avisarMensajeNuevo } from '@/lib/push';
 
 const Schema = z.object({
   caso: z.string().min(1).max(60),
@@ -148,6 +149,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       destinatarios: destinatarios.map((d) => d.name),
     },
   }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
+
+  /**
+   * Y el escritorio se entera en el teléfono.
+   *
+   * Hasta el 2026-09-14 un pedido del bufete NO disparaba NINGÚN aviso: entraba
+   * a la bandeja y ahí se quedaba hasta que alguien abriera Mensajes. Era el
+   * mensaje MÁS callado del sistema y el único con alguien de afuera esperando
+   * respuesta — los mensajes entre nosotros sí avisaban desde el primer día.
+   *
+   * `after()` y no `void`: en serverless la promesa sin esperar se corta al
+   * devolver la respuesta. Ver la nota larga en `messages/[threadId]/entries`.
+   */
+  after(async () => {
+    await avisarMensajeNuevo(
+      destinatarios.map((d) => d.id),
+      firma,
+      thread.id,
+      input.priority === 'URGENT',
+    ).catch((e) => { console.error('[vigia/request] aviso al celular:', e); });
+  });
 
   return NextResponse.json({ ok: true, threadId: thread.id, escritorioEfectivo, respaldo });
 }

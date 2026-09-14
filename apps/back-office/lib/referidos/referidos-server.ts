@@ -18,6 +18,7 @@ import type { SessionLawyer } from '@/lib/get-session-lawyer';
 import { reviveThread } from '@/lib/messaging';
 import { destinatariosDeEscritorio } from '@/lib/mensajeria/escritorios-server';
 import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
+import { avisarMensajeNuevo } from '@/lib/push';
 import { quienUsaEsteContacto } from '@/lib/contactos-compartidos';
 import { lugarDelAccidente, type ReferidoPayload, type ReferidoStatus } from './referido';
 
@@ -181,6 +182,21 @@ export async function crearReferido(args: {
       destinatarios: destinatarios.map((d) => d.name),
     },
   }).catch((e) => { console.error('[audit] no se pudo registrar:', e); });
+
+  /**
+   * El escritorio de referidos se entera en el teléfono. Un referido es un
+   * paciente nuevo esperando del otro lado: que quede sin ver hasta que alguien
+   * abra Mensajes es justo lo que no puede pasar.
+   *
+   * `await` y no `after()`, igual que el correo de más abajo: esto es un lib y
+   * `after()` lo ataría al contexto de un request. Pasa una vez por referido.
+   */
+  await avisarMensajeNuevo(
+    destinatarios.map((d) => d.id),
+    firmName,
+    thread.id,
+    payload.urgente,
+  ).catch((e) => { console.error('[referidos] aviso al celular:', e); });
 
   return { ok: true, referralId: thread.referral!.id, threadId: thread.id, duplicados, respaldo };
 }

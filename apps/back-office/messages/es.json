@@ -4203,7 +4203,8 @@
       "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
       "photoDeleteConfirm": "¿Eliminar esta foto? Va a la papelera: podés recuperarla desde el mismo recuadro.",
       "photoRestore": "Recuperar",
-      "photoRestoreError": "No se pudo recuperar."
+      "photoRestoreError": "No se pudo recuperar.",
+      "photoNoCargo": "Hay una foto guardada, pero no se pudo cargar"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

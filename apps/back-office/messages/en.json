@@ -4203,7 +4203,8 @@
       "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
       "photoDeleteConfirm": "Delete this photo? It goes to the trash: you can restore it from the same slot.",
       "photoRestore": "Restore",
-      "photoRestoreError": "Couldn't restore it."
+      "photoRestoreError": "Couldn't restore it.",
+      "photoNoCargo": "A photo is on file, but it could not be loaded"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

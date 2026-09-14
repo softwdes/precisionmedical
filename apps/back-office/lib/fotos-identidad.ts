@@ -74,8 +74,18 @@ export async function fotosDelPaciente(patientId: string): Promise<Record<string
   const fotos: Record<string, string> = {};
   await Promise.all(
     [...porRecuadro].map(async ([slot, key]) => {
-      const { data } = await supabase.storage.from(BUCKET).createSignedUrl(key, MINUTOS * 60);
-      if (data?.signedUrl) fotos[slot] = data.signedUrl;
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, MINUTOS * 60);
+      if (data?.signedUrl) { fotos[slot] = data.signedUrl; return; }
+      /**
+       * Si Storage no da el link, el aviso de "faltan documentos" vuelve a
+       * aparecer sobre un paciente que SÍ tiene las cuatro fotos — que es el
+       * bug que este archivo vino a arreglar, disfrazado de otra cosa. Sin
+       * esta línea no hay forma de distinguirlo desde afuera: la pantalla se
+       * ve igual que la de un paciente sin fotos.
+       */
+      console.error('[fotos-identidad] no se pudo firmar la foto', {
+        patientId, slot, s3Key: key, error: error?.message ?? null,
+      });
     }),
   );
   return fotos;

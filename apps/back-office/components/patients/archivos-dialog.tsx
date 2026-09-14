@@ -261,8 +261,12 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
    * salen de la misma respuesta que esta lista: dos componentes pidiendo el
    * mismo endpoint al abrir es una llamada de más y, peor, dos verdades que se
    * pueden desincronizar.
+   *
+   * `sinLink` son los recuadros que TIENEN archivo y se quedaron sin URL. Sin
+   * ese dato el recuadro vacío miente: dice "falta la foto" cuando la foto
+   * está guardada y lo que falló fue pedirle el link a Storage.
    */
-  onFotosPaciente?: (fotos: Record<string, string>) => void;
+  onFotosPaciente?: (r: { fotos: Record<string, string>; sinLink: string[] }) => void;
 }) {
   const t = useTranslations('phoenix.patients');
   const tc = useTranslations('phoenix.common');
@@ -290,7 +294,14 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
         if (!vivo) return;
         setCasos(data.casos ?? []);
         setDocs(data.documentos ?? []);
-        onFotosPaciente?.(data.fotosPaciente ?? {});
+        onFotosPaciente?.({
+          fotos: data.fotosPaciente ?? {},
+          sinLink: data.fotosSinLink ?? [],
+        });
+        // El motivo exacto solo tiene sentido para quien mira la consola; en
+        // pantalla alcanza con "no se pudo cargar". Va igual porque sin esto la
+        // única forma de diagnosticarlo es entrar al servidor.
+        if (data.fotosError) console.error('[archivos] Storage no dio la URL de las fotos:', data.fotosError);
       } catch (e) {
         if (vivo) setError(e instanceof Error ? e.message : 'Error');
       } finally {
@@ -460,6 +471,15 @@ export function ArchivosDialog({
    */
   const [fotosPaciente, setFotosPaciente] = useState<Record<string, string>>({});
 
+  /**
+   * Recuadros que tienen archivo guardado y quedaron sin URL.
+   *
+   * Es la diferencia entre "no hay foto" y "hay foto y no la pude traer", que
+   * para el que mira la pantalla es todo: en el primer caso saca una foto, en
+   * el segundo avisa que algo está roto. Antes las dos cosas se veían igual.
+   */
+  const [fotosSinLink, setFotosSinLink] = useState<string[]>([]);
+
   /** Recuadros cuya imagen no cargó — ver el comentario en el render. */
   const [fallidas, setFallidas] = useState<Record<string, boolean>>({});
 
@@ -623,6 +643,13 @@ export function ArchivosDialog({
               // le dice nada a nadie y encima parece un error de la pantalla.
               const url       = fallidas[key] ? null : candidata;
               const esDelV2   = !delCaso && !!fotosPaciente[key];
+              /**
+               * El recuadro está vacío pero la foto EXISTE: o el servidor no
+               * consiguió el link, o el navegador no pudo bajar la imagen. Sin
+               * este aviso el recuadro dice "sacá una foto" encima de una foto
+               * que ya está guardada, y el que mira sube una duplicada.
+               */
+              const noCargo   = !url && (fotosSinLink.includes(key) || !!fallidas[key]);
               const isLoading = uploading[key] ?? false;
               const isDel     = deleting[key] ?? false;
               const err       = errors[key] ?? '';
@@ -694,6 +721,10 @@ export function ArchivosDialog({
 
                   {err && <p className="px-3 text-[10px] text-rose mb-1">{err}</p>}
 
+                  {noCargo && !err && (
+                    <p className="px-3 text-[10px] text-amber mb-1">{t('photoNoCargo')}</p>
+                  )}
+
                   {/* La foto está en la PAPELERA: el recuadro se ve vacío pero
                       el archivo sigue ahí. Se ofrece traerla de vuelta justo
                       donde se la borró, que es donde el que se equivocó está
@@ -732,7 +763,10 @@ export function ArchivosDialog({
             })}
           </div>
 
-          <ArchivosDelPaciente patientId={patientId} onFotosPaciente={setFotosPaciente} />
+          <ArchivosDelPaciente
+            patientId={patientId}
+            onFotosPaciente={({ fotos, sinLink }) => { setFotosPaciente(fotos); setFotosSinLink(sinLink); }}
+          />
         </div>
 
         <div className="px-6 py-3 border-t border-border flex justify-end">

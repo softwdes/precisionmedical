@@ -169,13 +169,37 @@ export async function GET(
   }
 
   const fotosPaciente: Record<string, string> = {};
+
+  /**
+   * Recuadros que TIENEN archivo y se quedaron sin link.
+   *
+   * Antes esto se tragaba el error —`const { data } = …; if (data?.signedUrl)`—
+   * y el resultado era el peor de los dos mundos: la pantalla decía "falta la
+   * foto" cuando la foto estaba guardada, y no quedaba ni una línea en el log
+   * que dijera por qué. El 13-sep se fue medio día en descartar la base, el
+   * bucket y el código —los tres estaban bien— porque la única pieza que
+   * fallaba era justo la que no dejaba rastro.
+   *
+   * Ahora el fallo viaja: al log del servidor y a la respuesta, para que la
+   * pantalla pueda decir "no se pudo cargar" en vez de "no hay".
+   */
+  const fotosSinLink: string[] = [];
+  let fotosError: string | null = null;
+
   await Promise.all([...porRecuadro].map(async ([slot, key]) => {
-    const { data } = await supabase.storage.from(BUCKET_DOCS).createSignedUrl(key, 900);
-    if (data?.signedUrl) fotosPaciente[slot] = data.signedUrl;
+    const { data, error } = await supabase.storage.from(BUCKET_DOCS).createSignedUrl(key, 900);
+    if (data?.signedUrl) { fotosPaciente[slot] = data.signedUrl; return; }
+    fotosSinLink.push(slot);
+    fotosError ??= error?.message ?? 'Storage no devolvió URL';
+    console.error('[patient-documents] no se pudo firmar la foto de identidad', {
+      patientId, slot, s3Key: key, error: error?.message ?? null,
+    });
   }));
 
   return NextResponse.json({
     fotosPaciente,
+    fotosSinLink,
+    fotosError,
     casos: casos.map((c) => ({
       id: c.id,
       caseCode: c.caseCode,

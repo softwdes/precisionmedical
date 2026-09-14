@@ -58,7 +58,16 @@ const BodySchema = z.object({
   }).optional(),
 });
 
-export interface SeguroHoja {
+/**
+ * Sin `export`: lo usa solo este archivo.
+ *
+ * Un `route.ts` que exporta algo que no sea un handler o la config de ruta es
+ * la forma que le rompió el build de producción a otra sesión hoy sin que `tsc`
+ * dijera nada. Una interfaz se borra al compilar y no llega a romper, pero no
+ * hay motivo para dejar esa forma acá: el componente que la necesita declara la
+ * suya propia.
+ */
+interface SeguroHoja {
   nombre: string;
   poliza: string;
   direccion: string;

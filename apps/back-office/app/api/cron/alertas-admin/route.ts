@@ -80,8 +80,21 @@ function plural(n: number, singular: string, plural_: string): string {
   return `${n} ${n === 1 ? singular : plural_}`;
 }
 
-/** El titular: el volumen del día, que es lo que le importa a todo el mundo. */
-export function tituloDelParte(p: ParteAdmin): string {
+/**
+ * El titular: el volumen del día, que es lo que le importa a todo el mundo.
+ *
+ * ⚠️ Sin `export`, igual que `cuerpoDelParte` de abajo. Un `route.ts` solo
+ * puede exportar los handlers (`GET`, `POST`, …) y la config (`runtime`,
+ * `dynamic`, …): cualquier otro VALOR exportado hace fallar el build entero con
+ * `"tituloDelParte" is not a valid Route export field`. Los `export type` /
+ * `export interface` sí se pueden, porque desaparecen al compilar.
+ *
+ * `tsc --noEmit` no lo ve —es una regla de Next, no de TypeScript—, así que el
+ * árbol se ve limpio y el que se entera es Vercel. Rompió los deploys del
+ * 13-sep durante horas. Si alguna pantalla llega a necesitar estas dos, van a
+ * `lib/parte-admin.ts`, que es de donde sale `ParteAdmin`.
+ */
+function tituloDelParte(p: ParteAdmin): string {
   const cuando = p.citas.esHoy ? 'Hoy' : 'El lunes';
   if (p.citas.total === 0) return `${cuando} no hay citas`;
   return `${cuando}: ${plural(p.citas.total, 'cita', 'citas')}`;
@@ -94,7 +107,7 @@ export function tituloDelParte(p: ParteAdmin): string {
  * día y qué hay que mirar— y Android muestra la segunda al desplegar. En una
  * sola, el corte de la pantalla se come justo lo de atrás, que es lo accionable.
  */
-export function cuerpoDelParte(p: ParteAdmin): string {
+function cuerpoDelParte(p: ParteAdmin): string {
   const lineas: string[] = [];
 
   if (p.citas.porClinica.length > 0) {

@@ -18,7 +18,7 @@
  * sobre y el menú lateral se enteren entre sí.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/components/ui-phoenix/toast';
 
@@ -82,10 +82,26 @@ export interface AvisosControl {
   reactivar: () => Promise<void>;
 }
 
+/**
+ * Cuánto se espera al Service Worker antes de dar una primera respuesta.
+ *
+ * No es un "si no llegó, no hay": es cuánto se tolera sin decir nada. Cuando
+ * llega tarde, el estado se corrige — ver la nota en `leerEstado`.
+ */
+const ESPERA_MS = 3000;
+
 export function usePushAvisos(): AvisosControl {
   const t = useTranslations('phoenix.topbar');
   const toast = useToast();
   const [estado, setEstado] = useState<EstadoAvisos>('cargando');
+  /** El componente sigue montado: la corrección tardía no escribe en un fantasma. */
+  const vivo = useRef(true);
+  // Se repone en el montaje, no solo se apaga en el desmontaje: con StrictMode
+  // el efecto corre dos veces y sin esto quedaba apagado para siempre.
+  useEffect(() => {
+    vivo.current = true;
+    return () => { vivo.current = false; };
+  }, []);
   const [trabajando, setTrabajando] = useState(false);
 
   const clavePublica = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -120,12 +136,35 @@ export function usePushAvisos(): AvisosControl {
        */
       const reg = await Promise.race([
         navigator.serviceWorker.ready,
-        new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+        new Promise<null>((r) => setTimeout(() => r(null), ESPERA_MS)),
       ]);
+
       if (!reg) {
+        /**
+         * Vencido el plazo NO se abandona: se sigue escuchando.
+         *
+         * Acá antes se declaraba 'no-soportado' y se cortaba, y eso escondía el
+         * control **durante toda la sesión** en el caso que más importa: la
+         * primera visita, cuando el Service Worker todavía se está instalando.
+         * Medido en producción el 2026-09-13, `ready` tardó **5,7 segundos** en
+         * un escritorio con buena conexión — casi el doble del plazo.
+         *
+         * El que recién instala la app es justo el que no va a ver el botón, y
+         * el síntoma es mudo: no hay error, el icono simplemente no está.
+         *
+         * Así que el plazo sigue existiendo para no dejar la barra en blanco
+         * mientras se decide, pero cuando el SW por fin queda activo el estado
+         * se corrige solo.
+         */
         setEstado('no-soportado');
+        void navigator.serviceWorker.ready.then(async (tardio) => {
+          if (!vivo.current) return;
+          const sub = await tardio.pushManager.getSubscription().catch(() => null);
+          setEstado(sub ? 'encendido' : 'apagado');
+        });
         return;
       }
+
       const sub = await reg.pushManager.getSubscription();
       setEstado(sub ? 'encendido' : 'apagado');
     } catch {

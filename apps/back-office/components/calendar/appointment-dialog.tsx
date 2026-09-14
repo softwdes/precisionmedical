@@ -93,6 +93,15 @@ interface FreeModeProps {
 export interface EditAppointmentData {
   id: string;
   scheduledFor: string;
+  /**
+   * Estado de la cita — decide si la fecha/hora se puede tocar.
+   *
+   * OBLIGATORIO a propósito, no opcional: de esto depende que no se le cambie el
+   * día a una visita que ya ocurrió o a un no-show que tiene penalidad. Si fuera
+   * opcional, una pantalla que se olvidara de pasarlo dejaría editar todo sin
+   * que nada avise; así el typecheck la obliga a decidir. Solo hay dos callers.
+   */
+  status: string;
   durationMinutes: number;
   type: string;
   notes: string | null;
@@ -166,13 +175,40 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
 
-  // Editar (no reagendar) una cita cuya fecha ya pasó: el selector de
-  // horarios solo genera candidatos hacia adelante desde "ahora", así que
-  // mostraría la semana entera vacía y el horario original nunca aparecería
-  // marcado — no es un bug, pero confunde. En ese caso se muestra el
-  // horario original fijo (solo lectura); para cambiar la hora hay que usar
-  // "Reagendar", no "Editar".
-  const isPastAppointment = isEditMode && !isReschedule && !!editAppointment
+  /**
+   * Estados en los que la cita YA TIENE UN DESENLACE y su fecha no se toca más.
+   *
+   * Los tres primeros son "el paciente llegó": mover la fecha contradiría un
+   * hecho registrado. `NO_SHOW` y `CANCELLED` no ocurrieron, pero tienen
+   * consecuencia de plata —consumieron el horario y admiten penalidad, ver la
+   * regla de estados— y moverlos le cambiaría el día al cobro.
+   *
+   * Todo lo demás (SCHEDULED, CONFIRMED, PENDING) se edita normal.
+   */
+  const CON_DESENLACE = ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
+
+  /**
+   * Antes esto se decidía con el RELOJ: `scheduledFor < now` bloqueaba la fecha.
+   * El resultado era que una cita de hoy a las 9:00 quedaba de solo lectura a las
+   * 9:01 aunque nadie la hubiera atendido — justo el caso más común del
+   * mostrador ("el de las 9 no vino, muévelo a las 2"). Pamela se topó con eso el
+   * 14-sep y no pudo hacer nada: el aviso la mandaba a un botón "Reagendar" que
+   * no existe en ninguna pantalla.
+   *
+   * Ahora manda el ESTADO (decisión de Erick, 14-sep-2026): si no hizo check-in
+   * ni tiene desenlace, se reprograma como cualquier otra, haya pasado o no.
+   */
+  const citaConDesenlace = isEditMode && !isReschedule && !!editAppointment
+    && CON_DESENLACE.includes(editAppointment.status);
+
+  /**
+   * Pasó de hora pero sigue editable. Importa para el selector: si se le pasa la
+   * fecha vieja como semana inicial abre una semana sin un solo hueco (los
+   * candidatos se generan desde "ahora"), y se lee como que el doctor no atiende.
+   * Sin fecha inicial abre en la semana actual, que es lo que se quiere elegir.
+   */
+  const citaVencidaSinAtender = isEditMode && !isReschedule && !!editAppointment
+    && !citaConDesenlace
     && new Date(editAppointment.scheduledFor).getTime() < Date.now();
 
   const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
@@ -343,8 +379,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setCaseId(editAppointment.caseId);
       setClinicId(editAppointment.clinicId);
       setProviderId(editAppointment.providerId ?? '');
-      // En reagendar, no pre-seleccionar el slot actual — el usuario debe elegir una nueva hora
-      setSlotIso(isReschedule ? null : editAppointment.scheduledFor);
+      /* Ni en reagendar ni en una cita ya vencida se pre-selecciona el horario
+         actual: en las dos hay que elegir uno nuevo, y dejar marcado en verde un
+         horario que ya pasó —mientras el selector muestra la semana de hoy sin
+         nada marcado— se lee como que el formulario está en dos estados a la vez. */
+      /* En una cita CON desenlace el horario se conserva igual: ahí el selector
+         ni se monta, el guardado sigue necesitando el valor (se editan las notas
+         o el tipo, no la fecha) y vaciarlo rompería el submit sin decir por qué. */
+      const horarioYaNoSirve = isReschedule
+        || (!citaConDesenlace && new Date(editAppointment.scheduledFor).getTime() < Date.now());
+      setSlotIso(horarioYaNoSirve ? null : editAppointment.scheduledFor);
       setDuration(editAppointment.durationMinutes);
       setType(editAppointment.type as AppointmentType);
       setNotes(editAppointment.notes ?? '');
@@ -553,13 +597,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       skipDurationReset.current = false;
       return;
     }
-    // Cita pasada: WeeklySlotPicker ni se monta (ver render), así que
+    // Cita con desenlace: WeeklySlotPicker ni se monta (ver render), así que
     // nunca llegaría onSlotsFetched a resolver este flag.
-    if (slotIsoRef.current && !isPastAppointment) {
+    if (slotIsoRef.current && !citaConDesenlace) {
       pendingDurationCheck.current = true;
       slotUnderCheck.current = slotIsoRef.current;
     }
-  }, [duration, isPastAppointment]);
+  }, [duration, citaConDesenlace]);
 
   // El horario elegido sigue siendo válido para la duración actual — la
   // "última duración válida" queda anotada por si una futura duración
@@ -1222,13 +1266,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
-            {isPastAppointment ? (
+            {citaConDesenlace ? (
               <div className="mt-1.5 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-text-1 text-sm font-semibold capitalize">
                   <Check className="w-3.5 h-3.5 text-text-muted shrink-0" />
                   {scheduledLabel} <span className="text-text-muted font-normal">({duration} min)</span>
                 </div>
-                <p className="text-[11px] text-text-muted mt-1">{t('pastAppointmentHint')}</p>
+                <p className="text-[11px] text-text-muted mt-1">{t('resolvedAppointmentHint')}</p>
               </div>
             ) : !providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
@@ -1245,10 +1289,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   onSlotsFetched={handleSlotsFetched}
                   excludeAppointmentId={isEditMode ? editAppointment?.id : undefined}
                   maxWeeks={8}
-                  initialDate={isEditMode && editAppointment && !isReschedule
+                  /* Una cita que ya venció pero sigue editable NO lleva su fecha
+                     vieja como semana inicial: el selector abriría una semana sin
+                     un solo hueco (los candidatos salen desde "ahora") y se leería
+                     como que el doctor no atiende. Sin fecha arranca en la semana
+                     actual, que es justo donde hay que elegir el horario nuevo. */
+                  initialDate={isEditMode && editAppointment && !isReschedule && !citaVencidaSinAtender
                     ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
                     : initialDate}
-                  initialTime={isEditMode && editAppointment && !isReschedule
+                  initialTime={isEditMode && editAppointment && !isReschedule && !citaVencidaSinAtender
                     ? new Date(editAppointment.scheduledFor).toLocaleTimeString(localeApp(), { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })
                     : initialTime}
                 />

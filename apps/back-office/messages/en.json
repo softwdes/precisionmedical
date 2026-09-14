@@ -3104,7 +3104,6 @@
       "durationConflictDescription": "It overlaps another scheduled appointment. We reverted the duration to {duration} min, which does work for the time you picked.",
       "durationConflictAccept": "Got it",
       "selectClinicAndDoctorHint": "Select clinic and provider to see available time slots.",
-      "pastAppointmentHint": "This appointment already happened — the date/time can't be changed here. To reschedule it, use \"Reschedule\" from the calendar.",
       "fieldOnlineConsultation": "Online consultation",
       "fieldOnlineConsultationHint": "Telemedicine — appointment conducted via video call",
       "meetingUrlLabel": "Meeting link",
@@ -3229,7 +3228,8 @@
       "blockProviderOne": "Only for this provider.",
       "searchingPatients": "Searching…",
       "noPatientResults": "No results",
-      "createPatientNamed": "Create «{name}»"
+      "createPatientNamed": "Create «{name}»",
+      "resolvedAppointmentHint": "This appointment already has a recorded outcome (arrival, visit or closing): the date and time can no longer be changed. To see the patient another day, book a new appointment."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

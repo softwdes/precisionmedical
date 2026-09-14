@@ -1378,6 +1378,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           editAppointment={{
             id:              appt.id,
             scheduledFor:    appt.scheduledFor,
+            /* Decide si la fecha se puede mover: una cita atendida o con
+               desenlace queda fija, una que solo venció se reprograma. */
+            status:          appt.status,
             durationMinutes: appt.durationMinutes,
             type:            appt.type,
             notes:           appt.notes,

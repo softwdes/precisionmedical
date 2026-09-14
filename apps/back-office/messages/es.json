@@ -3104,7 +3104,6 @@
       "durationConflictDescription": "Se cruza con otra cita ya agendada. Volvimos la duración a {duration} min, que sí funciona para el horario que elegiste.",
       "durationConflictAccept": "Entendido",
       "selectClinicAndDoctorHint": "Selecciona clínica y Provider para ver los horarios disponibles.",
-      "pastAppointmentHint": "Esta cita ya pasó — la fecha/hora no se puede cambiar acá. Para reprogramarla, usa \"Reagendar\" desde el calendario.",
       "fieldOnlineConsultation": "Consulta en línea",
       "fieldOnlineConsultationHint": "Telemedicina — la cita se realiza por videollamada",
       "meetingUrlLabel": "Enlace de la reunión",
@@ -3229,7 +3228,8 @@
       "blockProviderOne": "Solo para este doctor.",
       "searchingPatients": "Buscando…",
       "noPatientResults": "Sin resultados",
-      "createPatientNamed": "Crear a «{name}»"
+      "createPatientNamed": "Crear a «{name}»",
+      "resolvedAppointmentHint": "Esta cita ya tiene un desenlace registrado (llegada, atención o cierre): la fecha y la hora no se pueden cambiar. Para verla otro día, agendá una cita nueva."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

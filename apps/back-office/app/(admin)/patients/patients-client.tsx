@@ -918,6 +918,9 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
           editAppointment={{
             id: editAppt.id,
             scheduledFor: editAppt.scheduledFor,
+            /* Decide si la fecha se puede mover: una cita atendida o con
+               desenlace queda fija, una que solo venció se reprograma. */
+            status: editAppt.status,
             durationMinutes: editAppt.durationMinutes,
             type: editAppt.type,
             notes: editAppt.notes,

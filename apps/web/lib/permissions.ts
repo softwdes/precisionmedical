@@ -42,7 +42,8 @@ export type LmModule =
   | 'finanzas'
   | 'metricas'
   | 'agentes_ia'
-  | 'configuracion';
+  | 'configuracion'
+  | 'mensajes';
 
 export interface LmAdminPerms {
   dashboard: ModulePerm;
@@ -52,6 +53,14 @@ export interface LmAdminPerms {
   metricas: ModulePerm;
   agentes_ia: ModulePerm;
   configuracion: ModulePerm;
+  /**
+   * La bandeja dentro del Admin (`(admin)/dashboard/mensajes`).
+   *
+   * Abierta solo para quien VIVE acá — los dueños y la administración. El resto
+   * del staff ya tiene la bandeja completa en la clínica y no necesita una
+   * segunda puerta a lo mismo. Empezar cerrado se puede abrir; al revés no.
+   */
+  mensajes: ModulePerm;
 }
 
 export interface RolePermissions {
@@ -173,6 +182,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'write',
       agentes_ia: 'write',
       configuracion: 'write',
+      mensajes: 'write',
     },
     pm_timeclock: true,
   },
@@ -186,6 +196,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'write',
       agentes_ia: 'cifo_only',
       configuracion: 'none',
+      mensajes: 'write',
     },
     pm_timeclock: true,
   },
@@ -199,6 +210,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'none',
       agentes_ia: 'none',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: false,
   },
@@ -212,6 +224,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'none',
       agentes_ia: 'none',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: true,
   },
@@ -225,6 +238,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'own_data',
       agentes_ia: 'none',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: false,
   },
@@ -238,6 +252,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'own_cases',
       agentes_ia: 'none',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: false,
   },
@@ -251,6 +266,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'own_data',
       agentes_ia: 'none',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: false,
   },
@@ -264,6 +280,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       metricas: 'none',
       agentes_ia: 'write',
       configuracion: 'none',
+      mensajes: 'none',
     },
     pm_timeclock: false,
   },

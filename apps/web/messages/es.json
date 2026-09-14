@@ -40,7 +40,8 @@
     "logout": "Cerrar sesión",
     "modules": "Módulos",
     "inteligencia": "Inteligencia",
-    "system": "Sistema"
+    "system": "Sistema",
+    "messages": "Mensajes"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1191,5 +1192,22 @@
     "redone": "Listo, la suscripción se rehizo",
     "disable": "Desactivar",
     "noClinicAccount": "Tu cuenta todavía no existe en la base de la clínica. Entrá una vez al Back-Office y volvé a intentarlo."
+  },
+  "mensajes": {
+    "title": "Mensajes",
+    "inbox": "Recibidos",
+    "sent_": "Enviados",
+    "archived": "Archivados",
+    "unread": "{n} sin leer",
+    "urgent": "Urgente",
+    "empty": "No hay mensajes en esta carpeta",
+    "pick": "Elegí un mensaje para leerlo",
+    "loading": "Cargando...",
+    "back": "Volver a la lista",
+    "reply": "Responder",
+    "sending": "Enviando...",
+    "sent": "Respuesta enviada",
+    "sendError": "No se pudo enviar la respuesta",
+    "replyPlaceholder": "Escribí tu respuesta..."
   }
 }

@@ -40,7 +40,8 @@
     "logout": "Log out",
     "modules": "Modules",
     "inteligencia": "Intelligence",
-    "system": "System"
+    "system": "System",
+    "messages": "Messages"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1191,5 +1192,22 @@
     "redone": "Done — the subscription was rebuilt",
     "disable": "Turn off",
     "noClinicAccount": "Your account does not exist in the clinic database yet. Sign in to the Back-Office once and try again."
+  },
+  "mensajes": {
+    "title": "Messages",
+    "inbox": "Inbox",
+    "sent_": "Sent",
+    "archived": "Archived",
+    "unread": "{n} unread",
+    "urgent": "Urgent",
+    "empty": "No messages in this folder",
+    "pick": "Pick a message to read it",
+    "loading": "Loading...",
+    "back": "Back to the list",
+    "reply": "Reply",
+    "sending": "Sending...",
+    "sent": "Reply sent",
+    "sendError": "Could not send the reply",
+    "replyPlaceholder": "Write your reply..."
   }
 }

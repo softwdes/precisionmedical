@@ -15,6 +15,7 @@ import {
   Settings,
   ChevronLeft,
   Lock,
+  Mail,
 } from 'lucide-react';
 import { useRole } from '@/contexts/role-context';
 import { can, type Role, type LmModule } from '@/lib/permissions';
@@ -41,6 +42,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
 
   const NAV_MAIN: NavItem[] = [
     { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), module: 'dashboard' },
+    // La bandeja va arriba, con el panel: es lo que se mira todos los días.
+    // Solo la ven los roles que VIVEN en el Admin — ver `mensajes` en
+    // `lib/permissions.ts`; el resto del staff la tiene completa en la clínica.
+    { key: 'mensajes',  href: '/dashboard/mensajes', icon: Mail, label: t('nav.messages'), module: 'mensajes' },
   ];
 
   const NAV_MODULES: NavItem[] = [

@@ -3225,7 +3225,10 @@
       "legendBlock": "Aviso en agenda",
       "blockFieldProvider": "Doctor (opcional)",
       "blockProviderAll": "Sin doctor: el aviso se ve en todo el calendario.",
-      "blockProviderOne": "Solo para este doctor."
+      "blockProviderOne": "Solo para este doctor.",
+      "searchingPatients": "Buscando…",
+      "noPatientResults": "Sin resultados",
+      "createPatientNamed": "Crear a «{name}»"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

@@ -347,11 +347,40 @@ interface Props {
    * de alta todavía no tiene ninguna cita.
    */
   providerId?: string;
+  /**
+   * Nombre tecleado en el buscador que abrió este diálogo, para precargarlo.
+   *
+   * Nace del alta desde el selector de paciente de una cita: si recepción ya
+   * escribió "Juan Perez" y no apareció, volver a pedirle el nombre es hacerle
+   * repetir lo que acaba de escribir con el paciente al teléfono.
+   */
+  initialFirstName?: string;
+  initialLastName?: string;
+  /**
+   * Se llama apenas el alta responde OK, ANTES de que el diálogo se cierre o
+   * muestre el panel del QR — así quien lo abrió ya tiene el paciente aunque el
+   * usuario se quede mirando el código.
+   *
+   * Existe para el alta desde una cita: el paciente recién creado se elige solo
+   * y, como el alta rápida crea paciente Y caso en la misma transacción, ese
+   * caso queda como único del paciente y también se auto-selecciona.
+   */
+  onCreated?: (creado: {
+    patientId: string;
+    patientCode: string | null;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    caseId: string | null;
+    caseCode: string | null;
+  }) => void;
 }
 
 type SaveMode = 'exit' | 'form' | 'qr';
 
-export function QuickRegisterDialog({ open, onOpenChange, providerId }: Props) {
+export function QuickRegisterDialog({
+  open, onOpenChange, providerId, initialFirstName, initialLastName, onCreated,
+}: Props) {
   const t      = useTranslations('quickRegister');
   /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
      tres pantallas que crean casos y no se duplican por namespace. */
@@ -377,8 +406,8 @@ export function QuickRegisterDialog({ open, onOpenChange, providerId }: Props) {
   ];
 
   // Patient basics
-  const [firstName,  setFirstName]  = useState('');
-  const [lastName,   setLastName]   = useState('');
+  const [firstName,  setFirstName]  = useState(initialFirstName ?? '');
+  const [lastName,   setLastName]   = useState(initialLastName ?? '');
   const [dob,        setDob]        = useState('');
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
@@ -408,6 +437,20 @@ export function QuickRegisterDialog({ open, onOpenChange, providerId }: Props) {
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
 
   const isMVA = caseType === 'MVA';
+
+  /**
+   * Repone la precarga cada vez que se ABRE, no solo al montar.
+   *
+   * Con `useState(initial)` sola, el segundo alta desde el mismo buscador salía
+   * con el nombre de la primera: el componente sigue montado y `reset()` deja
+   * los campos vacíos. Sin `initialFirstName` no hace nada, así que el alta desde
+   * Pacientes no cambia.
+   */
+  useEffect(() => {
+    if (!open) return;
+    if (initialFirstName !== undefined) setFirstName(initialFirstName);
+    if (initialLastName  !== undefined) setLastName(initialLastName);
+  }, [open, initialFirstName, initialLastName]);
 
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setPhone('');
@@ -555,6 +598,22 @@ export function QuickRegisterDialog({ open, onOpenChange, providerId }: Props) {
         }
         return;
       }
+
+      /**
+       * Se avisa ACÁ, antes de ramificar por modo: en 'qr' el diálogo se queda
+       * abierto mostrando el código, y quien nos abrió no puede quedarse
+       * esperando a que el usuario lo cierre para enterarse de que el paciente
+       * ya existe.
+       */
+      onCreated?.({
+        patientId:   json.patient?.id         ?? '',
+        patientCode: json.patient?.patientCode ?? null,
+        firstName:   firstName.trim(),
+        lastName:    lastName.trim(),
+        phone:       phone.trim() || null,
+        caseId:      json.case?.id       ?? null,
+        caseCode:    json.case?.caseCode ?? null,
+      });
 
       if (mode === 'qr') {
         const caseId = json.case?.id ?? '';

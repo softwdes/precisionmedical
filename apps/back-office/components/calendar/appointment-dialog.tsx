@@ -15,11 +15,12 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
-  FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2,
+  FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus,
 } from 'lucide-react';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import { useMembresia } from '@/components/membresias/use-membresia';
 import { WeeklySlotPicker } from './weekly-slot-picker';
+import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter, Label,
@@ -192,6 +193,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [patientResults, setPatientResults] = useState<PatientResult[]>([]);
   const [searchingPt,    setSearchingPt]    = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<PatientResult | null>(null);
+  /** Alta rápida abierta desde el buscador, con lo tecleado ya partido. */
+  const [altaOpen,     setAltaOpen]     = useState(false);
+  const [altaNombre,   setAltaNombre]   = useState('');
+  const [altaApellido, setAltaApellido] = useState('');
 
   /**
    * ¿Es socio de la clínica? Se pregunta al elegir el paciente, que es justo
@@ -460,6 +465,52 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       .catch(() => {})
       .finally(() => setLoadingCases(false));
   }, []);
+
+  /**
+   * Alta rápida desde el buscador: parte lo tecleado en nombre y apellido por el
+   * primer espacio. "Juan" solo deja el apellido vacío, que es correcto — el alta
+   * lo pide igual y lo valida.
+   */
+  const abrirAltaRapida = useCallback(() => {
+    const partes = patientQuery.trim().split(/\s+/);
+    setAltaNombre(partes[0] ?? '');
+    setAltaApellido(partes.slice(1).join(' '));
+    setAltaOpen(true);
+  }, [patientQuery]);
+
+  /**
+   * Vuelve del alta rápida: el paciente y su caso quedan elegidos solos.
+   *
+   * `selectPatient` dispara el fetch de casos que ya existía, y el caso se fija
+   * con el id que devuelve el alta — NO con un "si hay uno solo, tomalo": el alta
+   * crea paciente y caso juntos, así que sabemos exactamente cuál es, y si mañana
+   * el paciente tuviera dos la regla genérica elegiría mal. `setCaseId` va después
+   * de `selectPatient`, que lo limpia.
+   *
+   * Queda seleccionado antes de que llegue la lista; cuando llega, la tarjeta de
+   * ese caso aparece marcada.
+   */
+  const onPacienteCreado = useCallback((creado: {
+    patientId: string; patientCode: string | null;
+    firstName: string; lastName: string; phone: string | null;
+    caseId: string | null; caseCode: string | null;
+  }) => {
+    setAltaOpen(false);
+    setPatientQuery('');
+    setPatientResults([]);
+    selectPatient({
+      id:             creado.patientId,
+      patientCode:    creado.patientCode,
+      firstName:      creado.firstName,
+      lastName:       creado.lastName,
+      phone:          creado.phone,
+      casesCount:     1,
+      lastCaseCode:   creado.caseCode,
+      lastCaseStatus: null,
+      isArchived:     false,
+    });
+    if (creado.caseId) setCaseId(creado.caseId);
+  }, [selectPatient]);
 
   const clearPatient = useCallback(() => {
     setSelectedPatient(null);
@@ -823,7 +874,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    {/* `open && !altaOpen`: mientras el alta rápida está encima, este diálogo se
+        REPLIEGA sin desmontarse. Apilar dos Dialog de Radix pelea por el foco y
+        por los `pointer-events` del body — ya nos pasó con el detalle del caso
+        sobre el panel de la cita. Y al volver, la fecha, la hora y la clínica que
+        ya se habían elegido siguen ahí: si se perdieran, el atajo costaría más de
+        lo que ahorra. */}
+    <Dialog open={open && !altaOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -909,9 +966,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       placeholder={t('searchPatientPlaceholder2')}
                       className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                     />
-                    {(searchingPt || patientResults.length > 0) && (
+                    {/* La condición incluye `patientQuery.length >= 2`: sin eso, al
+                        terminar una búsqueda SIN resultados el desplegable entero
+                        desaparecía —`searchingPt` en false y cero resultados— y el
+                        "sin resultados" de abajo era código muerto que no se podía
+                        mostrar nunca. Justo el momento en que hay que ofrecer crear
+                        al paciente, la pantalla no decía nada. */}
+                    {(searchingPt || patientResults.length > 0 || patientQuery.length >= 2) && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
-                        {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
+                        {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">{t('searchingPatients')}</div>}
                         {/*
                           * Un paciente dado de baja se MUESTRA pero no se puede
                           * elegir. Mostrarlo importa: si desaparece, quien busca
@@ -954,7 +1017,29 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                           </button>
                         ))}
                         {!searchingPt && patientResults.length === 0 && patientQuery.length >= 2 && (
-                          <div className="px-3 py-2 text-text-muted text-xs">Sin resultados</div>
+                          <div className="px-3 py-2 text-text-muted text-xs">{t('noPatientResults')}</div>
+                        )}
+
+                        {/* Crear al paciente sin salir de la cita.
+                            Va al PIE y no arriba, aunque haya resultados: la acción
+                            común es elegir a alguien que ya existe, y poner "crear"
+                            primero invita a duplicar — el mismo riesgo por el que
+                            los archivados se muestran deshabilitados en vez de
+                            esconderse. Cuando no hay resultados queda solo él, que
+                            es cuando de verdad hace falta.
+                            Arrastra lo tecleado: si escribió "Juan Perez", el alta
+                            abre con nombre y apellido puestos. */}
+                        {!searchingPt && patientQuery.trim().length >= 2 && (
+                          <button
+                            type="button"
+                            onClick={abrirAltaRapida}
+                            className="w-full text-left px-3 py-2.5 flex items-center gap-2 border-t border-row-sep bg-brand/[0.06] hover:bg-brand/[0.12] text-brand transition-colors"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 shrink-0" />
+                            <span className="text-xs font-semibold">
+                              {t('createPatientNamed', { name: patientQuery.trim() })}
+                            </span>
+                          </button>
                         )}
                       </div>
                     )}
@@ -1353,6 +1438,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             : '')
       }
     />
+
+    {/* Alta rápida del paciente, el MISMO diálogo que usa la página de Pacientes
+        —crea paciente y caso en una transacción y ya tiene el desvío MVA/GM—, no
+        una copia recortada. Se monta solo cuando se abre para que arranque limpio
+        con el nombre tecleado. */}
+    {altaOpen && (
+      <QuickRegisterDialog
+        open
+        onOpenChange={(v) => { if (!v) setAltaOpen(false); }}
+        initialFirstName={altaNombre}
+        initialLastName={altaApellido}
+        onCreated={onPacienteCreado}
+      />
+    )}
     </>
   );
 }

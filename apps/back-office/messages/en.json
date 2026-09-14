@@ -3225,7 +3225,10 @@
       "legendBlock": "Schedule note",
       "blockFieldProvider": "Provider (optional)",
       "blockProviderAll": "No provider: the note shows across the whole calendar.",
-      "blockProviderOne": "Only for this provider."
+      "blockProviderOne": "Only for this provider.",
+      "searchingPatients": "Searching…",
+      "noPatientResults": "No results",
+      "createPatientNamed": "Create «{name}»"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

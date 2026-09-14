@@ -64,9 +64,15 @@ export function SobreClinica(): React.ReactElement | null {
       href="/dashboard/mensajes"
       aria-label={sinLeer > 0 ? t('unread', { n: sinLeer }) : t('title')}
       title={sinLeer > 0 ? t('unread', { n: sinLeer }) : t('title')}
-      className="relative inline-flex items-center justify-center h-9 w-9 rounded-md border border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
+      className="relative inline-flex items-center justify-center gap-2 h-9 px-2.5 sm:px-3 rounded-md border border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
     >
-      <Mail className="w-4 h-4" aria-hidden="true" />
+      <Mail className="w-4 h-4 shrink-0" aria-hidden="true" />
+      {/* La palabra aparece desde tablet para arriba.
+          En 375px la barra ya lleva reloj, teléfono, CIFO, campana, idioma, tema
+          y avatar: sumarle una palabra a cada uno empuja el avatar fuera de la
+          pantalla. El icono solo, con su `aria-label`, sigue diciendo qué es —
+          y ahí abajo la palabra está igual, en el menú lateral. */}
+      <span className="hidden sm:inline text-[13px]">{t('title')}</span>
       {sinLeer > 0 && (
         /* El número va ARRIBA del icono y no al lado: al lado empuja el resto
            de la barra cada vez que cambia, y en móvil eso mueve todo. */

@@ -1,0 +1,44 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- push_subscriptions · permisos de escritura para `service_role`
+--
+-- ── El síntoma ──────────────────────────────────────────────────────────────
+--
+-- En el Admin, activar los avisos del celular fallaba con 500 y "No se pudo
+-- guardar". Reproducido contra la base el 2026-09-14, el motivo textual fue:
+--
+--     42501 · permission denied for table push_subscriptions
+--     hint: GRANT INSERT, UPDATE ON public.push_subscriptions TO service_role;
+--
+-- `service_role` podía LEER la tabla (un SELECT por REST devolvía filas) pero
+-- no escribirla.
+--
+-- ── Por qué nunca se había notado ───────────────────────────────────────────
+--
+-- Porque hasta ahora la única app que escribía esta tabla era el back-office, y
+-- entra por **Prisma** con el usuario dueño de la base, que no pasa por estos
+-- permisos. El Admin entra por la **API REST** como `service_role`, y ahí sí.
+--
+-- La tabla se creó a mano con `20260908b-push-subscriptions.sql`, que hace el
+-- `CREATE TABLE` y nada más: sin un `GRANT`, el rol nuevo se queda afuera. Las
+-- tablas que crea Prisma con `db push` no tienen el problema porque Supabase les
+-- aplica sus permisos por defecto.
+--
+-- ── Por qué solo `service_role` ─────────────────────────────────────────────
+--
+-- `anon` y `authenticated` NO reciben nada, a propósito. Esta tabla guarda el
+-- endpoint de push de cada persona: quien pueda escribirla puede redirigir los
+-- avisos de otro a su propio teléfono, y quien pueda leerla se lleva la lista de
+-- a qué aparato llega cada quien. Solo el servidor la toca, y al servidor lo
+-- representa `service_role`.
+--
+-- Idempotente: correrlo dos veces no hace nada la segunda.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.push_subscriptions TO service_role;
+
+-- Comprobación: debería devolver las cuatro filas (SELECT/INSERT/UPDATE/DELETE).
+--
+--   SELECT privilege_type
+--     FROM information_schema.role_table_grants
+--    WHERE table_name = 'push_subscriptions'
+--      AND grantee    = 'service_role';

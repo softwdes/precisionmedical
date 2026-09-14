@@ -14,10 +14,11 @@
  *
  * ── Por qué está en dos lugares ─────────────────────────────────────────────
  *
- * `PushToggle` (barra superior) aparece SOLO cuando hace falta un clic: apagado
- * —para que alguien lo descubra— o bloqueado —para explicar por qué no llegan
- * los avisos, porque esconder la acción bloqueada deja a la persona sin saber
- * que existe—. Encendido se va de la barra: no hay nada más que tocar.
+ * `PushToggle` (barra superior) está SIEMPRE que el navegador pueda dar avisos:
+ * apagado —para que alguien lo descubra—, bloqueado —para explicar por qué no
+ * llegan— y también encendido, en verde. Esto último cambió el 2026-09-14:
+ * antes se escondía al activarse, y la única señal de que había funcionado era
+ * que el botón desaparecía, que se lee igual que "se rompió".
  *
  * `PushAvisosMenuItem` (menú del avatar) está siempre, junto a idioma y tema,
  * que son la misma clase de cosa. Ahí se ve el estado y se puede apagar.
@@ -143,17 +144,28 @@ function DialogoAvisos({
 /** Cara 1 — el botón de la barra superior. Solo cuando hace falta un clic. */
 export function PushToggle(): React.ReactElement | null {
   const t = useTranslations();
-  const { estado, trabajando, encender } = usePushAvisos();
+  const { estado, trabajando, encender, apagar, reactivar } = usePushAvisos();
   const [preguntando, setPreguntando] = useState(false);
 
-  // Encendido no se dibuja: el estado vive en el menú del avatar y acá sería
-  // ruido permanente. Tampoco mientras carga, para no parpadear en cada vista.
-  if (estado === 'cargando' || estado === 'no-soportado' || estado === 'encendido') {
-    return null;
-  }
+  /**
+   * ── Encendido TAMBIÉN se dibuja ────────────────────────────────────────────
+   *
+   * Antes se escondía al quedar activado y el estado vivía solo en el menú del
+   * avatar. Erick lo reportó en la clínica el 2026-09-09 y de nuevo acá el
+   * 2026-09-14: "prendió pero el icono desapareció, no se ve si está en verde".
+   *
+   * Tiene razón dos veces. Uno: al aceptar, la única señal de que funcionó era
+   * que el botón se iba, que se lee igual que "se rompió". Y dos: quien
+   * necesita apagarlo —o rehacer la suscripción, que es el arreglo real cuando
+   * dejan de llegar— se queda sin puerta visible.
+   *
+   * Un control que no se ve no existe.
+   */
+  if (estado === 'cargando' || estado === 'no-soportado') return null;
 
+  const encendido = estado === 'encendido';
   const bloqueado = estado === 'bloqueado';
-  const etiqueta = bloqueado ? t('push.blocked') : t('push.off');
+  const etiqueta = encendido ? t('push.stateOn') : bloqueado ? t('push.blocked') : t('push.off');
 
   return (
     <>
@@ -163,9 +175,11 @@ export function PushToggle(): React.ReactElement | null {
         aria-label={etiqueta}
         title={etiqueta}
         className={`inline-flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
-          bloqueado
-            ? 'border-amber/30 bg-amber/10 text-amber-text'
-            : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
+          encendido
+            ? 'border-emerald/40 bg-emerald/10 text-emerald-text'
+            : bloqueado
+              ? 'border-amber/30 bg-amber/10 text-amber-text'
+              : 'border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5'
         }`}
       >
         <Smartphone className="w-4 h-4" aria-hidden="true" />
@@ -175,8 +189,11 @@ export function PushToggle(): React.ReactElement | null {
         abierto={preguntando}
         onOpenChange={setPreguntando}
         bloqueado={bloqueado}
+        encendido={encendido}
         trabajando={trabajando}
         onEncender={() => { void encender().then(() => setPreguntando(false)); }}
+        onApagar={() => { void apagar().then(() => setPreguntando(false)); }}
+        onReactivar={() => { void reactivar().then(() => setPreguntando(false)); }}
       />
     </>
   );

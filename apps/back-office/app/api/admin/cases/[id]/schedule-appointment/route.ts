@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
@@ -183,8 +184,19 @@ export async function POST(
     },
   });
 
+  // El recordatorio al paciente. Tercero de los tres caminos por los que nace
+  // una cita —los otros dos son `/api/admin/appointments` y el alta de caso—:
+  // si el aviso colgara de uno solo, agendar por otro lado no avisaría nada y
+  // nadie sabría por qué a unos pacientes les llega y a otros no. No lanza.
+  const recordatorioCita = await enviarRecordatorioDeCita({
+    appointmentId: result.appointment.id,
+    actorUserId:   actor.actorUserId,
+    actorName:     actor.actorName,
+  });
+
   return NextResponse.json({
     ok: true,
+    recordatorioCita,
     appointment: {
       id: result.appointment.id,
       scheduledFor: result.appointment.scheduledFor,

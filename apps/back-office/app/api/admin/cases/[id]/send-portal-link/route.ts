@@ -34,7 +34,7 @@ import { z } from 'zod';
 import { db, writeAuditLog, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
 import { sendEmail, emailMode } from '@/lib/email';
-import { buildPortalSms, buildPortalEmail, portalEmailHtml } from '@/lib/portal-message';
+import { buildPortalSms, buildPortalEmail, portalEmailHtml, idiomaDelPaciente } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
 import { obtenerPortalToken } from '@/lib/portal-token';
 
@@ -159,13 +159,15 @@ export async function POST(
   /**
    * Idioma del mensaje: lo que eligió quien envía, y si no, el del paciente.
    *
-   * El español solo queda como último recurso — cuando la ficha no tiene idioma
-   * cargado. Antes era el primer recurso, y por eso un paciente registrado en
-   * inglés recibía todo en español.
+   * El último recurso —ficha sin idioma cargado— pasó a INGLÉS el 2026-09-14.
+   * Era español, y ese era el error de fondo: se arregló que el idioma del
+   * paciente dejara de ser pisado, pero el 40% de las fichas no tiene idioma y
+   * ésas seguían cayendo a español en una clínica donde no se registró ni un
+   * paciente en español desde que arrancó el sistema. La medición completa está
+   * en `idiomaDelPaciente`, que ahora es la única copia de esta regla.
    */
   const idioma: 'es' | 'en' =
-    parsed.language
-    ?? (caseRecord.patient.preferredLanguage === 'en' ? 'en' : 'es');
+    parsed.language ?? idiomaDelPaciente(caseRecord.patient.preferredLanguage);
 
   // ─── A quién se le manda ───────────────────────────────────────────────
   // Si el paciente es menor y tiene apoderado vinculado, el link va al

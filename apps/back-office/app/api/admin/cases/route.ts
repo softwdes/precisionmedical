@@ -25,6 +25,7 @@ import {
   casePrefixFor, resolveGuardian, GuardianIsSelfError,
 } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 import { checkPatientStaff } from '@/lib/patient-access';
 import {
   quienUsaEsteContacto, probableMismaPersona, type PacienteConEseContacto,
@@ -62,7 +63,7 @@ const InputSchema = z.object({
     phone: z.string().max(30).default(''),
     email: z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
     dateOfBirth: z.string().datetime().nullable().optional(),
-    preferredLanguage: z.enum(['es', 'en']).default('es'),
+    preferredLanguage: z.enum(['es', 'en']).default('en'),
   }),
   // Accident
   accident: z.object({
@@ -890,6 +891,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   // ─── Audit log adicional: agendamiento en llamada ───────────────────
+  // `null` cuando el alta no agendó nada, que es distinto de "se intentó y no
+  // salió": la pantalla no debería avisar de un recordatorio que nunca tuvo
+  // cita que recordar.
+  let recordatorioCita: Awaited<ReturnType<typeof enviarRecordatorioDeCita>> | null = null;
   if (result.appointment) {
     await writeAuditLog(db, {
       actorType: actor.actorType,
@@ -906,6 +911,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         scheduledFor: result.appointment.scheduledFor.toISOString(),
         viaB2: true,
       },
+    });
+
+    /**
+     * El recordatorio de la cita al paciente.
+     *
+     * Este es el camino que dejó el hueco que se reportó: al dar de alta un
+     * paciente nuevo con su cita, llegaba el SMS del formulario y ninguno de la
+     * cita. La cita del alta nace ACÁ, adentro del mismo pedido que crea el
+     * caso, y no por `/api/admin/appointments` — engancharlo solo allá habría
+     * dejado justo este flujo sin arreglar.
+     *
+     * Va después del audit log y fuera de la transacción: la cita ya está
+     * guardada y nada de lo de acá puede perderla. No lanza nunca.
+     */
+    recordatorioCita = await enviarRecordatorioDeCita({
+      appointmentId: result.appointment.id,
+      actorUserId:   actor.actorUserId,
+      actorName:     actor.actorName,
     });
   }
 
@@ -956,6 +979,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         id: result.appointment.id,
         scheduledFor: result.appointment.scheduledFor,
       } : null,
+      /** Si salió el SMS de la cita, y si no, por qué. `null` = no se agendó. */
+      recordatorioCita,
       /**
        * Otros pacientes a los que les llega el mismo teléfono. Vacío en el caso
        * normal. Cuando trae gente, el alta se hizo igual (es una familia, no un

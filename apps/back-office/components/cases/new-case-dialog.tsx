@@ -199,7 +199,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [phone, setPhone]         = useState('');
   const [email, setEmail]         = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [language, setLanguage]   = useState<'es' | 'en'>('es');
+  const [language, setLanguage]   = useState<'es' | 'en'>('en');
   const [referralSource, setReferralSource] = useState<ReferralSource>('LAW_FIRM');
   /** Quién REFIRIÓ al paciente, cuando fue un bufete. Opcional. */
   const [referrerFirm, setReferrerFirm] = useState<AutoResult | null>(null);

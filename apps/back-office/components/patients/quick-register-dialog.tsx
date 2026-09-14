@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
 import { enviarPortal, describirFallo, type CanalPortal } from '@/lib/enviar-portal';
+import { idiomaDelPaciente } from '@/lib/portal-message';
 import { useToast } from '@/components/ui-phoenix';
 import {
   UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
@@ -449,7 +450,7 @@ export function QuickRegisterDialog({
   const [dob,        setDob]        = useState('');
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
-  const [language,   setLanguage]   = useState('es');
+  const [language,   setLanguage]   = useState('en');
   const [howFound,         setHowFound]         = useState('');
   const [howFoundOther,    setHowFoundOther]    = useState('');
   const [referredBy,       setReferredBy]       = useState('');
@@ -703,7 +704,10 @@ export function QuickRegisterDialog({
           const envio = await enviarPortal({
             caseId: caseIdCreado,
             canales,
-            language: language === 'en' ? 'en' : 'es',
+            // El idioma que se acaba de elegir en el alta, normalizado por la
+            // misma regla que usa el servidor — acá había una cuarta copia del
+            // `=== 'en' ? 'en' : 'es'` con español de respaldo.
+            language: idiomaDelPaciente(language),
           });
           if (envio.fallidos.length > 0) {
             /**

@@ -35,6 +35,40 @@ export function normalizarIdioma(preferido: string | null | undefined): PortalMe
   return preferido === 'en' || preferido === 'es' ? preferido : undefined;
 }
 
+/**
+ * El idioma REAL en el que hay que hablarle a un paciente. Última palabra.
+ *
+ * El último recurso es **inglés**, y hasta el 2026-09-14 era español. Eso no
+ * era una preferencia: era un default heredado que contradecía a los pacientes.
+ * Medido ese día sobre los 5.726 de la base:
+ *
+ *     en            3.371   58,9%
+ *     (sin cargar)  2.284   39,9%   ← éstos caían a español
+ *     pt/fr/it         47    0,8%   ← y éstos también
+ *     es               22    0,4%
+ *
+ * Y desde que arrancó el sistema nuevo, **ni un solo paciente se registró en
+ * español**: 49 en inglés y 43 sin idioma en los últimos 30 días, cero en
+ * español. O sea que la regla vieja le mandaba todo en español a casi la mitad
+ * de los pacientes nuevos de una clínica donde nadie habla español por defecto.
+ *
+ * Los 47 de portugués, francés e italiano también ganan con esto: el inglés no
+ * es su idioma, pero es el de la clínica — el español era una tercera lengua
+ * elegida al azar.
+ *
+ * El paciente que SÍ tiene `es` cargado sigue recibiendo español. Esto sólo
+ * decide qué pasa cuando no hay dato, que es el 40% de las veces.
+ *
+ * Vive acá, con `buildPortalSms` y `buildAppointmentReminderSms`, porque la
+ * regla estaba copiada en tres archivos: el link del portal, el alta rápida y
+ * el recordatorio. Tres copias de una decisión es una decisión que se va a
+ * desincronizar — ya pasó con el texto del SMS, que es por lo que este archivo
+ * existe.
+ */
+export function idiomaDelPaciente(preferido: string | null | undefined): PortalMessageLang {
+  return normalizarIdioma(preferido) ?? 'en';
+}
+
 /** Marcador que usa la vista previa donde después va el link real. */
 export const MAGIC_LINK_PLACEHOLDER = '[magic-link]';
 
@@ -57,6 +91,72 @@ export function buildPortalSms(args: {
   return lang === 'es'
     ? `Precision Medical: Complete su formulario de registro (caso ${caseCode}) con este enlace seguro: ${portalUrl} (expira en 24 h). Responda HELP para ayuda o STOP para no recibir mas mensajes.`
     : `Precision Medical: Please complete your registration form (case ${caseCode}) using this secure link: ${portalUrl} (expires in 24h). Reply HELP for assistance or STOP to opt out.`;
+}
+
+/**
+ * El SMS de recordatorio de la cita.
+ *
+ * Se manda AL AGENDAR, no el día antes (decisión de Erick 2026-09-14). El
+ * pedido vino de una prueba real: se creó un paciente y su cita, llegó el SMS
+ * del formulario y ningún aviso de la cita — "I got the text to fill out the
+ * paperwork but no reminder of the appointment I created".
+ *
+ * ── Por qué NO pide confirmar ───────────────────────────────────────────────
+ * El mensaje que la clínica usaba de modelo terminaba con "To confirm your
+ * appointment please reply YES". Se sacó a propósito: **nadie lee los SMS
+ * entrantes**. `/api/twilio/incoming` ni siquiera mira el cuerpo del mensaje,
+ * así que el paciente que contestara YES le estaría hablando a un buzón que no
+ * existe. Pedir una acción que no se procesa es peor que no pedirla.
+ *
+ * Por eso dice que es automático y que no se responda. El HELP/STOP se queda
+ * igual — ése no es opcional, lo exige el operador (ver la cabecera del
+ * archivo): sin él filtran el primer mensaje a un número y no llega nada.
+ *
+ * ── Todo es opcional menos la fecha ─────────────────────────────────────────
+ * `direccion` y `telefono` pueden faltar y la frase se omite entera en vez de
+ * quedar colgada. No es defensivo por gusto: hoy mismo `Murray - Surgery` no
+ * tiene dirección cargada, y sin esto el paciente recibiría "oficina Murray -
+ * Surgery, ." con el hueco a la vista.
+ *
+ * Los textos ya vienen formateados y SIN ACENTOS. Este archivo no sabe de
+ * zonas horarias a propósito —es un armador de strings— y el acento importa:
+ * uno solo pasa el SMS a UCS-2 y el segmento cae de 153 a 67 caracteres.
+ */
+export function buildAppointmentReminderSms(args: {
+  lang: PortalMessageLang;
+  /** Ya formateado en la zona de la clínica y sin acentos: "mar 15 de sep de 2026 a las 4:00 PM". */
+  cuando: string;
+  /** Hora a la que tiene que llegar, 15 min antes: "3:45 PM". */
+  horaLlegada: string;
+  clinica: string;
+  /** Sin cargar en algunas sedes: si falta, no se nombra. */
+  direccion?: string | null;
+  /** Teléfono de la sede. Si falta, se omite la invitación a llamar. */
+  telefono?: string | null;
+  /** Nombre del menor cuando el destinatario es el apoderado o el canal es compartido. */
+  nombrePaciente?: string | null;
+}): string {
+  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente } = args;
+
+  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
+
+  if (lang === 'es') {
+    const deQuien = nombrePaciente ? `Cita de ${nombrePaciente}` : 'Su cita es';
+    return [
+      `Precision Medical: ${deQuien} el ${cuando}, ${lugar}.`,
+      `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`,
+      telefono ? `Consultas: ${telefono}.` : null,
+      'Mensaje automatico, no responda. HELP ayuda, STOP para salir.',
+    ].filter(Boolean).join(' ');
+  }
+
+  const deQuien = nombrePaciente ? `Appointment for ${nombrePaciente}` : 'Your appointment is';
+  return [
+    `Precision Medical: ${deQuien} ${cuando}, ${lugar}.`,
+    `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`,
+    telefono ? `Questions: ${telefono}.` : null,
+    'Automated message, do not reply. HELP for help, STOP to opt out.',
+  ].filter(Boolean).join(' ');
 }
 
 /**

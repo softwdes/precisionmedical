@@ -262,3 +262,64 @@ export function anioOFecha(iso: string | null | undefined, locale?: Locale): str
   if (/^\d{4}$/.test(v)) return v;
   return fechaCalendario(v, locale);
 }
+
+// ─── Fechas para SMS ────────────────────────────────────────────────────────
+
+/**
+ * Nombres de día y mes en ASCII puro, para los SMS.
+ *
+ * NO se usa `Intl` para el NOMBRE aunque sepa hacerlo: en español devuelve
+ * "mié" y "sáb" con acento, y **un solo acento pasa el SMS entero a UCS-2**,
+ * donde el segmento cae de 153 a 67 caracteres. El mismo texto pasaría de 2
+ * segmentos a 5, y cada uno se cobra. La clínica atiende de lunes a viernes,
+ * así que hoy no caería ningún sábado — pero el día que alguien agende uno, el
+ * costo se triplica en silencio y nadie lo relaciona con esto.
+ *
+ * `Intl` sí se usa para SACAR los números en la zona de la clínica, que es la
+ * parte difícil y la que no hay que reimplementar.
+ */
+const DIAS_SMS = {
+  es: ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+} as const;
+const MESES_SMS = {
+  es: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+} as const;
+
+/** Las partes de una fecha tal como se ven en la zona de la clínica. */
+function partesEnClinica(fecha: Date): {
+  diaSemana: number; dia: number; mes: number; anio: number; hora12: string;
+} {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA_CLINICA,
+    weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  }).formatToParts(fecha);
+  const p = Object.fromEntries(partes.map((x) => [x.type, x.value]));
+  const SEMANA: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  return {
+    diaSemana: SEMANA[p.weekday ?? 'Sun'] ?? 0,
+    dia:       Number(p.day),
+    mes:       Number(p.month) - 1,
+    anio:      Number(p.year),
+    // El separador de `dayPeriod` puede venir como espacio duro (U+202F) según
+    // el runtime — y ése es justamente un carácter no-ASCII que rompería la
+    // codificación GSM sin que se vea nada raro en pantalla.
+    hora12:    `${p.hour}:${p.minute} ${(p.dayPeriod ?? '').replace(/\s/g, '').toUpperCase()}`,
+  };
+}
+
+/** "mar 15 de sep de 2026 a las 4:00 PM" · "Tue Sep 15, 2026 at 4:00 PM" */
+export function fechaParaSms(fecha: Date, lang: 'es' | 'en'): string {
+  const { diaSemana, dia, mes, anio, hora12 } = partesEnClinica(fecha);
+  return lang === 'es'
+    ? `${DIAS_SMS.es[diaSemana]} ${dia} de ${MESES_SMS.es[mes]} de ${anio} a las ${hora12}`
+    : `${DIAS_SMS.en[diaSemana]} ${MESES_SMS.en[mes]} ${dia}, ${anio} at ${hora12}`;
+}
+
+/** Solo la hora en la zona de la clínica: "3:45 PM". */
+export function horaParaSms(fecha: Date): string {
+  return partesEnClinica(fecha).hora12;
+}

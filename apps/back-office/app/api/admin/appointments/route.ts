@@ -20,6 +20,7 @@ import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
+import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
 const APPT_INCLUDE = {
@@ -361,5 +362,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata:     { caseId: parsed.caseId, caseActivated: shouldActivate },
   });
 
-  return NextResponse.json({ ok: true, appointment }, { status: 201 });
+  /**
+   * El recordatorio al paciente, recién ahora.
+   *
+   * Va DESPUÉS del audit log y con `await`: la cita ya está guardada, así que
+   * nada de lo de acá puede perderla. Se espera en vez de dispararlo y seguir
+   * porque el resultado viaja en la respuesta —recepción tiene que poder ver
+   * en el acto si el aviso salió o no—, y porque en serverless una promesa sin
+   * await se corta cuando la función termina: el SMS saldría o no según la
+   * suerte del apagado.
+   *
+   * `enviarRecordatorioDeCita` no lanza nunca. Lo peor que puede devolver es
+   * un motivo.
+   */
+  const recordatorio = await enviarRecordatorioDeCita({
+    appointmentId: appointment.id,
+    actorUserId:   actor.actorUserId,
+    actorName:     actor.actorName,
+  });
+
+  return NextResponse.json({ ok: true, appointment, recordatorio }, { status: 201 });
 }

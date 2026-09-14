@@ -25,7 +25,7 @@ const InputSchema = z.object({
   patientPhone: z
     .string()
     .regex(/^[+0-9\s()-]{7,20}$/, 'Phone format inválido'),
-  patientLanguage: z.enum(['es', 'en']).default('es'),
+  patientLanguage: z.enum(['es', 'en']).default('en'),
   customMessage: z.string().max(500).optional(),
   linkExpiresIn: z
     .enum(['1h', '6h', '24h', '7d'])

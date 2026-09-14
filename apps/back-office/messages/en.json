@@ -4900,7 +4900,6 @@
         "colName": "Name",
         "colSize": "Size",
         "sizeLabel": "Size: {size}",
-        "previewUnavailable": "Preview will be available once S3 storage is configured.",
         "confirmDeleteFolder": "Delete the folder \"{name}\"?",
         "confirmDeleteFile": "Delete the file \"{name}\"?",
         "emptyFolderSubtitle": "This folder is empty.",

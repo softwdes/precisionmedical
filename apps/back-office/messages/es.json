@@ -4900,7 +4900,6 @@
         "colName": "Nombre",
         "colSize": "Tamaño",
         "sizeLabel": "Tamaño: {size}",
-        "previewUnavailable": "La vista previa estará disponible cuando se configure el almacenamiento S3.",
         "confirmDeleteFolder": "¿Eliminar la carpeta \"{name}\"?",
         "confirmDeleteFile": "¿Eliminar el archivo \"{name}\"?",
         "emptyFolderSubtitle": "Esta carpeta está vacía.",

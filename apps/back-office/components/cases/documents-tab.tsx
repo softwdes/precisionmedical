@@ -2,7 +2,15 @@
 
 /**
  * DocumentsTab — Explorador de archivos del caso.
- * Upload/download stubbed hasta AWS S3 credentials.
+ *
+ * Subir, abrir y descargar FUNCIONAN: los archivos viven en Supabase Storage y
+ * la ruta `/download` devuelve una URL firmada. El encabezado decía "stubbed
+ * hasta AWS S3 credentials" desde el diseño original y ya no era cierto — como
+ * tampoco lo era el modal de vista previa que decía "disponible cuando se
+ * configure S3" mientras el visor real andaba al lado (corregido 2026-09-14).
+ *
+ * Lo único que sigue sin existir es la descarga MASIVA (el botón de la barra
+ * avisa y no hace nada).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -186,53 +194,6 @@ function UploadModal({ onClose, onUpload, uploading }: {
   );
 }
 
-// ─── Preview Modal ─────────────────────────────────────────────────────────────
-
-function PreviewModal({ item, onClose, onDownload }: {
-  item: DocItem;
-  onClose: () => void;
-  onDownload: (item: DocItem) => void;
-}) {
-  const t  = useTranslations('phoenix.caseTabs.documents');
-  const tc = useTranslations('phoenix.common');
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-3 min-w-0">
-            <FileIcon mimeType={item.mimeType} size={5} />
-            <div className="min-w-0">
-              <p className="text-text-1 font-semibold text-sm truncate">{item.name}</p>
-              <div className="flex items-center gap-3 mt-0.5">
-                {item.size && <span className="text-[11px] text-text-muted">{t('sizeLabel', { size: formatBytes(item.size) })}</span>}
-                {item.mimeType && <span className="text-[11px] text-text-muted uppercase">Formato: {item.mimeType.split('/')[1] ?? item.mimeType}</span>}
-              </div>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors flex-shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12 px-5">
-          <div className="w-16 h-16 rounded-xl bg-bg-2 border border-border flex items-center justify-center">
-            <FileIcon mimeType={item.mimeType} size={8} />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-text-1 font-medium text-sm">{item.name}</p>
-            <p className="text-text-muted text-xs">{t('previewUnavailable')}</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <Button variant="outline" size="sm" onClick={onClose}>{tc('close')}</Button>
-          <Button size="sm" onClick={() => { onDownload(item); onClose(); }} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" /> {tc('download')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
@@ -262,7 +223,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
    * que agregar un endpoint nuevo obliga a decidir si el bufete también lo tiene.
    */
   const api = `/api/${portal}/cases/${caseId}`;
-  // `handleDownload` hace su propio fetch porque distingue "S3 sin configurar"
+  // `abrirArchivo` hace su propio fetch porque distingue "S3 sin configurar"
   // del resto de los errores, así que usa `show` y no `open`.
   const viewer = useFileViewer(t('alertDownloadError'));
   const [items, setItems]           = useState<DocItem[]>([]);
@@ -279,7 +240,6 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [uploadOpen, setUploadOpen]         = useState(false);
   const [uploading, setUploading]           = useState(false);
-  const [previewItem, setPreviewItem]       = useState<DocItem | null>(null);
   const [deleting, setDeleting]             = useState<string | null>(null);
   /** El item esperando confirmación de borrado, o `null`. */
   const [porBorrar, setPorBorrar]           = useState<DocItem | null>(null);
@@ -473,10 +433,25 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
     }
   }
 
-  async function handleDownload(item: DocItem) {
+  /**
+   * Abre el archivo en el visor. Se llama `abrir` y no `descargar` porque es lo
+   * que hace: el visor MUESTRA el archivo y adentro tiene su propio botón de
+   * descargar. El nombre viejo era de cuando lo único posible era bajarlo.
+   *
+   * La ruta se llama igual (`/download`) porque devuelve la URL firmada, que
+   * sirve para las dos cosas.
+   */
+  async function abrirArchivo(item: DocItem) {
     const res = await fetch(`${api}/documents/${item.id}/download`);
     const data = await res.json();
     if (!res.ok) {
+      /*
+       * `S3_NOT_CONFIGURED` quedó del diseño original. Hoy los archivos viven en
+       * Supabase Storage y la ruta firma la URL, así que este camino no se
+       * recorre — se deja porque el server todavía puede devolver ese código si
+       * le faltan las variables de entorno, y ahí el mensaje sigue siendo cierto:
+       * el almacenamiento no está configurado.
+       */
       if (data.error === 'S3_NOT_CONFIGURED') {
         alert(t('alertDownloadS3'));
         return;
@@ -684,7 +659,13 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                 <tr
                   key={item.id}
                   className={`hover:bg-white/[0.02] group transition-colors cursor-pointer ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}
-                  onClick={() => item.isFolder ? navigateInto(item) : setPreviewItem(item)}
+                  /* Un clic en el archivo lo ABRE, en el visor de verdad.
+                     Antes abría un modal aparte que nunca mostró nada: decía
+                     "el preview estará disponible cuando se configure S3" —un
+                     texto de cuando el almacenamiento no existía— mientras el
+                     visor real ya andaba, pero colgado solo del botón de
+                     descargar. Dos modales y se abría el muerto. */
+                  onClick={() => item.isFolder ? navigateInto(item) : void abrirArchivo(item)}
                 >
                   <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                     <input
@@ -717,7 +698,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       {!item.isFolder && (
-                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title={tc('download')}>
+                        <button onClick={() => void abrirArchivo(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title={tc('download')}>
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -794,14 +775,6 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         />
       )}
 
-      {/* File Preview Modal */}
-      {previewItem && (
-        <PreviewModal
-          item={previewItem}
-          onClose={() => setPreviewItem(null)}
-          onDownload={item => { handleDownload(item); setPreviewItem(null); }}
-        />
-      )}
 
       {/* La confirmación de borrado, con el diálogo del sistema y no el del
           navegador. El texto DICE que se puede recuperar: prometerlo sin que

@@ -108,14 +108,45 @@ async function provisionFromDirectory(email: string) {
 export async function resolveActor(headers: Headers): Promise<ResolvedActor> {
   const fromHeaders = actorFromHeaders(headers);
 
-  // AI_AGENT / SYSTEM (o un caller que ya declaró su user id) — el header manda.
-  if (fromHeaders.actorType !== 'HUMAN_USER' || fromHeaders.actorUserId) {
-    return { ...fromHeaders, actorRole: null, actorName: null, email: null };
-  }
+  /**
+   * ── La identidad NO se acepta de un header ────────────────────────────────
+   *
+   * Acá había un atajo: si la petición traía `x-actor-user-id` —o un
+   * `x-actor-type` distinto de HUMAN_USER— se le creía **sin mirar la sesión**.
+   * Nadie limpia esos headers en la entrada, así que cualquiera con sesión
+   * podía mandar el id de otra persona y quedar registrado como ella. En
+   * mensajería eso no es ensuciar el historial: es **escribir como si fuera
+   * otro**.
+   *
+   * Se cerró el 2026-09-13, mientras se planificaba que el Admin llamara a
+   * estas mismas rutas. Construir una segunda app encima de un atajo de
+   * confianza habría sido apoyar un mueble contra una puerta abierta.
+   *
+   * **No rompe a nadie**: se buscó en todo el repo y ningún cliente manda esos
+   * headers. Los comentarios que los mencionan dicen justamente eso —"el
+   * cliente no lo manda"—, así que la rama solo servía para el abuso.
+   *
+   * De `fromHeaders` se conserva el CONTEXTO —ip, navegador, clave de
+   * idempotencia—, que no es una afirmación de identidad.
+   *
+   * Si algún día un llamador interno tiene que actuar en nombre de otro (los
+   * hooks del AI Receptionist son el caso previsto), la identidad no puede
+   * venir en un header suelto: tiene que demostrar quién es. Para el Admin la
+   * respuesta ya está elegida — reenvía el token de la sesión de la persona y
+   * este mismo resolutor la reconoce por correo, sin credencial nueva.
+   */
 
   const user = await getSessionUser();
   if (!user?.email) {
-    return { ...fromHeaders, actorRole: null, actorName: null, email: null };
+    // Sin sesión no hay identidad, y el tipo declarado por header tampoco vale.
+    return {
+      ...fromHeaders,
+      actorType: 'HUMAN_USER',
+      actorUserId: null,
+      actorRole: null,
+      actorName: null,
+      email: null,
+    };
   }
 
   const dbUser = await getDbUserByEmail(user.email);
@@ -124,6 +155,7 @@ export async function resolveActor(headers: Headers): Promise<ResolvedActor> {
 
   return {
     ...fromHeaders,
+    actorType: 'HUMAN_USER',
     actorUserId: dbUser?.id ?? null,
     actorRole: dbUser?.role ?? null,
     actorName,

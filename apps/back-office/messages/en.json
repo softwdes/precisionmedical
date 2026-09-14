@@ -708,7 +708,8 @@
       "msgUnarchived": "Back in the inbox.",
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
-      "msgYouPrefix": "You → {name}"
+      "msgYouPrefix": "You → {name}",
+      "msgToClinic": "The clinic staff in charge"
     },
     "doctor": {
       "greeting": "{name}",

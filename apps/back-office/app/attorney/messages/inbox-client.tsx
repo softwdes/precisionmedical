@@ -99,7 +99,6 @@ interface ThreadDetail {
   caseCode: string | null;
   caseId: string | null;
   patientName: string | null;
-  recipients: Array<{ userName: string; kind: 'TO' | 'CC' }>;
   entries: Entry[];
 }
 
@@ -294,7 +293,6 @@ export function AttorneyInbox({ locale, initialThreadId = null, embedded = false
     }
   }
 
-  const para = abierto?.recipients.filter((r) => r.kind === 'TO').map((r) => r.userName) ?? [];
   const rows = lista?.threads ?? null;
   const hayFiltro = q.trim() !== '' || soloSinLeer || soloUrgentes || priority !== '' || tipo !== '';
   const total = lista?.total ?? 0;
@@ -651,12 +649,13 @@ export function AttorneyInbox({ locale, initialThreadId = null, embedded = false
                         <dd className="text-text-1 truncate">{abierto.patientName}</dd>
                       </div>
                     )}
-                    {para.length > 0 && (
+                      {/* El "Para" con nombres se retiró el 2026-09-14: el bufete
+                          no ve a quién le llegó, solo que fue a la clínica. Quién lo
+                          recibió se mira en Pedidos de bufetes, del lado de adentro. */}
                       <div className="flex gap-2 min-w-0">
                         <dt className="text-text-muted shrink-0">{t('msgTo')}</dt>
-                        <dd className="text-text-2 truncate">{para.join(', ')}</dd>
+                        <dd className="text-text-2 truncate">{t('msgToClinic')}</dd>
                       </div>
-                    )}
                   </dl>
                   <Button variant="secondary" size="sm" disabled={archivando} onClick={() => { void archivar(abierto.id, !abierto.archived); }}>
                     {abierto.archived ? <ArchiveRestore /> : <Archive />}

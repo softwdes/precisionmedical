@@ -63,10 +63,11 @@ export async function GET(
       // El paciente está en el alcance del abogado —es SU cliente—, así que el
       // nombre puede ir en la cabecera igual que en su lista de casos.
       patient: { select: { firstName: true, lastName: true } },
-      recipients: {
-        where: { kind: { in: ['TO', 'CC'] } },
-        select: { userName: true, kind: true },
-      },
+      // Los DESTINATARIOS no se piden a propósito (Erick, 2026-09-14): el bufete
+      // pide y el sistema le dice que va "a los encargados de la clínica", sin
+      // nombres. Quién lo recibió se ve del lado de la clínica, en Pedidos de
+      // bufetes. Mandarlos acá exponía el organigrama interno a un externo, y
+      // encima invita a escribirle directo a una persona salteando el escritorio.
       entries: {
         where: { kind: { in: [...KINDS_VISIBLES] } },
         orderBy: { sentAt: 'asc' },
@@ -103,7 +104,6 @@ export async function GET(
     caseCode: thread.case?.caseCode ?? null,
     caseId: thread.case?.id ?? null,
     patientName: thread.patient ? `${thread.patient.firstName} ${thread.patient.lastName}`.trim() : null,
-    recipients: thread.recipients,
     entries: thread.entries.map((e) => ({
       ...e,
       // Para pintar "vos" vs "la clínica" sin mandar ids ajenos al cliente.

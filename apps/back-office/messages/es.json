@@ -708,7 +708,8 @@
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}"
+      "msgYouPrefix": "Vos → {name}",
+      "msgToClinic": "Los encargados de la clínica"
     },
     "doctor": {
       "greeting": "{name}",

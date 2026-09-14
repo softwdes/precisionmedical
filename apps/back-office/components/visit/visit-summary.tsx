@@ -1096,21 +1096,33 @@ export function VisitSummary({
         title={t('tabLabs')}
         action={
           <div className="flex items-center gap-3">
-            {/* Imprimir la orden ACÁ: el flujo real es cobrar y recién ahí
-                entregarle la hoja al paciente (Erick 2026-08-08). Sin esto el
-                asistente tenía que salir del Resumen a buscarla al tab Labs.
-                Solo del lado del asistente: el doctor no imprime. */}
+            {/* Imprimir y generar la orden viven ACÁ y no en el tab de Labs: el
+                flujo real es terminar la cita, consultarle al paciente si está
+                de acuerdo, y recién ahí emitir la hoja (Erick 2026-08-08 para
+                imprimir, 2026-09-11 para generar).
+
+                Emitida o no, el botón cambia — no se ofrece "Generar" dos veces:
+                ese número es el que casa la muestra con la orden. */}
             {/*
-              * "Generar orden" vive ACÁ y no en el tab de Labs por el mismo
-              * motivo que el botón de imprimir: el flujo real es terminar la
-              * cita, consultarle al paciente si está de acuerdo, y recién ahí
-              * emitir la hoja (Erick, 2026-09-11). Es el mismo componente en
-              * Mi Día y en Day Admission, así que cae en las dos pantallas.
+              * ── LAS DOS PANTALLAS, no una ────────────────────────────────
               *
-              * Emitida o no, el botón cambia — no se ofrece "Generar" dos veces:
-              * ese número es el que casa la muestra con la orden.
+              * Esto estuvo detrás de `isAssistant` y por eso el provider NO veía
+              * nada de la orden en Mi Día: ni generar, ni con qué seguro salía,
+              * ni anular. El guard venía del botón de imprimir —"el doctor no
+              * imprime", Erick 2026-08-08— y se tragó también al botón nuevo.
+              * El comentario de al lado llegó a decir que caía en las dos
+              * pantallas, y era falso: el componente es el mismo, pero el guard
+              * lo excluía.
+              *
+              * Erick, 2026-09-13, **dando vuelta lo del 2026-08-08**: el provider
+              * tiene lo mismo que el asistente, imprimir incluido. El motivo es
+              * el provider que atiende sin recepcionista — si no puede emitir ni
+              * entregar la hoja, el paciente se va sin sus estudios.
+              *
+              * Si alguien vuelve a poner un guard acá, que sea por una decisión
+              * nueva y con su fecha, no por creerle a la regla vieja.
               */}
-            {isAssistant && printGroups.map((g, i) => {
+            {printGroups.map((g, i) => {
               const req = requis[g];
               const sufijo = printGroups.length > 1 ? ` ${i + 1}` : '';
               if (req === undefined) {
@@ -1180,8 +1192,11 @@ export function VisitSummary({
           * clínica y no hay nada que elegir. Es la línea que le permite al
           * encargado preguntarle al paciente "¿lo cargamos a este seguro o a
           * otro?" mientras todavía se puede cambiar.
+          *
+          * Sin guard de rol: lo ven el asistente y el provider, por lo mismo que
+          * el botón de arriba (Erick, 2026-09-13).
           */}
-        {isAssistant && printGroups.map((g, i) => {
+        {printGroups.map((g, i) => {
           const req = requis[g];
           const pv = previo[g];
           const sufijo = printGroups.length > 1 ? ` ${i + 1}` : '';

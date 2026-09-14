@@ -17,7 +17,7 @@ import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
   Stethoscope, Building2, ChevronLeft, Tv2, Search, X, UserX, Ban, DollarSign,
-  QrCode, Check,
+  QrCode, Check, FlaskConical,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { useToast } from '@/components/ui-phoenix';
@@ -25,6 +25,7 @@ import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { OnlineBadge } from '@/components/visit/online-visit';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { ReporteLabsDialog } from '@/components/visit/reporte-labs-dialog';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
@@ -513,6 +514,8 @@ export function AdmissionClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations('phoenix.admission');
+  /** El reporte de labs comparte textos con el portal médico: un solo juego. */
+  const tLabs = useTranslations('phoenix.doctor');
   const toast = useToast();
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
@@ -527,6 +530,8 @@ export function AdmissionClient() {
   /** Búsqueda de paciente dentro de la lista del día. */
   const [patientQuery, setPatientQuery] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('all');
+  /** El modal del reporte de laboratorios — alcance de toda la clínica. */
+  const [reporteLabs, setReporteLabs] = useState(false);
   /** Desenlace elegido en la fila — el confirm evita el clic accidental. */
   const [desenlaceTarget, setDesenlaceTarget] = useState<{ appt: AdmissionAppt; tipo: Desenlace } | null>(null);
   /** Cita cuyo QR de firma está abierto. Uno solo a la vez, como el confirm. */
@@ -893,6 +898,18 @@ export function AdmissionClient() {
               {op.label}
             </button>
           ))}
+          {/* El reporte de laboratorios, al lado de los filtros porque hace lo
+              mismo que ellos: acotar lo que hay que mirar. No es un filtro más
+              —abre un modal— así que va separado por el borde y no comparte el
+              estado de selección (Erick, 2026-09-13). */}
+          <button
+            type="button"
+            onClick={() => setReporteLabs(true)}
+            className="px-2.5 h-8 rounded-md border border-violet/30 bg-violet/10 text-[11px] font-semibold text-violet-text hover:bg-violet/20 transition-colors inline-flex items-center gap-1.5"
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{tLabs('repLabsBoton')}</span>
+          </button>
         </div>
       </div>
 
@@ -1132,6 +1149,16 @@ export function AdmissionClient() {
               hrefFor={(id) => `/admission/${id}`}
             />
           </>
+        )}
+
+        {/* El reporte de laboratorios — alcance CLÍNICA: el asistente arma el
+            lote de todos los providers, no el de uno. */}
+        {reporteLabs && (
+          <ReporteLabsDialog
+            scope="clinic"
+            hrefVisita={(id) => `/admission/${id}`}
+            onClose={() => setReporteLabs(false)}
+          />
         )}
 
         {/* Confirm de por medio: los tres estados pesan en las métricas del doctor

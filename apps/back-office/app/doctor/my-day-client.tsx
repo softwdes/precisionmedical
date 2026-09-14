@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle, Ban, CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
-  Hourglass, QrCode, RefreshCw, Sun, UserX, Video,
+  FlaskConical, Hourglass, QrCode, RefreshCw, Sun, UserX, Video,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker, useToast } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
@@ -23,6 +23,7 @@ import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { ReporteLabsDialog } from '@/components/visit/reporte-labs-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import { useLiveSync } from '@/lib/use-live-sync';
@@ -177,6 +178,13 @@ export function MyDayClient({
    * pantalla ya ofrece los desenlaces que normalmente hace recepción.
    */
   const [qrTarget, setQrTarget] = React.useState<MyDayAppointment | null>(null);
+  /**
+   * El reporte de laboratorios — alcance `mine`.
+   *
+   * Mismo criterio que la cola de notas sin cerrar: el provider mira lo SUYO, el
+   * asistente lo de toda la clínica desde Day Admission.
+   */
+  const [reporteLabs, setReporteLabs] = React.useState(false);
   /** id de la cita que se está abriendo — deshabilita solo ESE botón. */
   const [attending, setAttending] = React.useState<string | null>(null);
 
@@ -409,6 +417,20 @@ export function MyDayClient({
             className="w-9 h-9 rounded-md border border-border hover:bg-white/5 text-text-muted hover:text-text-1 flex items-center justify-center transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          {/* El reporte de laboratorios.
+              En Day Admission va junto a los filtros; acá no hay filtros, así
+              que va con la fecha y el refrescar — las acciones de la cabecera.
+              NO se acota al día visible a propósito: una orden trabada del
+              martes sigue trabada hoy (Erick, 2026-09-13). */}
+          <button
+            type="button"
+            onClick={() => setReporteLabs(true)}
+            title={t('repLabsBoton')}
+            className="h-9 px-2.5 rounded-md border border-violet/30 bg-violet/10 text-[11px] font-semibold text-violet-text hover:bg-violet/20 flex items-center gap-1.5 transition-colors"
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t('repLabsBoton')}</span>
           </button>
           <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-9 px-1">
             <Link
@@ -759,6 +781,14 @@ export function MyDayClient({
         hrefFor={(id) => `/doctor/consultation/${id}?desde=notas`}
         reopenParam="notas"
       />
+
+      {reporteLabs && (
+        <ReporteLabsDialog
+          scope="mine"
+          hrefVisita={(id) => `/doctor/consultation/${id}`}
+          onClose={() => setReporteLabs(false)}
+        />
+      )}
 
       {/* Acceso rápido al calendario */}
       <div className="text-[12px] text-text-muted">

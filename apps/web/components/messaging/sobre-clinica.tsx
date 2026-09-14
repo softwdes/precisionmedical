@@ -67,12 +67,16 @@ export function SobreClinica(): React.ReactElement | null {
       className="relative inline-flex items-center justify-center gap-2 h-9 px-2.5 sm:px-3 rounded-md border border-border bg-bg-2 text-text-2 hover:text-text-1 hover:bg-white/5 transition-colors"
     >
       <Mail className="w-4 h-4 shrink-0" aria-hidden="true" />
-      {/* La palabra aparece desde tablet para arriba.
-          En 375px la barra ya lleva reloj, teléfono, CIFO, campana, idioma, tema
-          y avatar: sumarle una palabra a cada uno empuja el avatar fuera de la
-          pantalla. El icono solo, con su `aria-label`, sigue diciendo qué es —
-          y ahí abajo la palabra está igual, en el menú lateral. */}
-      <span className="hidden sm:inline text-[13px]">{t('title')}</span>
+      {/* La palabra va SIEMPRE, también en el teléfono.
+          La primera versión la escondía por debajo de 640px para no apretar la
+          barra —que ya lleva reloj, teléfono, CIFO, campana, idioma, tema y
+          avatar—, y Erick la pidió igual dos veces (2026-09-14). Tiene razón:
+          un sobre solo no dice si es correo interno, alertas o el buzón del
+          sistema, y esa barra tiene tres iconos que podrían ser cualquiera de
+          las tres. Si en algún teléfono aprieta, se resuelve achicando otra
+          cosa, no borrando la única que nombra lo que hay adentro.
+          `whitespace-nowrap`: la palabra no se parte en dos renglones. */}
+      <span className="text-[13px] whitespace-nowrap">{t('title')}</span>
       {sinLeer > 0 && (
         /* El número va ARRIBA del icono y no al lado: al lado empuja el resto
            de la barra cada vez que cambia, y en móvil eso mueve todo. */

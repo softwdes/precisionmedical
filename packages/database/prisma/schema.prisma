@@ -849,6 +849,7 @@ model Patient {
 
   appointments Appointment[]
   commissions  Commission[]
+  memberships  PatientMembership[]
 
   // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
   cases          Case[]            @relation("PatientCases")
@@ -866,6 +867,71 @@ model Patient {
   @@index([providerReferrerId])
   @@index([status])
   @@map("patients")
+}
+
+/// Membresía de la clínica.
+///
+/// ⚠️ **Esto es una FOTO, no la verdad en vivo.** El sistema de membresías es
+/// externo y por ahora manda un CSV semanal; hasta que haya integración, lo que
+/// hay acá tiene hasta siete días de atraso. Por eso `corteAl` no es opcional y
+/// toda pantalla que muestre una membresía muestra también de cuándo es el dato
+/// — si no, un "Activa" viejo se lee como si fuera de hoy.
+///
+/// Hoy es SOLO INFORMATIVA: no toca precios ni facturación (Erick, 13-sep-2026,
+/// "no cambia hasta que esté el sistema de membresías").
+model PatientMembership {
+  id String @id @default(cuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// `contrato_id` del origen. Es la llave natural del importador: el upsert va
+  /// por acá, así que reimportar el mismo corte no duplica nada.
+  contratoExterno String @unique
+
+  /// El `paciente_id` del origen, que es el id del v2.
+  ///
+  /// Se guarda aunque ya esté resuelto a `patientId` porque es lo único que
+  /// permite auditar un cruce después. Y hace falta: el contrato de Elissa
+  /// Parsons apunta a la ficha v2 `5058`, que la migración descartó por
+  /// duplicada — ella vive como `P-5399`. Con 64 fichas todavía por fusionar,
+  /// esto va a volver a pasar.
+  pacienteExterno String
+
+  /// Texto libre a propósito: son valores de un sistema ajeno que puede sumar
+  /// planes y modalidades sin avisarnos. Un enum acá obliga a migrar la base
+  /// cada vez que ellos agregan una fila a un catálogo suyo.
+  plan         String
+  tipo         String
+  montoMensual Decimal @db.Decimal(10, 2)
+
+  empresa       String?
+  grupoFamiliar String?
+
+  /// Fechas sin hora: son días de calendario, no instantes. Con `timestamp` un
+  /// vencimiento del día 1 se muestra el 31 del mes anterior en Denver.
+  fechaInicio DateTime? @db.Date
+  ultimoPago  DateTime? @db.Date
+
+  /// De acá sale "hasta cuándo": **el origen no manda estado ni vencimiento**.
+  /// Activa / vencida se deduce comparando esto contra hoy.
+  proximoPago DateTime? @db.Date
+
+  /// `CSV` mientras sea el archivo semanal; `API` cuando haya integración. Está
+  /// desde el día uno para que la pantalla no cambie cuando cambie la fuente.
+  origen  String   @default("CSV")
+  corteAl DateTime
+
+  /// Si un corte deja de traer un contrato, se apaga; NO se borra. Un archivo
+  /// incompleto no puede hacer desaparecer la membresía de alguien que paga.
+  enUltimoCorte Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([proximoPago])
+  @@map("patient_memberships")
 }
 
 enum PatientStatus {

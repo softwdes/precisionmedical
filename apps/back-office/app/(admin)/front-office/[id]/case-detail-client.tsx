@@ -29,6 +29,8 @@ import { Button } from '@precision/ui';
 // (decisión de Erick 2026-08-08) — un tab aparte era redundante.
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
+import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
+import type { Membresia } from '@/lib/membresias';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CaseMessagesTab } from '@/components/messaging/case-messages-tab';
 import { ArchivosDialog, fotosDelCaso } from '@/components/patients/archivos-dialog';
@@ -107,6 +109,8 @@ interface CaseInfo {
     /** Idioma registrado — decide en qué idioma sale el SMS del portal. */
     preferredLanguage: string | null;
     patientCode: string | null;
+    /** Socio de la clínica: tiene, venció, o no tiene. Ver `lib/membresias.ts`. */
+    membresia?: Membresia;
     addressLine1: string | null;
     addressCity: string | null;
     addressState: string | null;
@@ -590,6 +594,19 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                   </div>
                   {caseInfo.patient.patientCode && (
                     <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseInfo.patient.patientCode}</div>
+                  )}
+                  {/**
+                    * Si es socio de la clínica, y hasta cuándo.
+                    *
+                    * Va pegado al nombre y no en una tarjeta aparte porque es
+                    * un atributo de la PERSONA, como el código: quien abre el
+                    * caso tiene que verlo sin buscarlo. La misma pastilla sale
+                    * en la ficha del paciente y en el diálogo de nueva cita.
+                    */}
+                  {caseInfo.patient.membresia && (
+                    <div className="mt-1.5">
+                      <PastillaMembresia membresia={caseInfo.patient.membresia} />
+                    </div>
                   )}
                   {/**
                     * El correo y el teléfono, cada uno con su cartel si es

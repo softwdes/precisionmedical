@@ -41,6 +41,8 @@ import {
   TagPill,
   EmptyState,
 } from '@/components/ui-phoenix';
+import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
+import { useMembresia } from '@/components/membresias/use-membresia';
 
 // ─── Tipos derivados del include de Prisma ────────────────────────────────────
 
@@ -140,6 +142,8 @@ const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = 
 // ─── Component principal ──────────────────────────────────────────────────────
 
 export function PatientDetailClient({ patient, doctorMode = false }: { patient: PatientData; doctorMode?: boolean }) {
+  /** Socio de la clínica: la misma pastilla que sale en el caso y al agendar. */
+  const membresiaDelPaciente = useMembresia(patient.id);
   const t = useTranslations('phoenix.patients');
   const router = useRouter();
   const pathname = usePathname();
@@ -205,6 +209,7 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
               </div>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
                 <code className="text-text-muted text-xs font-mono font-normal">{patient.patientCode}</code>
+                {membresiaDelPaciente && <PastillaMembresia membresia={membresiaDelPaciente} />}
                 {age !== null && (
                   <span className="text-text-muted text-xs font-normal flex items-center gap-1">
                     <Cake className="w-3 h-3" /> {t('ageYears', { age })}

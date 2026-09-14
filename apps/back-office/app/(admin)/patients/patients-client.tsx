@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
@@ -31,6 +31,7 @@ import { SmsHistoryDialog } from '@/components/sms/sms-history-dialog';
 import { PatientMessagesDialog, type MessagesCaseFilter } from '@/components/messaging/patient-messages-dialog';
 import type { ComposePatientRef } from '@/components/messaging/compose-message-dialog';
 import { PriceListDialog } from '@/components/catalog/price-list-dialog';
+import { MembresiasDialog } from '@/components/membresias/membresias-dialog';
 import { progresoIntake, type MissingKey } from '@/lib/intake-progreso';
 import { PATIENTS_PAGE_SIZE, PATIENTS_PAGE_SIZES } from '@/lib/patients-page';
 import QRCode from 'qrcode';
@@ -1646,6 +1647,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const tCalls  = useTranslations('phoenix.calls');
   const tSms    = useTranslations('phoenix.sms');
   const tPrices = useTranslations('phoenix.catalog.priceList');
+  const tMembresias = useTranslations('phoenix.memberships');
   const tCarrera = useTranslations('phoenix.carrera');
   const tMsg    = useTranslations('phoenix.messaging');
   const router = useRouter();
@@ -1950,6 +1952,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // Vive acá y no en el catálogo completo porque el uso es cotizar en el
   // momento, con el paciente enfrente. Visible también en el portal médico.
   const [priceListOpen, setPriceListOpen] = useState(false);
+
+  /**
+   * Membresías — el padrón de socios.
+   *
+   * No se muestra en el portal médico: el provider no necesita el padrón
+   * entero (quién paga cuánto) para atender. Lo que sí ve es la membresía del
+   * paciente que tiene delante, en la ficha y en el caso.
+   */
+  const [membresiasOpen, setMembresiasOpen] = useState(false);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
@@ -2217,6 +2228,29 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <Tag className="w-3.5 h-3.5" />
             {tPrices('button')}
           </button>
+
+          {/* Membresías — el padrón de socios de la clínica.
+
+              Va pegado a Precios porque se usa en el mismo momento: alguien
+              enfrente preguntando cuánto sale algo, o si su membresía sigue
+              viva. Y va ANTES de Crear paciente / Crear caso, que es donde
+              Erick lo pidió (13-sep-2026).
+
+              No aparece en el portal médico: el provider no necesita saber
+              quién paga cuánto. La membresía del paciente que está atendiendo
+              sí la ve, en la ficha y en el caso. */}
+          {!doctorMode && (
+            <button
+              type="button"
+              onClick={() => setMembresiasOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand-text transition-colors whitespace-nowrap"
+              title={tMembresias('subtitulo')}
+            >
+              <BadgeCheck className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{tMembresias('boton')}</span>
+              <span className="sm:hidden">{tMembresias('botonCorto')}</span>
+            </button>
+          )}
 
           {/* Creación — solo admin; el doctor no crea pacientes/casos.
               "New patient" (patient-create-dialog.tsx) fue eliminado del todo:
@@ -3007,6 +3041,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       {/* ─── Precios ─────────────────────────────────────────────────────────
           Los datos se piden la primera vez que se abre, no con la lista. */}
       <PriceListDialog open={priceListOpen} onOpenChange={setPriceListOpen} />
+
+      {/* ─── Membresías ──────────────────────────────────────────────────────
+          Misma mecánica que Precios: se pide al abrir, no con la lista. */}
+      <MembresiasDialog open={membresiasOpen} onOpenChange={setMembresiasOpen} />
 
       {/* ─── Llamar al paciente ──────────────────────────────────────────────
           Confirmacion explicita antes de marcar: es una llamada real por

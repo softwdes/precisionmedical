@@ -4,6 +4,7 @@ import type { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-deta
 import { getSessionUser } from '@/lib/session';
 import { getDbUserByEmail } from '@/lib/actor';
 import { fotosConRespaldo } from '@/lib/fotos-identidad';
+import { membresiaDePaciente } from '@/lib/membresias';
 
 /**
  * Carga del detalle de caso — compartida por las CUATRO superficies que lo
@@ -231,6 +232,16 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
     return (cd?.photos as Record<string, string> | undefined) ?? {};
   })();
   const fotos = await fotosConRespaldo(caseRecord.patient.id, fotosDelCaso);
+
+  /**
+   * Si el paciente es socio de la clínica, y hasta cuándo.
+   *
+   * Se resuelve acá —y no en la pantalla— por la misma razón que el resto de
+   * este archivo: son CUATRO superficies las que montan el detalle del caso, y
+   * un dato que cada una pida por su cuenta termina apareciendo en dos y
+   * faltando en las otras dos.
+   */
+  const membresia = await membresiaDePaciente(caseRecord.patient.id);
   /**
    * Las que están en la papelera. Van al cliente para que el recuadro vacío
    * pueda ofrecer "recuperar" también acá, y no solo en la sesión en la que se
@@ -276,6 +287,7 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
          */
         fotos,
         fotosEliminadas,
+        membresia,
         photoUrl: fotos.selfie ?? null,
       },
       lawFirm: caseRecord.lawFirm,

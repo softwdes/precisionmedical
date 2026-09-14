@@ -17,6 +17,8 @@ import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
   FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2,
 } from 'lucide-react';
+import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
+import { useMembresia } from '@/components/membresias/use-membresia';
 import { WeeklySlotPicker } from './weekly-slot-picker';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -190,6 +192,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [patientResults, setPatientResults] = useState<PatientResult[]>([]);
   const [searchingPt,    setSearchingPt]    = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<PatientResult | null>(null);
+
+  /**
+   * ¿Es socio de la clínica? Se pregunta al elegir el paciente, que es justo
+   * el momento en el que recepción necesita saberlo — hoy eso se contesta
+   * abriendo otro sistema (Erick, 13-sep-2026).
+   */
+  const membresiaDelElegido = useMembresia(selectedPatient?.id);
   const [patientCases,   setPatientCases]   = useState<CaseOption[]>([]);
   const [loadingCases,   setLoadingCases]   = useState(false);
 
@@ -882,6 +891,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                         <span className="ml-2 text-text-muted font-mono text-[11px]">{selectedPatient.patientCode}</span>
                       )}
                       {selectedPatient.phone && <span className="ml-2 text-text-muted text-[11px]">{selectedPatient.phone}</span>}
+                      {membresiaDelElegido && (
+                        <div className="mt-1.5"><PastillaMembresia membresia={membresiaDelElegido} /></div>
+                      )}
                     </div>
                     <button onClick={clearPatient} className="text-text-muted hover:text-rose transition-colors">
                       <X className="w-3.5 h-3.5" />

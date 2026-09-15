@@ -1272,26 +1272,41 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                           </button>
                         );
                       })}
-                    </div>
-                  )}
 
-                  {/* Abrir OTRO caso aunque ya tenga.
-                      Un paciente puede tener varios accidentes, y cada uno es su
-                      propio caso MVA. El botón no se esconde cuando ya hay casos
-                      —esconderlo obligaría a irse a Pacientes por lo mismo— pero
-                      tampoco compite con la lista: es secundario y va debajo.
-                      El servidor decide: si el caso nuevo fuera GM y ya tiene uno
-                      abierto, responde con el existente en vez de duplicarlo. */}
-                  {!loadingCases && patientCases.length > 0 && (
-                    <button
-                      type="button"
-                      disabled={casoPidiendo}
-                      onClick={() => setCasoConfirmar(true)}
-                      className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-text-muted hover:text-brand-text transition-colors disabled:opacity-50"
-                    >
-                      <FilePlus className="w-3 h-3" />
-                      {casoPidiendo ? t('creatingCaseLoading') : t('createAnotherCase')}
-                    </button>
+                      {/* Abrir OTRO caso — una celda más de la MISMA grilla.
+                          Un paciente puede tener varios accidentes y cada uno es
+                          su propio caso MVA, así que la opción no se esconde
+                          cuando ya hay casos: esconderla obligaría a irse a
+                          Pacientes por exactamente lo mismo.
+
+                          Vive adentro de la grilla y no debajo porque debajo se
+                          leía como un pie de página y nadie la veía. Con un solo
+                          caso queda al costado, al mismo golpe de vista.
+
+                          Pero el BORDE ES PUNTEADO y el texto queda apagado a
+                          propósito: no puede competir con las tarjetas de caso.
+                          Lo correcto casi siempre es elegir el caso que ya está;
+                          si esto gritara igual de fuerte, el atajo para el caso
+                          raro se convertiría en una fábrica de casos duplicados
+                          que después hay que borrar a mano.
+
+                          El servidor tiene la última palabra: si el caso nuevo
+                          fuera GM y el paciente ya tiene uno abierto, responde
+                          con el existente en vez de duplicarlo. */}
+                      <button
+                        type="button"
+                        disabled={casoPidiendo}
+                        onClick={() => setCasoConfirmar(true)}
+                        className="w-full text-left rounded-md border border-dashed border-border px-3 py-2 text-text-muted transition-all hover:border-brand/50 hover:text-brand-text hover:bg-brand/[0.04] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FilePlus className="w-3.5 h-3.5 shrink-0" />
+                          <span className="text-xs font-medium">
+                            {casoPidiendo ? t('creatingCaseLoading') : t('createAnotherCase')}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

@@ -261,7 +261,32 @@ const MODULE_HOME: Record<string, string> = {
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // Rutas públicas — pasar sin verificar
+  /**
+   * Rutas públicas — pasan sin verificar la sesión.
+   *
+   * "Público" acá no quiere decir "sin protección": quiere decir que **la
+   * sesión no es la llave correcta** para esa puerta. Los webhooks de Twilio y
+   * de DAW traen su propia autenticación, y los crons traen `CRON_SECRET` —
+   * cada ruta de `/api/cron/` lo exige y devuelve 401 sin él.
+   *
+   * ── Por qué `/api/cron/` estuvo seis días sin entrar ───────────────────────
+   *
+   * Vercel llama a los crons **sin cookies**: es una máquina, no una persona.
+   * Sin esta línea el portero veía "sin sesión" y lo mandaba a `/login` con un
+   * 307, así que el parte de la mañana **nunca se ejecutó ni una vez** desde que
+   * se escribió (2026-09-09). Vercel no lo marcaba como fallido —un 307 es una
+   * respuesta válida— y en Observability no aparecía ni una invocación. Silencio
+   * por los dos lados.
+   *
+   * Medido el 2026-09-15 pidiendo las dos rutas sin sesión: las dos daban 307.
+   *
+   * Es la QUINTA vez que este middleware tapa algo que no debía: el manifest, el
+   * `sw.js`, el `worker-<hash>.js`, `/api/push/public-key` y ahora los crons. El
+   * patrón siempre es el mismo — **algo que no es una persona con sesión pide
+   * una ruta nuestra**. Cuando agregues un endpoint para una máquina, preguntate
+   * primero si el portero lo va a dejar entrar, y comprobalo con una petición
+   * sin sesión antes de darlo por hecho.
+   */
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/no-access') ||
@@ -269,7 +294,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/auth') ||
     TWILIO_WEBHOOKS.has(pathname) ||
-    pathname.startsWith('/api/scriptsure/webhook'); // DAW → nosotros, Basic Auth propio
+    pathname.startsWith('/api/scriptsure/webhook') || // DAW → nosotros, Basic Auth propio
+    pathname.startsWith('/api/cron/'); // Vercel Cron → nosotros, `CRON_SECRET` propio
 
   if (isPublic) {
     /**

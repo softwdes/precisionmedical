@@ -36,17 +36,38 @@ function portalUrl(): string {
   ).replace(/\/$/, '');
 }
 
+/**
+ * `noReply` es una pieza aparte del `foot`, y con un trabajo propio.
+ *
+ * El pie ya decía dónde se LEE el mensaje ("solo se ve dentro del portal"),
+ * pero no que contestar el correo no sirve — y no es lo mismo. Este aviso llega
+ * como un mail normal de alguien con quien el bufete trabaja, y lo primero que
+ * hace cualquiera con un mail así es apretar Responder.
+ *
+ * Esa respuesta no llega a ningún lado: no hay procesamiento de correo entrante
+ * y el mensaje sale sin `reply-to`, así que cae en la casilla de
+ * `EMAIL_FROM_ADDRESS`, que la app no lee. El abogado cree que contestó, del
+ * lado de la clínica nunca aparece nada en el hilo, y ninguno de los dos tiene
+ * cómo enterarse. Peor que un mensaje que no llega es uno que el que lo mandó
+ * da por entregado.
+ *
+ * Va con la razón adentro ("para que quede en el caso") y no como una orden
+ * seca: a alguien que entiende POR QUÉ el portal es el lugar, no hay que
+ * recordárselo la próxima vez.
+ */
 const TEXTOS = {
   en: {
     subject: 'New message in your Precision Medical legal portal',
     body: (autor: string) => `${autor} from Precision Medical sent you a message about one of your cases.`,
     cta: 'Open the message',
+    noReply: 'Please do not reply to this email — replies are not received. Answer from the portal so your reply is recorded on the case.',
     foot: 'You are receiving this because your firm has access to the Precision Medical legal portal. The message itself is only visible inside the portal.',
   },
   es: {
     subject: 'Nuevo mensaje en tu portal legal de Precision Medical',
     body: (autor: string) => `${autor}, de Precision Medical, te escribió sobre uno de tus casos.`,
     cta: 'Abrir el mensaje',
+    noReply: 'No respondas a este correo — las respuestas no se reciben. Contestá desde el portal para que tu respuesta quede en el caso.',
     foot: 'Recibís este aviso porque tu bufete tiene acceso al portal legal de Precision Medical. El mensaje solo se ve dentro del portal.',
   },
 } as const;
@@ -74,10 +95,19 @@ export async function avisarAbogadosPorEmail(args: AvisoAbogadoArgs): Promise<vo
   await Promise.all(abogados.map(async (a) => {
     const t = TEXTOS[a.preferredLocale === 'es' ? 'es' : 'en'];
     const nombre = `${a.firstName} ${a.lastName}`.trim();
-    const text = `${t.body(args.autorNombre)}\n\n${t.cta}: ${link}\n\n${t.foot}`;
+    /**
+     * El "no respondas" va JUSTO DEBAJO DEL BOTÓN, no en el pie.
+     *
+     * El pie es letra chica gris: ahí lo lee el que ya decidió qué hacer. Esta
+     * línea tiene que llegar antes de esa decisión —entre "abrir el mensaje" y
+     * el reflejo de apretar Responder—, así que va pegada al botón y con el
+     * color del texto normal, no con el del pie.
+     */
+    const text = `${t.body(args.autorNombre)}\n\n${t.cta}: ${link}\n\n${t.noReply}\n\n${t.foot}`;
     const html =
       `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111">${esc(t.body(args.autorNombre))}</p>` +
       `<p><a href="${esc(link)}" style="display:inline-block;padding:10px 16px;border-radius:6px;background:#4f46e5;color:#fff;font:600 14px -apple-system,Segoe UI,Roboto,sans-serif;text-decoration:none">${esc(t.cta)}</a></p>` +
+      `<p style="font:13px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111">${esc(t.noReply)}</p>` +
       `<p style="font:12px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#666">${esc(t.foot)}</p>`;
 
     const r = await sendEmail({

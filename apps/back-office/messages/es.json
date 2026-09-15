@@ -3236,7 +3236,8 @@
       "createCaseConfirmTitle": "¿Le abrimos un caso?",
       "createCaseConfirmBody": "Se va a abrir el formulario de caso nuevo para {name}, con sus datos y el horario que elegiste ya cargados. Podés cambiar lo que haga falta antes de guardar.",
       "createCaseConfirmYes": "Sí, crear el caso",
-      "createCaseConfirmNo": "Cancelar"
+      "createCaseConfirmNo": "Cancelar",
+      "legendFirstVisitAny": "Primera visita (en cualquier estado)"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

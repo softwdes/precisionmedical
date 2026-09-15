@@ -16,8 +16,14 @@
  *    sobre blanco Y texto rosa pálido encima. Lo reportó el staff. Los tonos
  *    viven en `--cal-text-*` (globals.css).
  *
- * 2. **El estado manda sobre el tipo.** Las ramas de estado van PRIMERO: una MVA
- *    cancelada es una cancelada, no una MVA.
+ * 2. **El DESENLACE manda sobre el tipo.** Las ramas de cancelada, no-show y
+ *    atendida van PRIMERO: una MVA cancelada es una cancelada, no una MVA.
+ *
+ *    Decía "el estado manda sobre el tipo", y así escrita la regla se aplicó de
+ *    más: "agendada" también es un estado, y su rama se comía el realce de
+ *    primera visita de casi todo el calendario (ver el comentario de `isPending`).
+ *    Un desenlace es un HECHO que reemplaza al tipo; "agendada" es la ausencia de
+ *    un hecho, y no reemplaza nada.
  */
 
 import { CANCELLED_SAMEDAY_FILL, CANCELLED_SAMEDAY_RING } from './appointment-colors';
@@ -158,16 +164,59 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       text: 'var(--cal-text-attended)',
     };
   }
+  const isMVA = appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO';
+  const isGM  = appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE';
+
+  /**
+   * ── Agendada / sin confirmar ───────────────────────────────────────────────
+   *
+   * Ámbar de relleno, como siempre. Pero la PRIMERA VISITA sobrevive, y eso es
+   * una corrección, no un agregado.
+   *
+   * Hasta el 2026-09-14 esta rama devolvía ámbar y nada más, y como salía por
+   * `return` las ramas de tipo de más abajo NO SE ALCANZABAN. `SCHEDULED` es el
+   * estado con el que NACE toda cita, así que el realce de primera visita —el
+   * degradado, el glow y el 🆕 que anuncia la leyenda— era inalcanzable para
+   * casi todo el calendario.
+   *
+   * Medido ese día sobre las citas futuras: 129 de 137 (94,2%) caían acá. De
+   * las 9 primeras visitas MVA futuras, 7 no se distinguían de una de control;
+   * las 2 que sí eran `CHECKED_IN`, o sea pacientes que YA habían llegado a la
+   * clínica — justo cuando saber que es su primera vez ya no sirve para nada.
+   * Lo reportó la clínica: "tomorrow there are 4 new MVAs and I thought that in
+   * this screen, it would give a marker to set these appointments apart".
+   *
+   * Esto NO rompe la regla 2 de la cabecera ("el estado manda sobre el tipo").
+   * Esa regla existe para los DESENLACES —cancelada, no-show, atendida—, donde
+   * el estado es el hecho y el tipo pasa a ser una nota al pie. "Agendada" no es
+   * un desenlace: es la ausencia de uno, y el estado normal de todo lo que
+   * todavía no pasó. Tragarse el tipo ahí no ordena nada, tapa.
+   *
+   * La señal va en OTROS canales para que las dos cosas se lean a la vez, igual
+   * que hace "en línea" con el canto izquierdo:
+   *
+   *   · el RELLENO sigue diciendo "sin confirmar" — ámbar, sin cambios;
+   *   · el ARO dice de qué tipo es — rose para MVA, emerald para GM;
+   *   · el GLOW y el 🆕 dicen que es la primera vez.
+   */
   if (isPending) {
-    return {
+    const base = {
       bg: 'rgba(245,158,11,0.15)',
       border: 'rgba(245,158,11,0.40)',
       text: 'var(--cal-text-pending)',
     };
-  }
+    if (!isFirst) return base;
 
-  const isMVA = appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO';
-  const isGM  = appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE';
+    if (isMVA) {
+      return { ...base, border: 'rgba(236,72,153,0.65)', glow: '0 0 10px rgba(244,63,94,0.35)', badge: '🆕' };
+    }
+    if (isGM) {
+      return { ...base, border: 'rgba(16,185,129,0.65)', glow: '0 0 10px rgba(16,185,129,0.30)', badge: '🆕' };
+    }
+    // Primera visita de un tipo que no es ni MVA ni GM: el 🆕 igual se gana —
+    // que sea la primera vez del paciente no depende de la categoría.
+    return { ...base, badge: '🆕' };
+  }
 
   if (isMVA && isFirst) {
     return {

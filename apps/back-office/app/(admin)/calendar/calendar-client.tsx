@@ -554,6 +554,19 @@ function LegendStats({
           <Video className="w-3 h-3 text-cyan shrink-0" />
           <span className="text-[12px] text-text-2 font-medium">{t('legendOnline')}</span>
         </div>
+
+        {/* La PRIMERA VISITA también es un modificador, no una categoría: cruza
+            MVA, GM y estado. Las dos muestras de arriba —"MVA · 1ra" y "GM · 1ra"—
+            son ciertas solo cuando la cita ya está confirmada; mientras está
+            agendada el relleno es ámbar y lo que la distingue es el 🆕 con el
+            halo. Sin este renglón, quien busca el degradado rosa en el calendario
+            de mañana no lo encuentra, porque mañana casi todo está sin confirmar. */}
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-2 rounded-sm shrink-0"
+            style={{ background: APPT_COLORS.unconfirmed, boxShadow: MVA_FIRST_GLOW }} />
+          <span className="text-[11px] leading-none shrink-0">🆕</span>
+          <span className="text-[12px] text-text-2 font-medium">{t('legendFirstVisitAny')}</span>
+        </div>
       </div>
       <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0 flex-wrap justify-end">
         <span><span className="text-text-1 font-bold">{vivas}</span> {t('statAppointments')}</span>

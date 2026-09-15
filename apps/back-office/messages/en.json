@@ -3236,7 +3236,8 @@
       "createCaseConfirmTitle": "Create a case?",
       "createCaseConfirmBody": "This opens the new case form for {name}, with their details and the time slot you picked already filled in. You can change anything before saving.",
       "createCaseConfirmYes": "Yes, create the case",
-      "createCaseConfirmNo": "Cancel"
+      "createCaseConfirmNo": "Cancel",
+      "legendFirstVisitAny": "First visit (any status)"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

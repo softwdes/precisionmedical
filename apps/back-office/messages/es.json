@@ -4862,7 +4862,21 @@
         "linePaidOf": "pagó {paid} de {total}",
         "payModalTitleVisit": "Cobro de la visita",
         "payModalSubtitleVisit": "Se cobra solo lo de esta consulta. El saldo del caso se ve en el paciente.",
-        "payVisitDate": "Visita del"
+        "payVisitDate": "Visita del",
+        "v2Title": "Historial del sistema anterior",
+        "v2Subtitle": "Cargos y pagos que vienen del v2. Es solo lectura: esta deuda la gestiona Cobranzas con el seguro o el abogado, no el mostrador con el paciente.",
+        "v2Charges": "{n} cargos",
+        "v2ColDate": "Fecha",
+        "v2ColConcept": "Concepto",
+        "v2ColCost": "Costo",
+        "v2ColPaid": "Pagado",
+        "v2ColBalance": "Saldo",
+        "v2PaymentsTitle": "Pagos registrados en el v2 ({n})",
+        "v2Payer": {
+          "PATIENT": "pagó el paciente",
+          "INSURANCE": "pagó el seguro",
+          "LAWYER": "pagó el abogado"
+        }
       },
       "prescripciones": {
         "placeholderMed": "Selecciona un medicamento",

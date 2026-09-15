@@ -81,6 +81,17 @@ export async function GET(
       ? 'PATIENT' as const
       : 'INSURANCE' as const,
     /**
+     * Vino del v2. La marca NO cambia quién paga: cambia DÓNDE se muestra.
+     *
+     * Un cargo migrado no tiene férula, servicio de mostrador ni laboratorio,
+     * así que el `payer` de arriba lo manda al circuito del seguro y la
+     * pantalla —que solo lista lo del mostrador— lo escondía por completo: un
+     * caso con $26.945 de saldo se veía en $0.00. Con esto el cliente lo saca
+     * en su propia sección, de solo lectura, sin sumarlo a ningún total de
+     * cobro. Ver `prisma/sql/20260915-cargos-del-v2.sql`.
+     */
+    migratedFromV2: b.migratedFromV2,
+    /**
      * De dónde nació el cargo. El `payer` dice QUIÉN paga; esto dice QUÉ es.
      *
      * En el modal de cobro las líneas salían todas bajo "SERVICE": dos

@@ -3757,6 +3757,23 @@ model AppointmentBilling {
   /// paciente, no del seguro (los CPT son el otro circuito).
   labOrderId String? @unique
 
+  /// Vino del v2.
+  ///
+  /// Un cargo migrado no tiene férula, servicio de mostrador ni laboratorio, así
+  /// que el `payer` lo clasifica como del SEGURO y Finanzas —que solo muestra lo
+  /// que se cobra en el mostrador— lo esconde. Un caso con $26.945 de saldo real
+  /// se veía en $0.00 (Erick, 15-sep-2026, mirando MVA-1351).
+  ///
+  /// No se reclasificaron como cobrables a propósito: en los MVA paga el
+  /// abogado, y marcar $862.000 como "del paciente" pondría a recepción
+  /// pidiéndole esa plata a quien no la debe. Con esta marca el historial del v2
+  /// se muestra APARTE, de solo lectura y con sus pagos.
+  ///
+  /// La rellena `scripts/migration/12b-marcar-cargos-del-v2.mjs` desde
+  /// `id-maps/billing.json`, no desde un patrón: "sin férula ni servicio ni lab"
+  /// también describe a un CPT creado hoy.
+  migratedFromV2 Boolean @default(false)
+
   totalCost        Decimal @default(0) @db.Decimal(10, 2)
   discount         Decimal @default(0) @db.Decimal(10, 2)
   insuranceCovered Decimal @default(0) @db.Decimal(10, 2)

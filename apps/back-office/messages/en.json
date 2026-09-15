@@ -4862,7 +4862,21 @@
         "linePaidOf": "paid {paid} of {total}",
         "payModalTitleVisit": "Visit payment",
         "payModalSubtitleVisit": "Only this visit is collected here. The case balance lives on the patient.",
-        "payVisitDate": "Visit of"
+        "payVisitDate": "Visit of",
+        "v2Title": "Legacy system history",
+        "v2Subtitle": "Charges and payments carried over from v2. Read-only: this balance is handled by Collections with the insurer or attorney, not at the front desk.",
+        "v2Charges": "{n} charges",
+        "v2ColDate": "Date",
+        "v2ColConcept": "Item",
+        "v2ColCost": "Cost",
+        "v2ColPaid": "Paid",
+        "v2ColBalance": "Balance",
+        "v2PaymentsTitle": "Payments recorded in v2 ({n})",
+        "v2Payer": {
+          "PATIENT": "paid by patient",
+          "INSURANCE": "paid by insurance",
+          "LAWYER": "paid by attorney"
+        }
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",

@@ -47,6 +47,11 @@ interface BillingRecord {
   insuranceCovered: number;
   amountPaid: number;
   balanceDue: number;
+  /**
+   * Vino del v2. No entra en ningún total de esta pantalla: se muestra en su
+   * propia sección, de solo lectura, al pie. Ver `historialDelV2` más abajo.
+   */
+  migratedFromV2?: boolean;
   payments: BillingPayment[];
 }
 
@@ -506,6 +511,37 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const historial = payments.filter(p =>
     p.source === 'PATIENT' && (!filterAppointmentId || p.appointmentId === filterAppointmentId));
 
+  /**
+   * El expediente económico que viene del v2 — SOLO LECTURA.
+   *
+   * ── Por qué existe ────────────────────────────────────────────────────────
+   * Los 6.455 cargos migrados no tienen férula, servicio de mostrador ni
+   * laboratorio, así que `payer` los manda al circuito del seguro y esta
+   * pantalla, que solo lista lo cobrable en el mostrador, los escondía
+   * enteros: un caso con $26.945 de saldo real se veía en $0.00.
+   *
+   * ── Por qué aparte y no mezclado ──────────────────────────────────────────
+   * Porque reclasificarlos como cobrables sería peor que no verlos. En los
+   * casos MVA paga el abogado: marcar esos $862.000 como "del paciente"
+   * pondría a recepción pidiéndole esa plata a quien no la debe. Acá se ve
+   * todo —lo que se cobró en el v2 y lo que quedó debiendo— sin sumar a ningún
+   * total de cobro y sin un solo botón que cobre (decisión de Erick,
+   * 15-sep-2026).
+   */
+  /** Arranca cerrado: es expediente, no trabajo del día. */
+  const [v2Abierto, setV2Abierto] = useState(false);
+
+  const delV2 = billings.filter(b =>
+    b.migratedFromV2 && (!filterAppointmentId || b.appointmentId === filterAppointmentId));
+  const v2Costo  = delV2.reduce((s, b) => s + b.totalCost, 0);
+  const v2Pagado = delV2.reduce((s, b) => s + b.amountPaid, 0);
+  const v2Saldo  = delV2.reduce((s, b) => s + b.balanceDue, 0);
+  /** Los pagos que ENTRARON en el v2, como bitácora: quién puso y cómo. */
+  const v2Pagos = React.useMemo(() => {
+    const ids = new Set(delV2.map(b => b.id));
+    return payments.filter(p => ids.has(p.billingId));
+  }, [delV2, payments]);
+
   const pending     = pendingOf(billings);
   const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
 
@@ -797,6 +833,101 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ── Historial del v2 — SOLO LECTURA ──────────────────────────────────
+          Va al final y arranca cerrado: no es trabajo de hoy. Pero tiene que
+          estar, porque son $1,38 millones de expediente económico que antes no
+          se veían en ninguna pantalla del sistema.
+
+          Ni un botón que cobre acá adentro. Si alguien tiene que gestionar esta
+          plata, es Cobranzas con el seguro o el abogado — no el mostrador con
+          el paciente enfrente. */}
+      {delV2.length > 0 && (
+        <div className="rounded-lg bg-bg-1 p-5 mt-4">
+          <button
+            type="button"
+            onClick={() => setV2Abierto(v => !v)}
+            className="w-full flex items-center gap-2 text-left"
+          >
+            {v2Abierto ? <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+                       : <ChevronRight className="w-4 h-4 text-text-muted shrink-0" />}
+            <FileText className="w-4 h-4 text-text-muted shrink-0" />
+            <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">
+              {t('v2Title')}
+            </span>
+            <span className="ml-auto flex items-center gap-3 text-[11px] tabular-nums shrink-0">
+              <span className="text-text-muted">{t('v2Charges', { n: delV2.length })}</span>
+              <span className="font-mono text-text-2">{fmt$(v2Costo)}</span>
+              {v2Pagado > 0 && <span className="font-mono text-emerald">{fmt$(v2Pagado)}</span>}
+              {v2Saldo > 0 && <span className="font-mono text-amber">{fmt$(v2Saldo)}</span>}
+            </span>
+          </button>
+
+          {v2Abierto && (
+            <div className="mt-3">
+              <p className="text-[11px] text-text-muted mb-3">{t('v2Subtitle')}</p>
+
+              <div className="rounded-md bg-bg-2/40 overflow-x-auto">
+                <table className="w-full min-w-[560px]">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-text-muted">
+                      <th className="px-3 py-2 text-left font-semibold">{t('v2ColDate')}</th>
+                      <th className="px-3 py-2 text-left font-semibold">{t('v2ColConcept')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColCost')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColPaid')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColBalance')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {delV2.map(b => (
+                      <tr key={b.id} className="border-b border-row-sep last:border-0">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-text-2">{fmtDate(b.appointmentDate)}</td>
+                        <td className="px-3 py-2 text-[12.5px] text-text-1">
+                          {b.serviceCode && (
+                            <span className="font-mono text-[11px] text-text-muted mr-1.5">{b.serviceCode}</span>
+                          )}
+                          {b.serviceDescription ?? '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs text-text-2">{fmt$(b.totalCost)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-xs text-emerald">
+                          {b.amountPaid > 0 ? fmt$(b.amountPaid) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs text-text-1">
+                          {b.balanceDue > 0 ? fmt$(b.balanceDue) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Lo que SÍ se cobró en el v2, como bitácora. Erick lo pidió
+                  explícitamente: si el paciente ya pagó allá, tiene que poder
+                  demostrarse acá. */}
+              {v2Pagos.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
+                    {t('v2PaymentsTitle', { n: v2Pagos.length })}
+                  </div>
+                  <div className="rounded-md bg-bg-2/40 divide-y divide-row-sep">
+                    {v2Pagos.map(p => (
+                      <div key={p.id} className="px-3 py-2 flex items-center gap-3 flex-wrap text-xs">
+                        <span className="text-text-2 whitespace-nowrap">{fmtDate(p.paidAt)}</span>
+                        <span className="font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</span>
+                        <span className="text-text-muted">{METHOD_LABELS[p.method] ?? p.method}</span>
+                        <span className="text-text-muted">{t(`v2Payer.${p.source}`)}</span>
+                        <span className="text-text-2 flex-1 min-w-[120px] truncate">
+                          {p.serviceDescription ?? p.serviceCode ?? '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -135,27 +135,58 @@ export function buildAppointmentReminderSms(args: {
   telefono?: string | null;
   /** Nombre del menor cuando el destinatario es el apoderado o el canal es compartido. */
   nombrePaciente?: string | null;
+  /**
+   * Telemedicina. Cambia el mensaje ENTERO, no una palabra.
+   *
+   * Una cita en línea igual tiene sede guardada —define de qué clínica se cuenta
+   * y quién atiende— pero al paciente no le sirve de nada: no va a ninguna parte.
+   * Nombrársela, y encima pedirle que llegue 15 minutos antes, es hacerlo
+   * manejar hasta una oficina para una videollamada.
+   */
+  enLinea?: boolean;
+  /** El link de la videollamada. Suele faltar: ver el comentario de abajo. */
+  enlace?: string | null;
 }): string {
-  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente } = args;
+  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace } = args;
 
-  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
+  const es = lang === 'es';
+  const deQuien = nombrePaciente
+    ? (es ? `Cita de ${nombrePaciente}` : `Appointment for ${nombrePaciente}`)
+    : (es ? 'Su cita es' : 'Your appointment is');
+  const cierre = es
+    ? 'Mensaje automatico, no responda. HELP ayuda, STOP para salir.'
+    : 'Automated message, do not reply. HELP for help, STOP to opt out.';
+  const consultas = telefono
+    ? (es ? `Consultas: ${telefono}.` : `Questions: ${telefono}.`)
+    : null;
 
-  if (lang === 'es') {
-    const deQuien = nombrePaciente ? `Cita de ${nombrePaciente}` : 'Su cita es';
+  // ── En línea ──────────────────────────────────────────────────────────────
+  // Ni dirección ni hora de llegada. Y el enlace NO se da por hecho: medido el
+  // 2026-09-14, 28 de las 29 citas de telemedicina no lo tienen cargado. Sin
+  // enlace, el mensaje dice que la clínica llama — prometer un link que no
+  // existe deja al paciente esperando frente a una pantalla en blanco.
+  if (enLinea) {
+    const conector = es ? 'por videollamada el' : 'is a video visit on';
     return [
-      `Precision Medical: ${deQuien} el ${cuando}, ${lugar}.`,
-      `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`,
-      telefono ? `Consultas: ${telefono}.` : null,
-      'Mensaje automatico, no responda. HELP ayuda, STOP para salir.',
+      es ? `Precision Medical: ${deQuien} ${conector} ${cuando}.`
+         : `Precision Medical: ${deQuien.replace(' is', '')} ${conector} ${cuando}.`,
+      enlace
+        ? (es ? `Conectese desde: ${enlace}` : `Join from: ${enlace}`)
+        : (es ? 'La clinica lo contactara a esta hora.' : 'The clinic will contact you at that time.'),
+      consultas,
+      cierre,
     ].filter(Boolean).join(' ');
   }
 
-  const deQuien = nombrePaciente ? `Appointment for ${nombrePaciente}` : 'Your appointment is';
+  // ── Presencial ────────────────────────────────────────────────────────────
+  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
   return [
-    `Precision Medical: ${deQuien} ${cuando}, ${lugar}.`,
-    `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`,
-    telefono ? `Questions: ${telefono}.` : null,
-    'Automated message, do not reply. HELP for help, STOP to opt out.',
+    es ? `Precision Medical: ${deQuien} el ${cuando}, ${lugar}.`
+       : `Precision Medical: ${deQuien} ${cuando}, ${lugar}.`,
+    es ? `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`
+       : `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`,
+    consultas,
+    cierre,
   ].filter(Boolean).join(' ');
 }
 

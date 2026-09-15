@@ -127,7 +127,8 @@
         "NON_BINARY": "Non-binary",
         "OTHER": "Other",
         "PREFER_NOT_TO_SAY": "Prefer not to say"
-      }
+      },
+      "telemedicine": "Telemedicine (video visit)"
     },
     "nav": {
       "clinicalNotes": "Clinical notes",
@@ -3104,8 +3105,8 @@
       "durationConflictDescription": "It overlaps another scheduled appointment. We reverted the duration to {duration} min, which does work for the time you picked.",
       "durationConflictAccept": "Got it",
       "selectClinicAndDoctorHint": "Select clinic and provider to see available time slots.",
-      "fieldOnlineConsultation": "Online consultation",
-      "fieldOnlineConsultationHint": "Telemedicine — appointment conducted via video call",
+      "fieldOnlineConsultation": "Telemedicine",
+      "fieldOnlineConsultationHint": "The visit is done by video call; the patient does not come to the office",
       "meetingUrlLabel": "Meeting link",
       "meetingUrlPlaceholder": "https://zoom.us/j/... (optional)",
       "desiredTime": "Desired time",
@@ -3237,7 +3238,8 @@
       "createCaseConfirmBody": "This opens the new case form for {name}, with their details and the time slot you picked already filled in. You can change anything before saving.",
       "createCaseConfirmYes": "Yes, create the case",
       "createCaseConfirmNo": "Cancel",
-      "legendFirstVisitAny": "First visit (any status)"
+      "legendFirstVisitAny": "First visit (any status)",
+      "clinicIsTelemedicine": "Telemedicine — the patient does not come to the office"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

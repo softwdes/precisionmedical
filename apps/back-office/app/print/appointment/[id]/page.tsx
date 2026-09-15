@@ -60,6 +60,8 @@ export default async function AppointmentPrintPage({ params, searchParams }: Pro
       id: true,
       scheduledFor: true,
       durationMinutes: true,
+      // Decide si el campo "Clínica" nombra la sede o dice Telemedicina.
+      isOnline: true,
       attendanceSignedAt: true,
       attendanceSignatureSvg: true,
       attendanceSignatureHash: true,
@@ -220,7 +222,11 @@ export default async function AppointmentPrintPage({ params, searchParams }: Pro
         <div className="seccion">
           <h2>{t('apptSection')}</h2>
           <div className="campos">
-            <Campo label={t('fieldClinic')} valor={appt.clinic.name} />
+            {/* En una cita por videollamada, la sede no es el lugar de la cita:
+                es de dónde depende. El membrete de arriba sigue mostrándola —ahí
+                identifica a quien emite el documento— pero acá, en los datos de
+                la cita, decir "Provo" le dice al paciente que vaya a Provo. */}
+            <Campo label={t('fieldClinic')} valor={appt.isOnline ? t('telemedicine') : appt.clinic.name} />
             <Campo label={t('fieldSpecialty')} valor={especialidad} />
             <Campo label={t('fieldApptDate')} valor={fFecha(appt.scheduledFor)} />
             <Campo label={t('fieldApptTime')} valor={fHora(appt.scheduledFor)} />

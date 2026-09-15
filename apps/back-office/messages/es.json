@@ -127,7 +127,8 @@
         "NON_BINARY": "No binario",
         "OTHER": "Otro",
         "PREFER_NOT_TO_SAY": "Prefiere no decirlo"
-      }
+      },
+      "telemedicine": "Telemedicina (videollamada)"
     },
     "nav": {
       "clinicalNotes": "Notas clínicas",
@@ -3104,8 +3105,8 @@
       "durationConflictDescription": "Se cruza con otra cita ya agendada. Volvimos la duración a {duration} min, que sí funciona para el horario que elegiste.",
       "durationConflictAccept": "Entendido",
       "selectClinicAndDoctorHint": "Selecciona clínica y Provider para ver los horarios disponibles.",
-      "fieldOnlineConsultation": "Consulta en línea",
-      "fieldOnlineConsultationHint": "Telemedicina — la cita se realiza por videollamada",
+      "fieldOnlineConsultation": "Telemedicina",
+      "fieldOnlineConsultationHint": "La cita se hace por videollamada; el paciente no viene a la sede",
       "meetingUrlLabel": "Enlace de la reunión",
       "meetingUrlPlaceholder": "https://zoom.us/j/... (opcional)",
       "desiredTime": "Horario deseado",
@@ -3237,7 +3238,8 @@
       "createCaseConfirmBody": "Se va a abrir el formulario de caso nuevo para {name}, con sus datos y el horario que elegiste ya cargados. Podés cambiar lo que haga falta antes de guardar.",
       "createCaseConfirmYes": "Sí, crear el caso",
       "createCaseConfirmNo": "Cancelar",
-      "legendFirstVisitAny": "Primera visita (en cualquier estado)"
+      "legendFirstVisitAny": "Primera visita (en cualquier estado)",
+      "clinicIsTelemedicine": "Telemedicina — el paciente no viene a la sede"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

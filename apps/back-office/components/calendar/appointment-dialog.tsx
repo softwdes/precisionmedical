@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
-  FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus,
+  FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus, Video,
 } from 'lucide-react';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import { useMembresia } from '@/components/membresias/use-membresia';
@@ -1353,9 +1353,27 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
                 {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              {selectedClinic?.address && (
+
+              {/* ── Telemedicina: la sede se sigue eligiendo, pero deja de ser
+                     "el lugar adonde ir" ──
+
+                  La clínica NO se puede quitar: `clinicId` es obligatorio en la
+                  base y decide de qué sede se cuenta la cita y quién atiende.
+                  Lo que cambia es lo que se afirma, no lo que se guarda.
+
+                  Y lo que se esconde es la DIRECCIÓN, que es la parte que
+                  confunde de verdad: darle una calle y un número a alguien que
+                  no se mueve de su casa. Lo pidió la clínica: "when they are
+                  selected as a telemedicine appointment the clinic should say
+                  telemedicine because it's not in person". */}
+              {isOnline ? (
+                <div className="text-cyan text-[11px] mt-1 flex items-center gap-1">
+                  <Video className="w-3 h-3 shrink-0" />
+                  {t('clinicIsTelemedicine')}
+                </div>
+              ) : selectedClinic?.address ? (
                 <div className="text-text-muted text-[11px] mt-1">📍 {selectedClinic.address}</div>
-              )}
+              ) : null}
             </div>
 
             <div>

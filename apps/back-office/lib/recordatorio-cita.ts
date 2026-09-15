@@ -48,6 +48,9 @@ export async function enviarRecordatorioDeCita(args: {
       where: { id: args.appointmentId },
       select: {
         id: true, scheduledFor: true, caseId: true,
+        // Telemedicina cambia el mensaje entero, no una palabra: sin dirección
+        // y sin hora de llegada. Ver `buildAppointmentReminderSms`.
+        isOnline: true, meetingUrl: true,
         clinic:  { select: { name: true, address: true, phone: true } },
         patient: {
           select: {
@@ -92,6 +95,21 @@ export async function enviarRecordatorioDeCita(args: {
       direccion:   cita.clinic.address,
       telefono:    cita.clinic.phone,
       nombrePaciente,
+      /**
+       * Telemedicina. La cita igual tiene clínica guardada —`clinicId` es
+       * obligatorio y define de qué sede se cuenta y quién atiende—, pero al
+       * paciente NO se le nombra: no va a ninguna parte.
+       *
+       * Sin esto el recordatorio le mandaba la dirección de la sede y le pedía
+       * llegar 15 minutos antes, o sea que lo hacía manejar hasta Provo para
+       * una videollamada. Lo mismo que la clínica reportó en pantalla, pero
+       * saliendo por SMS — y ahí no hay nadie que lo corrija.
+       */
+      enLinea:  cita.isOnline,
+      // Medido 2026-09-14: 28 de las 29 citas online NO tienen enlace cargado.
+      // Por eso el texto no puede darlo por hecho — sin enlace dice que la
+      // clínica llama, en vez de prometer un link que no existe.
+      enlace:   cita.meetingUrl,
     });
 
     const res = await sendSms({

@@ -3229,7 +3229,14 @@
       "searchingPatients": "Searching…",
       "noPatientResults": "No results",
       "createPatientNamed": "Create «{name}»",
-      "resolvedAppointmentHint": "This appointment already has a recorded outcome (arrival, visit or closing): the date and time can no longer be changed. To see the patient another day, book a new appointment."
+      "resolvedAppointmentHint": "This appointment already has a recorded outcome (arrival, visit or closing): the date and time can no longer be changed. To see the patient another day, book a new appointment.",
+      "createCaseHere": "Create a case for this patient",
+      "createAnotherCase": "Create another case",
+      "creatingCaseLoading": "Opening…",
+      "createCaseConfirmTitle": "Create a case?",
+      "createCaseConfirmBody": "This opens the new case form for {name}, with their details and the time slot you picked already filled in. You can change anything before saving.",
+      "createCaseConfirmYes": "Yes, create the case",
+      "createCaseConfirmNo": "Cancel"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

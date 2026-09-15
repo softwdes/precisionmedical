@@ -26,6 +26,7 @@ import { TagPill, PersonAvatar, InfoCard, FormField, Autocomplete, type AutoResu
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
+import { idiomaDelPaciente } from '@/lib/portal-message';
 // Subpath, no el barrel: el barrel instancia PrismaClient y esto es client-side
 import { calcAge, isMinor } from '@precision-medical/database/age';
 import { ActiveCallBar } from './active-call-bar';
@@ -75,6 +76,37 @@ export interface NewCaseInitialState {
   /** Bufete y abogado que REPRESENTAN, y —los mismos— quienes refirieron. */
   lawFirm?: AutoResult | null;
   attorney?: AutoResult | null;
+
+  /**
+   * Aseguradora y origen del referido que ya tenía el paciente, copiados de su
+   * caso anterior por `GET /api/admin/patients/[id]/precarga-caso`.
+   *
+   * Es una APUESTA, no un dato del caso nuevo: el mismo paciente puede llegar
+   * con otro bufete y otra aseguradora en un segundo accidente. Por eso se
+   * precarga y se deja editable, y por eso el número de póliza NO viene — ése
+   * es del siniestro, y arrastrar el viejo factura contra la cobertura
+   * equivocada sin que nadie lo haya decidido.
+   */
+  insurance?: AutoResult | null;
+  referralSource?: ReferralSource;
+  referrerFirm?: AutoResult | null;
+
+  /**
+   * La cita que ya eligió quien abre el wizard, cuando viene del CALENDARIO.
+   *
+   * Sin esto, agendar desde el calendario a un paciente sin caso obligaba a
+   * elegir el horario dos veces: una en la grilla y otra acá adentro. Llega
+   * precargada y EDITABLE — el selector de horarios del paso 3 sigue estando,
+   * porque al abrir el caso puede cambiar la clínica o el provider y entonces
+   * el slot original ya no sirve.
+   */
+  cita?: {
+    /** ISO del horario elegido en la grilla. */
+    scheduledFor: string;
+    clinicId?: string;
+    providerId?: string;
+    durationMinutes?: number;
+  } | null;
 }
 
 interface NewCaseDialogProps {
@@ -91,6 +123,17 @@ interface NewCaseDialogProps {
    * Sin esta prop la tarjeta no aparece.
    */
   onQuickRegister?: () => void;
+  /**
+   * Se dispara cuando el caso QUEDÓ CREADO, no cuando se cierra el diálogo.
+   *
+   * Son dos momentos distintos y mezclarlos rompe el flujo: entre uno y otro
+   * está el panel de éxito con el QR y el enlace del portal, que es donde
+   * recepción los copia. Quien abre este wizard desde el calendario necesita
+   * enterarse del alta para refrescar la grilla, pero NO puede cerrar el panel
+   * por su cuenta — si lo hiciera, el QR desaparecería antes de que alguien lo
+   * use.
+   */
+  onCasoCreado?: (r: { caseId: string; caseCode: string; appointmentId: string | null }) => void;
 }
 
 /** Mismos valores que el enum del schema y que patient-create-dialog. */
@@ -119,7 +162,7 @@ const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
   'urgent care':     ['GENERAL', 'OTHER'],
 };
 
-export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName, onQuickRegister }: NewCaseDialogProps) {
+export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName, onQuickRegister, onCasoCreado }: NewCaseDialogProps) {
   const router = useRouter();
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
@@ -270,6 +313,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [showAllProviders, setShowAllProviders] = useState(false);
   const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  /** El horario que llegó del calendario. Lo consume el efecto de slots, una vez. */
+  const slotDelCalendario = useRef<string | null>(null);
 
   // ─── Section 3: Form delivery ──────────────────────────────────────────
   const [formDelivery, setFormDelivery] = useState<FormDelivery>({ email: true, sms: true });
@@ -335,8 +380,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (initialState) {
       setFirstName(initialState.firstName); setLastName(initialState.lastName);
       setPhone(initialState.phone); setEmail(initialState.email ?? '');
-      setDateOfBirth(initialState.dateOfBirth ?? ''); setLanguage(initialState.language ?? 'es');
-      setReferralSource(initialState.referralId ? 'LAW_FIRM' : 'PHONE_CALL');
+      setDateOfBirth(initialState.dateOfBirth ?? '');
+      setLanguage(idiomaDelPaciente(initialState.language));
+      setReferralSource(
+        initialState.referralSource
+        ?? (initialState.referralId ? 'LAW_FIRM' : 'PHONE_CALL'),
+      );
       setCallMode(initialState.mode);
       setExistingPatientId(initialState.existingPatientId ?? null);
       setDobDelPaciente(!!initialState.dateOfBirth);
@@ -349,9 +398,45 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       if (initialState.accidentNotes) setAccidentNotes(initialState.accidentNotes);
       if (initialState.lawFirm) { setLawFirm(initialState.lawFirm); setReferrerFirm(initialState.lawFirm); }
       if (initialState.attorney) { setAttorney(initialState.attorney); setReferrerAttorney(initialState.attorney); }
+      // Del caso anterior del paciente. `referrerFirm` se pone aparte de
+      // `lawFirm` porque quien REFIRIÓ y quien REPRESENTA no siempre son el
+      // mismo bufete — sí lo son cuando el caso llega desde un referido, y ésa
+      // es la rama de arriba.
+      if (initialState.insurance)    setInsurance(initialState.insurance);
+      if (initialState.referrerFirm) setReferrerFirm(initialState.referrerFirm);
+
+      /**
+       * La cita que viene del calendario.
+       *
+       * `scheduleNow` se enciende solo: quien agendó en la grilla ya decidió
+       * que agenda ahora — volver a preguntárselo sería pedirle dos veces lo
+       * mismo. Clínica y provider solo se pisan si vienen: en la grilla se
+       * puede elegir el horario antes que el doctor.
+       */
+      if (initialState.cita) {
+        setScheduleNow(true);
+        setSlotIso(initialState.cita.scheduledFor);
+        // El efecto de slots lo borra al montar; el ref lo repone una vez.
+        slotDelCalendario.current = initialState.cita.scheduledFor;
+        if (initialState.cita.clinicId)   setClinicId(initialState.cita.clinicId);
+        if (initialState.cita.providerId) setProviderId(initialState.cita.providerId);
+        if (initialState.cita.durationMinutes) setDuration(initialState.cita.durationMinutes);
+        // El selector de horarios abre en la SEMANA de la cita elegida, no en
+        // la actual: si el horario es de dentro de tres semanas, el paso 3 se
+        // abriría mirando una semana donde la propia elección no aparece, y
+        // parecería que se perdió.
+        const cuando = new Date(initialState.cita.scheduledFor);
+        if (!Number.isNaN(cuando.getTime())) {
+          setWeekStart(getMondayOf(cuando));
+          // `toDenverDate` y no `toISOString()`: la clave del día es la del
+          // huso de la clínica. Una cita de las 6 PM de Utah cae al día
+          // siguiente en UTC, y el día quedaría marcado en la columna que no es.
+          setSelectedDay(toDenverDate(cuando));
+        }
+      }
     } else {
       setFirstName(''); setLastName(''); setPhone(''); setEmail('');
-      setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM');
+      setDateOfBirth(''); setLanguage('en'); setReferralSource('LAW_FIRM');
       setStep('precall'); setCallMode(null); setExistingPatientId(null);
       setDobDelPaciente(false);
     }
@@ -438,7 +523,30 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setSlotOptions([]); setSlotIso(null); setSelectedDay(null); return;
     }
     const controller = new AbortController();
-    setSlotsLoading(true); setSlotIso(null); setSelectedDay(null);
+    setSlotsLoading(true);
+
+    /**
+     * El horario que vino del CALENDARIO sobrevive a esta limpieza — una vez.
+     *
+     * Este efecto borra la elección de horario cada vez que corre, porque
+     * cambiar de clínica, de doctor o de duración invalida el slot elegido. Pero
+     * también corre al MONTAR, y ahí la elección no es vieja: es la que el
+     * usuario acaba de hacer en la grilla. Sin esto, abrir el caso desde el
+     * calendario perdía el horario en el mismo instante en que se abría, y había
+     * que elegirlo de nuevo — justo lo que este camino viene a evitar.
+     *
+     * El ref se consume acá y queda en `null`: de la segunda corrida en
+     * adelante el comportamiento es el de siempre, y cambiar de doctor limpia
+     * el horario como corresponde.
+     */
+    const precargado = slotDelCalendario.current;
+    slotDelCalendario.current = null;
+    if (precargado) {
+      setSlotIso(precargado);
+      setSelectedDay(toDenverDate(new Date(precargado)));
+    } else {
+      setSlotIso(null); setSelectedDay(null);
+    }
     const fromDate = weekStart.toISOString();
     const toDate   = addDays(weekStart, 5).toISOString();
     // Igual que el selector del calendario: techo POR DÍA. Acá el `limit: 100`
@@ -753,6 +861,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
       console.log('[NewCase] setSuccess →', { caseCode: data.case.caseCode, portalUrl, hasQr: !!qrDataUrl, falloEnvio });
       setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl, falloEnvio });
+      // El caso ya existe. Se avisa ACÁ y no al cerrar, para que quien abrió
+      // este wizard —el calendario— pueda refrescar la grilla detrás mientras
+      // el panel de éxito sigue mostrando el QR y el enlace.
+      onCasoCreado?.({
+        caseId,
+        caseCode: data.case.caseCode,
+        appointmentId: data.appointment?.id ?? null,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error creating case');
     } finally {

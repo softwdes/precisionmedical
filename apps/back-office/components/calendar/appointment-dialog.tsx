@@ -15,12 +15,13 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
-  FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus,
+  FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus,
 } from 'lucide-react';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import { useMembresia } from '@/components/membresias/use-membresia';
 import { WeeklySlotPicker } from './weekly-slot-picker';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
+import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter, Label,
@@ -564,6 +565,105 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   }, []);
 
   /**
+   * ─── Abrir un caso sin salir del calendario ───────────────────────────────
+   *
+   * La MITAD del padrón no tiene ningún caso —2.862 de 5.729, medido
+   * 2026-09-14—, así que este diálogo los dejaba buscar, elegir, y recién
+   * después los frenaba con "el paciente no tiene casos". La salida era cerrar,
+   * ir a Pacientes, abrir el caso y volver a agendar desde cero.
+   *
+   * Ahora el wizard de caso se abre acá encima, con el paciente y el horario ya
+   * puestos. No es un formulario nuevo: es el MISMO `NewCaseDialog` de Front
+   * Office, que ya crea paciente + caso + cita en una transacción, emite el
+   * token del portal, arma el QR y manda el SMS. Una copia recortada tendría
+   * que reimplementar todo eso y se desincronizaría al primer cambio.
+   */
+  const [casoOpen,      setCasoOpen]      = useState(false);
+  const [casoInitial,   setCasoInitial]   = useState<NewCaseInitialState | null>(null);
+  const [casoPidiendo,  setCasoPidiendo]  = useState(false);
+  const [casoConfirmar, setCasoConfirmar] = useState(false);
+  const [casoError,     setCasoError]     = useState<string | null>(null);
+
+  /**
+   * Trae lo que ya sabemos del paciente y abre el wizard con todo puesto.
+   *
+   * El horario viaja como `cita`: quien llegó hasta acá ya lo eligió en la
+   * grilla, y volver a pedírselo adentro del wizard sería preguntar dos veces
+   * lo mismo. Va precargado pero EDITABLE — al abrir el caso puede cambiar la
+   * clínica o el doctor, y entonces ese slot deja de servir.
+   *
+   * Si la precarga falla NO se cancela nada: el wizard se abre igual con lo
+   * mínimo. Perder el camino entero porque no se pudo copiar el bufete del caso
+   * anterior sería cambiar una comodidad por un bloqueo.
+   */
+  const abrirCrearCaso = useCallback(async () => {
+    if (!selectedPatient) return;
+    setCasoConfirmar(false);
+    setCasoPidiendo(true);
+    setCasoError(null);
+
+    const base: NewCaseInitialState = {
+      // `search` y no `outgoing`: el paciente ya existe y no hay llamada que
+      // cronometrar. Es el mismo modo con el que entra "Search existing
+      // patient", que arranca directo en la captura y saltea el selector.
+      mode:       'search',
+      firstName:  selectedPatient.firstName,
+      lastName:   selectedPatient.lastName,
+      phone:      selectedPatient.phone ?? '',
+      existingPatientId: selectedPatient.id,
+      cita: slotIso ? {
+        scheduledFor:    slotIso,
+        clinicId:        clinicId   || undefined,
+        providerId:      providerId || undefined,
+        durationMinutes: duration,
+      } : null,
+    };
+
+    try {
+      const res = await fetch(`/api/admin/patients/${selectedPatient.id}/precarga-caso`);
+      if (res.ok) {
+        const d = await res.json();
+        setCasoInitial({
+          ...base,
+          email:       d.paciente?.email || undefined,
+          dateOfBirth: d.paciente?.dateOfBirth || undefined,
+          language:    d.paciente?.preferredLanguage ?? undefined,
+          referralSource: d.paciente?.referralSource ?? undefined,
+          referrerFirm:   d.paciente?.referrerFirm ?? undefined,
+          // Del caso anterior: bufete, abogado y aseguradora se repiten entre
+          // casos del mismo paciente. La póliza NO viene — es del siniestro.
+          lawFirm:   d.ultimoCaso?.lawFirm   ?? undefined,
+          attorney:  d.ultimoCaso?.attorney  ?? undefined,
+          insurance: d.ultimoCaso?.insurance ?? undefined,
+        });
+      } else {
+        setCasoInitial(base);
+      }
+    } catch {
+      setCasoInitial(base);
+    } finally {
+      setCasoPidiendo(false);
+      setCasoOpen(true);
+    }
+  }, [selectedPatient, slotIso, clinicId, providerId, duration]);
+
+  /**
+   * El caso quedó creado — y con él la cita, porque el wizard las crea juntas.
+   *
+   * Por eso este diálogo se cierra: ya no hay nada que agendar, y dejarlo
+   * abierto invitaría a crear una SEGUNDA cita para el mismo horario. El
+   * `refresh` repinta la grilla, donde la cita nueva aparece sola.
+   *
+   * No se cierra el wizard: su panel de éxito tiene el QR y el enlace del
+   * portal, y cerrarlo acá se los sacaría de la pantalla a recepción justo
+   * cuando los va a copiar. Cierra cuando la persona lo cierre.
+   */
+  const onCasoCreado = useCallback(() => {
+    router.refresh();
+    onOpenChange(false);
+  }, [router, onOpenChange]);
+
+  /**
    * Con UN solo caso agendable, se selecciona solo.
    *
    * Si no hay nada que elegir, preguntarlo es puro trámite: el staff llegaba
@@ -924,7 +1024,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         sobre el panel de la cita. Y al volver, la fecha, la hora y la clínica que
         ya se habían elegido siguen ahí: si se perdieran, el atajo costaría más de
         lo que ahorra. */}
-    <Dialog open={open && !altaOpen} onOpenChange={onOpenChange}>
+    <Dialog open={open && !altaOpen && !casoOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -1101,7 +1201,24 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   {loadingCases ? (
                     <div className="text-text-muted text-xs py-2">{t('loadingCases')}</div>
                   ) : patientCases.length === 0 ? (
-                    <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-amber text-xs">{t('patientNoCases')}</div>
+                    /* Antes esto era sólo el aviso ámbar, y ahí se terminaba el
+                       camino para la mitad del padrón. El aviso se queda —dice
+                       lo que pasa— pero ahora trae la salida al lado. */
+                    <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 space-y-2">
+                      <div className="text-amber text-xs">{t('patientNoCases')}</div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={casoPidiendo}
+                        onClick={() => setCasoConfirmar(true)}
+                      >
+                        <FilePlus className="w-3.5 h-3.5 mr-1.5" />
+                        {casoPidiendo ? t('creatingCaseLoading') : t('createCaseHere')}
+                      </Button>
+                      {casoError && <div className="text-rose text-[11px]">{casoError}</div>}
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       {patientCases.map((c) => {
@@ -1156,6 +1273,25 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                         );
                       })}
                     </div>
+                  )}
+
+                  {/* Abrir OTRO caso aunque ya tenga.
+                      Un paciente puede tener varios accidentes, y cada uno es su
+                      propio caso MVA. El botón no se esconde cuando ya hay casos
+                      —esconderlo obligaría a irse a Pacientes por lo mismo— pero
+                      tampoco compite con la lista: es secundario y va debajo.
+                      El servidor decide: si el caso nuevo fuera GM y ya tiene uno
+                      abierto, responde con el existente en vez de duplicarlo. */}
+                  {!loadingCases && patientCases.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={casoPidiendo}
+                      onClick={() => setCasoConfirmar(true)}
+                      className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-text-muted hover:text-brand-text transition-colors disabled:opacity-50"
+                    >
+                      <FilePlus className="w-3 h-3" />
+                      {casoPidiendo ? t('creatingCaseLoading') : t('createAnotherCase')}
+                    </button>
                   )}
                 </div>
               )}
@@ -1499,6 +1635,47 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         initialFirstName={altaNombre}
         initialLastName={altaApellido}
         onCreated={onPacienteCreado}
+      />
+    )}
+
+    {/* "¿Le abrimos un caso?" — se pregunta porque abrir un caso NO es un paso
+        del agendado: es un expediente nuevo con su código, su intake y su
+        formulario al paciente. Un clic de más es barato; un caso de más hay que
+        borrarlo a mano. */}
+    <ConfirmDialog
+      open={casoConfirmar}
+      title={t('createCaseConfirmTitle')}
+      description={t('createCaseConfirmBody', {
+        name: selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : '',
+      })}
+      confirmLabel={t('createCaseConfirmYes')}
+      cancelLabel={t('createCaseConfirmNo')}
+      onConfirm={() => { void abrirCrearCaso(); }}
+      onCancel={() => setCasoConfirmar(false)}
+    />
+
+    {/* El wizard de caso de Front Office, el MISMO — crea paciente + caso + cita
+        en una transacción, emite el token, arma el QR y manda el SMS. Se monta
+        sólo al abrirse para que arranque con la precarga ya resuelta: su estado
+        inicial se aplica en un efecto que depende de `open`, así que montarlo
+        antes de tener `casoInitial` lo dejaría vacío.
+
+        Los catálogos salen del estado que este diálogo YA cargó de
+        /scheduling/resources: pedirlos de nuevo mostraría una lista distinta de
+        la que se está mirando si alguien desactiva una clínica en el medio. */}
+    {casoOpen && casoInitial && (
+      <NewCaseDialog
+        open
+        onOpenChange={(v) => { if (!v) { setCasoOpen(false); setCasoInitial(null); } }}
+        initialState={casoInitial}
+        clinics={clinics.map((c) => ({ id: c.id, name: c.name, address: c.address }))}
+        providers={allProviders}
+        // `Specialty.id` es opcional en este diálogo porque la cita puede
+        // mostrar la del caso sin tenerla en el catálogo. El wizard sí necesita
+        // el id, así que las que no lo traen se descartan en vez de colarse con
+        // un id vacío que no resolvería contra nada.
+        specialties={specialties.flatMap((s) => (s.id ? [{ id: s.id, name: s.name, color: s.color }] : []))}
+        onCasoCreado={onCasoCreado}
       />
     )}
     </>

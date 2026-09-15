@@ -3229,7 +3229,14 @@
       "searchingPatients": "Buscando…",
       "noPatientResults": "Sin resultados",
       "createPatientNamed": "Crear a «{name}»",
-      "resolvedAppointmentHint": "Esta cita ya tiene un desenlace registrado (llegada, atención o cierre): la fecha y la hora no se pueden cambiar. Para verla otro día, agendá una cita nueva."
+      "resolvedAppointmentHint": "Esta cita ya tiene un desenlace registrado (llegada, atención o cierre): la fecha y la hora no se pueden cambiar. Para verla otro día, agendá una cita nueva.",
+      "createCaseHere": "Crear un caso para este paciente",
+      "createAnotherCase": "Crear otro caso",
+      "creatingCaseLoading": "Abriendo…",
+      "createCaseConfirmTitle": "¿Le abrimos un caso?",
+      "createCaseConfirmBody": "Se va a abrir el formulario de caso nuevo para {name}, con sus datos y el horario que elegiste ya cargados. Podés cambiar lo que haga falta antes de guardar.",
+      "createCaseConfirmYes": "Sí, crear el caso",
+      "createCaseConfirmNo": "Cancelar"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

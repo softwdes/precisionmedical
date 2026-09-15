@@ -98,6 +98,61 @@ export async function PATCH(
   }
 
   /**
+   * ─── Deshacer un desenlace ───────────────────────────────────────────────
+   *
+   * Volver de NO_SHOW o CANCELLED a una cita viva, y SOLO si todavía no se
+   * cobró nada.
+   *
+   * Por qué hace falta: desde el 2026-09-14 la fecha de una cita se bloquea por
+   * ESTADO y no por reloj, así que una cita vencida sin atender se reprograma
+   * normal. Pero las que sí tienen desenlace quedaban congeladas **sin vuelta
+   * atrás**: el panel del calendario sabe poner NO_SHOW, CANCELLED y VOIDED, y
+   * no tiene ningún botón para deshacerlos. Con una agenda que cambia a último
+   * momento eso es una trampa — recepción marca no-show, el paciente aparece
+   * veinte minutos tarde, y la cita ya no se puede mover nunca más. La única
+   * salida era crear otra y dejar la vieja como un no-show falso, que ensucia
+   * la métrica del doctor y deja cobrada una penalidad que no correspondía.
+   *
+   * Por qué NO se resuelve aflojando el candado de la fecha: si se pudiera
+   * mover la fecha de un no-show, el día de la penalidad se muda con ella y se
+   * termina cobrando por un día en que el paciente sí vino. El candado está
+   * bien puesto; lo que faltaba era la puerta de salida.
+   *
+   * Por qué solo sin cargos: marcar no-show abre el catálogo y genera un
+   * servicio facturable. Deshacer el estado sin deshacer la plata dejaría un
+   * cobro sin desenlace que lo explique — peor que no poder deshacer. Con
+   * cargos, esto responde 409 y dice qué hay que quitar primero; quitarlos es
+   * una decisión de facturación y tiene su propia pantalla.
+   *
+   * CHECKED_IN e IN_PROGRESS no entran acá, y no por olvido: el esquema de
+   * entrada de este endpoint no los acepta. Son hechos físicos —el paciente
+   * llegó, está en consulta— y se deshacen desde Admisión, que es donde se
+   * sellaron.
+   */
+  const DESENLACE_REVERSIBLE = ['NO_SHOW', 'CANCELLED'];
+  const VUELVE_A_VIVA        = ['SCHEDULED', 'CONFIRMED'];
+
+  if (
+    parsed.status !== undefined
+    && DESENLACE_REVERSIBLE.includes(existing.status)
+    && VUELVE_A_VIVA.includes(parsed.status)
+  ) {
+    const [servicios, cobros] = await Promise.all([
+      db.appointmentService.count({ where: { appointmentId: id } }),
+      db.appointmentBilling.count({ where: { appointmentId: id } }),
+    ]);
+
+    if (servicios > 0 || cobros > 0) {
+      return NextResponse.json({
+        error: 'HAS_CHARGES',
+        message: 'Esta cita ya tiene cargos registrados. Quitalos primero desde Servicios y después se puede reabrir.',
+        servicios,
+        cobros,
+      }, { status: 409 });
+    }
+  }
+
+  /**
    * Cancelar algo ya cancelado: se rechaza.
    *
    * No es redundancia inofensiva. Las dos clases de cancelacion se distinguen por
@@ -219,7 +274,14 @@ export async function PATCH(
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole:   actor.actorRole,
-    action:      parsed.status === 'CANCELLED' ? 'CANCEL_APPOINTMENT' : 'UPDATE_APPOINTMENT',
+    // Reabrir una cita cerrada lleva su propia acción: en el historial, "volvió
+    // a estar viva" no es lo mismo que "se le cambió algo", y es lo que hay que
+    // poder buscar si mañana alguien pregunta por qué un no-show desapareció.
+    action:
+      parsed.status === 'CANCELLED' ? 'CANCEL_APPOINTMENT'
+      : (DESENLACE_REVERSIBLE.includes(existing.status) && parsed.status !== undefined
+          && VUELVE_A_VIVA.includes(parsed.status)) ? 'REOPEN_APPOINTMENT'
+      : 'UPDATE_APPOINTMENT',
     entityType:  'appointments',
     entityId:    id,
     ipAddress:   actor.ipAddress,

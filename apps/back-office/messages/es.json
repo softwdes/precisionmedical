@@ -3251,7 +3251,10 @@
       "createCaseConfirmYes": "Sí, crear el caso",
       "createCaseConfirmNo": "Cancelar",
       "legendFirstVisitAny": "Primera visita (en cualquier estado)",
-      "clinicIsTelemedicine": "Telemedicina — el paciente no viene a la sede"
+      "clinicIsTelemedicine": "Telemedicina — el paciente no viene a la sede",
+      "actionReopen": "Reabrir para mover la hora",
+      "reopenLoading": "Reabriendo…",
+      "errorReopen": "No se pudo reabrir la cita. Probá de nuevo."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

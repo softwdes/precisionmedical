@@ -3251,7 +3251,10 @@
       "createCaseConfirmYes": "Yes, create the case",
       "createCaseConfirmNo": "Cancel",
       "legendFirstVisitAny": "First visit (any status)",
-      "clinicIsTelemedicine": "Telemedicine — the patient does not come to the office"
+      "clinicIsTelemedicine": "Telemedicine — the patient does not come to the office",
+      "actionReopen": "Reopen to change the time",
+      "reopenLoading": "Reopening…",
+      "errorReopen": "The appointment could not be reopened. Try again."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

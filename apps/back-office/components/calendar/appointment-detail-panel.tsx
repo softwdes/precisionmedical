@@ -17,7 +17,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
-  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode, Printer,
+  Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode, Printer, RotateCcw,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -248,6 +248,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   } | null>(null);
   const [noShowOpen,    setNoShowOpen]    = useState(false);
   const [noShowing,     setNoShowing]     = useState(false);
+  const [reabriendo,    setReabriendo]    = useState(false);
   const [qrOpen,        setQrOpen]        = useState(false);
   const [printOpen,     setPrintOpen]     = useState(false);
   const [checkingIn,    setCheckingIn]    = useState(false);
@@ -592,6 +593,36 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
    * hizo check-in o esta en consulta, decir "no show" seria contradecir un hecho
    * registrado — y ese estado pesa en las metricas del doctor.
    */
+  /**
+   * Reabrir: devuelve una cita cerrada a SCHEDULED para poder moverla.
+   *
+   * No decide nada por su cuenta — el servidor cuenta los cargos y rechaza con
+   * 409 si hay. Acá se muestra el mensaje que él manda, porque es el único que
+   * sabe cuántos y de qué tipo. Adivinarlo en la pantalla sería un segundo
+   * criterio que se desincroniza con el primero.
+   */
+  const handleReabrir = async () => {
+    setAccionError(null); setReabriendo(true);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SCHEDULED' }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message ?? `HTTP ${res.status}`);
+      }
+      router.refresh();
+      // Se abre el editor en el acto: reabrir no es el objetivo, es el permiso.
+      // Quien toca esto quiere MOVER la cita, y dejarlo mirando el mismo panel
+      // con un sello distinto lo obliga a buscar "Editar" para seguir.
+      setEditOpen(true);
+    } catch (e) {
+      setAccionError(e instanceof Error ? e.message : t('errorReopen'));
+    } finally { setReabriendo(false); }
+  };
+
   const handleNoShow = async () => {
     setAccionError(null); setNoShowing(true);
     try {
@@ -646,6 +677,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
    */
   const estaResuelta =
     appt.status === 'CANCELLED' || appt.status === 'NO_SHOW' || appt.status === 'COMPLETED';
+
+  /**
+   * Se puede REABRIR: sólo lo que se cerró por una decisión del mostrador.
+   *
+   * COMPLETED queda afuera aunque también esté "resuelta": ahí el paciente vino
+   * y fue atendido, así que reabrir no corrige un error, borra una consulta.
+   * No-show y cancelada sí son decisiones que se toman rápido y con información
+   * incompleta — que es justo cuando se marcan mal.
+   *
+   * Si además tiene cargos, el servidor lo rechaza. Acá no se adivina eso: el
+   * botón se muestra igual y el motivo lo da quien lo sabe.
+   */
+  const puedeReabrir = appt.status === 'CANCELLED' || appt.status === 'NO_SHOW';
 
   /** El paciente ya firmo la confirmacion de esta cita. */
   const firmada = !!appt.attendanceSignedAt;
@@ -1266,6 +1310,34 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <p className="text-[11px] text-text-muted mb-1">
                     {t('apptResolvedHint', { status: statusCfg.label })}
                   </p>
+                )}
+
+                {/* ── Reabrir ──
+                    El aviso de arriba explica POR QUÉ está todo apagado; esto es
+                    la salida. Iban juntos a propósito: un "no se puede" sin un
+                    "salvo que" al lado es donde recepción se traba.
+
+                    Sólo para no-show y cancelada. Un paciente que ya hizo
+                    check-in o está en consulta no se "reabre" desde acá: eso se
+                    deshace en Admisión, que es donde se selló.
+
+                    El servidor tiene la última palabra y puede decir que no
+                    —si la cita ya tiene cargos—, así que el error se muestra
+                    tal cual viene en vez de adivinarlo acá: el motivo real lo
+                    sabe él, que es quien contó los cargos. */}
+                {puedeReabrir && (
+                  <button
+                    type="button"
+                    onClick={() => { void handleReabrir(); }}
+                    disabled={reabriendo}
+                    /* `min-h-11` en móvil como el resto del pie (Regla #4):
+                       recepción usa iPad y teléfono, y este botón es la salida
+                       de un callejón — si no se puede tocar, no sirve. */
+                    className="mb-2 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-11 sm:min-h-0 w-full sm:w-auto rounded-md border border-cyan/40 bg-cyan/[0.08] text-cyan hover:bg-cyan/15 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    {reabriendo ? t('reopenLoading') : t('actionReopen')}
+                  </button>
                 )}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button type="button" onClick={() => setCancelOpen(true)} disabled={estaResuelta}

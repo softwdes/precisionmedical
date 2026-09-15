@@ -55,6 +55,13 @@ interface CaseOption {
    */
   caseCode: string | null;
   status: string;
+  /**
+   * `MVA` o `GENERAL`. Es el campo AUTORITATIVO del tipo de caso y nunca es
+   * nulo — a diferencia de `accidentType`, que está vacío en el 96% de los
+   * casos (2.938 de 3.053, medido 2026-09-15). La API ya lo devolvía; acá
+   * faltaba tipar­lo.
+   */
+  caseType: string | null;
   accidentType: string | null;
   specialty: Specialty | null;
 }
@@ -286,21 +293,43 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // tiene que nombrarla) + horario sugerido para esa duracion.
   const durationRef = useRef(duration);
   const [conflictSuggestion, setConflictSuggestion] = useState<{ time: string; tried: number } | null>(null);
-  const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
-  // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
-
+  /**
+   * ─── El tipo de cita sale del CASO ────────────────────────────────────────
+   *
+   * Ya no se elige a mano: el selector se sacó de la pantalla porque no decidía
+   * nada. Medido sobre las 8.423 citas con caso, el tipo coincide con el tipo
+   * del caso en el **99,9%** — 11 divergen, y son de la migración. `URGENT_CARE`
+   * se usó UNA vez en toda la historia y `FOLLOW_UP` tres. Un campo obligatorio
+   * que en la práctica tiene una sola respuesta correcta no es una decisión, es
+   * un trámite.
+   *
+   * ⚠️ Se infiere por `caseType` y NO por `accidentType`, que es como estaba y
+   * es lo que hacía que esto casi nunca funcionara: `accidentType` está vacío en
+   * el 96% de los casos (2.938 de 3.053), así que la rama no entraba y el tipo
+   * se quedaba en el default —`AUTO_ACCIDENT`—. Con el selector a la vista eso
+   * se disimulaba porque alguien lo corregía a mano; escondiéndolo, toda cita
+   * nueva de un caso GM habría quedado marcada como accidente, y pintada de
+   * rosa en el calendario en vez de verde.
+   *
+   * `caseType` es el campo autoritativo y sólo tiene dos valores, MVA y GENERAL.
+   */
   useEffect(() => {
     if (props.mode !== 'free' || !caseId) return;
-    if (userChangedType.current) return; // respetar selección manual
     const found = patientCases.find((c) => c.id === caseId);
     if (!found) return;
+
+    if (found.caseType === 'MVA') { setType('AUTO_ACCIDENT'); return; }
+    if (found.caseType === 'GENERAL') { setType('FAMILY_PRACTICE'); return; }
+
+    // Respaldo para un caso sin `caseType` (no debería existir: la columna no es
+    // nula). Se mira `accidentType`, y si tampoco dice nada, no se toca: es
+    // preferible dejar el default a afirmar un tipo sin fundamento.
     if (found.accidentType === 'AUTO' || found.accidentType === 'MVA') {
       setType('AUTO_ACCIDENT');
     } else if (found.accidentType === 'GENERAL' || found.accidentType === 'GP') {
       setType('FAMILY_PRACTICE');
     }
-    // Si el caso tiene accidentType no reconocido, dejamos el tipo actual sin tocar
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId, patientCases]);
 
@@ -365,7 +394,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setSuccess(null);
     setDurationConflictAlert(false);
     pendingDurationCheck.current = false;
-    userChangedType.current = false;
     setPatientQuery('');
     setPatientResults([]);
     setPatientCases([]);
@@ -440,9 +468,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setDuration(15);
       lastValidDuration.current = 15;
       setType(props.defaultType ?? 'AUTO_ACCIDENT');
-      // Un tipo pre-elegido cuenta como decisión tomada: la auto-inferencia por
-      // accidentType no debe pisarlo
-      userChangedType.current = !!props.defaultType;
       setNotes('');
       setIsOnline(false);
       setMeetingUrl('');
@@ -1511,20 +1536,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── Tipo de cita · Consulta en línea — misma fila ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="appt-type">{t('fieldAppointmentType')}</Label>
-              <select
-                id="appt-type"
-                value={type}
-                onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-              >
-                {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+          {/* ── Telemedicina ──
+               Acá vivía también el selector de "Tipo de cita", y se sacó el
+               2026-09-15 a pedido de la clínica: "If the case is selected and
+               the specialty it's already being specified there is no purpose in
+               that field". Tenían razón, y los datos la respaldan: de 8.423
+               citas con caso, el tipo coincide con el del caso en el 99,9%, y
+               URGENT_CARE se usó UNA vez en toda la historia (FOLLOW_UP, tres).
+               Un campo obligatorio con una sola respuesta correcta no es una
+               decisión, es un trámite.
 
+               El valor NO desaparece: se sigue guardando, lo decide el caso
+               (ver la inferencia más arriba) y el calendario lo usa para pintar
+               MVA contra GM. Lo que se fue es la pregunta, no el dato. */}
+          <div className="grid grid-cols-1">
             <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border bg-bg-2/30'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">

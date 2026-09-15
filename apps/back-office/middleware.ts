@@ -125,6 +125,47 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['billing',   /^\/api\/admin\/billing(\/|$)/,    'all'],
   ['settings',  /^\/api\/admin\/audit-logs(\/|$)/, 'all'],
   ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances|clinics|employees)(\/|$)/, 'write'],
+
+  /**
+   * ── Settings, pestaña por pestaña (2026-09-14) ─────────────────────────────
+   *
+   * El módulo `settings` de arriba NO se toca y sigue siendo el portero de
+   * afuera: quien lo tenga apagado no entra a ninguna. Esto es el recorte de
+   * ADENTRO, y por eso `apiGuardModules` devuelve la lista completa — las dos
+   * reglas tienen que evaluarse, no ganar una.
+   *
+   * Todas van en `write`: el GET de un catálogo lo usan pickers de otras
+   * pantallas (el alta de caso, Day Admission, la consulta), y esconder la
+   * pestaña ya le saca la puerta de la interfaz. Lo que se cierra acá es
+   * **modificar** un catálogo que no le toca.
+   *
+   * ── Las TRES que no están, y por qué ───────────────────────────────────────
+   *
+   * `catalog` (Labs y precios), `diagnoses` y `snippets` **también los escribe
+   * el portal médico**, no solo esta pantalla:
+   *
+   *   · `/doctor/settings/labs` administra el mismo catálogo.
+   *   · `/doctor/settings/snippets/[section]` administra los snippets del portal.
+   *   · `diagnoses/[id]/favorite` es el corazón que marca el provider desde el
+   *     selector de diagnósticos de la consulta.
+   *
+   * Cerrarlos por pestaña de Settings le rompería al provider su propia
+   * configuración — el mismo error que el comentario de arriba viene evitando
+   * con `templates` y `lab-*`. Quedan gobernados solo por el módulo `settings`
+   * entero, como hasta ahora.
+   *
+   * `bufetes` tampoco está: `/api/admin/lawyers` ya es de `externals`, que es su
+   * dueño de siempre. Dos módulos sobre la misma ruta serían dos lugares donde
+   * mirar cuando algo dé 403.
+   */
+  ['settings:clinicas',       /^\/api\/admin\/clinics(\/|$)/,                  'write'],
+  ['settings:especialidades', /^\/api\/admin\/specialties(\/|$)/,              'write'],
+  ['settings:doctores',       /^\/api\/admin\/(providers|employees)(\/|$)/,    'write'],
+  ['settings:aseguradoras',   /^\/api\/admin\/insurances(\/|$)/,               'write'],
+  ['settings:ajustadores',    /^\/api\/admin\/adjusters(\/|$)/,                'write'],
+  ['settings:servicios',      /^\/api\/admin\/(services|service-codes)(\/|$)/, 'write'],
+  ['settings:releases',       /^\/api\/admin\/releases(\/|$)/,                 'all'],
+  ['settings:auditlog',       /^\/api\/admin\/audit-logs(\/|$)/,               'all'],
   ['externals', /^\/api\/admin\/lawyers(\/|$)/,    'write'],
   // Datos de Edson: los consumen `/edson` y `/intake`, y nada más. El menú de
   // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
@@ -177,12 +218,27 @@ const TWILIO_WEBHOOKS = new Set([
 ]);
 
 /** Módulo que gobierna esta request de API, o null si no está gobernada. */
-function apiGuardModule(pathname: string, method: string): string | null {
+/**
+ * TODOS los módulos que gobiernan esta request, no el primero.
+ *
+ * Devolvía solo la primera coincidencia y eso alcanzaba mientras cada ruta
+ * tenía un dueño único. Dejó de alcanzar al llegar el recorte por pestaña de
+ * Settings: `/api/admin/clinics` lo gobiernan ahora DOS llaves —el módulo
+ * `settings` entero y la pestaña `settings:clinicas`—, y con el `return` en la
+ * primera, quitarle el módulo completo a alguien dejaba de cerrar la API porque
+ * ganaba la regla de la pestaña. Al revés también: la pestaña no se evaluaba si
+ * la regla del módulo estaba primero.
+ *
+ * Con la lista completa, el caller bloquea si **alguna** está apagada, que es la
+ * lectura correcta: los permisos se restan, no se compensan.
+ */
+function apiGuardModules(pathname: string, method: string): string[] {
   const isWrite = method !== 'GET' && method !== 'HEAD';
+  const encontrados: string[] = [];
   for (const [module, pattern, scope] of MODULE_API_ROUTES) {
-    if (pattern.test(pathname) && (scope === 'all' || isWrite)) return module;
+    if (pattern.test(pathname) && (scope === 'all' || isWrite)) encontrados.push(module);
   }
-  return null;
+  return encontrados;
 }
 
 /**
@@ -549,8 +605,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(url);
     }
     if (isApi) {
-      const guarded = apiGuardModule(pathname, request.method);
-      if (guarded && !DOCTOR_PORTAL_MODULES.has(guarded)) return forbidden(guarded, response);
+      // Bloquea si CUALQUIERA de los modulos que gobiernan la ruta no esta en
+      // la lista que el portal medico si consume.
+      const ajeno = apiGuardModules(pathname, request.method)
+        .find((m) => !DOCTOR_PORTAL_MODULES.has(m));
+      if (ajeno !== undefined) return forbidden(ajeno, response);
     }
     const fueraDeMenu = await doctorMenuRedirect(pathname);
     if (fueraDeMenu !== null) {
@@ -701,8 +760,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const userModules = mods; // const: `let` pierde el narrowing dentro de los closures
 
   if (userModules && isApi) {
-    const guarded = apiGuardModule(pathname, request.method);
-    if (guarded && userModules[guarded] === false) return forbidden(guarded, response);
+    // Alcanza con que UNA este apagada: los permisos se restan.
+    const apagado = apiGuardModules(pathname, request.method)
+      .find((m) => userModules[m] === false);
+    if (apagado !== undefined) return forbidden(apagado, response);
   }
 
   if (userModules && !isApi) {

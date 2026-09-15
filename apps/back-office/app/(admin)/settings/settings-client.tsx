@@ -26,6 +26,7 @@ import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-clien
 import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
 import { ReleasesClient }  from '@/app/(admin)/settings/releases/releases-client';
 import { ProvidersClient }  from '@/app/(admin)/admin/providers/providers-client';
+import { seesSettingsTab } from '@/lib/settings-tabs-modules';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Clinic {
@@ -92,6 +93,8 @@ interface Props {
   canDeleteSnippets:  boolean;
   /** SUPER_ADMIN / ADMIN: habilita los tabs `adminOnly`. */
   isAdmin?:           boolean;
+  /** Mapa `clinicModules` de la sesion. null = ve todas las pestanas. */
+  allowedModules?:    Record<string, boolean> | null;
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────────
@@ -120,9 +123,24 @@ export function SettingsClient({
   auditKpis,          initialAuditLogs,
   clinicSnippets,     canDeleteSnippets,
   isAdmin = false,
+  allowedModules = null,
 }: Props) {
   const ts = useTranslations('phoenix.settings');
-  const [activeTab, setActiveTab] = useState<Tab>('clinicas');
+  /**
+   * La pestaña inicial es la PRIMERA VISIBLE, no `clinicas` fija.
+   *
+   * Con el recorte por usuario, a quien no tenga Clínicas le quedaba la barra
+   * sin ningún botón activo y el contenido de Clínicas igual abajo — la pestaña
+   * escondida se mostraba sola por ser el default. Se calcula una vez (`useState`
+   * con función): si después cambia el mapa hace falta recargar, que es lo mismo
+   * que ya pasa con el resto de los permisos.
+   */
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const primera = TABS.find(
+      (t) => (!t.adminOnly || isAdmin) && seesSettingsTab(allowedModules, t.id),
+    );
+    return primera?.id ?? 'clinicas';
+  });
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
 
   // ── Color picker toggle ────────────────────────────────────────────────────
@@ -227,7 +245,7 @@ export function SettingsClient({
 
         {/* ── Tab bar ── */}
         <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border mt-4">
-          {TABS.filter((tab) => !tab.adminOnly || isAdmin).map((tab) => {
+          {TABS.filter((tab) => (!tab.adminOnly || isAdmin) && seesSettingsTab(allowedModules, tab.id)).map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (

@@ -914,6 +914,53 @@ const NOTES_AUDIT_MODULE = 'notesAudit';
 const CIFO_MODULE = 'cifo';
 
 /**
+ * Pestañas de Settings del Back-Office, agrupadas.
+ *
+ * Settings tiene 13 pestañas y trece casillas sueltas acá harían de esta ficha
+ * un formulario que nadie lee. Se conceden por GRUPO —el corte que ya usa quien
+ * configura: el dato de la clínica, la gente de afuera, los catálogos de plata
+ * y los registros que solo se leen— y **recién al apagar el grupo aparecen sus
+ * casillas** (Erick, 2026-09-14). Mismo patrón de dos niveles que "Visión
+ * completa" arriba, así que no hay nada nuevo que aprender.
+ *
+ * Regla de los menús: se ve salvo `false`. Espejo de
+ * `apps/back-office/lib/settings-tabs-modules.ts` — si allá se agrega una
+ * pestaña, agregarla acá.
+ *
+ * `escritorios` no está: es `adminOnly` en el back-office y no se reparte por
+ * empleado. Listarla sugeriría que sí.
+ */
+const SETTINGS_TAB_PREFIX = 'settings:';
+
+const SETTINGS_GRUPOS: Array<{
+  grupo: string; label: string; emoji: string;
+  tabs: Array<{ key: string; label: string }>;
+}> = [
+  { grupo: 'clinica', label: 'Clínica', emoji: '🏥', tabs: [
+    { key: 'clinicas',       label: 'Clínicas'      },
+    { key: 'especialidades', label: 'Especialidades' },
+    { key: 'doctores',       label: 'Providers'     },
+  ] },
+  { grupo: 'externos', label: 'Externos', emoji: '⚖️', tabs: [
+    { key: 'bufetes',      label: 'Bufetes'      },
+    { key: 'aseguradoras', label: 'Aseguradoras' },
+    { key: 'ajustadores',  label: 'Ajustadores'  },
+  ] },
+  { grupo: 'catalogos', label: 'Catálogos', emoji: '💲', tabs: [
+    { key: 'servicios',    label: 'Servicios CPT' },
+    { key: 'labs',         label: 'Labs y precios' },
+    { key: 'diagnosticos', label: 'Diagnósticos'  },
+    { key: 'snippets',     label: 'Plantillas'    },
+  ] },
+  { grupo: 'registros', label: 'Registros', emoji: '📜', tabs: [
+    { key: 'auditlog', label: 'Audit Log'      },
+    { key: 'releases', label: 'Notas de release' },
+  ] },
+];
+
+const settingsTabKey = (tab: string): string => `${SETTINGS_TAB_PREFIX}${tab}`;
+
+/**
  * Pedidos de bufetes: el menú del back-office donde se ve TODO lo que los
  * abogados pidieron desde su portal (a quién le llegó, si respondieron, quién y
  * qué). Opt-in como Notas clínicas — lista pacientes y casos de todos los
@@ -947,6 +994,26 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
   // CIFO al reves: se tiene salvo un `false` explicito.
   const [cifo, setCifo] = useState(savedModules?.[CIFO_MODULE] !== false);
+
+  /**
+   * Settings, en dos niveles por grupo.
+   *
+   * El interruptor de cada grupo arranca ENCENDIDO salvo que alguna de sus
+   * pestañas esté guardada explícitamente; apagarlo revela sus casillas, que
+   * nacen con lo guardado (o todas marcadas si no hay nada).
+   */
+  const [settingsFull, setSettingsFull] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SETTINGS_GRUPOS.map(g => [
+      g.grupo,
+      savedModules === null || g.tabs.every(t => savedModules[settingsTabKey(t.key)] === undefined),
+    ])),
+  );
+  const [settingsTabs, setSettingsTabs] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SETTINGS_GRUPOS.flatMap(g => g.tabs).map(t => [
+      t.key,
+      savedModules ? savedModules[settingsTabKey(t.key)] !== false : true,
+    ])),
+  );
   const [firmRequests, setFirmRequests] = useState(savedModules?.[FIRM_REQUESTS_MODULE] === true);
 
   /**
@@ -1013,6 +1080,19 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
       ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
       // Solo se escribe el NO: la ausencia de la llave ya significa que lo tiene.
       ...(cifo ? {} : { [CIFO_MODULE]: false }),
+      /**
+       * Settings: un grupo ENCENDIDO no escribe nada —sus pestañas quedan sin
+       * definir, que es "visible"—. Apagado escribe las suyas una por una, con
+       * el valor de su casilla. Así un grupo que nunca se tocó no ensucia el
+       * JSON, y agregar una pestaña nueva en el futuro nace visible para todos.
+       */
+      ...Object.fromEntries(
+        SETTINGS_GRUPOS.flatMap(g =>
+          settingsFull[g.grupo]
+            ? []
+            : g.tabs.map(t => [settingsTabKey(t.key), settingsTabs[t.key] !== false]),
+        ),
+      ),
       ...(firmRequests ? { [FIRM_REQUESTS_MODULE]: true } : {}),
     };
     const clinicModulesPayload =
@@ -1229,6 +1309,71 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     </span>
                   </span>
                 </label>
+
+                {/* ── Settings, por grupo ──
+                    Cada grupo se concede entero con su interruptor. Al apagarlo
+                    aparecen sus pestañas para elegir una por una. Van adentro de
+                    esta tarjeta porque son del Back-Office, pero separadas de la
+                    grilla de menús: Settings ES uno de esos menús, y esto es el
+                    recorte de adentro. */}
+                <div className="pt-1 border-t border-border/60 space-y-1.5">
+                  <p className="px-2 text-[11px] text-text-muted">
+                    Dentro de <span className="text-text-2">Settings</span>, qué pestañas ve:
+                  </p>
+
+                  {SETTINGS_GRUPOS.map(g => {
+                    const full = settingsFull[g.grupo] !== false;
+                    const ninguna = !full && g.tabs.every(t => settingsTabs[t.key] === false);
+                    return (
+                      <div key={g.grupo} className="rounded-md bg-bg-2/40 px-2 py-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="text-[11px] w-4 text-center">{g.emoji}</span>
+                            <span className="text-[12.5px] text-text-2">{g.label}</span>
+                            <span className="text-[11px] text-text-muted">
+                              {full
+                                ? `las ${g.tabs.length}`
+                                : `${g.tabs.filter(t => settingsTabs[t.key] !== false).length} de ${g.tabs.length}`}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSettingsFull(s => ({ ...s, [g.grupo]: !full }))}
+                            title={full ? 'Ve el grupo completo' : 'Elegir pestaña por pestaña'}
+                            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${full ? 'bg-emerald' : 'bg-amber'}`}
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${full ? 'translate-x-5' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+
+                        {!full && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1.5 mt-1.5 border-t border-border/60">
+                            {g.tabs.map(t => {
+                              const on = settingsTabs[t.key] !== false;
+                              return (
+                                <label key={t.key} className="flex items-center gap-2 rounded px-1.5 py-1 cursor-pointer hover:bg-surface transition-colors" style={{ opacity: on ? 1 : 0.55 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={on}
+                                    onChange={() => setSettingsTabs(s => ({ ...s, [t.key]: !on }))}
+                                    className="h-3.5 w-3.5 accent-indigo-500"
+                                  />
+                                  <span className="text-[12px] text-text-2">{t.label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {ninguna && (
+                          <p className="px-1.5 pt-1 text-[11px] text-amber-text">
+                            Sin ninguna marcada, el grupo entero desaparece de Settings.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {notesAudit && (
                   <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2">

@@ -1,6 +1,6 @@
 import { db } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
-import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { fetchDbRole, fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { redirect } from 'next/navigation';
 import { SettingsClient } from './settings-client';
 
@@ -160,6 +160,18 @@ export default async function SettingsPage() {
   }));
   const canDeleteSnippets = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
+  /**
+   * Pestañas apagadas para ESTA persona (llaves `settings:*` de `clinicModules`).
+   *
+   * `null` = las ve todas, que es el default y el estado de todos hoy. A los
+   * admins no se les recorta nunca, igual que en el resto del sistema, y por eso
+   * ni se consulta: es una llamada de red al proyecto Admin que no cambiaría
+   * nada.
+   */
+  const allowedModules = canDeleteSnippets || !user.email
+    ? null
+    : await fetchUserClinicModules(user.email);
+
   const serviceFavIds  = new Set(serviceFavs.map((f) => f.serviceCodeId));
   const diagnosisFavIds = new Set(diagnosisFavs.map((f) => f.diagnosisId));
 
@@ -292,6 +304,7 @@ export default async function SettingsPage() {
       canDeleteSnippets={canDeleteSnippets}
       // Misma regla que borrar snippets: SUPER_ADMIN / ADMIN.
       isAdmin={canDeleteSnippets}
+      allowedModules={allowedModules}
     />
   );
 }

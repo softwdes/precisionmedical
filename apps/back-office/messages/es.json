@@ -4948,7 +4948,13 @@
         "trashTitle": "Ver lo eliminado y recuperarlo",
         "restoreTitle": "Recuperar",
         "alertRestoreError": "No se pudo recuperar.",
-        "alertRestoreFolderFirst": "Recuperá primero la carpeta \"{name}\": si no, el archivo vuelve adentro de algo que nadie ve."
+        "alertRestoreFolderFirst": "Recuperá primero la carpeta \"{name}\": si no, el archivo vuelve adentro de algo que nadie ve.",
+        "rechazo_vacio": "«{name}» está vacío (0 bytes) y no se puede subir. Revisá el archivo original.",
+        "rechazo_grande": "«{name}» supera los {max} MB.",
+        "rechazo_tipo": "«{name}» no es un formato admitido. Se aceptan imágenes, PDF, Word y Excel.",
+        "rechazo_cantidad": "Solo se pueden subir {max} archivos a la vez. Los de más quedaron afuera.",
+        "alertUploadFallo": "No se pudo subir «{name}»: {motivo}",
+        "alertCreateFolderFallo": "No se pudo crear la carpeta: {motivo}"
       }
     },
     "settings": {

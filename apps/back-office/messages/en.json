@@ -4948,7 +4948,13 @@
         "trashTitle": "See deleted items and restore them",
         "restoreTitle": "Restore",
         "alertRestoreError": "Couldn't restore it.",
-        "alertRestoreFolderFirst": "Restore the folder \"{name}\" first: otherwise the file comes back inside something nobody can see."
+        "alertRestoreFolderFirst": "Restore the folder \"{name}\" first: otherwise the file comes back inside something nobody can see.",
+        "rechazo_vacio": "“{name}” is empty (0 bytes) and can’t be uploaded. Check the original file.",
+        "rechazo_grande": "“{name}” is over {max} MB.",
+        "rechazo_tipo": "“{name}” isn’t a supported format. Images, PDF, Word and Excel are accepted.",
+        "rechazo_cantidad": "Only {max} files can be uploaded at once. The extra ones were left out.",
+        "alertUploadFallo": "Couldn’t upload “{name}”: {motivo}",
+        "alertCreateFolderFallo": "Couldn’t create the folder: {motivo}"
       }
     },
     "settings": {

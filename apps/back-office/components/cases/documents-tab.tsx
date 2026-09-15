@@ -45,6 +45,49 @@ interface BreadcrumbItem {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * ── LO QUE EL MODAL PROMETE, AHORA CUMPLIDO ──────────────────────────────────
+ *
+ * El pie del diálogo dice "máximo 10 archivos, 100MB cada uno. Formatos: imágenes,
+ * PDF, Word, Excel" desde siempre, y **no se validaba nada de eso**. El servidor
+ * sí rechazaba lo imposible, pero contestaba un `400` pelado que en pantalla
+ * salía como "HTTP 400" — un usuario intentando subir una licencia de conducir
+ * de 0 bytes vio exactamente eso y no tenía forma de saber qué pasaba
+ * (reportado por Erick, 2026-09-15).
+ *
+ * Se valida ACÁ, antes de mandar nada: el navegador ya conoce tamaño y tipo en
+ * el momento de elegir el archivo.
+ */
+const MAX_ARCHIVOS = 10;
+const MAX_BYTES = 100 * 1024 * 1024;
+
+/** Los formatos que el pie del diálogo promete. */
+const TIPOS_OK = [
+  'image/',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml',
+];
+
+/**
+ * Por qué NO se puede subir este archivo, o `null` si se puede.
+ *
+ * Devuelve la CLAVE del motivo y no un texto: los mensajes viven en i18n como
+ * todo lo demás.
+ */
+function motivoRechazo(f: File): 'vacio' | 'grande' | 'tipo' | null {
+  // Primero el vacío: un archivo de 0 bytes también falla el tipo a veces, y
+  // "está vacío" explica mejor que "formato no admitido".
+  if (f.size <= 0) return 'vacio';
+  if (f.size > MAX_BYTES) return 'grande';
+  // Sin `type` el navegador no lo reconoció — pasa con archivos sin extensión.
+  // No se rechaza por eso: el servidor guarda igual y el usuario sabe qué subió.
+  if (f.type && !TIPOS_OK.some((t) => f.type.startsWith(t))) return 'tipo';
+  return null;
+}
+
 function formatBytes(bytes: number | null): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -79,18 +122,45 @@ function UploadModal({ onClose, onUpload, uploading }: {
   const tc = useTranslations('phoenix.common');
   const [dragOver, setDragOver] = useState(false);
   const [pending, setPending]   = useState<File[]>([]);
+  /** Los que quedaron afuera y por qué. Se muestran, no se descartan callados. */
+  const [rechazos, setRechazos] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Suma los que se pueden y DICE por qué quedaron afuera los otros.
+   *
+   * Se filtra al elegir y no al subir: el navegador ya sabe tamaño y tipo en
+   * este momento, y enterarse después de apretar "Subir" —con un "HTTP 400"—
+   * es lo que hizo perder una mañana.
+   */
+  function agregar(files: File[]) {
+    if (!files.length) return;
+    const buenos: File[] = [];
+    const malos: string[] = [];
+    for (const f of files) {
+      const motivo = motivoRechazo(f);
+      if (motivo) malos.push(t(`rechazo_${motivo}`, { name: f.name, max: MAX_BYTES / (1024 * 1024) }));
+      else buenos.push(f);
+    }
+    setPending(prev => {
+      const juntos = [...prev, ...buenos];
+      if (juntos.length > MAX_ARCHIVOS) {
+        malos.push(t('rechazo_cantidad', { max: MAX_ARCHIVOS }));
+        return juntos.slice(0, MAX_ARCHIVOS);
+      }
+      return juntos;
+    });
+    setRechazos(malos);
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length) setPending(prev => [...prev, ...files]);
+    agregar(Array.from(e.dataTransfer.files));
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length) setPending(prev => [...prev, ...files]);
+    agregar(Array.from(e.target.files ?? []));
     e.target.value = '';
   }
 
@@ -155,6 +225,16 @@ function UploadModal({ onClose, onUpload, uploading }: {
         <p className="text-[11px] text-text-muted">
           {t('uploadFootnote')}
         </p>
+
+        {/* Lo que quedó afuera, con el motivo. Ámbar y no rojo: no se rompió
+            nada, hay archivos que no se pueden subir y hay que saber cuáles. */}
+        {rechazos.length > 0 && (
+          <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 space-y-1">
+            {rechazos.map((m, i) => (
+              <p key={i} className="text-[11px] text-amber leading-relaxed">{m}</p>
+            ))}
+          </div>
+        )}
 
         {/* Pending files list */}
         {pending.length > 0 && (
@@ -315,7 +395,14 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newFolderName.trim(), isFolder: true, parentId: currentParentId }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // El motivo del servidor, no el número. `INVALID_PARENT` y
+        // `CASE_NOT_FOUND` explican algo; "HTTP 400" no.
+        const d = await res.json().catch(() => ({}));
+        throw new Error(t('alertCreateFolderFallo', {
+          motivo: d.message ?? d.error ?? `HTTP ${res.status}`,
+        }));
+      }
       setNewFolderOpen(false);
       setNewFolderName('');
       load(currentParentId, verPapelera);
@@ -347,16 +434,38 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
             alert(t('alertS3NotConfigured'));
             break;
           }
-          throw new Error(urlData.message ?? `HTTP ${urlRes.status}`);
+          // El nombre del archivo en el mensaje: con diez seleccionados, saber
+          // que "falló uno" no alcanza para nada.
+          throw new Error(t('alertUploadFallo', {
+            name: file.name,
+            motivo: urlData.message ?? urlData.error ?? `HTTP ${urlRes.status}`,
+          }));
         }
 
-        await fetch(urlData.uploadUrl, {
+        /*
+         * ⚠️ ESTE `ok` FALTABA, y era el bug silencioso.
+         *
+         * La respuesta del PUT al bucket no se miraba: si Supabase rechazaba el
+         * archivo, igual se creaba la fila del documento. Quedaba en la lista,
+         * con su nombre y su tamaño, apuntando a un archivo que NO EXISTE — y
+         * eso recién se descubre el día que alguien lo quiere abrir, que puede
+         * ser meses después y en manos de un abogado.
+         *
+         * Encontrado revisando el 400 de la subida (Erick, 2026-09-15).
+         */
+        const putRes = await fetch(urlData.uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type },
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
           body: file,
         });
+        if (!putRes.ok) {
+          throw new Error(t('alertUploadFallo', {
+            name: file.name,
+            motivo: `HTTP ${putRes.status}`,
+          }));
+        }
 
-        await fetch(`/api/admin/cases/${caseId}/documents`, {
+        const regRes = await fetch(`/api/admin/cases/${caseId}/documents`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -368,6 +477,14 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
             parentId: currentParentId,
           }),
         });
+        // Y este también: el archivo llegó al bucket pero sin fila no existe
+        // para el sistema. Callarlo deja un huérfano que nadie va a buscar.
+        if (!regRes.ok) {
+          throw new Error(t('alertUploadFallo', {
+            name: file.name,
+            motivo: `HTTP ${regRes.status}`,
+          }));
+        }
       }
       setUploadOpen(false);
       load(currentParentId, verPapelera);

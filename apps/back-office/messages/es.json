@@ -1546,7 +1546,9 @@
       "rxSummaryAllergiesHint": "El control de interacciones usa la lista de ScriptSure, no esta. Si no está cargada allá, registrala.",
       "rxSummaryRegister": "Registrar",
       "rxSummaryActive": "{count, plural, one {# medicamento activo} other {# medicamentos activos}}",
-      "filterNoneToday": "No hay ninguna en este estado hoy."
+      "filterNoneToday": "No hay ninguna en este estado hoy.",
+      "rxMissingPhoneTitle": "Al paciente le falta el teléfono",
+      "rxMissingPhoneDesc": "ScriptSure exige al menos un teléfono para crear al paciente. Cargalo en su ficha y volvé a intentar."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

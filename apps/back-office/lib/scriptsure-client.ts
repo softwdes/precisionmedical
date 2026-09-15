@@ -234,6 +234,18 @@ export class ScriptSurePatientDataError extends Error {
     super(`Al paciente le faltan campos obligatorios para ScriptSure: ${missingFields.join(', ')}`);
     this.name = 'ScriptSurePatientDataError';
   }
+
+  /**
+   * Qué decirle a la pantalla. El teléfono va aparte de la dirección porque se
+   * completa en otro lugar de la ficha: mandar a alguien a revisar la dirección
+   * cuando lo que falta es el teléfono es el mismo error que este arreglo vino
+   * a corregir, una capa más abajo.
+   */
+  get code(): 'PATIENT_MISSING_PHONE' | 'PATIENT_MISSING_ADDRESS' {
+    return this.missingFields.length === 1 && this.missingFields[0] === 'phone'
+      ? 'PATIENT_MISSING_PHONE'
+      : 'PATIENT_MISSING_ADDRESS';
+  }
 }
 
 /**
@@ -247,11 +259,24 @@ async function createScriptSurePatient(
   prescriberId: number,
   patient: ScriptSurePatientInput,
 ): Promise<number> {
+  const cell = (patient.phone ?? patient.phone2 ?? '').replace(/[^0-9]/g, '');
+
   const missingFields: string[] = [];
   if (!patient.addressLine1) missingFields.push('addressLine1');
   if (!patient.addressCity) missingFields.push('city');
   if (!patient.addressState) missingFields.push('state');
   if (!patient.addressZip) missingFields.push('zip');
+  /**
+   * ScriptSure exige AL MENOS UN teléfono (home, work o cell). No estaba en
+   * este chequeo, así que un paciente sin ninguno pasaba nuestra guarda y lo
+   * rechazaban ellos con un 400 — que la pantalla mostraba como "no se pudo
+   * conectar con ScriptSure", mandando a buscar el problema a la red.
+   *
+   * Encontrado el 2026-09-15 con la cita de prueba de Devin. Medido en la base
+   * ese día: 200 pacientes tienen dirección completa y NINGÚN teléfono, o sea
+   * 200 veces el mismo cartel equivocado esperando a que alguien los atienda.
+   */
+  if (!cell) missingFields.push('phone');
   if (missingFields.length > 0) throw new ScriptSurePatientDataError(missingFields);
 
   const payload: Record<string, unknown> = {
@@ -269,8 +294,7 @@ async function createScriptSurePatient(
     state: toStateCode(patient.addressState!),
     zip: patient.addressZip!.replace(/[^0-9]/g, '').slice(0, 9),
   };
-  const cell = (patient.phone ?? patient.phone2 ?? '').replace(/[^0-9]/g, '');
-  if (cell) payload.cell = cell;
+  payload.cell = cell; // garantizado no vacío por el chequeo de arriba
 
   const res = await llamarConSesion(loginEmail, (token) => fetch(
     `${hosts().backendScriptSure}/v3/patient?sessiontoken=${token}`, {

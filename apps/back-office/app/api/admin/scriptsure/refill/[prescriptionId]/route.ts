@@ -147,7 +147,7 @@ export async function POST(
   } catch (err) {
     if (err instanceof ScriptSurePatientDataError) {
       return NextResponse.json(
-        { error: 'PATIENT_MISSING_ADDRESS', missingFields: err.missingFields },
+        { error: err.code, missingFields: err.missingFields },
         { status: 422 },
       );
     }

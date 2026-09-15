@@ -37,6 +37,13 @@ const WIDGET_TITLE: Record<WidgetKind, string> = {
 export type WidgetStatus =
   | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill'
   /**
+   * Al paciente no le falta la dirección sino el TELÉFONO, que ScriptSure exige
+   * (al menos uno) y se completa en otra parte de la ficha. Va aparte de
+   * `missing_address` porque mandar a revisar la dirección cuando falta el
+   * teléfono hace perder el mismo rato que hacía perder "no se pudo conectar".
+   */
+  | 'missing_phone'
+  /**
    * 403: quien mira NO puede prescribir en esta cita — prescribir exige ser el
    * doctor de la cita (o admin), y "ver como doctor" no alcanza: la receta la
    * firma una persona real.
@@ -69,6 +76,7 @@ export async function launchRefill(prescriptionId: string): Promise<RefillLaunch
       return {
         status: body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
           : body?.error === 'MISSING_DRUG_IDS' ? 'no_refill'
+          : body?.error === 'PATIENT_MISSING_PHONE' ? 'missing_phone'
           : 'missing_address',
         url: null,
         errorDetail: null,
@@ -168,7 +176,7 @@ export function ScriptSureWidgetDialog({
           </div>
         )}
 
-        {(status === 'missing_address' || status === 'missing_dob') && (
+        {(status === 'missing_address' || status === 'missing_dob' || status === 'missing_phone') && (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="flex items-start gap-3 max-w-md">
               <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
@@ -176,9 +184,15 @@ export function ScriptSureWidgetDialog({
               </div>
               <div className="text-[12.5px] text-text-2 leading-relaxed">
                 <p className="text-text-1 font-medium mb-1">
-                  {t(status === 'missing_dob' ? 'rxMissingDobTitle' : 'rxMissingAddressTitle')}
+                  {t(status === 'missing_dob' ? 'rxMissingDobTitle'
+                    : status === 'missing_phone' ? 'rxMissingPhoneTitle'
+                    : 'rxMissingAddressTitle')}
                 </p>
-                <p>{t(status === 'missing_dob' ? 'rxMissingDobDesc' : 'rxMissingAddressDesc')}</p>
+                <p>
+                  {t(status === 'missing_dob' ? 'rxMissingDobDesc'
+                    : status === 'missing_phone' ? 'rxMissingPhoneDesc'
+                    : 'rxMissingAddressDesc')}
+                </p>
               </div>
             </div>
           </div>

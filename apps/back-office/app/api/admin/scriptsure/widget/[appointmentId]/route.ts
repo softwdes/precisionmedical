@@ -110,7 +110,9 @@ export async function GET(
     return NextResponse.json({ url });
   } catch (err) {
     if (err instanceof ScriptSurePatientDataError) {
-      return NextResponse.json({ error: 'PATIENT_MISSING_ADDRESS', missingFields: err.missingFields }, { status: 422 });
+      // El código lo decide el error: si lo único que falta es el teléfono, la
+      // pantalla tiene que decir teléfono y no dirección.
+      return NextResponse.json({ error: err.code, missingFields: err.missingFields }, { status: 422 });
     }
     return NextResponse.json({ error: 'SCRIPTSURE_ERROR', message: (err as Error).message }, { status: 502 });
   }

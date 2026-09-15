@@ -181,10 +181,32 @@ export function RxIntegrationStatus({
       }
       if (res.status === 422) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob' : 'missing_address');
+        setStatus(
+          body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
+          : body?.error === 'PATIENT_MISSING_PHONE' ? 'missing_phone'
+          : 'missing_address',
+        );
         return;
       }
-      if (!res.ok) { setStatus('error'); return; }
+      /**
+       * El servidor MANDA el motivo y acá se tiraba.
+       *
+       * La ruta responde `{error:'SCRIPTSURE_ERROR', message:<texto literal de
+       * ScriptSure>}`, pero esto hacía `setStatus('error')` sin leer el cuerpo,
+       * así que un rechazo de datos del paciente llegaba a pantalla como "no se
+       * pudo conectar con ScriptSure" y mandaba a revisar la red. Devin perdió
+       * una tarde con eso el 2026-09-15.
+       *
+       * El diálogo ya sabe mostrar `errorDetail` — la vía de "Repetir" lo venía
+       * usando desde siempre. Faltaba pasárselo.
+       */
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
+        const detalle = body?.message ?? body?.error ?? null;
+        setErrorDetail(detalle ? detalle.slice(0, 400) : null);
+        setStatus('error');
+        return;
+      }
       const data = (await res.json()) as { url: string };
       setUrl(data.url);
       setStatus('ready');

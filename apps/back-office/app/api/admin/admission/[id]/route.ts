@@ -41,6 +41,10 @@ export async function GET(
             pipVerifiedAt:         true,
             intakeFormCompletedAt: true,
             consentsData:          true,
+            // Las alergias que el PACIENTE declaró en el formulario de intake.
+            // Sin esto el panel solo muestra lo que cargó el staff, y lo que el
+            // paciente dijo no se ve en ningún lado. Ver allergiesDeclared.
+            intakeSubmission: { select: { hasAllergies: true, allergies: true } },
             primaryPolicyNumber:   true,
             lawFirmId:             true,
             attorneyId:            true,

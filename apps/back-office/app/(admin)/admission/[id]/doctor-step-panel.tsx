@@ -423,7 +423,15 @@ export function DoctorStepPanel({
                 lectura: el asistente necesita responder "¿se le mandó la receta
                 a la farmacia?" en el checkout, pero prescribir y repetir son del
                 médico (misma regla que `canSign` en la nota). */}
-            {tab === 'rx' && <RxIntegrationStatus appointmentId={appointmentId} readOnly />}
+            {tab === 'rx' && (
+              <RxIntegrationStatus
+                appointmentId={appointmentId}
+                readOnly
+                allergies={patientContext?.history.allergies ?? null}
+                allergiesDeclared={patientContext?.history.allergiesDeclared?.text ?? null}
+                medications={patientContext?.history.medications ?? []}
+              />
+            )}
 
             {/* Férulas / DME — el mismo componente que usa el doctor en su portal.
                 El cobro cae solo en "Servicios y pagos": se paga todo junto. */}

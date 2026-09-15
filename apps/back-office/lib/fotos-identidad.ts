@@ -109,3 +109,67 @@ export async function fotosConRespaldo(
   // El caso pisa a la persona: es la foto de ESTE expediente.
   return { ...dePersona, ...delCaso };
 }
+
+/**
+ * La FOTO DE PERFIL de muchos pacientes, en dos viajes y no en 2N.
+ *
+ * La necesitan las LISTAS —la agenda de Mi Día y la cola de Day Admission—,
+ * donde llamar a `fotosDelPaciente` por fila sería una consulta y una firma por
+ * paciente: con 30 citas del día, 60 viajes para dibujar 30 caritas.
+ *
+ * Acá son dos: una consulta con `IN (...)` y UNA sola firma en lote
+ * (`createSignedUrls`). Solo trae la selfie, que es lo único que una lista
+ * dibuja; los otros tres recuadros de identidad siguen saliendo por
+ * `fotosDelPaciente`, que es la pantalla donde se miran de a uno.
+ *
+ * Nunca lanza: una lista tiene que dibujarse aunque el almacenamiento falle, y
+ * el costo de que falle es una carita con iniciales. Quien la llame igual
+ * debería envolverla en `.catch(() => new Map())` si no quiere depender de eso.
+ */
+export async function selfiesDePacientes(
+  patientIds: string[],
+): Promise<Map<string, string>> {
+  const ids = [...new Set(patientIds)].filter(Boolean);
+  if (ids.length === 0) return new Map();
+
+  const docs = await db.patientDocument.findMany({
+    where: { patientId: { in: ids }, caseId: null, isFolder: false, s3Key: { not: null }, ...VIGENTES },
+    orderBy: { createdAt: 'desc' },
+    select: { patientId: true, name: true, s3Key: true },
+  });
+
+  // Ordenado por fecha desc: la primera que matchea es la más nueva de esa persona.
+  const porPaciente = new Map<string, string>();
+  for (const d of docs) {
+    // `name`, `s3Key` y `patientId` son anulables en el modelo: se sacan a
+    // variables para que el estrechamiento valga dentro del `if`.
+    const { patientId, name, s3Key } = d;
+    if (!patientId || !s3Key || !name || porPaciente.has(patientId)) continue;
+    if (/^patient_photo\./i.test(name)) porPaciente.set(patientId, s3Key);
+  }
+  if (porPaciente.size === 0) return new Map();
+
+  const claves = [...porPaciente.values()];
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(claves, MINUTOS * 60);
+  if (error || !data) {
+    console.error('[fotos-identidad] no se pudieron firmar las fotos de la lista', {
+      pacientes: ids.length, error: error?.message ?? null,
+    });
+    return new Map();
+  }
+
+  // `createSignedUrls` responde en el MISMO orden que se le mandó, pero cada
+  // entrada puede venir con su propio error (una clave que ya no existe), así
+  // que se arma por `path` y no por posición.
+  const urlPorClave = new Map<string, string>();
+  for (const r of data) {
+    if (r.signedUrl && r.path) urlPorClave.set(r.path, r.signedUrl);
+  }
+
+  const salida = new Map<string, string>();
+  for (const [patientId, clave] of porPaciente) {
+    const url = urlPorClave.get(clave);
+    if (url) salida.set(patientId, url);
+  }
+  return salida;
+}

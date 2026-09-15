@@ -15,12 +15,13 @@ import { edadEnAnios } from '@/lib/vitales-alerta';
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { conCasoAbierto } from '@/lib/case-modal-url';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, CheckCircle2, Clock, AlertTriangle, RefreshCw,
   Stethoscope, Building2, FileText,
-  User, ShieldCheck,
+  User, ShieldCheck, FolderOpen, ChevronRight,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { OnlineMeetingBox } from '@/components/visit/online-visit';
@@ -128,6 +129,8 @@ export function AdmissionDetailClient({
   currentUserId,
 }: { appointmentId: string; currentUserId: string | null }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations('phoenix.admission');
   const [detail,    setDetail]    = useState<ApptDetail | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -288,7 +291,27 @@ export function AdmissionDetailClient({
   // TRIAGE_VITALS_CORRECTED y la pantalla muestra quién y cuándo la hizo.
   const vitalsCorrection = d.triageCorrection ?? null;
 
-  const cd = d.case?.consentsData ?? {} as ConsentsData;
+  /**
+   * Las alergias, de sus DOS fuentes — el historial clínico y lo que el paciente
+   * declaró en su formulario de intake. Ver el comentario de la fila más abajo y
+   * `allergiesDeclared` en lib/patient-context.
+   *
+   * Acá la fila es una línea de texto (clave · valor), así que las dos se
+   * concatenan marcando el origen. En el panel de la nota, que tiene lugar, van
+   * en cajas separadas con su color.
+   */
+  const alergiasInfo = ((): string => {
+    const ficha = d.patientContext?.history.allergies?.trim() ?? '';
+    const decl = d.patientContext?.history.allergiesDeclared;
+    const declarada = decl?.text?.trim() ?? '';
+    const partes: string[] = [];
+    if (ficha) partes.push(ficha);
+    if (declarada) partes.push(`${t('infoAllergiesDeclared')}: ${declarada}`);
+    if (partes.length > 0) return partes.join(' · ');
+    // El paciente contestó que no tiene: es una confirmación, no un dato que falta.
+    return decl && !decl.has ? t('infoAllergiesDenied') : t('infoNoAllergies');
+  })();
+
   const overallState: StatusState = isAlreadyInRoom ? 'success' : consentsOk ? 'success' : 'warning';
 
   const docItems = [
@@ -355,7 +378,43 @@ export function AdmissionDetailClient({
     <div className="flex flex-col">
       <PageHeader
         title={patientName}
-        subtitle={d.case?.caseCode ?? t('detailPageSubtitle')}
+        subtitle={
+          /**
+           * EL CÓDIGO DEL CASO ES EL BOTÓN DEL EXPEDIENTE.
+           *
+           * Mismo tratamiento que en la consulta del provider, y por el mismo
+           * motivo: el código ya vivía acá como texto muerto, al lado del
+           * nombre, que es donde el ojo está. Un botón aparte arriba a la
+           * derecha se lee como chrome de la pantalla y queda lejos.
+           *
+           * Hacen falta las TRES señales para que se note que se toca, porque
+           * esta línea es la de los datos que se leen: el VERBO ("Ver caso"
+           * promete que algo pasa, "GM-3372" solo nombra), la FLECHA y la altura
+           * (`py-0.5` contra el texto plano de al lado).
+           *
+           * BRAND y no emerald: en esta pantalla el emerald ya significa
+           * "confirmado" —los pasos hechos, el check-in— y hoy el código del
+           * caso se dibuja justamente en emerald. Un expediente del mismo color
+           * competiría con eso. Brand es el color de acción del sistema y el que
+           * la Regla #5 le asigna a recepción, que es quien usa esta pantalla.
+           */
+          d.case?.caseCode
+            ? (
+              <button
+                type="button"
+                onClick={() => router.push(conCasoAbierto(pathname, searchParams, d.case!.id), { scroll: false })}
+                className="group/case inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-brand/50 bg-brand/[0.14] text-brand-text hover:bg-brand/25 hover:border-brand/70 transition-colors"
+              >
+                <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                {/* El verbo se esconde en mobile y queda el código, que es lo
+                    que identifica — Regla #4. */}
+                <span className="hidden sm:inline text-[11px] font-semibold">{t('openCase')}</span>
+                <span className="font-mono text-[11px] font-semibold opacity-90">{d.case.caseCode}</span>
+                <ChevronRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover/case:translate-x-0.5" />
+              </button>
+            )
+            : t('detailPageSubtitle')
+        }
         action={
           <button
             type="button"
@@ -571,7 +630,9 @@ export function AdmissionDetailClient({
                   <span className="ml-auto text-[9px] text-text-muted">{t('patientInfoReadOnly')}</span>
                 </div>
                 <div className="flex items-start gap-3 mb-3">
-                  <PersonAvatar firstName={d.patient.firstName} lastName={d.patient.lastName} size={10} />
+                  {/* La foto del contexto que ya trae el detalle: misma fuente
+                      que el expediente, sin consulta extra. */}
+                  <PersonAvatar firstName={d.patient.firstName} lastName={d.patient.lastName} size={10} photoUrl={d.patientContext?.photoUrl ?? null} />
                   <div>
                     <div className="font-bold text-text-1">{patientName}</div>
                     {d.case && <div className="font-mono text-[11px] text-emerald">{d.case.caseCode}</div>}
@@ -589,7 +650,24 @@ export function AdmissionDetailClient({
                     { key: t('infoAccidentDate'),   val: accidentInfo },
                     { key: t('infoChiefComplaint'), val: intakeChiefComplaint },
                     { key: t('infoInsurance'),      val: d.case?.primaryInsurance?.name ?? t('noInsuranceRegistered') },
-                    { key: t('infoAllergies'),      val: (cd as Record<string, unknown>).allergies as string | null ?? t('infoNoAllergies') },
+                    /**
+                     * Las alergias salen del HISTORIAL CLÍNICO, no de `consentsData`.
+                     *
+                     * Esta fila leía `consentsData` con un cast a `Record<string,
+                     * unknown>`, y ese cast era la señal: `ConsentsData` no declara
+                     * `allergies` porque NADIE la escribe ahí — ese JSON guarda
+                     * consentimientos (hipaa, treatment, financial) y las fotos del
+                     * intake. La expresión daba `undefined` siempre, así que la pantalla
+                     * decía "sin alergias registradas" para TODOS los pacientes, siempre.
+                     *
+                     * El asistente cargaba la alergia en el Historial Médico y volvía acá
+                     * a verla; no aparecía nunca (Rodolfo, 2026-09-14). `patientContext`
+                     * es la misma fuente que lee el panel de la nota, y ya viaja en este
+                     * payload — no cuesta una consulta más.
+                     *
+                     * El valor lo arma `alergiasInfo`, que suma lo declarado en el intake.
+                     */
+                    { key: t('infoAllergies'),      val: alergiasInfo },
                     { key: t('infoPip'),            val: d.case?.pipActive ? t('pipActive') : t('pipNotVerified') },
                   ].map(row => row.val ? (
                     <div key={row.key} className="flex justify-between items-start py-1.5 border-b border-bg-3 last:border-0 gap-2">

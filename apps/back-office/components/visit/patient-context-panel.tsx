@@ -114,7 +114,23 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
   // Plegado SOLO en mobile/iPad vertical: el panel mide ~1100px y empujaba las
   // tabs de trabajo del doctor 1.4 pantallas abajo. Desde lg: siempre abierto.
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const hasAllergies = !!h.allergies?.trim();
+
+  /**
+   * Las dos fuentes de alergias, separadas. Ver el bloque de la sección Alergias
+   * más abajo y `allergiesDeclared` en lib/patient-context.
+   */
+  const alergiasFicha = h.allergies?.trim() ?? '';
+  const alergiasDeclaradas = h.allergiesDeclared?.text?.trim() ?? '';
+  /** El paciente contestó que NO tiene alergias: es una confirmación, no un hueco. */
+  const negadaPorPaciente = !!h.allergiesDeclared && !h.allergiesDeclared.has;
+
+  /**
+   * El aviso de la cabecera plegada en mobile. Incluye lo declarado por el
+   * paciente: si solo mirara el historial, la alergia que el paciente cargó en
+   * su formulario quedaría escondida detrás de un tap — que es justo lo que la
+   * cabecera existe para evitar.
+   */
+  const hasAllergies = !!alergiasFicha || !!alergiasDeclaradas;
 
   return (
     <div className="space-y-2">
@@ -133,7 +149,15 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
           <div className="text-[10px] text-text-muted truncate">{t('ctxToggle')}</div>
         </div>
         {hasAllergies && (
-          <TagPill label={t('ctxAllergies')} colorClass="bg-rose/15 text-rose border-rose/30" compact />
+          // Rose = registrada en el historial · amber = solo declarada por el
+          // paciente y sin confirmar. Mismo código de color que la sección.
+          <TagPill
+            label={t('ctxAllergies')}
+            colorClass={alergiasFicha
+              ? 'bg-rose/15 text-rose border-rose/30'
+              : 'bg-amber/15 text-amber border-amber/30'}
+            compact
+          />
         )}
         <ChevronDown className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${mobileOpen ? '' : '-rotate-90'}`} />
       </button>
@@ -209,13 +233,41 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         </div>
       </Section>
 
-      {/* Alergias — destacadas si existen (dato de seguridad clínica) */}
+      {/*
+        Alergias — destacadas si existen (dato de seguridad clínica).
+
+        DOS fuentes, y se muestran separadas a propósito: lo que registró el
+        staff en el historial (rose) y lo que declaró el paciente en su
+        formulario de intake (amber, "sin confirmar"). Lo segundo no se veía en
+        ninguna pantalla —solo lo imprimía el PDF del intake—, así que un
+        paciente podía declarar una alergia y acá seguía diciendo "sin alergias
+        conocidas". Ver `allergiesDeclared` en lib/patient-context.
+
+        No se fusionan: confirmar lo que dijo el paciente es un acto del staff,
+        y presentarlo ya confirmado sería inventar esa revisión.
+      */}
       <Section title={t('ctxAllergies')} icon={Activity}>
-        {h.allergies?.trim() ? (
-          <div className="rounded-md border border-rose/25 bg-rose/[0.07] px-3 py-2 text-[11.5px] text-rose">
-            {h.allergies}
+        {!alergiasFicha && !alergiasDeclaradas ? (
+          // Sin nada cargado. Si el paciente contestó que NO tiene, eso es una
+          // confirmación y no un hueco de información — se dice cuál de las dos.
+          <EmptyNote text={negadaPorPaciente ? t('ctxAllergiesDenied') : t('ctxNoAllergies')} />
+        ) : (
+          <div className="space-y-1.5">
+            {alergiasFicha && (
+              <div className="rounded-md border border-rose/25 bg-rose/[0.07] px-3 py-2 text-[11.5px] text-rose">
+                {alergiasFicha}
+              </div>
+            )}
+            {alergiasDeclaradas && (
+              <div className="rounded-md border border-amber/25 bg-amber/[0.07] px-3 py-2">
+                <div className="text-[9.5px] uppercase tracking-wider font-semibold text-amber">
+                  {t('ctxAllergiesDeclared')}
+                </div>
+                <div className="text-[11.5px] text-amber mt-0.5">{alergiasDeclaradas}</div>
+              </div>
+            )}
           </div>
-        ) : <EmptyNote text={t('ctxNoAllergies')} />}
+        )}
       </Section>
 
       {/* Lista de problemas */}
@@ -283,9 +335,15 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         {h.familyHistory.length === 0 ? <EmptyNote text={t('ctxNoFamilyHistory')} /> : (
           <div className="space-y-1">
             {h.familyHistory.map((f, i) => (
-              <div key={i} className="rounded-md bg-bg-2/40 px-3 py-2 flex items-center justify-between gap-2">
-                <span className="text-[11.5px] text-text-1">{f.condition}</span>
-                <span className="text-[10px] text-text-muted shrink-0">{f.relation}</span>
+              <div key={i} className="rounded-md bg-bg-2/40 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] text-text-1">{f.condition}</span>
+                  <span className="text-[10px] text-text-muted shrink-0">{f.relation}</span>
+                </div>
+                {/* El matiz que cargó recepción: "diagnosticada a los 40". Va
+                    acá porque es justo lo que el médico quiere leer sin salir
+                    de la nota. */}
+                {f.notes && <p className="text-[10.5px] text-text-muted mt-1 leading-relaxed">{f.notes}</p>}
               </div>
             ))}
           </div>

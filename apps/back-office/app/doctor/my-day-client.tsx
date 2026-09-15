@@ -113,6 +113,12 @@ export interface MyDayAppointment {
   } | null;
   /** ISO — para la edad, que decide si los umbrales de adulto aplican. */
   patientDob: string | null;
+  /** Foto de perfil del paciente, ya firmada. null = se dibujan las iniciales. */
+  patientPhotoUrl?: string | null;
+  /** Cancelación del MISMO día: consumió el horario y corresponde penalidad. */
+  cancelledSameDay?: boolean;
+  /** Ya tiene algo facturado — lo usa el filtro "sin penalidad". */
+  hasCharge?: boolean;
   noteStatus: string | null; // DRAFT | SIGNED | null
   /** El doctor ya terminó con este paciente (el asistente cierra la cita) */
   doctorDoneAt: string | null;
@@ -138,6 +144,17 @@ interface Props {
 }
 
 const ACTIVE = ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'PENDING'];
+
+/**
+ * Los mismos ejes que la cola de Day Admission, para el día del provider.
+ *
+ * `all` NO es "todo lo que existe": es la agenda de siempre. Los otros tres
+ * recortan a un desenlace ya sellado, y con el selector de fecha sirven para
+ * caminar días atrás y revisar qué quedó sin cobrar — que es justo lo que el
+ * provider no podía hacer, porque al sellar un no-show la cita desaparecía de
+ * su pantalla (Erick, 2026-09-15).
+ */
+type EstadoFiltro = 'all' | 'noShow' | 'cancelledSameDay' | 'unpenalized';
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(localeApp(), {
@@ -218,9 +235,39 @@ export function MyDayClient({
     onChange: () => router.refresh(),
   });
 
+  const [estadoFiltro, setEstadoFiltro] = React.useState<EstadoFiltro>('all');
+
   const sorted = [...appointments].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
   const completed = sorted.filter(a => a.status === 'COMPLETED');
   const active = sorted.filter(a => ACTIVE.includes(a.status));
+
+  /**
+   * Lo que muestra cada filtro que NO es `all`.
+   *
+   * Un desenlace es COBRABLE si consumió el horario: no vino, o canceló el mismo
+   * día (`lib/appointment-outcome`). "Sin penalidad" son esos a los que nadie
+   * les puso una línea todavía — que es la deuda que el provider tiene que
+   * cerrar, y la razón de ser de estos filtros.
+   */
+  const selladas = sorted.filter(a => {
+    switch (estadoFiltro) {
+      case 'noShow':           return a.status === 'NO_SHOW';
+      case 'cancelledSameDay': return a.status === 'CANCELLED' && a.cancelledSameDay === true;
+      case 'unpenalized':      return (a.status === 'NO_SHOW'
+                                  || (a.status === 'CANCELLED' && a.cancelledSameDay === true))
+                                  && !a.hasCharge;
+      default:                 return false;
+    }
+  });
+  /** Cuántas hay de cada una, para no ofrecer un filtro que da vacío. */
+  const cuenta = {
+    noShow: sorted.filter(a => a.status === 'NO_SHOW').length,
+    cancelledSameDay: sorted.filter(a => a.status === 'CANCELLED' && a.cancelledSameDay === true).length,
+    unpenalized: sorted.filter(a =>
+      (a.status === 'NO_SHOW' || (a.status === 'CANCELLED' && a.cancelledSameDay === true))
+      && !a.hasCharge).length,
+  };
+  const filtrando = estadoFiltro !== 'all';
   // Llegada = status de llegada O checkedInAt registrado — defensa contra
   // degradaciones de status (bug real: un confirm tardío pisó IN_PROGRESS).
   const arrived = (a: MyDayAppointment): boolean =>
@@ -423,6 +470,33 @@ export function MyDayClient({
               que va con la fecha y el refrescar — las acciones de la cabecera.
               NO se acota al día visible a propósito: una orden trabada del
               martes sigue trabada hoy (Erick, 2026-09-13). */}
+          {/* Los mismos ejes que la cola de Day Admission. Solo se dibuja el
+              chip que tiene algo: un filtro que da vacío no informa, ocupa y
+              hace dudar de si la pantalla se rompió. Por eso no hay barra fija —
+              en un día sin desenlaces, acá no aparece nada. */}
+          {(cuenta.noShow > 0 || cuenta.cancelledSameDay > 0 || cuenta.unpenalized > 0) && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                { id: 'all'              as EstadoFiltro, label: ta('filterAll'),              n: null },
+                { id: 'noShow'           as EstadoFiltro, label: ta('filterNoShow'),           n: cuenta.noShow },
+                { id: 'cancelledSameDay' as EstadoFiltro, label: ta('filterCancelledSameDay'), n: cuenta.cancelledSameDay },
+                { id: 'unpenalized'      as EstadoFiltro, label: ta('filterUnpenalized'),      n: cuenta.unpenalized },
+              ]).filter(op => op.n === null || op.n > 0).map(op => (
+                <button
+                  key={op.id}
+                  type="button"
+                  onClick={() => setEstadoFiltro(op.id)}
+                  className={`px-2.5 h-9 rounded-md text-[11px] font-semibold transition-colors ${
+                    estadoFiltro === op.id
+                      ? 'bg-violet/15 text-violet-text'
+                      : 'bg-bg-2 text-text-muted hover:text-text-1'
+                  }`}
+                >
+                  {op.label}{op.n !== null && ` (${op.n})`}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setReporteLabs(true)}
@@ -494,7 +568,7 @@ export function MyDayClient({
             title={t('openConsultation')}
             className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-white/[0.04] transition-colors"
           >
-            <PersonAvatar firstName={hero.patientFirstName} lastName={hero.patientLastName} size={12} gradientClass="bg-gradient-to-br from-emerald to-cyan" />
+            <PersonAvatar firstName={hero.patientFirstName} lastName={hero.patientLastName} size={12} photoUrl={hero.patientPhotoUrl ?? null} gradientClass="bg-gradient-to-br from-emerald to-cyan" />
             <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wider font-bold text-emerald">
                 {hero.status === 'IN_PROGRESS' ? t('statusInProgress') : t('heroNext')}
@@ -627,8 +701,53 @@ export function MyDayClient({
         <EmptyState.Rich icon={Sun} title={t('emptyDayTitle')} subtitle={t('emptyDaySubtitle')} />
       ) : null}
 
+      {/* Lo sellado, cuando hay un filtro puesto.
+          Es una vista de REVISIÓN, no de trabajo: por eso es una lista sobria
+          —hora, paciente, qué desenlace y si quedó cobrada— y no repite los
+          botones de la cola. Reemplaza a la agenda mientras el filtro está
+          activo; la agenda vuelve con "Todas". */}
+      {filtrando && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
+            {ta(estadoFiltro === 'noShow' ? 'filterNoShow'
+              : estadoFiltro === 'cancelledSameDay' ? 'filterCancelledSameDay'
+              : 'filterUnpenalized')} ({selladas.length})
+          </div>
+          {selladas.length === 0 ? (
+            <div className="rounded-lg bg-bg-1 px-4 py-6 text-center text-[12px] text-text-muted">
+              {t('emptyDaySubtitle')}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {selladas.map(a => (
+                <div key={a.id} className="rounded-lg bg-bg-1 px-3 py-2.5 flex items-center gap-3 flex-wrap">
+                  <span className="font-mono text-[11px] text-text-muted shrink-0">{timeLabel(a.scheduledFor)}</span>
+                  <PersonAvatar firstName={a.patientFirstName} lastName={a.patientLastName} size={6} photoUrl={a.patientPhotoUrl ?? null} />
+                  <span className="text-[12.5px] text-text-1 font-medium truncate flex-1 min-w-0">
+                    {a.patientFirstName} {a.patientLastName}
+                  </span>
+                  {a.caseCode && <span className="font-mono text-[10.5px] text-cyan shrink-0">{a.caseCode}</span>}
+                  <TagPill
+                    label={a.status === 'NO_SHOW' ? ta('noShow') : ta('cancelSameDay')}
+                    colorClass="bg-rose/15 text-rose border-rose/30"
+                  />
+                  {/* Lo que el filtro "sin penalidad" viene a resolver: se dice
+                      en los DOS casos, para que "cobrada" también se vea. */}
+                  <TagPill
+                    label={a.hasCharge ? ta('penaltyCharged') : ta('filterUnpenalized')}
+                    colorClass={a.hasCharge
+                      ? 'bg-emerald/15 text-emerald border-emerald/30'
+                      : 'bg-amber/15 text-amber border-amber/30'}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Cola del día */}
-      {queue.length > 0 && (
+      {!filtrando && queue.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
             {t(isToday ? 'upcomingTitle' : 'dayAppointmentsTitle')}

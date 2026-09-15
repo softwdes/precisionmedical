@@ -73,7 +73,8 @@ interface AdmissionAppt {
   /** Suma de lo cargado a la cita. 0 en un desenlace cobrable = falta la penalidad. */
   chargedTotal:    number;
   hasCharge:       boolean;
-  patient: { id: string; firstName: string; lastName: string; phone: string | null };
+  /** `photoUrl`: la selfie ya firmada, del lote de toda la cola. null = iniciales. */
+  patient: { id: string; firstName: string; lastName: string; phone: string | null; photoUrl?: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
   clinic:   { id: string; name: string };
   case: {
@@ -260,6 +261,7 @@ function ApptCard({
           firstName={appt.patient.firstName}
           lastName={appt.patient.lastName}
           size={9}
+          photoUrl={appt.patient.photoUrl ?? null}
         />
 
         <div className="flex-1 min-w-0">

@@ -304,7 +304,11 @@ export function ConsultationClient({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-start gap-3 min-w-0">
-          <PersonAvatar firstName={a.patient.firstName} lastName={a.patient.lastName} size={12} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
+          {/* La foto sale del contexto que esta pantalla ya cargó — misma
+              fuente que el expediente (ficha + intake del caso), así que el
+              paciente no se ve con foto en un lado y con iniciales en el otro.
+              Sin consulta extra: `patientContext` ya viene armado del server. */}
+          <PersonAvatar firstName={a.patient.firstName} lastName={a.patient.lastName} size={12} photoUrl={patientContext.photoUrl} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
           <div className="min-w-0">
             <PageHeader
               title={`${a.patient.firstName} ${a.patient.lastName}`}
@@ -734,7 +738,12 @@ export function ConsultationClient({
           )}
           {tab === 'rx' && (
             <div className="space-y-4">
-              <RxIntegrationStatus appointmentId={a.id} />
+              <RxIntegrationStatus
+                appointmentId={a.id}
+                allergies={patientContext.history.allergies}
+                allergiesDeclared={patientContext.history.allergiesDeclared?.text ?? null}
+                medications={patientContext.history.medications}
+              />
               <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
             </div>
           )}

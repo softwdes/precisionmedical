@@ -26,6 +26,8 @@ import {
   TriangleAlert, History, Download, ClipboardCheck,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
+import { RxPatientSummary } from './rx-patient-summary';
+import type { MedicationConDetalle } from '@/lib/medication-details';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import {
   ScriptSureWidgetDialog, launchRefill, type WidgetKind, type WidgetStatus,
@@ -111,9 +113,22 @@ export const STATUS_CLASS: Record<SentRx['status'], string> = {
  * (misma regla que `canSign` en la nota clínica). Lo que sí necesita es poder
  * responder "¿se le mandó la receta a la farmacia?" en el checkout.
  */
-export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
+export function RxIntegrationStatus({
+  appointmentId, readOnly = false, allergies = null, allergiesDeclared = null, medications = [],
+}: {
   appointmentId: string;
   readOnly?: boolean;
+  /**
+   * Alergias y medicación activa del expediente, para el resumen de arriba.
+   *
+   * Llegan como props y no se piden acá porque las DOS pantallas que montan
+   * este panel ya tienen `patientContext` cargado — pedirlas de nuevo sería un
+   * viaje por gusto. Opcionales: sin ellas el panel se comporta como antes.
+   */
+  allergies?: string | null;
+  /** Lo que el paciente declaro en el intake — ver RxPatientSummary. */
+  allergiesDeclared?: string | null;
+  medications?: MedicationConDetalle[];
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -236,6 +251,16 @@ export function RxIntegrationStatus({ appointmentId, readOnly = false }: {
           <p className="text-[12.5px] text-text-2 mt-1 leading-relaxed">{t('rxStatusDesc')}</p>
         </div>
       </div>
+
+      {/* Lo que hay que tener delante ANTES de recetar. Va arriba de los
+          botones a propósito: un aviso debajo de la acción llega tarde. */}
+      <RxPatientSummary
+        allergies={allergies}
+        allergiesDeclared={allergiesDeclared}
+        medications={medications}
+        readOnly={readOnly}
+        onRegistrarAlergia={() => openWidget('allergy')}
+      />
 
       {/* Prescribir (izquierda) · Recetas enviadas (derecha).
           La farmacia se elige DENTRO del widget (SET PHARMACY). */}

@@ -15,7 +15,7 @@
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderONull } from './provider-name';
 import { conDetalleDeReceta, type MedicationConDetalle } from './medication-details';
-import { fotosDelPaciente } from './fotos-identidad';
+import { fotosConRespaldo } from './fotos-identidad';
 
 // ─── El tipo que consume el panel ─────────────────────────────────────────────
 
@@ -52,6 +52,26 @@ export interface PatientContext {
   };
   history: {
     allergies: string | null;
+    /**
+     * Lo que el PACIENTE declaró en el formulario de intake — otra fuente, y
+     * hasta hoy invisible en toda la app.
+     *
+     * `intake_submissions.allergies` lo escribe el paciente desde forms, y
+     * medido el 2026-09-14 lo leía UN solo lugar en todo el repo: el PDF del
+     * intake. Los demás hacen `select: { id: true }` — solo preguntan si el
+     * formulario existe. Así que alguien podía declarar una alergia y el panel
+     * de la nota seguía diciendo "sin alergias conocidas".
+     *
+     * NO se mezcla con `allergies` a propósito: uno es lo que el paciente dijo
+     * y el otro lo que el staff registró. Pisar el segundo con el primero sería
+     * dar por confirmado un dato que nadie revisó; esconderlo es lo que
+     * estábamos haciendo. Se muestran los dos, cada uno con su origen.
+     *
+     * `null` = el caso no tiene formulario de intake.
+     * `has: false` = el paciente contestó que NO tiene alergias (es una
+     * confirmación, no una ausencia de dato — por eso se distingue).
+     */
+    allergiesDeclared: { has: boolean; text: string | null } | null;
     problems: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
     /**
      * Con el detalle de la receta pegado cuando la entrada salió de ScriptSure
@@ -60,7 +80,7 @@ export interface PatientContext {
      */
     medications: MedicationConDetalle[];
     surgeries: Array<{ procedure: string; date?: string }>;
-    familyHistory: Array<{ relation: string; condition: string }>;
+    familyHistory: Array<{ relation: string; condition: string; notes?: string }>;
     socialHistory: {
       work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string;
       /** Los comentarios por campo y el general — ver `socialHistory` en
@@ -107,6 +127,8 @@ export const PATIENT_CONTEXT_CASE_SELECT = {
   primaryPolicyNumber: true, secondaryPolicyNumber: true,
   primaryInsurance: { select: { name: true, type: true } },
   secondaryInsurance: { select: { name: true } },
+  // Las alergias que declaró el paciente — ver `allergiesDeclared` en el tipo.
+  intakeSubmission: { select: { hasAllergies: true, allergies: true } },
 };
 
 // ─── Armador ──────────────────────────────────────────────────────────────────
@@ -139,6 +161,17 @@ export interface PatientContextCaseInput {
   secondaryPolicyNumber: string | null;
   primaryInsurance: { name: string; type?: string | null } | null;
   secondaryInsurance: { name: string } | null;
+  /**
+   * El JSON de consentimientos del intake, de donde salen las fotos del CASO.
+   * Opcional: quien no lo traiga sigue viendo la foto de la ficha, que es como
+   * funcionaba antes.
+   */
+  consentsData?: unknown;
+  /**
+   * El formulario de intake del caso. Opcional: quien no lo traiga sigue viendo
+   * solo lo del historial, que es como funcionaba antes.
+   */
+  intakeSubmission?: { hasAllergies: boolean; allergies: string | null } | null;
 }
 
 function iso(d: Date | string | null): string | null {
@@ -188,6 +221,12 @@ export function buildPatientContext(
     },
     history: {
       allergies: mh.allergies ?? null,
+      allergiesDeclared: c?.intakeSubmission
+        ? {
+            has: c.intakeSubmission.hasAllergies,
+            text: c.intakeSubmission.allergies?.trim() || null,
+          }
+        : null,
       problems: mh.problems ?? [],
       medications: mh.medications ?? [],
       surgeries: mh.surgeries ?? [],
@@ -216,15 +255,27 @@ export async function buildPatientContextConRecetas(
    * La foto va acá por la misma razón que las recetas: necesita una consulta y
    * el builder de arriba es sincrónico.
    *
-   * Se pide SOLO la de la persona (`patient_documents`, las 3.142 migradas del
-   * v2) y no la del caso: la del caso vive dentro de `consentsData`, un JSON con
-   * todos los consentimientos, y traerlo entero para sacarle una URL no se paga
-   * — la tienen 7 casos de 2.992. Si algún día el intake de v3 carga selfies en
-   * volumen, se suma `fotosConRespaldo` y listo.
+   * ─── Por qué MISMA fuente que el expediente (2026-09-14) ──────────────────
+   *
+   * Antes se pedía SOLO la de la persona (`patient_documents`), con el
+   * argumento de que la del caso vive dentro de `consentsData` y traer ese JSON
+   * entero para sacarle una URL no se pagaba. Ese argumento ya no vale: **los
+   * dos callers —Day Admission y la consulta— ya seleccionan `consentsData`**
+   * para sus propias vistas, así que el JSON está cargado y la foto sale gratis.
+   *
+   * El síntoma era visible: el mismo paciente mostraba su foto en el expediente
+   * y las iniciales en la nota, porque el expediente usa `fotosConRespaldo`
+   * (ficha + intake) y acá se usaba solo la ficha. Con el intake de v3 cargando
+   * selfies, el caso es la única fuente para los pacientes nuevos.
    */
+  const fotosDelCaso = (() => {
+    const cd = (c as { consentsData?: unknown } | null)?.consentsData as Record<string, unknown> | null | undefined;
+    return (cd?.photos as Record<string, string> | undefined) ?? {};
+  })();
+
   const [medications, fotos] = await Promise.all([
     conDetalleDeReceta(p.id, ctx.history.medications),
-    fotosDelPaciente(p.id).catch(() => ({} as Record<string, string>)),
+    fotosConRespaldo(p.id, fotosDelCaso).catch(() => ({} as Record<string, string>)),
   ]);
   return {
     ...ctx,

@@ -13,6 +13,7 @@ import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
+import { selfiesDePacientes } from '@/lib/fotos-identidad';
 import { MyDayClient, type MyDayAppointment } from './my-day-client';
 import { CifoSaludoProvider } from './cifo-saludo-provider';
 
@@ -52,7 +53,21 @@ export default async function DoctorMyDayPage({
       where: {
         providerId: provider.id,
         scheduledFor: { gte: start, lt: end },
-        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+        /**
+         * Las CANCELADAS y los NO-SHOW ahora SÍ entran.
+         *
+         * Estaban excluidas, y el efecto era que el provider sellaba un no-show
+         * desde Mi Día —algo que puede hacer desde agosto— y la cita
+         * DESAPARECÍA de su pantalla: no podía revisar lo que había sellado ni
+         * ver si la penalidad quedó cobrada (Erick, 2026-09-15).
+         *
+         * Esto NO cambia la vista por defecto: el cliente sigue armando la
+         * agenda con los estados activos y estas aparecen solo al elegir su
+         * filtro. Lo que cambia es que ahora EXISTEN para poder filtrarlas.
+         *
+         * OJO: el `notIn` del KPI de notas sin cerrar, más abajo, se queda —
+         * una cita cancelada no debe nota (es el criterio de `CITA_CALIFICA`).
+         */
       },
       orderBy: { scheduledFor: 'asc' },
       select: {
@@ -64,10 +79,13 @@ export default async function DoctorMyDayPage({
         isOnline: true,
         meetingUrl: true,
         checkedInAt: true,
+        // Distingue la cancelación del MISMO DÍA —que consume el horario y
+        // cobra— de la que avisó con tiempo. Ver `lib/appointment-outcome`.
+        cancelledSameDay: true,
         attendanceSignedAt: true,
         /* La fecha de nacimiento va para EVALUAR los vitales: los umbrales
            son de adulto y en un menor no aplican. */
-        patient: { select: { firstName: true, lastName: true, dateOfBirth: true } },
+        patient: { select: { id: true, firstName: true, lastName: true, dateOfBirth: true } },
         // `caseType` alimenta la sugerencia de cobertura (un MVA sugiere lien).
         // `consentsData` NO se trae acá: es el JSON de todos los consentimientos
         // y por 20 filas es payload que la lista no usa — la sugerencia derivada
@@ -112,6 +130,40 @@ export default async function DoctorMyDayPage({
 
   const doneMap = new Map(doneRows.map((r) => [r.id, r.doctorDoneAt]));
 
+  /**
+   * Las fotos de todos los pacientes del día, en DOS viajes.
+   *
+   * La tarjeta grande (el paciente en curso) la elige el cliente entre las
+   * citas, así que el servidor no sabe cuál va a ser: o trae todas las fotos o
+   * no trae ninguna. `selfiesDePacientes` hace una consulta y UNA firma en
+   * lote; pedirlas de a una serían dos viajes por fila.
+   *
+   * Si el almacenamiento falla, la lista se dibuja igual con iniciales.
+   */
+  const fotos = await selfiesDePacientes(appts.map((a) => a.patient.id))
+    .catch(() => new Map<string, string>());
+
+  /**
+   * Qué citas del día ya tienen algo facturado, en UNA consulta.
+   *
+   * Lo consume el filtro "sin penalidad": un no-show o una cancelación del
+   * mismo día consumieron el horario, así que corresponde cobrar — y lo que
+   * este filtro muestra es lo que se selló y quedó sin cobrar. Preguntarlo por
+   * cita serían hasta 20 viajes para dibujar una lista.
+   *
+   * "Le pusieron algo" = cualquier línea facturada. Para un desenlace no hay
+   * otra cosa que cobrarle, así que una línea ES la penalidad (mismo criterio
+   * que la cola de admisión).
+   */
+  const facturado = appts.length
+    ? await db.appointmentBilling.groupBy({
+        by:     ['appointmentId'],
+        where:  { appointmentId: { in: appts.map((a) => a.id) } },
+        _count: { _all: true },
+      }).catch(() => [])
+    : [];
+  const conCargo = new Set(facturado.filter((g) => g._count._all > 0).map((g) => g.appointmentId));
+
   const appointments: MyDayAppointment[] = appts.map((a) => ({
     id: a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -137,6 +189,9 @@ export default async function DoctorMyDayPage({
     noteStatus: a.visitNote?.status ?? null,
     doctorDoneAt: doneMap.get(a.id)?.toISOString() ?? null,
     patientDob: a.patient.dateOfBirth?.toISOString() ?? null,
+    cancelledSameDay: a.cancelledSameDay,
+    hasCharge: conCargo.has(a.id),
+    patientPhotoUrl: fotos.get(a.patient.id) ?? null,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
     caseId: a.case?.id ?? null,

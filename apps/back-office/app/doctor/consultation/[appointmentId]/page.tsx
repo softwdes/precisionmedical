@@ -69,6 +69,9 @@ export default async function DoctorConsultationPage({
           primaryPolicyNumber: true, secondaryPolicyNumber: true,
           primaryInsurance: { select: { id: true, name: true, type: true } },
           secondaryInsurance: { select: { id: true, name: true } },
+          // Las alergias que el PACIENTE declaró en el formulario. Sin esto el
+          // panel solo muestra lo que cargó el staff. Ver allergiesDeclared.
+          intakeSubmission: { select: { hasAllergies: true, allergies: true } },
         },
       },
       provider: { select: { id: true, firstName: true, lastName: true, specialty: true } },

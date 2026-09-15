@@ -13,6 +13,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
+import { selfiesDePacientes } from '@/lib/fotos-identidad';
 
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
@@ -86,7 +87,12 @@ function getTimezoneOffsetMs(tz: string, dateStr: string): number {
  * una penalidad ya cobrada seguía contando como "sin penalidad" para siempre.
  * La fuente correcta es `appointment_billing`, que es donde vive la deuda.
  */
-function mapAppt(a: ApptWithIncludes, cargos: { total: number; lineas: number }) {
+function mapAppt(
+  a: ApptWithIncludes,
+  cargos: { total: number; lineas: number },
+  /** Foto de perfil ya firmada, del lote de toda la cola. */
+  photoUrl: string | null = null,
+) {
   const isReady = !!(a.case?.lawFirmId || a.case?.attorneyId) && !!a.case?.pipVerifiedAt;
   const hasPending = !isReady && !!a.case;
   return {
@@ -118,6 +124,7 @@ function mapAppt(a: ApptWithIncludes, cargos: { total: number; lineas: number })
     hasCharge:    cargos.lineas > 0,
     patient: {
       id:        a.patient.id,
+      photoUrl,
       firstName: a.patient.firstName,
       lastName:  a.patient.lastName,
       phone:     a.patient.phone,
@@ -189,7 +196,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       }]),
     );
 
-    const mapped = appts.map(a => mapAppt(a, cargosPorCita.get(a.id) ?? { total: 0, lineas: 0 }));
+    /**
+     * Las fotos de toda la cola en DOS viajes (una consulta + una firma en
+     * lote), no dos por fila. Si el almacenamiento falla, la cola se dibuja
+     * igual con iniciales.
+     */
+    const fotos = await selfiesDePacientes(appts.map(a => a.patient.id))
+      .catch(() => new Map<string, string>());
+
+    const mapped = appts.map(a => mapAppt(
+      a,
+      cargosPorCita.get(a.id) ?? { total: 0, lineas: 0 },
+      fotos.get(a.patient.id) ?? null,
+    ));
 
     // Agrupar
     const pending = mapped.filter(a =>

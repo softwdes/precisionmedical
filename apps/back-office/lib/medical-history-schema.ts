@@ -123,6 +123,14 @@ const SECCIONES = {
   }), max: 200 },
   familyHistory: { fila: z.object({
     id: z.string(), relation: corto, condition: corto,
+    /**
+     * El matiz que no entra en la condición: "diagnosticada a los 40",
+     * "falleció de eso". Es lo que en Medusa vivía en un cuadro de texto suelto
+     * al lado de las casillas de parentesco — acá va en la fila, así que el
+     * `relation` + `condition` siguen siendo datos consultables y el matiz no
+     * se pierde (Erick, 2026-09-14).
+     */
+    notes: largo.optional(),
   }), max: 200 },
   providers: { fila: z.object({
     id: z.string(), name: corto, specialty: corto.optional(), notes: largo.optional(),

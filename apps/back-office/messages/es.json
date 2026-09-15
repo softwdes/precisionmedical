@@ -1538,7 +1538,14 @@
       "repLabsChipSinCaso": "sin caso",
       "repLabsOtroSeguro": "{n} con otro seguro",
       "repLabsAnuladaDetalle": "Se anuló la {number} y nunca se volvió a emitir. Motivo: {motivo}",
-      "repLabsOtroSeguroDetalle": "Se facturó a {hoja}; el caso tiene {caso}."
+      "repLabsOtroSeguroDetalle": "Se facturó a {hoja}; el caso tiene {caso}.",
+      "ctxAllergiesDeclared": "Declarado por el paciente · sin confirmar",
+      "ctxAllergiesDenied": "Sin alergias — el paciente lo confirmó en su formulario",
+      "rxSummaryAllergies": "Alergias del expediente",
+      "rxSummaryAllergiesDeclared": "Declarado por el paciente · sin confirmar",
+      "rxSummaryAllergiesHint": "El control de interacciones usa la lista de ScriptSure, no esta. Si no está cargada allá, registrala.",
+      "rxSummaryRegister": "Registrar",
+      "rxSummaryActive": "{count, plural, one {# medicamento activo} other {# medicamentos activos}}"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -2669,7 +2676,11 @@
       "outsideClinics": "+{count} en otro centro",
       "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",
       "chargePending": "Falta cobrar",
-      "chargePendingHint": "Clic para cobrar en Finanzas del caso"
+      "chargePendingHint": "Clic para cobrar en Finanzas del caso",
+      "openCase": "Ver caso",
+      "infoAllergiesDeclared": "Declarado por el paciente",
+      "infoAllergiesDenied": "Sin alergias — confirmado por el paciente",
+      "penaltyCharged": "Penalidad cobrada"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",
@@ -4175,8 +4186,13 @@
           "colComments": "Comentarios",
           "fieldNotePlaceholder": "—",
           "generalComments": "Comentarios generales",
-          "generalCommentsPlaceholder": "Lo que no es de ningún campo en particular"
-        }
+          "generalCommentsPlaceholder": "Lo que no es de ningún campo en particular",
+          "useTyped": "Usar «{q}»",
+          "familyNotesPlaceholder": "Ej.: diagnosticada a los 40, falleció de eso",
+          "done": "Listo",
+          "addedCount": "{count, plural, one {# agregado} other {# agregados}}"
+        },
+        "allergiesDesc": "Alergias a medicamentos y reacciones conocidas del paciente."
       },
       "tooltipCallPatient": "Llamar al {phone}",
       "tooltipNoPhone": "Sin teléfono registrado",

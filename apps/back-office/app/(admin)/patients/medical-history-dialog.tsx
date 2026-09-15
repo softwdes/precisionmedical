@@ -8,7 +8,7 @@ import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
   ChevronDown, ChevronUp, Edit2, Plus, Calendar, X, Search,
-  Cigarette, Wine, FlaskConical, Briefcase,
+  Cigarette, Wine, FlaskConical, Briefcase, Check,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -43,7 +43,7 @@ export type MedicalHistoryData = {
     externalPrescriber?: boolean;
   }>;
   surgeries?:        Array<{ id: string; procedure: string; date?: string; notes?: string }>;
-  familyHistory?:    Array<{ id: string; relation: string; condition: string }>;
+  familyHistory?:    Array<{ id: string; relation: string; condition: string; notes?: string }>;
   providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string }>;
   vaccines?:         string[];
   cognitiveStatus?:  Array<{ name: string; status: string }>;
@@ -539,6 +539,7 @@ function AddProblemDialog({
   const [selected,  setSelected]     = useState<DiagnosisOption | null>(null);
   const [dropOpen,  setDropOpen]     = useState(false);
   const [isCurrent, setIsCurrent]   = useState(true);
+  const { lista, nuevos, anotar }    = useTanda(existing, open);
   const [isResolved, setIsResolved] = useState(false);
   const [diagDate,   setDiagDate]   = useState('');
   const [comments,   setComments]   = useState('');
@@ -567,11 +568,12 @@ function AddProblemDialog({
       status,
       comments:    comments || undefined,
     };
-    const updated = [...(existing ?? []), newProblem];
+    const updated = [...lista, newProblem];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { problems: updated }, toast.error, t)) return;
       onSaved?.({ problems: updated });
-      onClose();
+      anotar(newProblem, updated);
+      setSelected(null); setQuery(''); setDiagDate(''); setComments('');
     });
   }
 
@@ -636,17 +638,154 @@ function AddProblemDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !selected}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => n.condition)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!selected}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * La opción "usar lo que escribí" del dropdown.
+ *
+ * Se separa del cuerpo porque aparece en DOS lugares —sola cuando el catálogo
+ * no dio nada, y al final cuando sí dio— y repetir el marcado invita a que uno
+ * de los dos se quede atrás.
+ *
+ * El `id` que viaja es el texto mismo: quien lo recibe guarda un string libre,
+ * no un código. Lo diferencia del resto un ícono y el tono `text-2`, para que
+ * se lea como la salida de emergencia que es y no como una opción más del
+ * catálogo.
+ */
+function BotonLibre({ texto, label, onPick }: {
+  texto:  string;
+  label:  string;
+  onPick: (id: string, label: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(texto, texto)}
+      className="w-full text-left px-3 py-2 text-sm text-text-2 hover:bg-brand/10 transition-colors flex items-center gap-2"
+    >
+      <Plus className="w-3.5 h-3.5 text-brand-text shrink-0" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+// ── Compartido: cargar VARIOS sin cerrar el diálogo ───────────────────────
+
+/**
+ * El estado de una tanda de altas seguidas.
+ *
+ * ─── El problema ────────────────────────────────────────────────────────────
+ *
+ * Los siete diálogos de "Agregar" del historial guardaban UNO y se cerraban.
+ * Cargar cinco cirugías eran cinco aperturas, cinco búsquedas del botón y cinco
+ * guardados — y el historial de un paciente nuevo se carga de a muchas, no de a
+ * una (Erick, 2026-09-14).
+ *
+ * ─── Por qué una lista local y no el prop `existing` ────────────────────────
+ *
+ * Cada guardado reescribe la SECCIÓN ENTERA (`guardarSeccion`), así que la
+ * segunda alta necesita saber de la primera. Usar el prop `existing` no sirve:
+ * el padre lo actualiza por `onSaved`, y entre el guardado y el re-render del
+ * padre la segunda alta puede leer la lista vieja y **borrar la primera**.
+ *
+ * Y tampoco alcanza con acumular aparte: si el padre SÍ actualizó `existing`,
+ * sumarle los acumulados duplicaría cada fila. Por eso acá la lista se siembra
+ * UNA VEZ al abrir y de ahí en más manda ella — el diálogo es dueño de su
+ * propia verdad mientras está abierto.
+ *
+ * `nuevos` es solo para mostrar lo que va entrando: cada uno ya está guardado
+ * en la base cuando aparece ahí. Eso es deliberado — si se cierra la pestaña a
+ * la tercera, las dos primeras están a salvo.
+ */
+function useTanda<T>(existing: T[] | undefined, open: boolean) {
+  const [lista,  setLista]  = useState<T[]>(existing ?? []);
+  const [nuevos, setNuevos] = useState<T[]>([]);
+
+  // Depende SOLO de `open`: si dependiera de `existing`, el `onSaved` de cada
+  // alta re-sembraría la lista y borraría el rastro de la tanda en curso.
+  useEffect(() => {
+    if (!open) return;
+    setLista(existing ?? []);
+    setNuevos([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  /** Tras un guardado OK: `updated` pasa a ser la verdad y `item` se muestra. */
+  const anotar = (item: T, updated: T[]) => {
+    setLista(updated);
+    setNuevos(n => [...n, item]);
+  };
+
+  return { lista, nuevos, anotar };
+}
+
+/**
+ * El pie de los diálogos de tanda: lo agregado, Listo y Agregar.
+ *
+ * "Agregar" en vez de "Guardar cambios" porque el botón ya no cierra nada: suma
+ * uno y deja el formulario limpio para el siguiente. Y "Listo" es la salida —
+ * sin él, la única forma de cerrar sería la X, que se lee como cancelar.
+ */
+function PieDeTanda({
+  cuantos, isPending, puedeGuardar, onGuardar, onListo,
+}: {
+  cuantos:      number;
+  isPending:    boolean;
+  puedeGuardar: boolean;
+  onGuardar:    () => void;
+  onListo:      () => void;
+}) {
+  const t = useTranslations('phoenix.patients');
+  return (
+    <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
+      <span className="text-xs text-text-muted">
+        {cuantos > 0 ? t('mh.sub.addedCount', { count: cuantos }) : ''}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onListo}
+          className="px-4 py-2 rounded-md border border-border text-text-2 text-sm font-medium hover:bg-white/5 hover:text-text-1 transition-colors"
+        >
+          {t('mh.sub.done')}
+        </button>
+        <button
+          type="button"
+          onClick={onGuardar}
+          disabled={isPending || !puedeGuardar}
+          className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+        >
+          {isPending ? t('mh.sub.saving') : t('mh.add')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Lo que ya entró en esta tanda, para que se vea que quedó guardado. */
+function ListaDeTanda({ etiquetas }: { etiquetas: string[] }) {
+  if (etiquetas.length === 0) return null;
+  return (
+    <div className="px-6 pb-4 -mt-1 space-y-1">
+      {etiquetas.map((e, i) => (
+        <div key={i} className="flex items-center gap-1.5 text-xs text-text-2">
+          <Check className="w-3.5 h-3.5 text-emerald shrink-0" />
+          <span className="truncate">{e}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -655,6 +794,7 @@ function AddProblemDialog({
 function SearchDropdown({
   value, placeholder, options, onSearch, onSelect,
   searchPlaceholder = 'Search...', emptyText = 'No results',
+  libreLabel,
 }: {
   value:              string;
   placeholder:        string;
@@ -663,6 +803,21 @@ function SearchDropdown({
   onSelect:           (id: string, label: string) => void;
   searchPlaceholder?: string;
   emptyText?:         string;
+  /**
+   * DEJA USAR LO TECLEADO cuando no está en el catálogo.
+   *
+   * Sin esto el dropdown es una lista cerrada, y ahí el catálogo deja de ser
+   * una ayuda para pasar a ser un portero: una condición familiar que no figura
+   * —o un nombre mal escrito por el paciente— no se puede cargar y el dato se
+   * pierde (Erick, 2026-09-14).
+   *
+   * Es OPT-IN: se pasa solo donde el campo es texto libre en el esquema. Donde
+   * el valor tiene que ser un código de verdad, el dropdown sigue cerrado.
+   *
+   * El rótulo lo arma el caller porque el texto traducido vive en SU namespace
+   * y necesita interpolar lo que se escribió.
+   */
+  libreLabel?:        (q: string) => string;
 }) {
   // Los 5 diálogos que hospedan este dropdown perdieron su `overflow-hidden`:
   // el `FloatingPanel` se monta DENTRO del DialogContent (para que la rueda
@@ -676,6 +831,15 @@ function SearchDropdown({
 
   function handleQ(v: string) { setQ(v); onSearch(v); }
   function pick(id: string, label: string) { onSelect(id, label); setOpen(false); setQ(''); }
+
+  /**
+   * ¿Se ofrece usar lo tecleado? Solo con algo escrito y cuando NO coincide
+   * exactamente con una opción — si coincide, la del catálogo ya está ahí y
+   * ofrecer la misma palabra dos veces es ruido.
+   */
+  const escrito = q.trim();
+  const libre = !!libreLabel && escrito.length > 0
+    && !options.some(o => o.label.toLowerCase() === escrito.toLowerCase());
 
   return (
     <div ref={anchor} className="relative">
@@ -708,9 +872,16 @@ function SearchDropdown({
             </div>
           </div>
           <div className="max-h-48 overflow-y-auto">
-            {options.length === 0
-              ? <p className="px-3 py-3 text-xs text-text-muted text-center">{emptyText}</p>
-              : options.map(opt => (
+            {/* Lo tecleado, cuando no coincide exactamente con ninguna opción.
+                Va PRIMERO solo si no hay nada del catálogo: con resultados va al
+                final, para no empujar hacia abajo la opción codificada, que es
+                la que conviene elegir. */}
+            {options.length === 0 && (
+              libre
+                ? <BotonLibre texto={q.trim()} label={libreLabel!(q.trim())} onPick={pick} />
+                : <p className="px-3 py-3 text-xs text-text-muted text-center">{emptyText}</p>
+            )}
+            {options.map(opt => (
                   <button
                     key={opt.id}
                     type="button"
@@ -724,6 +895,9 @@ function SearchDropdown({
                     )}
                   </button>
                 ))}
+            {options.length > 0 && libre && (
+              <BotonLibre texto={q.trim()} label={libreLabel!(q.trim())} onPick={pick} />
+            )}
           </div>
         </div>
       </FloatingPanel>
@@ -1053,6 +1227,44 @@ function AddMedicationDialog({
   // Farmacia
   const [pharmacy,     setPharmacy]     = useState(preferredPharmacy ?? '');
   const [pharmacyNote, setPharmacyNote] = useState('');
+  const { lista, nuevos, anotar }        = useTanda(existing, open);
+
+  /**
+   * Limpiar para el siguiente fármaco.
+   *
+   * ─── Lo que se limpia y lo que NO ───────────────────────────────────────────
+   *
+   * Este formulario tiene 16 campos, y ahí está el riesgo de cargar de a varios:
+   * una dosis o una cantidad que sobreviva del fármaco anterior no es una
+   * molestia, es un error clínico que además queda escrito. Por eso la división
+   * no es por comodidad sino por a QUÉ pertenece cada campo:
+   *
+   *  · DEL FÁRMACO — se limpian TODOS, sin excepción: nombre, dosis,
+   *    indicaciones, cantidad, unidad, reposiciones, fecha de inicio, los dos
+   *    checkboxes, el diagnóstico asociado y la nota de farmacia.
+   *  · DEL CONTEXTO — se conservan: quién receta, la farmacia y si se está
+   *    cargando medicación actual o histórica. Son los mismos para toda la
+   *    tanda y volver a elegirlos por fármaco sería el clic de más que veníamos
+   *    a sacar (es el mismo criterio que "Madre" en historia familiar).
+   *
+   * Los valores de vuelta son los MISMOS defaults del montaje —30, "sin
+   * reposiciones", hoy— y no cero: el formulario tiene que quedar como recién
+   * abierto, no vacío.
+   */
+  function limpiarParaElSiguiente() {
+    setDrugName('');
+    setDose('');
+    setInstructions('');
+    setQuantity(30);
+    setUnit('');
+    setRefills(t('mh.sub.refill.none'));
+    setStartDate(today);
+    setAutoExpire(false);
+    setAutoRenew(false);
+    setDiagLabel('');
+    setDiagCode('');
+    setPharmacyNote('');
+  }
 
   // Initial loads
   useEffect(() => {
@@ -1095,11 +1307,12 @@ function AddMedicationDialog({
       pharmacy:      pharmacy || undefined,
       pharmacyNote:  pharmacyNote || undefined,
     };
-    const updated = [...(existing ?? []), newMed];
+    const updated = [...lista, newMed];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { medications: updated }, toast.error, t)) return;
       onSaved?.({ medications: updated });
-      onClose();
+      anotar(newMed, updated);
+      limpiarParaElSiguiente();
     });
   }
 
@@ -1285,15 +1498,15 @@ function AddMedicationDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !drugName}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.createPrescription')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => n.dose ? `${n.name} — ${n.dose}` : n.name)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!drugName}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -1316,6 +1529,7 @@ function AddSurgeryDialog({
   const [procedure, setProcedure]    = useState('');
   const [year,      setYear]         = useState('');
   const [notes,     setNotes]        = useState('');
+  const { lista, nuevos, anotar }    = useTanda(existing, open);
 
   function handleSave() {
     if (!procedure.trim()) return;
@@ -1325,11 +1539,15 @@ function AddSurgeryDialog({
       date:      year.trim() || undefined,
       notes:     notes.trim() || undefined,
     };
-    const updated = [...(existing ?? []), newItem];
+    // Sobre `lista`, no sobre `existing`: ver `useTanda`.
+    const updated = [...lista, newItem];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { surgeries: updated }, toast.error, t)) return;
       onSaved?.({ surgeries: updated });
-      onClose();
+      anotar(newItem, updated);
+      // El diálogo NO se cierra: se limpia para la siguiente y el foco vuelve
+      // arriba. Cada una ya quedó guardada, así que cerrar de golpe no pierde.
+      setProcedure(''); setYear(''); setNotes('');
     });
   }
 
@@ -1385,15 +1603,15 @@ function AddSurgeryDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !procedure.trim()}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => n.procedure)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!procedure.trim()}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -1422,6 +1640,7 @@ function AddProviderDialog({
   const [specialty,        setSpecialty]        = useState('');
 
   const [lastVisit,        setLastVisit]        = useState('');
+  const { lista, nuevos, anotar }                = useTanda(existing, open);
 
   useEffect(() => {
     searchDoctors('').then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))));
@@ -1436,11 +1655,12 @@ function AddProviderDialog({
       specialty: specialty || undefined,
       notes:     lastVisit ? t('mh.sub.lastVisitNote', { date: lastVisit }) : undefined,
     };
-    const updated = [...(existing ?? []), newItem];
+    const updated = [...lista, newItem];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { providers: updated }, toast.error, t)) return;
       onSaved?.({ providers: updated });
-      onClose();
+      anotar(newItem, updated);
+      setProviderName(''); setProviderId(''); setSpecialty(''); setLastVisit('');
     });
   }
 
@@ -1498,15 +1718,15 @@ function AddProviderDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !providerName}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => n.name)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!providerName}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -1541,8 +1761,13 @@ function AllergiesEditDialog({
       <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">{t('mh.allergies')}</DialogTitle>
+          {/* NO va `mh.noAllergies`: ese es el texto del ESTADO VACÍO de la
+              ficha, y acá quedaba fijo como subtítulo — el diálogo decía "no se
+              conocen alergias" mientras alguien escribía "Penicillin" dos
+              centímetros abajo. En un dato de seguridad eso no es un detalle
+              (Erick, 2026-09-15). */}
           <DialogDescription className="text-xs text-text-muted">
-            {t('mh.noAllergies')}
+            {t('mh.allergiesDesc')}
           </DialogDescription>
         </DialogHeader>
         <div className="px-6 py-5">
@@ -2186,6 +2411,8 @@ function AddFamilyHistoryDialog({
 
   const [diagOptions,   setDiagOptions]   = useState<Array<{ id: string; label: string }>>([]);
   const [condition,     setCondition]     = useState('');
+  const [notes,         setNotes]         = useState('');
+  const { lista, nuevos, anotar }          = useTanda(existing, open);
 
   useEffect(() => { searchDiagnoses('').then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: r.label })))); }, []);
 
@@ -2195,12 +2422,21 @@ function AddFamilyHistoryDialog({
 
   function handleSave() {
     if (!relation || !condition) return;
-    const newItem = { id: crypto.randomUUID(), relation, condition };
-    const updated = [...(existing ?? []), newItem];
+    const newItem = {
+      id: crypto.randomUUID(),
+      relation,
+      condition,
+      notes: notes.trim() || undefined,
+    };
+    const updated = [...lista, newItem];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { familyHistory: updated }, toast.error, t)) return;
       onSaved?.({ familyHistory: updated });
-      onClose();
+      anotar(newItem, updated);
+      // Se limpian la condición y el comentario, NO el pariente: cargando los
+      // antecedentes de una madre se anotan varios seguidos, y volver a elegir
+      // "Madre" cada vez sería el mismo clic de más que veníamos a sacar.
+      setCondition(''); setNotes('');
     });
   }
 
@@ -2235,7 +2471,12 @@ function AddFamilyHistoryDialog({
             />
           </div>
 
-          {/* Condition — ICD search */}
+          {/* Condition — busca en ICD, pero NO obliga a encontrarlo.
+              El esquema guarda `condition` como texto libre, así que la lista
+              cerrada era una restricción de pantalla y nada más: escribir
+              "Hypetension" con una letra de menos daba "No results" y dejaba al
+              antecedente familiar sin poder cargarse. Ahora el catálogo sugiere
+              —que es lo que normaliza el dato— y lo tecleado entra igual. */}
           <div className="space-y-1.5">
             <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
             <SearchDropdown
@@ -2246,19 +2487,36 @@ function AddFamilyHistoryDialog({
               onSelect={(_, label) => setCondition(label)}
               searchPlaceholder={t('mh.sub.search')}
               emptyText={t('mh.sub.noResults')}
+              libreLabel={q => t('mh.sub.useTyped', { q })}
+            />
+          </div>
+
+          {/* El matiz que la condición sola no dice: "diagnosticada a los 40",
+              "falleció de eso". Es lo que en Medusa vivía en un cuadro grande al
+              lado de las casillas — acá va POR FILA, así que el pariente y la
+              condición siguen siendo datos consultables y el detalle no se
+              pierde. Opcional: nada obliga a llenarlo. */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
+            <textarea maxLength={LARGO_LARGO}
+              rows={2}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={t('mh.sub.familyNotesPlaceholder')}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !relation || !condition}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => `${n.relation} — ${n.condition}`)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!relation && !!condition}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -2283,6 +2541,7 @@ function AddHistoryDialog({
   const [selected,  setSelected]     = useState<DiagnosisOption | null>(null);
   const [dropOpen,  setDropOpen]     = useState(false);
   const [isCurrent, setIsCurrent]   = useState(false);
+  const { lista, nuevos, anotar }    = useTanda(existing, open);
   const [isResolved, setIsResolved] = useState(false);
   const [diagDate,   setDiagDate]   = useState('');
   const [comments,   setComments]   = useState('');
@@ -2310,11 +2569,12 @@ function AddHistoryDialog({
       status,
       comments:    comments || undefined,
     };
-    const updated = [...(existing ?? []), newItem];
+    const updated = [...lista, newItem];
     startTransition(async () => {
       if (!await guardarSeccion(patientId, { history: updated }, toast.error, t)) return;
       onSaved?.({ history: updated });
-      onClose();
+      anotar(newItem, updated);
+      setSelected(null); setQuery(''); setDiagDate(''); setComments('');
     });
   }
 
@@ -2375,15 +2635,15 @@ function AddHistoryDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isPending || !selected}
-            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
-          >
-            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
-          </button>
-        </div>
+        <ListaDeTanda etiquetas={nuevos.map(n => n.condition)} />
+
+        <PieDeTanda
+          cuantos={nuevos.length}
+          isPending={isPending}
+          puedeGuardar={!!selected}
+          onGuardar={handleSave}
+          onListo={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -2609,7 +2869,10 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
             <SideSection icon={<Users className="w-3.5 h-3.5" />} title={t('mh.familyHistory')} defaultOpen={false}>
               {(mh.familyHistory?.length ?? 0) > 0
                 ? mh.familyHistory!.map(f => (
-                    <div key={f.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{f.relation}: {f.condition}</div>
+                    <div key={f.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">
+                      <div>{f.relation}: {f.condition}</div>
+                      {f.notes && <div className="text-[10px] text-text-muted mt-0.5">{f.notes}</div>}
+                    </div>
                   ))
                 : <EmptyState text={t('mh.noFamilyHistory')} />}
             </SideSection>
@@ -2808,6 +3071,9 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                   : mh.familyHistory!.map(f => (
                       <div key={f.id} className="text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0">
                         <span className="text-text-muted">{f.relation}:</span> {f.condition}
+                        {/* El comentario va DEBAJO y en tono apagado: es el
+                            matiz, no el dato. Sin él la fila se lee igual. */}
+                        {f.notes && <div className="text-[10.5px] text-text-muted mt-0.5">{f.notes}</div>}
                       </div>
                     ))}
               </SectionCard>

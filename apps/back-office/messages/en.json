@@ -1538,7 +1538,14 @@
       "repLabsChipSinCaso": "no case",
       "repLabsOtroSeguro": "{n} on other insurance",
       "repLabsAnuladaDetalle": "{number} was voided and never reissued. Reason: {motivo}",
-      "repLabsOtroSeguroDetalle": "Billed to {hoja}; the case has {caso}."
+      "repLabsOtroSeguroDetalle": "Billed to {hoja}; the case has {caso}.",
+      "ctxAllergiesDeclared": "Reported by the patient · unconfirmed",
+      "ctxAllergiesDenied": "No allergies — the patient confirmed it on their form",
+      "rxSummaryAllergies": "Allergies on file",
+      "rxSummaryAllergiesDeclared": "Reported by the patient · unconfirmed",
+      "rxSummaryAllergiesHint": "The interaction check uses ScriptSure's list, not this one. If it isn't recorded there, add it.",
+      "rxSummaryRegister": "Record",
+      "rxSummaryActive": "{count, plural, one {# active medication} other {# active medications}}"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -2669,7 +2676,11 @@
       "outsideClinics": "+{count} at another facility",
       "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",
       "chargePending": "Payment pending",
-      "chargePendingHint": "Click to charge in the case finances"
+      "chargePendingHint": "Click to charge in the case finances",
+      "openCase": "View case",
+      "infoAllergiesDeclared": "Reported by the patient",
+      "infoAllergiesDenied": "No allergies — confirmed by the patient",
+      "penaltyCharged": "Penalty charged"
     },
     "dashboard": {
       "title": "Reception Dashboard",
@@ -4175,8 +4186,13 @@
           "colComments": "Comments",
           "fieldNotePlaceholder": "—",
           "generalComments": "General comments",
-          "generalCommentsPlaceholder": "Anything that doesn't belong to a single field"
-        }
+          "generalCommentsPlaceholder": "Anything that doesn't belong to a single field",
+          "useTyped": "Use “{q}”",
+          "familyNotesPlaceholder": "E.g., diagnosed at 40, died from it",
+          "done": "Done",
+          "addedCount": "{count, plural, one {# added} other {# added}}"
+        },
+        "allergiesDesc": "The patient's drug allergies and known reactions."
       },
       "tooltipCallPatient": "Call {phone}",
       "tooltipNoPhone": "No phone on file",

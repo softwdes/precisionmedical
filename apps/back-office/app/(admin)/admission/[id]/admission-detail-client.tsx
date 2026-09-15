@@ -374,47 +374,87 @@ export function AdmissionDetailClient({
     ? `${fmtDate(d.case.accidentDate)}${d.case.accidentType ? ` · ${d.case.accidentType}` : ''}`
     : null;
 
+  /**
+   * EL CÓDIGO DEL CASO ES EL BOTÓN DEL EXPEDIENTE.
+   *
+   * El código ya vivía al lado del nombre como texto muerto, que es donde el
+   * ojo está. Un botón aparte arriba a la derecha se lee como chrome de la
+   * pantalla y queda lejos.
+   *
+   * Hacen falta las TRES señales para que se note que se toca, porque esa línea
+   * es la de los datos que se leen: el VERBO ("Ver caso" promete que algo pasa,
+   * "GM-3372" solo nombra), la FLECHA y la altura (`py-0.5`).
+   *
+   * BRAND y no emerald: en esta pantalla el emerald ya significa "confirmado"
+   * —los pasos hechos, el check-in—. Un expediente del mismo color competiría
+   * con eso. Brand es el color de acción del sistema y el que la Regla #5 le
+   * asigna a recepción, que es quien usa esta pantalla.
+   */
+  const botonExpediente = d.case?.caseCode
+    ? (
+      <button
+        type="button"
+        onClick={() => router.push(conCasoAbierto(pathname, searchParams, d.case!.id), { scroll: false })}
+        className="group/case inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-brand/50 bg-brand/[0.14] text-brand-text hover:bg-brand/25 hover:border-brand/70 transition-colors"
+      >
+        <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+        {/* El verbo se esconde en mobile y queda el código, que es lo que
+            identifica — Regla #4. */}
+        <span className="hidden sm:inline text-[11px] font-semibold">{t('openCase')}</span>
+        <span className="font-mono text-[11px] font-semibold opacity-90">{d.case.caseCode}</span>
+        <ChevronRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover/case:translate-x-0.5" />
+      </button>
+    )
+    : null;
+
   return (
     <div className="flex flex-col">
       <PageHeader
-        title={patientName}
-        subtitle={
+        /**
+         * LA FOTO VA AL LADO DEL NOMBRE, igual que en la consulta del provider.
+         *
+         * La consulta ya lo hacía (mismo patrón, avatar a la izquierda del
+         * PageHeader); acá faltaba, así que el mismo paciente se veía con foto
+         * en la pantalla del médico y con el nombre pelado en la del asistente
+         * (Erick, 2026-09-15: "la imagen que te pasé mostraba en ambos lugares").
+         *
+         * `PageHeader.title` acepta ReactNode justamente para esto — su propia
+         * doc dice "texto simple o JSX (avatar + nombre)".
+         *
+         * Misma fuente que el panel de abajo y que el expediente: `patientContext`
+         * ya viene armado del server, así que no cuesta una consulta más.
+         *
+         * Emerald y no violet: el violet es la identidad del portal médico; esta
+         * pantalla es de admisión (Regla #5).
+         */
+        title={
           /**
-           * EL CÓDIGO DEL CASO ES EL BOTÓN DEL EXPEDIENTE.
+           * Y EL EXPEDIENTE VA EN LA MISMA LÍNEA, a la derecha del nombre.
            *
-           * Mismo tratamiento que en la consulta del provider, y por el mismo
-           * motivo: el código ya vivía acá como texto muerto, al lado del
-           * nombre, que es donde el ojo está. Un botón aparte arriba a la
-           * derecha se lee como chrome de la pantalla y queda lejos.
+           * Estaba en el renglón de abajo (la prop `subtitle`). Erick lo pidió
+           * al lado del nombre "para que sea igual que en Mi Día", y allá el
+           * código del caso efectivamente va en la misma línea que el paciente
+           * (my-day-client, la fila de la cola: nombre + `ml-2` + el código).
            *
-           * Hacen falta las TRES señales para que se note que se toca, porque
-           * esta línea es la de los datos que se leen: el VERBO ("Ver caso"
-           * promete que algo pasa, "GM-3372" solo nombra), la FLECHA y la altura
-           * (`py-0.5` contra el texto plano de al lado).
-           *
-           * BRAND y no emerald: en esta pantalla el emerald ya significa
-           * "confirmado" —los pasos hechos, el check-in— y hoy el código del
-           * caso se dibuja justamente en emerald. Un expediente del mismo color
-           * competiría con eso. Brand es el color de acción del sistema y el que
-           * la Regla #5 le asigna a recepción, que es quien usa esta pantalla.
+           * `flex-wrap` es lo que lo hace seguro en teléfono: con un nombre
+           * largo el botón baja solo al renglón siguiente en vez de apretar el
+           * nombre — Regla #4.
            */
-          d.case?.caseCode
-            ? (
-              <button
-                type="button"
-                onClick={() => router.push(conCasoAbierto(pathname, searchParams, d.case!.id), { scroll: false })}
-                className="group/case inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-brand/50 bg-brand/[0.14] text-brand-text hover:bg-brand/25 hover:border-brand/70 transition-colors"
-              >
-                <FolderOpen className="w-3.5 h-3.5 shrink-0" />
-                {/* El verbo se esconde en mobile y queda el código, que es lo
-                    que identifica — Regla #4. */}
-                <span className="hidden sm:inline text-[11px] font-semibold">{t('openCase')}</span>
-                <span className="font-mono text-[11px] font-semibold opacity-90">{d.case.caseCode}</span>
-                <ChevronRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover/case:translate-x-0.5" />
-              </button>
-            )
-            : t('detailPageSubtitle')
+          <span className="flex items-center gap-2.5 min-w-0 flex-wrap">
+            <PersonAvatar
+              firstName={d.patient.firstName}
+              lastName={d.patient.lastName}
+              size={10}
+              photoUrl={d.patientContext?.photoUrl ?? null}
+              gradientClass="bg-gradient-to-br from-emerald to-[#34d399]"
+            />
+            <span className="truncate">{patientName}</span>
+            {botonExpediente}
+          </span>
         }
+        /* Sin caso no hay botón: queda la descripción de la pantalla, que es lo
+           que había antes de que el expediente subiera a la línea del nombre. */
+        subtitle={d.case?.caseCode ? undefined : t('detailPageSubtitle')}
         action={
           <button
             type="button"

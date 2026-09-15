@@ -130,30 +130,56 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       orderBy: { scheduledFor: 'asc' },
     });
 
-    // ─── Calcular visitNumber ────────────────────────────────────────────────
-    // 0 = primera visita del paciente para este caso
-    const caseIds = [...new Set(appointments.map(a => a.caseId).filter(Boolean))] as string[];
+    /**
+     * ─── visitNumber · 0 = el paciente NUNCA vino antes ──────────────────────
+     *
+     * Se cuenta por PACIENTE, no por caso. Hasta el 2026-09-14 era por caso, y
+     * eso hacía que el calendario marcara como "1st visit" a gente conocida:
+     * basta con que abran un caso nuevo —otro accidente— para que su próxima
+     * cita sea la primera DE ESE CASO.
+     *
+     * Lo reportó la clínica con un paciente concreto: "This patient appears in
+     * LM as new MVA patient. That isn't true. This patient has been treated with
+     * Precision since January of 2025". Tenían razón.
+     *
+     * Esta pantalla es la de Edson, y la pregunta que se hace mirándola es
+     * **"¿a esta persona la conocemos?"**, no "¿cuántas van de este expediente?".
+     * Con el conteo por caso la respuesta era que no, aunque llevara un año
+     * viniendo.
+     *
+     * Medido antes de cambiarlo: de 2.800 citas marcadas como primera, 144 (5%)
+     * dejan de estarlo. Entre las FUTURAS —lo único que Edson mira— son 3 de 21.
+     *
+     * ⚠️ `cases/[id]/appointments` sigue contando POR CASO, y está bien: ahí se
+     * listan las citas de un solo expediente y "visita 3" significa la tercera
+     * de ese caso. Son dos preguntas distintas con la misma etiqueta; lo que
+     * cambia es el contexto en el que se lee.
+     *
+     * Las CANCELADAS no cuentan como visita previa: el paciente no vino.
+     */
+    const patientIds = [...new Set(appointments.map(a => a.patientId))];
     const visitCountsByCaseAndAppt: Record<string, number> = {};
 
-    if (caseIds.length > 0) {
+    if (patientIds.length > 0) {
       const priorCounts = await db.appointment.groupBy({
-        by: ['caseId'],
+        by: ['patientId'],
         where: {
-          caseId:       { in: caseIds },
+          patientId:    { in: patientIds },
           status:       { not: 'CANCELLED' },
           scheduledFor: { lt: fromDate },
         },
         _count: { id: true },
       });
-      const priorByCase: Record<string, number> = {};
-      for (const r of priorCounts) {
-        if (r.caseId) priorByCase[r.caseId] = r._count.id;
-      }
+      const priorByPatient: Record<string, number> = {};
+      for (const r of priorCounts) priorByPatient[r.patientId] = r._count.id;
+
+      // A lo que ya tenía antes del período se le suman las de ESTE período que
+      // van delante suyo: `appointments` viene ordenado por fecha, así que las
+      // anteriores son las de índice menor.
       for (let i = 0; i < appointments.length; i++) {
         const appt = appointments[i];
-        if (!appt.caseId) { visitCountsByCaseAndAppt[appt.id] = 0; continue; }
-        const priorInPeriod = appointments.slice(0, i).filter(a => a.caseId === appt.caseId).length;
-        visitCountsByCaseAndAppt[appt.id] = (priorByCase[appt.caseId] ?? 0) + priorInPeriod;
+        const enElPeriodo = appointments.slice(0, i).filter(a => a.patientId === appt.patientId).length;
+        visitCountsByCaseAndAppt[appt.id] = (priorByPatient[appt.patientId] ?? 0) + enElPeriodo;
       }
     }
 

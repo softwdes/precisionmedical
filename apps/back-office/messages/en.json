@@ -1545,7 +1545,8 @@
       "rxSummaryAllergiesDeclared": "Reported by the patient · unconfirmed",
       "rxSummaryAllergiesHint": "The interaction check uses ScriptSure's list, not this one. If it isn't recorded there, add it.",
       "rxSummaryRegister": "Record",
-      "rxSummaryActive": "{count, plural, one {# active medication} other {# active medications}}"
+      "rxSummaryActive": "{count, plural, one {# active medication} other {# active medications}}",
+      "filterNoneToday": "None in this state today."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

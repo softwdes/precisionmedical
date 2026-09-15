@@ -1545,7 +1545,8 @@
       "rxSummaryAllergiesDeclared": "Declarado por el paciente · sin confirmar",
       "rxSummaryAllergiesHint": "El control de interacciones usa la lista de ScriptSure, no esta. Si no está cargada allá, registrala.",
       "rxSummaryRegister": "Registrar",
-      "rxSummaryActive": "{count, plural, one {# medicamento activo} other {# medicamentos activos}}"
+      "rxSummaryActive": "{count, plural, one {# medicamento activo} other {# medicamentos activos}}",
+      "filterNoneToday": "No hay ninguna en este estado hoy."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

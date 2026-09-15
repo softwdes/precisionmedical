@@ -470,33 +470,49 @@ export function MyDayClient({
               que va con la fecha y el refrescar — las acciones de la cabecera.
               NO se acota al día visible a propósito: una orden trabada del
               martes sigue trabada hoy (Erick, 2026-09-13). */}
-          {/* Los mismos ejes que la cola de Day Admission. Solo se dibuja el
-              chip que tiene algo: un filtro que da vacío no informa, ocupa y
-              hace dudar de si la pantalla se rompió. Por eso no hay barra fija —
-              en un día sin desenlaces, acá no aparece nada. */}
-          {(cuenta.noShow > 0 || cuenta.cancelledSameDay > 0 || cuenta.unpenalized > 0) && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {([
-                { id: 'all'              as EstadoFiltro, label: ta('filterAll'),              n: null },
-                { id: 'noShow'           as EstadoFiltro, label: ta('filterNoShow'),           n: cuenta.noShow },
-                { id: 'cancelledSameDay' as EstadoFiltro, label: ta('filterCancelledSameDay'), n: cuenta.cancelledSameDay },
-                { id: 'unpenalized'      as EstadoFiltro, label: ta('filterUnpenalized'),      n: cuenta.unpenalized },
-              ]).filter(op => op.n === null || op.n > 0).map(op => (
-                <button
-                  key={op.id}
-                  type="button"
-                  onClick={() => setEstadoFiltro(op.id)}
-                  className={`px-2.5 h-9 rounded-md text-[11px] font-semibold transition-colors ${
-                    estadoFiltro === op.id
-                      ? 'bg-violet/15 text-violet-text'
+          {/*
+            Los mismos ejes que la cola de Day Admission, y la barra está SIEMPRE.
+
+            Antes cada chip se dibujaba solo si tenía algo, con el argumento de
+            que un filtro vacío ocupa y no informa. Estaba mal por dos razones
+            (Erick, 2026-09-15, mirando su Mi Día sin ver ningún filtro):
+
+            1. Rompía la regla de la casa — el control condicionado SE MUESTRA y
+               se explica, no se esconde. Un filtro que desaparece deja al
+               provider preguntándose si la pantalla se rompió, que es
+               exactamente lo que yo creía estar evitando.
+            2. Lo pedido era "los mismos filtros que Day Admission", y allá los
+               cuatro se dibujan siempre. Esconderlos acá los volvía otra cosa.
+
+            El contador va SIEMPRE, incluso en cero: "No show (0)" no es ruido,
+            es la respuesta a la pregunta. Ahí está la mejora sobre Day
+            Admission, que no cuenta nada — no en ocultar la barra.
+          */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {([
+              { id: 'all'              as EstadoFiltro, label: ta('filterAll'),              n: null },
+              { id: 'noShow'           as EstadoFiltro, label: ta('filterNoShow'),           n: cuenta.noShow },
+              { id: 'cancelledSameDay' as EstadoFiltro, label: ta('filterCancelledSameDay'), n: cuenta.cancelledSameDay },
+              { id: 'unpenalized'      as EstadoFiltro, label: ta('filterUnpenalized'),      n: cuenta.unpenalized },
+            ]).map(op => (
+              <button
+                key={op.id}
+                type="button"
+                onClick={() => setEstadoFiltro(op.id)}
+                className={`px-2.5 h-9 rounded-md text-[11px] font-semibold transition-colors ${
+                  estadoFiltro === op.id
+                    ? 'bg-violet/15 text-violet-text'
+                    : op.n === 0
+                      // En cero sigue clickeable: lleva al estado vacío, que
+                      // dice "no hay ninguna". Atenuado, no deshabilitado.
+                      ? 'bg-bg-2/50 text-text-muted/60 hover:text-text-muted'
                       : 'bg-bg-2 text-text-muted hover:text-text-1'
-                  }`}
-                >
-                  {op.label}{op.n !== null && ` (${op.n})`}
-                </button>
-              ))}
-            </div>
-          )}
+                }`}
+              >
+                {op.label}{op.n !== null && ` (${op.n})`}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setReporteLabs(true)}
@@ -714,8 +730,12 @@ export function MyDayClient({
               : 'filterUnpenalized')} ({selladas.length})
           </div>
           {selladas.length === 0 ? (
+            /* NO va `emptyDaySubtitle` ("no tienes citas programadas hoy"): desde
+               que los chips en cero son clickeables, ese texto sale con las citas
+               del día a la vista y se contradice solo. Acá la respuesta es que no
+               hay ninguna EN ESE ESTADO, no que no haya citas. */
             <div className="rounded-lg bg-bg-1 px-4 py-6 text-center text-[12px] text-text-muted">
-              {t('emptyDaySubtitle')}
+              {t('filterNoneToday')}
             </div>
           ) : (
             <div className="space-y-1.5">

@@ -76,18 +76,25 @@ UPDATE providers
      'wovivillarroel@gmail.com'             -- Wilfredo Villarroel (PRUEBA) · 4 citas, todas de prueba
    );
 
--- ─── 3. Providers reales que ya no atienden ─────────────────────────────────
--- Decisión de Erick 2026-09-14: "que solo desaparezcan". No son de prueba y sus
--- citas son reales, por eso NO se borra nada: salen del selector y el historial
--- queda intacto.
-UPDATE providers
-   SET status = 'INACTIVE'
- WHERE status = 'ACTIVE'
-   AND email IN (
-     'devin@precisionmedicalcare.com',      -- Devin Clanton  ·  2 citas · última 2025-05-29
-     'mstouffer@precisionmedicalcare.com',  -- Mark Stouffer  ·  4 citas · última 2024-10-17
-     'srigdon@precisionmedicalcare.com'     -- Scott Rigdon   · 25 citas · última 2026-03-09
-   );
+-- ─── 3. Providers reales con poco uso ── REVERTIDO POR COMPLETO ─────────────
+--
+-- ⚠️ ACÁ HABÍA UN TERCER UPDATE Y SE SACÓ A PROPÓSITO. No lo vuelvas a poner.
+--
+-- Apagaba a Devin Clanton, Scott Rigdon y Mark Stouffer con el criterio de
+-- "providers reales con muy poco uso". **Los tres se revirtieron el mismo día**,
+-- el 2026-09-14, uno por uno a medida que la clínica los fue reclamando.
+--
+-- El criterio estaba mal, y vale dejarlo escrito para no repetirlo: el número de
+-- citas no dice si un provider atiende. Scott tenía 25 y su última hacía seis
+-- meses — eso no es poco uso, es una agenda tranquila. Mark tenía 4 y sus dos
+-- casos siguen ACTIVE. Quién atiende lo sabe la clínica, no la tabla.
+--
+-- Si alguna vez hay que sacar a un provider del selector, que sea porque alguien
+-- lo dijo, con nombre y apellido — no porque una consulta lo contó bajo.
+--
+-- Lo único que SÍ quedó bien de esta tanda es que apagaba en vez de borrar: los
+-- tres volvieron con un UPDATE y sus citas nunca se tocaron. Ver
+-- 21-restablecer-scott-rigdon.sql y 19-devin-pruebas.sql.
 
 COMMIT;
 

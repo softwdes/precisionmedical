@@ -14,6 +14,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
+import { claveDia } from '@/lib/fechas';
 
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
@@ -237,13 +238,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       unpenalized: unpenalized.length,
     };
 
-    // Fecha Denver para el header
-    const displayDate = from.toLocaleDateString('es-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      timeZone: 'America/Denver',
-    });
+    // El DÍA Denver para el header, como clave (`YYYY-MM-DD`) — no como texto.
+    //
+    // Antes salía de acá ya formateado con el locale clavado en `'es-US'`, así
+    // que la cabecera decía "lunes, 14 de septiembre de 2026" con toda la app en
+    // inglés. Y no se podía arreglar en el servidor: el idioma lo elige cada
+    // usuario en su navegador (cookie `locale`), no lo sabe la ruta. Quien
+    // conoce el idioma es la pantalla, así que la ruta manda el dato y la
+    // pantalla lo escribe (ver `fechaLargaDeClave` en lib/fechas).
+    const displayDay = claveDia(from);
 
-    return NextResponse.json({ ok: true, displayDate, totals, pending, active, done, unpenalized });
+    return NextResponse.json({ ok: true, displayDay, totals, pending, active, done, unpenalized });
   } catch (err) {
     console.error('[GET /api/admin/admission]', err);
     return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });

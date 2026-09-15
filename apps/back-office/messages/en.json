@@ -2681,7 +2681,8 @@
       "openCase": "View case",
       "infoAllergiesDeclared": "Reported by the patient",
       "infoAllergiesDenied": "No allergies — confirmed by the patient",
-      "penaltyCharged": "Penalty charged"
+      "penaltyCharged": "Penalty charged",
+      "allClinics": "All"
     },
     "dashboard": {
       "title": "Reception Dashboard",

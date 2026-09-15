@@ -27,6 +27,7 @@ import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import type { SnippetSection } from '@/lib/snippet-sections';
 import { useSectionLabels, invalidateSectionLabels } from '@/lib/use-section-labels';
 import { MERGE_FIELDS } from '@/lib/snippet-merge';
+import { fecha } from '@/lib/fechas';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -43,10 +44,6 @@ export interface SnippetRow {
 }
 
 const PAGE_SIZE = 10;
-
-function fmtDate(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 /** Cuánto texto trae el snippet, sin etiquetas, para la vista previa de la fila. */
 function plainPreview(html: string, max = 90): string {
@@ -226,7 +223,7 @@ export function SnippetsClient({
                       <span className="text-[12px] text-text-muted tabular-nums">{row.usageCount}</span>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
-                      <span className="text-[12px] text-text-muted">{fmtDate(row.updatedAt, 'es-US')}</span>
+                      <span className="text-[12px] text-text-muted">{fecha(row.updatedAt)}</span>
                     </DataTable.Td>
                     <DataTable.Td align="right" sticky="right" className="!py-1">
                       <div className="flex items-center justify-end gap-1">

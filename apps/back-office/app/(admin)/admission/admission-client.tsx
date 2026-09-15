@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fechaLargaDeClave } from '@/lib/fechas';
 
 /**
  * B.14 — Admisión del día · Cola de check-in
@@ -12,7 +12,7 @@ import { localeApp } from '@/lib/fechas';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
@@ -518,6 +518,8 @@ export function AdmissionClient() {
   const t = useTranslations('phoenix.admission');
   /** El reporte de labs comparte textos con el portal médico: un solo juego. */
   const tLabs = useTranslations('phoenix.doctor');
+  /** Del hook, no de la cookie: es el mismo idioma con el que se renderizó la página. */
+  const locale = useLocale();
   const toast = useToast();
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
@@ -525,7 +527,8 @@ export function AdmissionClient() {
   /** Desenlaces cobrables sin penalidad asentada. No es un estado del día: es trabajo sin hacer. */
   const [unpenalized, setUnpenalized] = useState<AdmissionAppt[]>([]);
   const [totals,      setTotals]      = useState<Totals>({ total: 0, checkedIn: 0, pending: 0, inRoom: 0, unpenalized: 0 });
-  const [displayDate, setDisplayDate] = useState('');
+  /** El día que está mostrando la cola, en crudo (`YYYY-MM-DD`). Se escribe acá abajo, en el idioma del usuario. */
+  const [displayDay,  setDisplayDay]  = useState('');
   const [loading,      setLoading]      = useState(true);
   const [checkingIn,   setCheckingIn]   = useState<string | null>(null);
   const [clinicFilter, setClinicFilter] = useState<string>('all');
@@ -573,7 +576,7 @@ export function AdmissionClient() {
         setDone(data.done);
         setUnpenalized(data.unpenalized ?? []);
         setTotals(data.totals);
-        setDisplayDate(data.displayDate);
+        setDisplayDay(data.displayDay);
       }
     } finally {
       if (!silent) setLoading(false);
@@ -773,7 +776,7 @@ export function AdmissionClient() {
     <div className="flex flex-col">
       <PageHeader
         title={t('pageTitle')}
-        subtitle={displayDate || t('pageSubtitle')}
+        subtitle={fechaLargaDeClave(displayDay, locale) || t('pageSubtitle')}
         action={
           <div className="flex items-center gap-2 flex-wrap">
             {/* Frescura: dice hace cuánto se sabe que esto está al día, y avisa en
@@ -927,7 +930,7 @@ export function AdmissionClient() {
                 : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
             }`}
           >
-            Todas ({allAppts.length})
+            {t('allClinics')} ({allAppts.length})
           </button>
           {allClinics.map(c => {
             const count = allAppts.filter(a => a.clinic.id === c.id).length;

@@ -104,6 +104,26 @@ export function claveDia(iso: string | Date): string {
   }).format(new Date(iso));
 }
 
+/**
+ * `lunes, 14 de septiembre de 2026` — la cabecera de una pantalla de jornada.
+ *
+ * Toma la CLAVE del día (`YYYY-MM-DD`), no un instante, porque es lo que esas
+ * pantallas ya tienen en la mano: el día lo eligió el usuario con las flechas,
+ * no hay hora que convertir.
+ *
+ * ⚠️ Formatea en UTC a propósito, igual que `fechaCalendario` y por la misma
+ * razón: la clave se parsea como `T00:00:00Z`, y leída en Utah eso es la tarde
+ * del día ANTERIOR. Con `ZONA_CLINICA` puesta, el 14 se muestra como 13.
+ */
+export function fechaLargaDeClave(clave: string | null | undefined, locale?: Locale): string {
+  if (!clave) return '';
+  const d = new Date(`${clave}T00:00:00Z`);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(localeApp(locale), {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+  });
+}
+
 /** Un día en milisegundos. */
 export const DIA_MS = 24 * 60 * 60 * 1000;
 

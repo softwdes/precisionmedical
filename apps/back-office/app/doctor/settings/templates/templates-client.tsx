@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { DiagnosisPicker, type DiagnosisRow } from '@/components/visit/diagnosis-picker';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 import { useSectionLabels } from '@/lib/use-section-labels';
+import { fecha } from '@/lib/fechas';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -75,10 +76,6 @@ function parseDx(content: string): TemplateDx[] {
     const parsed = JSON.parse(content) as unknown;
     return Array.isArray(parsed) ? (parsed as TemplateDx[]) : [];
   } catch { return []; }
-}
-
-function fmtDate(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /**
@@ -250,7 +247,7 @@ export function TemplatesClient({
                       </button>
                     </DataTable.Td>
                     <DataTable.Td className="!py-1">
-                      <span className="text-[12px] text-text-muted">{fmtDate(tpl.updatedAt, 'es-US')}</span>
+                      <span className="text-[12px] text-text-muted">{fecha(tpl.updatedAt)}</span>
                     </DataTable.Td>
                     <DataTable.Td align="right" className="!py-1">
                       <div className="flex items-center justify-end gap-1">

@@ -81,7 +81,7 @@ interface CalendarAppointment {
     /** Cobertura resuelta en el server (`resolveCoverage`) — ordena el picker de cargos */
     coverage?: CoverageDTO;
   } | null;
-  clinic: { id: string; name: string };
+  clinic: { id: string; name: string; color: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
 }
 
@@ -494,12 +494,17 @@ function LegendStats({
    */
   const porClinica = useMemo(() => {
     if (filterClinic) return [];
-    const mapa = new Map<string, number>();
+    // El COLOR viaja junto al conteo para que este desglose sea la leyenda del
+    // punto que llevan las tarjetas. Separarlos obligaría a explicar en un
+    // texto qué significa cada color, y un texto que describe colores es lo
+    // que una muestra de color hace mejor.
+    const mapa = new Map<string, { n: number; color: string | null }>();
     for (const a of appointments) {
       if (a.status === 'CANCELLED' || a.status === 'NO_SHOW') continue;
-      mapa.set(a.clinic.name, (mapa.get(a.clinic.name) ?? 0) + 1);
+      const previo = mapa.get(a.clinic.name);
+      mapa.set(a.clinic.name, { n: (previo?.n ?? 0) + 1, color: a.clinic.color });
     }
-    return [...mapa.entries()].sort((x, y) => y[1] - x[1]);
+    return [...mapa.entries()].sort((x, y) => y[1].n - x[1].n);
   }, [appointments, filterClinic]);
 
   return (
@@ -590,8 +595,11 @@ function LegendStats({
         )}
         {porClinica.length > 1 && (
           <span className="flex items-center gap-2 pl-3 border-l border-border">
-            {porClinica.map(([nombre, n]) => (
-              <span key={nombre} className="text-text-muted">
+            {porClinica.map(([nombre, { n, color }]) => (
+              <span key={nombre} className="flex items-center gap-1 text-text-muted">
+                {color && (
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                )}
                 <span className="text-text-2 font-bold">{n}</span> {nombre}
               </span>
             ))}
@@ -638,6 +646,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
   // Filters
   const [filterClinic,   setFilterClinic]   = useState('');
+  /** El punto de sede solo sirve mirando TODAS: filtrado, dice lo que ya sabés. */
+  const mostrarColorSede = !filterClinic;
   const [filterProvider, setFilterProvider] = useState('');
   const [filterType,     setFilterType]     = useState('');
 
@@ -1537,6 +1547,27 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                                 className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-1.5 py-[2px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                                 style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                                 <div className="flex items-baseline gap-1 leading-tight">
+                                  {/* ── De qué sede es ──
+                                      Un PUNTO y no el relleno. El relleno de esta
+                                      tarjeta ya dice dos cosas —el estado y el
+                                      tipo— y la sede sería un tercer significado
+                                      sobre los mismos píxeles. El punto es otro
+                                      canal, igual que el canto izquierdo hace con
+                                      telemedicina, así que convive sin pelear.
+
+                                      Sólo con TODAS las sedes a la vista: si ya
+                                      filtraste por una, el color no agrega nada
+                                      que no sepas y se vuelve ruido. El color lo
+                                      elige recepción en Settings, una vez por
+                                      sede. */}
+                                  {mostrarColorSede && appt.clinic.color && (
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full shrink-0 self-center"
+                                      style={{ background: appt.clinic.color }}
+                                      title={appt.clinic.name}
+                                      aria-label={appt.clinic.name}
+                                    />
+                                  )}
                                   <span className="text-[10px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                                     {appt.patient.firstName} {appt.patient.lastName}
                                   </span>

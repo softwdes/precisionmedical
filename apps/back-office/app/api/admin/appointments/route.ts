@@ -65,7 +65,9 @@ const APPT_INCLUDE = {
       },
     },
   },
-  clinic: { select: { id: true, name: true } },
+  // `color` lo elige recepción en Settings, una vez por sede. Sirve para
+  // distinguir de qué oficina es cada cita cuando se miran todas juntas.
+  clinic: { select: { id: true, name: true, color: true } },
   provider: {
     select: {
       id: true,
@@ -233,8 +235,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         coverage: serializeCoverage(resolveCoverage(appt.case)),
       } : null,
       clinic: {
-        id:   appt.clinic.id,
-        name: appt.clinic.name,
+        id:    appt.clinic.id,
+        name:  appt.clinic.name,
+        color: appt.clinic.color,
       },
       provider: appt.provider ? {
         id:        appt.provider.id,

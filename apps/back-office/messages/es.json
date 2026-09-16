@@ -4975,7 +4975,16 @@
         "rechazo_tipo": "«{name}» no es un formato admitido. Se aceptan imágenes, PDF, Word y Excel.",
         "rechazo_cantidad": "Solo se pueden subir {max} archivos a la vez. Los de más quedaron afuera.",
         "alertUploadFallo": "No se pudo subir «{name}»: {motivo}",
-        "alertCreateFolderFallo": "No se pudo crear la carpeta: {motivo}"
+        "alertCreateFolderFallo": "No se pudo crear la carpeta: {motivo}",
+        "renameTitle": "Cambiar el nombre",
+        "renameFolderTitle": "Cambiar el nombre de la carpeta",
+        "renameGuardando": "Guardando…",
+        "uploadNombreLabel": "Nombre del archivo",
+        "nombre_vacio": "Ponele un nombre.",
+        "nombre_invalido": "No puede tener \\ / : * ? \" < > |",
+        "nombre_largo": "El nombre es muy largo (máximo 255 caracteres).",
+        "nombreRepetido": "Ya hay uno con este nombre en esta carpeta.",
+        "alertRenameFallo": "No se pudo cambiar el nombre: {motivo}"
       }
     },
     "settings": {

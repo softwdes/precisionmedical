@@ -2,6 +2,9 @@
  * DELETE /api/admin/cases/[id]/documents/[docId]
  *   Manda a la PAPELERA un documento o una carpeta vacía.
  *
+ * PATCH /api/admin/cases/[id]/documents/[docId]
+ *   Le cambia el nombre (Erick, 2026-09-15). Ver el comentario del handler.
+ *
  * POST /api/admin/cases/[id]/documents/[docId]
  *   Lo restaura. Lo puede hacer cualquiera que vea la pantalla (Erick,
  *   2026-09-13): el que se equivoca es el que se da cuenta, y mandarlo a pedir
@@ -20,6 +23,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { VIGENTES } from '@/lib/documentos';
@@ -89,6 +93,102 @@ export async function DELETE(
   });
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * PATCH /api/admin/cases/[id]/documents/[docId]
+ *   Cambia el NOMBRE de un documento o de una carpeta.
+ *
+ * Hasta hoy el nombre se fijaba al subir y no se podía tocar nunca más: un
+ * nombre mal puesto solo se arreglaba borrando el archivo y volviéndolo a
+ * subir. Y hace falta — de los 110 documentos subidos por la app en dos días,
+ * 36 venían con una convención de nombre distinta a la de los otros 74 (medido
+ * 2026-09-15).
+ *
+ * Las carpetas también se renombran, por lo mismo: el archivo tiene 540
+ * carpetas "Progress Note" y otras 106 "Progress Notes". Es la misma deriva y
+ * es literalmente el mismo campo.
+ *
+ * ── Lo que NO hace ─────────────────────────────────────────────────────────
+ * No toca el archivo del bucket. La clave de Storage se fija al subir
+ * (`cases/<id>/<timestamp>-<nombre>`) y ahí se queda: renombrar es una etiqueta
+ * de la ficha, no una mudanza de archivos. El que baja el documento igual lo
+ * recibe con el nombre nuevo, porque la firma de descarga lo arma con `name`.
+ *
+ * No valida que el nombre sea único: ya hay nombres repetidos dentro de un
+ * mismo caso y no son un error —dos "Notes" de fechas distintas, por ejemplo—.
+ * La pantalla avisa, que es lo que hace falta; el servidor no bloquea.
+ *
+ * No repone la extensión si el nombre nuevo la pierde. Eso se cuida en la
+ * pantalla, que no deja tocarla, y a propósito no se arregla acá: un servidor
+ * que corrige el nombre a escondidas es peor que uno que guarda lo que le
+ * mandaron.
+ */
+const RenameSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+});
+
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string; docId: string }> },
+): Promise<NextResponse> {
+  const actor = await resolveActor(req.headers);
+  const { id: caseId, docId } = await ctx.params;
+
+  let parsed;
+  try {
+    parsed = RenameSchema.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
+      { status: 400 },
+    );
+  }
+
+  // Uno en la papelera no se renombra: para el que mira la pantalla no existe.
+  // Mismo criterio que la ruta de descarga.
+  const doc = await db.patientDocument.findFirst({
+    where: { id: docId, ...VIGENTES },
+    select: { id: true, name: true, caseId: true, isFolder: true },
+  });
+
+  if (!doc || doc.caseId !== caseId) {
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  }
+
+  // Sin cambio no se escribe ni se audita: dos clics seguidos en Guardar no son
+  // dos renombrados, y ensuciarían el historial del documento.
+  if (doc.name === parsed.name) {
+    return NextResponse.json({ ok: true, sinCambio: true, name: doc.name });
+  }
+
+  await db.patientDocument.update({
+    where: { id: docId },
+    data: { name: parsed.name },
+  });
+
+  const caseRecord = await db.case.findUnique({
+    where: { id: caseId },
+    select: { caseCode: true },
+  });
+
+  // `before`/`after` y no solo `metadata`: así el historial del caso puede
+  // mostrar "se llamaba X y ahora se llama Y" sin tabla nueva.
+  await writeAuditLog(db, {
+    actorType: actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole: actor.actorRole,
+    action: 'RENAME_DOCUMENT',
+    entityType: 'cases',
+    entityId: caseId,
+    ipAddress: actor.ipAddress,
+    userAgent: actor.userAgent,
+    before: { name: doc.name },
+    after: { name: parsed.name },
+    metadata: { caseCode: caseRecord?.caseCode, documentId: docId, isFolder: doc.isFolder },
+  });
+
+  return NextResponse.json({ ok: true, name: parsed.name });
 }
 
 /**

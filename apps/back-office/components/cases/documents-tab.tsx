@@ -18,11 +18,14 @@ import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw, X, FileArchive, CloudUpload, RotateCcw,
+  RefreshCw, X, FileArchive, CloudUpload, RotateCcw, Pencil,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import {
+  partirNombre, unirNombre, nombreRepetido, tieneCaracteresProhibidos, LARGO_MAXIMO,
+} from '@/lib/nombre-archivo';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,17 +114,118 @@ function FileIcon({ mimeType, size = 4 }: { mimeType: string | null; size?: numb
   return <File className={`${cls} text-text-muted`} />;
 }
 
+// ─── Rename Modal ──────────────────────────────────────────────────────────────
+
+/**
+ * Cambiar el nombre de un documento o de una carpeta.
+ *
+ * Comparte las reglas con el campo del panel de subida —extensión fija, aviso
+ * de repetido, caracteres prohibidos— porque es la misma pregunta hecha en otro
+ * momento. Las dos salen de `lib/nombre-archivo`.
+ */
+function RenameModal({ item, nombresEnCarpeta, guardando, onClose, onSave }: {
+  item: DocItem;
+  nombresEnCarpeta: readonly string[];
+  guardando: boolean;
+  onClose: () => void;
+  onSave: (nombre: string) => void;
+}) {
+  const t  = useTranslations('phoenix.caseTabs.documents');
+  const tc = useTranslations('phoenix.common');
+  // Una carpeta no tiene extensión: se edita el nombre entero.
+  const partido = item.isFolder ? { base: item.name, ext: '' } : partirNombre(item.name);
+  const [base, setBase] = useState(partido.base);
+
+  const nombre   = unirNombre(base, partido.ext);
+  const problema = !base.trim()
+    ? 'vacio'
+    : tieneCaracteresProhibidos(base)
+      ? 'invalido'
+      : nombre.length > LARGO_MAXIMO ? 'largo' : null;
+  const repetido = !problema && nombreRepetido(nombre, nombresEnCarpeta);
+  const sinCambio = nombre === item.name;
+
+  function guardar() {
+    if (problema || guardando) return;
+    onSave(nombre);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <Pencil className="w-4 h-4 text-brand-text" />
+          <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">
+            {item.isFolder ? t('renameFolderTitle') : t('renameTitle')}
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={base}
+            onChange={e => setBase(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') guardar();
+              if (e.key === 'Escape') onClose();
+            }}
+            aria-label={t('uploadNombreLabel')}
+            autoFocus
+            className={`flex-1 min-w-0 rounded-md bg-bg-2 border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none transition-colors ${
+              problema ? 'border-rose/50 focus:border-rose' : 'border-border focus:border-brand'
+            }`}
+          />
+          {/* La extensión, a la vista y fuera del alcance. */}
+          {partido.ext && (
+            <span className="text-text-muted text-sm font-mono flex-shrink-0">{partido.ext}</span>
+          )}
+        </div>
+
+        {problema && <p className="text-[11px] text-rose">{t(`nombre_${problema}`)}</p>}
+        {repetido && <p className="text-[11px] text-amber">{t('nombreRepetido')}</p>}
+
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={guardando} className="flex-1">
+            {tc('cancel')}
+          </Button>
+          <Button size="sm" onClick={guardar} disabled={guardando || !!problema || sinCambio} className="flex-1">
+            {guardando ? t('renameGuardando') : tc('save')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Upload Modal ──────────────────────────────────────────────────────────────
 
-function UploadModal({ onClose, onUpload, uploading }: {
+/**
+ * Un archivo elegido y el nombre con el que se va a guardar.
+ *
+ * El nombre viaja partido —lo editable por un lado, la extensión por otro—
+ * porque la extensión no se toca: ver `lib/nombre-archivo`.
+ */
+export interface PendienteSubida {
+  file: File;
+  base: string;
+  ext: string;
+}
+
+function UploadModal({ onClose, onUpload, uploading, nombresEnCarpeta }: {
   onClose: () => void;
-  onUpload: (files: File[]) => void;
+  onUpload: (pendientes: PendienteSubida[]) => void;
   uploading: boolean;
+  /**
+   * Los nombres que ya están en la carpeta donde se va a subir, para avisar de
+   * los repetidos. Avisar, no bloquear: dos "Notes" de fechas distintas con el
+   * mismo nombre son un descuido, no un error del sistema.
+   */
+  nombresEnCarpeta: readonly string[];
 }) {
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
   const [dragOver, setDragOver] = useState(false);
-  const [pending, setPending]   = useState<File[]>([]);
+  const [pending, setPending]   = useState<PendienteSubida[]>([]);
   /** Los que quedaron afuera y por qué. Se muestran, no se descartan callados. */
   const [rechazos, setRechazos] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -135,12 +239,14 @@ function UploadModal({ onClose, onUpload, uploading }: {
    */
   function agregar(files: File[]) {
     if (!files.length) return;
-    const buenos: File[] = [];
+    const buenos: PendienteSubida[] = [];
     const malos: string[] = [];
     for (const f of files) {
       const motivo = motivoRechazo(f);
       if (motivo) malos.push(t(`rechazo_${motivo}`, { name: f.name, max: MAX_BYTES / (1024 * 1024) }));
-      else buenos.push(f);
+      // El nombre arranca siendo el del archivo: quien ya lo renombró en su
+      // computadora no tiene que volver a escribirlo.
+      else buenos.push({ file: f, ...partirNombre(f.name) });
     }
     setPending(prev => {
       const juntos = [...prev, ...buenos];
@@ -168,8 +274,28 @@ function UploadModal({ onClose, onUpload, uploading }: {
     setPending(prev => prev.filter((_, i) => i !== idx));
   }
 
+  function renombrar(idx: number, base: string) {
+    setPending(prev => prev.map((p, i) => (i === idx ? { ...p, base } : p)));
+  }
+
+  /**
+   * Lo que impide subir ESE archivo, o `null` si está bien.
+   *
+   * Solo lo que rompe algo: un nombre vacío, uno con caracteres que el sistema
+   * operativo no acepta, o uno que no entra en el campo. El nombre repetido NO
+   * está acá a propósito — eso se avisa y se sube igual.
+   */
+  function problemaDeNombre(p: PendienteSubida): 'vacio' | 'invalido' | 'largo' | null {
+    if (!p.base.trim()) return 'vacio';
+    if (tieneCaracteresProhibidos(p.base)) return 'invalido';
+    if (unirNombre(p.base, p.ext).length > LARGO_MAXIMO) return 'largo';
+    return null;
+  }
+
+  const hayProblemas = pending.some(p => problemaDeNombre(p) !== null);
+
   function submit() {
-    if (!pending.length) return;
+    if (!pending.length || hayProblemas) return;
     onUpload(pending);
   }
 
@@ -236,19 +362,45 @@ function UploadModal({ onClose, onUpload, uploading }: {
           </div>
         )}
 
-        {/* Pending files list */}
+        {/* Pending files list — el nombre se edita ACÁ, antes de subir.
+            Lo pidió el usuario porque hoy lo renombra en su computadora antes
+            de arrastrarlo (Erick, 2026-09-15). La extensión va al lado, fija:
+            si se pierde, el visor no sabe qué mostrar y el archivo bajado no
+            abre. */}
         {pending.length > 0 && (
-          <div className="space-y-1.5 max-h-40 overflow-y-auto">
-            {pending.map((f, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-md bg-bg-2/60 border border-border/40 px-3 py-2">
-                <FileIcon mimeType={f.type} size={4} />
-                <span className="text-text-1 text-xs truncate flex-1">{f.name}</span>
-                <span className="text-text-muted text-xs font-mono flex-shrink-0">{formatBytes(f.size)}</span>
-                <button onClick={() => removeFile(i)} className="text-text-muted hover:text-rose transition-colors flex-shrink-0">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+          <div className="space-y-1.5 max-h-52 overflow-y-auto">
+            {pending.map((p, i) => {
+              const problema = problemaDeNombre(p);
+              const repetido = !problema && nombreRepetido(unirNombre(p.base, p.ext), nombresEnCarpeta);
+              return (
+                <div key={i} className="rounded-md bg-bg-2/60 border border-border/40 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <FileIcon mimeType={p.file.type} size={4} />
+                    <input
+                      value={p.base}
+                      onChange={e => renombrar(i, e.target.value)}
+                      aria-label={t('uploadNombreLabel')}
+                      className={`flex-1 min-w-0 bg-transparent text-text-1 text-xs px-1.5 py-1 rounded border transition-colors focus:outline-none ${
+                        problema
+                          ? 'border-rose/50 focus:border-rose'
+                          : 'border-transparent hover:border-border focus:border-brand/60 focus:bg-bg-2'
+                      }`}
+                    />
+                    <span className="text-text-muted text-xs font-mono flex-shrink-0">{p.ext}</span>
+                    <span className="text-text-muted text-xs font-mono flex-shrink-0">{formatBytes(p.file.size)}</span>
+                    <button onClick={() => removeFile(i)} className="text-text-muted hover:text-rose transition-colors flex-shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {problema && (
+                    <p className="text-[10.5px] text-rose mt-1 pl-6">{t(`nombre_${problema}`)}</p>
+                  )}
+                  {repetido && (
+                    <p className="text-[10.5px] text-amber mt-1 pl-6">{t('nombreRepetido')}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -260,7 +412,7 @@ function UploadModal({ onClose, onUpload, uploading }: {
           <Button
             size="sm"
             onClick={submit}
-            disabled={uploading || pending.length === 0}
+            disabled={uploading || pending.length === 0 || hayProblemas}
             className="gap-1.5"
           >
             {uploading
@@ -323,6 +475,9 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   const [deleting, setDeleting]             = useState<string | null>(null);
   /** El item esperando confirmación de borrado, o `null`. */
   const [porBorrar, setPorBorrar]           = useState<DocItem | null>(null);
+  /** El documento o la carpeta cuyo nombre se está cambiando. */
+  const [porRenombrar, setPorRenombrar]     = useState<DocItem | null>(null);
+  const [renombrando, setRenombrando]       = useState(false);
   /**
    * La PAPELERA: es la misma lista con el filtro dado vuelta, no otra pantalla.
    *
@@ -413,15 +568,21 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
     }
   }
 
-  async function handleUpload(files: File[]) {
+  async function handleUpload(pendientes: PendienteSubida[]) {
     setUploading(true);
     try {
-      for (const file of files) {
+      for (const p of pendientes) {
+        const file = p.file;
+        // El nombre ELEGIDO, no el del archivo. Es el mismo en los tres pasos:
+        // el de la clave en el bucket, el de la ficha y el de los mensajes de
+        // error. Si se separaran, el error diría un nombre que la persona no
+        // reconoce.
+        const nombre = unirNombre(p.base, p.ext);
         const urlRes = await fetch(`/api/admin/cases/${caseId}/documents/upload-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: file.name,
+            name: nombre,
             mimeType: file.type || 'application/octet-stream',
             size: file.size,
             parentId: currentParentId,
@@ -437,7 +598,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           // El nombre del archivo en el mensaje: con diez seleccionados, saber
           // que "falló uno" no alcanza para nada.
           throw new Error(t('alertUploadFallo', {
-            name: file.name,
+            name: nombre,
             motivo: urlData.message ?? urlData.error ?? `HTTP ${urlRes.status}`,
           }));
         }
@@ -460,7 +621,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         });
         if (!putRes.ok) {
           throw new Error(t('alertUploadFallo', {
-            name: file.name,
+            name: nombre,
             motivo: `HTTP ${putRes.status}`,
           }));
         }
@@ -469,7 +630,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: file.name,
+            name: nombre,
             isFolder: false,
             s3Key: urlData.s3Key,
             mimeType: file.type,
@@ -481,7 +642,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         // para el sistema. Callarlo deja un huérfano que nadie va a buscar.
         if (!regRes.ok) {
           throw new Error(t('alertUploadFallo', {
-            name: file.name,
+            name: nombre,
             motivo: `HTTP ${regRes.status}`,
           }));
         }
@@ -492,6 +653,38 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
       alert(e instanceof Error ? e.message : t('alertUploadError'));
     } finally {
       setUploading(false);
+    }
+  }
+
+  /**
+   * Guardar el nombre nuevo.
+   *
+   * La lista se recarga en vez de parchear la fila en memoria: el orden es por
+   * nombre (`orderBy: [{ isFolder }, { name }]`), así que un documento
+   * renombrado casi siempre cambia de lugar. Parchearlo lo dejaría con el
+   * nombre nuevo en la posición vieja hasta la próxima recarga.
+   */
+  async function confirmarRenombrado(item: DocItem, nombre: string) {
+    if (nombre === item.name) { setPorRenombrar(null); return; }
+    setRenombrando(true);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nombre }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(t('alertRenameFallo', {
+          motivo: d.message ?? d.error ?? `HTTP ${res.status}`,
+        }));
+      }
+      setPorRenombrar(null);
+      load(currentParentId, verPapelera);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('alertRenameFallo', { motivo: '—' }));
+    } finally {
+      setRenombrando(false);
     }
   }
 
@@ -819,6 +1012,17 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
+                      {/* Renombrar. En la papelera no: lo que está borrado no
+                          se edita, se restaura primero. */}
+                      {!readOnly && !verPapelera && (
+                        <button
+                          onClick={() => setPorRenombrar(item)}
+                          className="p-1 rounded text-text-muted hover:text-brand-text transition-colors"
+                          title={t('renameTitle')}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {/* Descargar SÍ, borrar NO: el bufete se lleva copia del
                           expediente, pero no lo modifica. */}
                       {/* En la papelera el botón es el opuesto: restaurar. Si
@@ -883,12 +1087,28 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         </div>
       )}
 
+      {/* Renombrar. Hasta hoy el nombre se fijaba al subir y no se podía tocar
+          nunca más (Erick, 2026-09-15). La extensión se muestra al lado del
+          campo y NO se edita: si se pierde, el visor no sabe qué mostrar y el
+          archivo descargado no abre. Las carpetas no tienen extensión, así que
+          ahí el campo es el nombre entero. */}
+      {porRenombrar && (
+        <RenameModal
+          item={porRenombrar}
+          nombresEnCarpeta={items.filter(i => i.id !== porRenombrar.id).map(i => i.name)}
+          guardando={renombrando}
+          onClose={() => setPorRenombrar(null)}
+          onSave={nuevo => void confirmarRenombrado(porRenombrar, nuevo)}
+        />
+      )}
+
       {/* Upload Modal */}
       {uploadOpen && (
         <UploadModal
           onClose={() => setUploadOpen(false)}
           onUpload={handleUpload}
           uploading={uploading}
+          nombresEnCarpeta={items.map(i => i.name)}
         />
       )}
 

@@ -4975,7 +4975,16 @@
         "rechazo_tipo": "“{name}” isn’t a supported format. Images, PDF, Word and Excel are accepted.",
         "rechazo_cantidad": "Only {max} files can be uploaded at once. The extra ones were left out.",
         "alertUploadFallo": "Couldn’t upload “{name}”: {motivo}",
-        "alertCreateFolderFallo": "Couldn’t create the folder: {motivo}"
+        "alertCreateFolderFallo": "Couldn’t create the folder: {motivo}",
+        "renameTitle": "Rename",
+        "renameFolderTitle": "Rename folder",
+        "renameGuardando": "Saving…",
+        "uploadNombreLabel": "File name",
+        "nombre_vacio": "Give it a name.",
+        "nombre_invalido": "It can't contain \\ / : * ? \" < > |",
+        "nombre_largo": "The name is too long (255 characters max).",
+        "nombreRepetido": "There is already one with this name in this folder.",
+        "alertRenameFallo": "Couldn't rename it: {motivo}"
       }
     },
     "settings": {

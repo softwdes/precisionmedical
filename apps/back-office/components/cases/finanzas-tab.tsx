@@ -48,8 +48,16 @@ interface BillingRecord {
   amountPaid: number;
   balanceDue: number;
   /**
-   * Vino del v2. No entra en ningún total de esta pantalla: se muestra en su
-   * propia sección, de solo lectura, al pie. Ver `historialDelV2` más abajo.
+   * Vino del v2 — **procedencia, no comportamiento**.
+   *
+   * Tuvo su propia sección de solo lectura al pie durante un día. Se eliminó el
+   * 16-sep: "la clínica no sabe qué es ni para qué es un cargo migrado; quieren
+   * ver todos esos pagos y cobranzas como si fueran propios de v3" (Erick). Así
+   * que estos cargos entran en las listas y los totales como cualquier otro, y
+   * quien decide dónde caen es `payer`, igual que para los nacidos en v3.
+   *
+   * El campo se queda porque es trazabilidad: sirve para auditar de dónde salió
+   * una cifra. **No debe volver a usarse para decidir qué se muestra.**
    */
   migratedFromV2?: boolean;
   payments: BillingPayment[];
@@ -102,6 +110,24 @@ const EMPTY_KPIS: Kpis = {
  */
 type Traducir = (clave: string) => string;
 
+/**
+ * ⚠️ Los `value` son los que YA ESTÁN GUARDADOS en `billing_payments`, no
+ * nombres nuevos. Medido el 2026-09-16 cruzando los tipos guardados contra esta
+ * lista: **63 pagos mostraban "—"** porque su tipo no figuraba como opción, y
+ * tampoco se podían elegir al registrar uno nuevo.
+ *
+ *   · `direct_patient`  — 53 pagos. Acá decía `patient_direct`: la misma
+ *     palabra con las dos mitades al revés.
+ *   · `no_show`         — 3 pagos. Existe en el v2 ("No Show (NS)") y faltaba.
+ *   · `direct_lawyer`   — 3 pagos. Acá decía `attorney_payment`.
+ *
+ * Ninguno de los tres nombres viejos tenía un solo pago guardado, así que
+ * corregirlos no deja huérfano a nadie: eran nombres inventados que nunca
+ * coincidieron con el dato.
+ *
+ * **Antes de agregar o renombrar un valor, mirá qué hay en la base.** Esta
+ * lista no define el vocabulario: lo refleja.
+ */
 const tiposDePago = (t: Traducir): Record<string, { label: string; value: string }[]> => ({
   INSURANCE: [
     { label: t('ptDirectInsurance'), value: 'direct_insurance' },
@@ -109,18 +135,39 @@ const tiposDePago = (t: Traducir): Record<string, { label: string; value: string
     { label: t('ptLateFiling'),      value: 'late_filing_penalty' },
   ],
   LAWYER: [
-    { label: t('ptAttorney'),  value: 'attorney_payment' },
+    { label: t('ptAttorney'),  value: 'direct_lawyer' },
     { label: t('ptReduction'), value: 'reduction_agreement' },
   ],
   PATIENT: [
     { label: t('ptCopay'),       value: 'copay' },
+    { label: t('ptNoShow'),      value: 'no_show' },
     { label: t('ptDeductible'),  value: 'deductible' },
     { label: t('ptCoinsurance'), value: 'coinsurance' },
-    { label: t('ptSelfPay'),     value: 'patient_direct' },
+    { label: t('ptSelfPay'),     value: 'direct_patient' },
     { label: t('ptCourtesy'),    value: 'professional_courtesy' },
     { label: t('ptCollections'), value: 'external_collections' },
   ],
 });
+
+/**
+ * El rótulo de un tipo de pago, buscándolo en las TRES listas.
+ *
+ * No alcanza con mirar la del origen de la fila: hay 4 pagos guardados con el
+ * tipo cruzado —un copago con origen SEGURO, un pago de seguro con origen
+ * PACIENTE— y al buscarlos solo en su lista salían como "—". El dato existe y
+ * es legible; el que estaba mal era el lugar donde se buscaba.
+ */
+function rotuloDeTipo(
+  tipos: Record<string, { label: string; value: string }[]>,
+  valor: string | null,
+): string | null {
+  if (!valor) return null;
+  for (const lista of Object.values(tipos)) {
+    const hit = lista.find(o => o.value === valor);
+    if (hit) return hit.label;
+  }
+  return null;
+}
 
 const metodos = (t: Traducir): Record<string, string> => ({
   CHECK: t('mCheck'), CARD: t('mCard'), CASH: t('mCash'), TRANSFER: t('mTransfer'), NONE: '—',
@@ -236,6 +283,30 @@ function KpiCard({ label, value, color, hint }: {
   );
 }
 
+/**
+ * Los cargos agrupados por VISITA.
+ *
+ * El monto se escribe una vez por consulta y se reparte entre sus líneas: la
+ * base guarda la verdad por servicio —es lo que después se concilia y lo que
+ * permite anular un pago puntual— y el que cobra escribe una sola cifra
+ * (decisión de Erick, 2026-08-10).
+ *
+ * Es función de módulo y no un `useMemo` suelto porque ahora la usan los DOS
+ * circuitos: el del mostrador y el del seguro/abogado.
+ */
+function agruparPorVisita(lista: BillingRecord[]) {
+  const m = new Map<string, { key: string; fecha: string | null; lineas: BillingRecord[]; saldo: number }>();
+  for (const b of lista) {
+    const key = b.appointmentId ?? `sin-cita-${b.id}`;
+    const g = m.get(key) ?? { key, fecha: b.appointmentDate, lineas: [], saldo: 0 };
+    g.lineas.push(b);
+    g.saldo += b.balanceDue;
+    m.set(key, g);
+  }
+  return [...m.values()].sort((a, z) =>
+    new Date(z.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime());
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 /**
@@ -303,6 +374,30 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
   /** Visita con el detalle desplegado en el modal de cobro */
   const [detalleVisita, setDetalleVisita] = useState<string | null>(null);
+
+  /**
+   * ─── Pago de UNA línea ────────────────────────────────────────────────────
+   *
+   * El cobro por visita reparte un monto entre las líneas y **comparte un solo
+   * quién-paga / método / tipo para todo el envío**. Eso no alcanza cuando
+   * sobre la misma cuenta entran pagos de orígenes distintos: medido el
+   * 2026-09-16, **38 cargos tienen pagos de más de un origen** —un copago del
+   * paciente y un cheque del seguro sobre la misma línea— y con la pantalla de
+   * antes eso eran dos rondas separadas.
+   *
+   * El v2 lo resuelve con un botón por línea, y ahí acertaron. Se suma como
+   * ATAJO, no como reemplazo: el monto por visita se queda, porque tipear
+   * línea por línea con seis cargos son seis campos para un solo cobro
+   * (decisión de Erick, 2026-08-10).
+   */
+  const [lineaAPagar, setLineaAPagar] = useState<BillingRecord | null>(null);
+  const [lpSource, setLpSource]   = useState<'INSURANCE' | 'PATIENT' | 'LAWYER'>('PATIENT');
+  const [lpMethod, setLpMethod]   = useState<string>('CARD');
+  const [lpType, setLpType]       = useState<string>('');
+  const [lpMonto, setLpMonto]     = useState<string>('');
+  const [lpNotas, setLpNotas]     = useState<string>('');
+  const [lpGuardando, setLpGuardando] = useState(false);
+  /** El descuento de esa línea — se guarda aparte del pago, con su propio botón. */
   const [noteDialogFor, setNoteDialogFor] = useState<string | null>(null); // billingId de la fila con "Nota de pago" abierta
   const [noteDraft, setNoteDraft]         = useState('');
   const openAfterLoad = useRef(false);
@@ -317,12 +412,44 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
    *
    * Y si viene de una cita puntual (calendario), solo esa visita.
    */
-  const pendingOf = useCallback((list: BillingRecord[]) => (
+  /**
+   * ─── Los DOS circuitos de cobro ──────────────────────────────────────────
+   *
+   * Hasta hoy esta pantalla cobraba uno solo —el del mostrador— y del otro
+   * solo avisaba: "además $X en CPT se le facturan al seguro". Avisaba y nada
+   * más, porque **en todo v3 no existía forma de registrar un pago del seguro
+   * o del abogado**: la única ruta que escribe pagos es la de este modal, y su
+   * filtro dejaba fuera todo lo que no fuera del mostrador.
+   *
+   * Eso dejó $1,37 millones sin manera de cobrarse —los 6.455 cargos que
+   * vinieron del sistema anterior, que son CPT de consulta— y también los CPT
+   * que v3 genera hoy, que se venían acumulando igual (Erick, 2026-09-16).
+   *
+   * Ahora los dos se cobran con el MISMO modal. Lo que decide qué cargos se
+   * pueden elegir es la fuente del pago:
+   *
+   *   · paciente          → el circuito del mostrador (férulas, servicios, labs)
+   *   · seguro / abogado  → el circuito de terceros (los CPT)
+   *
+   * Los dos NO se mezclan nunca en el mismo pago, y ésa es la protección que
+   * reemplaza al viejo "no se puede cobrar": el mostrador sigue sin poder
+   * pedirle al paciente la plata del abogado, porque para llegar a esos cargos
+   * hay que declarar que el que paga es el abogado.
+   */
+  const circuitoDe = (fuente: 'INSURANCE' | 'PATIENT' | 'LAWYER') =>
+    (fuente === 'PATIENT' ? 'PATIENT' : 'INSURANCE') as BillingRecord['payer'];
+
+  const cobrablesDe = useCallback((list: BillingRecord[], circuito: BillingRecord['payer']) => (
     list.filter(b =>
-      b.payer === 'PATIENT'
+      b.payer === circuito
       && b.balanceDue > 0
       && (!filterAppointmentId || b.appointmentId === filterAppointmentId))
   ), [filterAppointmentId]);
+
+  /** Lo cobrable en el mostrador. Es lo que la pantalla muestra por defecto. */
+  const pendingOf = useCallback((list: BillingRecord[]) => (
+    cobrablesDe(list, 'PATIENT')
+  ), [cobrablesDe]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -341,15 +468,20 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       // Open pay modal with fresh data if flagged
       if (openAfterLoad.current) {
         openAfterLoad.current = false;
-        const pending = pendingOf(freshBillings);
+        // Mismo criterio que `openPayModal`: se arranca donde hay saldo.
+        const fuente: 'PATIENT' | 'INSURANCE' =
+          cobrablesDe(freshBillings, 'PATIENT').length === 0
+            && cobrablesDe(freshBillings, 'INSURANCE').length > 0
+            ? 'INSURANCE' : 'PATIENT';
+        const pending = cobrablesDe(freshBillings, circuitoDe(fuente));
         const init: Record<string, string> = {};
         // Claves por visita: el monto se escribe una vez por consulta
         pending.forEach(b => { init[b.appointmentId ?? `sin-cita-${b.id}`] = ''; });
         setPayAmounts(init);
         setPayNotes({});
-        setPaySource('PATIENT');
+        setPaySource(fuente);
         setPayMethod('CHECK');
-        setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+        setPayType(PAYMENT_TYPES[fuente][0].value);
         setPayInsuranceId(freshInsurances[0]?.id ?? '');
         setPayOpen(true);
       }
@@ -364,12 +496,25 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
   function openPayModal() {
     if (readOnly) return; // el doctor no cobra — gate también acá porque el handle es imperativo
-    const pending = pendingOf(billings);
+    /**
+     * Abre en el circuito que TIENE plata.
+     *
+     * Con "paciente" fijo, un caso cuyos cargos son todos CPT —los que vinieron
+     * del sistema anterior lo son— abría el modal vacío: el que cobra veía
+     * "nada que cobrar" con miles de dólares pendientes. Si el mostrador no
+     * tiene saldo y el seguro sí, se arranca ahí; el selector deja cambiar.
+     */
+    const delMostrador = cobrablesDe(billings, 'PATIENT');
+    const arrancaEnTerceros = delMostrador.length === 0
+      && cobrablesDe(billings, 'INSURANCE').length > 0;
+    const fuente = arrancaEnTerceros ? 'INSURANCE' : 'PATIENT';
+
+    const pending = cobrablesDe(billings, circuitoDe(fuente));
     const init: Record<string, string> = {};
     pending.forEach(b => { init[b.appointmentId ?? `sin-cita-${b.id}`] = ''; });
     setPayAmounts(init);
     setPayNotes({});
-    setPaySource('PATIENT');
+    setPaySource(fuente);
     setPayMethod('CHECK');
     setPayType(PAYMENT_TYPES['PATIENT'][0].value);
     setPayInsuranceId(insurances[0]?.id ?? '');
@@ -401,16 +546,17 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       [...new Set(lista.map(b => b.appointmentId ?? `sin-cita-${b.id}`))];
 
     if (isNaN(raw) || raw <= 0) {
-      const pend = pendingOf(billings);
+      const pend = cobrablesDe(billings, circuitoDe(paySource));
       setPayAmounts(prev => { const n = { ...prev }; claves(pend).forEach(k => { n[k] = ''; }); return n; });
       return;
     }
     // Reparte el total entre las VISITAS, de la más reciente a la más vieja:
     // lo que se cobra hoy suele ser lo de hoy.
-    const total = Math.min(raw, totalPending);
+    // Del circuito que el modal está ofreciendo, no siempre el del mostrador.
+    const total = Math.min(raw, visitasDelModal.reduce((s, v) => s + v.saldo, 0));
     const newAmounts: Record<string, string> = {};
     let remaining = total;
-    for (const v of visitasPendientes) {
+    for (const v of visitasDelModal) {
       if (remaining <= 0) { newAmounts[v.key] = ''; continue; }
       const apply = Math.min(remaining, v.saldo);
       newAmounts[v.key] = apply.toFixed(2);
@@ -427,7 +573,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
      * una sola cifra. La nota va en todas las líneas de esa visita: es un mismo
      * cobro repartido, y cada parte tiene que poder explicarse sola.
      */
-    const entries = visitasPendientes.flatMap(v => {
+    const entries = visitasDelModal.flatMap(v => {
       const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
       if (monto <= 0) return [];
       return Object.entries(repartir(v.lineas, monto)).map(([billingId, amount]) => ({
@@ -462,6 +608,52 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     }
   }
 
+  /** Abre el diálogo de una línea con el pendiente ya puesto. */
+  function abrirPagoDeLinea(l: BillingRecord) {
+    // El origen propuesto es el del circuito de la línea, no el del modal: una
+    // línea de CPT la paga el seguro aunque el modal esté cobrando al paciente.
+    const src = l.payer === 'PATIENT' ? 'PATIENT' : 'INSURANCE';
+    setLineaAPagar(l);
+    setLpSource(src);
+    setLpMethod('CARD');
+    setLpType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+    setLpMonto(l.balanceDue.toFixed(2));
+    setLpNotas('');
+  }
+
+  async function registrarPagoDeLinea() {
+    const l = lineaAPagar;
+    if (!l) return;
+    const monto = parseFloat(lpMonto) || 0;
+    if (monto <= 0) { alert(t('alertMinAmount')); return; }
+
+    setLpGuardando(true);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/billing/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          // Una sola entrada: es el punto de este diálogo. El monto NO se
+          // reparte porque ya sabemos contra qué línea va.
+          payments: [{ billingId: l.id, amount: Math.min(monto, l.balanceDue), notes: lpNotas || null }],
+          source: lpSource,
+          method: lpMethod,
+          paymentType: lpType || null,
+          insuranceCarrierId: lpSource === 'INSURANCE' ? (insurances[0]?.id ?? null) : null,
+          paidAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      setLineaAPagar(null);
+      load();
+      onChanged?.();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('alertErrorRegister'));
+    } finally {
+      setLpGuardando(false);
+    }
+  }
+
   async function deletePayment(billingId: string, payId: string) {
     if (!confirm(t('payConfirmCancel'))) return;
     setDeletingPay(payId);
@@ -488,8 +680,24 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
    */
   const deLaVista   = billings.filter(b =>
     b.payer === 'PATIENT' && (!filterAppointmentId || b.appointmentId === filterAppointmentId));
-  const vistaCosto  = deLaVista.reduce((s, b) => s + b.totalCost, 0);
-  const vistaPagado = deLaVista.reduce((s, b) => s + b.amountPaid, 0);
+
+  /**
+   * TODO lo del caso, los dos circuitos juntos.
+   *
+   * "Costo total" y "Pagado" pasan a contar el caso entero (Erick, 2026-09-16:
+   * "todo lo que vino de v2 es como si fuera v3, no hay que separarlo"). Antes
+   * contaban solo el mostrador, y en un caso cuyos cargos son todos CPT —los
+   * 6.455 que vinieron del sistema anterior lo son— las tres tarjetas decían
+   * $0.00 con miles de dólares cargados.
+   *
+   * La que NO cambia es "Paga el paciente": esa sigue siendo solo el mostrador,
+   * porque es la cifra que recepción usa para pedir plata. Mezclarle los CPT
+   * sería pedirle al paciente lo que le toca al seguro o al abogado.
+   */
+  const todoDeLaVista = billings.filter(b =>
+    !filterAppointmentId || b.appointmentId === filterAppointmentId);
+  const vistaCosto  = todoDeLaVista.reduce((s, b) => s + b.totalCost, 0);
+  const vistaPagado = todoDeLaVista.reduce((s, b) => s + b.amountPaid, 0);
   const vistaSaldo  = deLaVista.reduce((s, b) => s + b.balanceDue, 0);
 
   /**
@@ -506,44 +714,22 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     : [];
   const seguroSaldo = seguroDeLaVista.reduce((s, b) => s + b.balanceDue, 0);
 
-  /** Historial: pagos del paciente, del período visible. Sin anulados — los
-   *  filtra la API, y la anulación queda en el AuditLog. */
-  const historial = payments.filter(p =>
-    p.source === 'PATIENT' && (!filterAppointmentId || p.appointmentId === filterAppointmentId));
-
   /**
-   * El expediente económico que viene del v2 — SOLO LECTURA.
+   * Historial: TODOS los pagos del período visible, venga de quien venga.
    *
-   * ── Por qué existe ────────────────────────────────────────────────────────
-   * Los 6.455 cargos migrados no tienen férula, servicio de mostrador ni
-   * laboratorio, así que `payer` los manda al circuito del seguro y esta
-   * pantalla, que solo lista lo cobrable en el mostrador, los escondía
-   * enteros: un caso con $26.945 de saldo real se veía en $0.00.
+   * Filtraba `source === 'PATIENT'`, así que un cheque del seguro o del abogado
+   * entraba a la base y no se veía en ninguna parte de esta pantalla — la de
+   * Catalina Moran tenía tres cheques del seguro y decía "No payments recorded
+   * yet" (Erick, 2026-09-16). Ahora se listan los tres orígenes y cada fila dice
+   * el suyo; sin eso, Finanzas registra un pago y no tiene cómo comprobar que
+   * quedó.
    *
-   * ── Por qué aparte y no mezclado ──────────────────────────────────────────
-   * Porque reclasificarlos como cobrables sería peor que no verlos. En los
-   * casos MVA paga el abogado: marcar esos $862.000 como "del paciente"
-   * pondría a recepción pidiéndole esa plata a quien no la debe. Acá se ve
-   * todo —lo que se cobró en el v2 y lo que quedó debiendo— sin sumar a ningún
-   * total de cobro y sin un solo botón que cobre (decisión de Erick,
-   * 15-sep-2026).
+   * Sin anulados — los filtra la API, y la anulación queda en el AuditLog.
    */
-  /** Arranca cerrado: es expediente, no trabajo del día. */
-  const [v2Abierto, setV2Abierto] = useState(false);
-
-  const delV2 = billings.filter(b =>
-    b.migratedFromV2 && (!filterAppointmentId || b.appointmentId === filterAppointmentId));
-  const v2Costo  = delV2.reduce((s, b) => s + b.totalCost, 0);
-  const v2Pagado = delV2.reduce((s, b) => s + b.amountPaid, 0);
-  const v2Saldo  = delV2.reduce((s, b) => s + b.balanceDue, 0);
-  /** Los pagos que ENTRARON en el v2, como bitácora: quién puso y cómo. */
-  const v2Pagos = React.useMemo(() => {
-    const ids = new Set(delV2.map(b => b.id));
-    return payments.filter(p => ids.has(p.billingId));
-  }, [delV2, payments]);
+  const historial = payments.filter(p =>
+    !filterAppointmentId || p.appointmentId === filterAppointmentId);
 
   const pending     = pendingOf(billings);
-  const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
 
   /**
    * Lo pendiente agrupado POR VISITA. El paciente paga "lo del 5 de agosto":
@@ -551,18 +737,41 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
    * una sola vez (decisión de Erick 2026-08-10). Antes había un campo por línea
    * y en una visita con 6 cargos eran 6 campos para un solo cobro.
    */
-  const visitasPendientes = React.useMemo(() => {
-    const m = new Map<string, { key: string; fecha: string | null; lineas: BillingRecord[]; saldo: number }>();
-    for (const b of pending) {
-      const key = b.appointmentId ?? `sin-cita-${b.id}`;
-      const g = m.get(key) ?? { key, fecha: b.appointmentDate, lineas: [], saldo: 0 };
-      g.lineas.push(b);
-      g.saldo += b.balanceDue;
-      m.set(key, g);
-    }
-    return [...m.values()].sort((a, z) =>
-      new Date(z.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime());
-  }, [pending]);
+  const visitasPendientes = React.useMemo(() => agruparPorVisita(pending), [pending]);
+
+  /**
+   * Lo mismo para el circuito de terceros — los CPT que le tocan al seguro o
+   * al abogado. Es la lista que el modal ofrece cuando la fuente del pago no
+   * es el paciente.
+   */
+  const pendientesTerceros = React.useMemo(
+    () => cobrablesDe(billings, 'INSURANCE'), [billings, cobrablesDe]);
+  const visitasTerceros = React.useMemo(
+    () => agruparPorVisita(pendientesTerceros), [pendientesTerceros]);
+  const saldoTerceros = pendientesTerceros.reduce((s, b) => s + b.balanceDue, 0);
+
+  /**
+   * Las visitas que el modal está ofreciendo AHORA, según quién paga.
+   *
+   * Es lo que hace que un mismo modal sirva para los dos circuitos sin poder
+   * mezclarlos: al cambiar la fuente cambia la lista, y los montos tecleados se
+   * descartan (ver el `onChange` del selector) porque pertenecían a otros
+   * cargos.
+   */
+  const visitasDelModal = paySource === 'PATIENT' ? visitasPendientes : visitasTerceros;
+
+  /**
+   * El total del circuito que el modal está mostrando.
+   *
+   * ⚠️ NO es `totalPending`: ése es siempre el del mostrador. Con el modal
+   * abierto en el circuito del seguro, la cabecera decía "TOTAL PENDING $0.00"
+   * sobre una lista de 11 visitas por $7.666,19, y el campo de reparto decía
+   * "distribuir hasta $0.00" — o sea que además de mentir, no dejaba repartir
+   * nada. Visto en pantalla con MVA-1812 (16-sep); ni `tsc` ni leer el diff lo
+   * mostraban, porque las dos variables son números válidos y la de al lado
+   * parecía la correcta.
+   */
+  const totalDelModal = visitasDelModal.reduce((s, v) => s + v.saldo, 0);
 
   /**
    * Con UNA sola visita pendiente, el detalle se abre solo.
@@ -575,8 +784,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
    */
   React.useEffect(() => {
     if (!payOpen) return;
-    if (visitasPendientes.length === 1) setDetalleVisita(visitasPendientes[0]!.key);
-  }, [payOpen, visitasPendientes]);
+    if (visitasDelModal.length === 1) setDetalleVisita(visitasDelModal[0]!.key);
+  }, [payOpen, visitasDelModal]);
 
   /**
    * Cómo se reparte el monto de una visita entre sus líneas: en ORDEN, llenando
@@ -599,20 +808,31 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     return out;
   }, []);
   const payTotal    = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  const hasOverpay  = visitasPendientes.some(v => (parseFloat(payAmounts[v.key] ?? '0') || 0) > v.saldo);
+  const hasOverpay  = visitasDelModal.some(v => (parseFloat(payAmounts[v.key] ?? '0') || 0) > v.saldo);
 
   // Options for custom selects
+  /**
+   * ⚠️ El ORDEN es el del v2, no uno nuestro (Erick, 2026-09-16: "las demás
+   * listas no debemos cambiar nada, ni los títulos").
+   *
+   * El equipo lleva años buscando estas opciones por su POSICIÓN, no leyéndolas:
+   * reordenarlas hace que elijan la de al lado. Acá estaban en otro orden y el
+   * método "None" se mostraba como "— Not specified", que en el v2 dice "None".
+   *
+   * Si alguna vez hay que reordenarlas, que sea por una razón mejor que
+   * "alfabético queda más prolijo" — esa es justamente la del v2.
+   */
   const sourceOptions: SelectOption[] = [
-    { label: t('srcPatient'), value: 'PATIENT' },
     { label: t('srcInsurance'), value: 'INSURANCE' },
-    { label: t('srcLawyer'), value: 'LAWYER' },
+    { label: t('srcLawyer'),    value: 'LAWYER' },
+    { label: t('srcPatient'),   value: 'PATIENT' },
   ];
   const methodOptions: SelectOption[] = [
-    { label: t('mCheck'),    value: 'CHECK' },
     { label: t('mCard'),     value: 'CARD' },
     { label: t('mCash'),     value: 'CASH' },
+    { label: t('mCheck'),    value: 'CHECK' },
+    { label: t('mNone'),     value: 'NONE' },
     { label: t('mTransfer'), value: 'TRANSFER' },
-    { label: `— ${t('notSpecified')}`, value: 'NONE' },
   ];
   const typeOptions: SelectOption[] = PAYMENT_TYPES[paySource] ?? [];
   const insuranceOptions: SelectOption[] = insurances.map(i => ({ label: i.label, value: i.id }));
@@ -637,10 +857,35 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               New order). Dice el monto antes del clic. Verde sólido: la plata
               del paciente ya es verde en todo el sistema y el ámbar acá se
               leería como alerta. Oculto en readOnly (doctor). */}
-          {vistaSaldo > 0 && !readOnly && (
+          {/*
+            Aparece con saldo en CUALQUIERA de los dos circuitos.
+            ───────────────────────────────────────────────────────────────
+            Miraba solo el del mostrador (`vistaSaldo`), así que en un caso
+            cuya deuda es toda del seguro o del abogado —los que vinieron del
+            sistema anterior son todos así— el botón **no se dibujaba**: el
+            modal existía y no había puerta para entrar. Verificado en pantalla
+            con MVA-1812 el 16-sep, que muestra $7.666,19 a seguro y no tenía
+            con qué cobrarlos.
+
+            ── El rótulo ─────────────────────────────────────────────────
+            En inglés dice "Pay debts" y no "Collect": es como se llama este
+            botón en el v2 y como lo conoce el equipo desde hace años (Erick,
+            2026-09-16). Migrar gente cuesta más que migrar datos.
+
+            En español se queda "Cobrar", que NO es la traducción literal y es
+            a propósito: "pagar deudas", leído por quien opera la pantalla,
+            dice que paga la clínica — el sujeto del verbo se da vuelta. Además
+            "cobrar" es el verbo de las otras doce cadenas de la app ("por
+            cobrar del seguro", "falta cobrar", "visitas por cobrar"…), y ésta
+            sería la única que dijera lo contrario.
+
+            Sin el monto, también por decisión suya: el saldo ya está en las
+            tarjetas, arriba del botón.
+          */}
+          {(vistaSaldo > 0 || saldoTerceros > 0) && !readOnly && (
             <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-emerald hover:bg-emerald/90 text-bg-0 border-transparent">
               <CreditCard className="w-3.5 h-3.5" />
-              {tDoc('sumCollect', { amount: fmt$(vistaSaldo) })}
+              {tDoc('sumCollect')}
             </Button>
           )}
         </div>
@@ -648,36 +893,29 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap">
-        {/* Tres tarjetas, todas del PACIENTE. La de "A seguro / abogado" se fue:
-            ese circuito no se cobra acá — se anota y lo gestiona Cobranzas meses
-            después (regla de Erick 2026-08-10). Verlo en la pantalla de cobro
-            terminaba con el mostrador pidiéndole al paciente plata del seguro. */}
+        {/* Cuatro tarjetas. Las dos primeras son del CASO entero; "Paga el
+            paciente" es solo el mostrador y "A seguro / abogado" el otro
+            circuito — separadas para que nadie le pida al paciente lo que
+            paga el seguro, pero las dos cobrables desde el mismo modal. */}
         <KpiCard label={t('kpiTotalCost')} value={vistaCosto}  color="text-text-1" />
         <KpiCard label={t('kpiTotalPaid')} value={vistaPagado} color="text-emerald" />
         <KpiCard label={t('kpiPatientDebt')} value={vistaSaldo} color={vistaSaldo > 0 ? 'text-rose' : 'text-text-1'} />
+        {/*
+          La cuarta tarjeta, que antes se había sacado.
+          ───────────────────────────────────────────────────────────────────
+          Se quitó cuando esa plata NO se podía cobrar desde acá: mostrarla era
+          ofrecerle al mostrador un número que no podía tocar. Ahora se cobra
+          —con la fuente puesta en seguro o abogado— así que vuelve, porque es
+          trabajo de Finanzas y sin la tarjeta no hay por dónde empezarlo.
+          Sigue separada de "Paga el paciente" a propósito.
+        */}
+        <KpiCard
+          label={t('kpiThirdPartyDebt')}
+          value={saldoTerceros}
+          color={saldoTerceros > 0 ? 'text-amber' : 'text-text-1'}
+          hint={saldoTerceros > 0 ? t('kpiThirdPartyHint') : undefined}
+        />
       </div>
-
-      {/*
-        El aviso de que estos tres números NO son todo lo que hay.
-        ─────────────────────────────────────────────────────────────────────
-        Las tarjetas cuentan solo v3. En un caso cuyos cargos son todos del
-        sistema anterior dicen "$0.00" teniendo miles de dólares de saldo tres
-        secciones más abajo — y "$0.00" se lee como "no debe nada", no como
-        "acá no se cobra". Erick lo reportó el 16-sep mirando MVA-1812, que
-        muestra $0.00 arriba y $7.666,19 en el historial del v2.
-
-        El saldo NO se suma a las tarjetas a propósito: eso sigue siendo la
-        decisión del 15-sep —lo del v2 no se cobra desde esta pantalla, porque
-        en los MVA lo paga el abogado del acuerdo— y sumarlo pondría a
-        recepción reclamando plata que no le toca al paciente. Lo que faltaba
-        no era sumarlo: era DECIRLO. Un total que omite en silencio es lo que
-        hace dudar de la pantalla entera.
-      */}
-      {v2Saldo > 0 && (
-        <div className="rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-[11px] text-cyan">
-          {t('kpiAvisoV2', { monto: fmt$(v2Saldo) })}
-        </div>
-      )}
 
       {/* ── QUÉ se está cobrando (solo con una cita puesta) ──────────────────
           Lo que el paciente debe HOY, línea por línea: efectivo, laboratorios y
@@ -825,7 +1063,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                       {METHOD_LABELS[p.method] ?? p.method}
                     </td>
                     <td className="px-3 py-2.5 text-xs text-text-muted hidden md:table-cell">
-                      {PAYMENT_TYPES[p.source]?.find(o => o.value === p.paymentType)?.label ?? '—'}
+                      {rotuloDeTipo(PAYMENT_TYPES, p.paymentType) ?? '—'}
                     </td>
                     {/* A qué se aplicó: el servicio Y la visita. Un monto suelto
                         con su fecha de cobro no dice qué se estaba pagando. */}
@@ -858,100 +1096,6 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         </div>
       )}
 
-      {/* ── Historial del v2 — SOLO LECTURA ──────────────────────────────────
-          Va al final y arranca cerrado: no es trabajo de hoy. Pero tiene que
-          estar, porque son $1,38 millones de expediente económico que antes no
-          se veían en ninguna pantalla del sistema.
-
-          Ni un botón que cobre acá adentro. Si alguien tiene que gestionar esta
-          plata, es Cobranzas con el seguro o el abogado — no el mostrador con
-          el paciente enfrente. */}
-      {delV2.length > 0 && (
-        <div className="rounded-lg bg-bg-1 p-5 mt-4">
-          <button
-            type="button"
-            onClick={() => setV2Abierto(v => !v)}
-            className="w-full flex items-center gap-2 text-left"
-          >
-            {v2Abierto ? <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
-                       : <ChevronRight className="w-4 h-4 text-text-muted shrink-0" />}
-            <FileText className="w-4 h-4 text-text-muted shrink-0" />
-            <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">
-              {t('v2Title')}
-            </span>
-            <span className="ml-auto flex items-center gap-3 text-[11px] tabular-nums shrink-0">
-              <span className="text-text-muted">{t('v2Charges', { n: delV2.length })}</span>
-              <span className="font-mono text-text-2">{fmt$(v2Costo)}</span>
-              {v2Pagado > 0 && <span className="font-mono text-emerald">{fmt$(v2Pagado)}</span>}
-              {v2Saldo > 0 && <span className="font-mono text-amber">{fmt$(v2Saldo)}</span>}
-            </span>
-          </button>
-
-          {v2Abierto && (
-            <div className="mt-3">
-              <p className="text-[11px] text-text-muted mb-3">{t('v2Subtitle')}</p>
-
-              <div className="rounded-md bg-bg-2/40 overflow-x-auto">
-                <table className="w-full min-w-[560px]">
-                  <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-text-muted">
-                      <th className="px-3 py-2 text-left font-semibold">{t('v2ColDate')}</th>
-                      <th className="px-3 py-2 text-left font-semibold">{t('v2ColConcept')}</th>
-                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColCost')}</th>
-                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColPaid')}</th>
-                      <th className="px-3 py-2 text-right font-semibold">{t('v2ColBalance')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {delV2.map(b => (
-                      <tr key={b.id} className="border-b border-row-sep last:border-0">
-                        <td className="px-3 py-2 whitespace-nowrap text-xs text-text-2">{fmtDate(b.appointmentDate)}</td>
-                        <td className="px-3 py-2 text-[12.5px] text-text-1">
-                          {b.serviceCode && (
-                            <span className="font-mono text-[11px] text-text-muted mr-1.5">{b.serviceCode}</span>
-                          )}
-                          {b.serviceDescription ?? '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-xs text-text-2">{fmt$(b.totalCost)}</td>
-                        <td className="px-3 py-2 text-right font-mono text-xs text-emerald">
-                          {b.amountPaid > 0 ? fmt$(b.amountPaid) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-xs text-text-1">
-                          {b.balanceDue > 0 ? fmt$(b.balanceDue) : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Lo que SÍ se cobró en el v2, como bitácora. Erick lo pidió
-                  explícitamente: si el paciente ya pagó allá, tiene que poder
-                  demostrarse acá. */}
-              {v2Pagos.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
-                    {t('v2PaymentsTitle', { n: v2Pagos.length })}
-                  </div>
-                  <div className="rounded-md bg-bg-2/40 divide-y divide-row-sep">
-                    {v2Pagos.map(p => (
-                      <div key={p.id} className="px-3 py-2 flex items-center gap-3 flex-wrap text-xs">
-                        <span className="text-text-2 whitespace-nowrap">{fmtDate(p.paidAt)}</span>
-                        <span className="font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</span>
-                        <span className="text-text-muted">{METHOD_LABELS[p.method] ?? p.method}</span>
-                        <span className="text-text-muted">{t(`v2Payer.${p.source}`)}</span>
-                        <span className="text-text-2 flex-1 min-w-[120px] truncate">
-                          {p.serviceDescription ?? p.serviceCode ?? '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Modal: Pagar deuda ───────────────────────────────────────────────────
           Usa el primitivo Dialog (Regla #0) en vez de un overlay `fixed` propio.
@@ -988,7 +1132,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             <div className="grid grid-cols-2 border-b border-border">
               <div className="px-5 py-3 border-r border-border">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payTotalPending')}</div>
-                <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
+                <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalDelModal)}</div>
               </div>
               <div className="px-5 py-3">
                 {/* Visitas, no líneas: se cobra por visita, así que contar
@@ -1001,13 +1145,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   <>
                     <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitDate')}</div>
                     <div className="text-xl font-bold font-mono text-text-1 mt-0.5">
-                      {fmtDate(visitasPendientes[0]?.fecha ?? deLaVista[0]?.appointmentDate ?? null)}
+                      {fmtDate(visitasDelModal[0]?.fecha ?? deLaVista[0]?.appointmentDate ?? null)}
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payVisitsPending')}</div>
-                    <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{visitasPendientes.length}</div>
+                    <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{visitasDelModal.length}</div>
                   </>
                 )}
               </div>
@@ -1038,7 +1182,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                  * regla oculta.
                  */
                 <div className="max-h-72 overflow-y-auto divide-y divide-row-sep">
-                  {visitasPendientes.map(v => {
+                  {visitasDelModal.map(v => {
                     const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
                     const reparto = repartir(v.lineas, monto);
                     const abierta = detalleVisita === v.key;
@@ -1139,6 +1283,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                   <th className="text-left py-1.5">{t('payColService')}</th>
                                   <th className="text-right py-1.5">{t('payColPending')}</th>
                                   <th className="text-right py-1.5">{t('payColTakes')}</th>
+                                  <th className="w-8 py-1.5" />
                                 </tr>
                               </thead>
                               <tbody>
@@ -1159,6 +1304,19 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                     <td className="py-1 text-right font-mono tabular-nums">{fmt$(l.balanceDue)}</td>
                                     <td className={`py-1 text-right font-mono tabular-nums ${reparto[l.id] ? 'text-emerald' : 'text-text-muted'}`}>
                                       {reparto[l.id] ? fmt$(reparto[l.id]) : '—'}
+                                    </td>
+                                    {/* Cobrar SOLO esta línea, con su propio
+                                        origen y método — ver `lineaAPagar`. */}
+                                    <td className="py-1 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => abrirPagoDeLinea(l)}
+                                        title={t('lpTooltip')}
+                                        aria-label={t('lpTooltip')}
+                                        className="p-1 rounded text-text-muted hover:text-emerald transition-colors"
+                                      >
+                                        <CreditCard className="w-3.5 h-3.5" />
+                                      </button>
                                     </td>
                                   </tr>
                                 ))}
@@ -1185,6 +1343,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   value={paySource}
                   onChange={v => {
                     const src = v as typeof paySource;
+                    /**
+                     * Cambiar de fuente puede cambiar de CIRCUITO, y entonces
+                     * la lista de cargos de arriba es otra. Los montos que
+                     * había tecleados pertenecían a cargos que ya no están en
+                     * pantalla: si no se limpian, se registran contra líneas
+                     * que el que cobra dejó de ver.
+                     */
+                    if (circuitoDe(src) !== circuitoDe(paySource)) {
+                      setPayAmounts({});
+                      setPayNotes({});
+                      setDetalleVisita(null);
+                    }
                     setPaySource(src);
                     setPayType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
                     if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
@@ -1226,14 +1396,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 <input
                   type="number"
                   min="0"
-                  max={totalPending}
+                  max={totalDelModal}
                   step="0.01"
-                  placeholder={`Distribuir hasta ${fmt$(totalPending)}`}
+                  placeholder={`Distribuir hasta ${fmt$(totalDelModal)}`}
                   onChange={e => {
                     const raw = parseFloat(e.target.value);
-                    if (!isNaN(raw) && raw > totalPending) {
-                      e.target.value = totalPending.toFixed(2);
-                      autoDistribute(totalPending.toFixed(2));
+                    if (!isNaN(raw) && raw > totalDelModal) {
+                      e.target.value = totalDelModal.toFixed(2);
+                      autoDistribute(totalDelModal.toFixed(2));
                     } else {
                       autoDistribute(e.target.value);
                     }
@@ -1258,10 +1428,133 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             {/* Nota de pago — overlay dentro del modal (no un segundo fixed
                 encima, para no repetir el problema de dos fondos oscuros
                 apilados que ya tuvimos con Servicios + Pagar deuda). */}
+            {/* ── Pago de UNA línea ─────────────────────────────────────────
+                Mismo patrón que el diálogo de notas: overlay dentro del modal,
+                no un Dialog anidado más. Ver `lineaAPagar` para el porqué. */}
+            {lineaAPagar && (() => {
+              const l = lineaAPagar;
+              const tiposLp = PAYMENT_TYPES[lpSource] ?? [];
+              return (
+                <div
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
+                  onClick={() => setLineaAPagar(null)}
+                >
+                  {/* `max-h-full` + scroll: el diálogo tiene ocho campos y es
+                      MÁS ALTO que el modal que lo contiene. Sin esto se corta
+                      arriba el título y abajo los botones — o sea que no se
+                      podía ni registrar ni cancelar (visto en pantalla,
+                      16-sep). El encabezado y el pie quedan fijos y lo que
+                      scrollea es el medio. */}
+                  <div
+                    className="bg-bg-1 border border-border rounded-xl w-full max-w-md shadow-2xl max-h-full flex flex-col"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="shrink-0 flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
+                      <div className="min-w-0">
+                        <h3 className="text-text-1 font-semibold text-base">{t('lpTitle')}</h3>
+                        {/* "Service: <código> - <descripción>", como en el v2. */}
+                        <p className="text-text-muted text-xs mt-0.5 truncate">
+                          <span className="mr-1">{t('lpServicePrefix')}</span>
+                          {l.serviceCode && <span className="font-mono text-cyan">{l.serviceCode} - </span>}
+                          {l.serviceDescription ?? '—'}
+                        </p>
+                      </div>
+                      <button onClick={() => setLineaAPagar(null)} className="text-text-muted hover:text-text-1 transition-colors p-1 shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="p-5 space-y-3 overflow-y-auto">
+                      {/* Costo y pendiente de ESA línea, como en el v2 */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-md bg-bg-2/40 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpCost')}</div>
+                          <div className="font-mono text-text-1 text-sm mt-0.5">{fmt$(l.totalCost)}</div>
+                        </div>
+                        <div className="rounded-md bg-bg-2/40 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payColPending')}</div>
+                          <div className="font-mono text-rose text-sm mt-0.5">{fmt$(l.balanceDue)}</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpWhoPays')}</label>
+                          <SelectUp
+                            value={lpSource}
+                            onChange={v => {
+                              const src = v as typeof lpSource;
+                              setLpSource(src);
+                              setLpType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+                            }}
+                            options={sourceOptions}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpMethod')}</label>
+                          <SelectUp value={lpMethod} onChange={setLpMethod} options={methodOptions} className="mt-1" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpType')}</label>
+                          <SelectUp value={lpType} onChange={setLpType} options={tiposLp} className="mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpAmount')}</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={l.balanceDue}
+                            value={lpMonto}
+                            onChange={e => {
+                              const raw = parseFloat(e.target.value);
+                              // Mismo tope al escribir que el campo por visita.
+                              setLpMonto(!isNaN(raw) && raw > l.balanceDue ? l.balanceDue.toFixed(2) : e.target.value);
+                            }}
+                            className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm font-mono text-right text-text-1 outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payNotesLabel')}</label>
+                        <textarea
+                          value={lpNotas}
+                          onChange={e => setLpNotas(e.target.value)}
+                          rows={2}
+                          placeholder={t('lpNotesPlaceholder')}
+                          className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 px-5 py-4 border-t border-border flex flex-col sm:flex-row justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setLineaAPagar(null)} className="w-full sm:w-auto">
+                        {tc('cancel')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={lpGuardando || (parseFloat(lpMonto) || 0) <= 0}
+                        onClick={registrarPagoDeLinea}
+                        className="w-full sm:w-auto gap-1.5"
+                      >
+                        {lpGuardando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        {t('lpRegister')}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {noteDialogFor && (() => {
               // `noteDialogFor` es la clave de la VISITA (antes era un billingId):
               // la nota describe el cobro completo, que ahora se hace por visita.
-              const v = visitasPendientes.find(x => x.key === noteDialogFor);
+              const v = visitasDelModal.find(x => x.key === noteDialogFor);
               if (!v) return null;
               return (
                 <div

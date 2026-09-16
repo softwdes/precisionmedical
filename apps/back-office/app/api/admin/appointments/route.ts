@@ -68,6 +68,12 @@ const APPT_INCLUDE = {
   // `color` lo elige recepción en Settings, una vez por sede. Sirve para
   // distinguir de qué oficina es cada cita cuando se miran todas juntas.
   clinic: { select: { id: true, name: true, color: true } },
+  /**
+   * Solo el ESTADO de la nota clinica, nunca su contenido: el calendario no
+   * muestra PHI de la nota. Con esto el boton sabe que ofrecer — abrirla,
+   * retomar el borrador, o decir que esa visita no dejo nota.
+   */
+  visitNote: { select: { status: true } },
   provider: {
     select: {
       id: true,
@@ -201,6 +207,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // necesita link, necesita el impreso.
       attendanceSignedAt: appt.attendanceSignedAt?.toISOString() ?? null,
       notes:           appt.notes,
+      /** 'DRAFT' | 'SIGNED' | null (esa visita no dejo nota). */
+      noteStatus:      appt.visitNote?.status ?? null,
       isOnline:        appt.isOnline,
       meetingUrl:      appt.meetingUrl,
       visitNumber:     visitCountsByCaseAndAppt[appt.id] ?? 0,

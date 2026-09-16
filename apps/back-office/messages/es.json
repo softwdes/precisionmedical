@@ -2959,7 +2959,6 @@
       "tabDetail": "Detalle",
       "tabServices": "Servicios",
       "tabPayments": "Pagos",
-      "quickAccessCase": "Ver caso · cobrar labs, servicios y férulas",
       "quickAccessCaseHint": "Abre el caso completo del paciente",
       "statusScheduled": "Agendada",
       "statusConfirmed": "Confirmada",
@@ -3279,7 +3278,12 @@
       "clinicIsTelemedicine": "Telemedicina — el paciente no viene a la sede",
       "actionReopen": "Reabrir para mover la hora",
       "reopenLoading": "Reabriendo…",
-      "errorReopen": "No se pudo reabrir la cita. Probá de nuevo."
+      "errorReopen": "No se pudo reabrir la cita. Probá de nuevo.",
+      "quickAccessCaseShort": "Caso",
+      "quickAccessNote": "Nota",
+      "quickAccessNoteDraft": "Nota · borrador",
+      "quickAccessNoteHint": "Abre la nota clínica de esta visita",
+      "quickAccessNoteNone": "Esta visita no tiene nota clínica"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

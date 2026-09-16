@@ -43,11 +43,25 @@ const SECTIONS: Array<{ key: keyof CaseVisitNote; labelKey: string }> = [
   { key: 'plan', labelKey: 'sec_PLAN' },
 ];
 
-export function CaseVisitNotes({ caseId }: { caseId: string }): React.ReactElement {
+export function CaseVisitNotes({ caseId, visitaEnfocada }: {
+  caseId: string;
+  /**
+   * Cita de la que viene el usuario. Su nota arranca ABIERTA.
+   *
+   * Sin esto, entrar desde el botón "Nota" del calendario aterrizaba en el
+   * acordeón colapsado con TODAS las notas del caso y había que adivinar cuál
+   * era la de la cita en la que se hizo clic. El botón promete una nota, así
+   * que tiene que entregar esa.
+   *
+   * Si esa visita no dejó nota, no hay nada que abrir y la lista queda como
+   * siempre — no se inventa una fila vacía.
+   */
+  visitaEnfocada?: string | null;
+}): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
   const [notes, setNotes] = React.useState<CaseVisitNote[] | null>(null);
-  const [openId, setOpenId] = React.useState<string | null>(null);
+  const [openId, setOpenId] = React.useState<string | null>(visitaEnfocada ?? null);
   /** Cita cuya hoja imprimible se está mirando. Es una lista: guarda cuál. */
   const [printId, setPrintId] = React.useState<string | null>(null);
 
@@ -64,6 +78,15 @@ export function CaseVisitNotes({ caseId }: { caseId: string }): React.ReactEleme
     })();
     return () => { alive = false; };
   }, [caseId]);
+
+  /**
+   * El modal no se desmonta al cambiar de visita dentro del mismo caso, así que
+   * el estado inicial no alcanza: sin esto, volver al calendario, abrir otra
+   * cita y darle a "Nota" dejaba desplegada la nota anterior.
+   */
+  React.useEffect(() => {
+    if (visitaEnfocada) setOpenId(visitaEnfocada);
+  }, [visitaEnfocada]);
 
   if (notes === null) {
     return (

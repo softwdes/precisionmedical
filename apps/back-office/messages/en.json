@@ -2959,7 +2959,6 @@
       "tabDetail": "Detail",
       "tabServices": "Services",
       "tabPayments": "Payments",
-      "quickAccessCase": "View case · pay labs, services & braces",
       "quickAccessCaseHint": "Opens the patient's full case",
       "statusScheduled": "Scheduled",
       "statusConfirmed": "Confirmed",
@@ -3279,7 +3278,12 @@
       "clinicIsTelemedicine": "Telemedicine — the patient does not come to the office",
       "actionReopen": "Reopen to change the time",
       "reopenLoading": "Reopening…",
-      "errorReopen": "The appointment could not be reopened. Try again."
+      "errorReopen": "The appointment could not be reopened. Try again.",
+      "quickAccessCaseShort": "Case",
+      "quickAccessNote": "Note",
+      "quickAccessNoteDraft": "Note · draft",
+      "quickAccessNoteHint": "Opens this visit's clinical note",
+      "quickAccessNoteNone": "This visit has no clinical note"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

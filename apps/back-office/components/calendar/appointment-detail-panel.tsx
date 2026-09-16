@@ -14,10 +14,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Phone, MessageSquare, Calendar,
-  CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
+  CheckCircle2, AlertTriangle, ChevronDown,
   Shield, Check, Edit2, Ban,
   AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
   Stethoscope, Loader2, Clock, FolderOpen, UserX, LogIn, QrCode, Printer, RotateCcw,
+  FileText,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -55,6 +56,14 @@ export interface CalendarAppointment {
    */
   attendanceSignedAt?: string | null;
   notes: string | null;
+  /**
+   * Estado de la nota CLINICA de esta visita — no su contenido.
+   *
+   * `null` no es "no cargo todavia": significa que esa visita no dejo nota. El
+   * boton lo dice en vez de esconderse, que es la regla de la casa para una
+   * accion no disponible.
+   */
+  noteStatus?: 'DRAFT' | 'SIGNED' | null;
   visitNumber: number;
   isOnline?: boolean;
   meetingUrl?: string | null;
@@ -132,8 +141,13 @@ interface Props {
    * Entrega también el id de la cita: la superficie la usa para abrir el caso
    * FILTRADO a esta consulta. Sin eso se entraba desde la cita del martes y el
    * cargo caía en la última visita.
+   *
+   * El `tab` elige con qué pestaña abre. Sin valor manda la superficie (el
+   * calendario entra por Labs, que es donde se cobra). `'citas'` es el atajo a
+   * la NOTA de la visita, que vive ahí: el modal del caso ya la muestra, y
+   * hasta ahora desde el calendario no había forma de llegar.
    */
-  onOpenCase?: (caseId: string, appointmentId?: string) => void;
+  onOpenCase?: (caseId: string, appointmentId?: string, tab?: 'labs' | 'citas') => void;
   /**
    * Habilita el boton "QR de cita" — el codigo que el paciente escanea para
    * revisar sus datos y firmar la confirmacion antes de pasar a triaje.
@@ -726,6 +740,25 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const mostrarCaso = appt.status !== 'CANCELLED' || appt.cancelledSameDay === true;
 
   /**
+   * Abre el caso de esta cita en la pestaña que se le pida.
+   *
+   * El `sync-billing` en segundo plano viene del botón original y se queda para
+   * las DOS entradas: aunque hoy sólo Finanzas lo necesita, el usuario cambia de
+   * tab adentro del modal y la de al lado tiene que estar igual de al día. Es
+   * fire-and-forget a propósito — si falla, el caso abre igual y Finanzas se
+   * sincroniza al entrar.
+   */
+  const abrirCaso = (tab: 'labs' | 'citas') => {
+    if (!appt.case || !onOpenCase) return;
+    fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caseId: appt.case.id }),
+    }).catch(() => {});
+    onOpenCase(appt.case.id, appt.id, tab);
+  };
+
+  /**
    * Cancelar. `mismoDia` marca la cancelacion tardia: el horario ya se perdio, la
    * visita conserva sus servicios y admite un cobro de penalidad. La normal no
    * cobra nada. La decision es de recepcion, no un calculo de fechas — asi se
@@ -1042,58 +1075,81 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 </div>
               )}
 
-              {/* Paciente */}
+              {/* Paciente — y AL LADO DEL NOMBRE los dos accesos.
+                  "Ver caso" era una tarjeta ancha suelta más abajo; Erick la
+                  pidió acá (2026-09-16), pegada al nombre, como en el resto de
+                  las pantallas que abren el caso.
+
+                  El segundo botón es la NOTA clínica, que desde el calendario
+                  no tenía ningún camino. No hay visor nuevo: la nota ya se ve
+                  en el tab Citas de ESTE MISMO modal, así que el botón sólo
+                  elige con qué pestaña abre. Estaba a tres clics y nadie lo
+                  sabía.
+
+                  Son DOS y no uno porque el camino de todos los días desde el
+                  calendario sigue siendo cobrar —entra por Labs, decisión del
+                  2026-08-09—; la nota es un atajo nuevo, no su reemplazo.
+
+                  El sello de visita baja a la línea de la edad: la fila de
+                  arriba es ahora del nombre y las acciones. */}
               <div className="rounded-lg border border-border bg-bg-2/30 p-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <PersonAvatar firstName={appt.patient.firstName} lastName={appt.patient.lastName} size={10} />
                   <div className="flex-1 min-w-0">
                     <div className="text-text-1 font-bold text-sm">
                       {appt.patient.firstName} {appt.patient.lastName}
                       {appt.case && <span className="ml-2 text-rose font-mono text-[11px]">#{appt.case.caseCode}</span>}
                     </div>
-                    <div className="text-text-muted text-xs mt-0.5">{t('ageSuffix', { age: edad(appt.patient.dateOfBirth) ?? '?' })}</div>
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <span className="text-text-muted text-xs">{t('ageSuffix', { age: edad(appt.patient.dateOfBirth) ?? '?' })}</span>
+                      {isFirst ? (
+                        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                          style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>🆕 {t('firstVisitBadge')}</span>
+                      ) : (
+                        <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg-2 text-text-muted border border-border">
+                          {t('visitNumberLabel', { n: appt.visitNumber + 1 })}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {isFirst ? (
-                    <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"
-                      style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>🆕 {t('firstVisitBadge')}</span>
-                  ) : (
-                    <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-bg-2 text-text-muted border border-border">
-                      {t('visitNumberLabel', { n: appt.visitNumber + 1 })}
-                    </span>
+
+                  {appt.case && onOpenCase && mostrarCaso && (
+                    <div className="flex items-stretch gap-2 w-full sm:w-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => abrirCaso('labs')}
+                        title={t('quickAccessCaseHint')}
+                        className="flex-1 sm:flex-none min-h-11 sm:min-h-0 sm:py-2 px-3 flex items-center justify-center gap-1.5 rounded-lg border border-emerald/30 bg-emerald/5 hover:bg-emerald/10 transition-colors text-emerald text-xs font-semibold"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                        {t('quickAccessCaseShort')}
+                      </button>
+
+                      {/* La nota no disponible se MUESTRA bloqueada y dice por
+                          qué, en vez de desaparecer (regla de la casa).
+                          `noteStatus === null` no es "todavía no cargó": es que
+                          esa visita no dejó nota. */}
+                      <button
+                        type="button"
+                        disabled={!appt.noteStatus}
+                        onClick={() => abrirCaso('citas')}
+                        title={appt.noteStatus ? t('quickAccessNoteHint') : t('quickAccessNoteNone')}
+                        className={`flex-1 sm:flex-none min-h-11 sm:min-h-0 sm:py-2 px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-colors text-xs font-semibold ${
+                          !appt.noteStatus
+                            ? 'border-border bg-bg-2/40 text-text-muted cursor-not-allowed'
+                            : appt.noteStatus === 'DRAFT'
+                              ? 'border-amber/40 bg-amber/5 hover:bg-amber/10 text-amber'
+                              : 'border-cyan/30 bg-cyan/5 hover:bg-cyan/10 text-cyan'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        {appt.noteStatus === 'DRAFT' ? t('quickAccessNoteDraft') : t('quickAccessNote')}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* UN solo acceso: el detalle del caso. Antes eran dos tarjetas
-                  (Servicios y Pagos) que abrían vistas reducidas de esta misma
-                  cita; el caso ya trae labs, servicios, férulas y el cobro en un
-                  lugar, y es donde el mostrador tiene que estar. Sin caso
-                  vinculado no hay a dónde ir, así que no se muestra nada. */}
-              {appt.case && onOpenCase && mostrarCaso && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    // sync-billing en background: el caso abre con las líneas de
-                    // esta visita ya reflejadas en Finanzas, sin esperar al fetch.
-                    fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ caseId: appt.case?.id }),
-                    }).catch(() => {});
-                    onOpenCase(appt.case!.id, appt.id);
-                  }}
-                  className="w-full flex items-center gap-3 rounded-lg border border-emerald/30 bg-emerald/5 hover:bg-emerald/10 p-4 transition-colors text-left"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-emerald/15 flex items-center justify-center shrink-0">
-                    <FolderOpen className="w-4 h-4 text-emerald" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-text-1 font-semibold text-sm">{t('quickAccessCase')}</div>
-                    <div className="text-text-muted text-[11px]">{t('quickAccessCaseHint')}</div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-emerald shrink-0" />
-                </button>
-              )}
 
               {/* Info de la cita + Checklist pre-cita — lado a lado en pantallas anchas */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

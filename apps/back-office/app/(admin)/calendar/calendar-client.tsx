@@ -50,6 +50,8 @@ interface CalendarAppointment {
   type: string;
   status: string;
   notes: string | null;
+  /** Estado de la nota clínica de la visita — null = esa visita no dejó nota. */
+  noteStatus?: 'DRAFT' | 'SIGNED' | null;
   isOnline: boolean;
   meetingUrl: string | null;
   visitNumber: number; // 0 = primera cita
@@ -706,9 +708,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
   // Abre en Laboratorios, no en el resumen del caso: desde el calendario se
   // entra a ver qué se le va a cobrar al paciente, y los labs son el primer
-  // renglón de esa cuenta (decisión de Erick 2026-08-09).
-  const openCase = useCallback((caseId: string, appointmentId?: string) => {
-    router.push(conCasoAbierto(pathname, searchParams, caseId, 'labs', appointmentId), { scroll: false });
+  // renglón de esa cuenta (decisión de Erick 2026-08-09). El botón de la NOTA
+  // manda `citas` y pisa ese default: la nota clínica vive en ese tab.
+  const openCase = useCallback((caseId: string, appointmentId?: string, tab: 'labs' | 'citas' = 'labs') => {
+    router.push(conCasoAbierto(pathname, searchParams, caseId, tab, appointmentId), { scroll: false });
   }, [router, pathname, searchParams]);
 
   // Al volver del caso, la data del calendario puede haber cambiado (cobros,

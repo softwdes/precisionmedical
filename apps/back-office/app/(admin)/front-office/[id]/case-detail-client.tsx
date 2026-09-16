@@ -948,6 +948,9 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           specialty={caseInfo.specialty}
           hidePayments={isReadOnly}
           readOnly={isReadOnly}
+          /* Venís del calendario con una cita puntual: su nota se abre sola en
+             vez de dejarte buscarla en la lista de todas. */
+          visitaEnfocada={visitId}
         />
       )}
 

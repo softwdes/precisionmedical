@@ -44,6 +44,12 @@ interface Props {
    * las toca. Agendar es de la clínica.
    */
   readOnly?: boolean;
+  /**
+   * Cita de la que viene el usuario (el `?visit=` de la URL). Sólo ENFOCA: no
+   * filtra la lista de citas, que se sigue viendo entera. La usa el archivo de
+   * notas para abrir la de ESA visita en vez de dejarla colapsada entre todas.
+   */
+  visitaEnfocada?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -241,7 +247,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false, readOnly = false }: Props) {
+export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = false, readOnly = false, visitaEnfocada }: Props) {
   const t  = useTranslations('phoenix.caseTabs.citas');
   const tc = useTranslations('phoenix.common');
   /** El vocabulario de la nota clínica vive en `phoenix.doctor`, no acá. */
@@ -442,7 +448,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
             {td('visitNotes')}
           </h3>
         </div>
-        <CaseVisitNotes caseId={caseId} />
+        <CaseVisitNotes caseId={caseId} visitaEnfocada={visitaEnfocada} />
       </div>
 
       <AppointmentDialog

@@ -8,6 +8,7 @@ import { CaseActionsMenu } from './case-actions';
 import { AssistantsSelect, type AssistantOption } from './assistants-select';
 import {
   PageHeader, DataTable, TagPill, StatusPill, EmptyState, Skeleton, TableFooter,
+  PersonAvatar, FotoGrandeDialog, type FotoGrande,
 } from '@/components/ui-phoenix';
 import { Input } from '@precision/ui';
 import { fecha } from '@/lib/fechas';
@@ -33,7 +34,7 @@ interface CaseRow {
   status: string;
   createdAt: string;
   accidentDate: string | null;
-  patient: { firstName: string; lastName: string };
+  patient: { firstName: string; lastName: string; photoUrl: string | null };
   attorneyId: string | null;
   paralegalId: string | null;
   /** Varios por caso — a diferencia del abogado y el paralegal. */
@@ -84,6 +85,8 @@ export function AttorneyCasesClient({
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
+  /** La foto que se está mirando en grande, o `null`. */
+  const [fotoGrande, setFotoGrande] = React.useState<FotoGrande | null>(null);
 
   /**
    * Los filtros ARRANCAN de la URL: los KPIs del Panel son links
@@ -199,6 +202,9 @@ export function AttorneyCasesClient({
 
   return (
     <div className="space-y-4">
+      {/* La foto del cliente en grande. Va afuera de la tabla porque es `fixed`. */}
+      <FotoGrandeDialog foto={fotoGrande} onClose={() => setFotoGrande(null)} cerrarLabel={tc('close')} />
+
       {/* El reporte PDF vivía en el Panel; sin Panel (2026-09-08) su lugar es
           la lista de casos que resume. Abre en otra pestaña, como antes. */}
       <PageHeader
@@ -288,7 +294,29 @@ export function AttorneyCasesClient({
                       {c.caseType ? <TagPill label={c.caseType} compact colorClass="bg-emerald/10 text-emerald border-emerald/20" /> : '—'}
                     </DataTable.Td>
                     <DataTable.Td>
-                      {c.patient.lastName.toUpperCase()}, {c.patient.firstName}
+                      {/* La carita del cliente. Con foto, el clic la agranda;
+                          sin foto son las iniciales y no hay nada que abrir. */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        {c.patient.photoUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setFotoGrande({
+                              url: c.patient.photoUrl!,
+                              nombre: `${c.patient.firstName} ${c.patient.lastName}`.trim(),
+                            })}
+                            title={t('verFoto')}
+                            aria-label={t('verFoto')}
+                            className="shrink-0 rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                          >
+                            <PersonAvatar firstName={c.patient.firstName} lastName={c.patient.lastName} size={6} photoUrl={c.patient.photoUrl} />
+                          </button>
+                        ) : (
+                          <PersonAvatar firstName={c.patient.firstName} lastName={c.patient.lastName} size={6} />
+                        )}
+                        <span className="truncate">
+                          {c.patient.lastName.toUpperCase()}, {c.patient.firstName}
+                        </span>
+                      </div>
                     </DataTable.Td>
 
                     <AssignCell caseRow={c} column="attorneyId"       members={members} canAssign={canAssign} onAssign={assign} placeholder={t('selectAttorney')} unassigned={t('unassigned')} />

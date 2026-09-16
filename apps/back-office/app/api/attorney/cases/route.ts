@@ -15,6 +15,7 @@ import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { lawyerCaseFilter, canAssignStaff, caseListFilters } from '@/lib/attorney-portal';
 import { resolveActor } from '@/lib/actor';
+import { selfiesDePacientes } from '@/lib/fotos-identidad';
 
 const PAGE_SIZE = 10;
 
@@ -81,7 +82,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       select: {
         id: true, caseCode: true, caseType: true, status: true, createdAt: true,
         accidentDate: true, signatureExempt: true,
-        patient: { select: { firstName: true, lastName: true } },
+        patient: { select: { id: true, firstName: true, lastName: true } },
         attorneyId: true, paralegalId: true,
         legalAssistants: { select: { lawyerId: true } },
         // SOLO la del abogado: sin el filtro, un caso firmado por el paciente
@@ -92,6 +93,28 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     db.case.count({ where }),
   ]);
 
+  /**
+   * La foto del cliente, para la carita de la lista.
+   *
+   * ── Esto es PHI saliendo de la clínica: decisión de Erick (2026-09-16) ────
+   *
+   * El portal del bufete ve los documentos de SUS casos, y las fotos de
+   * identidad se habían dejado deliberadamente fuera de ese alcance —viven
+   * colgadas del paciente y no del caso, justamente para que no le lleguen.
+   * Esta foto es la excepción y la pidió Erick: es la cara del propio cliente
+   * del abogado, en la lista donde lo busca.
+   *
+   * Lo que NO cambia: siguen siendo URLs firmadas de 15 minutos sobre el bucket
+   * privado, y solo viaja la SELFIE. La licencia de conducir y las tarjetas de
+   * seguro se quedan donde estaban — ver `fotosDelPaciente`.
+   *
+   * En lote (dos viajes, no dos por fila) y con `.catch`: la lista del bufete
+   * se tiene que dibujar aunque Storage esté caído.
+   */
+  const selfies = await selfiesDePacientes(
+    rows.map((c) => c.patient?.id).filter((x): x is string => !!x),
+  ).catch(() => new Map<string, string>());
+
   return NextResponse.json({
     cases: rows.map((c) => ({
       id: c.id,
@@ -100,7 +123,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: c.status,
       createdAt: c.createdAt.toISOString(),
       accidentDate: c.accidentDate?.toISOString() ?? null,
-      patient: c.patient,
+      // `id` no viaja: el portal no lo necesita y es una identificación interna.
+      patient: {
+        firstName: c.patient?.firstName ?? '',
+        lastName:  c.patient?.lastName ?? '',
+        photoUrl:  c.patient?.id ? (selfies.get(c.patient.id) ?? null) : null,
+      },
       attorneyId: c.attorneyId,
       paralegalId: c.paralegalId,
       legalAssistantIds: c.legalAssistants.map((a) => a.lawyerId),

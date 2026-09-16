@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
-import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
+import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel, FotoGrandeDialog, type FotoGrande } from '@/components/ui-phoenix';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
 import { telefonoDe } from '@/lib/telefono-paciente';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
@@ -966,6 +966,12 @@ export interface PatientRow {
   phone: string | null;
   phone2: string | null;
   patientCode: string | null;
+  /**
+   * Foto de perfil YA FIRMADA, o `null`. La arma el servidor en lote —ver
+   * `patients-data.tsx`— y vence a los 15 minutos: no guardarla ni reusarla
+   * fuera del render de esta página.
+   */
+  photoUrl: string | null;
   status: string;
   preferredLanguage: string | null;
   sex: string | null;
@@ -1660,6 +1666,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const tMembresias = useTranslations('phoenix.memberships');
   const tCarrera = useTranslations('phoenix.carrera');
   const tMsg    = useTranslations('phoenix.messaging');
+  const tCommon = useTranslations('phoenix.common');
   const router = useRouter();
   const searchParamsHook = useSearchParams();
 
@@ -1790,6 +1797,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [referidoRapidoId, setReferidoRapidoId] = useState<string | null>(null);
   // Set, no un id unico: se pueden tener varios pacientes expandidos a la vez
   const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set());
+  /** La foto que se está mirando en grande, o `null`. Ver `FotoGrandeDialog`. */
+  const [fotoGrande,    setFotoGrande]    = useState<FotoGrande | null>(null);
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [expandedCases, setExpandedCases] = useState<Record<string, CaseRow[]>>({});
   const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
@@ -2168,6 +2177,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
   return (
     <>
+      {/* La foto en grande. Va acá arriba y no dentro de la fila: es `fixed` y
+          tiene que escapar de cualquier contenedor con `transform`. */}
+      <FotoGrandeDialog foto={fotoGrande} onClose={() => setFotoGrande(null)} cerrarLabel={tCommon('close')} />
+
       {/* Título + conteo unificado — compacto para que la grilla entre en
           pantalla sin scroll (v2 tampoco gasta una fila alta en el titulo). */}
       <div className="flex items-baseline gap-2 mb-2">
@@ -2502,6 +2515,31 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         ? <ChevronUp className="w-3.5 h-3.5" />
                         : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
+                    {/*
+                      La carita, a la izquierda del nombre.
+                      ─────────────────────────────────────────────────────
+                      Con foto se agranda al hacerle clic; sin foto son las
+                      iniciales y no hay nada que abrir — por eso el botón
+                      existe solo cuando hay `photoUrl`, en vez de estar
+                      siempre y no hacer nada la mayoría de las veces (solo el
+                      17,3% de los pacientes tiene foto).
+
+                      `stopPropagation` porque la fila entera navega al perfil:
+                      sin eso, agrandar la foto te saca de la lista.
+                    */}
+                    {p.photoUrl ? (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setFotoGrande({ url: p.photoUrl!, nombre: `${p.firstName} ${p.lastName}`.trim() }); }}
+                        title={t('tooltipVerFoto')}
+                        aria-label={t('tooltipVerFoto')}
+                        className="shrink-0 rounded-full transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                      >
+                        <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={6} photoUrl={p.photoUrl} />
+                      </button>
+                    ) : (
+                      <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={6} />
+                    )}
                     <div className="min-w-0">
                       <button
                         onClick={() => router.push(`${basePath}/${p.id}`)}

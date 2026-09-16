@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { wherePacientes, alcanceBase } from '@/lib/patients-query';
+import { selfiesDePacientes } from '@/lib/fotos-identidad';
 
 /** Skeleton del Suspense boundary — compartido por /patients y /doctor/patients */
 export function PatientsTableSkeleton() {
@@ -160,7 +161,25 @@ export async function PatientsData({
 
   const patientIds = patients.map(p => p.id);
 
-  const [caseCounts, latestCases] = await Promise.all([
+  /**
+   * Las fotos de perfil de la página — en DOS viajes, no en dos por fila.
+   *
+   * Va dentro del mismo `Promise.all` que los conteos porque no depende de
+   * ellos: con 10 filas, pedirlas en serie agregaría su latencia a la de la
+   * lista entera.
+   *
+   * `selfiesDePacientes` no tira nunca —si Storage falla devuelve un mapa
+   * vacío— así que el `.catch` es cinturón: una lista de pacientes se tiene que
+   * dibujar aunque el almacenamiento esté caído, y el costo de que falle es una
+   * carita con iniciales.
+   *
+   * ⚠️ Solo el 17,3% de los pacientes tiene foto (990 de 5.738, medido el
+   * 2026-09-16), y **975 de esas 990 viven en el bucket privado**: la URL es
+   * firmada y vence a los 15 minutos. Para una lista paginada que se vuelve a
+   * pedir al navegar eso está bien; para una pantalla que queda abierta todo el
+   * día, no. No copiar este patrón a una sin mirar eso primero.
+   */
+  const [caseCounts, latestCases, selfies] = await Promise.all([
     db.case.groupBy({
       by: ['patientId'],
       where: { patientId: { in: patientIds }, deletedAt: null },
@@ -186,6 +205,7 @@ export async function PatientsData({
         autoInsurance: { select: { id: true } },
       },
     }),
+    selfiesDePacientes(patientIds).catch(() => new Map<string, string>()),
   ]);
 
   const caseCountMap = Object.fromEntries(caseCounts.map(c => [c.patientId, c._count._all]));
@@ -217,6 +237,8 @@ export async function PatientsData({
     guardianRelation:         dec(p.guardianRelation),
     insuranceCarrier:         dec(p.insuranceCarrier),
     policyNumber:             dec(p.policyNumber),
+    /** La foto de perfil ya firmada, o `null` si no tiene — ver arriba. */
+    photoUrl: selfies.get(p.id) ?? null,
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {

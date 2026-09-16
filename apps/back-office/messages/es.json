@@ -710,7 +710,8 @@
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
       "msgYouPrefix": "Vos → {name}",
-      "msgToClinic": "Los encargados de la clínica"
+      "msgToClinic": "Los encargados de la clínica",
+      "verFoto": "Ver la foto en grande"
     },
     "doctor": {
       "greeting": "{name}",
@@ -4299,7 +4300,8 @@
       "photoNoCargo": "Hay una foto guardada, pero no se pudo cargar",
       "photoView": "Ver",
       "filterAllPatients": "Todos",
-      "filterMyPatients": "Mis pacientes"
+      "filterMyPatients": "Mis pacientes",
+      "tooltipVerFoto": "Ver la foto en grande"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

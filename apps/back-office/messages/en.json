@@ -710,7 +710,8 @@
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
       "msgYouPrefix": "You → {name}",
-      "msgToClinic": "The clinic staff in charge"
+      "msgToClinic": "The clinic staff in charge",
+      "verFoto": "View photo larger"
     },
     "doctor": {
       "greeting": "{name}",
@@ -4299,7 +4300,8 @@
       "photoNoCargo": "A photo is on file, but it could not be loaded",
       "photoView": "View",
       "filterAllPatients": "All",
-      "filterMyPatients": "My patients"
+      "filterMyPatients": "My patients",
+      "tooltipVerFoto": "View photo larger"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

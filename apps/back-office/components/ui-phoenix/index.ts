@@ -87,3 +87,8 @@ export { FileViewerDialog } from './file-viewer-dialog';
 export { useFileViewer } from './use-file-viewer';
 export type { FileViewerHandle } from './use-file-viewer';
 export { ReleaseNotesDialog } from './release-notes-dialog';
+
+// La foto de una persona en grande — la abre la carita de una lista. La usan
+// `/patients` (back office + provider) y `/attorney/cases`.
+export { FotoGrandeDialog } from './foto-grande-dialog';
+export type { FotoGrande } from './foto-grande-dialog';

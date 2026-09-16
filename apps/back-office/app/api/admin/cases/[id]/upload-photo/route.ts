@@ -12,7 +12,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, archivarFotoDeIdentidad } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { validarFoto, subirFoto, conFotoNueva } from '@/lib/intake-photos';
 
@@ -23,7 +23,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const rec = await db.case.findUnique({
     where:  { id: caseId },
-    select: { id: true, consentsData: true },
+    // `patientId`: la foto se archiva además como documento DE LA PERSONA.
+    select: { id: true, consentsData: true, patientId: true },
   });
   if (!rec) return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
 
@@ -46,6 +47,20 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   const actor = await resolveActor(req.headers);
+
+  // Y además como documento del paciente — ver `foto-identidad.ts`. No frena la
+  // respuesta: la foto ya está subida y ya está en su recuadro.
+  if (rec.patientId) {
+    await archivarFotoDeIdentidad(db, {
+      patientId: rec.patientId,
+      slot:      foto.photoType,
+      bytes:     foto.bytes,
+      mimeType:  foto.tipo,
+      ext:       foto.ext,
+      createdByUserId: actor.actorUserId,
+    });
+  }
+
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,

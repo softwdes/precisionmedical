@@ -9,7 +9,10 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import {
+  db, writeAuditLog,
+  archivarFotoDeIdentidad, papelerizarFotoDeIdentidad, restaurarFotoDeIdentidad,
+} from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkPatientAccess } from '@/lib/patient-access';
 import {
@@ -68,6 +71,17 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   const actor = await resolveActor(req.headers);
+
+  // Y además como documento del paciente — ver `foto-identidad.ts`.
+  await archivarFotoDeIdentidad(db, {
+    patientId,
+    slot:     foto.photoType,
+    bytes:    foto.bytes,
+    mimeType: foto.tipo,
+    ext:      foto.ext,
+    createdByUserId: actor.actorUserId,
+  });
+
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
@@ -116,6 +130,17 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     data:  { consentsData: consents },
   });
 
+  /**
+   * Y la copia que vive como documento del paciente, a la misma papelera.
+   *
+   * Sin esto, eliminar una licencia la sacaba del recuadro y la dejaba entera
+   * en "Archivos personales", lista para descargar. Un documento de identidad
+   * que se elimina se tiene que eliminar en los dos lados.
+   */
+  await papelerizarFotoDeIdentidad(db, patientId, photoType, {
+    id: actor.actorUserId, nombre: actor.actorName ?? null,
+  });
+
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
@@ -156,6 +181,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     where: { id: latestCase.id },
     data:  { consentsData: vuelta.consents },
   });
+
+  // Vuelve el recuadro, vuelve el documento — gemela de la papelera de arriba.
+  await restaurarFotoDeIdentidad(db, patientId, photoType);
 
   const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {

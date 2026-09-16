@@ -44,3 +44,20 @@ export {
   emptyFamilies, emptyHeadline,
 } from './action-families';
 export type { ActionFamily, EmployeeHeadline } from './action-families';
+
+// Las fotos de identidad como DOCUMENTOS del paciente. Compartido: las suben
+// `apps/forms` (el paciente desde su link) y `apps/back-office` (el staff), y
+// las tres vías tienen que dejar la misma fila. Leer el encabezado antes de
+// tocarlo: la fila va con `caseId: null` a propósito, porque el portal del
+// bufete sirve todos los documentos de un caso.
+export {
+  archivarFotoDeIdentidad, papelerizarFotoDeIdentidad, restaurarFotoDeIdentidad,
+  esSlotFoto, SLOTS_FOTO,
+} from './foto-identidad';
+export type { SlotFoto, FotoParaArchivar, ResultadoArchivo } from './foto-identidad';
+
+// El seguro que declaró el paciente en el intake → el seguro del CASO. El paso
+// 6 lo guardaba en `consentsData.insurances` y nada lo promovía al campo que
+// leen la portada y el PDF. Gana el staff: solo completa lo que está vacío.
+export { promoverSeguroDeclarado, segurosMedicosDeclarados } from './seguro-declarado';
+export type { SeguroDeclarado, ResultadoPromocion } from './seguro-declarado';

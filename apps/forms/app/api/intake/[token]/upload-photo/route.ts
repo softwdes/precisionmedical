@@ -21,7 +21,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, archivarFotoDeIdentidad, esSlotFoto } from '@precision-medical/database';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 type Ctx = { params: Promise<{ token: string }> };
@@ -107,7 +107,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const rec = await db.case.findUnique({
     where:  { portalToken: token },
-    select: { id: true, consentsData: true },
+    // `patientId` es nuevo acá: la foto se archiva además como documento DE LA
+    // PERSONA, y sin él no hay a quién colgársela (ver más abajo).
+    select: { id: true, consentsData: true, patientId: true },
   });
   if (!rec) return NextResponse.json({ error: 'TOKEN_NOT_FOUND' }, { status: 404 });
 
@@ -166,6 +168,33 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     where: { id: rec.id },
     data:  { consentsData: { ...prev, photos: updatedPhotos } as object },
   });
+
+  /**
+   * Y además, como DOCUMENTO del paciente.
+   *
+   * Hasta hoy la foto terminaba acá: una URL dentro del JSON del caso. Se veía
+   * en su recuadro y no existía para ninguna lista de archivos — "Archivos
+   * personales" decía "0 files" con tres fotos guardadas. Esto la deja también
+   * en `patient_documents`, en el bucket privado, igual que las del v2.
+   *
+   * Se espera (`await`) aunque el intake no dependa de esto: dejarlo corriendo
+   * después de la respuesta no es confiable en serverless —la función se
+   * congela apenas contesta y el trabajo pendiente se pierde— y una foto que a
+   * veces se archiva y a veces no es peor que una que nunca se archivaba.
+   * Fallar no rompe nada: `archivarFotoDeIdentidad` no tira, devuelve el
+   * problema y lo deja en el log.
+   */
+  if (rec.patientId && esSlotFoto(photoType)) {
+    await archivarFotoDeIdentidad(db, {
+      patientId: rec.patientId,
+      slot:      photoType,
+      bytes,
+      mimeType:  tipo,
+      ext,
+      // El paciente subiendo desde su link: no hay usuario del staff detrás.
+      createdByUserId: null,
+    });
+  }
 
   writeAuditLog(db, {
     actorType:   'SYSTEM',

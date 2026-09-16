@@ -22,7 +22,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import {
-  evaluarCandado, CANDADO_LIBRE, type RespuestaCandado,
+  evaluarCandado, CANDADO_LIBRE, esProvider, puedeDesalojar, type RespuestaCandado,
 } from '@/lib/visit-note-lock';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
@@ -129,7 +129,20 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const estado = evaluarCandado(nota, ahora);
 
   // ── Lo tiene OTRO y el candado vale ────────────────────────────────────────
-  if (estado.tomado && estado.porUserId !== yo) {
+  //
+  // Antes de decirle que no: ¿es un PROVIDER entrando sobre alguien de la
+  // clínica? Ver `puedeDesalojar`. El rol del que la tiene hay que ir a
+  // buscarlo —la fila del candado guarda id y nombre, no rol—, y solo se paga
+  // esta consulta en este camino, que es el minoritario.
+  const rolQueLaTiene = estado.tomado && estado.porUserId && estado.porUserId !== yo
+    ? (await db.user.findUnique({ where: { id: estado.porUserId }, select: { role: true } }))?.role ?? null
+    : null;
+
+  const desalojando = estado.tomado
+    && estado.porUserId !== yo
+    && puedeDesalojar(actor.actorRole, rolQueLaTiene);
+
+  if (estado.tomado && estado.porUserId !== yo && !desalojando) {
     let esperando = nota.waitingByUserId
       ? { nombre: nota.waitingByName, desde: nota.waitingSince?.toISOString() ?? null }
       : null;
@@ -172,6 +185,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       porNombre: estado.porNombre,
       desde: estado.desde?.toISOString() ?? null,
       esperando,
+      porEsProvider: esProvider(rolQueLaTiene),
     } satisfies RespuestaCandado);
   }
 
@@ -194,6 +208,38 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   }
 
   const tomandoDeNuevo = nota.editingByUserId !== yo;
+
+  /*
+   * El desalojo queda registrado ANTES de tomar la nota.
+   *
+   * Es una acción de una persona sobre el trabajo de otra, así que la constancia
+   * no puede depender de que el update salga bien: si se escribiera después y
+   * fallara, habríamos sacado a alguien de su nota sin registro. Mismo criterio
+   * que el audit de divulgación.
+   *
+   * Guarda a quién se desalojó y desde cuándo la tenía, que es lo que después
+   * contesta "¿cuánto trabajo le interrumpimos?".
+   */
+  if (desalojando) {
+    await writeAuditLog(db, {
+      actorType: actor.actorType,
+      actorUserId: yo,
+      actorRole: actor.actorRole,
+      action: 'NOTE_PROVIDER_TAKEOVER',
+      entityType: 'visit_notes',
+      entityId: appointmentId,
+      ipAddress: actor.ipAddress,
+      userAgent: actor.userAgent,
+      metadata: {
+        entro: miNombre,
+        desalojado: estado.porNombre,
+        desalojadoUserId: estado.porUserId,
+        desalojadoRol: rolQueLaTiene,
+        laTeniaDesde: estado.desde?.toISOString() ?? null,
+      },
+    });
+  }
+
   await db.visitNote.update({
     where: { appointmentId },
     data: {

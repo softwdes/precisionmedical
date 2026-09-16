@@ -24,6 +24,14 @@ export interface Candado {
   soltado: boolean;
   /** La soltó a propósito para cedérsela a quien la esperaba. */
   cedida: boolean;
+  /**
+   * Un PROVIDER entró y le sacó la nota. Trae su nombre.
+   *
+   * Se detecta ACÁ y no en el server: después del desalojo la fila dice que la
+   * nota es del que entró y del anterior no queda rastro, así que el único que
+   * sabe que la tenía hace un latido es su propia pantalla.
+   */
+  desalojadoPor: string | null;
   /** Soltar ahora, para el que la tiene y ve que otro la está esperando. */
   soltar: () => void;
   /** El botón "Avisarle" del que espera. */
@@ -36,6 +44,10 @@ export function useCandadoNota(appointmentId: string, activo: boolean): Candado 
   const [estado, setEstado] = React.useState<RespuestaCandado | null>(null);
   const [soltado, setSoltado] = React.useState(false);
   const [cedida, setCedida] = React.useState(false);
+  const [desalojadoPor, setDesalojadoPor] = React.useState<string | null>(null);
+
+  /** ¿La tenía yo en el latido anterior? Es la mitad de la detección. */
+  const laTenia = React.useRef(false);
 
   /** Tocó una tecla desde el latido anterior. Ref y no estado: no se dibuja. */
   const tecla = React.useRef(false);
@@ -106,6 +118,20 @@ export function useCandadoNota(appointmentId: string, activo: boolean): Candado 
         if (!res.ok || cancelado) return;
         const d = await res.json() as RespuestaCandado;
         if (cancelado) return;
+        /*
+          * DESALOJO: la tenía, ya no, y no fue por inactividad.
+          *
+          * Las tres condiciones hacen falta. Sin `laTenia` el cartel le saldría
+          * a cualquiera que abre una nota ocupada; sin descartar la inactividad
+          * se pisaría con el mensaje de "se cerró sola", que es otra cosa y ya
+          * tiene el suyo; y sin `porEsProvider` diría "entró un provider" de
+          * alguien que no lo es.
+          */
+        if (laTenia.current && d.mio === false && !d.soltadoPorInactividad && d.porEsProvider) {
+          setDesalojadoPor(d.porNombre ?? null);
+        }
+        laTenia.current = d.mio === true;
+
         setEstado(d);
         if (d.soltadoPorInactividad) { muerto.current = true; setSoltado(true); }
       } catch {
@@ -145,6 +171,7 @@ export function useCandadoNota(appointmentId: string, activo: boolean): Candado 
     esperando: estado?.esperando ?? null,
     soltado,
     cedida,
+    desalojadoPor,
     soltar,
     avisar,
     marcarTecla,

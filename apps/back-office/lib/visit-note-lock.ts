@@ -121,4 +121,54 @@ export interface RespuestaCandado {
    * que dispara el mensaje "se guardó donde estaba y se cerró".
    */
   soltadoPorInactividad?: boolean;
+  /**
+   * El que la tiene es un provider.
+   *
+   * Es lo que convierte "la tiene Fulano" en el cartel del desalojo: el que la
+   * perdió sabe por su propio estado que la tenía hace un latido, y esto le dice
+   * que quien entró es un provider y no un compañero más. El server no puede
+   * deducir el desalojo mirando la fila —después de desalojar, el dueño es el
+   * que entró y del anterior no queda rastro—, así que lo detecta la pantalla.
+   */
+  porEsProvider?: boolean;
 }
+
+/**
+ * Quién es "provider" para el candado.
+ *
+ * Erick, 2026-09-16: **«clínica cuenta todo aquel que no sea Provider»**. O sea
+ * que la regla es por ROL y no por dueño de la cita — y eso no es un atajo: los
+ * providers no se cubren entre ellos, «la clínica solo cambia al provider que
+ * verá al paciente», así que el que entra a la nota siempre es el que la va a
+ * firmar. Un ADMIN o un supervisor cuentan como clínica.
+ */
+export const ROLES_PROVIDER = new Set(['DOCTOR', 'PROVIDER']);
+
+export const esProvider = (rol: string | null | undefined): boolean =>
+  !!rol && ROLES_PROVIDER.has(rol);
+
+/**
+ * ¿Puede `rolQueEntra` sacarle la nota a `rolQueLaTiene` sin pedir permiso?
+ *
+ * Solo en una dirección: provider sobre clínica.
+ *
+ * ── Por qué así ─────────────────────────────────────────────────────────────
+ *
+ * La nota es el documento que el provider FIRMA. Que un asistente que la abrió
+ * primero deje al médico mirando su propia consulta en solo lectura es el
+ * "stopping point" que reportaron los providers, y era además una regresión:
+ * la regla de agosto (`NOTE_IN_CONSULT`) ya decía que durante la consulta la
+ * nota es del médico. El candado del 10-sep se apiló encima, ciego al rol, y le
+ * ganaba dos líneas después en el mismo archivo.
+ *
+ * ENTRE PROVIDERS NO: ahí siguen el pedido y la espera (`waitingBy…`). Dos
+ * personas que firman notas tienen el mismo derecho sobre el documento, y una
+ * cadena de desalojos mutuos no termina nunca.
+ *
+ * Y la clínica NO desaloja al provider ni a otro de la clínica: para eso están
+ * "Avisarle" y el vencimiento por inactividad, que no cambiaron.
+ */
+export const puedeDesalojar = (
+  rolQueEntra: string | null | undefined,
+  rolQueLaTiene: string | null | undefined,
+): boolean => esProvider(rolQueEntra) && !esProvider(rolQueLaTiene);

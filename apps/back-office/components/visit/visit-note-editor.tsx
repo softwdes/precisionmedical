@@ -943,7 +943,41 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           o a propósito— el candado queda en `mio: false` SIN dueño, y sin esta
           guarda salía este cartel diciendo "— está editando desde —" al lado del
           que explica que se soltó. Dos carteles, y el primero mentía. */}
-      {bloqueadaPorOtro && !isSigned && !candado.soltado && !candado.cedida && (
+      {/*
+        EL PROVIDER ENTRÓ Y TOMÓ LA NOTA.
+
+        Cartel grande y con el nombre adelante, porque contesta dos preguntas a
+        la vez y las dos urgen: por qué se me cerró, y si perdí lo que escribí
+        (Erick, 2026-09-16 — «un cartel notorio indicando que el provider ingresó
+        y que guardó lo que hizo hasta ese momento»).
+
+        Violeta y no ámbar: el violeta es la identidad del portal médico, así que
+        el color mismo dice quién entró. El ámbar de abajo significa "otro está
+        trabajando acá", que es una situación distinta y más tibia.
+
+        No lleva botón. No hay nada que decidir: la nota ya es del provider y
+        entre clínica y provider no se pide de vuelta. Un botón inerte sería
+        peor que ninguno.
+      */}
+      {candado.desalojadoPor && !isSigned && (
+        <div className="rounded-lg border border-violet/40 bg-violet/10 px-4 py-3 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-violet/20 flex items-center justify-center shrink-0">
+            <Stethoscope className="w-4 h-4 text-violet-text" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-violet-text">
+              {t('noteEvictedTitle', { name: candado.desalojadoPor })}
+            </div>
+            <div className="text-[11.5px] text-text-2 mt-0.5 leading-relaxed">
+              {t('noteEvictedBody')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Con el cartel del desalojo arriba, este sobra: diría "está editando"
+          de la misma persona, en más chico y sin explicar qué pasó con el texto. */}
+      {bloqueadaPorOtro && !isSigned && !candado.soltado && !candado.cedida && !candado.desalojadoPor && (
         <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 text-[11.5px] text-amber flex flex-col sm:flex-row sm:items-center gap-2">
           <span className="flex items-start gap-1.5 flex-1">
             <Lock className="w-3.5 h-3.5 shrink-0 mt-[1px]" />

@@ -1567,7 +1567,9 @@
       "demogPhone": "Teléfono",
       "demogPhonePh": "Ej. (801) 321-4567",
       "demogCancel": "Cancelar",
-      "demogSave": "Guardar y continuar"
+      "demogSave": "Guardar y continuar",
+      "noteEvictedTitle": "{name} entró a la nota y la está editando",
+      "noteEvictedBody": "Todo lo que escribiste quedó guardado. La nota pasa al provider mientras atiende; cuando cierre la consulta la vas a poder terminar."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

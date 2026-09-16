@@ -15,7 +15,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { nombreProvider, nombreProviderONull } from '@/lib/provider-name';
-import { evaluarCandado } from '@/lib/visit-note-lock';
+import { evaluarCandado, puedeDesalojar } from '@/lib/visit-note-lock';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -161,11 +161,28 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (existing) {
     const candado = evaluarCandado(existing, new Date());
     if (candado.tomado && candado.porUserId !== actor.actorUserId) {
-      return NextResponse.json({
-        error: 'NOTE_LOCKED',
-        holderName: candado.porNombre,
-        since: candado.desde?.toISOString() ?? null,
-      }, { status: 409 });
+      /*
+       * Un PROVIDER entrando sobre alguien de la clínica no se frena: desaloja.
+       * La misma regla que aplica `lock/route` cuando toma el candado.
+       *
+       * Acá hace falta igual y no es redundante: entre que el provider teclea y
+       * que su latido reclama el candado hay una ventana de hasta 20 s, y sin
+       * esto ese primer guardado volvería con un 409 —justo el "stopping point"
+       * que se vino a sacar—. El registro de auditoría lo escribe el latido, que
+       * es donde el desalojo pasa de verdad; acá solo se deja pasar la escritura
+       * de quien ya tiene derecho a tenerlo.
+       */
+      const rolQueLaTiene = candado.porUserId
+        ? (await db.user.findUnique({ where: { id: candado.porUserId }, select: { role: true } }))?.role ?? null
+        : null;
+
+      if (!puedeDesalojar(actor.actorRole, rolQueLaTiene)) {
+        return NextResponse.json({
+          error: 'NOTE_LOCKED',
+          holderName: candado.porNombre,
+          since: candado.desde?.toISOString() ?? null,
+        }, { status: 409 });
+      }
     }
   }
 

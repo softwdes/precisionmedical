@@ -38,7 +38,7 @@ export default async function DoctorMessagesPage({
         currentUserName={`${dbUser.firstName} ${dbUser.lastName}`.trim()}
         isAdmin={dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ADMIN'}
       />
-      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider?.id} />
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" />
     </>
   );
 }

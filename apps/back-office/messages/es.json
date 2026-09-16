@@ -4272,7 +4272,9 @@
       "photoRestore": "Recuperar",
       "photoRestoreError": "No se pudo recuperar.",
       "photoNoCargo": "Hay una foto guardada, pero no se pudo cargar",
-      "photoView": "Ver"
+      "photoView": "Ver",
+      "filterAllPatients": "Todos",
+      "filterMyPatients": "Mis pacientes"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

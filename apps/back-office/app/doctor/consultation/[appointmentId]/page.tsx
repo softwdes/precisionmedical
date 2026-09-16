@@ -266,10 +266,10 @@ export default async function DoctorConsultationPage({
       llegadaPropia={llegadaPropia}
       casosDelPaciente={casosDelPaciente}
     />
-    {/* El expediente del paciente sobre la consulta. El server revalida el
-        alcance: `providerHasCase` ya es a nivel PACIENTE, así que también abre
-        los casos anteriores de este paciente aunque los haya atendido otro. */}
-    <CaseUrlModal caseId={caseAbierto} tab={caseTab} variant="doctor" providerId={provider.id} />
+    {/* El expediente del paciente sobre la consulta. Abre cualquier caso,
+        incluidos los anteriores de este paciente que haya atendido otro: desde
+        2026-09-16 el portal ve la clínica entera. */}
+    <CaseUrlModal caseId={caseAbierto} tab={caseTab} variant="doctor" />
     </>
   );
 }

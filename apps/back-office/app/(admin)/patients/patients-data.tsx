@@ -2,11 +2,22 @@
  * PatientsData — server component compartido de la lista de pacientes (B.4).
  *
  * Usado por:
- *   - /patients          (admin, sin scope)
+ *   - /patients          (admin)
  *   - /doctor/patients   (portal médico, scopeProviderId = doctor de sesión)
  *
- * Con `scopeProviderId`, la lista se limita a pacientes con al menos una cita
- * de ese provider y el client oculta las acciones administrativas.
+ * ## Dos props, porque son dos cosas distintas (2026-09-16)
+ *
+ * `scopeProviderId` hacía los dos trabajos a la vez: recortaba la lista Y
+ * encendía el `doctorMode` del client (que esconde las acciones de mostrador y
+ * monta la ficha en solo lectura). Mientras el provider veía únicamente a sus
+ * pacientes daba igual; desde que ve toda la clínica, ya no:
+ *
+ *   · `scopeProviderId`  = QUIÉN es el provider de la sesión. Siempre presente
+ *     en el portal. Es lo que enciende `doctorMode`.
+ *   · `soloMisPacientes` = QUÉ filtro pidió. Es lo único que recorta.
+ *
+ * Vaciar `scopeProviderId` para "ver todos" habría apagado `doctorMode` y le
+ * habría destapado al provider los botones de crear y archivar.
  */
 
 import { db } from '@precision-medical/database';
@@ -65,15 +76,21 @@ export async function PatientsData({
   inactiveOnly,
   PAGE_SIZE,
   scopeProviderId,
+  soloMisPacientes = false,
   basePath,
 }: {
   q: string | undefined;
   page: number;
   inactiveOnly: boolean;
   PAGE_SIZE: number;
+  /** Provider de la sesión. Identidad, no filtro — ver el docblock. */
   scopeProviderId?: string;
+  /** El filtro "mis pacientes". Lo único que recorta la lista. */
+  soloMisPacientes?: boolean;
   basePath?: string;
 }) {
+  /** El id con el que se recorta: solo cuando se pidió el filtro. */
+  const filtroProviderId = soloMisPacientes ? scopeProviderId : undefined;
   // Usuario actual: nombre para etiquetar llamadas + id/rol para mensajería
   // (currentUserId es users.id cuid de Phoenix — lo que espera MessageRecipient)
   let agentName: string | undefined;
@@ -95,7 +112,7 @@ export async function PatientsData({
 
   // Mismo filtro que la API que refresca esta lista al teclear — vive en
   // `lib/patients-query.ts` para que no puedan volver a divergir.
-  const where = await wherePacientes({ q, inactiveOnly, providerId: scopeProviderId });
+  const where = await wherePacientes({ q, inactiveOnly, providerId: filtroProviderId });
 
   const [patients, total, inactiveTotal, activeTotal, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
@@ -123,8 +140,8 @@ export async function PatientsData({
       take:  PAGE_SIZE,
     }),
     db.patient.count({ where }),
-    db.patient.count({ where: alcanceBase({ inactiveOnly: true,  providerId: scopeProviderId }) }),
-    db.patient.count({ where: alcanceBase({ inactiveOnly: false, providerId: scopeProviderId }) }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: true,  providerId: filtroProviderId }) }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: false, providerId: filtroProviderId }) }),
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -239,6 +256,7 @@ export async function PatientsData({
       currentUserId={currentUserId}
       isAdmin={isAdmin}
       scopeProviderId={scopeProviderId}
+      soloMisPacientes={soloMisPacientes}
       basePath={basePath}
     />
   );

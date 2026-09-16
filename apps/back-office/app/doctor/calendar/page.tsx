@@ -43,7 +43,7 @@ export default async function DoctorCalendarPage({
         }]}
         lockedProviderId={provider.id}
       />
-      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider.id} />
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" />
     </>
   );
 }

@@ -120,10 +120,29 @@ export async function checkPatientAccess(
   if (!actor.portalOnly) return { actor };
 
   /**
-   * "Mi paciente" = lo atiendo **o lo traje yo**. La regla vive en
-   * `patients-query.ts` y es la misma que recorta la lista: si el guard fuera
-   * más estricto que la lista, el provider vería filas que no puede abrir — y
-   * si fuera más laxo, la lista escondería lo que la API sí entrega.
+   * LEER: toda la clínica, igual que el staff (Erick, 2026-09-16).
+   *
+   * Hasta hoy un rol del portal solo podía abrir el expediente de SUS
+   * pacientes. La decisión lo cambia: «el provider ve todo sin restricción, la
+   * única diferencia es que puede filtrar sus pacientes». O sea que el alcance
+   * dejó de ser un muro y pasó a ser una COMODIDAD de la lista.
+   *
+   * Y tenía que cambiar acá y no solo en la pantalla: el guard y la lista usan
+   * la misma regla a propósito. Si la lista mostrara la clínica entera y el
+   * guard siguiera recortando, cada fila ajena daría 403 al hacerle clic.
+   *
+   * Lo que NO se abrió, porque no es lo que se pidió:
+   *   · `write` — corregir la ficha sigue acotado a sus pacientes (abajo).
+   *   · `admin` — crear, archivar, restaurar y documentos de identidad siguen
+   *     cerrados a todo el portal; lo corta `resolverSesion` antes de llegar.
+   * La lista del portal además monta la ficha en `soloLectura`, así que desde
+   * esta pantalla no hay camino de escritura que pueda chocar con el recorte.
+   */
+  if (!opts.write) return { actor };
+
+  /**
+   * ESCRIBIR: "mi paciente" = lo atiendo **o lo traje yo**. La regla vive en
+   * `patients-query.ts`, que es de donde sale el filtro de la lista.
    */
   const suyo = await db.patient.findFirst({
     where: { AND: [{ id: patientId }, alcanceDelProvider(actor.providerId)] },
@@ -222,13 +241,23 @@ export async function alcanceDePacientes(
   const role = await getSessionRole();
   const portalOnly = !!role && PORTAL_ONLY_ROLES.has(role);
 
-  // Staff administrativo que no pidió el modo recortado: lista completa.
-  if (!pedido && !portalOnly) return { ok: true, providerId: null };
+  /**
+   * Sin pedido: lista completa, TAMBIÉN para el portal (Erick, 2026-09-16).
+   *
+   * Antes un rol del portal caía siempre en el recorte, pidiera o no. Ahora el
+   * provider ve toda la clínica igual que el staff y el recorte es su filtro
+   * "mis pacientes" — ver el comentario de lectura en `checkPatientAccess`.
+   */
+  if (!pedido) return { ok: true, providerId: null };
 
   const provider = await getSessionProvider();
 
-  // Sin ficha de Provider no hay nada que recortar. Para un rol del portal eso
-  // es 403 y no "toda la clínica": es exactamente el caso que abría el agujero.
+  /**
+   * Pidió el recorte y no hay ficha de Provider: no hay nada por lo que
+   * recortar. Al portal se le contesta 403 en vez de devolverle la clínica
+   * entera en silencio — pidió "mis pacientes" y una lista completa sería otra
+   * cosa que la que pidió. El staff no tiene a quién recortar y ve todo.
+   */
   if (!provider) return portalOnly ? { ok: false } : { ok: true, providerId: null };
 
   return { ok: true, providerId: provider.id };

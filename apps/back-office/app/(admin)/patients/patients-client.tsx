@@ -1044,11 +1044,16 @@ interface Props {
   /** SUPER_ADMIN/ADMIN — habilita borrar hilos del historial del paciente */
   isAdmin?: boolean;
   /**
-   * Portal médico: limita la vista a los pacientes del doctor de sesión.
-   * Oculta acciones administrativas (crear/archivar/enviar portal) y las
-   * URLs internas usan basePath. La búsqueda server-side también se filtra.
+   * Portal médico: QUIÉN es el provider de la sesión. Enciende el modo del
+   * portal —esconde las acciones de mostrador y monta la ficha en solo
+   * lectura— y hace que las URLs internas usen basePath.
+   *
+   * NO recorta la lista: desde 2026-09-16 el provider ve toda la clínica y el
+   * recorte pasó a ser el filtro de abajo. Ver el docblock de PatientsData.
    */
   scopeProviderId?: string;
+  /** El filtro "mis pacientes" está puesto. Lo único que recorta la lista. */
+  soloMisPacientes?: boolean;
   /** Prefijo de rutas para navegación/paginación (default '/patients') */
   basePath?: string;
 }
@@ -1646,7 +1651,7 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
 }
 
 
-export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, currentUserId, isAdmin = false, scopeProviderId, basePath = '/patients' }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, currentUserId, isAdmin = false, scopeProviderId, soloMisPacientes = false, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const tCalls  = useTranslations('phoenix.calls');
@@ -1866,7 +1871,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         const params = new URLSearchParams();
         if (val) params.set('q', val);
         if (inactiveOnly) params.set('inactive', '1');
-        if (scopeProviderId) params.set('providerId', scopeProviderId);
+        // El recorte sigue al FILTRO, no a la identidad: sin el filtro puesto
+        // el portal pide la lista completa, igual que el mostrador.
+        if (soloMisPacientes && scopeProviderId) params.set('providerId', scopeProviderId);
         params.set('size', String(pageSize));
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
@@ -1892,6 +1899,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         const url = new URLSearchParams();
         if (val) url.set('q', val);
         if (inactiveOnly) url.set('showInactive', '1');
+        if (soloMisPacientes) url.set('mine', '1');
         if (pageSize !== PATIENTS_PAGE_SIZE) url.set('size', String(pageSize));
         const qs = url.toString();
         history.replaceState(null, '', `${basePath}${qs ? `?${qs}` : ''}`);
@@ -2137,11 +2145,12 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
    * elegir 15 filas y pasar de página volvía a 10, porque justo ese valor se
    * omitía de la URL.
    */
-  function listaUrl({ page: p = pageUrl, size = pageSize, inactive = inactiveOnly, q: term = qUrl } = {}) {
+  function listaUrl({ page: p = pageUrl, size = pageSize, inactive = inactiveOnly, q: term = qUrl, mine = soloMisPacientes } = {}) {
     const params = new URLSearchParams();
     if (term) params.set('q', term);
     if (p > 0) params.set('page', String(p));
     if (inactive) params.set('showInactive', '1');
+    if (mine) params.set('mine', '1');
     if (size !== PATIENTS_PAGE_SIZE) params.set('size', String(size));
     const qs = params.toString();
     return `${basePath}${qs ? `?${qs}` : ''}`;
@@ -2153,6 +2162,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
   /** Pestaña Activos / Archivados — conserva búsqueda y filas por página. */
   const tabUrl = (inactive: boolean) => listaUrl({ page: 0, inactive });
+
+  /** Filtro "mis pacientes" — vuelve a la primera página, conserva el resto. */
+  const misUrl = (mine: boolean) => listaUrl({ page: 0, mine });
 
   return (
     <>
@@ -2367,6 +2379,43 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             {inactiveOnly ? localTotal : inactiveTotal}
           </span>
         </a>
+
+        {/*
+          FILTRO DEL PORTAL · toda la clínica / mis pacientes.
+
+          El provider ve toda la clínica igual que el mostrador; esto es una
+          COMODIDAD para volver a su gente, no un permiso (Erick, 2026-09-16:
+          "el provider ve todo sin restricción, la única diferencia es que
+          podrá filtrar sus pacientes").
+
+          Por eso el default es "Todos" y no "Mis pacientes": lo contrario
+          escondería la mitad de la clínica detrás de un control que hay que
+          descubrir, que es justo lo que se pidió cambiar.
+
+          Va a la derecha de las pestañas y no entre ellas: son ejes distintos
+          —activo/archivado es el ESTADO del paciente, esto es DE QUIÉN es— y
+          mezclarlos en una sola fila de pestañas sugeriría que se excluyen.
+        */}
+        {doctorMode && (
+          <div className="ml-auto flex items-center gap-1 pb-1.5">
+            {([
+              { mine: false, label: t('filterAllPatients') },
+              { mine: true,  label: t('filterMyPatients')  },
+            ]).map(op => (
+              <a
+                key={String(op.mine)}
+                href={misUrl(op.mine)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  soloMisPacientes === op.mine
+                    ? 'bg-violet/15 text-violet-text'
+                    : 'bg-bg-2 text-text-muted hover:text-text-1'
+                }`}
+              >
+                {op.label}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="relative rounded-lg border border-border">

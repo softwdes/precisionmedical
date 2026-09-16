@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { getSessionProvider } from '@/lib/get-session-provider';
-import { getCaseDetailData, providerHasCase } from '@/lib/case-detail-data';
+import { getCaseDetailData } from '@/lib/case-detail-data';
 import { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-detail-client';
 import { parseCaseTab } from '@/lib/case-tabs';
 
@@ -33,8 +33,12 @@ export default async function DoctorCasePage({
   const { id } = await params;
   const { tab } = await searchParams;
 
-  if (!(await providerHasCase(provider.id, id))) notFound();
-
+  /**
+   * Sin recorte por provider desde 2026-09-16: el portal abre el caso de
+   * cualquier paciente de la clínica, igual que el back-office. La puerta que
+   * queda es la de la sesión —haber entrado al portal— y la sigue cuidando el
+   * middleware. Ver `checkPatientAccess` y `CaseUrlModal`.
+   */
   const data = await getCaseDetailData(id);
   if (!data) notFound();
 

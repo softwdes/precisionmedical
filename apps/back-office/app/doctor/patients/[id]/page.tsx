@@ -12,7 +12,6 @@ import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
-import { alcanceDelProvider } from '@/lib/patients-query';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.pageTitles');
@@ -33,19 +32,13 @@ export default async function DoctorPatientDetailPage({
   const { case: caseId, tab } = await searchParams;
 
   /**
-   * Guard de alcance: el paciente lo atiende este doctor, o lo trajo él.
+   * Sin guard de alcance desde 2026-09-16.
    *
-   * La segunda mitad es por el alta rápida del portal: recién creado todavía no
-   * tiene citas, y con el guard viejo el provider abría un 404 sobre el
-   * paciente que acababa de dar de alta. Misma regla que recorta su lista —
-   * ver `alcanceDelProvider`.
+   * Acá se exigía que el paciente fuera de este provider (lo atiende o lo
+   * trajo). Con la lista mostrando toda la clínica, ese guard convertía cada
+   * fila ajena en un 404 — la lista y la ficha tienen que contar lo mismo.
+   * La decisión y su alcance están en `checkPatientAccess`.
    */
-  const hasRelation = await prisma.patient.findFirst({
-    where: { AND: [{ id }, alcanceDelProvider(provider.id)] },
-    select: { id: true },
-  });
-  if (!hasRelation) notFound();
-
   const patient = await prisma.patient.findUnique({
     where: { id },
     include: {
@@ -87,8 +80,8 @@ export default async function DoctorPatientDetailPage({
       <PatientDetailClient patient={patient as any} doctorMode />
 
       {/* El caso abre como modal sobre la ficha, igual que en Mis Pacientes. El
-          server revalida que la cita sea de este doctor. */}
-      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" providerId={provider.id} />
+          portal abre el caso de cualquier paciente. */}
+      <CaseUrlModal caseId={caseId} tab={tab} variant="doctor" />
     </>
   );
 }

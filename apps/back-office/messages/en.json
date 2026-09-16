@@ -4272,7 +4272,9 @@
       "photoRestore": "Restore",
       "photoRestoreError": "Couldn't restore it.",
       "photoNoCargo": "A photo is on file, but it could not be loaded",
-      "photoView": "View"
+      "photoView": "View",
+      "filterAllPatients": "All",
+      "filterMyPatients": "My patients"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

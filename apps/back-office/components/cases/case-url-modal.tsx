@@ -18,42 +18,41 @@
  */
 
 import { db } from '@precision-medical/database';
-import { getCaseDetailData, providerHasCase, casesOfPatientByCase } from '@/lib/case-detail-data';
-import { canAuditNotes } from '@/lib/notes-audit-access';
+import { getCaseDetailData, casesOfPatientByCase } from '@/lib/case-detail-data';
 import { parseCaseTab, TABS_ATTORNEY } from '@/lib/case-tabs';
 import { CaseDetailModal } from '@/components/cases/case-detail-modal';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { lawyerCaseFilter, canSignLien } from '@/lib/attorney-portal';
 
-export async function CaseUrlModal({ caseId, tab, variant = 'admin', providerId }: {
+export async function CaseUrlModal({ caseId, tab, variant = 'admin' }: {
   /** `?case=` — sin valor no se monta nada */
   caseId?: string;
   /** `?tab=` — el tab con el que abre */
   tab?: string;
-  variant?: 'admin' | 'doctor' | 'attorney';
   /**
-   * Portal médico: el doctor solo abre casos con una cita suya. Se valida acá,
-   * en el server, igual que lo hacía la página completa del doctor.
+   * Quién mira. Ya NO recorta al portal médico —ve la clínica entera, ver
+   * abajo—; sigue recortando al portal legal, y elige qué se carga (los otros
+   * casos del paciente son solo para el médico).
    */
-  providerId?: string;
+  variant?: 'admin' | 'doctor' | 'attorney';
 }): Promise<React.ReactElement | null> {
   if (!caseId) return null;
 
-  if (variant === 'doctor') {
-    /**
-     * El supervisor de notas (`/doctor/notes`) abre el caso de CUALQUIER
-     * paciente, y no es una excepción cómoda: su pantalla lista las visitas de
-     * todos los providers, así que exigirle `providerHasCase` —"¿atendió a este
-     * paciente?"— lo dejaría con una lista donde ninguna fila abre. Es el mismo
-     * callejón que ya tuvimos con la vista de impresión.
-     *
-     * Para el médico tratante no cambia nada: sigue el guard de siempre.
-     */
-    if (!(await canAuditNotes())) {
-      if (!providerId) return null;
-      if (!(await providerHasCase(providerId, caseId))) return null;
-    }
-  }
+  /**
+   * El portal ABRE CUALQUIER CASO (Erick, 2026-09-16).
+   *
+   * Acá vivía un guard que exigía "¿este provider atendió a este paciente?", con
+   * una excepción para el supervisor de notas. Esa excepción ya decía por qué el
+   * guard no se sostenía: su pantalla lista visitas de todos los providers, así
+   * que el recorte lo dejaba con una lista donde ninguna fila abre.
+   *
+   * La decisión extiende eso a todo el portal —«el provider ve todo el caso así
+   * como en back-office»— y con la lista de pacientes mostrando la clínica
+   * entera, el mismo callejón aparecía en cada fila ajena.
+   *
+   * `variant` sigue importando para lo de abajo: el portal legal SÍ se recorta,
+   * porque un bufete es un tercero y no personal de la clínica.
+   */
 
   // Portal legal: el bufete solo abre casos DENTRO de su alcance, y con el mismo
   // filtro que usa su lista. Se valida acá, en el server — igual que el doctor.

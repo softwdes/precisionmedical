@@ -24,36 +24,21 @@ export interface CaseDetailData {
 }
 
 /**
- * ¿Este doctor puede ver este caso?
+ * ─── providerHasCase, borrada el 2026-09-16 ────────────────────────────────
  *
- * La regla es la de "Mis Pacientes": **si atendió al PACIENTE**, ve sus casos —
- * el de hoy y los anteriores, los haya atendido él u otro provider.
+ * Contestaba "¿este doctor puede ver este caso?" y ya no hay recorte que
+ * contestar: el portal ve toda la clínica, igual que el back-office (Erick).
  *
- * Antes el alcance era por CASO (tenía que tener una cita en ese caso puntual) y
- * eso contradecía a la ficha del paciente, que ya le lista todos los casos con
- * la regla de paciente. El resultado era un callejón: veía la lista completa y
- * ninguno de los ajenos abría. Peor todavía en la consulta, donde está tratando
- * al paciente AHORA y el antecedente de una lesión anterior es exactamente lo
- * que necesita leer (Erick, 1-sep-2026).
+ * Vale guardar su historia porque es la TERCERA vuelta del mismo callejón. Su
+ * propio comentario lo describía en septiembre: el alcance era por CASO, la
+ * ficha listaba los casos con la regla del PACIENTE, y "el resultado era un
+ * callejón: veía la lista completa y ninguno de los ajenos abría". Se arregló
+ * ensanchando el guard de caso a paciente. Hoy la lista se ensanchó a la
+ * clínica y el mismo guard volvió a quedar corto.
  *
- * No es una puerta nueva: es hacer que la que ya existía lleve a algún lado. El
- * alcance sigue acotado —un doctor que nunca vio a este paciente no abre nada— y
- * lo que ve adentro sigue recortado por `variant="doctor"` (Finanzas en solo
- * lectura, sin acciones de cobro).
+ * La lección, si alguien vuelve a poner un recorte acá: el guard y la lista que
+ * lleva a él tienen que salir de la MISMA regla, o las filas no abren.
  */
-export async function providerHasCase(providerId: string, caseId: string): Promise<boolean> {
-  const c = await db.case.findFirst({
-    where: { id: caseId, deletedAt: null },
-    select: { patientId: true },
-  });
-  if (!c) return false;
-
-  const appt = await db.appointment.findFirst({
-    where: { patientId: c.patientId, providerId },
-    select: { id: true },
-  });
-  return !!appt;
-}
 
 /**
  * Los casos de este paciente, para el selector del modal del doctor.

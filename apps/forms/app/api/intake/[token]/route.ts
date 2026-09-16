@@ -9,7 +9,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, promoverSeguroDeclarado } from '@precision-medical/database';
 import { decryptFieldOrOriginal, isCipher } from '@/lib/decrypt';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
@@ -509,6 +509,24 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const existingCase = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
     const prev = (existingCase?.consentsData ?? {}) as Record<string, unknown>;
     await db.case.update({ where: { id: rec.id }, data: { consentsData: { ...prev, insurances: data.insurances as object[] } } });
+
+    /**
+     * Y de ahí al CASO, que es donde lo lee el resto del sistema.
+     *
+     * Hasta hoy el guardado terminaba en la línea de arriba: el seguro quedaba
+     * dentro del JSON y la portada del caso seguía diciendo "sin aseguradora
+     * primaria" con la póliza cargada. Nadie miraba ese array (Erick,
+     * 2026-09-15 — tuvo que volver a llamar a una paciente por un dato que ella
+     * ya había puesto).
+     *
+     * Conservadora por diseño: solo completa lo que está vacío, así que el
+     * autosave del wizard la puede disparar en cada tecleo sin pisar lo que
+     * cargó el staff. Ver `seguro-declarado.ts`.
+     */
+    await promoverSeguroDeclarado(db, rec.id).catch((e) => {
+      // No frena el intake: el dato declarado ya quedó guardado igual.
+      console.error('[intake] no se pudo promover el seguro declarado:', e);
+    });
   }
 
   if (step === 7 && data.health) {

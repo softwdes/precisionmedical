@@ -19,7 +19,7 @@ import { localeApp, edad } from '@/lib/fechas';
  */
 
 import { NextResponse } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, segurosMedicosDeclarados } from '@precision-medical/database';
 import {
   renderToBuffer, Document, Page, Text, View, StyleSheet, Image,
 } from '@react-pdf/renderer';
@@ -365,6 +365,9 @@ async function buildPDF(data: {
     consentSignaturePng: string | null;
     lawFirm: { firmName: string | null } | null;
     primaryInsurance: { name: string } | null;
+    primaryPolicyNumber: string | null;
+    secondaryInsurance: { name: string } | null;
+    secondaryPolicyNumber: string | null;
   };
   intake: {
     healthStatus: string | null;
@@ -383,6 +386,21 @@ async function buildPDF(data: {
   // Se deja como fallback solo para no perder los casos que ya quedaron con
   // esa firma y ninguna otra.
   const patientSig = (cd?.financialSignatureSvg as string | null) ?? null;
+
+  /**
+   * El seguro que declaró el paciente, para cuando el caso no tiene enlazada
+   * ninguna aseguradora — ver la sección Insurance más abajo.
+   *
+   * Va rotulado "(declared)" a propósito: no es lo mismo que el staff verificó
+   * contra la tarjeta. Desde el 15-sep el intake promueve el declarado al campo
+   * del caso cuando el nombre coincide con el catálogo, así que este respaldo
+   * queda para los que no coinciden y para los casos viejos sin backfill.
+   */
+  const declarado = segurosMedicosDeclarados(cd)[0] ?? null;
+  const seguroDeclarado = declarado?.carrier?.trim()
+    ? `${declarado.carrier.trim()} (declared)`
+    : null;
+  const polizaDeclarada = declarado?.policyId?.trim() || null;
 
   /**
    * Personas autorizadas a recibir información médica.
@@ -506,6 +524,40 @@ async function buildPDF(data: {
             v2={emergencyContact2}
             last
           />
+        </View>
+
+        {/*
+          Insurance — la sección que faltaba.
+
+          El PDF ya pedía `primaryInsurance` a la base y lo recibía como prop, y
+          después NO lo imprimía en ninguna parte: el dato viajaba hasta acá y se
+          tiraba. Así que un intake impreso salía sin una línea de seguro,
+          tuviera el caso la aseguradora cargada o no (Erick, 2026-09-15).
+
+          Cuando el caso no tiene aseguradora enlazada se cae a lo que declaró
+          el paciente en el intake, ROTULADO como declarado. Los dos datos no
+          valen lo mismo —uno lo verificó el staff contra la tarjeta y el otro lo
+          escribió el paciente de memoria— y un PDF que los mezcle sin decir cuál
+          es cuál es peor que uno que no muestre nada.
+        */}
+        <View style={s.sectionHeader}><Text style={s.sectionTitle}>Insurance</Text></View>
+        <View style={s.sectionBody}>
+          <TableRow2
+            l1="Primary:"
+            v1={caseData.primaryInsurance?.name ?? seguroDeclarado}
+            l2="Policy #:"
+            v2={caseData.primaryPolicyNumber ?? polizaDeclarada}
+            last={!caseData.secondaryInsurance && !caseData.secondaryPolicyNumber}
+          />
+          {(caseData.secondaryInsurance || caseData.secondaryPolicyNumber) && (
+            <TableRow2
+              l1="Secondary:"
+              v1={caseData.secondaryInsurance?.name ?? null}
+              l2="Policy #:"
+              v2={caseData.secondaryPolicyNumber}
+              last
+            />
+          )}
         </View>
 
         {/* Medical History */}
@@ -703,7 +755,12 @@ export async function respuestaIntakePdf(
       consentsData:          true,
       consentSignaturePng:   true,
       lawFirm:   { select: { firmName: true } },
-      primaryInsurance: { select: { name: true } },
+      // Los cuatro campos del seguro, no solo el nombre de la primaria: el PDF
+      // ya traía ese uno y ni siquiera lo imprimía (ver la sección Insurance).
+      primaryInsurance:      { select: { name: true } },
+      primaryPolicyNumber:   true,
+      secondaryInsurance:    { select: { name: true } },
+      secondaryPolicyNumber: true,
       patient: {
         select: {
           firstName: true, lastName: true,
@@ -743,6 +800,9 @@ export async function respuestaIntakePdf(
       consentSignaturePng:   caseRecord.consentSignaturePng,
       lawFirm:               caseRecord.lawFirm,
       primaryInsurance:      caseRecord.primaryInsurance,
+      primaryPolicyNumber:   caseRecord.primaryPolicyNumber,
+      secondaryInsurance:    caseRecord.secondaryInsurance,
+      secondaryPolicyNumber: caseRecord.secondaryPolicyNumber,
     },
     intake: caseRecord.intakeSubmission,
   });

@@ -4270,7 +4270,8 @@
       "photoDeleteConfirm": "¿Eliminar esta foto? Va a la papelera: podés recuperarla desde el mismo recuadro.",
       "photoRestore": "Recuperar",
       "photoRestoreError": "No se pudo recuperar.",
-      "photoNoCargo": "Hay una foto guardada, pero no se pudo cargar"
+      "photoNoCargo": "Hay una foto guardada, pero no se pudo cargar",
+      "photoView": "Ver"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

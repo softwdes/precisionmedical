@@ -4270,7 +4270,8 @@
       "photoDeleteConfirm": "Delete this photo? It goes to the trash: you can restore it from the same slot.",
       "photoRestore": "Restore",
       "photoRestoreError": "Couldn't restore it.",
-      "photoNoCargo": "A photo is on file, but it could not be loaded"
+      "photoNoCargo": "A photo is on file, but it could not be loaded",
+      "photoView": "View"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

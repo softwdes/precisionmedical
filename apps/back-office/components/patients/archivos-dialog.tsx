@@ -24,10 +24,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Camera, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Camera, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
+import { nombreDeFoto, urlParaDescargar } from '@/lib/descarga-archivo';
 
 export type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
@@ -442,6 +443,14 @@ export function ArchivosDialog({
 }: ArchivosDialogProps) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
+  /**
+   * El mismo visor que usan los documentos del expediente, acá para las cuatro
+   * fotos de identidad: no se podían ni abrir ni guardar (Erick, 2026-09-15).
+   * Se reusa el primitivo y no una pestaña nueva por lo que dice su propio
+   * encabezado: `window.open` deja la URL del documento en el historial del
+   * navegador de la máquina de la clínica.
+   */
+  const viewer = useFileViewer(t('archivosDownloadError'));
 
   const initialPhotos = fotos ?? {};
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(initialPhotos);
@@ -596,9 +605,25 @@ export function ArchivosDialog({
     }
   }
 
+  /**
+   * Abrir una foto en grande, con las salidas de ver en pestaña y descargar.
+   *
+   * La URL no se pide al servidor: la pantalla YA la tiene. La de descarga sale
+   * de agregarle el parámetro `download` (ver `lib/descarga-archivo`), que es
+   * lo que hace que el archivo BAJE en vez de que el click navegue la pestaña.
+   *
+   * El nombre lleva el del paciente porque estos cuatro archivos terminan en la
+   * carpeta de Descargas junto a los de todos los demás.
+   */
+  function abrirFoto(etiqueta: string, url: string) {
+    const nombre = nombreDeFoto(lastName, firstName, etiqueta, url);
+    viewer.show({ fileName: nombre, url, downloadUrl: urlParaDescargar(url, nombre) });
+  }
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
+        <FileViewerDialog {...viewer.props} />
         <DialogTitle className="sr-only">{firstName} {lastName} — {t('archivosTitle')}</DialogTitle>
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-text-1">{firstName} {lastName}</h2>
@@ -668,22 +693,46 @@ export function ArchivosDialog({
                   <p className="px-3 pt-3 pb-1 text-[11px] font-semibold text-cyan">{label}</p>
 
                   {/* Preview area */}
-                  <div className="flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px] relative">
+                  <div className="group flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px] relative">
                     {isLoading || isDel ? (
                       <RefreshCw className="w-6 h-6 animate-spin text-text-muted opacity-50" />
                     ) : url ? (
                       <>
-                        <img
-                          src={url}
-                          alt={label}
-                          className="w-full h-full object-cover"
-                          onError={() => setFallidas(f => ({ ...f, [key]: true }))}
-                        />
+                        {/* La FOTO ENTERA abre el visor. Va así, y no como un
+                            botón chico dentro del overlay, porque recepción y
+                            los providers trabajan en iPad: un control que solo
+                            aparece al pasar el mouse, en una pantalla táctil no
+                            existe. Está también en modo solo lectura — el
+                            provider mira estas fotos, que es justamente lo que
+                            dice el aviso de arriba. */}
+                        <button
+                          type="button"
+                          onClick={() => abrirFoto(label, url)}
+                          title={t('photoView')}
+                          className="absolute inset-0 w-full h-full cursor-zoom-in"
+                        >
+                          <img
+                            src={url}
+                            alt={label}
+                            className="w-full h-full object-cover"
+                            onError={() => setFallidas(f => ({ ...f, [key]: true }))}
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
+                            <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 rounded px-2 py-1">
+                              <Eye className="w-3.5 h-3.5 text-white" />
+                              <span className="text-[10px] text-white font-medium">{t('photoView')}</span>
+                            </span>
+                          </span>
+                        </button>
+                        {/* Reemplazar y Eliminar quedan ENCIMA de la foto. El
+                            contenedor no recibe clicks (`pointer-events-none`):
+                            sin eso taparía la foto entera y no se podría abrir.
+                            Cada botón los vuelve a habilitar para sí mismo. */}
                         {!soloLectura && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 hover:bg-black/50 transition-colors group">
+                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 p-1.5 pointer-events-none">
                             <button
                               onClick={() => fileRefs.current[key]?.click()}
-                              className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+                              className="pointer-events-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 hover:bg-white/30 rounded px-2 py-1"
                             >
                               <RefreshCw className="w-3.5 h-3.5 text-white" />
                               <span className="text-[10px] text-white font-medium">{t('photoReplace')}</span>
@@ -695,10 +744,10 @@ export function ArchivosDialog({
                             {!esDelV2 && (
                               <button
                                 onClick={() => handleDelete(key)}
-                                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
+                                className="pointer-events-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/30 hover:bg-rose/50 rounded px-2 py-1"
                               >
-                                <Trash2 className="w-3.5 h-3.5 text-rose" />
-                                <span className="text-[10px] text-rose font-medium">{t('photoDelete')}</span>
+                                <Trash2 className="w-3.5 h-3.5 text-white" />
+                                <span className="text-[10px] text-white font-medium">{t('photoDelete')}</span>
                               </button>
                             )}
                           </div>

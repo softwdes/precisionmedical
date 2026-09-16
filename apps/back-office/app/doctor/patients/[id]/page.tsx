@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { auditarFichaAjenaDesdeLaPagina } from '@/lib/patient-access';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,7 +39,13 @@ export default async function DoctorPatientDetailPage({
    * trajo). Con la lista mostrando toda la clínica, ese guard convertía cada
    * fila ajena en un 404 — la lista y la ficha tienen que contar lo mismo.
    * La decisión y su alcance están en `checkPatientAccess`.
+   *
+   * En su lugar queda la CONSTANCIA: si el expediente no es suyo, se registra.
+   * Va con `await` y ANTES de las queries de la ficha — si sirviéramos el PHI y
+   * después fallara el registro, habría divulgación sin rastro.
    */
+  await auditarFichaAjenaDesdeLaPagina(id);
+
   const patient = await prisma.patient.findUnique({
     where: { id },
     include: {

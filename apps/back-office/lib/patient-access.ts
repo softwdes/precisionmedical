@@ -29,8 +29,10 @@
  * UI le oculta al provider se cierra también en la API; lo que le permite,
  * queda acotado a SUS pacientes.**
  *
- *   · lectura  — cualquier sesión del back-office. A un rol del portal se le
- *     exige alcance: el paciente tiene que haber tenido cita con él.
+ *   · lectura  — cualquier sesión del back-office, EL PORTAL INCLUIDO desde el
+ *     2026-09-16: el provider ve toda la clínica igual que el mostrador. Lo que
+ *     antes era un recorte ahora es una constancia — abrir un expediente que no
+ *     es suyo queda registrado (`registrarFichaAjena`).
  *   · `write`  — corregir la ficha. Suma el filtro por ROL: CONTADOR y
  *     AUDITOR_AI no reescriben una ficha clínica (mismo criterio que
  *     `PUEDEN_EDITAR_HISTORIAL` en `patients/actions.ts`). El provider sí, con
@@ -46,7 +48,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { db, type UserRole } from '@precision-medical/database';
+import { db, writeAuditLog, type UserRole } from '@precision-medical/database';
 import { getSessionUser } from './session';
 import { getDbUserByEmail } from './actor';
 import {
@@ -137,20 +139,113 @@ export async function checkPatientAccess(
    *     cerrados a todo el portal; lo corta `resolverSesion` antes de llegar.
    * La lista del portal además monta la ficha en `soloLectura`, así que desde
    * esta pantalla no hay camino de escritura que pueda chocar con el recorte.
-   */
-  if (!opts.write) return { actor };
-
-  /**
-   * ESCRIBIR: "mi paciente" = lo atiendo **o lo traje yo**. La regla vive en
-   * `patients-query.ts`, que es de donde sale el filtro de la lista.
+   *
+   * Lo que el recorte SÍ sigue haciendo es separar "abrió a su paciente" de
+   * "abrió el expediente de otro" — que es lo único que se registra. Ver
+   * `registrarFichaAjena`.
    */
   const suyo = await db.patient.findFirst({
     where: { AND: [{ id: patientId }, alcanceDelProvider(actor.providerId)] },
     select: { id: true },
   });
+
+  if (!opts.write) {
+    if (!suyo) await registrarFichaAjena(patientId, actor);
+    return { actor };
+  }
+
+  /**
+   * ESCRIBIR: "mi paciente" = lo atiendo **o lo traje yo**. La regla vive en
+   * `patients-query.ts`, que es de donde sale el filtro de la lista.
+   */
   if (!suyo) return no('OUT_OF_SCOPE', 403);
 
   return { actor };
+}
+
+/**
+ * Deja constancia de que alguien del portal abrió un expediente que NO es suyo.
+ *
+ * ── Por qué existe ──────────────────────────────────────────────────────────
+ *
+ * Hasta el 2026-09-16 el recorte hacía de control sin proponérselo: un provider
+ * no podía abrir la ficha de un paciente ajeno, así que no hacía falta anotar
+ * nada. Con la decisión de Erick —el portal ve toda la clínica— desapareció el
+ * recorte y NO quedó nada en su lugar: medido sobre todo el back-office, las
+ * únicas acciones de lectura auditadas eran las dos de suplantación, la bandeja
+ * ajena, un resultado de laboratorio y un adjunto. Abrir una ficha no dejaba
+ * rastro.
+ *
+ * Esto no repone el recorte —el acceso sigue abierto, que es lo que se pidió—:
+ * repone la CONSTANCIA. La pregunta que una auditoría hace es "quién miró qué",
+ * y sin esto no se podía contestar sobre 5.735 pacientes.
+ *
+ * ── Dos decisiones de diseño ────────────────────────────────────────────────
+ *
+ * · **Solo lo AJENO.** Registrar cada apertura de cada ficha llenaría la tabla
+ *   con el trabajo normal del día y volvería invisible lo que importa. La señal
+ *   es mirar fuera del panel propio.
+ * · **`await` y ANTES de servir.** Si el dato saliera primero y el registro
+ *   fallara después, habría divulgación sin constancia — y en serverless la
+ *   instancia se congela al devolver la respuesta, así que un `.catch()` suelto
+ *   directamente se pierde. Es la regla que ya rige la bandeja ajena.
+ */
+export async function registrarFichaAjena(
+  patientId: string,
+  actor: PatientActor,
+): Promise<void> {
+  await writeAuditLog(db, {
+    actorType: 'HUMAN_USER',
+    actorUserId: actor.userId,
+    // `PatientActor.role` es `string` porque lo resuelve la sesión; el audit log
+    // espera el enum. El valor sale de la misma tabla que lo define.
+    actorRole: (actor.role || null) as UserRole | null,
+    action: 'PATIENTS_VIEWED_OTHER_CHART',
+    entityType: 'patients',
+    entityId: patientId,
+    metadata: {
+      abiertoPor: actor.email,
+      providerId: actor.providerId,
+      // "Ajeno" significa: ninguna cita con este provider y no lo trajo él.
+      motivo: 'fuera-de-su-panel',
+    },
+  });
+}
+
+/**
+ * La misma constancia desde una PÁGINA del portal.
+ *
+ * La ficha del portal es un server component que consulta Prisma directo, sin
+ * pasar por `checkPatientAccess` —ese guard es de las APIs—, así que abrir la
+ * pantalla no pasaría por el registro de arriba. Y la pantalla es justamente
+ * donde se ve el expediente entero.
+ *
+ * Resuelve la sesión por su cuenta y no hace nada si quien mira no es del
+ * portal: el mostrador ve la clínica entera por definición de su trabajo y
+ * anotarlo sería ruido, no trazabilidad.
+ */
+export async function auditarFichaAjenaDesdeLaPagina(patientId: string): Promise<void> {
+  const role = (await getSessionRole()) ?? '';
+  if (!PORTAL_ONLY_ROLES.has(role)) return;
+
+  const user = await getSessionUser();
+  if (!user?.email) return;
+
+  const provider = await getSessionProvider();
+  const suyo = await db.patient.findFirst({
+    where: { AND: [{ id: patientId }, alcanceDelProvider(provider?.id ?? null)] },
+    select: { id: true },
+  });
+  if (suyo) return;
+
+  const dbUser = await getDbUserByEmail(user.email);
+  await registrarFichaAjena(patientId, {
+    email: user.email,
+    userId: dbUser?.id ?? null,
+    role,
+    portalOnly: true,
+    providerId: provider?.id ?? null,
+  });
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   Sparkles,
   Mail,
   UserPlus,
+  HandCoins,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 import { MESSAGES_BADGE_EVENT } from '@/lib/messaging-events';
@@ -68,6 +69,14 @@ const SECTIONS: NavSection[] = [
       // Las rutas /intake/* siguen vivas (verify-pip sella `pipVerifiedAt`), pero
       // ya no tienen entrada en el menú. Ver docs/plan-vista-edson.md §6.
       { href: '/edson',      icon: ClipboardList,  labelKey: 'edson', moduleKey: 'edson' },
+      /**
+       * Cobranzas va ANTES de Billing, y separado a propósito: son dos platas
+       * distintas. Esta cuenta `appointment_billing` —los cargos del caso con
+       * sus pagos, lo mismo que el tab Finanzas—; Billing arma su tablero desde
+       * los CPT de la nota clínica para generar HCFA. Quien compare los dos
+       * totales sin saber esto va a concluir que uno de los dos está roto.
+       */
+      { href: '/cobranzas',  icon: HandCoins,      labelKey: 'collections', moduleKey: 'cobranzas' },
       { href: '/billing',    icon: Briefcase,      labelKey: 'billing', moduleKey: 'billing'   },
       // La bandeja de la clínica entró al menú el 2026-09-08, por el mismo
       // motivo que la del provider: solo se llegaba por el sobre del top bar y

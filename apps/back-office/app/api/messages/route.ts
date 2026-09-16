@@ -13,8 +13,9 @@
  *
  * CARPETAS (2026-09-08, como Gmail — mismo criterio que la bandeja del abogado):
  *   ?folder=inbox    (default) hilos con al menos una entrada de OTRO, no
- *                    archivados. Lo que yo mandé y nadie contestó vive en Sent.
- *   ?folder=sent     hilos que abrí yo, con si ya tuvieron respuesta.
+ *                    archivados. Lo que yo mandé y nadie contestó vive también en Sent.
+ *   ?folder=sent     hilos donde YO escribí (los que abrí y los que respondí),
+ *                    con si ya tuvieron respuesta.
  *   ?folder=archived lo que archivé (`archivedAt`) o "quité" antes (`deletedAt`).
  *   ?q=              paciente, código de caso, asunto o remitente.
  *   ?unread=1        solo sin leer (se filtra en memoria, ver abajo).
@@ -70,11 +71,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   };
   // `deletedAt` es el "quitar de mi bandeja" de antes de la carpeta: hoy se lee
   // como archivado, así que lo viejo aparece en Archivados y no se pierde.
+  // Enviados = hilos donde YO escribi, no hilos que yo abri.
+  //
+  // Filtraba por `createdByUserId`, asi que una RESPUESTA a un hilo ajeno no
+  // aparecia nunca: Edson contesto dos veces un hilo que habia abierto otra
+  // persona y su carpeta quedo vacia (reporte del 2026-09-15). Los mensajes
+  // estaban guardados; era la consulta la que miraba al autor del HILO en vez
+  // de al autor de las ENTRADAS.
+  //
+  // La carpeta se llama Enviados y la doc de arriba dice "como Gmail": ahi
+  // Enviados tiene todo lo que mandaste, incluidas las respuestas. Que un hilo
+  // contestado salga a la vez en Recibidos y en Enviados es el comportamiento
+  // correcto, no una duplicacion.
+  //
+  // La pastilla contestado/pendiente no se toca: `answered` ya es "lo ultimo
+  // no lo escribi yo", que vale igual para un hilo propio y para uno ajeno.
   const porCarpeta: Prisma.MessageRecipientWhereInput =
     folder === 'archived'
       ? { OR: [{ archivedAt: { not: null } }, { deletedAt: { not: null } }] }
       : folder === 'sent'
-        ? { archivedAt: null, deletedAt: null, thread: { createdByUserId: targetUserId } }
+        ? { archivedAt: null, deletedAt: null, thread: { entries: { some: { authorUserId: targetUserId } } } }
         : { archivedAt: null, deletedAt: null, thread: { entries: { some: entradaAjena } } };
 
   const where: Prisma.MessageRecipientWhereInput = {

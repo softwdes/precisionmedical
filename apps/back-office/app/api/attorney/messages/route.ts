@@ -69,11 +69,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const entradaAjena = entradaAjenaA(yo);
 
+  // Enviados = hilos donde YO escribi, no hilos que yo abri.
+  //
+  // Filtraba por `createdByUserId`, asi que una RESPUESTA a un hilo ajeno no
+  // aparecia nunca: Edson contesto dos veces un hilo que habia abierto otra
+  // persona y su carpeta quedo vacia (reporte del 2026-09-15). Los mensajes
+  // estaban guardados; era la consulta la que miraba al autor del HILO en vez
+  // de al autor de las ENTRADAS.
+  //
+  // La carpeta se llama Enviados y la doc de arriba dice "como Gmail": ahi
+  // Enviados tiene todo lo que mandaste, incluidas las respuestas. Que un hilo
+  // contestado salga a la vez en Recibidos y en Enviados es el comportamiento
+  // correcto, no una duplicacion.
+  //
+  // La pastilla contestado/pendiente no se toca: `answered` ya es "lo ultimo
+  // no lo escribi yo", que vale igual para un hilo propio y para uno ajeno.
   const porCarpeta: Prisma.MessageRecipientWhereInput =
     folder === 'archived'
       ? { archivedAt: { not: null } }
       : folder === 'sent'
-        ? { archivedAt: null, thread: { createdByUserId: yo } }
+        ? { archivedAt: null, thread: { entries: { some: { authorUserId: yo } } } }
         : { archivedAt: null, thread: { entries: { some: entradaAjena } } };
 
   const where: Prisma.MessageRecipientWhereInput = {

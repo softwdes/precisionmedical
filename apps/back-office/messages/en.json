@@ -4588,7 +4588,8 @@
       "referralDiscardError": "Could not discard the referral",
       "referralDiscardedBy": "Discarded by {name}",
       "referralAlreadyResolved": "{name} already handled it",
-      "refDiscardedReply": "We will not take this referral."
+      "refDiscardedReply": "We will not take this referral.",
+      "colTo": "To"
     },
     "sms": {
       "title": "SMS history",

@@ -134,6 +134,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         referral: { select: { status: true, convertedByName: true } },
         case: { select: { caseCode: true } },
         patient: { select: { firstName: true, lastName: true } },
+        /**
+         * Para la columna "Para" de Enviados (misma doctrina Gmail que la bandeja
+         * de la clinica: Recibidos muestra quien escribio, Enviados a quien le
+         * escribiste). `SENDER` se filtra al mapear: esa fila no es un
+         * destinatario sino la participacion del autor en su propio hilo.
+         */
+        recipients: { select: { userName: true, kind: true } },
         // Solo lo que el portal muestra: las notas internas no cuentan.
         entries: {
           where: { kind: { in: [...KINDS_VISIBLES] } },
@@ -163,6 +170,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return {
       id: r.thread.id,
       subject: r.thread.subject,
+      /** Nombres de TO y CC, sin la fila `SENDER`. */
+      to: r.thread.recipients.filter((d) => d.kind !== 'SENDER').map((d) => d.userName),
       priority: r.thread.priority,
       desk: r.thread.desk,
       type: r.thread.type,

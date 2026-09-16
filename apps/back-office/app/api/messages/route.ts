@@ -134,6 +134,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         createdByUserId: true,
         createdByName: true,
         patient: { select: { id: true, firstName: true, lastName: true } },
+        /**
+         * Para la columna "Para" de Enviados (doctrina Gmail: Recibidos muestra
+         * quien escribio, Enviados a quien le escribiste).
+         *
+         * `SENDER` se filtra al mapear: esa fila NO es un destinatario, es la
+         * participacion del autor para ver en su bandeja lo que mando. Si alguien
+         * se escribe a si mismo queda como `TO` y ahi si corresponde mostrarlo.
+         */
+        recipients: { select: { userName: true, kind: true } },
         entries: {
           orderBy: { sentAt: 'desc' as const },
           take: 1,
@@ -207,6 +216,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         }
       : null,
     lastAuthorName: r.thread.entries[0]?.authorName ?? null,
+    /** Nombres de TO y CC, sin la fila `SENDER`. Vacio = no hay a quien mostrar. */
+    to: r.thread.recipients
+      .filter((d) => d.kind !== 'SENDER')
+      .map((d) => d.userName),
     lastEntryKind: r.thread.entries[0]?.kind ?? null,
     /** Lo abrí yo (la persona cuya bandeja se mira). */
     mine: r.thread.createdByUserId === targetUserId,

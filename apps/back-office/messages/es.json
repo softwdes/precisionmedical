@@ -4588,7 +4588,8 @@
       "referralDiscardError": "No se pudo descartar el referido",
       "referralDiscardedBy": "Descartado por {name}",
       "referralAlreadyResolved": "{name} ya lo resolvió",
-      "refDiscardedReply": "No vamos a tomar este referido."
+      "refDiscardedReply": "No vamos a tomar este referido.",
+      "colTo": "Para"
     },
     "sms": {
       "title": "Historial de SMS",

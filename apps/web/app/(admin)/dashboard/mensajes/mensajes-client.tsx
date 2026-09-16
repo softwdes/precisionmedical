@@ -35,6 +35,8 @@ interface HiloEnLista {
   priority: 'NORMAL' | 'URGENT' | string;
   lastEntryAt: string;
   lastAuthorName: string | null;
+  /** Destinatarios (TO y CC, sin el autor). Los sirve el proxy a la clínica. */
+  to: string[];
   patient: { id: string; name: string } | null;
   unread: boolean;
   answered: boolean;
@@ -75,6 +77,17 @@ export function MensajesClient(): React.ReactElement {
   const qc = useQueryClient();
 
   const [carpeta, setCarpeta] = useState<Carpeta>('inbox');
+
+  /**
+   * Doctrina Gmail, la misma que la bandeja de la clínica: en Recibidos importa
+   * QUIÉN ESCRIBIÓ, y en Enviados eso sos siempre vos — ahí se muestra a quién
+   * le escribiste. Acá no hay encabezado de columna que cambiar: esta pantalla
+   * es una lista de tarjetas y el dato vive en el subtítulo.
+   */
+  const quienMostrar = (h: HiloEnLista): string =>
+    carpeta === 'sent'
+      ? (h.to.length > 0 ? h.to.join(', ') : '—')
+      : (h.lastAuthorName ?? '—');
 
   /**
    * El hilo que pide la URL (`?thread=…`), si viene uno.
@@ -225,7 +238,7 @@ export function MensajesClient(): React.ReactElement {
                     )}
                   </div>
                   <p className="truncate text-[12px] text-text-muted mt-0.5">
-                    {h.lastAuthorName ?? '—'}
+                    {quienMostrar(h)}
                     {h.patient ? ` · ${h.patient.name}` : ''}
                   </p>
                   <div className="flex items-center gap-2 mt-1">

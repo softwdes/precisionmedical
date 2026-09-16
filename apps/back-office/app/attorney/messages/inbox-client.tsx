@@ -62,6 +62,8 @@ interface ThreadRow {
   from: string;
   lastFrom: string;
   lastFromMe: boolean;
+  /** Destinatarios (TO y CC, sin el autor). Para la columna de Enviados. */
+  to: string[];
   mine: boolean;
   answered: boolean;
   caseCode: string | null;
@@ -329,8 +331,18 @@ export function AttorneyInbox({ locale, initialThreadId = null, embedded = false
     return <span className="text-[12.5px] text-text-muted">{tm(`type${(TIPOS as readonly string[]).includes(th.type) ? th.type : 'MESSAGE'}`)}</span>;
   }
 
+  /**
+   * Doctrina Gmail, igual que la bandeja de la clinica: en Recibidos importa
+   * QUIEN ESCRIBIO, y en Enviados eso sos siempre vos — ahi la columna pasa a
+   * ser "Para". Sin esto, Enviados repetia tu propio nombre en cada fila.
+   */
+  const quienMostrar = (th: ThreadRow): string =>
+    folder === 'sent'
+      ? (th.to.length > 0 ? th.to.join(', ') : '—')
+      : (th.lastFromMe ? t('msgYouPrefix', { name: th.lastFrom }) : th.lastFrom);
+
   const cabeceras = [
-    tm('colDateTime'), tm('colFrom'), t('msgClient'),
+    tm('colDateTime'), folder === 'sent' ? tm('colTo') : tm('colFrom'), t('msgClient'),
     folder === 'sent' ? tm('colStatus') : tm('colType'), tm('colSubject'),
   ];
 
@@ -442,7 +454,7 @@ export function AttorneyInbox({ locale, initialThreadId = null, embedded = false
                   <button type="button" onClick={() => { void abrir(th.id); }} className="flex-1 min-w-0 text-left">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className={`text-sm truncate ${noLeido ? 'font-semibold text-text-1' : 'text-text-2'}`}>
-                        {th.lastFromMe ? t('msgYouPrefix', { name: th.lastFrom }) : th.lastFrom}
+                        {quienMostrar(th)}
                       </span>
                       <span className="text-[11px] text-text-muted font-mono shrink-0">{fechaHora(th.lastEntryAt, loc)}</span>
                     </div>
@@ -533,7 +545,7 @@ export function AttorneyInbox({ locale, initialThreadId = null, embedded = false
                           {fechaHora(th.lastEntryAt, loc)}
                         </td>
                         <td className={`px-3 !py-1.5 text-sm whitespace-nowrap ${fuerte}`}>
-                          {th.lastFromMe ? t('msgYouPrefix', { name: th.lastFrom }) : th.lastFrom}
+                          {quienMostrar(th)}
                         </td>
                         <td className={`px-3 !py-1.5 text-[12.5px] whitespace-nowrap ${suave}`}>
                           {th.patientName ?? '—'}

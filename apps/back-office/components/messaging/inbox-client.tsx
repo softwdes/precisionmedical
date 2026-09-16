@@ -50,6 +50,8 @@ interface InboxRow {
   priority: 'NORMAL' | 'URGENT';
   patient: { id: string; name: string } | null;
   lastAuthorName: string | null;
+  /** Destinatarios (TO y CC, sin el autor). Para la columna de Enviados. */
+  to: string[];
   lastEntryAt: string;
   sealedAt: string | null;
   unread: boolean;
@@ -245,6 +247,18 @@ export function InboxClient({
     // "Sin leer" no significa nada en Enviados.
     if (f === 'sent') setSoloSinLeer(false);
   };
+
+  /**
+   * Quién se muestra en esa columna: doctrina Gmail.
+   *
+   * En Recibidos importa QUIÉN ESCRIBIÓ; en Enviados eso sos siempre vos, así
+   * que ahí la columna pasa a ser "Para" y muestra a quién le escribiste. Sin
+   * esto, en Enviados la columna repetía tu propio nombre en cada fila.
+   */
+  const quienMostrar = (r: InboxRow): string =>
+    folder === 'sent'
+      ? (r.to.length > 0 ? r.to.join(', ') : '—')
+      : (r.lastAuthorName ?? '—');
 
   /** Estado de un hilo mío en Enviados: lo que se viene a controlar. */
   const estadoEnviado = (r: InboxRow): { label: string; cls: string } =>
@@ -454,7 +468,7 @@ export function InboxClient({
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className={`text-sm truncate ${r.unread ? 'text-text-1 font-semibold' : 'text-text-2'}`}>{r.lastAuthorName ?? '—'}</span>
+                  <span className={`text-sm truncate ${r.unread ? 'text-text-1 font-semibold' : 'text-text-2'}`}>{quienMostrar(r)}</span>
                   <span className="text-[11px] text-text-muted tabular-nums shrink-0">{fmtDt(r.lastEntryAt)}</span>
                 </div>
                 <div className={`text-[12.5px] truncate ${r.unread ? 'text-text-1' : 'text-text-2'}`}>{r.subject}</div>
@@ -483,7 +497,7 @@ export function InboxClient({
                       onChange={toggleAll} aria-label={t('selectAll')} />
                   )}
                 </th>
-                {[t('colDateTime'), t('colFrom'), t('colPatient'), folder === 'sent' ? t('colStatus') : t('colType'), t('colSubject')].map((h) => (
+                {[t('colDateTime'), folder === 'sent' ? t('colTo') : t('colFrom'), t('colPatient'), folder === 'sent' ? t('colStatus') : t('colType'), t('colSubject')].map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
                     {h}
                   </th>
@@ -545,7 +559,7 @@ export function InboxClient({
                     {fmtDt(r.lastEntryAt)}
                   </td>
                   <td className={`px-3 !py-1.5 text-sm whitespace-nowrap ${fuerte}`}>
-                    {r.lastAuthorName ?? '—'}
+                    {quienMostrar(r)}
                   </td>
                   <td className={`px-3 !py-1.5 text-[12.5px] whitespace-nowrap ${suave}`}>
                     {r.patient?.name ?? '—'}

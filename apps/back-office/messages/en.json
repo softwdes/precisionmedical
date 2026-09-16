@@ -4936,10 +4936,10 @@
         "intakeBadge": "System",
         "intakeAlwaysCurrent": "Always current",
         "uploadTitle": "Upload files",
-        "uploadIntro": "Upload files to the system here. You can pick several at once, but each file must be under 100MB.",
+        "uploadIntro": "Upload files to the system here. You can pick several at once, but each file must be under 50MB.",
         "uploadDropTitle": "Upload files",
         "uploadDropHint": "Click, or drag and drop files here to upload them",
-        "uploadFootnote": "Select or drag files here (up to 10 files, 100MB each). Supported formats: images, PDF, Word, Excel.",
+        "uploadFootnote": "Select or drag files here (up to 10 files, 50MB each). Supported formats: images, PDF, Word, Excel.",
         "rootFolder": "Main folder",
         "newFolderTitle": "New folder",
         "btnCreateFolder": "Create folder",
@@ -4984,7 +4984,8 @@
         "nombre_invalido": "It can't contain \\ / : * ? \" < > |",
         "nombre_largo": "The name is too long (255 characters max).",
         "nombreRepetido": "There is already one with this name in this folder.",
-        "alertRenameFallo": "Couldn't rename it: {motivo}"
+        "alertRenameFallo": "Couldn't rename it: {motivo}",
+        "intakeFolderName": "Intake Form"
       }
     },
     "settings": {

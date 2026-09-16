@@ -61,8 +61,53 @@ interface BreadcrumbItem {
  * Se valida ACÁ, antes de mandar nada: el navegador ya conoce tamaño y tipo en
  * el momento de elegir el archivo.
  */
+/**
+ * ─── La carpeta del intake ───────────────────────────────────────────────────
+ *
+ * En el v2 el intake se archivaba dentro de una carpeta por caso, y esa carpeta
+ * es **la más común de todo el sistema**: 643 migradas, todas en la raíz,
+ * ninguna anidada y ningún caso con dos (medido el 2026-09-15). El intake de v3
+ * colgaba suelto de la raíz, así que las dos generaciones lo guardaban en
+ * lugares distintos.
+ *
+ * ── Por qué el nombre NO se traduce ────────────────────────────────────────
+ *
+ * `Intake Form` es el nombre con el que están guardadas esas 643 carpetas: es
+ * un dato, no un texto de interfaz. La carpeta virtual usa el mismo literal
+ * para que en un caso migrado y en uno nuevo se llame igual — si la tradujera,
+ * el mismo cajón tendría dos nombres según de qué año es el expediente. Por eso
+ * la clave de i18n dice lo mismo en los dos idiomas: pasa por i18n (regla #2)
+ * pero el valor es el del archivo.
+ *
+ * ⚠️ Si alguna vez se normalizan los nombres de carpeta migrados, este literal
+ * y los de la base tienen que moverse JUNTOS. Hoy `Intake Forms` (1 sola, en
+ * plural) también entra acá.
+ */
+const CARPETA_INTAKE_ID = '__intake__';
+
+function esCarpetaDeIntake(nombre: string): boolean {
+  const n = nombre.trim().toLowerCase().replace(/\s+/g, ' ');
+  return n === 'intake form' || n === 'intake forms';
+}
+
 const MAX_ARCHIVOS = 10;
-const MAX_BYTES = 100 * 1024 * 1024;
+
+/**
+ * 50 MB, que es **el techo real del bucket**, no una promesa de la pantalla.
+ *
+ * Acá decía 100 MB, igual que el pie del diálogo, y el bucket `case-documents`
+ * está configurado en `file_size_limit: 52428800`. O sea que un archivo de
+ * entre 50 y 100 MB pasaba TODAS las validaciones de acá, salía a Supabase y
+ * volvía con un `HTTP 400` sin explicación — Storage contesta 400 con un cuerpo
+ * que adentro dice 413 `EntityTooLarge`. Medido el 2026-09-15 subiendo un
+ * archivo de 55 MB.
+ *
+ * ⚠️ Este número tiene que EMPATAR con el del bucket. Si alguien lo sube acá sin
+ * subirlo allá, vuelve el mismo 400 mudo. El del bucket se cambia en el panel de
+ * Supabase (o con `updateBucket`), y el proyecto tiene además su propio techo
+ * global que puede ser más bajo.
+ */
+const MAX_BYTES = 50 * 1024 * 1024;
 
 /** Los formatos que el pie del diálogo promete. */
 const TIPOS_OK = [
@@ -492,6 +537,17 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
     setLoading(true);
     setError(null);
     setSelected(new Set());
+    /**
+     * La carpeta virtual del intake no existe en la base: no hay nada que
+     * pedirle a la API. Su único contenido es la fila generada, que se pinta
+     * aparte. Sin este corte se iría un `parentId=__intake__` que no existe y
+     * la pantalla mostraría un error donde tiene que haber un intake.
+     */
+    if (parentId === CARPETA_INTAKE_ID) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     try {
       const partes = [parentId ? `parentId=${parentId}` : '', papelera ? 'papelera=1' : ''].filter(Boolean);
       const qs = partes.length ? `?${partes.join('&')}` : '';
@@ -511,6 +567,12 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   function navigateInto(folder: DocItem) {
     setBreadcrumb(prev => [...prev, { id: folder.id, name: folder.name }]);
     setCurrentParentId(folder.id);
+  }
+
+  /** Entrar a la carpeta virtual del intake — la que no existe en la base. */
+  function entrarAlIntake() {
+    setBreadcrumb(prev => [...prev, { id: CARPETA_INTAKE_ID, name: intakeFolderName }]);
+    setCurrentParentId(CARPETA_INTAKE_ID);
   }
 
   function navigateTo(item: BreadcrumbItem) {
@@ -620,10 +682,23 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           body: file,
         });
         if (!putRes.ok) {
-          throw new Error(t('alertUploadFallo', {
-            name: nombre,
-            motivo: `HTTP ${putRes.status}`,
-          }));
+          /**
+           * El cuerpo dice el motivo; el status no.
+           *
+           * Storage contesta **400** cuando el archivo pasa el techo del bucket,
+           * y el "413 / EntityTooLarge" solo aparece adentro del JSON. Mostrar
+           * el status pelado era decir "HTTP 400" sobre lo único que la persona
+           * podía entender y arreglar sola: que el archivo pesa demasiado.
+           *
+           * No debería llegar acá —`motivoRechazo` lo frena al elegirlo— salvo
+           * que `MAX_BYTES` y el techo del bucket se desincronicen. Justo ese
+           * día es cuando hace falta que el mensaje diga la verdad.
+           */
+          const cuerpo = await putRes.text().catch(() => '');
+          const esPorTamano = /EntityTooLarge|Payload too large|maximum allowed size/i.test(cuerpo);
+          throw new Error(esPorTamano
+            ? t('rechazo_grande', { name: nombre, max: MAX_BYTES / (1024 * 1024) })
+            : t('alertUploadFallo', { name: nombre, motivo: `HTTP ${putRes.status}` }));
         }
 
         const regRes = await fetch(`/api/admin/cases/${caseId}/documents`, {
@@ -805,10 +880,47 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   }
 
   /**
-   * El intake vive en la raíz del expediente, no dentro de las carpetas: adentro
-   * de "Messages" una fila de intake sería mentira sobre dónde está el archivo.
+   * ─── Dónde se ve el intake ─────────────────────────────────────────────────
+   *
+   * Antes: suelto en la raíz. Ahora: **dentro de la carpeta del intake**, como
+   * en el v2 (Erick, 2026-09-15).
+   *
+   * La carpeta puede ser de dos clases y la diferencia importa:
+   *
+   *  · **La real**, en los 643 casos migrados que ya la traen. Ahí el intake
+   *    generado se muestra ADENTRO, junto al escaneado del v2. No se crea una
+   *    carpeta paralela: el caso vería dos cajones que parecen el mismo y nadie
+   *    sabría cuál abrir.
+   *  · **Una virtual**, en los casos que no la tienen. No es una fila de la
+   *    base a propósito — por la misma razón que el intake tampoco lo es: una
+   *    carpeta real se puede renombrar (desde hoy), se puede mandar a la
+   *    papelera, y alguien puede subirle cualquier cosa adentro. Y habría que
+   *    crearla en los ~2.400 casos que no la tienen.
+   *
+   * En la papelera no aparece ninguna de las dos: ahí se listan cosas borradas
+   * y el intake no se puede borrar.
    */
-  const mostrarIntake = currentParentId === null;
+  const intakeFolderName = t('intakeFolderName');
+
+  /** ¿El caso ya trae la carpeta del v2? Entonces esa manda. */
+  const hayCarpetaReal = items.some(i => i.isFolder && esCarpetaDeIntake(i.name));
+
+  /** El nombre de la carpeta en la que estamos parados ahora. */
+  const carpetaActual = breadcrumb[breadcrumb.length - 1]?.name ?? '';
+
+  const dentroDelIntake =
+    currentParentId === CARPETA_INTAKE_ID ||
+    (currentParentId !== null && esCarpetaDeIntake(carpetaActual));
+
+  const mostrarIntake = !verPapelera && dentroDelIntake;
+  const mostrarCarpetaVirtual = !verPapelera && currentParentId === null && !hayCarpetaReal;
+
+  /**
+   * Adentro de la carpeta virtual no se puede subir ni crear carpetas: no hay
+   * un `parentId` de verdad al que colgarlas. Mostrar los botones ahí sería
+   * ofrecer algo que no puede funcionar.
+   */
+  const carpetaSoloLectura = currentParentId === CARPETA_INTAKE_ID;
 
   return (
     <>
@@ -858,7 +970,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
               <span className="hidden sm:inline">{verPapelera ? t('trashExit') : t('trashOpen')}</span>
             </Button>
             {/* Recargar se queda: es lectura. Crear carpeta y subir, no. */}
-            {!readOnly && !verPapelera && (
+            {!readOnly && !verPapelera && !carpetaSoloLectura && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
                   <FolderPlus className="w-3.5 h-3.5" />
@@ -896,7 +1008,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           </div>
         ) : error ? (
           <div className="m-4 rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>
-        ) : items.length === 0 && !mostrarIntake ? (
+        ) : items.length === 0 && !mostrarIntake && !mostrarCarpetaVirtual ? (
           <div className="py-16">
             <EmptyState.Rich
               icon={FolderOpen}
@@ -924,6 +1036,35 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
+              {/* La carpeta del intake cuando el caso no trae la del v2. No es
+                  una fila de la base: sin casilla, sin renombrar y sin borrar.
+                  Va primero porque las carpetas van antes que los archivos, y
+                  la API ya ordena así (`isFolder: 'desc'`). */}
+              {mostrarCarpetaVirtual && (
+                <tr
+                  className="hover:bg-cyan/[0.04] group transition-colors cursor-pointer bg-cyan/[0.02]"
+                  onClick={entrarAlIntake}
+                >
+                  <td className="px-4 py-2.5">
+                    <Folder className="w-3.5 h-3.5 text-cyan mx-auto" />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate text-text-1 group-hover:text-cyan transition-colors font-normal" title={intakeFolderName}>
+                        {intakeFolderName}
+                      </span>
+                      <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px flex-shrink-0">
+                        {t('intakeBadge')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs font-mono hidden sm:table-cell whitespace-nowrap">—</td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs hidden md:table-cell whitespace-nowrap">
+                    {t('intakeAlwaysCurrent')}
+                  </td>
+                  <td className="px-3 py-2.5" />
+                </tr>
+              )}
               {/* El intake: fila fija, no de la base. Sin casilla (no entra en la
                   selección masiva) y sin borrar (no hay nada que borrar). El
                   cyan lo separa de los archivos subidos, que van en el gris de

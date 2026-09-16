@@ -4936,10 +4936,10 @@
         "intakeBadge": "Sistema",
         "intakeAlwaysCurrent": "Siempre al día",
         "uploadTitle": "Subir archivos",
-        "uploadIntro": "Aquí puedes subir archivos al sistema. Podés seleccionar varios a la vez, pero cada archivo no debe superar los 100MB.",
+        "uploadIntro": "Aquí puedes subir archivos al sistema. Podés seleccionar varios a la vez, pero cada archivo no debe superar los 50MB.",
         "uploadDropTitle": "Subir archivos",
         "uploadDropHint": "Hacé clic o arrastrá y soltá archivos acá para subirlos",
-        "uploadFootnote": "Seleccioná o arrastrá archivos acá (máximo 10 archivos, 100MB cada uno). Formatos compatibles: imágenes, PDF, Word, Excel.",
+        "uploadFootnote": "Seleccioná o arrastrá archivos acá (máximo 10 archivos, 50MB cada uno). Formatos compatibles: imágenes, PDF, Word, Excel.",
         "rootFolder": "Carpeta principal",
         "newFolderTitle": "Nueva carpeta",
         "btnCreateFolder": "Crear carpeta",
@@ -4984,7 +4984,8 @@
         "nombre_invalido": "No puede tener \\ / : * ? \" < > |",
         "nombre_largo": "El nombre es muy largo (máximo 255 caracteres).",
         "nombreRepetido": "Ya hay uno con este nombre en esta carpeta.",
-        "alertRenameFallo": "No se pudo cambiar el nombre: {motivo}"
+        "alertRenameFallo": "No se pudo cambiar el nombre: {motivo}",
+        "intakeFolderName": "Intake Form"
       }
     },
     "settings": {

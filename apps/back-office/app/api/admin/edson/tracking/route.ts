@@ -183,6 +183,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       p."lastName"      AS patient_last,
       p."dateOfBirth"   AS patient_dob,
       p."phone"         AS patient_phone,
+      -- El celular. Sin esto la columna de Tracking mostraba sin telefono a
+      -- 1.048 pacientes con caso abierto que SI lo tienen, solo que cargado en
+      -- el segundo campo (medido 2026-09-15). Ver lib/telefono-paciente.
+      -- OJO: esto es un template literal de JS. Nada de backticks aca adentro,
+      -- que cierran la cadena y rompen el archivo entero.
+      p."phone2"        AS patient_phone2,
 
       fa."id"           AS appt_id,
       fa."scheduledFor" AS appt_at,
@@ -282,6 +288,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         lastName:  r.patient_last,
         dateOfBirth: r.patient_dob,
         phone:     dec(r.patient_phone as string | null),
+        phone2:    dec(r.patient_phone2 as string | null),
       },
       appointment: {
         id:          r.appt_id,

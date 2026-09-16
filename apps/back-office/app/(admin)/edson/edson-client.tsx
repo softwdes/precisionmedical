@@ -32,6 +32,7 @@ import {
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp, fechaCalendarioNum, fechaParaInput } from '@/lib/fechas';
+import { telefonoDe } from '@/lib/telefono-paciente';
 import { ManagersPopover, ManagersSection, type SectionHandle } from './case-managers';
 import { type AnchorRect } from './anchored-panel';
 import { InlineText, InlineCombo } from './inline-edit';
@@ -64,7 +65,7 @@ const COL_XL = 'hidden xl:table-cell';   // Ajustador · Observaciones · Archiv
 interface Row {
   caseId: string;
   caseCode: string;
-  patient: { id: string; firstName: string; lastName: string; dateOfBirth: string | null; phone: string | null };
+  patient: { id: string; firstName: string; lastName: string; dateOfBirth: string | null; phone: string | null; phone2: string | null };
   appointment: {
     id: string; scheduledFor: string; status: string;
     /**
@@ -532,8 +533,45 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
           * A este tamaño el principal y el secundario quedan a 2px de distancia
           * y la jerarquia de la fila se aplana. Es reversible en estos valores
           * si al usarlo cuesta distinguirlos.
+          *
+          * ── 2026-09-16: el principal baja otro paso, a 7.5px ─────────────────
+          *
+          * Edson lo marco sobre una captura: el recuadro cae en la HORA, el
+          * provider, el abogado, el quiropractico y la aseguradora — todos
+          * valores principales. El secundario NO lo marco y se queda en 9.5px,
+          * que es el que habia peleado por poder leer.
+          *
+          * ⚠️ VIGILAR ESTO. 7.5px es exactamente el tamaño al que, segun el
+          * parrafo de arriba, dejo de leer el nacimiento y el telefono. Ahi eran
+          * NUMEROS; acá la mayoria son palabras (nombres, aseguradoras), que se
+          * leen por forma y aguantan mas. Pero la hora y la fecha del accidente
+          * tambien son numeros y tambien bajaron.
+          *
+          * Si vuelve el reclamo, el que se revierte es este paso — y la salida
+          * NO es seguir achicando: es ganar ancho moviendo datos a segunda
+          * linea, como se hizo con la clinica debajo de la hora.
+          *
+          * ── Y el ENCABEZADO va al reves: sube, y en negro negrita ───────────
+          *
+          * Estaba en 7px y gris (`text-text-muted`, que pone `DataTable.Head`):
+          * lo mas chico Y lo mas claro de toda la pantalla, en una grilla de 13
+          * columnas donde saber en cual estas parado es la mitad del trabajo.
+          * Edson lo pidio y es el mejor fundado de sus cuatro pedidos.
+          *
+          * `text-text-1` y no un negro literal: en tema oscuro un `#000` seria
+          * invisible. El token ya resuelve los dos temas.
+          *
+          * `tracking-normal` compensa el ancho: `DataTable.Head` trae
+          * `tracking-wider`, y subir de 7 a 9px CON esa separacion ensancharia
+          * cada columna por el encabezado — justo el scroll horizontal que esta
+          * vista existe para evitar. Sacando la separacion, el texto crece sin
+          * que la tabla crezca.
+          *
+          * Esto vive ACA y no en el primitivo: `DataTable.Head` lo comparten 22
+          * pantallas y el estilo del sistema es el gris chico. Esta es la
+          * excepcion de Edson, no una regla nueva.
           */}
-        <DataTable.Table gridLines className="text-[8px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[7px]">
+        <DataTable.Table gridLines className="text-[7.5px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px] [&_th]:!font-bold [&_th]:!text-text-1 [&_th]:!tracking-normal">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colTime')}</DataTable.Th>
@@ -639,7 +677,11 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
                               <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono sm:shrink-0">
-                                {fechaCalendarioNum(row.patient.dateOfBirth)}{row.patient.phone ? ` · ${row.patient.phone}` : ''}
+                                {/* El teléfono sale de los DOS campos: acá se leía
+                                    solo `phone` y por eso 1.048 pacientes con caso
+                                    abierto aparecían sin teléfono teniéndolo cargado
+                                    en el celular (Erick, 2026-09-15). */}
+                                {fechaCalendarioNum(row.patient.dateOfBirth)}{telefonoDe(row.patient) ? ` · ${telefonoDe(row.patient)}` : ''}
                               </span>
                             </div>
                             {/*
@@ -662,7 +704,19 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           </div>
                         </DataTable.Td>
                         <DataTable.Td className={COL_LG}>
-                          <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+                          {/*
+                            * La clinica DEBAJO de la hora, no al lado (Edson,
+                            * 2026-09-16).
+                            *
+                            * Es el mismo recurso de segunda linea que ya usan
+                            * paciente (DOB + telefono), provider (creada por) y
+                            * ajustador (telefono) — y acá además gana ANCHO, que
+                            * es la unica metrica que Edson mira: la hora y el
+                            * nombre de la clinica dejan de sumar en la misma
+                            * linea, asi que la columna puede angostarse en vez de
+                            * empujar a las 13 restantes.
+                            */}
+                          <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
                               <span className="flex items-center gap-1 text-[9.5px] text-text-muted">

@@ -42,7 +42,14 @@ export async function GET(
     select: {
       id: true, name: true, isFolder: true, s3Key: true,
       mimeType: true, size: true, parentId: true, createdAt: true,
-      _count: { select: { children: true } },
+      /**
+       * Con `VIGENTES`, por lo mismo que la ruta del back office — y acá pesa
+       * más: el comentario de arriba dice que al bufete lo eliminado NO le
+       * existe, y sin este `where` el CONTEO se lo seguía contando. Le
+       * anunciaba documentos que no iba a poder abrir, en carpetas que para él
+       * están vacías.
+       */
+      _count: { select: { children: { where: VIGENTES } } },
     },
   });
 

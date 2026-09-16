@@ -53,7 +53,27 @@ export async function GET(
       size: true,
       parentId: true,
       createdAt: true,
-      _count: { select: { children: true } },
+      /**
+       * ⚠️ El `where` NO es opcional: sin él se cuentan también los hijos que
+       * están en la PAPELERA.
+       *
+       * El síntoma, reportado por Erick el 2026-09-16 sobre el expediente de
+       * Héctor Cáceres: la carpeta "Imaging Reports" se veía vacía y decía (1),
+       * y "MRI Results" mostraba 2 archivos diciendo (3). El número contaba un
+       * documento borrado que la lista —que sí filtra con `VIGENTES`— no
+       * muestra.
+       *
+       * Y no era solo cosmético: el tab bloquea el borrado de una carpeta con
+       * `_count.children > 0`, así que una carpeta cuyos únicos hijos están en
+       * la papelera quedaba **imposible de borrar**. El servidor la habría
+       * dejado borrar —el DELETE de `[docId]` ya cuenta con `VIGENTES`, bien—;
+       * quien la frenaba era esta pantalla, con este número.
+       *
+       * Es el caso exacto que avisa el comentario de `lib/documentos.ts`:
+       * olvidarse del filtro no falla, muestra de más. Acá el olvido no estaba
+       * en una lista sino en un CONTEO, que es donde no se ve.
+       */
+      _count: { select: { children: { where: VIGENTES } } },
     },
   });
 

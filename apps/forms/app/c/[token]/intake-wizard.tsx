@@ -354,6 +354,8 @@ const STRINGS = {
     insPorFotoOk: 'Listo — más adelante te vamos a pedir una foto de la tarjeta, frente y dorso.',
     insSinSeguroOk: 'Anotado: sin seguro. Lo revisamos con vos cuando llegues.',
     insAddOtro: '+ Agregar otro seguro',
+    insPrincipal: 'Principal',
+    insHacerPrincipal: 'Marcar como principal',
     insTypeMedical: 'Seguro médico',
     insTypeAuto: 'Seguro de auto',
     insCarrier: 'Compañía de seguro',
@@ -479,7 +481,20 @@ const STRINGS = {
     c2Title: 'PARTES CESIONADAS',
     c2Body: 'Autorizo a las partes cesionadas (abogado, quiropráctico u otros proveedores) a actuar en mi nombre para gestionar los pagos y acuerdos relacionados con mi caso.',
     c2FullBody: 'DIVULGACIÓN DE INFORMACIÓN MÉDICA A PARTES CESIONADAS\n\nBajo la Ley de Portabilidad y Responsabilidad del Seguro Médico (HIPAA), tengo ciertos derechos sobre mi información médica protegida. Por la presente autorizo específicamente la divulgación de mi información médica para los siguientes propósitos:\n\nEn mi ausencia, autorizo a Precision Medical Urgent Care & Family Practice a divulgar total o parcialmente mi información médica protegida o la de mis dependientes a las personas o entidades que se indican a continuación.\n\nEsta autorización permanecerá vigente hasta que la revoque por escrito.',
-    c2Check: 'Acepto las Partes Cesionadas',
+    /**
+     * Decía "Acepto las Partes Cesionadas" y nadie sabía qué estaba aceptando.
+     *
+     * "Partes cesionadas" es traducción literal de *Assigned Parties*, y en
+     * español suena a cesión de derechos o de cobro — no a "las personas que yo
+     * autoricé". Erick lo reportó el 2026-09-15 creyendo que la casilla estaba
+     * de más porque arriba ya hay tres. No lo está: las tres son opcionales y
+     * ninguna menciona la lista de personas autorizadas, que es justo lo que
+     * este documento habilita. Sin esta aceptación, el esposo que el paciente
+     * anotó queda en una lista que nadie firmó.
+     *
+     * La etiqueta ahora dice lo que hace, en las palabras del paciente.
+     */
+    c2Check: 'Autorizo que compartan mi información médica como indiqué arriba',
     authPersonsLabel: 'Personas responsables autorizadas',
     authPersonsDesc: 'Agrega solo a las personas que podrán recibir o gestionar información médica en tu nombre.',
     authPersonNamePh: 'Nombre del responsable',
@@ -679,6 +694,8 @@ const STRINGS = {
     insPorFotoOk: "Got it — in a moment we'll ask you for a photo of the card, front and back.",
     insSinSeguroOk: "Noted: no insurance. We'll go over it with you when you arrive.",
     insAddOtro: '+ Add another insurance',
+    insPrincipal: 'Primary',
+    insHacerPrincipal: 'Make primary',
     insTypeMedical: 'Medical insurance',
     insTypeAuto: 'Auto insurance',
     insCarrier: 'Insurance company',
@@ -801,7 +818,8 @@ const STRINGS = {
     c2Title: 'ASSIGNED PARTIES',
     c2Body: 'I authorize assigned parties (attorney, chiropractor, or other providers) to act on my behalf to manage payments and agreements related to my case.',
     c2FullBody: 'MEDICAL INFORMATION RELEASE TO ASSIGNED PARTIES\n\nUnder the Health Insurance Portability and Accountability Act (HIPAA), I have certain rights regarding my protected health information. I hereby specifically authorize the disclosure of my health information for the following purposes:\n\nIn my absence, I authorize Precision Medical Urgent Care & Family Practice to release all or portions of my, or my dependents\', protected health information to the individuals or entities indicated below.\n\nThis authorization remains in effect until I revoke it in writing.',
-    c2Check: 'I accept the Assigned Parties authorization',
+    // Ver el comentario de `c2Check` en el diccionario ES.
+    c2Check: 'I authorize sharing my medical information as indicated above',
     authPersonsLabel: 'Authorized responsible persons',
     authPersonsDesc: 'Add only the persons who will be able to receive or manage medical information on your behalf.',
     authPersonNamePh: "Responsible person's name",
@@ -1418,6 +1436,22 @@ export function IntakeWizard({
     adjusterName: string; adjusterPhone: string; adjusterFax: string;
     adjusterPhone2: string; adjusterEmail: string; comments: string;
     fullLien: boolean; lienComments: string;
+    /**
+     * Cuál de los seguros del paciente es el principal DE SU TIPO.
+     *
+     * El nombre está en inglés camelCase como el resto de las claves de esta
+     * entrada (`insType`, `carrier`, `policyId`, `holderName`, `fullLien`).
+     * Es un contrato JSON que se persiste en `Case.consentsData.insurances` y lo
+     * lee `promoverSeguroDeclarado` en `packages/database` — la consistencia
+     * adentro del objeto pesa más que el estilo del repo (acordado con la sesión
+     * Pacientes, 2026-09-15).
+     *
+     * Ese helper ya lo respeta: si alguna entrada trae `isPrimary: true`, esa
+     * gana; si ninguna, cae al orden del arreglo. Por eso acá siempre se marca
+     * la primera de cada tipo, y el selector solo aparece cuando hay de dónde
+     * elegir.
+     */
+    isPrimary: boolean;
   };
   const blankInsurance = (insType: InsuranceType): InsuranceEntry => ({
     id: Math.random().toString(36).slice(2),
@@ -1429,10 +1463,23 @@ export function IntakeWizard({
     adjusterName: '', adjusterPhone: '', adjusterFax: '',
     adjusterPhone2: '', adjusterEmail: '', comments: '',
     fullLien: false, lienComments: '',
+    isPrimary: false,
   });
-  const [insurances, setInsurances] = useState<InsuranceEntry[]>(
-    (savedInsurances as InsuranceEntry[]).map(i => ({ ...blankInsurance(i.insType ?? 'MEDICAL'), ...i }))
-  );
+  const [insurances, setInsurances] = useState<InsuranceEntry[]>(() => {
+    const guardados = (savedInsurances as InsuranceEntry[])
+      .map(i => ({ ...blankInsurance(i.insType ?? 'MEDICAL'), ...i }));
+    // Lo ya guardado no tiene `isPrimary` (el campo es del 2026-09-15): sin esto
+    // un paciente que reabre su formulario vería los dos seguros sin principal.
+    const yaMarcado = new Set<InsuranceType>();
+    return guardados.map(i => {
+      if (i.isPrimary && !yaMarcado.has(i.insType)) { yaMarcado.add(i.insType); return i; }
+      return i.isPrimary ? { ...i, isPrimary: false } : i;
+    }).map(i => {
+      if (yaMarcado.has(i.insType)) return i;
+      yaMarcado.add(i.insType);
+      return { ...i, isPrimary: true };
+    });
+  });
   const [showInsModal, setShowInsModal] = useState(false);
 
   /**
@@ -1472,7 +1519,39 @@ export function IntakeWizard({
    * campo en una copia y no en la otra — el formulario tiene 20 campos.
    */
   const formSeguroInline = insurances.length === 0 && modoSeguro === 'formulario';
-  const removeIns = (id: string) => setInsurances(prev => prev.filter(i => i.id !== id));
+  /**
+   * Deja exactamente UN principal por tipo, y nunca ninguno.
+   *
+   * Se corre después de agregar, borrar y elegir, porque las tres pueden dejar
+   * un tipo sin principal o con dos. Si ninguna entrada del tipo está marcada,
+   * gana la primera — el mismo criterio que usa `promoverSeguroDeclarado` del
+   * lado del servidor cuando no viene el flag, así que las dos mitades deciden
+   * igual aunque una corra sin la otra.
+   */
+  const normalizarPrincipales = (lista: InsuranceEntry[]): InsuranceEntry[] => {
+    const yaMarcado = new Set<InsuranceType>();
+    return lista.map(i => {
+      if (i.isPrimary && !yaMarcado.has(i.insType)) { yaMarcado.add(i.insType); return i; }
+      return i.isPrimary ? { ...i, isPrimary: false } : i;
+    }).map(i => {
+      if (yaMarcado.has(i.insType)) return i;
+      yaMarcado.add(i.insType);
+      return { ...i, isPrimary: true };
+    });
+  };
+
+  const removeIns = (id: string) =>
+    setInsurances(prev => normalizarPrincipales(prev.filter(i => i.id !== id)));
+
+  /** El paciente eligió cuál manda. Solo se ofrece cuando hay 2+ del mismo tipo. */
+  const marcarPrincipal = (id: string) =>
+    setInsurances(prev => {
+      const elegido = prev.find(i => i.id === id);
+      if (!elegido) return prev;
+      return prev.map(i =>
+        i.insType === elegido.insType ? { ...i, isPrimary: i.id === id } : i,
+      );
+    });
 
   const isMoneyField = (v: string) => !v || /^\$?\d{1,7}(\.\d{0,2})?$/.test(v.trim());
 
@@ -1520,7 +1599,10 @@ export function IntakeWizard({
     }
 
     if (Object.keys(es).length > 0) { setInsErrors(es); return; }
-    setInsurances(prev => [...prev, insModalEntry]);
+    // `normalizarPrincipales` marca la primera de cada tipo, así que el paciente
+    // que carga un solo seguro —los 9 casos de hoy— no ve ningún selector y la
+    // entrada igual viaja con `isPrimary: true`.
+    setInsurances(prev => normalizarPrincipales([...prev, insModalEntry]));
     setShowInsModal(false);
     setInsErrors({});
     // Dejar la entrada en blanco para la próxima. Antes lo hacía `openInsModal`
@@ -3297,6 +3379,32 @@ export function IntakeWizard({
                         {ins.insType === 'AUTO' && ins.fullLien && (
                           <div style={{ fontSize: 10, color: '#F59E0B', marginTop: 2, fontWeight: 700 }}>⚖ Full Lien</div>
                         )}
+
+                        {/* Cuál manda. Aparece SOLO si hay 2+ del mismo tipo:
+                            con uno solo no hay nada que elegir y una etiqueta
+                            "Principal" sobre la única entrada es ruido.
+                            Es por tipo, no global: un paciente con un seguro
+                            médico y uno de auto no tiene ambigüedad — cada uno
+                            es el principal del suyo, y van a columnas distintas
+                            del caso. */}
+                        {insurances.filter(o => o.insType === ins.insType).length > 1 && (
+                          ins.isPrimary ? (
+                            <div style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5,
+                              padding: '2px 8px', borderRadius: 20,
+                              background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)',
+                              fontSize: 10, fontWeight: 700, color: EMERALD,
+                            }}>★ {t.insPrincipal}</div>
+                          ) : (
+                            <button type="button" onClick={() => marcarPrincipal(ins.id)}
+                              style={{
+                                marginTop: 5, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
+                                background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                                fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.50)',
+                                fontFamily: 'inherit',
+                              }}>{t.insHacerPrincipal}</button>
+                          )
+                        )}
                       </div>
                       <button type="button" onClick={() => removeIns(ins.id)}
                         style={{
@@ -3879,15 +3987,36 @@ export function IntakeWizard({
               </div>
 
               {children}
+
+              {/* Separador — solo cuando la tarjeta trae contenido propio.
+                  Hoy eso es únicamente "Partes cesionadas", que adentro lleva la
+                  lista de personas autorizadas y tres casillas OPCIONALES. La
+                  aceptación quedaba 4px debajo de la última opción, con el mismo
+                  tamaño y el mismo padding — y encima las opcionales van en
+                  MAYÚSCULAS, así que la aceptación se leía como la cuarta y la
+                  menos importante de la fila.
+                  Es al revés: es la firma del documento entero, y sin ella la
+                  lista de personas autorizadas queda sin nada que la respalde.
+                  Reportado por Erick el 2026-09-15 como "este check está de más".
+                  No lo estaba: no se entendía qué era. */}
+              {children && (
+                <div style={{ height: 1, background: CARD_BORDER, margin: '14px 0 12px' }} />
+              )}
+
               <label style={{
                 display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
-                padding: '10px 12px', borderRadius: 8, marginTop: 4,
+                padding: children ? '12px 14px' : '10px 12px', borderRadius: 8,
+                marginTop: children ? 0 : 4,
                 background: active ? 'rgba(6,182,212,0.08)' : 'rgba(255,255,255,0.03)',
                 border: active ? '1px solid rgba(6,182,212,0.25)' : '1px solid rgba(255,255,255,0.06)',
               }}>
                 <input type="checkbox" checked={active} onChange={onToggle}
                   style={{ width: 16, height: 16, marginTop: 1, accentColor: CYAN, cursor: 'pointer', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: active ? CYAN : 'rgba(255,255,255,0.60)', fontWeight: active ? 700 : 400 }}>
+                <span style={{
+                  fontSize: children ? 13 : 12, lineHeight: 1.5,
+                  color: active ? CYAN : 'rgba(255,255,255,0.72)',
+                  fontWeight: active ? 700 : 600,
+                }}>
                   {checkLabel}
                 </span>
               </label>

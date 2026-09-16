@@ -419,14 +419,20 @@ export function DoctorStepPanel({
               />
             )}
 
-            {/* Receta — el MISMO componente del portal del doctor, en modo
-                lectura: el asistente necesita responder "¿se le mandó la receta
-                a la farmacia?" en el checkout, pero prescribir y repetir son del
-                médico (misma regla que `canSign` en la nota). */}
+            {/* Receta — el MISMO componente del portal del doctor, y COMPLETO.
+                Estuvo en modo lectura mientras la regla era "prescribir es del
+                médico"; esa regla se cayó el 2026-09-16: DAW confirmó que un
+                usuario Supporting con permisos sobre los providers **envía los
+                medicamentos no controlados en nombre del prescriptor**, y los
+                controlados siguen siendo de él.
+
+                Day Admission es justamente donde trabaja el resto del equipo
+                (decisión de Erick, 2026-09-16), así que acá no se recorta nada:
+                cada uno entra con SU cuenta de ScriptSure y lo que puede hacer
+                lo decide esa cuenta, no esta pantalla. */}
             {tab === 'rx' && (
               <RxIntegrationStatus
                 appointmentId={appointmentId}
-                readOnly
                 allergies={patientContext?.history.allergies ?? null}
                 allergiesDeclared={patientContext?.history.allergiesDeclared?.text ?? null}
                 medications={patientContext?.history.medications ?? []}

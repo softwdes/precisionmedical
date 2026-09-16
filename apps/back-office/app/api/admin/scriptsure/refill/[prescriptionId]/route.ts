@@ -8,6 +8,7 @@ import {
   getScriptSureWidgetUrl,
   addToMedCart,
   ScriptSurePatientDataError,
+  ScriptSureUserNotFoundError,
 } from '@/lib/scriptsure-client';
 
 /**
@@ -42,8 +43,10 @@ export async function POST(
   });
   if (!rx) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  // Mismo permiso que abrir el widget: el doctor de la cita (o un admin)
-  const access = await checkAppointmentAccess(rx.appointmentId, { requireProvider: true });
+  // Mismo permiso que abrir el widget: tener acceso a la cita. Ya no se exige
+  // ser el prescriptor — la sesión se abre con la identidad de quien mira y
+  // ScriptSure decide qué puede hacer (ver el docblock de la ruta del widget).
+  const access = await checkAppointmentAccess(rx.appointmentId);
   if (access.deny) return access.deny;
 
   const appt = await db.appointment.findUnique({
@@ -76,7 +79,8 @@ export async function POST(
     return NextResponse.json({ error: 'MISSING_DRUG_IDS' }, { status: 422 });
   }
 
-  const loginEmail = appt.provider.email;
+  // Quien repite abre con SU cuenta; el prescriptor sigue siendo el de la cita.
+  const loginEmail = access.actor.email;
   const practiceId = Number(appt.clinic.scriptsurePracticeId);
   const prescriberId = Number(appt.provider.scriptsureUserId);
 
@@ -145,6 +149,12 @@ export async function POST(
     const url = await getScriptSureWidgetUrl(loginEmail, 'medcart', scriptsurePatientId);
     return NextResponse.json({ url });
   } catch (err) {
+    if (err instanceof ScriptSureUserNotFoundError) {
+      return NextResponse.json(
+        { error: 'NO_SCRIPTSURE_USER', loginEmail: err.loginEmail, message: err.detalle },
+        { status: 409 },
+      );
+    }
     if (err instanceof ScriptSurePatientDataError) {
       return NextResponse.json(
         { error: err.code, missingFields: err.missingFields },

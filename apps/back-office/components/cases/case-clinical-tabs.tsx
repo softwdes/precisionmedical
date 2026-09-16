@@ -14,9 +14,14 @@
  * `appointment_braces`. La captura manual vieja (JSON `medicalHistory`, data
  * migrada del v2) queda como sección "Registros manuales" colapsada.
  *
- * "Repetir" una receta (el caso de la farmacia sin stock días después) SOLO
- * aparece con `canPrescribe` (variante doctor) — prescribir es firmar una
- * orden médica y no se delega. El server lo re-valida (checkAppointmentAccess).
+ * "Repetir" una receta (el caso de la farmacia sin stock días después) aparece
+ * con `canPrescribe`, que hoy es **todo el equipo menos el abogado**. Decía
+ * "solo la variante doctor" porque prescribir se consideraba indelegable; eso
+ * se cayó el 2026-09-16, cuando DAW confirmó que un usuario Supporting de
+ * ScriptSure envía los no controlados en nombre del prescriptor.
+ *
+ * Quién puede qué lo decide la cuenta de ScriptSure de cada uno, no esta
+ * pantalla. El server igual re-valida el acceso a la cita.
  */
 
 import * as React from 'react';

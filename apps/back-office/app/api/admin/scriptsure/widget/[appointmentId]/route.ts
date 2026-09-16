@@ -6,6 +6,7 @@ import {
   getOrCreateScriptSurePatientId,
   getScriptSureWidgetUrl,
   ScriptSurePatientDataError,
+  ScriptSureUserNotFoundError,
   type ScriptSurePatientWidget,
 } from '@/lib/scriptsure-client';
 
@@ -21,10 +22,25 @@ const VALID_WIDGETS: ScriptSurePatientWidget[] = [
 /**
  * GET /api/admin/scriptsure/widget/[appointmentId]?widget=drug-list|pharmacy
  *
- * Arma la URL del widget de ScriptSure para la cita — solo el doctor dueño
- * de la cita (o un admin) puede abrirlo, igual que firmar la nota: la
- * identidad de ScriptSure tiene que ser la del prescriptor real, no de un
- * escriba médico.
+ * Arma la URL del widget de ScriptSure para la cita.
+ *
+ * ── Quién puede abrirlo: lo decide ScriptSure, no nosotros ─────────────────
+ *
+ * La sesión se abre con la identidad de **quien mira**, y el prescriptor se fija
+ * en el **médico de la cita**. Su API separa las dos cosas a propósito
+ * (`login/byapp` con el email de la persona + `user/practice/prescriber` con el
+ * id del prescriptor), y esa separación es exactamente "enviar EN NOMBRE de".
+ *
+ * Con eso, lo que cada uno puede hacer sale de su propia cuenta: un Supporting
+ * con permisos sobre los providers manda los no controlados en nombre del
+ * prescriptor, y los controlados siguen siendo del prescriptor (confirmado por
+ * DAW vía Devin, 2026-09-16).
+ *
+ * **Se quitó el `requireProvider`.** Existía porque antes la sesión se abría con
+ * el email del MÉDICO DE LA CITA: dejar entrar a otro era dejarlo firmar con el
+ * nombre ajeno. Eso ya no pasa, así que la traba dejó de tener sentido — y
+ * mientras existió bloqueaba justo a la gente que DAW dice que sí puede enviar.
+ * Queda el guard de siempre: tener acceso a esa cita.
  */
 export async function GET(
   req: NextRequest,
@@ -32,13 +48,13 @@ export async function GET(
 ): Promise<NextResponse> {
   const { appointmentId } = await params;
 
-  const access = await checkAppointmentAccess(appointmentId, { requireProvider: true });
-  if (access.deny) return access.deny;
-
   const widget = req.nextUrl.searchParams.get('widget') as ScriptSurePatientWidget | null;
   if (!widget || !VALID_WIDGETS.includes(widget)) {
     return NextResponse.json({ error: 'INVALID_WIDGET' }, { status: 400 });
   }
+
+  const access = await checkAppointmentAccess(appointmentId);
+  if (access.deny) return access.deny;
 
   const appt = await db.appointment.findUnique({
     where: { id: appointmentId },
@@ -84,7 +100,9 @@ export async function GET(
     return NextResponse.json({ error: 'CONSENT_REQUIRED' }, { status: 428 });
   }
 
-  const loginEmail = appt.provider.email;
+  // Quién abre la sesión (la persona real que está mirando) y en nombre de quién
+  // se prescribe (el médico de la cita). No son lo mismo, y ahí está la gracia.
+  const loginEmail = access.actor.email;
   const practiceId = Number(appt.clinic.scriptsurePracticeId);
   const prescriberId = Number(appt.provider.scriptsureUserId);
 
@@ -113,6 +131,17 @@ export async function GET(
       // El código lo decide el error: si lo único que falta es el teléfono, la
       // pantalla tiene que decir teléfono y no dirección.
       return NextResponse.json({ error: err.code, missingFields: err.missingFields }, { status: 422 });
+    }
+    /**
+     * A esta persona todavía no la dieron de alta en ScriptSure. Es la única
+     * traba que queda, y no es de criterio: sin cuenta no hay sesión. Se
+     * distingue del error genérico para que la pantalla diga qué hacer.
+     */
+    if (err instanceof ScriptSureUserNotFoundError) {
+      return NextResponse.json(
+        { error: 'NO_SCRIPTSURE_USER', loginEmail: err.loginEmail, message: err.detalle },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: 'SCRIPTSURE_ERROR', message: (err as Error).message }, { status: 502 });
   }

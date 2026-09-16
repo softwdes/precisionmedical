@@ -1513,8 +1513,8 @@
       "tplReplaceBody": "\"{name}\" va a sobrescribir las secciones que traiga y reemplazar los {dx} diagnósticos actuales. Lo que hayas escrito en esas secciones se pierde.",
       "tplReplaceConfirm": "Sí, reemplazar",
       "rxNotOnboardedTryOther": "Para probar la bandeja, elegí a {name} en el selector de Provider de arriba — es el único con alta en ScriptSure.",
-      "rxForbiddenTitle": "No podés prescribir en esta cita",
-      "rxForbiddenDesc": "Prescribir exige ser el Provider de la cita (o un administrador): la receta la firma una persona real, y ver el portal como otro Provider no alcanza. Que la mande el Provider de la cita, o entrá con una cuenta de administrador.",
+      "rxForbiddenTitle": "No tenés acceso a esta cita",
+      "rxForbiddenDesc": "Esta cita no está entre las que podés ver. Abrila desde tu agenda, o pedile a administración que te dé acceso.",
       "statusReadyOnline": "Lista · online",
       "triageOnlineNA": "Sin vitales · visita online",
       "vitalsSelfReported": "Reportados por el paciente — visita online, no tomados en clínica.",
@@ -1572,7 +1572,9 @@
       "demogCancel": "Cancelar",
       "demogSave": "Guardar y continuar",
       "noteEvictedTitle": "{name} entró a la nota y la está editando",
-      "noteEvictedBody": "Todo lo que escribiste quedó guardado. La nota pasa al provider mientras atiende; cuando cierre la consulta la vas a poder terminar."
+      "noteEvictedBody": "Todo lo que escribiste quedó guardado. La nota pasa al provider mientras atiende; cuando cierre la consulta la vas a poder terminar.",
+      "rxNoUserTitle": "Todavía no tenés cuenta en ScriptSure",
+      "rxNoUserDesc": "Cada persona entra con su propia cuenta: lo que podés hacer adentro lo define ScriptSure, no este sistema. Pedile a administración que te dé de alta y volvé a intentar."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

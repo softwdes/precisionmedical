@@ -44,6 +44,12 @@ export type WidgetStatus =
    */
   | 'missing_phone'
   /**
+   * Quien mira no tiene cuenta propia en ScriptSure. Es la ÚNICA traba que
+   * queda del lado nuestro, y es de hecho: sin cuenta no hay sesión que abrir.
+   * Lo que cada uno puede hacer adentro lo decide ScriptSure.
+   */
+  | 'no_scriptsure_user'
+  /**
    * 403: quien mira NO puede prescribir en esta cita — prescribir exige ser el
    * doctor de la cita (o admin), y "ver como doctor" no alcanza: la receta la
    * firma una persona real.
@@ -70,7 +76,14 @@ export async function launchRefill(prescriptionId: string): Promise<RefillLaunch
   try {
     const res = await fetch(`/api/admin/scriptsure/refill/${prescriptionId}`, { method: 'POST' });
     if (res.status === 403) return { status: 'forbidden', url: null, errorDetail: null };
-    if (res.status === 409) return { status: 'not_onboarded', url: null, errorDetail: null };
+    if (res.status === 409) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      return {
+        status: body?.error === 'NO_SCRIPTSURE_USER' ? 'no_scriptsure_user' : 'not_onboarded',
+        url: null,
+        errorDetail: null,
+      };
+    }
     if (res.status === 422) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
       return {
@@ -143,6 +156,20 @@ export function ScriptSureWidgetDialog({
               <div className="text-[12.5px] text-text-2 leading-relaxed">
                 <p className="text-text-1 font-medium mb-1">{t('rxForbiddenTitle')}</p>
                 <p>{t('rxForbiddenDesc')}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {status === 'no_scriptsure_user' && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="flex items-start gap-3 max-w-md">
+              <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4 text-amber" />
+              </div>
+              <div className="text-[12.5px] text-text-2 leading-relaxed">
+                <p className="text-text-1 font-medium mb-1">{t('rxNoUserTitle')}</p>
+                <p>{t('rxNoUserDesc')}</p>
               </div>
             </div>
           </div>

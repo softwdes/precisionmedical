@@ -47,6 +47,23 @@ interface ScriptSureLoginResponse {
 }
 
 /**
+ * Quien abrió la pantalla no tiene usuario propio en ScriptSure.
+ *
+ * Es la única traba que queda del lado nuestro, y es de hecho, no de criterio:
+ * sin cuenta no hay sesión que abrir. **Lo que puede hacer cada persona lo
+ * decide ScriptSure**, no nosotros — un Supporting con permisos sobre los
+ * providers manda los no controlados en nombre del prescriptor, y los
+ * controlados siguen siendo del prescriptor (confirmado por DAW vía Devin,
+ * 2026-09-16).
+ */
+export class ScriptSureUserNotFoundError extends Error {
+  constructor(public readonly loginEmail: string, public readonly detalle: string) {
+    super(`ScriptSure no reconoce a ${loginEmail}: ${detalle}`);
+    this.name = 'ScriptSureUserNotFoundError';
+  }
+}
+
+/**
  * Login real contra ScriptSure (Vendor Login). El sessionToken dura 12h y
  * queda atado a la identidad del `loginEmail` — no es intercambiable entre
  * usuarios. Se cachea en `ScriptSureSession` (obligatorio: prohibido re-loguear
@@ -64,6 +81,18 @@ async function login(loginEmail: string): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    /**
+     * Desde que cada persona entra con SU cuenta, "no te conozco" es un caso
+     * normal y no un error del sistema: significa que a esa persona todavía no
+     * la dieron de alta en ScriptSure. Se distingue para que la pantalla diga
+     * eso y no un error genérico.
+     *
+     * El texto crudo viaja igual: si alguna vez el 401 fuese por nuestras
+     * credenciales de vendor y no por el usuario, queda a la vista.
+     */
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
+      throw new ScriptSureUserNotFoundError(loginEmail, `${res.status}: ${text}`.slice(0, 300));
+    }
     throw new Error(`ScriptSure login falló (${res.status}): ${text}`);
   }
 

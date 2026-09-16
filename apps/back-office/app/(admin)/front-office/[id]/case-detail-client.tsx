@@ -960,7 +960,11 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       {/* Tabs clínicos — espejo de la consulta del doctor, agrupados por
           visita y leyendo las fuentes REALES (VisitNote, lab_orders,
           prescriptions de ScriptSure, los dos catálogos de cargos y férulas).
-          "Repetir" receta solo en la variante doctor. */}
+          Prescribir y repetir NO son solo del doctor desde el 2026-09-16: un
+          usuario Supporting de ScriptSure envía los no controlados en nombre
+          del prescriptor, y el resto del equipo trabaja el caso desde acá. Lo
+          que cada uno puede hacer lo decide su cuenta de ScriptSure.
+          El abogado queda afuera, que es lo único que acá no cambia. */}
       {/* Un solo selector de visita para los cinco tabs: la pregunta "qué pasó
           el 5 de agosto" es de la visita, no del tab. Por defecto, todas. */}
       {TABS_CON_FILTRO_DE_VISITA.has(activeTab) && (
@@ -973,7 +977,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         <CaseLabsTab caseId={caseInfo.id} patientId={caseInfo.patient.id} clinical={clinical} visitId={visitId} />
       )}
       {activeTab === 'rx' && (
-        <CaseRxTab caseId={caseInfo.id} canPrescribe={isDoctor} clinical={clinical} visitId={visitId} />
+        <CaseRxTab caseId={caseInfo.id} canPrescribe={!isAttorney} clinical={clinical} visitId={visitId} />
       )}
       {activeTab === 'servicios' && (
         <CaseServicesTab caseId={caseInfo.id} clinical={clinical} visitId={visitId} />

@@ -109,10 +109,15 @@ export const STATUS_CLASS: Record<SentRx['status'], string> = {
 };
 
 /**
- * `readOnly` — Day Admission: el asistente VE las recetas de la visita pero no
- * prescribe ni repite. Prescribir es firmar una orden médica y no se delega
- * (misma regla que `canSign` en la nota clínica). Lo que sí necesita es poder
- * responder "¿se le mandó la receta a la farmacia?" en el checkout.
+ * `readOnly` — recorta la pantalla a solo lectura: esconde el CTA de prescribir,
+ * los widgets que escriben y el botón de repetir.
+ *
+ * **Hoy no lo usa nadie.** Lo usaba Day Admission, cuando la regla era que
+ * prescribir no se delegaba; esa regla se cayó el 2026-09-16 (un Supporting de
+ * ScriptSure envía los no controlados en nombre del prescriptor), así que el
+ * panel va completo en los dos lados. Se deja el prop porque el recorte sigue
+ * siendo válido para una pantalla de consulta pura, pero si nadie lo usa en un
+ * tiempo, borrarlo.
  */
 export function RxIntegrationStatus({
   appointmentId, readOnly = false, allergies = null, allergiesDeclared = null, medications = [],
@@ -174,7 +179,11 @@ export function RxIntegrationStatus({
       // el mensaje genérico de conexión y mandaba a buscar el problema al lugar
       // equivocado.
       if (res.status === 403) { setStatus('forbidden'); return; }
-      if (res.status === 409) { setStatus('not_onboarded'); return; }
+      if (res.status === 409) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(body?.error === 'NO_SCRIPTSURE_USER' ? 'no_scriptsure_user' : 'not_onboarded');
+        return;
+      }
       // 428 = falta el permiso del paciente para consultar la red de farmacias.
       // No es un error: se cierra el modal grande y se ofrece registrarlo, que
       // es la acción que destraba esto. Al confirmar se reintenta solo.

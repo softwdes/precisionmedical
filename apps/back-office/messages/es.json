@@ -4880,7 +4880,8 @@
           "PATIENT": "pagó el paciente",
           "INSURANCE": "pagó el seguro",
           "LAWYER": "pagó el abogado"
-        }
+        },
+        "kpiAvisoV2": "Además hay {monto} de saldo que viene del sistema anterior. No se cobra desde acá: se ve abajo, en «Historial del sistema anterior»."
       },
       "prescripciones": {
         "placeholderMed": "Selecciona un medicamento",

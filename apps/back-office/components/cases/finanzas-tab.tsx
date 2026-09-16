@@ -657,6 +657,28 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         <KpiCard label={t('kpiPatientDebt')} value={vistaSaldo} color={vistaSaldo > 0 ? 'text-rose' : 'text-text-1'} />
       </div>
 
+      {/*
+        El aviso de que estos tres números NO son todo lo que hay.
+        ─────────────────────────────────────────────────────────────────────
+        Las tarjetas cuentan solo v3. En un caso cuyos cargos son todos del
+        sistema anterior dicen "$0.00" teniendo miles de dólares de saldo tres
+        secciones más abajo — y "$0.00" se lee como "no debe nada", no como
+        "acá no se cobra". Erick lo reportó el 16-sep mirando MVA-1812, que
+        muestra $0.00 arriba y $7.666,19 en el historial del v2.
+
+        El saldo NO se suma a las tarjetas a propósito: eso sigue siendo la
+        decisión del 15-sep —lo del v2 no se cobra desde esta pantalla, porque
+        en los MVA lo paga el abogado del acuerdo— y sumarlo pondría a
+        recepción reclamando plata que no le toca al paciente. Lo que faltaba
+        no era sumarlo: era DECIRLO. Un total que omite en silencio es lo que
+        hace dudar de la pantalla entera.
+      */}
+      {v2Saldo > 0 && (
+        <div className="rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-[11px] text-cyan">
+          {t('kpiAvisoV2', { monto: fmt$(v2Saldo) })}
+        </div>
+      )}
+
       {/* ── QUÉ se está cobrando (solo con una cita puesta) ──────────────────
           Lo que el paciente debe HOY, línea por línea: efectivo, laboratorios y
           férulas juntos, que es como se paga.

@@ -4880,7 +4880,8 @@
           "PATIENT": "paid by patient",
           "INSURANCE": "paid by insurance",
           "LAWYER": "paid by attorney"
-        }
+        },
+        "kpiAvisoV2": "There is also {monto} outstanding from the previous system. It is not collected here — see «Legacy system history» below."
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",

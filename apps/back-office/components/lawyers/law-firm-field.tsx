@@ -115,6 +115,10 @@ export function LawFirmField({
         editing={null}
         initialName={buscado}
         onCreated={seleccionar}
+        /* Este campo SIEMPRE vive dentro de un alta de caso — es su única razón
+           de existir. Así que el alta va por la ruta que gobierna `patients` y
+           no por la del catálogo, que recepción no tiene. */
+        altaEnCaso
         /* El catálogo recarga su lista acá; el wizard no tiene ninguna que
            recargar, así que solo cierra. */
         onSaved={() => setAbierto(false)}

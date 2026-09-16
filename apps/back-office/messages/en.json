@@ -1810,7 +1810,8 @@
       "deleteWarning": "Has {count, plural, one {1 member} other {{count} members}} (attorneys / case managers). They will also be marked inactive.",
       "tooltipViewCases": "View cases",
       "noFirmMatch": "No firm matches your search",
-      "noAttorneyMatch": "No member of this firm matches"
+      "noAttorneyMatch": "No member of this firm matches",
+      "errorFirmForbidden": "You do not have permission to add a law firm. Ask someone in admissions to create it, or an administrator for the Externals module."
     },
     "insurances": {
       "title": "Insurance Carriers",

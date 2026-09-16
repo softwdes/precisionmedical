@@ -78,6 +78,7 @@ export function FirmDialog({
   onSaved,
   initialName,
   onCreated,
+  altaEnCaso = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -87,6 +88,20 @@ export function FirmDialog({
   initialName?: string;
   /** Wizard: el bufete creado, para seleccionarlo y seguir. */
   onCreated?: (firm: FirmCreado) => void;
+  /**
+   * Estamos dentro del alta de caso, no en el catálogo de bufetes.
+   *
+   * Cambia dos cosas, y las dos por el mismo motivo: acá el permiso es
+   * "registrar un caso", no "administrar externos".
+   *
+   *  · El POST va a `/api/admin/lawyers/quick-create`, que gobierna el módulo
+   *    `patients`. Contra la ruta del catálogo, recepción recibía un 403
+   *    después de llenar todo el formulario (Erick, 2026-09-15).
+   *  · Se esconden las **notas internas de Edson** y el check de bufete activo:
+   *    la ruta rápida no los acepta, así que mostrarlos sería ofrecer campos
+   *    que se van a descartar en silencio. Un alta desde el wizard nace activa.
+   */
+  altaEnCaso?: boolean;
 }) {
   const t  = useTranslations('phoenix.lawyers');
   const tc = useTranslations('phoenix.common');
@@ -157,11 +172,12 @@ export function FirmDialog({
     setSaving(true);
     try {
       const flags = flagsInput.split(',').map((f) => f.trim()).filter(Boolean);
-      const res = await fetch('/api/admin/lawyers', {
+      // El alta desde el wizard va por su propia ruta — ver `altaEnCaso`.
+      const rapida = altaEnCaso && !editing;
+      const res = await fetch(rapida ? '/api/admin/lawyers/quick-create' : '/api/admin/lawyers', {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editing?.id,
           firmName: firmName.trim(),
           email: email.trim() || null,
           phone: phone.trim() || null,
@@ -170,13 +186,25 @@ export function FirmDialog({
           state: state.trim() || null,
           paymentSpeed,
           caseflowFlags: flags,
-          notes: notes.trim() || null,
-          isActive,
+          // La ruta rápida no acepta ninguno de los dos: el alta nace activa y
+          // las notas de Edson son del catálogo.
+          ...(rapida ? {} : { id: editing?.id, notes: notes.trim() || null, isActive }),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        /**
+         * `FORBIDDEN` es un código HTTP, no una frase.
+         *
+         * Se pintaba crudo en el aviso rojo: la persona leía "⚠ FORBIDDEN"
+         * después de llenar diez casillas y no tenía forma de saber que le
+         * faltaba un permiso, ni a quién pedírselo (Erick, 2026-09-15).
+         */
+        throw new Error(
+          res.status === 403
+            ? t('errorFirmForbidden')
+            : (data.message ?? data.error ?? `HTTP ${res.status}`),
+        );
       }
       /* El wizard necesita el id para SELECCIONARLO. Va antes de `onSaved`
          porque esa suele cerrar el diálogo y recargar la lista. */
@@ -309,21 +337,28 @@ export function FirmDialog({
             <Input id="flagsInput" value={flagsInput} onChange={(e) => setFlagsInput(e.target.value)} placeholder="PIP-COVERED, MED-PAY" />
           </div>
 
-          <div>
-            <Label htmlFor="notes">{t('fieldNotesLabel')}</Label>
-            <textarea
-              id="notes"
-              value={notes ?? ''}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder={t('placeholderNotes')}
-            />
-          </div>
+          {/* Las notas de Edson y el check de activo son del CATÁLOGO: la ruta
+              del alta en caso no los acepta. Dejarlos a la vista ahí sería
+              pedirle a alguien que escriba algo que se descarta sin avisar. */}
+          {!altaEnCaso && (
+            <>
+              <div>
+                <Label htmlFor="notes">{t('fieldNotesLabel')}</Label>
+                <textarea
+                  id="notes"
+                  value={notes ?? ''}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+                  placeholder={t('placeholderNotes')}
+                />
+              </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
-            <span className="text-sm text-text-2">{t('fieldActiveLabel')}</span>
-          </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
+                <span className="text-sm text-text-2">{t('fieldActiveLabel')}</span>
+              </label>
+            </>
+          )}
 
           {error && (
             <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2">

@@ -166,7 +166,35 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['settings:servicios',      /^\/api\/admin\/(services|service-codes)(\/|$)/, 'write'],
   ['settings:releases',       /^\/api\/admin\/releases(\/|$)/,                 'all'],
   ['settings:auditlog',       /^\/api\/admin\/audit-logs(\/|$)/,               'all'],
-  ['externals', /^\/api\/admin\/lawyers(\/|$)/,    'write'],
+  /**
+   * ── El bufete nuevo durante el alta de caso ────────────────────────────────
+   *
+   * `externals` es el CATÁLOGO de bufetes: crear, editar, borrar, notas
+   * internas de Edson. Recepción no lo tiene. Pero el wizard de caso nuevo le
+   * ofrece "agregar bufete", porque el bufete aparece mientras está tomando el
+   * caso — y hasta hoy ese botón terminaba en un `FORBIDDEN` después de llenar
+   * las diez casillas.
+   *
+   * Medido el 2026-09-15: 8 cuentas EMPLEADO con `patients: true` y
+   * `externals: false`, más las 9 de provider. 17 de 28 cuentas activas veían un
+   * botón que no podía funcionar.
+   *
+   * Erick decidió separar las dos capacidades: crear un bufete mientras tomo un
+   * caso no es administrar el catálogo. Así que `quick-create` la gobierna
+   * `patients` —quien puede dar de alta un caso puede dar de alta su bufete— y
+   * todo lo demás de `/lawyers` sigue siendo de `externals`.
+   *
+   * ⚠️ El `(?!\/quick-create$)` NO es cosmético. `apiGuardModules` junta TODAS
+   * las reglas que matchean y bloquea si alguna está apagada, así que sin la
+   * exclusión la regla de `externals` seguiría cerrando la ruta nueva y el 403
+   * volvería igual. Las dos líneas van juntas o no va ninguna.
+   *
+   * La ruta nueva se defiende sola del otro lado: exige staff administrativo
+   * (`checkPatientStaff`), porque `patients` lo consume también el portal
+   * médico y crear externos no es parte de atender pacientes.
+   */
+  ['patients',  /^\/api\/admin\/lawyers\/quick-create$/,          'write'],
+  ['externals', /^\/api\/admin\/lawyers(?!\/quick-create$)(\/|$)/, 'write'],
   // Datos de Edson: los consumen `/edson` y `/intake`, y nada más. El menú de
   // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
   // MODULE_ROUTES, donde ese par también viaja junto.

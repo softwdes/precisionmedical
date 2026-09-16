@@ -173,7 +173,7 @@
       "attorneyReferrals": "Refer a client",
       "messages": "Messages",
       "firmRequests": "Firm requests",
-      "collections": "Collections"
+      "collections": "Finances"
     },
     "pageTitles": {
       "billing": "Billing",
@@ -196,7 +196,7 @@
       "clinicalNote": "Clinical note",
       "labOrder": "Lab order",
       "settlementReceipt": "Settlement",
-      "collections": "Collections"
+      "collections": "Finances"
     },
     "notFound": {
       "title": "We couldn't find this page",
@@ -4937,7 +4937,8 @@
         "historyDiscountRow": "− {amount} discount",
         "paySubmit": "+ Pay…",
         "paySubmitAmount": "+ Pay {amount}",
-        "payDistributeUpTo": "Distribute up to {amount}"
+        "payDistributeUpTo": "Distribute up to {amount}",
+        "payColVisit": "Visit"
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",
@@ -5623,7 +5624,7 @@
       "viewPhoto": "View the photo larger",
       "expandRow": "Show payments and cases",
       "collapseRow": "Hide the detail",
-      "title": "Collections",
+      "title": "Finances",
       "subtitle": "Every patient with their account. The ones who owe, first.",
       "refresh": "Refresh",
       "previous": "Previous",

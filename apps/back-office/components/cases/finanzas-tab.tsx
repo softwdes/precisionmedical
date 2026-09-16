@@ -1249,6 +1249,19 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                  * agotar la plata, y verlo en vivo es lo que evita que sea una
                  * regla oculta.
                  */
+                <>
+                {/* ── Encabezados ─────────────────────────────────────────
+                    La fila mostraba DOS montos pegados —lo que se debe y lo que
+                    se va a cobrar— y nada decía cuál era cuál: el que cobra veía
+                    "$224.00" y "0.00" al lado y tenía que adivinar en qué casilla
+                    escribir (Erick, 16-sep, mirando la pantalla). El detalle
+                    desplegado ya tenía encabezados; la lista de arriba, no. */}
+                <div className="flex items-center gap-3 px-4 py-1.5 bg-bg-2/40 border-b border-row-sep text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  <span className="flex-1 min-w-0">{t('payColVisit')}</span>
+                  <span className="w-[92px] text-right shrink-0">{t('payColPending')}</span>
+                  <span className="w-[110px] text-right shrink-0">{t('payColPay')}</span>
+                  <span className="w-[66px] shrink-0" aria-hidden="true" />
+                </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-row-sep">
                   {visitasDelModal.map(v => {
                     const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
@@ -1287,8 +1300,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             )}
                           </button>
 
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap shrink-0">
-                            {fmt$(v.saldo)}
+                          {/* Ancho fijo para que quede debajo de su encabezado:
+                              una píldora que se encoge con el monto no forma
+                              columna y vuelve a mezclarse con el campo de al lado. */}
+                          <span className="w-[92px] flex justify-end shrink-0">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
+                              {fmt$(v.saldo)}
+                            </span>
                           </span>
 
                           <input
@@ -1318,29 +1336,37 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             }}
                             placeholder="0.00"
                             aria-label={`${t('payColPay')} ${fmtDate(v.fecha)}`}
-                            className="w-[110px] shrink-0 rounded-md bg-bg-2 px-2 py-1 text-xs font-mono text-right text-text-1 outline-none focus:ring-1 focus:ring-brand/40 transition-colors"
+                            /* Con borde, como todos los demás campos del modal.
+                               Sin él, sobre el fondo oscuro se leía como un texto
+                               fijo más y no como la casilla donde hay que escribir. */
+                            className="w-[110px] shrink-0 rounded-md bg-bg-2 border border-border px-2 py-1 text-xs font-mono text-right text-text-1 outline-none focus:border-brand transition-colors"
                           />
 
-                          {/* Atajo: cobrar toda la visita sin escribir el monto */}
-                          <button
-                            type="button"
-                            onClick={() => setPayAmounts(prev => ({ ...prev, [v.key]: v.saldo.toFixed(2) }))}
-                            className="text-[11px] font-semibold text-brand-text hover:underline shrink-0"
-                          >
-                            {t('payAllVisit')}
-                          </button>
+                          {/* Los dos atajos en un bloque de ancho fijo, para que
+                              la columna de cobro de arriba no se corra de fila
+                              en fila. */}
+                          <span className="w-[66px] flex items-center justify-end gap-1 shrink-0">
+                            {/* Cobrar toda la visita sin escribir el monto */}
+                            <button
+                              type="button"
+                              onClick={() => setPayAmounts(prev => ({ ...prev, [v.key]: v.saldo.toFixed(2) }))}
+                              className="text-[11px] font-semibold text-brand-text hover:underline"
+                            >
+                              {t('payAllVisit')}
+                            </button>
 
-                          <button
-                            type="button"
-                            disabled={monto <= 0}
-                            onClick={() => { setNoteDraft(payNotes[v.key] ?? ''); setNoteDialogFor(v.key); }}
-                            className={`p-1 rounded shrink-0 transition-colors hover:text-cyan disabled:opacity-30 ${
-                              payNotes[v.key] ? 'text-cyan' : 'text-text-muted'
-                            }`}
-                            title={t('payNoteTooltip')}
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
+                            <button
+                              type="button"
+                              disabled={monto <= 0}
+                              onClick={() => { setNoteDraft(payNotes[v.key] ?? ''); setNoteDialogFor(v.key); }}
+                              className={`p-1 rounded transition-colors hover:text-cyan disabled:opacity-30 ${
+                                payNotes[v.key] ? 'text-cyan' : 'text-text-muted'
+                              }`}
+                              title={t('payNoteTooltip')}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
                         </div>
 
                         {abierta && (
@@ -1396,6 +1422,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     );
                   })}
                 </div>
+                </>
               );
             })()}
 
@@ -1461,6 +1488,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
               {/* Fila acción: input ancho completo + botón */}
               <div className="flex items-center gap-2">
+                {/* El repartidor SOLO con más de una visita.
+                    Con una sola no reparte nada: era una segunda casilla de
+                    monto, idéntica a la de la fila y justo encima del botón de
+                    cobrar, o sea el lugar más fácil para escribir en la
+                    equivocada. Con varias visitas sí gana su lugar: llena todas
+                    de una. */}
+                {visitasDelModal.length > 1 && (
                 <input
                   type="number"
                   min="0"
@@ -1479,6 +1513,9 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
                   title={t('tipAutoDistribute')}
                 />
+                )}
+                {/* Sin repartidor, el botón no puede quedar solo a la izquierda. */}
+                {visitasDelModal.length <= 1 && <div className="flex-1" />}
                 <Button
                   size="sm"
                   onClick={submitPayment}

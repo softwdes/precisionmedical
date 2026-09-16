@@ -173,7 +173,7 @@
       "attorneyReferrals": "Referir un cliente",
       "messages": "Mensajes",
       "firmRequests": "Pedidos de bufetes",
-      "collections": "Cobranzas"
+      "collections": "Finanzas"
     },
     "pageTitles": {
       "billing": "Billing",
@@ -196,7 +196,7 @@
       "clinicalNote": "Nota clínica",
       "labOrder": "Orden de laboratorio",
       "settlementReceipt": "Settlement",
-      "collections": "Cobranzas"
+      "collections": "Finanzas"
     },
     "notFound": {
       "title": "No encontramos esta página",
@@ -4937,7 +4937,8 @@
         "historyDiscountRow": "− {amount} de descuento",
         "paySubmit": "+ Pagar…",
         "paySubmitAmount": "+ Pagar {amount}",
-        "payDistributeUpTo": "Distribuir hasta {amount}"
+        "payDistributeUpTo": "Distribuir hasta {amount}",
+        "payColVisit": "Visita"
       },
       "prescripciones": {
         "placeholderMed": "Selecciona un medicamento",
@@ -5623,7 +5624,7 @@
       "viewPhoto": "Ver la foto en grande",
       "expandRow": "Ver los pagos y los casos",
       "collapseRow": "Ocultar el detalle",
-      "title": "Cobranzas",
+      "title": "Finanzas",
       "subtitle": "Todos los pacientes con su cuenta. Los que deben, primero.",
       "refresh": "Actualizar",
       "previous": "Anterior",

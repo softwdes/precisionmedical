@@ -33,6 +33,7 @@ import {
   ScriptSureWidgetDialog, launchRefill, type WidgetKind, type WidgetStatus,
 } from './scriptsure-widget-dialog';
 import { DrugHistoryConsentDialog } from './drug-history-consent-dialog';
+import { PatientDemographicsDialog, type CampoFaltante } from './patient-demographics-dialog';
 
 type Status = WidgetStatus;
 
@@ -146,6 +147,9 @@ export function RxIntegrationStatus({
   const [errorDetail, setErrorDetail] = React.useState<string | null>(null);
   /** Widget que quedó esperando el consentimiento del paciente (428). */
   const [consentPara, setConsentPara] = React.useState<WidgetKind | null>(null);
+  /** Widget que quedó esperando que se completen los datos del paciente (422). */
+  const [demogPara, setDemogPara] = React.useState<WidgetKind | null>(null);
+  const [faltantes, setFaltantes] = React.useState<CampoFaltante[]>([]);
 
   const loadPrescriptions = React.useCallback(async () => {
     try {
@@ -180,12 +184,22 @@ export function RxIntegrationStatus({
         return;
       }
       if (res.status === 422) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setStatus(
-          body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
-          : body?.error === 'PATIENT_MISSING_PHONE' ? 'missing_phone'
-          : 'missing_address',
-        );
+        const body = (await res.json().catch(() => null)) as
+          { error?: string; missingFields?: string[] } | null;
+        /**
+         * La fecha de nacimiento sigue siendo un aviso y no un formulario: es
+         * identidad, no un dato de contacto, y corregirla en un atajo puesto
+         * para destrabar una receta es pedir un error caro.
+         */
+        if (body?.error === 'PATIENT_MISSING_DOB') { setStatus('missing_dob'); return; }
+        /**
+         * Dirección y teléfono se completan acá mismo y el widget se reintenta
+         * solo. Antes esto era un cartel sin salida y un provider no pudo
+         * mostrar el módulo por eso (Devin vía Erick, 2026-09-16).
+         */
+        setActive(null);
+        setFaltantes((body?.missingFields ?? []) as CampoFaltante[]);
+        setDemogPara(widget);
         return;
       }
       /**
@@ -432,6 +446,24 @@ export function RxIntegrationStatus({
           const widget = consentPara;
           setConsentPara(null);
           if (widget) void openWidget(widget);
+        }}
+      />
+
+      {/* Completar dirección y teléfono sin salir de la consulta. Al guardar se
+          reintenta el widget que se había trabado, así el provider no tiene que
+          volver a buscarlo ni acordarse de qué estaba haciendo. */}
+      <PatientDemographicsDialog
+        open={!!demogPara}
+        appointmentId={appointmentId}
+        faltantes={faltantes}
+        onCancel={() => setDemogPara(null)}
+        onSaved={() => {
+          const widget = demogPara;
+          setDemogPara(null);
+          if (widget) void openWidget(widget);
+          // El panel de contexto y el resumen leen la ficha: que reflejen el
+          // dato recién cargado sin tener que recargar a mano.
+          startTransition(() => { router.refresh(); });
         }}
       />
     </div>

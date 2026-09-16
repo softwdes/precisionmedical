@@ -20,6 +20,7 @@ import { normalizarIdioma } from '@/lib/portal-message';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { IncomingCallSimulator, IncomingCallToast, type IncomingCallData } from '@/components/cases/incoming-call-simulator';
+import { telefonoDe, coincideTelefono } from '@/lib/telefono-paciente';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -39,6 +40,7 @@ interface PhoenixCase {
     firstName: string;
     lastName: string;
     phone: string | null;
+    phone2: string | null;
     email: string | null;
     dateOfBirth: Date | null;
     preferredLanguage: string | null;
@@ -123,7 +125,17 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
         c.patient.firstName.toLowerCase().includes(q) ||
         c.patient.lastName.toLowerCase().includes(q) ||
         `${c.patient.firstName} ${c.patient.lastName}`.toLowerCase().includes(q) ||
-        (c.patient.phone ?? '').toLowerCase().replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
+        /*
+         * Teléfono: los DOS campos, y solo con 3 dígitos o más.
+         *
+         * Antes decía `.includes(q.replace(/\D/g,''))`, y eso tenía DOS
+         * problemas. El chico: miraba solo `phone`, así que escribir el celular
+         * de un paciente no lo encontraba. El grande: al buscar un NOMBRE, los
+         * dígitos de la consulta quedan en `''` — y `'lo que sea'.includes('')`
+         * es `true`. O sea que esta línea daba verdadero para TODAS las filas y
+         * el buscador devolvía la lista entera con cualquier texto.
+         */
+        coincideTelefono(c.patient, q) ||
         c.caseCode.toLowerCase().includes(q) ||
         (c.lawFirm?.firmName ?? '').toLowerCase().includes(q) ||
         (c.accidentLocation ?? '').toLowerCase().includes(q) ||
@@ -408,7 +420,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           patient: {
             firstName: sendPortalCase.patient.firstName,
             lastName: sendPortalCase.patient.lastName,
-            phone: sendPortalCase.patient.phone,
+            phone: telefonoDe(sendPortalCase.patient),
             email: sendPortalCase.patient.email,
             // El diálogo abre en el idioma del paciente. Sin esto caía a español
             // siempre, y a un paciente registrado en inglés le llegaba el SMS en
@@ -428,7 +440,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           patient: {
             firstName: confirmCase.patient.firstName,
             lastName: confirmCase.patient.lastName,
-            phone: confirmCase.patient.phone,
+            phone: telefonoDe(confirmCase.patient),
           },
           accidentDate: confirmCase.accidentDate,
           accidentLocation: confirmCase.accidentLocation,

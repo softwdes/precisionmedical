@@ -100,7 +100,7 @@ export default async function FrontOfficePage({
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       include: {
-      patient: { select: { firstName: true, lastName: true, phone: true, dateOfBirth: true, email: true, preferredLanguage: true } },
+      patient: { select: { firstName: true, lastName: true, phone: true, phone2: true, dateOfBirth: true, email: true, preferredLanguage: true } },
       lawFirm: { select: { firmName: true, paymentSpeed: true } },
       attorney: { select: { firstName: true, lastName: true } },
       primaryInsurance: { select: { name: true, shortCode: true, color: true, responseSpeed: true } },
@@ -159,6 +159,7 @@ export default async function FrontOfficePage({
           firstName: c.patient.firstName,
           lastName: c.patient.lastName,
           phone: c.patient.phone,
+          phone2: c.patient.phone2,
           email: c.patient.email,
           dateOfBirth: c.patient.dateOfBirth,
           // Decide en qué idioma sale el SMS del portal.

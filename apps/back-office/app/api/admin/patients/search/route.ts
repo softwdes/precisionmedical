@@ -14,6 +14,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptScalars, decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
 import { checkPatientStaff } from '@/lib/patient-access';
+import { telefonoDe } from '@/lib/telefono-paciente';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   /**
@@ -50,6 +51,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
+        // El celular también: buscar por él no encontraba a nadie, y más de la
+        // mitad de los pacientes tiene el número ahí (ver `lib/telefono-paciente`).
+        { phone2: { contains: q } },
         { email: { contains: q, mode: 'insensitive' } },
         { patientCode: { contains: q, mode: 'insensitive' } },
       ],
@@ -62,6 +66,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       firstName: true,
       lastName: true,
       phone: true,
+      phone2: true,
       email: true,
       dateOfBirth: true,
       // `deletedAt: null` en los dos: sin esto el resumen contaba los casos
@@ -100,7 +105,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         patientCode: d.patientCode,
         firstName: d.firstName,
         lastName: d.lastName,
-        phone: d.phone,
+        phone: telefonoDe(d),
         email: d.email,
         dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().slice(0, 10) : null,
         casesCount: _count.cases,

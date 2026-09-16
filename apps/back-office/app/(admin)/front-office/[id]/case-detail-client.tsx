@@ -64,6 +64,7 @@ import { VISIT_PARAM, conTab, conVisitaFiltrada, escribirUrl, paramsDelNavegador
  * refresh con `?case=…&tab=labs` reproduzca la vista exacta.
  */
 import { useCaseClinical } from '@/components/cases/case-clinical-data';
+import { telefonoDe } from '@/lib/telefono-paciente';
 
 const CaseLabsTab = dynamic(() =>
   import('@/components/cases/case-clinical-tabs').then((m) => m.CaseLabsTab));
@@ -104,6 +105,8 @@ interface CaseInfo {
     firstName: string;
     lastName: string;
     phone: string | null;
+    /** El celular. Junto a `phone` en todas partes — ver `lib/telefono-paciente`. */
+    phone2: string | null;
     email: string | null;
     dateOfBirth: Date | null;
     /** Idioma registrado — decide en qué idioma sale el SMS del portal. */
@@ -499,9 +502,12 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         }
         subtitle={
           <span className="flex items-center gap-3 flex-wrap text-sm">
-            {caseInfo.patient.phone && (
-              <a href={`tel:${caseInfo.patient.phone}`} className="inline-flex items-center gap-1 text-emerald hover:text-text-1 font-mono">
-                <Phone className="w-3.5 h-3.5" /> {caseInfo.patient.phone}
+            {/* El teléfono sale de los DOS campos del paciente: acá se leía solo
+                `phone` y por eso a más de la mitad de los pacientes no se les
+                podía hacer clic para llamar (ver `lib/telefono-paciente`). */}
+            {telefonoDe(caseInfo.patient) && (
+              <a href={`tel:${telefonoDe(caseInfo.patient)}`} className="inline-flex items-center gap-1 text-emerald hover:text-text-1 font-mono">
+                <Phone className="w-3.5 h-3.5" /> {telefonoDe(caseInfo.patient)}
               </a>
             )}
             {caseInfo.patient.email && (
@@ -623,10 +629,10 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                         <ContactoCompartidoNota patient={caseInfo.patient} canal="EMAIL" />
                       </div>
                     )}
-                    {caseInfo.patient.phone && (
+                    {telefonoDe(caseInfo.patient) && (
                       <div>
-                        <a href={`tel:${caseInfo.patient.phone}`} className="inline-flex items-center gap-1 text-emerald text-xs font-mono hover:text-text-1">
-                          <Phone className="w-3 h-3" /> {caseInfo.patient.phone}
+                        <a href={`tel:${telefonoDe(caseInfo.patient)}`} className="inline-flex items-center gap-1 text-emerald text-xs font-mono hover:text-text-1">
+                          <Phone className="w-3 h-3" /> {telefonoDe(caseInfo.patient)}
                         </a>
                         <ContactoCompartidoNota patient={caseInfo.patient} canal="PHONE" />
                       </div>
@@ -1038,7 +1044,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           patient: {
             firstName: caseInfo.patient.firstName,
             lastName: caseInfo.patient.lastName,
-            phone: caseInfo.patient.phone,
+            phone: telefonoDe(caseInfo.patient),
             email: caseInfo.patient.email,
             // Ver el comentario en front-office-client: sin esto el diálogo abre
             // en español aunque el paciente esté registrado en inglés.
@@ -1056,7 +1062,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           patient: {
             firstName: caseInfo.patient.firstName,
             lastName: caseInfo.patient.lastName,
-            phone: caseInfo.patient.phone,
+            phone: telefonoDe(caseInfo.patient),
           },
           accidentDate: caseInfo.accidentDate,
           accidentLocation: caseInfo.accidentLocation,

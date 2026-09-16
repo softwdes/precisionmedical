@@ -94,6 +94,10 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
           firstName: true,
           lastName: true,
           phone: true,
+          // El celular. Sin él, el detalle del caso no mostraba teléfono ni
+          // dejaba llamar a más de la mitad de los pacientes, que lo tienen
+          // cargado acá y no en `phone` (ver `lib/telefono-paciente`).
+          phone2: true,
           email: true,
           dateOfBirth: true,
           // Decide en qué idioma sale el SMS del portal desde el detalle del caso.

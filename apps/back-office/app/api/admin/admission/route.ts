@@ -19,7 +19,7 @@ import { claveDia } from '@/lib/fechas';
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
   patient: {
-    select: { id: true, firstName: true, lastName: true, phone: true },
+    select: { id: true, firstName: true, lastName: true, phone: true, phone2: true },
   },
   provider: {
     select: { id: true, firstName: true, lastName: true, specialty: true },
@@ -129,6 +129,7 @@ function mapAppt(
       firstName: a.patient.firstName,
       lastName:  a.patient.lastName,
       phone:     a.patient.phone,
+      phone2:    a.patient.phone2,
     },
     provider: a.provider ? {
       id:        a.provider.id,

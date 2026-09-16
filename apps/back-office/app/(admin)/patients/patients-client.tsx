@@ -12,6 +12,7 @@ import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgo
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel } from '@/components/ui-phoenix';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
+import { telefonoDe } from '@/lib/telefono-paciente';
 import { AppointmentDetailPanel, type CalendarAppointment } from '@/components/calendar/appointment-detail-panel';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { etiquetaEstado } from '@/lib/appointment-style';
@@ -2552,18 +2553,22 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 {/* Formulario */}
                 <td className={`px-3 py-2 hidden lg:table-cell w-[100px] ${HOVER_CELDA}`}>
                   <div className="flex items-center gap-1.5">
-                    {/* Llamar — va primero. Solo habilitado si hay telefono. */}
-                    {p.phone && !doctorMode ? (
+                    {/* Llamar — va primero. Solo habilitado si hay telefono.
+                        El teléfono sale de los DOS campos: mirando solo `phone`,
+                        a más de la mitad de los pacientes el botón les salía
+                        bloqueado teniendo el número cargado en el celular
+                        (ver `lib/telefono-paciente`). */}
+                    {telefonoDe(p) && !doctorMode ? (
                       <button
                         onClick={() => setCallTarget({
                           name:   `${p.firstName} ${p.lastName}`,
-                          phone:  p.phone!,
+                          phone:  telefonoDe(p)!,
                           patientId: p.id,
                           caseId: p.latestCase?.id ?? null,
                         })}
                         className="p-1.5 rounded hover:bg-emerald/10 transition-colors group"
-                        title={t('tooltipCallPatient', { phone: p.phone })}
-                        aria-label={t('tooltipCallPatient', { phone: p.phone })}
+                        title={t('tooltipCallPatient', { phone: telefonoDe(p)! })}
+                        aria-label={t('tooltipCallPatient', { phone: telefonoDe(p)! })}
                       >
                         <PhoneCall className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald transition-colors" />
                       </button>
@@ -2577,7 +2582,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                        * tener cartel — manda a recepción a "arreglar" una ficha
                        * que está completa.
                        */
-                      <span title={doctorMode && p.phone ? t('tooltipStaffOnly') : t('tooltipNoPhone')}>
+                      <span title={doctorMode && telefonoDe(p) ? t('tooltipStaffOnly') : t('tooltipNoPhone')}>
                         <PhoneCall className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
@@ -2590,7 +2595,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                           patient: {
                             firstName: p.firstName,
                             lastName: p.lastName,
-                            phone: p.phone,
+                            phone: telefonoDe(p),
                             email: p.email,
                             preferredLanguage: (p.preferredLanguage as 'es' | 'en' | null) ?? undefined,
                           },
@@ -2926,11 +2931,16 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <div className="space-y-4 text-sm">
               <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
                 <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Contacto</p>
-                {viewTarget.phone && (
+                {/* Con `viewTarget.phone &&` acá afuera, un paciente que tiene
+                    SOLO celular no mostraba ningún teléfono: la condición miraba
+                    el fijo y se llevaba puesto al `phone2` de adentro. */}
+                {(viewTarget.phone || viewTarget.phone2) && (
                   <div className="flex items-center gap-2 text-text-2">
                     <Phone className="w-3.5 h-3.5 text-text-muted" />
-                    <span className="font-mono">{viewTarget.phone}</span>
-                    {viewTarget.phone2 && <span className="font-mono text-text-muted">· {viewTarget.phone2}</span>}
+                    <span className="font-mono">{telefonoDe(viewTarget)}</span>
+                    {viewTarget.phone && viewTarget.phone2 && viewTarget.phone !== viewTarget.phone2 && (
+                      <span className="font-mono text-text-muted">· {viewTarget.phone2}</span>
+                    )}
                   </div>
                 )}
                 {viewTarget.email && (

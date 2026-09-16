@@ -37,6 +37,7 @@ import { sendEmail, emailMode } from '@/lib/email';
 import { buildPortalSms, buildPortalEmail, portalEmailHtml, idiomaDelPaciente } from '@/lib/portal-message';
 import { resolveActor } from '@/lib/actor';
 import { obtenerPortalToken } from '@/lib/portal-token';
+import { telefonoDe } from '@/lib/telefono-paciente';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
@@ -64,14 +65,18 @@ const InputSchema = z.object({
 // El GET y el POST tienen que resolver al destinatario con el mismo select:
 // si divergen, el diálogo gatea los canales con una regla y el envío con otra.
 const PATIENT_WITH_GUARDIAN_SELECT = {
-  id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
+  // `phone2` (el celular) va junto a `phone` en TODOS lados de este archivo.
+  // Sin él, el SMS se negaba a salir con "Paciente no tiene teléfono
+  // registrado" mientras el celular estaba cargado en la ficha: 1.120 casos
+  // abiertos en esa situación (medido 2026-09-15). Ver `lib/telefono-paciente`.
+  id: true, firstName: true, lastName: true, phone: true, phone2: true, email: true, dateOfBirth: true,
   // Para resolver el idioma del mensaje cuando el caller no lo manda.
   preferredLanguage: true,
   // Deciden si el mensaje tiene que NOMBRAR al paciente: con el canal
   // compartido, "completá tu formulario" no le dice a la mamá de cuál hijo es.
   sharesEmail: true,
   sharesPhone: true,
-  guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+  guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, phone2: true, email: true } },
 } as const;
 
 /**
@@ -106,7 +111,7 @@ export async function GET(
     recipient: {
       firstName:        destino.firstName,
       lastName:         destino.lastName,
-      phone:            destino.phone,
+      phone:            telefonoDe(destino),
       email:            destino.email,
       forGuardian:      !!apoderado,
       guardianRequired: esMenor && !apoderado,
@@ -198,7 +203,7 @@ export async function POST(
   }
 
   // Validation — contra los datos de quien realmente va a recibir el link
-  if (parsed.via === 'SMS' && !destino.phone) {
+  if (parsed.via === 'SMS' && !telefonoDe(destino)) {
     return NextResponse.json({
       error: 'NO_PHONE',
       message: paraMenor
@@ -236,7 +241,7 @@ export async function POST(
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   // SMS template
-  const recipient = parsed.via === 'SMS' ? destino.phone! : destino.email!;
+  const recipient = parsed.via === 'SMS' ? telefonoDe(destino)! : destino.email!;
   // Al apoderado se le habla de "tu hijo/a" y se lo nombra: si recibiera el
   // mismo texto que el paciente, no entendería de quién es el caso.
   const nombrePaciente = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
@@ -307,7 +312,7 @@ export async function POST(
   // SendGrid (producto aparte de Twilio). Mientras tanto no se finge que sale.
   const smsResult = parsed.via === 'SMS'
     ? await sendSms({
-        to: destino.phone!,
+        to: telefonoDe(destino)!,
         body: messageBody,
         patientId: caseRecord.patient.id,
         caseId: caseId,

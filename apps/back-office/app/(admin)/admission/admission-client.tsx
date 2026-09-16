@@ -38,6 +38,7 @@ import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type Cargo
 import type { CoverageDTO } from '@/lib/coverage';
 import { getEventStyle } from '@/lib/appointment-style';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
+import { coincideTelefono } from '@/lib/telefono-paciente';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 /**
@@ -74,7 +75,7 @@ interface AdmissionAppt {
   chargedTotal:    number;
   hasCharge:       boolean;
   /** `photoUrl`: la selfie ya firmada, del lote de toda la cola. null = iniciales. */
-  patient: { id: string; firstName: string; lastName: string; phone: string | null; photoUrl?: string | null };
+  patient: { id: string; firstName: string; lastName: string; phone: string | null; phone2: string | null; photoUrl?: string | null };
   provider: { id: string; firstName: string; lastName: string; specialty: string } | null;
   clinic:   { id: string; name: string };
   case: {
@@ -723,16 +724,17 @@ export function AdmissionClient() {
     const porClinica = clinicFilter === 'all' ? list : list.filter(a => a.clinic.id === clinicFilter);
     const q = normalizar(patientQuery);
     if (!q) return porClinica;
-    const digitos = patientQuery.replace(/\D/g, '');
     return porClinica.filter((a) => {
       const nombre = normalizar(`${a.patient.firstName} ${a.patient.lastName}`);
       const alReves = normalizar(`${a.patient.lastName} ${a.patient.firstName}`);
       const codigo = normalizar(a.case?.caseCode ?? '');
-      const tel = (a.patient.phone ?? '').replace(/\D/g, '');
       return nombre.includes(q)
         || alReves.includes(q)
         || codigo.includes(q)
-        || (digitos.length >= 3 && tel.includes(digitos));
+        // Busca contra los DOS teléfonos. Antes miraba solo `phone`, así que
+        // escribir el celular de un paciente no lo encontraba — y más de la
+        // mitad de los pacientes tiene el número ahí (ver `lib/telefono-paciente`).
+        || coincideTelefono(a.patient, patientQuery);
     });
   };
 

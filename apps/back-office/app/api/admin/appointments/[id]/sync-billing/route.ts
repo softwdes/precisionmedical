@@ -60,16 +60,27 @@ export async function POST(
     if (codes.length === 0) return NextResponse.json({ ok: false, reason: 'no_services' });
 
     // Get existing billing rows + sum of active payments via raw SQL
-    type BillingRow = { id: string; serviceCode: string | null; amountPaid: bigint | number };
+    /**
+     * Lo COBRADO y lo PERDONADO se traen por separado: los dos bajan el saldo,
+     * pero solo el primero es plata que entró. Sin el segundo término, editar
+     * los códigos de la nota le resucitaba al cargo el descuento que se le
+     * acababa de aplicar — y esta ruta corre en cada guardado.
+     */
+    type BillingRow = {
+      id: string; serviceCode: string | null; discount: bigint | number;
+      amountPaid: bigint | number; perdonado: bigint | number;
+    };
     const existing = await db.$queryRaw<BillingRow[]>`
-      SELECT ab.id, ab."serviceCode", COALESCE(SUM(p.amount), 0) as "amountPaid"
+      SELECT ab.id, ab."serviceCode", ab.discount,
+             COALESCE(SUM(p.amount), 0)   as "amountPaid",
+             COALESCE(SUM(p.discount), 0) as "perdonado"
       FROM appointment_billing ab
       LEFT JOIN billing_payments p ON p."billingId" = ab.id AND p.status != 'CANCELLED'
       WHERE ab."appointmentId" = ${id}
         AND ab."braceId" IS NULL
         AND ab."cashServiceId" IS NULL
         AND ab."labOrderId" IS NULL
-      GROUP BY ab.id, ab."serviceCode"
+      GROUP BY ab.id, ab."serviceCode", ab.discount
     `;
 
     // Delete aggregate records (serviceCode IS NULL) with no payments
@@ -88,8 +99,10 @@ export async function POST(
 
       const prev = existingByCode.get(svc.code);
       if (prev) {
+        // La fórmula de `lib/saldo-del-cargo.ts`, acá en SQL porque el resto de
+        // la ruta es raw: totalCost − descuento del cargo − cobrado − perdonado.
         const paid = Number(prev.amountPaid);
-        const balance = Math.max(0, fee - paid);
+        const balance = Math.max(0, fee - Number(prev.discount) - paid - Number(prev.perdonado));
         await db.$executeRaw`
           UPDATE appointment_billing
           SET "totalCost" = ${fee}, "balanceDue" = ${balance}, "serviceDescription" = ${svc.description}, "updatedAt" = NOW()
@@ -128,7 +141,13 @@ export async function POST(
           DO UPDATE SET
             "totalCost"          = EXCLUDED."totalCost",
             "serviceDescription" = EXCLUDED."serviceDescription",
-            "balanceDue"         = GREATEST(0, EXCLUDED."totalCost" - appointment_billing."amountPaid"),
+            "balanceDue"         = GREATEST(0,
+                                     EXCLUDED."totalCost"
+                                     - appointment_billing.discount
+                                     - appointment_billing."amountPaid"
+                                     - COALESCE((SELECT SUM(p.discount) FROM billing_payments p
+                                                 WHERE p."billingId" = appointment_billing.id
+                                                   AND p.status != 'CANCELLED'), 0)),
             "updatedAt"          = NOW()
         `;
       }

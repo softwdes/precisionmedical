@@ -21,6 +21,8 @@ import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pil
 interface BillingPayment {
   id: string;
   amount: number;
+  /** Lo PERDONADO en ese mismo cobro. Baja el saldo y no cuenta como cobrado. */
+  discount: number;
   source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
   paymentType: string | null;
   method: 'CHECK' | 'CARD' | 'CASH' | 'TRANSFER' | 'NONE';
@@ -68,6 +70,8 @@ interface PaymentRow {
   id: string;
   billingId: string;
   amount: number;
+  /** Lo PERDONADO en ese mismo cobro. Baja el saldo y no cuenta como cobrado. */
+  discount: number;
   source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
   method: 'CHECK' | 'CARD' | 'CASH' | 'TRANSFER' | 'NONE';
   paymentType: string | null;
@@ -92,10 +96,12 @@ interface Kpis {
   /** Lo cobrado, por quién lo puso — un copago es plata del paciente sobre una
    *  línea que se le factura al seguro, y sin esto no se distinguía. */
   paidByPatient: number; paidByInsurance: number;
+  /** Lo perdonado. Va SEPARADO de lo cobrado: es plata que la clínica resignó. */
+  totalDiscount: number;
 }
 const EMPTY_KPIS: Kpis = {
   totalCost: 0, totalPaid: 0, totalBalance: 0, patientBalance: 0, insuranceBalance: 0,
-  paidByPatient: 0, paidByInsurance: 0,
+  paidByPatient: 0, paidByInsurance: 0, totalDiscount: 0,
 };
 
 // ─── Payment type options (igual a v2) ─────────────────────────────────────────
@@ -333,7 +339,23 @@ const ORIGEN_CLAVE: Record<string, string> = {
   LAB: 'originLab', CASH: 'originCash', BRACE: 'originBrace', CPT: 'originCpt',
 };
 
-export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void; reloadAndOpen: () => void }
+export interface FinanzasTabHandle {
+  openPayModal: () => void;
+  reload: () => void;
+  reloadAndOpen: () => void;
+  /**
+   * Abre el modal recién cuando hay datos, sin el paso intermedio en $0.
+   *
+   * `reloadAndOpen` abre con lo que haya y vuelve a abrir al terminar de
+   * cargar: sirve cuando el componente ya está montado y cargado (el panel del
+   * calendario), porque el primer estado ya es el bueno. En un montaje NUEVO
+   * —Cobranzas monta el tab del caso recién al pedir el cobro— ese primer
+   * estado está vacío, y el que cobra ve "TOTAL PENDING $0.00 · 0 visitas"
+   * medio segundo antes de que aparezca la deuda real. En una pantalla de
+   * plata, eso se lee como "no debe nada".
+   */
+  openWhenLoaded: () => void;
+}
 
 /**
  * `readOnly` — vista del doctor: ve el summary completo (costos, pagado, saldo,
@@ -395,9 +417,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const [lpMethod, setLpMethod]   = useState<string>('CARD');
   const [lpType, setLpType]       = useState<string>('');
   const [lpMonto, setLpMonto]     = useState<string>('');
+  /**
+   * Lo que se PERDONA en este mismo cobro (Reduction agreement y similares).
+   *
+   * Vive solo acá y no en el modal grande: ahí el monto se reparte entre las
+   * líneas de la visita y un descuento repartido no tendría a quién atribuirse.
+   * Perdonar es una decisión sobre UN cargo, y este es el diálogo de un cargo.
+   */
+  const [lpDescuento, setLpDescuento] = useState<string>('');
   const [lpNotas, setLpNotas]     = useState<string>('');
   const [lpGuardando, setLpGuardando] = useState(false);
-  /** El descuento de esa línea — se guarda aparte del pago, con su propio botón. */
   const [noteDialogFor, setNoteDialogFor] = useState<string | null>(null); // billingId de la fila con "Nota de pago" abierta
   const [noteDraft, setNoteDraft]         = useState('');
   const openAfterLoad = useRef(false);
@@ -530,6 +559,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       openAfterLoad.current = true;
       load();
     },
+    // Sin el `openPayModal()` de arriba: el modal aparece una sola vez, ya con
+    // la deuda cargada. Ver el docblock del handle.
+    openWhenLoaded: () => {
+      openAfterLoad.current = true;
+      load();
+    },
   }));
 
   function toggleExpanded(id: string) {
@@ -618,6 +653,9 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     setLpMethod('CARD');
     setLpType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
     setLpMonto(l.balanceDue.toFixed(2));
+    // Vacío, no "0.00": perdonar es la excepción y el campo tiene que verse sin
+    // usar, no como un cero que alguien tenga que borrar para escribir encima.
+    setLpDescuento('');
     setLpNotas('');
   }
 
@@ -625,7 +663,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
     const l = lineaAPagar;
     if (!l) return;
     const monto = parseFloat(lpMonto) || 0;
-    if (monto <= 0) { alert(t('alertMinAmount')); return; }
+    const descuento = parseFloat(lpDescuento) || 0;
+    // Perdonar SIN cobrar es válido: un Reduction agreement puede cerrar el
+    // saldo entero sin que entre un peso. Lo que no vale es un pago vacío.
+    if (monto + descuento <= 0) { alert(t('alertMinAmount')); return; }
 
     setLpGuardando(true);
     try {
@@ -635,7 +676,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         body: JSON.stringify({
           // Una sola entrada: es el punto de este diálogo. El monto NO se
           // reparte porque ya sabemos contra qué línea va.
-          payments: [{ billingId: l.id, amount: Math.min(monto, l.balanceDue), notes: lpNotas || null }],
+          payments: [{
+            billingId: l.id,
+            amount: Math.min(monto, l.balanceDue),
+            // Lo perdonado entra en el mismo pago: se revierte con él.
+            discount: Math.min(descuento, Math.max(0, l.balanceDue - Math.min(monto, l.balanceDue))),
+            notes: lpNotas || null,
+          }],
           source: lpSource,
           method: lpMethod,
           paymentType: lpType || null,
@@ -728,6 +775,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
    */
   const historial = payments.filter(p =>
     !filterAppointmentId || p.appointmentId === filterAppointmentId);
+
+  /**
+   * Lo PERDONADO en la vista. Va aparte de lo cobrado y solo aparece cuando hay
+   * algo: sumarlo al total haría que el mostrador lea ingresos que no entraron,
+   * y esconderlo dejaría un saldo que bajó sin explicación visible.
+   */
+  const vistaPerdonado = historial.reduce((s, p) => s + p.discount, 0);
 
   const pending     = pendingOf(billings);
 
@@ -1037,6 +1091,11 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             <span className="ml-auto text-[11px] text-text-muted">
               {t('historyTotal')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPagado)}</b>
             </span>
+            {vistaPerdonado > 0 && (
+              <span className="text-[11px] text-text-muted">
+                {t('historyDiscountTotal')} <b className="text-amber text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPerdonado)}</b>
+              </span>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1058,6 +1117,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     </td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap font-mono text-xs font-semibold text-emerald">
                       {fmt$(p.amount)}
+                      {/* Lo perdonado va DEBAJO del monto y no en una columna
+                          propia: la tabla ya tiene seis y en el teléfono no
+                          entra otra. Acá además queda pegado a la cifra que
+                          explica — por qué el saldo bajó más que lo cobrado. */}
+                      {p.discount > 0 && (
+                        <div className="text-[10px] font-normal text-amber mt-0.5">
+                          {t('historyDiscountRow', { amount: fmt$(p.discount) })}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-text-2">
                       {METHOD_LABELS[p.method] ?? p.method}
@@ -1398,7 +1466,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   min="0"
                   max={totalDelModal}
                   step="0.01"
-                  placeholder={`Distribuir hasta ${fmt$(totalDelModal)}`}
+                  placeholder={t('payDistributeUpTo', { amount: fmt$(totalDelModal) })}
                   onChange={e => {
                     const raw = parseFloat(e.target.value);
                     if (!isNaN(raw) && raw > totalDelModal) {
@@ -1419,7 +1487,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 >
                   {paying
                     ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('payProcessing')}</>
-                    : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
+                    : <>{payTotal > 0 ? t('paySubmitAmount', { amount: fmt$(payTotal) }) : t('paySubmit')}</>
                   }
                 </Button>
               </div>
@@ -1434,6 +1502,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
             {lineaAPagar && (() => {
               const l = lineaAPagar;
               const tiposLp = PAYMENT_TYPES[lpSource] ?? [];
+              const lpMontoNum = parseFloat(lpMonto) || 0;
+              const lpDescNum  = parseFloat(lpDescuento) || 0;
+              const cobra = Math.min(lpMontoNum, l.balanceDue);
+              // Lo cobrado manda: el descuento solo llega hasta lo que quede
+              // después de él. Es el mismo orden que aplica el servidor.
+              const topeDescuento = Math.max(0, l.balanceDue - cobra);
+              const quedaPendiente = Math.max(0, topeDescuento - Math.min(lpDescNum, topeDescuento));
               return (
                 <div
                   className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
@@ -1520,6 +1595,70 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                         </div>
                       </div>
 
+                      {/* ── Descuento ───────────────────────────────────────
+                          Lo que la clínica PERDONA en este mismo cobro. Existe
+                          porque "Reduction agreement (Red AG)" ya era un tipo de
+                          pago elegible y no había dónde anotar cuánto se
+                          condonó: el saldo quedaba colgado para siempre aunque
+                          el caso estuviera cerrado.
+
+                          Cuelga del PAGO, así que anularlo lo devuelve. Y no
+                          suma a lo cobrado: es plata que se resigna. */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpDiscount')}</label>
+                            {/* Atajo al caso real: el acuerdo dice cuánto paga el
+                                abogado y lo demás se condona. Escribir esa resta
+                                a mano es de donde salen los saldos de $0.01. */}
+                            {topeDescuento > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setLpDescuento(topeDescuento.toFixed(2))}
+                                className="text-[11px] font-semibold text-brand-text hover:underline"
+                              >
+                                {t('lpDiscountRest')}
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={topeDescuento}
+                            value={lpDescuento}
+                            onChange={e => {
+                              const raw = parseFloat(e.target.value);
+                              setLpDescuento(!isNaN(raw) && raw > topeDescuento ? topeDescuento.toFixed(2) : e.target.value);
+                            }}
+                            placeholder="0.00"
+                            className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm font-mono text-right text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                          />
+                          {/* El monto arranca en el saldo entero, así que el tope
+                              del descuento arranca en 0 y el campo se traga lo
+                              que se teclee. En vez de dejarlo pasar por mudo,
+                              dice por qué y qué hacer. */}
+                          {topeDescuento <= 0 && l.balanceDue > 0 && (
+                            <p className="mt-1 text-[10px] text-text-muted leading-snug">{t('lpDiscountNeedsRoom')}</p>
+                          )}
+                        </div>
+                        {/* El saldo que queda DESPUÉS de cobrar y perdonar: es
+                            la comprobación de que el descuento hizo lo que se
+                            esperaba. Sin esto hay que registrar y después mirar. */}
+                        <div className="rounded-md bg-bg-2/40 px-3 py-2 self-end">
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpRemaining')}</div>
+                          <div className={`font-mono text-sm mt-0.5 ${quedaPendiente > 0 ? 'text-rose' : 'text-emerald'}`}>
+                            {fmt$(quedaPendiente)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {lpDescNum > 0 && (
+                        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                          {t('lpDiscountHint', { amount: fmt$(Math.min(lpDescNum, topeDescuento)) })}
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payNotesLabel')}</label>
                         <textarea
@@ -1538,7 +1677,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                       </Button>
                       <Button
                         size="sm"
-                        disabled={lpGuardando || (parseFloat(lpMonto) || 0) <= 0}
+                        disabled={lpGuardando || (lpMontoNum + lpDescNum) <= 0}
                         onClick={registrarPagoDeLinea}
                         className="w-full sm:w-auto gap-1.5"
                       >

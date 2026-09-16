@@ -4922,7 +4922,17 @@
         "mNone": "None",
         "ptNoShow": "No Show (NS)",
         "kpiThirdPartyDebt": "Insurer / attorney",
-        "kpiThirdPartyHint": "Recorded with the source set to insurer or attorney"
+        "kpiThirdPartyHint": "Recorded with the source set to insurer or attorney",
+        "lpDiscount": "Discount",
+        "lpDiscountRest": "The rest",
+        "lpDiscountNeedsRoom": "To discount, lower the amount to pay first.",
+        "lpRemaining": "Remaining",
+        "lpDiscountHint": "{amount} is written off: it lowers the balance but is not collected. Voiding this payment brings it back.",
+        "historyDiscountTotal": "Discounted",
+        "historyDiscountRow": "− {amount} discount",
+        "paySubmit": "+ Pay…",
+        "paySubmitAmount": "+ Pay {amount}",
+        "payDistributeUpTo": "Distribute up to {amount}"
       },
       "prescripciones": {
         "placeholderMed": "Select a medication",

@@ -113,6 +113,8 @@ export async function GET(
     payments: b.payments.map(p => ({
       id: p.id,
       amount: Number(p.amount),
+      /** Lo perdonado en ESE cobro. Baja el saldo y no cuenta como cobrado. */
+      discount: Number(p.discount),
       source: p.source,
       paymentType: p.paymentType,
       method: p.method,
@@ -145,6 +147,15 @@ export async function GET(
   const paidByInsurance = suma('INSURANCE') + suma('LAWYER');
 
   /**
+   * Lo PERDONADO, aparte de lo cobrado.
+   *
+   * No entra en "Total cobrado" a propósito: es plata que la clínica resignó,
+   * no que recibió, y sumarla ahí haría que el mostrador vea ingresos que no
+   * existieron. Se muestra sola, y solo cuando hay algo que mostrar.
+   */
+  const totalDiscount = pagos.reduce((s, p) => s + p.discount, 0);
+
+  /**
    * Lo del PACIENTE, que es lo único que se cobra en el mostrador.
    *
    * Los CPT no van en Finanzas del caso: se anotan y los cobra Cobranzas al
@@ -169,6 +180,7 @@ export async function GET(
       id: p.id,
       billingId: b.id,
       amount: p.amount,
+      discount: p.discount,
       source: p.source,
       method: p.method,
       paymentType: p.paymentType,
@@ -186,7 +198,7 @@ export async function GET(
     billings: serialized,
     kpis: {
       totalCost, totalPaid, totalBalance, patientBalance, insuranceBalance,
-      paidByPatient, paidByInsurance, patientCost, patientPaid,
+      paidByPatient, paidByInsurance, patientCost, patientPaid, totalDiscount,
     },
     payments,
     insurances,

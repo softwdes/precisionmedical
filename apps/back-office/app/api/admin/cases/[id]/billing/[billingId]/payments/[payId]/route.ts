@@ -1,11 +1,16 @@
 /**
  * DELETE /api/admin/cases/[id]/billing/[billingId]/payments/[payId]
  *   Cancela un pago (status → CANCELLED) y revierte amountPaid / balanceDue.
+ *
+ *   Devuelve las DOS cosas: lo cobrado y lo perdonado. Es lo que hace que el
+ *   descuento pueda colgar del pago — se anula el pago y el saldo vuelve
+ *   entero, sin que nadie tenga que acordarse de deshacerlo aparte.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { recalcularSaldoDelCargo } from '@/lib/saldo-del-cargo';
 
 export async function DELETE(
   req: NextRequest,
@@ -16,7 +21,7 @@ export async function DELETE(
 
   const payment = await db.billingPayment.findUnique({
     where: { id: payId },
-    select: { id: true, billingId: true, amount: true, status: true },
+    select: { id: true, billingId: true, amount: true, discount: true, status: true },
   });
 
   if (!payment || payment.billingId !== billingId) {
@@ -28,10 +33,7 @@ export async function DELETE(
 
   const billing = await db.appointmentBilling.findUnique({
     where: { id: billingId },
-    select: {
-      id: true, caseId: true, amountPaid: true, balanceDue: true, totalCost: true, discount: true,
-      appointment: { select: { caseId: true } },
-    },
+    select: { id: true, caseId: true, appointment: { select: { caseId: true } } },
   });
   const effectiveCaseId = billing?.caseId ?? billing?.appointment?.caseId ?? null;
   if (!billing || effectiveCaseId !== caseId) {
@@ -39,18 +41,16 @@ export async function DELETE(
   }
 
   const refundAmount = Number(payment.amount);
-  const newAmountPaid = Math.max(0, Number(billing.amountPaid) - refundAmount);
-  const newBalanceDue = Number(billing.totalCost) - Number(billing.discount) - newAmountPaid;
+  const refundDiscount = Number(payment.discount);
 
   await db.billingPayment.update({
     where: { id: payId },
     data: { status: 'CANCELLED' },
   });
 
-  await db.appointmentBilling.update({
-    where: { id: billingId },
-    data: { amountPaid: newAmountPaid, balanceDue: Math.max(0, newBalanceDue) },
-  });
+  // El recálculo ya no ve este pago (filtra los CANCELLED), así que devuelve al
+  // saldo tanto lo cobrado como lo perdonado en un solo paso.
+  await recalcularSaldoDelCargo(billingId);
 
   const caseRecord = await db.case.findUnique({ where: { id: caseId }, select: { caseCode: true } });
 
@@ -63,7 +63,7 @@ export async function DELETE(
     entityId: caseId,
     ipAddress: actor.ipAddress,
     userAgent: actor.userAgent,
-    metadata: { caseCode: caseRecord?.caseCode, paymentId: payId, refundAmount },
+    metadata: { caseCode: caseRecord?.caseCode, paymentId: payId, refundAmount, refundDiscount },
   });
 
   return NextResponse.json({ ok: true });

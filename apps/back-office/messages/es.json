@@ -4922,7 +4922,17 @@
         "mNone": "Ninguno",
         "ptNoShow": "No se presentó (NS)",
         "kpiThirdPartyDebt": "A seguro / abogado",
-        "kpiThirdPartyHint": "Se registra con la fuente puesta en seguro o abogado"
+        "kpiThirdPartyHint": "Se registra con la fuente puesta en seguro o abogado",
+        "lpDiscount": "Descuento",
+        "lpDiscountRest": "El resto",
+        "lpDiscountNeedsRoom": "Para descontar, bajá primero el monto a pagar.",
+        "lpRemaining": "Queda pendiente",
+        "lpDiscountHint": "Se descuentan {amount}: bajan el saldo, pero no entran como cobrado. Anular este pago los devuelve.",
+        "historyDiscountTotal": "Descontado",
+        "historyDiscountRow": "− {amount} de descuento",
+        "paySubmit": "+ Pagar…",
+        "paySubmitAmount": "+ Pagar {amount}",
+        "payDistributeUpTo": "Distribuir hasta {amount}"
       },
       "prescripciones": {
         "placeholderMed": "Selecciona un medicamento",

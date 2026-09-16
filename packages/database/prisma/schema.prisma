@@ -3801,6 +3801,24 @@ model BillingPayment {
   source      BillingPaymentSource
   paymentType String? // "direct_insurance" | "copay" | "contractual_obligation" | etc.
   amount      Decimal              @db.Decimal(10, 2)
+
+  /// Lo PERDONADO en este mismo cobro — plata que la clínica resigna, no que
+  /// recibe. Por eso no suma a `amountPaid`: baja el saldo y nada más.
+  ///
+  /// Cuelga del PAGO y no del cargo por tres motivos (Erick, 16-sep-2026): es
+  /// reversible —se anula el pago y el saldo vuelve solo, por la misma vía que
+  /// ya revierte `amountPaid`—, tiene dueño —queda quién, cuándo y contra qué
+  /// cobro— y el dato lo respalda: solo 16 de 6.462 filas usan
+  /// `appointment_billing.discount`, o sea que el v2 nunca la usó para esto.
+  ///
+  /// Hacía falta porque "Reduction agreement (Red AG)" ya existía como tipo de
+  /// pago y no había dónde anotar cuánto se perdonó: el saldo quedaba colgado
+  /// para siempre aunque el caso estuviera cerrado.
+  ///
+  /// ⚠️ El saldo del cargo se calcula en `lib/saldo-del-cargo.ts` y en ningún
+  /// otro lado. La fórmula tiene tres términos y estaba escrita en tres
+  /// lugares que ya no coincidían entre sí.
+  discount    Decimal              @default(0) @db.Decimal(10, 2)
   method      BillingPaymentMethod @default(NONE)
   status      BillingPaymentStatus @default(COMPLETED)
 

@@ -12,6 +12,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { separarFecha, clausulasDeFecha } from '@/lib/fecha-buscada';
+import { idsPorTelefono } from '@/lib/telefono-buscado';
 
 function fullNameOR(q: string) {
   const parts = q.trim().split(/\s+/).filter(Boolean);
@@ -32,6 +34,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const limit = 5; // por categoría
+
+  // Se calcula una sola vez: el bloque de pacientes lo usa más abajo.
+  const { fechas, resto: restoDelTermino } = separarFecha(q);
+  const porFechaDeNacimiento = fechas.length ? [{ OR: clausulasDeFecha(fechas) }] : [];
+  // El teléfono, comparado por dígitos — ver `lib/telefono-buscado.ts`.
+  const idsTelefono = await idsPorTelefono(restoDelTermino);
 
   // Búsqueda case-insensitive con prisma `contains` + mode insensitive
   const [specialties, lawyers, insurances, services, diagnoses, patients] = await Promise.all([
@@ -104,14 +112,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }),
     // Patients — Phase 1A: mock data only · Phase 2: RLS-protected PHI
     db.patient.findMany({
+      /**
+       * La fecha de nacimiento se reconoce dentro del término y acota en `AND`
+       * — igual que en los otros tres buscadores de paciente, para que el
+       * mismo texto encuentre lo mismo en todas las pantallas. Los demás
+       * bloques de esta búsqueda global (bufetes, CPT, ICD…) no la usan: sólo
+       * las personas tienen fecha de nacimiento. Ver `lib/fecha-buscada.ts`.
+       */
       where: {
-        OR: [
-          ...fullNameOR(q),
-          { firstName: { contains: q, mode: 'insensitive' } },
-          { lastName: { contains: q, mode: 'insensitive' } },
-          { patientCode: { contains: q, mode: 'insensitive' } },
-          { phone: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+        AND: [
+          ...porFechaDeNacimiento,
+          ...(restoDelTermino
+            ? [{
+                OR: [
+                  ...fullNameOR(restoDelTermino),
+                  { firstName: { contains: restoDelTermino, mode: 'insensitive' as const } },
+                  { lastName: { contains: restoDelTermino, mode: 'insensitive' as const } },
+                  { patientCode: { contains: restoDelTermino, mode: 'insensitive' as const } },
+                  { phone: { contains: restoDelTermino, mode: 'insensitive' as const } },
+                  { email: { contains: restoDelTermino, mode: 'insensitive' as const } },
+                  ...(idsTelefono.length ? [{ id: { in: idsTelefono } }] : []),
+                ],
+              }]
+            : []),
         ],
       },
       take: limit,

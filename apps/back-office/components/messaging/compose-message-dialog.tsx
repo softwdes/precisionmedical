@@ -15,7 +15,8 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import { fechaCalendarioNum } from '@/lib/fechas';
 import {
   Send, MessageSquarePlus,
   LayoutTemplate, Save, CheckSquare,
@@ -82,7 +83,6 @@ const labelCls = 'text-[10px] uppercase tracking-wider font-semibold text-text-m
 
 export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDraft, onDraftSaved }: Props) {
   const t = useTranslations('phoenix.messaging');
-  const locale = useLocale();
   const toast = useToast();
 
   // Paciente elegido a mano — solo aplica cuando el compose se abre SIN
@@ -113,10 +113,19 @@ export function ComposeMessageDialog({ open, onClose, patient, onSent, initialDr
   const [casesLoading, setCasesLoading] = useState(false);
   const [caseId, setCaseId] = useState<string | null>(null);
 
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-    });
+  /**
+   * Sólo se usa para la FECHA DEL ACCIDENTE del selector de casos.
+   *
+   * Era un `toLocaleDateString` local sin `timeZone`, y eso mostraba el día
+   * ANTERIOR: una fecha de accidente guardada a medianoche UTC leída en la zona
+   * del navegador cae en la tarde del día previo. Es la trampa que ya está
+   * documentada en `lib/fechas.ts` — la fecha de un accidente es una fecha del
+   * calendario, no un instante— y acá había vuelto a aparecer.
+   *
+   * `fechaCalendarioNum` es el helper compartido: mismo formato numérico, mismo
+   * idioma, y en UTC.
+   */
+  const fmtDate = (iso: string) => fechaCalendarioNum(iso);
 
   // ─── Adjuntos: se suben al elegirse (el hilo aún no existe) y el POST final
   //     referencia las keys. La UI vive en AttachmentPicker, compartida con el

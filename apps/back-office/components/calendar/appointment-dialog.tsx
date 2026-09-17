@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fechaCalendario } from '@/lib/fechas';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
-  FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2, UserPlus, Video,
+  FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, CalendarDays, User, Search, X, Link2, UserPlus, Video,
 } from 'lucide-react';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import { useMembresia } from '@/components/membresias/use-membresia';
@@ -63,6 +63,28 @@ interface CaseOption {
    */
   caseType: string | null;
   accidentType: string | null;
+  /**
+   * La FECHA DEL ACCIDENTE — el *date of loss*, como lo llaman en el mostrador.
+   *
+   * Es lo único que distingue un caso de otro cuando el paciente tiene varios.
+   * Sin esto, el selector mostraba `MVA-2453 ACTIVE`, `MVA-2426 ACTIVE` y
+   * `MVA-623 ACTIVE`, tres tarjetas idénticas salvo el número, y el mostrador
+   * tenía que elegir una a ciegas para poder agendar (Erick, 17-sep-2026). El
+   * código del caso no ayuda: no se lo sabe nadie, ni el paciente ni el bufete,
+   * que preguntan por "el del choque de marzo".
+   *
+   * La API ya lo devolvía; acá faltaba tiparlo, igual que había pasado con
+   * `caseType`.
+   */
+  accidentDate: string | null;
+  /**
+   * La descripción del accidente. No se pinta en la tarjeta —es texto libre y
+   * de largo impredecible—, pero va en el `title`: cuando dos casos del mismo
+   * paciente comparten mes, esto es lo que los separa.
+   */
+  accidentNotes: string | null;
+  /** Primera cita del caso. Ver el rótulo de la tarjeta: es el suplente del DOL. */
+  firstAppointment: { scheduledFor: string } | null;
   specialty: Specialty | null;
 }
 
@@ -136,6 +158,14 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
   onSuccess?: () => void;
   initialDate?: string; // YYYY-MM-DD
   initialTime?: string; // HH:MM
+  /**
+   * Sede preseleccionada. La manda la vista POR SEDES del calendario: ahí cada
+   * columna ES una clínica, así que hacer clic en un hueco de la columna de
+   * Murray y que el campo salga vacío rompe lo que la pantalla acaba de
+   * prometer. Las otras vistas no la mandan y el campo arranca en blanco, que
+   * es como venía.
+   */
+  initialClinicId?: string;
   editAppointment?: EditAppointmentData; // si viene, abre en modo edición
   /** Reagendar: pre-llena todo excepto el slot (usuario elige nueva hora) */
   isReschedule?: boolean;
@@ -178,7 +208,7 @@ type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FO
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess, initialDate, initialTime, editAppointment, isReschedule } = props;
+  const { open, onOpenChange, onSuccess, initialDate, initialTime, initialClinicId, editAppointment, isReschedule } = props;
   const isEditMode = !!editAppointment;
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
@@ -462,7 +492,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     } else {
       // Modo crear: limpiar todo (respetando los defaults de una recita)
       setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
-      setClinicId('');
+      setClinicId(initialClinicId ?? '');
       setProviderId(props.defaultProviderId ?? '');
       setSlotIso(null);
       setDuration(15);
@@ -1265,7 +1295,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             key={c.id}
                             type="button"
                             disabled={!schedulable}
-                            title={!schedulable ? `Estado "${c.status}" no permite agendar citas` : undefined}
+                            /* Con el caso agendable, el cartel lleva la
+                               descripción del accidente: dos casos del mismo
+                               paciente pueden caer en el mismo mes y ahí la
+                               fecha sola ya no alcanza. */
+                            title={!schedulable
+                              ? `Estado "${c.status}" no permite agendar citas`
+                              : c.accidentNotes?.trim() || undefined}
                             onClick={() => { if (schedulable) { setCaseId(c.id); setProviderId(''); } }}
                             className={`w-full text-left rounded-md border px-3 py-2 transition-all ${
                               !schedulable
@@ -1293,6 +1329,42 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                                 >{c.specialty.name}</span>
                               )}
                               {isSelected && <Check className="w-3.5 h-3.5 text-brand-text ml-auto shrink-0" />}
+                            </div>
+
+                            {/* La fecha del accidente, en su propia línea.
+                                ─────────────────────────────────────────────
+                                Es el dato por el que se elige, así que no
+                                puede ir apretado entre las pastillas: va
+                                debajo, alineado, y se lee de un golpe al
+                                comparar dos tarjetas una al lado de la otra.
+
+                                `fechaCalendario` y NO `fecha()`: la fecha del
+                                accidente es una fecha del CALENDARIO, no un
+                                instante, y formatearla con la zona de la
+                                clínica muestra el día anterior (ver la memoria
+                                del proyecto y el comentario de `lib/fechas`).
+
+                                Sin DOL cae a la primera visita, con rótulo
+                                PROPIO. Nunca se pinta la primera visita como
+                                si fuera la fecha del accidente: sirve igual
+                                para distinguir dos casos, y decir la fecha
+                                equivocada en una demanda es peor que no decir
+                                ninguna. */}
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                              <CalendarDays className="w-3 h-3 shrink-0 text-text-muted" />
+                              {c.accidentDate ? (
+                                <span className="text-text-2">
+                                  <span className="text-text-muted">{t('caseDol')}</span>{' '}
+                                  <span className="font-medium tabular-nums">{fechaCalendario(c.accidentDate)}</span>
+                                </span>
+                              ) : c.firstAppointment ? (
+                                <span className="text-text-muted">
+                                  {t('caseFirstVisit')}{' '}
+                                  <span className="tabular-nums">{fechaCalendario(c.firstAppointment.scheduledFor)}</span>
+                                </span>
+                              ) : (
+                                <span className="text-text-muted italic">{t('caseNoDol')}</span>
+                              )}
                             </div>
                           </button>
                         );

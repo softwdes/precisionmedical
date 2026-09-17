@@ -17,6 +17,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, calcAge } from '@precision-medical/database';
 import { checkPatientStaff, alcanceDePacientes } from '@/lib/patient-access';
+import { separarFecha, clausulasDeFecha } from '@/lib/fecha-buscada';
+import { idsPorTelefono } from '@/lib/telefono-buscado';
 
 function fullNameOR(q: string) {
   const parts = q.trim().split(/\s+/).filter(Boolean);
@@ -26,6 +28,43 @@ function fullNameOR(q: string) {
     { firstName: { contains: first, mode: 'insensitive' as const }, lastName: { contains: last, mode: 'insensitive' as const } },
     { firstName: { contains: last,  mode: 'insensitive' as const }, lastName: { contains: first, mode: 'insensitive' as const } },
   ];
+}
+
+/**
+ * El filtro del término, con la FECHA DE NACIMIENTO separada del texto.
+ *
+ * Acá pesa más que en otros buscadores: de este endpoint sale el apoderado de
+ * un menor, y lo que distingue a dos personas con el mismo apellido es
+ * justamente la fecha. La fecha va en `AND` —acota— y el resto del texto en el
+ * `OR` de siempre. Ver `lib/fecha-buscada.ts`.
+ */
+async function filtroDelTermino(q: string) {
+  const { fechas, resto } = separarFecha(q);
+  const porFecha = fechas.length ? [{ OR: clausulasDeFecha(fechas) }] : [];
+
+  // Sólo la fecha: no queda texto que buscar.
+  if (porFecha.length && !resto) return { AND: porFecha };
+
+  // El teléfono, comparado por dígitos — ver `lib/telefono-buscado.ts`.
+  const idsTelefono = await idsPorTelefono(resto);
+
+  return {
+    AND: [
+      ...porFecha,
+      {
+        OR: [
+          ...fullNameOR(resto),
+          { firstName:   { contains: resto, mode: 'insensitive' as const } },
+          { lastName:    { contains: resto, mode: 'insensitive' as const } },
+          { phone:       { contains: resto } },
+          { phone2:      { contains: resto } },
+          { email:       { contains: resto, mode: 'insensitive' as const } },
+          { patientCode: { contains: resto, mode: 'insensitive' as const } },
+          ...(idsTelefono.length ? [{ id: { in: idsTelefono } }] : []),
+        ],
+      },
+    ],
+  };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -67,19 +106,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ...recorte,
       ...(excludeId ? { id: { not: excludeId } } : {}),
       // Sin término de búsqueda no hay filtro: son "los más recientes".
-      ...(q.length > 0
-        ? {
-            OR: [
-              ...fullNameOR(q),
-              { firstName:   { contains: q, mode: 'insensitive' as const } },
-              { lastName:    { contains: q, mode: 'insensitive' as const } },
-              { phone:       { contains: q } },
-              { phone2:      { contains: q } },
-              { email:       { contains: q, mode: 'insensitive' as const } },
-              { patientCode: { contains: q, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
+      ...(q.length > 0 ? await filtroDelTermino(q) : {}),
     },
     take: 8,
     orderBy: { createdAt: 'desc' },

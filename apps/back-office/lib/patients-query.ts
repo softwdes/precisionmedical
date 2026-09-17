@@ -22,18 +22,30 @@
  * paso el otro problema del `contains`: `(305) 555-1234` guardado no lo
  * encontraba nadie escribiendo `3055551234`, ni al revés.
  *
+ * Y había un segundo agujero, más grande y más silencioso: los teléfonos EN
+ * CLARO conviven en dos formatos —`(385) 244-7519` y `3852048651`—, así que el
+ * `contains` encontraba a alguien sólo si la puntuación que tecleabas era la
+ * misma con la que se había cargado esa ficha. Nadie puede saber eso. Ahora
+ * los dos lados se comparan por dígitos; el detalle está en
+ * `idsPorTelefonoEnDigitos`.
+ *
  * Es un parche acotado, no la solución final: lo correcto es una columna
  * normalizada e indexada (`phoneDigits`) que se escriba en cada guardado. Eso
  * necesita migración y backfill — anotado en `pending-tasks.md`.
+ *
+ * ## La búsqueda por fecha de nacimiento
+ *
+ * En el mostrador buscan por nombre **o por fecha de nacimiento**, y la fecha
+ * no estaba en la consulta: devolvía cero, que se lee como "ese paciente no
+ * existe". El intérprete del término vive en `lib/fecha-buscada.ts`, que es
+ * donde está explicado por qué el día/mes se lee de las dos formas y por qué
+ * el rango va en UTC.
  */
 
 import { db, type Prisma } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec, isCipher } from './decrypt';
-
-/** Mínimo de dígitos para tratar el término como un teléfono. */
-const MIN_DIGITOS_TELEFONO = 7;
-
-const soloDigitos = (v: string | null | undefined) => (v ?? '').replace(/\D/g, '');
+import { separarFecha, clausulasDeFecha } from './fecha-buscada';
+import { idsPorTelefono, soloDigitos, MIN_DIGITOS_TELEFONO } from './telefono-buscado';
 
 export interface FiltroPacientes {
   q?: string;
@@ -72,6 +84,11 @@ export function alcanceDelProvider(providerId?: string | null): Prisma.PatientWh
  *
  * El universo se acota a las filas que siguen cifradas (`e:` o `…|e:`), que es
  * un filtro que sí sabe hacer la base. Se piden dos columnas y nada más.
+ *
+ * Hoy no hay ninguna fila así —una descifrada masiva del 2026-09-12 vació el
+ * sobre `e:` de toda la tabla—, pero la función se queda: el filtro no devuelve
+ * nada y no cuesta nada, y si mañana vuelve a entrar data cifrada del v2 la
+ * búsqueda sigue encontrándola en vez de empezar a fallar callada.
  */
 async function idsPorTelefonoCifrado(
   digitos: string,
@@ -116,7 +133,29 @@ export async function wherePacientes(
   const termino = (q ?? '').trim();
   if (!termino) return { AND: [statusFilter, providerScope] };
 
-  const partes = termino.split(/\s+/).filter(Boolean);
+  /**
+   * La fecha de nacimiento se saca del término ANTES de buscar el nombre.
+   *
+   * Va en `AND` y no adentro del `OR`, que es la diferencia entre filtrar y
+   * ensuciar: `Maria 05/12/1980` tiene que ser "las Marías nacidas ese día",
+   * no "todo lo que se parezca a Maria más todos los nacidos ese día". Así el
+   * dato extra que escriben para desambiguar sirve para desambiguar.
+   *
+   * Antes de esto, ese mismo término devolvía CERO —el partido en dos pedía un
+   * apellido que contuviera "05/12/1980"—, o sea que escribir el nombre bien
+   * **con** la fecha al lado encontraba menos que escribir sólo el nombre.
+   */
+  const { fechas, resto } = separarFecha(termino);
+  const porFecha: Prisma.PatientWhereInput[] = fechas.length
+    ? [{ OR: clausulasDeFecha(fechas) }]
+    : [];
+
+  // Sólo la fecha: no queda texto que buscar, y ese es todo el filtro.
+  if (porFecha.length && !resto) {
+    return { AND: [statusFilter, providerScope, ...porFecha] };
+  }
+
+  const partes = resto.split(/\s+/).filter(Boolean);
   const nombreCompleto: Prisma.PatientWhereInput[] = partes.length >= 2
     ? [
         { firstName: { contains: partes[0]!, mode: 'insensitive' }, lastName: { contains: partes[partes.length - 1]!, mode: 'insensitive' } },
@@ -124,25 +163,35 @@ export async function wherePacientes(
       ]
     : [];
 
-  const digitos = soloDigitos(termino);
+  const digitos = soloDigitos(resto);
   const alcance: Prisma.PatientWhereInput = { AND: [statusFilter, providerScope] };
+  /**
+   * Los dos pases del teléfono, en paralelo: el de los guardados en claro (con
+   * la puntuación que sea) y el de los que quedaron cifrados. Los ids salen
+   * juntos y el `AND` de afuera les vuelve a aplicar estado y alcance, así que
+   * ninguno de los dos puede colar un paciente que no corresponde ver.
+   */
   const porTelefono = digitos.length >= MIN_DIGITOS_TELEFONO
-    ? await idsPorTelefonoCifrado(digitos, alcance)
+    ? (await Promise.all([
+        idsPorTelefono(digitos),
+        idsPorTelefonoCifrado(digitos, alcance),
+      ])).flat()
     : [];
 
   return {
     AND: [
       statusFilter,
       providerScope,
+      ...porFecha,
       {
         OR: [
           ...nombreCompleto,
-          { firstName:   { contains: termino, mode: 'insensitive' } },
-          { lastName:    { contains: termino, mode: 'insensitive' } },
-          { email:       { contains: termino, mode: 'insensitive' } },
-          { phone:       { contains: termino, mode: 'insensitive' } },
-          { phone2:      { contains: termino, mode: 'insensitive' } },
-          { patientCode: { contains: termino, mode: 'insensitive' } },
+          { firstName:   { contains: resto, mode: 'insensitive' } },
+          { lastName:    { contains: resto, mode: 'insensitive' } },
+          { email:       { contains: resto, mode: 'insensitive' } },
+          { phone:       { contains: resto, mode: 'insensitive' } },
+          { phone2:      { contains: resto, mode: 'insensitive' } },
+          { patientCode: { contains: resto, mode: 'insensitive' } },
           ...(porTelefono.length ? [{ id: { in: porTelefono } }] : []),
         ],
       },

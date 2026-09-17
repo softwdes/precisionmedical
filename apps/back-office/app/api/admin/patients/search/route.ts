@@ -7,7 +7,9 @@
  * Phase 1A: busca en phoenix-dev (mock data).
  * Phase 2+: con BAA + RLS, los datos son PHI real.
  *
- * Busca por: firstName, lastName, phone, email, patientCode (insensitive contains).
+ * Busca por: firstName, lastName, phone, email, patientCode (insensitive
+ * contains) y por FECHA DE NACIMIENTO, que se reconoce dentro del término
+ * tecleado (ver `lib/fecha-buscada.ts`).
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -15,6 +17,8 @@ import { db } from '@precision-medical/database';
 import { decryptScalars, decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
 import { checkPatientStaff } from '@/lib/patient-access';
 import { telefonoDe } from '@/lib/telefono-paciente';
+import { separarFecha, clausulasDeFecha } from '@/lib/fecha-buscada';
+import { idsPorTelefono } from '@/lib/telefono-buscado';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   /**
@@ -34,7 +38,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ results: [] });
   }
 
-  const parts = q.split(/\s+/).filter(Boolean);
+  /**
+   * La fecha de nacimiento sale del término y se filtra aparte, en `AND`: acá
+   * se está por AGENDAR a alguien, así que la fecha que dictan por teléfono
+   * tiene que acotar la lista, no agrandarla. Ver `lib/fecha-buscada.ts`.
+   */
+  const { fechas, resto } = separarFecha(q);
+  const porFecha = fechas.length ? [{ OR: clausulasDeFecha(fechas) }] : [];
+
+  /**
+   * Y el teléfono comparado por dígitos: acá se está agendando con el paciente
+   * dictando el número por teléfono, que es justo cuando la puntuación con la
+   * que quedó guardada la ficha no la sabe nadie. Ver `lib/telefono-buscado.ts`.
+   */
+  const idsTelefono = await idsPorTelefono(resto);
+
+  const parts = resto.split(/\s+/).filter(Boolean);
   const fullNameClauses = parts.length >= 2
     ? [
         // "Sandra Lopez" → firstName:Sandra AND lastName:Lopez
@@ -46,16 +65,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const patients = await db.patient.findMany({
     where: {
-      OR: [
-        ...fullNameClauses,
-        { firstName: { contains: q, mode: 'insensitive' } },
-        { lastName: { contains: q, mode: 'insensitive' } },
-        { phone: { contains: q } },
-        // El celular también: buscar por él no encontraba a nadie, y más de la
-        // mitad de los pacientes tiene el número ahí (ver `lib/telefono-paciente`).
-        { phone2: { contains: q } },
-        { email: { contains: q, mode: 'insensitive' } },
-        { patientCode: { contains: q, mode: 'insensitive' } },
+      AND: [
+        ...porFecha,
+        // Sólo la fecha: no queda texto que buscar y el filtro ya está puesto.
+        ...(resto
+          ? [{
+              OR: [
+                ...fullNameClauses,
+                { firstName: { contains: resto, mode: 'insensitive' as const } },
+                { lastName: { contains: resto, mode: 'insensitive' as const } },
+                { phone: { contains: resto } },
+                // El celular también: buscar por él no encontraba a nadie, y más de la
+                // mitad de los pacientes tiene el número ahí (ver `lib/telefono-paciente`).
+                { phone2: { contains: resto } },
+                { email: { contains: resto, mode: 'insensitive' as const } },
+                { patientCode: { contains: resto, mode: 'insensitive' as const } },
+                ...(idsTelefono.length ? [{ id: { in: idsTelefono } }] : []),
+              ],
+            }]
+          : []),
       ],
     },
     take: 10,

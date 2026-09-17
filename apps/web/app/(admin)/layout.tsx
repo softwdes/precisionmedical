@@ -33,7 +33,7 @@ export default async function AdminLayout({
   const adminClient = createAdminClient();
   const { data: user, error } = await adminClient
     .from('users')
-    .select('id, firstName, lastName, avatarUrl, role')
+    .select('id, firstName, lastName, avatarUrl, role, clinicModules')
     .eq('email', supabaseUser.email!)
     .single();
 
@@ -42,6 +42,18 @@ export default async function AdminLayout({
   }
 
   const role: Role = dbRoleToRole(user.role as string);
+
+  /**
+   * Módulos del Admin concedidos A MANO (llaves `admin:*` de `clinicModules`).
+   *
+   * Es la excepción a la matriz por rol: hoy la usa una sola persona, para
+   * Finanzas. Solo cuenta un `true` explícito — ver el middleware y
+   * `finanzasProcedure`, que son las otras dos mitades del mismo permiso.
+   */
+  const mods = user.clinicModules as Record<string, boolean> | null;
+  const grants = mods
+    ? Object.keys(mods).filter((k) => k.startsWith('admin:') && mods[k] === true)
+    : [];
 
   return (
     <BootAnimation>
@@ -53,6 +65,7 @@ export default async function AdminLayout({
         userEmail={supabaseUser.email ?? ''}
         avatarUrl={user.avatarUrl ?? undefined}
         role={role}
+        grants={grants}
         userId={supabaseUser.id}
       >
         {children}

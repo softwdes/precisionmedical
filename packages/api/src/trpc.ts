@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { ZodError } from 'zod';
 import superjson from 'superjson';
 import type { User, UserRole, Session } from '@precision-medical/database';
+import { supabaseAdmin } from './supabase-admin';
 
 export interface Context {
   user: (User & { role: UserRole }) | null;
@@ -96,6 +97,82 @@ export const aiAuditProcedure = t.procedure
   .use(loggingMiddleware)
   .use(authMiddleware)
   .use(requireRole(['ADMIN', 'SUPER_ADMIN', 'AUDITOR_AI'] as UserRole[]));
+
+/**
+ * Finanzas: ADMIN, SUPER_ADMIN, o **cualquiera con la casilla en su ficha**.
+ *
+ * Es el primer permiso del Admin que NO se decide solo por el rol, y por eso
+ * merece la explicación entera.
+ *
+ * ── Por qué no alcanzaba un rol ─────────────────────────────────────────────
+ *
+ * Erick necesita darle Finanzas a UNA persona hoy (Darrell, que es EMPLOYEE) y
+ * quizá a dos más, sin que compartan nada más entre sí. Un rol nuevo obliga a
+ * que todos los que lo tengan vean lo mismo, y cambiar la matriz de `employee`
+ * se lo daría a los 17.
+ *
+ * ── Por qué no alcanzaba con dejarlo entrar ─────────────────────────────────
+ *
+ * Los 16 procedimientos de `pettyCash` eran `adminProcedure`. Aunque el
+ * middleware lo dejara pasar y el menú se le dibujara, **cada consulta de la
+ * pantalla habría devuelto FORBIDDEN** y Finanzas se vería vacía. El permiso
+ * vive en dos mitades y hay que mover las dos.
+ *
+ * ── Por qué un procedure nuevo y no ampliar `adminProcedure` ────────────────
+ *
+ * Porque `adminProcedure` también gobierna `wallets` y parte de `users`.
+ * Ampliarlo para que entre un empleado con la casilla de Finanzas le abriría de
+ * paso las billeteras y la administración de cuentas. Este es el mismo punto
+ * medio que ya resolvieron `payrollProcedure` para el Contador y
+ * `aiAuditProcedure` para el auditor: un procedure por alcance.
+ */
+const GRANT_FINANZAS = 'admin:finanzas';
+
+export const finanzasProcedure = t.procedure
+  .use(loggingMiddleware)
+  .use(authMiddleware)
+  .use(
+    t.middleware(async ({ ctx, next }) => {
+      const u = ctx.user;
+      if (!u) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in.' });
+
+      // El rol se resuelve primero y corta: así un admin no paga la consulta.
+      if (u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') {
+        return next({ ctx: { ...ctx, user: u } });
+      }
+
+      /**
+       * La casilla se consulta por REST y no por Prisma: `clinicModules` **no
+       * está en el schema de Prisma**, vive solo en la tabla `users` del
+       * proyecto Admin y todo el repo la lee así (ver `users.list` en este
+       * mismo paquete). Buscarla en `ctx.user` no compila.
+       *
+       * Es OPT-IN — solo un `true` explícito. Al revés que los menús de la
+       * clínica, y por el mismo motivo que la supervisión de notas: acá adentro
+       * está la caja chica de toda la empresa.
+       *
+       * `ilike` y no `eq`: Supabase Auth normaliza el email a minúsculas y el
+       * directorio no siempre. Esa diferencia ya dejó gente sin permisos antes.
+       */
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('clinicModules')
+        .ilike('email', u.email)
+        .limit(1);
+
+      // Ante un fallo de la consulta NO se concede: el default es el de antes.
+      if (error) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions.' });
+      }
+      const mods = (data?.[0] as { clinicModules?: Record<string, unknown> | null } | undefined)
+        ?.clinicModules ?? null;
+
+      if (mods?.[GRANT_FINANZAS] !== true) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions.' });
+      }
+      return next({ ctx: { ...ctx, user: u } });
+    }),
+  );
 
 export const lawyerProcedure = t.procedure
   .use(loggingMiddleware)

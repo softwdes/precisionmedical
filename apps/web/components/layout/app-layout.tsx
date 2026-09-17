@@ -16,6 +16,8 @@ interface AppLayoutProps {
   userEmail?: string;
   avatarUrl?: string;
   role?: Role;
+  /** Modulos del Admin concedidos a mano (llaves `admin:*`). */
+  grants?: string[];
   userId?: string;
 }
 
@@ -26,6 +28,7 @@ export function AppLayout({
   userEmail,
   avatarUrl,
   role = 'employee',
+  grants = [],
   userId,
 }: AppLayoutProps): React.ReactElement {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +39,7 @@ export function AppLayout({
   }, [pathname]);
 
   return (
-    <RoleProvider role={role}>
+    <RoleProvider role={role} grants={grants}>
       <div className="flex min-h-screen bg-bg-0">
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

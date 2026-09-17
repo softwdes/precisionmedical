@@ -25,6 +25,52 @@ function detectLocaleFromHeader(request: NextRequest): 'es' | 'en' {
   return 'es';
 }
 
+/**
+ * Módulos del Admin concedidos a mano, por persona.
+ *
+ * Viven en `users.clinicModules` con el prefijo `admin:` para no chocar con las
+ * llaves de la clínica (`patients`, `settings:clinicas`, `doctor:calendar`…),
+ * que están en el mismo JSON.
+ *
+ * Son OPT-IN: solo cuenta un `true` explícito. Al revés que los menús del
+ * back-office, y a propósito — acá adentro está la caja chica de la empresa.
+ */
+const PREFIJO_DE_GRANT: Record<string, string> = {
+  'admin:finanzas': '/dashboard/finanzas',
+};
+
+/**
+ * Lo que un invitado necesita para que la app funcione, más allá de su módulo.
+ *
+ * `/api/trpc` está acá porque TODA la app pasa por ese único endpoint y no se
+ * puede distinguir por ruta qué procedimiento se llama. **No es un agujero**:
+ * cada procedimiento trae su propio guard, y el de Finanzas es
+ * `finanzasProcedure`. Lo que protege el dato es ese, no esta lista.
+ */
+const RUTAS_SIEMPRE_ABIERTAS = ['/api/trpc', '/api/auth', '/no-access', '/login', '/_next'];
+
+/** ¿Qué módulos del Admin le concedieron a esta persona? Edge-safe. */
+async function getAdminGrants(email: string): Promise<string[]> {
+  if (!email) return [];
+  try {
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=clinicModules&email=ilike.${encodeURIComponent(email)}&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as Array<{ clinicModules?: Record<string, boolean> | null }>;
+    const mods = data[0]?.clinicModules ?? null;
+    if (!mods) return [];
+    return Object.keys(PREFIJO_DE_GRANT).filter((g) => mods[g] === true);
+  } catch {
+    // Ante un parpadeo de red NO se concede nada: el default es el de siempre.
+    return [];
+  }
+}
+
 /** Fetch role via Supabase REST API (no client library needed — edge-safe) */
 async function getDbRole(email: string): Promise<string> {
   try {
@@ -137,9 +183,49 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
     const role = dbRoleToRole(dbRoleStr ?? 'EMPLOYEE');
 
-    // Employee → redirect to PM Time Clock immediately
+    /**
+     * Employee → PM Time Clock, SALVO que tenga un módulo concedido a mano.
+     *
+     * ── Por qué hay una excepción ──────────────────────────────────────────
+     *
+     * Erick necesita darle Finanzas a una persona concreta (Darrell, EMPLOYEE)
+     * sin darle el rol de admin ni abrírselo a los otros 16 empleados. La
+     * matriz de `lib/permissions.ts` es por ROL y no tiene forma de decir
+     * "esta persona sí"; la casilla vive en `users.clinicModules`, el mismo
+     * JSON que ya reparte los menús de la clínica.
+     *
+     * ── Y por qué entra ACOTADO, no a todo el Admin ────────────────────────
+     *
+     * Porque **4 de las 27 páginas del Admin chequean permiso**; las otras 23
+     * confían en que esta puerta está cerrada. Dejarlo pasar sin más le daría
+     * Usuarios, Wallets, Pagos y FX escribiendo la URL a mano.
+     *
+     * Así que se reusa el molde que ya usa el Contador unas líneas más abajo:
+     * entra, pero solo a los prefijos que le concedieron. Fuera de ahí, se lo
+     * devuelve a su módulo en vez de rebotarlo al Time Clock — rebotarlo fuera
+     * del Admin desde una URL interna se lee como que se cerró la sesión.
+     *
+     * La otra mitad del permiso vive en `finanzasProcedure` (packages/api): sin
+     * eso la pantalla abriría vacía, porque `pettyCash` era `adminProcedure`.
+     */
     if (role === 'employee') {
-      return NextResponse.redirect(TIMECLOCK_URL);
+      const concedidos = await getAdminGrants(user.email ?? '');
+      if (concedidos.length === 0) {
+        return NextResponse.redirect(TIMECLOCK_URL);
+      }
+      const permitido =
+        RUTAS_SIEMPRE_ABIERTAS.some((p) => pathname.startsWith(p)) ||
+        concedidos.some((g) => {
+          const prefijo = PREFIJO_DE_GRANT[g];
+          return prefijo !== undefined && pathname.startsWith(prefijo);
+        });
+      if (!permitido) {
+        const url = request.nextUrl.clone();
+        url.pathname = PREFIJO_DE_GRANT[concedidos[0]!] ?? '/dashboard';
+        url.search = '';
+        return pathname === url.pathname ? response : NextResponse.redirect(url);
+      }
+      return response;
     }
 
     // ── Roles que NO trabajan en el Admin ──────────────────────────────────

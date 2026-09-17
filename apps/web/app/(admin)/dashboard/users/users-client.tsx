@@ -930,6 +930,31 @@ const CIFO_MODULE = 'cifo';
  * `escritorios` no está: es `adminOnly` en el back-office y no se reparte por
  * empleado. Listarla sugeriría que sí.
  */
+/**
+ * Módulos del ADMIN concedidos a mano, por persona.
+ *
+ * Es la primera excepción a la matriz por rol de `lib/permissions.ts`. Nace con
+ * Finanzas porque Erick necesita dárselo a una persona (y quizá dos más) sin
+ * volverla admin ni abrírselo a los 17 empleados.
+ *
+ * **OPT-IN**: solo cuenta un `true` explícito, al revés que los menús de la
+ * clínica. Adentro está la caja chica de la empresa.
+ *
+ * Son TRES mitades y las tres tienen que estar, o el resultado es una pantalla
+ * rota en vez de un permiso:
+ *   1. esta casilla → escribe `admin:finanzas` en `clinicModules`
+ *   2. `apps/web/middleware.ts` → lo deja entrar al Admin, ACOTADO a su módulo
+ *   3. `finanzasProcedure` (packages/api) → deja que sus consultas contesten
+ */
+const ADMIN_GRANTS: Array<{ key: string; label: string; emoji: string; detalle: string }> = [
+  {
+    key: 'admin:finanzas',
+    label: 'Finanzas (Admin)',
+    emoji: '🏦',
+    detalle: 'Cajas chicas y reportes. Entra al Admin SOLO a esa pantalla.',
+  },
+];
+
 const SETTINGS_TAB_PREFIX = 'settings:';
 
 const SETTINGS_GRUPOS: Array<{
@@ -994,6 +1019,10 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const [notesAudit, setNotesAudit] = useState(savedModules?.[NOTES_AUDIT_MODULE] === true);
   // CIFO al reves: se tiene salvo un `false` explicito.
   const [cifo, setCifo] = useState(savedModules?.[CIFO_MODULE] !== false);
+  // Concesiones del Admin: OPT-IN, solo un `true` explicito.
+  const [adminGrants, setAdminGrants] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(ADMIN_GRANTS.map(g => [g.key, savedModules?.[g.key] === true])),
+  );
 
   /**
    * Settings, en dos niveles por grupo.
@@ -1080,6 +1109,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
       ...(notesAudit   ? { [NOTES_AUDIT_MODULE]:   true } : {}),
       // Solo se escribe el NO: la ausencia de la llave ya significa que lo tiene.
       ...(cifo ? {} : { [CIFO_MODULE]: false }),
+      // Igual que las capacidades: solo se escribe el SI.
+      ...Object.fromEntries(ADMIN_GRANTS.filter(g => adminGrants[g.key]).map(g => [g.key, true])),
       /**
        * Settings: un grupo ENCENDIDO no escribe nada —sus pestañas quedan sin
        * definir, que es "visible"—. Apagado escribe las suyas una por una, con
@@ -1309,6 +1340,43 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     </span>
                   </span>
                 </label>
+
+                {/* ── Módulos del ADMIN concedidos a mano ──
+                    Separados del resto con su propia línea porque no son de la
+                    clínica: son pantallas de ESTA app, y hasta ahora solo las
+                    daba el rol. Quien reciba una entra al Admin acotado a ella. */}
+                <div className="pt-1 border-t border-border/60 space-y-1.5">
+                  <p className="px-2 text-[11px] text-text-muted">
+                    Acceso al <span className="text-text-2">Admin</span>, por módulo:
+                  </p>
+                  {ADMIN_GRANTS.map(g => {
+                    const on = adminGrants[g.key] === true;
+                    return (
+                      <label key={g.key} className="flex items-start gap-2.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-surface transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => setAdminGrants(s => ({ ...s, [g.key]: !on }))}
+                          className="mt-0.5 h-3.5 w-3.5 accent-indigo-500"
+                        />
+                        <span className="text-[11px] w-4 text-center">{g.emoji}</span>
+                        <span className="min-w-0">
+                          <span className="block text-[12.5px] text-text-2">{g.label}</span>
+                          <span className="block text-[11px] text-text-muted">{g.detalle}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {ADMIN_GRANTS.some(g => adminGrants[g.key]) && (
+                    <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2">
+                      <p className="text-[11px] text-text-2 leading-relaxed">
+                        Esta persona va a poder entrar al Admin. Solo ve el módulo
+                        marcado — el resto la devuelve ahí —, pero es acceso a datos
+                        de plata de toda la empresa.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* ── Settings, por grupo ──
                     Cada grupo se concede entero con su interruptor. Al apagarlo

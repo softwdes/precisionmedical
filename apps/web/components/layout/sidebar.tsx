@@ -17,7 +17,7 @@ import {
   Lock,
   Mail,
 } from 'lucide-react';
-import { useRole } from '@/contexts/role-context';
+import { useRole, useGrants } from '@/contexts/role-context';
 import { can, type Role, type LmModule } from '@/lib/permissions';
 
 interface NavItem {
@@ -39,6 +39,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations();
   const role = useRole();
+  const grants = useGrants();
 
   const NAV_MAIN: NavItem[] = [
     { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), module: 'dashboard' },
@@ -121,27 +122,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
 
         {/* Navigation — all items visible; lack of access shown as disabled state */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <NavGroup items={NAV_MAIN} pathname={pathname} role={role} />
+          <NavGroup items={NAV_MAIN} pathname={pathname} role={role} grants={grants} />
 
           <div className="mt-4">
             <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
               {t('nav.modules') as string}
             </p>
-            <NavGroup items={NAV_MODULES} pathname={pathname} role={role} />
+            <NavGroup items={NAV_MODULES} pathname={pathname} role={role} grants={grants} />
           </div>
 
           <div className="mt-4">
             <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
               {t('nav.inteligencia') as string}
             </p>
-            <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} role={role} />
+            <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} role={role} grants={grants} />
           </div>
 
           <div className="mt-4">
             <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
               {t('nav.system') as string}
             </p>
-            <NavGroup items={NAV_SYSTEM} pathname={pathname} role={role} />
+            <NavGroup items={NAV_SYSTEM} pathname={pathname} role={role} grants={grants} />
           </div>
         </nav>
       </aside>
@@ -149,12 +150,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   );
 }
 
-function NavGroup({ items, pathname, role }: { items: NavItem[]; pathname: string; role: Role }): React.ReactElement {
+function NavGroup({ items, pathname, role, grants }: { items: NavItem[]; pathname: string; role: Role; grants: string[] }): React.ReactElement {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => {
         const Icon = item.icon;
-        const hasAccess = can(role, item.module);
+        // El rol manda; la concesion a mano es la excepcion que lo habilita igual.
+        const hasAccess = can(role, item.module) || grants.includes(`admin:${item.module}`);
         const isBlocked = item.disabled || !hasAccess;
         const blockReason = item.disabled
           ? 'Próximamente — módulo en desarrollo'

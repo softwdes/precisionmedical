@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, adminProcedure } from '../trpc';
+import { router, finanzasProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 import { sendLowBalanceEmail } from '../email';
 
@@ -16,7 +16,7 @@ function inferCountry(name: string): 'EEUU' | 'Bolivia' {
 }
 
 export const pettyCashRouter = router({
-  listBoxes: adminProcedure
+  listBoxes: finanzasProcedure
     .input(
       z
         .object({
@@ -55,7 +55,7 @@ export const pettyCashRouter = router({
       });
     }),
 
-  getBox: adminProcedure
+  getBox: finanzasProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -68,7 +68,7 @@ export const pettyCashRouter = router({
       return data;
     }),
 
-  listTransactions: adminProcedure
+  listTransactions: finanzasProcedure
     .input(z.object({
       cashBoxId: z.string(),
       page: z.number().int().positive().default(1),
@@ -105,7 +105,7 @@ export const pettyCashRouter = router({
       };
     }),
 
-  deposit: adminProcedure
+  deposit: finanzasProcedure
     .input(z.object({
       cashBoxId: z.string(),
       amount: z.number().positive(),
@@ -155,7 +155,7 @@ export const pettyCashRouter = router({
       return tx;
     }),
 
-  expense: adminProcedure
+  expense: finanzasProcedure
     .input(z.object({
       cashBoxId: z.string(),
       amount: z.number().positive(),
@@ -228,7 +228,7 @@ export const pettyCashRouter = router({
       return tx;
     }),
 
-  kpis: adminProcedure.query(async () => {
+  kpis: finanzasProcedure.query(async () => {
     // Solo cajas activas. Las desactivadas no cuentan para KPIs ni
     // para alertas de saldo bajo.
     const { data: boxes } = await supabaseAdmin
@@ -277,7 +277,7 @@ export const pettyCashRouter = router({
     return { total, eeuu, bolivia, monthlyExpenses, monthlyCount, lowBoxes, eeuuBoxCount: eeuuBoxes.length, boliviaBoxCount: boliviaBoxes.length };
   }),
 
-  listMovements: adminProcedure
+  listMovements: finanzasProcedure
     .input(z.object({
       country: z.enum(['all', 'EEUU', 'Bolivia']).default('all'),
       clinicName: z.string().optional(),
@@ -322,7 +322,7 @@ export const pettyCashRouter = router({
       return { items, total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
     }),
 
-  createMovement: adminProcedure
+  createMovement: finanzasProcedure
     .input(z.object({
       type: z.enum(['DEPOSIT', 'EXPENSE']),
       clinicName: z.string().min(1),
@@ -380,7 +380,7 @@ export const pettyCashRouter = router({
       return tx;
     }),
 
-  reverse: adminProcedure
+  reverse: finanzasProcedure
     .input(z.object({ transactionId: z.string(), reason: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
       const { data: original } = await supabaseAdmin.from('cash_transactions').select('*').eq('id', input.transactionId).single();
@@ -424,7 +424,7 @@ export const pettyCashRouter = router({
   // ─── CRUD de cash boxes ────────────────────────────────────────────
   // Super Admin only — affects real money flow and accounting.
 
-  createBox: adminProcedure
+  createBox: finanzasProcedure
     .input(
       z.object({
         name: z.string().min(2).max(80),
@@ -489,7 +489,7 @@ export const pettyCashRouter = router({
       return box;
     }),
 
-  updateBox: adminProcedure
+  updateBox: finanzasProcedure
     .input(
       z.object({
         id: z.string(),
@@ -530,7 +530,7 @@ export const pettyCashRouter = router({
       return data;
     }),
 
-  toggleBoxActive: adminProcedure
+  toggleBoxActive: finanzasProcedure
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(async ({ input }) => {
       const { data, error } = await supabaseAdmin
@@ -547,7 +547,7 @@ export const pettyCashRouter = router({
   // ─── Reporte analítico ────────────────────────────────────────────────────
   // Usado por el tab "Reportes" en /dashboard/finanzas?tab=reportes.
   // Retorna KPIs, serie diaria, desglose por categoría y por clínica.
-  report: adminProcedure
+  report: finanzasProcedure
     .input(z.object({
       dateFrom: z.string(),    // ISO date "YYYY-MM-DD"
       dateTo:   z.string(),    // ISO date "YYYY-MM-DD"
@@ -666,7 +666,7 @@ export const pettyCashRouter = router({
       };
     }),
 
-  updateTransaction: adminProcedure
+  updateTransaction: finanzasProcedure
     .input(z.object({
       id:          z.string(),
       description: z.string().min(1).optional(),
@@ -699,7 +699,7 @@ export const pettyCashRouter = router({
       return data;
     }),
 
-  deleteBox: adminProcedure
+  deleteBox: finanzasProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       // Hard delete allowed ONLY if there are zero transactions.

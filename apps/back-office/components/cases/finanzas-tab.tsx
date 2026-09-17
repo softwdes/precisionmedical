@@ -13,7 +13,7 @@ import {
   Trash2, CreditCard, FileText, X, ChevronUp, Shield,
 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogTitle } from '@precision/ui';
-import { EmptyState } from '@/components/ui-phoenix';
+import { EmptyState, FloatingPanel } from '@/components/ui-phoenix';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -135,10 +135,32 @@ type Traducir = (clave: string) => string;
  * lista no define el vocabulario: lo refleja.
  */
 const tiposDePago = (t: Traducir): Record<string, { label: string; value: string }[]> => ({
+  /**
+   * SIETE opciones, que son las del v2.
+   *
+   * Tenía tres y faltaban cuatro. No es una lista de deseos: el export del v2
+   * (`payments_202609120145.csv`) trae SEIS valores distintos en su columna
+   * `paymentTypeInsurance` —copay 186, direct_insurance 87,
+   * contractual_obligation 12, deductible 3, no_show 3, coinsurance 1— y acá
+   * solo se ofrecían dos de esos seis. La séptima, `late_filing_penalty`, no
+   * tiene ni un pago: es la que el v2 ofrecía y nunca se usó.
+   *
+   * O sea que había 193 pagos migrados cuyo tipo NO se podía volver a elegir
+   * con el origen en Seguro. Se veían bien —`rotuloDeTipo` busca en las tres
+   * listas— pero no se podían reproducir (Erick, 16-sep, mirando el modal).
+   *
+   * El copago sigue estando también en la lista del PACIENTE: es plata del
+   * paciente, y en el v2 aparece en las dos según quién entregue el dinero.
+   * Un valor puede vivir en más de una lista; lo que no puede es faltar.
+   */
   INSURANCE: [
     { label: t('ptDirectInsurance'), value: 'direct_insurance' },
     { label: t('ptContractual'),     value: 'contractual_obligation' },
     { label: t('ptLateFiling'),      value: 'late_filing_penalty' },
+    { label: t('ptCopay'),           value: 'copay' },
+    { label: t('ptDeductible'),      value: 'deductible' },
+    { label: t('ptCoinsurance'),     value: 'coinsurance' },
+    { label: t('ptNoShow'),          value: 'no_show' },
   ],
   LAWYER: [
     { label: t('ptAttorney'),  value: 'direct_lawyer' },
@@ -216,6 +238,20 @@ const ESTADO_PILL: Record<'paid' | 'partial' | 'pending', { state: StatusState; 
 
 interface SelectOption { label: string; value: string }
 
+/**
+ * El panel sale por PORTAL (`FloatingPanel`), no `absolute`.
+ *
+ * Abría siempre hacia arriba —`bottom-full` clavado— y lo recortaba el
+ * `overflow-y-auto` del cuerpo del diálogo: con la lista de siete tipos del
+ * seguro, las opciones de abajo quedaban fuera del modal y no había forma de
+ * llegar a ellas, ni scrolleando (Erick, 16-sep, con la captura). Es el mismo
+ * bug que ya apareció tres veces en el back-office y para el que existe el
+ * primitivo: portalea a `body`, se voltea solo si abajo no entra, acota su
+ * alto y sigue al ancla cuando el diálogo scrollea.
+ *
+ * El nombre `SelectUp` queda por lo que fue; ahora la dirección la decide el
+ * espacio, no el nombre.
+ */
 function SelectUp({
   value, onChange, options, placeholder, className = '',
 }: {
@@ -227,11 +263,16 @@ function SelectUp({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const selected = options.find(o => o.value === value);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const n = e.target as Node;
+      // El panel vive FUERA de `ref` (está portaleado), así que hay que
+      // preguntarle a los dos: si no, elegir una opción cerraba el panel
+      // antes de que el clic llegara a su botón.
+      if (ref.current && !ref.current.contains(n) && !panelRef.current?.contains(n)) setOpen(false);
     }
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
@@ -250,8 +291,13 @@ function SelectUp({
         {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
       </button>
 
-      {open && (
-        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
+      <FloatingPanel
+        anchorRef={ref}
+        open={open}
+        panelRef={panelRef}
+        className="bg-bg-1 border border-border rounded-md shadow-xl"
+      >
+        <div>
           {options.map(opt => (
             <button
               key={opt.value}
@@ -268,7 +314,7 @@ function SelectUp({
             </button>
           ))}
         </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 }
@@ -1558,7 +1604,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                       16-sep). El encabezado y el pie quedan fijos y lo que
                       scrollea es el medio. */}
                   <div
-                    className="bg-bg-1 border border-border rounded-xl w-full max-w-md shadow-2xl max-h-full flex flex-col"
+                    /* `max-w-2xl` (672px) y no `max-w-md` (448px).
+                       Vivía en la mitad del ancho de un modal de 896px, con
+                       ocho campos en dos columnas de ~200px: "Insurance payment
+                       (Ins)" se partía en dos líneas, y el diálogo terminaba
+                       más ALTO que el modal que lo contiene, con scroll propio.
+                       Ancho sobraba (Erick, 16-sep). */
+                    className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl shadow-2xl max-h-full flex flex-col"
                     onClick={e => e.stopPropagation()}
                   >
                     <div className="shrink-0 flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
@@ -1589,7 +1641,11 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* Los TRES selectores en una fila: quién paga, cómo y de
+                          qué tipo son la misma pregunta partida en tres, y con
+                          672px entran juntos. Antes iban en dos filas de a dos
+                          y el tipo quedaba separado del origen que lo determina. */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpWhoPays')}</label>
                           <SelectUp
@@ -1607,13 +1663,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                           <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpMethod')}</label>
                           <SelectUp value={lpMethod} onChange={setLpMethod} options={methodOptions} className="mt-1" />
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpType')}</label>
                           <SelectUp value={lpType} onChange={setLpType} options={tiposLp} className="mt-1" />
                         </div>
+                      </div>
+
+                      {/* Y los tres montos juntos, que es la cuenta que hay que
+                          leer de un vistazo: cobro + descuento = lo que queda. */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                           <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpAmount')}</label>
                           <input
@@ -1630,18 +1688,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm font-mono text-right text-text-1 outline-none focus:border-brand"
                           />
                         </div>
-                      </div>
 
-                      {/* ── Descuento ───────────────────────────────────────
-                          Lo que la clínica PERDONA en este mismo cobro. Existe
-                          porque "Reduction agreement (Red AG)" ya era un tipo de
-                          pago elegible y no había dónde anotar cuánto se
-                          condonó: el saldo quedaba colgado para siempre aunque
-                          el caso estuviera cerrado.
+                        {/* ── Descuento ─────────────────────────────────────
+                            Lo que la clínica PERDONA en este mismo cobro.
+                            Existe porque "Reduction agreement (Red AG)" ya era
+                            un tipo de pago elegible y no había dónde anotar
+                            cuánto se condonó: el saldo quedaba colgado para
+                            siempre aunque el caso estuviera cerrado.
 
-                          Cuelga del PAGO, así que anularlo lo devuelve. Y no
-                          suma a lo cobrado: es plata que se resigna. */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            Cuelga del PAGO, así que anularlo lo devuelve. Y no
+                            suma a lo cobrado: es plata que se resigna. */}
                         <div>
                           <div className="flex items-baseline justify-between gap-2">
                             <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpDiscount')}</label>

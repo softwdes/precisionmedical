@@ -36,7 +36,17 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { getEventStyle, edgeStyle, ONLINE_EDGE, type EventStyle } from '@/lib/appointment-style';
 import { nombreProvider, nombreProviderCorto } from '@/lib/provider-name';
 
-type CalendarView = 'day' | 'week' | 'month';
+/**
+ * `clinics` es el MISMO día que `day`, repartido en una columna por sede.
+ *
+ * Es una vista aparte y no un modo de la vista de día (Erick, 2026-09-17: "no
+ * mover la vista actual, darle un botón... creamos algo nuevo y no encajamos a
+ * ello"). Tenía razón: la vista de día parte la jornada en DOS COLUMNAS DE
+ * TIEMPO —mañana a la izquierda, tarde a la derecha— y columnas de tiempo y
+ * columnas de sede no caben en la misma pantalla; una tendría que morir. Con
+ * una vista propia no muere ninguna y nadie pierde lo que usa todos los días.
+ */
+type CalendarView = 'day' | 'week' | 'month' | 'clinics';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -677,6 +687,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [newApptOpen, setNewApptOpen]     = useState(false);
   const [slotDate,    setSlotDate]        = useState('');
   const [slotTime,    setSlotTime]        = useState('');
+  /** Sede del hueco cliqueado — sólo la llena la vista por sedes. */
+  const [slotClinic,  setSlotClinic]      = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   // Mobile agenda has its own date (starts at TODAY, not Monday of week)
   const [mobileDate, setMobileDate] = useState<Date>(() => nextWeekday(new Date()));
@@ -694,9 +706,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     setBlockDialogOpen(true);
   };
 
-  const openSlot = (date: string, time: string) => {
+  /**
+   * Abrir "Nueva cita" en un hueco.
+   *
+   * `clinicId` sólo lo manda la vista POR SEDES, donde cada columna ES una
+   * clínica: hacer clic en un hueco de la columna de Murray y que el campo de
+   * sede salga vacío rompería lo que la pantalla acaba de decir. Las otras
+   * vistas no lo mandan y el campo arranca en blanco, como siempre.
+   */
+  const openSlot = (date: string, time: string, clinicId?: string) => {
     setSlotDate(date);
     setSlotTime(time);
+    setSlotClinic(clinicId ?? '');
     setNewApptOpen(true);
   };
 
@@ -794,7 +815,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     let from: Date;
     let to:   Date;
 
-    if (calView === 'day') {
+    if (calView === 'day' || calView === 'clinics') {
       from = new Date(weekStart); from.setHours(0, 0, 0, 0);
       to   = new Date(weekStart); to.setHours(23, 59, 59, 999);
     } else if (calView === 'week') {
@@ -888,7 +909,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
     // En vista día saltamos el fin de semana: lunes ← viernes.
-    if (calView === 'day')        setWeekStart(w => prevWeekday(addDays(w, -1)));
+    if (calView === 'day' || calView === 'clinics') setWeekStart(w => prevWeekday(addDays(w, -1)));
     else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
     else setWeekStart(w => {
       const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
@@ -897,7 +918,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   };
   const goToNext = () => {
     // En vista día saltamos el fin de semana: viernes → lunes.
-    if (calView === 'day')        setWeekStart(w => nextWeekday(addDays(w, 1)));
+    if (calView === 'day' || calView === 'clinics') setWeekStart(w => nextWeekday(addDays(w, 1)));
     else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
     else setWeekStart(w => {
       const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
@@ -907,7 +928,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const goToToday = () => {
     const now = new Date();
     // Si hoy es sábado/domingo no hay agenda: mostramos el lunes siguiente.
-    if (calView === 'day')        setWeekStart(nextWeekday(now));
+    if (calView === 'day' || calView === 'clinics') setWeekStart(nextWeekday(now));
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
@@ -926,6 +947,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
     setCalView(v);
+    if (v === 'clinics')    return;   // mismo día que estabas mirando
     if (v === 'week')       setWeekStart(w => getMondayOf(w));
     else if (v === 'day')   setWeekStart(nextWeekday(new Date())); // HOY, o el lunes si hoy es finde
     else if (v === 'month') setWeekStart(w => getFirstDayOfMonth(w));
@@ -1040,7 +1062,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const dMonth = (d: Date) => MONTHS[parseInt(dStr(d).slice(5, 7), 10) - 1]!;
   const dYear = (d: Date) => parseInt(dStr(d).slice(0, 4), 10);
   const monthLabel =
-    calView === 'day'
+    calView === 'day' || calView === 'clinics'
       ? `${dNum(weekStart)} ${dMonth(weekStart)} ${dYear(weekStart)}`
       : `${dMonth(weekStart)} ${dYear(weekStart)}`;
   // Mobile toolbar label — changes by view
@@ -1050,7 +1072,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       ? (() => { const mon = getMondayOf(mobileDate); const sun = addDays(mon, 6); return `${dNum(mon)}–${dNum(sun)} ${dMonth(sun)} ${dYear(sun)}`; })()
       : `${dNum(mobileDate)} ${dMonth(mobileDate)} ${dYear(mobileDate)}`;
   const weekLabel =
-    calView === 'day'
+    calView === 'clinics'
+      ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewClinics')}`
+      : calView === 'day'
       ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
       : calView === 'week'
         ? t('weekRangeLabel', { start: dNum(weekStart), end: dNum(viewEnd4), month: dMonth(viewEnd4) })
@@ -1314,8 +1338,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
         {/* View toggle Día / Semana / Mes */}
         <div className="flex items-center shrink-0 rounded overflow-hidden border border-white/[0.10]">
-          {(['day', 'week', 'month'] as const).map((v) => {
-            const labels = { day: t('viewDay'), week: t('viewWeek'), month: t('viewMonth') };
+          {(['day', 'week', 'month', 'clinics'] as const).map((v) => {
+            const labels = { day: t('viewDay'), week: t('viewWeek'), month: t('viewMonth'), clinics: t('viewClinics') };
             const isActive = calView === v;
             return (
               <button
@@ -1801,6 +1825,171 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         })()}
 
         {/* ══════════════════════════ MONTH VIEW ═════════════════════════════ */}
+        {/* ─── Vista POR SEDES: un día, una columna por clínica ───────────── */}
+        {calView === 'clinics' && (() => {
+          const dayKey  = denverDateStr(weekStart);
+          const isToday = dayKey === denverDateStr(new Date());
+
+          const dayAppts = visibleAppointments.filter(
+            a => denverDateStr(new Date(a.scheduledFor)) === dayKey,
+          );
+
+          /**
+           * Qué sedes reciben columna.
+           *
+           * Sólo las que TIENEN algo ese día, no las seis siempre. Medido el
+           * 2026-09-16 sobre 120 días: 2 sedes en 38 días, 3 en 13, y nunca 4
+           * ni 6. Pintar seis columnas para llenar dos obliga al ojo a recorrer
+           * cuatro vacías cada vez que se abre la pantalla.
+           *
+           * Con filtro de sede puesto queda ésa sola: la vista no desobedece al
+           * filtro mostrando de más.
+           */
+          const conCitas = new Set(dayAppts.map(a => a.clinic.id));
+          const columnas = clinics
+            .filter(c => (filterClinic ? c.id === filterClinic : conCitas.has(c.id)))
+            .map(c => ({
+              id: c.id,
+              name: c.name,
+              color: dayAppts.find(a => a.clinic.id === c.id)?.clinic.color ?? null,
+              citas: dayAppts.filter(a => a.clinic.id === c.id),
+            }));
+
+          const slots: string[] = [];
+          for (let m = OPEN_MIN; m < CLOSE_MIN; m += DAY_SLOT_MIN) slots.push(minToSlot(m));
+
+          /**
+           * starts/covers POR SEDE: una cita de 30 min tapa dos filas de 15, y
+           * cada columna lleva su propia cuenta. Con un solo mapa compartido,
+           * una cita de Provo dejaría "ocupado" el hueco de Murray a la misma
+           * hora y no se podría agendar ahí.
+           */
+          const starts: Record<string, Record<string, CalendarAppointment[]>> = {};
+          const covers: Record<string, Record<string, CalendarAppointment[]>> = {};
+          for (const col of columnas) {
+            starts[col.id] = {};
+            covers[col.id] = {};
+            for (const a of col.citas) {
+              const ini = slotToMin(slotOf15(a.scheduledFor));
+              const dur = Math.max(DAY_SLOT_MIN, a.durationMinutes);
+              (starts[col.id]![minToSlot(ini)] ??= []).push(a);
+              for (let m = ini + DAY_SLOT_MIN; m < ini + dur; m += DAY_SLOT_MIN) {
+                (covers[col.id]![minToSlot(m)] ??= []).push(a);
+              }
+            }
+          }
+
+          if (columnas.length === 0) {
+            return (
+              <div className="text-center py-16">
+                <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                <p className="text-text-2 text-sm">{t('emptyTitle')}</p>
+                <p className="text-text-muted text-xs mt-1">{t('clinicsEmptyHint')}</p>
+              </div>
+            );
+          }
+
+          const gridCols = { gridTemplateColumns: `58px repeat(${columnas.length}, minmax(0,1fr))` };
+
+          return (
+            <div className="rounded-xl border border-border bg-bg-1 overflow-hidden">
+              {/* Encabezado: una celda por sede, con su punto de color */}
+              <div className="grid border-b border-border bg-bg-2/40" style={gridCols}>
+                <div className={`py-2 text-center text-[10px] font-bold uppercase tracking-wider border-r border-row-sep ${
+                  isToday ? 'text-cyan' : 'text-text-muted'
+                }`}>
+                  {t('colHour')}
+                </div>
+                {columnas.map(col => (
+                  <div key={col.id} className="py-2 px-2 border-r border-row-sep last:border-r-0 min-w-0">
+                    <div className="flex items-center justify-center gap-1.5 min-w-0">
+                      {col.color && (
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col.color }} />
+                      )}
+                      <span className="text-[11px] font-bold text-text-1 truncate">{col.name}</span>
+                    </div>
+                    <div className="text-center text-[10px] text-text-muted tabular-nums mt-0.5">
+                      {t('clinicsApptCount', { n: col.citas.length })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Filas de 15 minutos */}
+              <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+                {slots.map(slot => (
+                  <div key={slot} className="grid border-b border-row-sep last:border-b-0 min-h-[30px]" style={gridCols}>
+                    <div className="border-r border-row-sep flex items-center justify-end pr-2">
+                      <span className={`font-mono tabular-nums ${
+                        slot.endsWith(':00') ? 'text-[12.5px] text-text-1 font-bold' : 'text-[10.5px] text-text-3 font-semibold'
+                      }`}>{slotLabel(slot)}</span>
+                    </div>
+
+                    {columnas.map(col => {
+                      const enElSlot = starts[col.id]?.[slot] ?? [];
+                      const vienen   = covers[col.id]?.[slot] ?? [];
+                      const sigue    = enElSlot.length === 0 && vienen.length > 0;
+                      /* Los avisos de agenda SIN sede son de toda la clínica y
+                         salen en todas las columnas; los que tienen sede, sólo en
+                         la suya. Es lo que dice el modelo: `clinicId` es opcional
+                         a propósito (un "no hay luz" no es de una oficina). */
+                      const avisos = (blockMap[dayKey]?.[slot] ?? [])
+                        .filter(b => !b.clinicId || b.clinicId === col.id);
+
+                      return (
+                        <div
+                          key={col.id}
+                          onClick={() => { if (!sigue) openSlot(dayKey, slot, col.id); }}
+                          className={`p-0.5 flex flex-col gap-0.5 border-r border-row-sep last:border-r-0 min-w-0 transition-colors ${
+                            sigue ? '' : 'cursor-pointer hover:bg-white/[0.03]'
+                          }`}
+                        >
+                          {avisos.map(b => (
+                            <div
+                              key={b.id}
+                              className="rounded px-1.5 py-0.5 text-[9.5px] font-semibold truncate bg-text-muted/10 border border-dashed border-text-muted/40 text-text-muted"
+                              title={b.label}
+                            >
+                              {b.label}
+                            </div>
+                          ))}
+
+                          {enElSlot.map(appt => {
+                            const s = getEventStyle(appt);
+                            const drName = appt.provider ? drShort(appt.provider) : '';
+                            return (
+                              <button
+                                key={appt.id}
+                                type="button"
+                                onClick={e => { e.stopPropagation(); setSelectedAppt(appt); }}
+                                className="text-left rounded px-1.5 py-0.5 min-w-0 transition-all hover:brightness-110"
+                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}
+                              >
+                                <div className="flex items-baseline gap-1 leading-tight min-w-0">
+                                  <span className="text-[10px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
+                                    {appt.patient.firstName} {appt.patient.lastName}
+                                  </span>
+                                  {appt.isOnline && <Video className="w-3 h-3 shrink-0 text-cyan" aria-label={t('legendOnline')} />}
+                                  {s.badge && <span className="text-[11px] leading-none shrink-0">{s.badge}</span>}
+                                </div>
+                                {drName && (
+                                  <div className="text-[9px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>{drName}</div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} filterClinic={filterClinic} t={t} />
+            </div>
+          );
+        })()}
+
         {calView === 'month' && (() => {
           const grid     = getMonthGrid(weekStart);
           const todayStr = localDateStr(new Date());
@@ -1917,6 +2106,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         onSuccess={() => setRefreshKey(k => k + 1)}
         initialDate={slotDate || undefined}
         initialTime={slotTime || undefined}
+        initialClinicId={slotClinic || undefined}
       />
     </div>
   );

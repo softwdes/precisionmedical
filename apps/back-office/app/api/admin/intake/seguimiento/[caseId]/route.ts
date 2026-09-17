@@ -56,6 +56,8 @@ interface CaseRow {
   notes: {
     id: string; content: string; authorName: string; createdAt: Date;
   }[];
+  /** Solo la del paciente, y como máximo una — ver el `select` de la consulta. */
+  lienSignatures: { id: string; signedAt: Date }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -130,6 +132,16 @@ export async function GET(
       notes: {
         select:  { id: true, content: true, authorName: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
+      },
+      /**
+       * La firma del lien, para el casillero "Lien firmado" de más abajo.
+       * Solo la del PACIENTE: la del abogado es otra cosa y se pide en el
+       * portal legal, que tiene su propio aviso.
+       */
+      lienSignatures: {
+        where:  { signerType: 'PATIENT' },
+        select: { id: true, signedAt: true },
+        take:   1,
       },
     },
   });
@@ -233,12 +245,34 @@ export async function GET(
   const hasPip        = !!c.pipVerifiedAt;
   const hasSignedNote = c.appointments.some(a => a.visitNote?.status === 'SIGNED');
   const hasHcfa       = c.notes.some(n => n.content.startsWith('🤖') && n.content.includes('HCFA'));
-  const hasLienNote   = c.notes.some(n => n.content.startsWith('⚖'));
+  /**
+   * ── "Lien firmado" ahora mira la FIRMA (2026-09-17) ────────────────────────
+   *
+   * Decía:
+   *
+   *     const hasLienNote = c.notes.some(n => n.content.startsWith('⚖'));
+   *
+   * O sea: el casillero se marcaba si alguien escribía una nota que empezara
+   * con ⚖. **Nada escribe esa nota.** Medido contra la base el 17-sep: hay
+   * 439 casos con firma real del paciente, hay 0 notas que empiecen con ⚖, y
+   * por lo tanto los 439 se veían como no firmados. El casillero nunca estuvo
+   * marcado para nadie desde que existe.
+   *
+   * Lo reportó Erick por Alexander Day (MVA-3356), que llegó al mostrador
+   * diciendo que había firmado — y tenía razón: firmó el 15-sep y su firma
+   * son 13.690 caracteres de trazo guardados en `lien_signatures`. El staff
+   * estaba por hacerlo firmar de nuevo.
+   *
+   * Se mira la fila de la firma, que es el hecho. Si algún día se quiere
+   * además el rastro de quién la gestionó, eso es una nota y va aparte: no
+   * puede volver a ser la CONDICIÓN de que la firma exista.
+   */
+  const lienFirmado   = c.lienSignatures.length > 0;
   const hasPayment    = c.notes.some(n => n.content.startsWith('💰'));
 
   const docs = [
     { key: 'pip',       label: 'PIP verificado',      done: hasPip },
-    { key: 'lien',      label: 'Lien firmado',         done: hasLienNote },
+    { key: 'lien',      label: 'Lien firmado',         done: lienFirmado },
     { key: 'visitNote', label: 'Nota médica firmada',  done: hasSignedNote },
     { key: 'hcfa',      label: 'HCFA generado',        done: hasHcfa },
     { key: 'payment',   label: 'Pago registrado',      done: hasPayment },

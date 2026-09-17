@@ -6,7 +6,7 @@
  * Server component: valida token en DB, pasa data pre-cargada al wizard.
  */
 
-import { db } from '@precision-medical/database';
+import { db, resolverFotosDeIdentidad } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { IntakeWizard } from './intake-wizard';
 import { TEL_CLINICA, TEL_CLINICA_E164, TEL_SELECCIONABLE } from '@/lib/clinica';
@@ -133,6 +133,34 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
   const gp = rec.patient.guardianPatient;
   const guardianFromClinic = !!gp;
 
+  /**
+   * ─── Las fotos que el paciente YA mandó alguna vez ────────────────────────
+   *
+   * Hasta hoy esto leía `cd.photos` a secas, que son las de ESTE caso, y por eso
+   * un paciente que vuelve con un caso nuevo se encontraba los cuatro recuadros
+   * vacíos y le pedíamos otra vez la licencia que ya teníamos escaneada. Son
+   * 1.227 casos hoy: los de las 1.166 personas que tienen sus documentos
+   * colgados de la ficha (los 3.142 migrados del v2 y, desde el 15-sep,
+   * también los que entran por acá). Pedido de Erick, 17-sep.
+   *
+   * `resolverFotosDeIdentidad` devuelve además CUÁLES vienen heredadas, y eso
+   * viaja al wizard: un recuadro que aparece lleno sin explicación se lee como
+   * que el sistema se confundió de persona.
+   *
+   * ⚠️ El TTL de la firma. El back-office usa 15 minutos porque es una pantalla
+   * que se mira y se cierra; acá el paciente tiene por delante diez pasos y se
+   * puede distraer, y una firma vencida a mitad del formulario es una imagen
+   * rota justo sobre su propia licencia. Dos horas cubre cualquier intake real
+   * sin volverlo un link de larga vida — y si vuelve mañana, la página es un
+   * server component y las firma de nuevo.
+   */
+  const { fotos: fotosIdentidad, heredadas: fotosHeredadas } = await resolverFotosDeIdentidad(
+    db,
+    rec.patient.id,
+    (cd.photos ?? {}) as Record<string, string>,
+    { minutos: 120 },
+  );
+
   return (
     <IntakeWizard
       token={token}
@@ -227,10 +255,9 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       }}
       /* Cargado por la clínica → el step 4 se muestra en solo lectura */
       guardianFromClinic={guardianFromClinic}
-      savedPhotos={(cd.photos ?? null) as {
-        selfie?: string; insuranceCardFront?: string;
-        insuranceCardBack?: string; dlFront?: string;
-      } | null}
+      savedPhotos={fotosIdentidad}
+      /* Cuáles de esas no son de este caso: el recuadro lo dice y ofrece cambiarla. */
+      fotosHeredadas={fotosHeredadas}
       savedLienSignature={rec.lienSignatures[0] ? {
         signatureSvg: rec.lienSignatures[0].signatureSvg ?? null,
         signerName:   rec.lienSignatures[0].signerName,

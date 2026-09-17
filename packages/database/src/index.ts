@@ -54,7 +54,14 @@ export {
   archivarFotoDeIdentidad, papelerizarFotoDeIdentidad, restaurarFotoDeIdentidad,
   esSlotFoto, SLOTS_FOTO,
 } from './foto-identidad';
-export type { SlotFoto, FotoParaArchivar, ResultadoArchivo } from './foto-identidad';
+// Y el lector: las fotos que la persona ya tiene, para no volver a pedírselas.
+// El caso gana sobre la persona; `resolverFotosDeIdentidad` además dice CUÁLES
+// vienen heredadas, que es lo que el formulario del paciente necesita saber.
+export {
+  fotosDelPaciente, fotosConRespaldo, resolverFotosDeIdentidad,
+  clavesDeFotosDelPaciente,
+} from './foto-identidad';
+export type { SlotFoto, FotoParaArchivar, ResultadoArchivo, FotosResueltas } from './foto-identidad';
 
 // El seguro que declaró el paciente en el intake → el seguro del CASO. El paso
 // 6 lo guardaba en `consentsData.insurances` y nada lo promovía al campo que

@@ -24,7 +24,11 @@
  * `api/admin/patients/[id]/documents/route.ts`.
  */
 
-import { db } from '@precision-medical/database';
+import {
+  db,
+  fotosDelPaciente as fotosDelPacienteCompartida,
+  fotosConRespaldo as fotosConRespaldoCompartida,
+} from '@precision-medical/database';
 import { VIGENTES } from '@/lib/documentos';
 import { createClient } from '@supabase/supabase-js';
 
@@ -38,57 +42,21 @@ const supabase = createClient(
   (process.env.SUPABASE_STORAGE_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!,
   (process.env.SUPABASE_STORAGE_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!,
 );
-
-/**
- * Nombre del archivo en el v2 → recuadro de v3.
+/* ────────────────────────────────────────────────────────────────────────────
+ * Los dos lectores se mudaron a `packages/database/src/foto-identidad.ts` el
+ * 2026-09-17: `apps/forms` también los necesita, para no volver a pedirle la
+ * licencia a un paciente que ya la mandó. Ahí ya vivía el ESCRITOR
+ * (`archivarFotoDeIdentidad`) y el mapa de nombre de archivo → recuadro, así
+ * que tenerlos separados era garantizar que la convención se desincronizara.
  *
- * ⚠️ `id_card_*` se mapea a la tarjeta de SEGURO por descarte: el v2 ya tiene
- * `dl_*` para la licencia, y `id_card` viene en pares frente/dorso (566 y 548).
- * Si resultara ser otro documento, se cambian estas dos líneas y nada más.
- */
-const POR_NOMBRE: Array<readonly [RegExp, string]> = [
-  [/^patient_photo\./i, 'selfie'],
-  [/^dl_front\./i, 'dlFront'],
-  [/^id_card_front\./i, 'insuranceCardFront'],
-  [/^id_card_back\./i, 'insuranceCardBack'],
-];
+ * Se reexportan con la misma firma para no tocar a los llamadores
+ * (`case-detail-data.ts` y `patient-context.ts`); la única diferencia es que
+ * allá reciben el cliente de Prisma, que se inyecta acá.
+ * ──────────────────────────────────────────────────────────────────────────── */
 
-/** Las fotos que el paciente trae del v2, ya firmadas. `{}` si no tiene. */
-export async function fotosDelPaciente(patientId: string): Promise<Record<string, string>> {
-  const docs = await db.patientDocument.findMany({
-    // Una foto eliminada no vuelve a aparecer en los recuadros de identidad.
-    where: { patientId, caseId: null, isFolder: false, s3Key: { not: null }, ...VIGENTES },
-    orderBy: { createdAt: 'desc' },
-    select: { name: true, s3Key: true },
-  });
-  if (docs.length === 0) return {};
-
-  const porRecuadro = new Map<string, string>();
-  for (const d of docs) {
-    const slot = POR_NOMBRE.find(([re]) => re.test(d.name))?.[1];
-    // Ordenado por fecha desc: la primera que matchea es la más nueva.
-    if (slot && d.s3Key && !porRecuadro.has(slot)) porRecuadro.set(slot, d.s3Key);
-  }
-  if (porRecuadro.size === 0) return {};
-
-  const fotos: Record<string, string> = {};
-  await Promise.all(
-    [...porRecuadro].map(async ([slot, key]) => {
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, MINUTOS * 60);
-      if (data?.signedUrl) { fotos[slot] = data.signedUrl; return; }
-      /**
-       * Si Storage no da el link, el aviso de "faltan documentos" vuelve a
-       * aparecer sobre un paciente que SÍ tiene las cuatro fotos — que es el
-       * bug que este archivo vino a arreglar, disfrazado de otra cosa. Sin
-       * esta línea no hay forma de distinguirlo desde afuera: la pantalla se
-       * ve igual que la de un paciente sin fotos.
-       */
-      console.error('[fotos-identidad] no se pudo firmar la foto', {
-        patientId, slot, s3Key: key, error: error?.message ?? null,
-      });
-    }),
-  );
-  return fotos;
+/** Las fotos que el paciente tiene colgadas de su persona, ya firmadas. */
+export function fotosDelPaciente(patientId: string): Promise<Record<string, string>> {
+  return fotosDelPacienteCompartida(db, patientId) as Promise<Record<string, string>>;
 }
 
 /**
@@ -97,17 +65,11 @@ export async function fotosDelPaciente(patientId: string): Promise<Record<string
  * Se llama con lo que ya trae `consentsData.photos` para no ir a buscar nada
  * cuando el caso ya tiene las cuatro.
  */
-export async function fotosConRespaldo(
+export function fotosConRespaldo(
   patientId: string,
   delCaso: Record<string, string>,
 ): Promise<Record<string, string>> {
-  const faltan = ['selfie', 'insuranceCardFront', 'insuranceCardBack', 'dlFront']
-    .some((k) => !delCaso[k]);
-  if (!faltan) return delCaso;
-
-  const dePersona = await fotosDelPaciente(patientId);
-  // El caso pisa a la persona: es la foto de ESTE expediente.
-  return { ...dePersona, ...delCaso };
+  return fotosConRespaldoCompartida(db, patientId, delCaso);
 }
 
 /**

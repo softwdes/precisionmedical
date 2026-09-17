@@ -9,7 +9,10 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog, promoverSeguroDeclarado } from '@precision-medical/database';
+import {
+  db, writeAuditLog, promoverSeguroDeclarado,
+  esSlotFoto, clavesDeFotosDelPaciente,
+} from '@precision-medical/database';
 import { decryptFieldOrOriginal, isCipher } from '@/lib/decrypt';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
@@ -308,6 +311,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         hasPreviousInjuries?: boolean; previousInjuries?: string;
         preferredLanguage?: string;
       };
+      /**
+       * Paso 8 — las fotos que el paciente NO volvió a sacar porque ya las
+       * tenía de antes. Solo viajan los recuadros; la clave del archivo la
+       * resuelve el servidor contra los documentos de esa persona, porque un
+       * `s3Key` que manda el cliente es un `s3Key` que el cliente elige.
+       */
+      fotos?: {
+        reusadas?: string[];
+        /** `null` = no se le preguntó (no heredó ninguna tarjeta de seguro). */
+        tarjetaSeguroVigente?: boolean | null;
+      };
       consents?: {
         hipaa?: boolean;
         assignedParties?: boolean;
@@ -553,6 +567,62 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         hasPreviousInjuries: h.hasPreviousInjuries ?? false,
         previousInjuries:   h.previousInjuries ?? null,
         language:           h.preferredLanguage ?? 'es',
+      },
+    });
+  }
+
+  /**
+   * ─── Paso 8 · las fotos que el paciente reusó ─────────────────────────────
+   *
+   * Las que SÍ sacó ya se guardaron una por una en `upload-photo`. Lo que falta
+   * registrar es lo otro: que miró la licencia que ya teníamos, la dio por
+   * buena y siguió. Sin esto el expediente queda idéntico al de alguien que
+   * abandonó el paso —`consentsData.photos` vacío en los dos casos— y la única
+   * razón por la que las pantallas igual muestran las fotos es que se acuerdan
+   * de pedir el respaldo por persona.
+   *
+   * Se guarda la CLAVE del archivo y no la url: la que ve el paciente está
+   * firmada y vence en dos horas, así que como registro no sirve de nada.
+   *
+   * Va en una clave propia (`fotosReusadas`) y no en `photos`, que es lo que
+   * todo el mundo lee esperando una url que se pueda poner en un `<img>`.
+   */
+  if (step === 8 && data.fotos) {
+    const pedidas = (data.fotos.reusadas ?? []).filter(esSlotFoto);
+    const vigente = data.fotos.tarjetaSeguroVigente;
+
+    const claves = pedidas.length > 0
+      ? await clavesDeFotosDelPaciente(db, rec.patient.id)
+      : {};
+
+    const reusadas: Record<string, { s3Key: string; at: string }> = {};
+    const ahora = new Date().toISOString();
+    for (const slot of pedidas) {
+      const s3Key = claves[slot];
+      // Si no hay documento detrás, el cliente dijo que reusó algo que no
+      // existe. No se registra: es mejor un expediente que no dice nada que uno
+      // que afirma tener una licencia que nadie puede abrir.
+      if (s3Key) reusadas[slot] = { s3Key, at: ahora };
+    }
+
+    const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
+    const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
+    await db.case.update({
+      where: { id: rec.id },
+      data: {
+        consentsData: {
+          ...prev,
+          ...(Object.keys(reusadas).length > 0 ? { fotosReusadas: reusadas } : {}),
+          /**
+           * Que el paciente confirme que su tarjeta de seguro sigue vigente es
+           * un dato de facturación, no un detalle de la pantalla: es la
+           * diferencia entre cobrar contra una cobertura verificada y descubrir
+           * el rechazo un mes después.
+           */
+          ...(typeof vigente === 'boolean'
+            ? { tarjetaSeguroVigente: vigente, tarjetaSeguroVigenteAt: ahora }
+            : {}),
+        } as object,
       },
     });
   }

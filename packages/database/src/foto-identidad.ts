@@ -259,3 +259,181 @@ export async function restaurarFotoDeIdentidad(
     console.error('[foto-identidad] no se pudo restaurar:', e);
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * LEER · las fotos que el paciente ya tiene, vengan de donde vengan
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Este lector vivía en `apps/back-office/lib/fotos-identidad.ts` y se mudó acá
+ * el 2026-09-17, por la misma razón que el escritor de arriba: ahora lo
+ * necesitan las DOS apps. El back-office lo usa para que la ficha de un
+ * paciente migrado no diga "faltan las fotos" teniéndolas; `apps/forms` lo usa
+ * para no volver a pedirle la licencia a alguien que ya la mandó (Erick,
+ * 17-sep). El back-office sigue reexportándolo desde su `lib/fotos-identidad`
+ * para no tocar a sus llamadores.
+ *
+ * Hay DOS orígenes y ninguna pantalla debería tener que saberlo:
+ *
+ *  1. **El caso** — `Case.consentsData.photos`, donde el intake deja la URL
+ *     pública y permanente del bucket `intake-photos`.
+ *  2. **La persona** — `patient_documents` con `caseId` en NULL, en el bucket
+ *     privado y con URL firmada. Ahí están las 3.142 fotos migradas del v2
+ *     **y también** las que entran hoy por el portal, porque desde el 15-sep
+ *     `archivarFotoDeIdentidad` las deja en los dos lados.
+ *
+ * Esa segunda parte es la que hace que esto sirva para forms: el respaldo ya no
+ * es solo para migrados, es para cualquiera que haya mandado una foto antes.
+ */
+
+/** Cuánto vive la URL firmada por defecto. Lo que usa el visor de labs. */
+const MINUTOS_FIRMA = 15;
+
+/** La fila de documento de cada recuadro, si existe. Devuelve `s3Key`. */
+export async function clavesDeFotosDelPaciente(
+  db: PrismaClient,
+  patientId: string,
+): Promise<Partial<Record<SlotFoto, string>>> {
+  const docs = await db.patientDocument.findMany({
+    // Una foto eliminada no vuelve a aparecer en los recuadros de identidad.
+    where:   { patientId, caseId: null, isFolder: false, s3Key: { not: null }, deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+    select:  { name: true, s3Key: true },
+  });
+
+  const salida: Partial<Record<SlotFoto, string>> = {};
+  for (const d of docs) {
+    const slot = SLOTS_FOTO.find((s) => RE_DE_SLOT[s].test(d.name));
+    // Ordenado por fecha desc: la primera que matchea es la más nueva.
+    if (slot && d.s3Key && !salida[slot]) salida[slot] = d.s3Key;
+  }
+  return salida;
+}
+
+/**
+ * Firma varias claves de una sola vez.
+ *
+ * Se habla con la API REST de Storage a mano en vez de con `@supabase/supabase-js`
+ * para no meterle esa dependencia a `packages/database`, que hoy solo tiene
+ * Prisma y `pg`. Es el mismo `fetch` con el que sube `archivarFotoDeIdentidad`.
+ *
+ * No tira nunca: una pantalla tiene que dibujarse aunque el almacenamiento
+ * falle, y el costo de que falle es un recuadro vacío.
+ */
+async function firmar(
+  claves: string[],
+  minutos: number,
+): Promise<Map<string, string>> {
+  const salida = new Map<string, string>();
+  if (claves.length === 0) return salida;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}`, {
+      method:  'POST',
+      headers: {
+        Authorization:  `Bearer ${SERVICE_KEY}`,
+        apikey:         SERVICE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expiresIn: minutos * 60, paths: claves }),
+    });
+    if (!res.ok) {
+      console.error('[foto-identidad] Storage no firmó las fotos:', res.status, await res.text());
+      return salida;
+    }
+
+    /**
+     * La respuesta viene en el MISMO orden que se mandó, pero cada entrada
+     * puede traer su propio error (una clave que ya no existe), así que se arma
+     * por `path` y no por posición.
+     */
+    const filas = (await res.json()) as Array<{ path?: string; signedURL?: string; error?: string }>;
+    for (const f of filas) {
+      if (f.signedURL && f.path) salida.set(f.path, `${SUPABASE_URL}/storage/v1${f.signedURL}`);
+      else if (f.path) {
+        /**
+         * Sin esta línea no hay forma de distinguirlo desde afuera: la pantalla
+         * se ve igual que la de un paciente sin fotos, que es exactamente el
+         * bug que este módulo vino a arreglar, disfrazado de otra cosa.
+         */
+        console.error('[foto-identidad] no se pudo firmar', f.path, f.error ?? '');
+      }
+    }
+  } catch (e) {
+    console.error('[foto-identidad] error firmando las fotos:', e);
+  }
+  return salida;
+}
+
+/** Las fotos que el paciente ya tiene colgadas de su persona, ya firmadas. */
+export async function fotosDelPaciente(
+  db: PrismaClient,
+  patientId: string,
+  opts: { minutos?: number } = {},
+): Promise<Partial<Record<SlotFoto, string>>> {
+  const claves = await clavesDeFotosDelPaciente(db, patientId);
+  const urls   = await firmar(Object.values(claves), opts.minutos ?? MINUTOS_FIRMA);
+
+  const salida: Partial<Record<SlotFoto, string>> = {};
+  for (const slot of SLOTS_FOTO) {
+    const clave = claves[slot];
+    const url   = clave ? urls.get(clave) : undefined;
+    if (url) salida[slot] = url;
+  }
+  return salida;
+}
+
+export interface FotosResueltas {
+  /** Las cuatro urls listas para un `<img>`. Solo las que existen. */
+  fotos: Partial<Record<SlotFoto, string>>;
+  /**
+   * Cuáles de esas NO son de este caso sino que vienen de la persona.
+   *
+   * Es lo que le permite a una pantalla decir "ya la tenemos de antes" en vez
+   * de mostrarla como si el paciente la acabara de sacar. El back-office no lo
+   * usa —le da igual de dónde salió— pero el formulario del paciente sí.
+   */
+  heredadas: SlotFoto[];
+}
+
+/**
+ * Las del caso, completadas con las de la persona.
+ *
+ * La del CASO gana siempre: es la que se cargó para ESE expediente y es la más
+ * nueva. La de la persona es el respaldo.
+ */
+export async function resolverFotosDeIdentidad(
+  db: PrismaClient,
+  patientId: string,
+  delCaso: Record<string, string>,
+  opts: { minutos?: number } = {},
+): Promise<FotosResueltas> {
+  const faltan = SLOTS_FOTO.filter((s) => !delCaso[s]);
+  const propias: Partial<Record<SlotFoto, string>> = {};
+  for (const s of SLOTS_FOTO) if (delCaso[s]) propias[s] = delCaso[s];
+
+  if (faltan.length === 0) return { fotos: propias, heredadas: [] };
+
+  const dePersona = await fotosDelPaciente(db, patientId, opts);
+  const heredadas = faltan.filter((s) => dePersona[s]);
+  const fotos: Partial<Record<SlotFoto, string>> = { ...propias };
+  for (const s of heredadas) fotos[s] = dePersona[s];
+
+  return { fotos, heredadas };
+}
+
+/**
+ * La forma vieja, que devuelve solo el mapa de urls.
+ *
+ * Existe porque el back-office la llama en dos lugares y no le interesa el
+ * origen de cada foto. Nueva pantalla: usar `resolverFotosDeIdentidad`.
+ */
+export async function fotosConRespaldo(
+  db: PrismaClient,
+  patientId: string,
+  delCaso: Record<string, string>,
+  opts: { minutos?: number } = {},
+): Promise<Record<string, string>> {
+  const { fotos } = await resolverFotosDeIdentidad(db, patientId, delCaso, opts);
+  return fotos as Record<string, string>;
+}

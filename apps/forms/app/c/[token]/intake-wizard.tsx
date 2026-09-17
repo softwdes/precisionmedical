@@ -128,6 +128,9 @@ interface SavedPhotos {
   dlFront?: string;
 }
 
+/** Los cuatro recuadros. Mismo nombre que `SLOTS_FOTO` en `packages/database`. */
+type SlotFoto = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
+
 interface Props {
   token: string;
   caseId: string;
@@ -140,6 +143,14 @@ interface Props {
   savedExtra: SavedExtra;
   savedLienSignature: SavedLienSignature | null;
   savedPhotos: SavedPhotos | null;
+  /**
+   * Los recuadros de `savedPhotos` que NO son de este caso: salen de los
+   * documentos de la persona porque el paciente ya los mandó antes (otro caso,
+   * o la migración del v2). Se muestran llenos igual —el punto es no volver a
+   * pedirlos— pero diciendo de dónde salieron, porque un recuadro que aparece
+   * con la licencia del paciente sin explicación se lee como un error.
+   */
+  fotosHeredadas?: SlotFoto[];
   casePolicyNumber: string | null;
   nextAppointment: NextAppointment | null;
   /**
@@ -434,6 +445,12 @@ const STRINGS = {
     usePhotoBtn: '✅ Usar esta foto',
     retakeBtn: '🔄 Retomar',
     changePhotoBtn: 'Cambiar',
+    /* Fotos que el paciente ya mandó antes y no le volvemos a pedir. */
+    fotoHeredada:      'Ya la tenemos de una visita anterior',
+    seguroVigentePreg: '¿Esta tarjeta sigue vigente?',
+    seguroVigenteSi:   'Sí, sigue vigente',
+    seguroVigenteNo:   'Subir la nueva',
+    seguroVigenteOk:   'Confirmaste que sigue vigente',
     cameraBtn: 'Cámara',
     fileBtn: 'Archivo',
     selfieCaptureLabel: '📷 Abrir cámara — selfie',
@@ -771,6 +788,12 @@ const STRINGS = {
     usePhotoBtn: '✅ Use this photo',
     retakeBtn: '🔄 Retake',
     changePhotoBtn: 'Change',
+    /* Photos the patient already sent before — we don't ask for them again. */
+    fotoHeredada:      'We already have this from a previous visit',
+    seguroVigentePreg: 'Is this card still current?',
+    seguroVigenteSi:   'Yes, still current',
+    seguroVigenteNo:   'Upload the new one',
+    seguroVigenteOk:   'You confirmed it is current',
     cameraBtn: 'Camera',
     fileBtn: 'File',
     selfieCaptureLabel: '📷 Open camera — selfie',
@@ -1245,7 +1268,8 @@ function phoneFromDb(raw: string | null | undefined): string {
 export function IntakeWizard({
   token, caseId: _caseId, caseCode, patient, accident,
   savedInsurances, savedHealth, savedConsents, savedExtra, savedLienSignature,
-  savedPhotos, casePolicyNumber, nextAppointment, guardianFromClinic = false,
+  savedPhotos, fotosHeredadas = [], casePolicyNumber, nextAppointment,
+  guardianFromClinic = false,
 }: Props) {
   const router = useRouter();
 
@@ -1636,6 +1660,65 @@ export function IntakeWizard({
     dlFront:            savedPhotos?.dlFront            ?? null,
   });
 
+  /**
+   * Cuáles de los recuadros de arriba vienen de antes y no de este formulario.
+   *
+   * Arranca con lo que dijo el servidor y se va vaciando: en cuanto el paciente
+   * cambia una foto, esa deja de ser heredada y el cartel tiene que irse. Sin
+   * esto el recuadro seguiría diciendo "la tenemos de antes" sobre la foto que
+   * el paciente acaba de sacar.
+   */
+  const [heredadas, setHeredadas] = useState<Set<SlotFoto>>(() => new Set(fotosHeredadas));
+
+  /**
+   * ¿La tarjeta de seguro heredada sigue vigente?
+   *
+   * `null` = todavía no contestó. La cara y la licencia se heredan calladas
+   * porque no vencen para lo que las usamos; la tarjeta del seguro **sí**:
+   * cambia cada año, y facturar contra una vieja es exactamente como se
+   * deniegan los reclamos. Así que esa se muestra y se pregunta.
+   */
+  const [seguroVigente, setSeguroVigente] = useState<boolean | null>(null);
+
+  /**
+   * La respuesta a esa pregunta.
+   *
+   * Si dice que NO sigue vigente, las DOS caras de la tarjeta vieja dejan de
+   * servir y se vacían: una tarjeta nueva tiene frente y dorso nuevos, y dejar
+   * el dorso viejo puesto es la forma de que a facturación le llegue media
+   * tarjeta de cada año. Quedan como recuadros vacíos, que es lo honesto; no
+   * trancan nada porque las del seguro no son obligatorias.
+   */
+  const responderVigenciaSeguro = (vigente: boolean) => {
+    setSeguroVigente(vigente);
+    if (vigente) return;
+
+    const caras = (['insuranceCardFront', 'insuranceCardBack'] as const)
+      .filter((s) => heredadas.has(s));
+    if (caras.length === 0) return;
+
+    setPhotoUrls((p) => {
+      const siguiente = { ...p };
+      for (const s of caras) siguiente[s] = null;
+      return siguiente;
+    });
+    setHeredadas((prev) => {
+      const siguiente = new Set(prev);
+      for (const s of caras) siguiente.delete(s);
+      return siguiente;
+    });
+  };
+
+  /**
+   * Cuál de las dos caras hace la pregunta. Es UNA sola por tarjeta: preguntar
+   * dos veces si la misma tarjeta sigue vigente es pedirle al paciente que se
+   * contradiga. La hace el frente, y el dorso solo si es la única heredada.
+   */
+  const preguntaVigenciaEn: SlotFoto | null =
+    heredadas.has('insuranceCardFront') ? 'insuranceCardFront'
+    : heredadas.has('insuranceCardBack') ? 'insuranceCardBack'
+    : null;
+
   // ── Law firms (Step 4) ──────────────────────────────────────────────────────
   const [lawFirms, setLawFirms] = useState<{ id: string; firmName: string }[]>([]);
   useEffect(() => {
@@ -1901,9 +1984,26 @@ export function IntakeWizard({
      */
     const paraSubir = await comprimirImagen(file);
 
+    /** La que estaba puesta. Si la subida falla, es la que vuelve al recuadro. */
+    const anterior    = photoUrls[type];
+    const eraHeredada = heredadas.has(type as SlotFoto);
+
     // Optimistic preview: show blob URL immediately
     const blobUrl = URL.createObjectURL(paraSubir);
     setPhotoUrls(p => ({ ...p, [type]: blobUrl }));
+
+    /**
+     * Deja de ser heredada en cuanto el paciente saca una nueva: el cartel de
+     * "ya la teníamos de antes" no puede quedar sobre la foto que él acaba de
+     * tomar. Se hace acá y no al terminar la subida porque la vista previa ya
+     * es la nueva.
+     */
+    setHeredadas(prev => {
+      if (!prev.has(type as SlotFoto)) return prev;
+      const siguiente = new Set(prev);
+      siguiente.delete(type as SlotFoto);
+      return siguiente;
+    });
 
     const fd = new FormData();
     fd.append('file', paraSubir);
@@ -1941,13 +2041,13 @@ export function IntakeWizard({
                 ? '⚠️ No se pudo guardar la foto. Tómala de nuevo.'
                 : '⚠️ Could not save the photo. Please take it again.'),
         );
-        descartarVistaPrevia(type, blobUrl);
+        descartarVistaPrevia(type, blobUrl, anterior, eraHeredada);
       }
     } catch {
       setPhotoUploadError(lang === 'es'
         ? '⚠️ Error de conexión al subir la foto. Tómala de nuevo.'
         : '⚠️ Connection error uploading the photo. Please take it again.');
-      descartarVistaPrevia(type, blobUrl);
+      descartarVistaPrevia(type, blobUrl, anterior, eraHeredada);
     }
   };
 
@@ -1964,11 +2064,30 @@ export function IntakeWizard({
    * deja una regla simple para el resto del código: si hay una URL, el servidor
    * la tiene.
    */
-  const descartarVistaPrevia = (type: keyof typeof photoUrls, blobUrl: string) => {
+  const descartarVistaPrevia = (
+    type: keyof typeof photoUrls,
+    blobUrl: string,
+    anterior: string | null,
+    eraHeredada: boolean,
+  ) => {
+    // Si la que vuelve es la heredada, vuelve también su cartel: el recuadro no
+    // puede decir "foto guardada" sobre una foto que sigue siendo de antes.
+    if (eraHeredada) setHeredadas(prev => new Set(prev).add(type as SlotFoto));
     setPhotoUrls(p => {
       if (p[type] !== blobUrl) return p;
       URL.revokeObjectURL(blobUrl);
-      return { ...p, [type]: null };
+      /**
+       * Vuelve la que estaba, no `null`.
+       *
+       * Vaciaba el recuadro, y eso pasó a ser caro desde que hay fotos
+       * heredadas: un paciente que ya tenía su licencia guardada, intenta
+       * cambiarla y se le corta la conexión, perdía de la pantalla la foto
+       * buena —que sigue guardada del lado del servidor— y encima quedaba
+       * trabado contra el candado de fotos obligatorias. El único caso en que
+       * corresponde vaciar es cuando antes no había nada, y eso ya lo dice
+       * `anterior`.
+       */
+      return { ...p, [type]: anterior };
     });
   };
 
@@ -2049,6 +2168,15 @@ export function IntakeWizard({
       if (stepNum === 5) body = { accident: { date: acc.date, type: acc.type, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
       if (stepNum === 6) body = { insurances };
       if (stepNum === 7) body = { health };
+      /**
+       * Las fotos que el paciente sacó ya se subieron de a una. Lo que se manda
+       * acá es lo contrario: cuáles dio por buenas sin volver a sacarlas, para
+       * que el expediente no se parezca al de alguien que abandonó el paso.
+       */
+      if (stepNum === 8) body = { fotos: {
+        reusadas: [...heredadas],
+        tarjetaSeguroVigente: seguroVigente,
+      }};
       if (stepNum === 9) {
         const consentSvg = consentSigDataUrl || (consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '');
         body = {
@@ -2219,6 +2347,18 @@ export function IntakeWizard({
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
+    /**
+     * El paso 8 se guarda aparte y NO traba el avance.
+     *
+     * Las fotos ya están guardadas —cada una se subió al sacarla— así que lo
+     * único que viaja acá es la constancia de las que reusó. Es un dato de
+     * expediente, no del paciente: dejarlo trancado detrás de un error de red
+     * sería frenarlo en un paso que para él ya terminó bien. Y no se manda
+     * nada si no heredó ninguna y no hubo pregunta que contestar.
+     */
+    if (fromStep === 8 && (heredadas.size > 0 || seguroVigente !== null)) {
+      await saveStepData(8);
+    }
     // El siguiente paso sale de la lista, no de `step + 1`: así el salto del
     // apoderado (y cualquier paso que se agregue después) se decide en UN solo
     // lugar y el contador nunca puede estar en desacuerdo con la navegación.
@@ -2333,6 +2473,13 @@ export function IntakeWizard({
   const deviceInfo    = typeof window !== 'undefined'
     ? (window.innerWidth < 768 ? (lang === 'es' ? 'Móvil' : 'Mobile') : 'Desktop')
     : '—';
+
+  /** La pregunta de vigencia de la tarjeta de seguro, armada una sola vez. */
+  const vigenciaSeguro = {
+    pregunta: t.seguroVigentePreg, siLabel: t.seguroVigenteSi,
+    noLabel:  t.seguroVigenteNo,   okLabel:  t.seguroVigenteOk,
+    valor: seguroVigente, onResponder: responderVigenciaSeguro,
+  };
 
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
@@ -3845,6 +3992,7 @@ export function IntakeWizard({
                       confirmedSrc={photoUrls.selfie}
                       onConfirm={handlePhotoConfirm('selfie')}
                       capture="user" color={CYAN} lang={lang}
+                      heredada={heredadas.has('selfie')} heredadaLabel={t.fotoHeredada}
                     />
                   </FormSection>
 
@@ -3864,6 +4012,8 @@ export function IntakeWizard({
                       confirmedSrc={photoUrls.insuranceCardFront}
                       onConfirm={handlePhotoConfirm('insuranceCardFront')}
                       capture="environment" color={EMERALD} lang={lang}
+                      heredada={heredadas.has('insuranceCardFront')} heredadaLabel={t.fotoHeredada}
+                      vigencia={vigenciaSeguro} preguntaVigencia={preguntaVigenciaEn === 'insuranceCardFront'}
                     />
                     <PhotoCaptureCard
                       guideType="document" title={t.insCardBack}
@@ -3874,6 +4024,8 @@ export function IntakeWizard({
                       confirmedSrc={photoUrls.insuranceCardBack}
                       onConfirm={handlePhotoConfirm('insuranceCardBack')}
                       capture="environment" color={EMERALD} lang={lang}
+                      heredada={heredadas.has('insuranceCardBack')} heredadaLabel={t.fotoHeredada}
+                      vigencia={vigenciaSeguro} preguntaVigencia={preguntaVigenciaEn === 'insuranceCardBack'}
                     />
                   </FormSection>
 
@@ -3893,6 +4045,7 @@ export function IntakeWizard({
                       confirmedSrc={photoUrls.dlFront}
                       onConfirm={handlePhotoConfirm('dlFront')}
                       capture="environment" color={INDIGO} lang={lang}
+                      heredada={heredadas.has('dlFront')} heredadaLabel={t.fotoHeredada}
                     />
                   </FormSection>
 
@@ -4583,6 +4736,8 @@ function PhotoCaptureCard({
   guideType, title, instructions,
   captureLabel, cameraLabel, fileLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
   confirmedSrc, onConfirm, capture, color, lang,
+  heredada = false, heredadaLabel,
+  vigencia, preguntaVigencia = false,
 }: {
   guideType: 'face' | 'document';
   title: string;
@@ -4599,6 +4754,27 @@ function PhotoCaptureCard({
   capture: 'user' | 'environment';
   color: string;
   lang: Lang;
+  /** La foto no es de este formulario: el paciente ya la había mandado antes. */
+  heredada?: boolean;
+  heredadaLabel?: string;
+  /**
+   * Solo para la tarjeta de seguro heredada: en vez de darla por buena, se
+   * pregunta si sigue vigente. Ver el comentario de `seguroVigente` arriba —
+   * la cara y la licencia no vencen para lo que las usamos, la tarjeta sí.
+   *
+   * Lo reciben las DOS caras, porque la respuesta describe a la tarjeta y las
+   * dos tienen que decir lo mismo; `preguntaVigencia` decide cuál la hace.
+   */
+  vigencia?: {
+    pregunta: string;
+    siLabel: string;
+    noLabel: string;
+    okLabel: string;
+    valor: boolean | null;
+    onResponder: (vigente: boolean) => void;
+  };
+  /** Esta cara es la que hace la pregunta. La otra solo muestra la respuesta. */
+  preguntaVigencia?: boolean;
 }) {
   const fallbackId = useId();
   const filePickerId = useId();
@@ -4739,33 +4915,84 @@ function PhotoCaptureCard({
 
   // ── STATE 3: Confirmed photo ───────────────────────────────────────────────
   if (stage === 'confirmed' && confirmedSrc) {
+    /**
+     * Una tarjeta de seguro heredada que todavía no se confirmó no es una foto
+     * cerrada: está esperando que el paciente diga si sigue vigente. Se pinta
+     * en ámbar —el color de "prestá atención"— y con la pregunta abajo, en vez
+     * del verde de "listo", que es lo que sería mentirle.
+     */
+    const esperandoVigencia = heredada && !!vigencia && preguntaVigencia && vigencia.valor === null;
+
+    const tono = esperandoVigencia
+      ? { fondo: 'rgba(245,158,11,0.07)', borde: 'rgba(245,158,11,0.30)', marco: 'rgba(245,158,11,0.50)', texto: '#F59E0B' }
+      : heredada
+        ? { fondo: 'rgba(6,182,212,0.06)',  borde: 'rgba(6,182,212,0.28)',  marco: 'rgba(6,182,212,0.50)',  texto: CYAN }
+        : { fondo: 'rgba(16,185,129,0.06)', borde: 'rgba(16,185,129,0.28)', marco: 'rgba(16,185,129,0.50)', texto: EMERALD };
+
+    /** El renglón chico bajo el título: de dónde salió esta foto. */
+    const subtitulo = esperandoVigencia
+      ? (heredadaLabel ?? '')
+      : heredada
+        ? (vigencia?.valor ? vigencia.okLabel : (heredadaLabel ?? ''))
+        : (lang === 'es' ? 'Foto guardada ✓' : 'Photo saved ✓');
+
     return (
       <div style={{
         position: 'relative',
-        background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.28)',
+        background: tono.fondo, border: `1px solid ${tono.borde}`,
         borderRadius: 12, padding: '12px 14px',
-        display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        {fallbackInput}
-        {filePickerInput}
-        <img src={confirmedSrc} alt="" style={{
-          width: 56, height: 56,
-          borderRadius: guideType === 'face' ? '50%' : 8,
-          objectFit: 'cover', flexShrink: 0,
-          border: '2px solid rgba(16,185,129,0.50)',
-        }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: EMERALD }}>✓ {title}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
-            {lang === 'es' ? 'Foto guardada ✓' : 'Photo saved ✓'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {fallbackInput}
+          {filePickerInput}
+          <img src={confirmedSrc} alt="" style={{
+            width: 56, height: 56,
+            borderRadius: guideType === 'face' ? '50%' : 8,
+            objectFit: 'cover', flexShrink: 0,
+            border: `2px solid ${tono.marco}`,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: tono.texto }}>
+              {esperandoVigencia ? '' : '✓ '}{title}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, lineHeight: 1.4 }}>
+              {subtitulo}
+            </div>
           </div>
+          {/* Con la pregunta de vigencia abajo, "Subir la nueva" YA es el botón
+              de cambiar: dos botones que hacen lo mismo a 6px se leen como dos
+              cosas distintas. */}
+          {!esperandoVigencia && (
+            <button type="button" onClick={() => setStage('guide')} style={{
+              padding: '6px 10px', borderRadius: 8, flexShrink: 0,
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+              color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>{changeLabel}</button>
+          )}
         </div>
-        <button type="button" onClick={() => setStage('guide')} style={{
-          padding: '6px 10px', borderRadius: 8, flexShrink: 0,
-          background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-          color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>{changeLabel}</button>
+
+        {esperandoVigencia && vigencia && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+              {vigencia.pregunta}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => vigencia.onResponder(true)} style={{
+                flex: 1, padding: '10px 8px', borderRadius: 10,
+                background: 'linear-gradient(135deg,#10B981,#06B6D4)', border: 'none',
+                color: '#fff', fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{vigencia.siLabel}</button>
+              <button type="button" onClick={() => { vigencia.onResponder(false); setStage('guide'); }} style={{
+                flex: 1, padding: '10px 8px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.60)', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{vigencia.noLabel}</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

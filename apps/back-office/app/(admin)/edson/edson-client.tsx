@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search as SearchIcon, Check, ChevronLeft, ChevronRight, Pencil,
   Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle, Trash2, Users,
+  History,
 } from 'lucide-react';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle,
          DialogDescription, DialogFooter, Label } from '@precision/ui';
@@ -98,9 +99,12 @@ interface Row {
    */
   insComments: string | null;
   pipAvailable: 'YES' | 'NO' | 'UNKNOWN';
-  adjusterName: string | null;
-  adjusterPhone: string | null;
-  adjusterExt: string | null;
+  /**
+   * TODOS los adjusters del caso, en el orden en que se asignaron. Si no hay
+   * ninguno asignado pero el caso migrado traía el nombre suelto, viene ese como
+   * único elemento — así los dos orígenes se ven igual en la columna.
+   */
+  adjusters: { name: string | null; phone: string | null; ext: string | null }[];
   completedAt: string | null;
   archivedAt: string | null;
   lastNote: string | null;
@@ -110,9 +114,22 @@ interface Row {
   managerCount: number;
   /** Adjusters ACTIVOS — el badge de la columna Adjuster. */
   adjusterCount: number;
+  /**
+   * La visita MVA que el paciente YA venía haciendo cuando llegó esta "primera
+   * cita". Solo viene con dato en la pestaña de repetidos, y es lo que explica
+   * por qué la fila está ahí y no en la cola.
+   */
+  prevVisitAt: string | null;
+  prevCaseId: string | null;
+  prevCaseCode: string | null;
 }
 
+/** Las tres pestañas parten el conjunto: cada caso cae en una sola. */
+type Vista = 'seguimiento' | 'repetidos' | 'archivados';
+const VISTAS: readonly Vista[] = ['seguimiento', 'repetidos', 'archivados'];
+
 interface Stats { total: number; no_pip: number; no_adjuster: number; completed: number; archivable: number }
+interface Tabs { seguimiento: number; repetidos: number; archivados: number }
 
 interface Props {
   clinics:   { id: string; name: string; color: string | null }[];
@@ -196,7 +213,10 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
   const tcal = useTranslations('phoenix.calendar');
   const router = useRouter();
 
-  const [archived, setArchived] = useState(false);
+  const [vista, setVista] = useState<Vista>('seguimiento');
+  // Casi toda la pantalla solo necesita saber si se está mirando lo archivado
+  // (ahí todo es de solo lectura), así que se deriva y el resto no cambia.
+  const archived = vista === 'archivados';
   const [q, setQ]               = useState('');
   const [qLive, setQLive]       = useState('');
   const [clinicId, setClinicId]     = useState('');
@@ -208,6 +228,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
 
   const [rows, setRows]   = useState<Row[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, no_pip: 0, no_adjuster: 0, completed: 0, archivable: 0 });
+  const [tabs, setTabs]   = useState<Tabs>({ seguimiento: 0, repetidos: 0, archivados: 0 });
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal]   = useState(0);
   const [loading, setLoading] = useState(true);
@@ -248,7 +269,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const sp = new URLSearchParams({ page: String(page), size: '100', archived: String(archived) });
+      const sp = new URLSearchParams({ page: String(page), size: '100', vista });
       if (q)          sp.set('q', q);
       if (clinicId)   sp.set('clinicId', clinicId);
       if (providerId) sp.set('providerId', providerId);
@@ -264,11 +285,12 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       if (!res.ok) { setError(t('errLoad')); return; }
       setRows(json.rows ?? []);
       setStats(json.stats ?? { total: 0, no_pip: 0, no_adjuster: 0, completed: 0, archivable: 0 });
+      setTabs(json.tabs ?? { seguimiento: 0, repetidos: 0, archivados: 0 });
       setTotalPages(json.totalPages ?? 1);
       setTotal(json.total ?? 0);
     } catch { setError(t('errLoad')); }
     finally { setLoading(false); }
-  }, [page, archived, q, clinicId, providerId, apptStatus, carrierId, flag, t]);
+  }, [page, vista, q, clinicId, providerId, apptStatus, carrierId, flag, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -432,19 +454,26 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       <div className="flex items-end gap-4 flex-wrap border-b border-border">
         <h1 className="text-base font-bold text-text-1 leading-none pb-2">{t('title')}</h1>
 
+        {/*
+          * Cada pestaña lleva su número, y los tres salen de la misma consulta
+          * con los filtros puestos: lo que dice el tab es lo que aparece al
+          * entrar. "Ya en tratamiento" no se esconde ni se tacha — es una
+          * pestaña más, con el motivo escrito en cada fila.
+          */}
         <div className="flex gap-1">
-        {[false, true].map((isArch) => (
+        {VISTAS.map((v) => (
           <button
-            key={String(isArch)}
+            key={v}
             type="button"
-            onClick={() => { setArchived(isArch); setPage(1); }}
+            onClick={() => { setVista(v); setPage(1); }}
             className={`px-3 py-1.5 text-[11px] font-medium border-b-2 -mb-px transition-colors ${
-              archived === isArch
+              vista === v
                 ? 'border-amber text-amber'
                 : 'border-transparent text-text-3 hover:text-text-1'
             }`}
           >
-            {isArch ? t('tabArchived') : t('tabTracking')}
+            {t(v === 'seguimiento' ? 'tabTracking' : v === 'repetidos' ? 'tabRepeat' : 'tabArchived')}
+            <span className="ml-1.5 tabular-nums opacity-60">{tabs[v]}</span>
           </button>
         ))}
         </div>
@@ -607,7 +636,11 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
               )}
               {!loading && rows.length === 0 && (
                 <tr><DataTable.Td colSpan={archived ? 14 : 13}>
-                  <EmptyState.Inline message={archived ? t('emptyArchived') : t('empty')} />
+                  <EmptyState.Inline message={t(
+                    vista === 'archivados' ? 'emptyArchived'
+                    : vista === 'repetidos' ? 'emptyRepeat'
+                    : 'empty',
+                  )} />
                 </DataTable.Td></tr>
               )}
 
@@ -900,14 +933,24 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 * paciente (DOB + telefono) y hora (+ clinica): es
                                 * la unica forma real de bajar de 15 columnas sin
                                 * perder dato.
+                                *
+                                * Se pintan TODOS, uno debajo del otro y cada uno
+                                * con su telefono: el segundo adjuster no es un
+                                * detalle del primero, es otra persona a la que
+                                * hay que llamar.
                                 */}
-                              <span className="min-w-0">
-                                <Txt v={row.adjusterName} />
-                                {row.adjusterPhone && (
-                                  <span className="block text-[9.5px] text-text-muted font-mono truncate">
-                                    {row.adjusterPhone}{row.adjusterExt ? ` ext. ${row.adjusterExt}` : ''}
+                              <span className="min-w-0 block space-y-0.5">
+                                {row.adjusters.length === 0 && <Txt v={null} />}
+                                {row.adjusters.map((a, i) => (
+                                  <span key={i} className="block">
+                                    <Txt v={a.name} />
+                                    {a.phone && (
+                                      <span className="block text-[9.5px] text-text-muted font-mono truncate">
+                                        {a.phone}{a.ext ? ` ext. ${a.ext}` : ''}
+                                      </span>
+                                    )}
                                   </span>
-                                )}
+                                ))}
                               </span>
                               <span className={`shrink-0 flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
                                 row.adjusterCount > 0
@@ -992,6 +1035,30 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                         * esconderlo tras un icono sería quitarle justo lo que
                         * lo hace útil.
                         */}
+                      {/*
+                        * El motivo por el que la fila no está en la cola. Va
+                        * pegado debajo y no en una columna: son 13 columnas ya
+                        * apretadas, y esto es una frase, no un dato.
+                        */}
+                      {row.prevVisitAt && (
+                        <tr>
+                          <DataTable.Td
+                            colSpan={archived ? 14 : 13}
+                            className="!py-1.5"
+                            style={rowBg ? { background: rowBg } : undefined}
+                          >
+                            <div className="sticky left-4 w-fit flex items-start gap-2">
+                              <History className="w-3.5 h-3.5 text-text-3 shrink-0 mt-0.5" />
+                              <span className="text-[9px] text-text-2">
+                                {t('repeatReason', {
+                                  fecha: fmtDate(row.prevVisitAt),
+                                  caso: row.prevCaseCode ?? '—',
+                                })}
+                              </span>
+                            </div>
+                          </DataTable.Td>
+                        </tr>
+                      )}
                       {row.insComments && (
                         <tr>
                           <DataTable.Td

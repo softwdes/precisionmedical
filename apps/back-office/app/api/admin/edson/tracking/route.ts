@@ -2,11 +2,16 @@
  * Grilla de tracking de Edson — B.12
  *
  * GET /api/admin/edson/tracking?q=&clinicId=&providerId=&apptStatus=&pip=
- *                              &carrierId=&flag=&archived=&sort=&dir=&page=&size=
+ *                              &carrierId=&flag=&vista=&sort=&dir=&page=&size=
  *
  * Una fila = un caso MVA, mostrando SOLO su PRIMERA cita (Edson no necesita ver
  * las visitas siguientes). Incluye las citas pasadas: no-shows y canceladas son
  * justo las que persigue.
+ *
+ * `vista` parte el conjunto en tres y cada caso cae en una sola: 'seguimiento'
+ * (el default, las primeras visitas MVA abiertas), 'repetidos' (el paciente ya
+ * venía en tratamiento: esa "primera cita" es un control, no una admisión) y
+ * 'archivados'. Ver VISITA_MVA_ANTERIOR más abajo.
  *
  * Va en SQL crudo y no en Prisma por dos razones concretas:
  *
@@ -51,6 +56,40 @@ const SORT_BY_DAY = `
   fa."scheduledFor" ASC
 `;
 
+/**
+ * La visita MVA ANTERIOR del paciente, si la hay: la primera de las que ya
+ * venían. Responde "¿esta es de verdad su primera visita MVA?" y, cuando no lo
+ * es, dice desde cuándo y en qué caso — sin eso la pestaña sería una lista de
+ * nombres sin motivo.
+ *
+ * La grilla toma la cita más vieja del CASO y la trata como primera visita. Eso
+ * es falso cuando al mismo paciente se le abrió un segundo caso MVA: la cita más
+ * vieja de ESE caso puede ser el control de la semana 4 de un tratamiento que ya
+ * venía corriendo. Medido el 2026-09-17: 19 filas de 1.058, y en 10 de ellas la
+ * recepción había escrito en la cita "MVA F/U 3 WEEKS" o parecido.
+ *
+ * Una cita cancelada o a la que el paciente no vino NO cuenta como tratamiento
+ * previo: al que nunca llegó hay que perseguirlo igual. Hoy da lo mismo (19 con
+ * y sin ese filtro), pero la regla tiene que decir lo que quiere decir.
+ */
+const VISITA_MVA_ANTERIOR = Prisma.sql`
+  LEFT JOIN LATERAL (
+    SELECT a2."scheduledFor", c2."id" AS case_id, c2."caseCode" AS case_code
+    FROM appointments a2
+    JOIN cases c2 ON c2."id" = a2."caseId"
+    WHERE c2."patientId" = c."patientId"
+      AND c2."id"        <> c."id"
+      AND c2."caseType"  = 'MVA'
+      AND c2."deletedAt" IS NULL
+      AND a2."scheduledFor" < fa."scheduledFor"
+      AND a2."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
+    ORDER BY a2."scheduledFor" ASC
+    LIMIT 1
+  ) prev ON TRUE`;
+
+/** Hay visita anterior ⇒ esta no es la primera. */
+const YA_VENIA_EN_TRATAMIENTO = Prisma.sql`prev."scheduledFor" IS NOT NULL`;
+
 const MAX_SIZE = 100;
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -64,7 +103,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const carrierId  = sp.get('carrierId')  ?? '';
   // 'noPip' | 'noAdjuster' | 'noClaim' | 'noAttorney' | 'completed' | 'pending'
   const flag       = sp.get('flag')       ?? '';
-  const archived   = sp.get('archived') === 'true';
+  /**
+   * Tres vistas que PARTEN el conjunto, no que lo filtran: cada caso cae en una
+   * sola y ninguno queda invisible.
+   *
+   *  'seguimiento' (default) — primeras visitas MVA sin archivar. Es la cola.
+   *  'repetidos'             — el paciente YA venía en tratamiento MVA.
+   *  'archivados'            — lo que Edson dio por cerrado.
+   */
+  const vistaParam = sp.get('vista') ?? '';
+  const vista: 'seguimiento' | 'repetidos' | 'archivados' =
+    vistaParam === 'repetidos' ? 'repetidos'
+    : vistaParam === 'archivados' || sp.get('archived') === 'true' ? 'archivados'
+    : 'seguimiento';
+  const archived = vista === 'archivados';
 
   // `sort=appointment` (el default) usa el orden de dos niveles; el resto de las
   // columnas es un ORDER BY simple con su direccion.
@@ -76,13 +128,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const size    = Math.min(MAX_SIZE, Math.max(1, parseInt(sp.get('size') ?? '25', 10) || 25));
   const offset  = (page - 1) * size;
 
+  // Los filtros del usuario. La vista (archivado / primera visita) se suma
+  // aparte, para poder contar las OTRAS pestañas con estos mismos filtros
+  // puestos — que es el número que va en el tab.
   const where: Prisma.Sql[] = [
     Prisma.sql`c."deletedAt" IS NULL`,
     Prisma.sql`c."caseType" = 'MVA'`,
-    // Archivar es lo único que saca una fila de la cola; completar no.
-    archived
-      ? Prisma.sql`ct."archivedAt" IS NOT NULL`
-      : Prisma.sql`ct."archivedAt" IS NULL`,
   ];
 
   if (q) {
@@ -96,7 +147,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       OR lf."firmName" ILIKE ${like}
       OR at."firstName" ILIKE ${like} OR at."lastName" ILIKE ${like}
       OR cai."claimNum" ILIKE ${like}
-      OR adj."name" ILIKE ${like} OR cai."adjusterNameRaw" ILIKE ${like}
+      OR EXISTS (
+        SELECT 1 FROM case_adjusters ca2
+        LEFT JOIN insurance_adjusters ia2 ON ia2."id" = ca2."adjusterId"
+        WHERE ca2."caseId" = c."id" AND ca2."removedAt" IS NULL
+          AND (ia2."name" ILIKE ${like} OR ca2."name" ILIKE ${like})
+      )
+      OR cai."adjusterNameRaw" ILIKE ${like}
       OR ic."name" ILIKE ${like} OR cai."carrierNameRaw" ILIKE ${like}
     )`);
   }
@@ -121,10 +178,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const whereSql = Prisma.join(where, ' AND ');
 
   /**
+   * Las tres vistas PARTEN el conjunto, no lo filtran: cada caso cae en una sola
+   * y ninguno queda invisible. Archivar es lo único que saca una fila de la
+   * cola; completar no.
+   */
+  const VISTAS = {
+    seguimiento: Prisma.sql`ct."archivedAt" IS NULL AND NOT ${YA_VENIA_EN_TRATAMIENTO}`,
+    repetidos:   Prisma.sql`ct."archivedAt" IS NULL AND ${YA_VENIA_EN_TRATAMIENTO}`,
+    archivados:  Prisma.sql`ct."archivedAt" IS NOT NULL`,
+  } as const;
+
+  /**
    * `JOIN LATERAL` (no LEFT): un caso sin ninguna cita no es fila de esta
    * grilla. El Excel arranca en la cita, no en el caso.
    */
-  const from = Prisma.sql`
+  const armarFrom = (vistaSql: Prisma.Sql) => Prisma.sql`
     FROM cases c
     JOIN LATERAL (
       SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId", a."createdByName"
@@ -153,25 +221,45 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     LEFT JOIN case_auto_insurances cai ON cai."caseId" = c."id"
     LEFT JOIN insurance_carriers ic    ON ic."id" = COALESCE(cai."carrierId", c."primaryInsuranceId")
     /*
-     * Primer adjuster ACTIVO del caso. Antes salia del FK unico de
-     * case_auto_insurances, pero Edson pidio poder anotar varios ("Kenneth
-     * Kelly or Patricia Leon"), asi que la asignacion vive en case_adjusters.
+     * TODOS los adjusters ACTIVOS del caso, en el orden en que se asignaron.
+     * Antes salia del FK unico de case_auto_insurances, pero Edson pidio poder
+     * anotar varios ("Kenneth Kelly or Patricia Leon"), asi que la asignacion
+     * vive en case_adjusters.
+     *
+     * Dos cosas que esto arregla y hay que no volver a romper:
+     *
+     *  1. El JOIN a insurance_adjusters es LEFT. Era INNER, y como adjusterId es
+     *     OPCIONAL —el adjuster se puede escribir a mano, sin ficha de catalogo—
+     *     tiraba la fila entera. Medido el 2026-09-17: los 4 adjusters cargados
+     *     en todo el sistema son a mano, o sea que la columna no mostro NUNCA a
+     *     ninguno mientras el contador decia 1.
+     *  2. Ya no es LIMIT 1. Si Edson anota dos, se ven los dos.
+     *
+     * El dato del catalogo gana campo por campo y lo escrito a mano es el
+     * respaldo, que es lo que dice el schema de CaseAdjuster.
      *
      * OJO: nada de backticks en este comentario — vive dentro de un template
      * literal de Prisma.sql y lo cortarian a la mitad.
      */
     LEFT JOIN LATERAL (
-      SELECT ia."name", ia."phone", ia."extension"
+      SELECT json_agg(
+               json_build_object(
+                 'name',  COALESCE(ia."name",      ca."name"),
+                 'phone', COALESCE(ia."phone",     ca."phone"),
+                 'ext',   COALESCE(ia."extension", ca."extension")
+               ) ORDER BY ca."assignedAt" ASC
+             ) AS lista
       FROM case_adjusters ca
-      JOIN insurance_adjusters ia ON ia."id" = ca."adjusterId"
+      LEFT JOIN insurance_adjusters ia ON ia."id" = ca."adjusterId"
       WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL
-      ORDER BY ca."assignedAt" ASC
-      LIMIT 1
     ) adj ON TRUE
     LEFT JOIN case_tracking ct         ON ct."caseId" = c."id"
     LEFT JOIN users cu                 ON cu."id" = c."createdByUserId"
-    WHERE ${whereSql}
+    ${VISITA_MVA_ANTERIOR}
+    WHERE ${whereSql} AND ${vistaSql}
   `;
+
+  const from = armarFrom(VISTAS[vista]);
 
   const rowsQuery = Prisma.sql`
     SELECT
@@ -232,9 +320,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       cai."claimNum"                              AS claim_num,
       cai."comments"                              AS ins_comments,
       COALESCE(cai."pipAvailable"::text, 'UNKNOWN') AS pip,
-      COALESCE(adj."name", cai."adjusterNameRaw") AS adjuster_name,
-      COALESCE(adj."phone", cai."adjusterPhoneRaw") AS adjuster_phone,
-      adj."extension"                             AS adjuster_ext,
+
+      /*
+       * La lista que pinta la columna. Los asignados mandan; el texto viejo de
+       * case_auto_insurances entra como un adjuster mas SOLO si no hay ninguno
+       * asignado, para que los 131 casos migrados se sigan viendo y se vean
+       * IGUAL que los cargados a mano. Una sola forma en pantalla.
+       */
+      COALESCE(
+        adj.lista,
+        CASE WHEN COALESCE(cai."adjusterNameRaw", cai."adjusterPhoneRaw") IS NOT NULL
+             THEN json_build_array(json_build_object(
+                    'name',  cai."adjusterNameRaw",
+                    'phone', cai."adjusterPhoneRaw",
+                    'ext',   NULL))
+        END
+      ) AS adjusters,
       (SELECT COUNT(*)::int FROM case_adjusters ca
         WHERE ca."caseId" = c."id" AND ca."removedAt" IS NULL) AS adjuster_count,
 
@@ -244,13 +345,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       (SELECT n."createdAt" FROM case_tracking_notes n WHERE n."caseId" = c."id" ORDER BY n."createdAt" DESC LIMIT 1) AS last_note_at,
       (SELECT COUNT(*)::int FROM case_tracking_notes n WHERE n."caseId" = c."id") AS note_count,
       (SELECT COUNT(*)::int FROM case_managers cm
-        WHERE cm."caseId" = c."id" AND cm."removedAt" IS NULL) AS manager_count
+        WHERE cm."caseId" = c."id" AND cm."removedAt" IS NULL) AS manager_count,
+
+      -- El tratamiento MVA que el paciente YA venia haciendo. Solo trae algo en
+      -- la pestania de repetidos, y es lo que ahi explica cada fila.
+      prev."scheduledFor" AS prev_visit_at,
+      prev.case_id        AS prev_case_id,
+      prev.case_code      AS prev_case_code
     ${from}
     ORDER BY ${Prisma.raw(orderBy)}, c."id" ASC
     LIMIT ${size} OFFSET ${offset}
   `;
 
-  const countQuery = Prisma.sql`SELECT COUNT(*)::int AS total ${from}`;
+  /**
+   * Los números de las tres pestañas, con los MISMOS filtros puestos: si el tab
+   * dice 19 y al entrar hay 19, el número se puede creer.
+   *
+   * Los tres salen de UN solo recorrido con `FILTER`. Tres COUNT separados
+   * rehacían el join tres veces y medían 1,9 s contra la base real, el doble de
+   * lo que tarda la página entera.
+   *
+   * No hay `countQuery` aparte porque `statsQuery` ya devuelve el total de la
+   * vista actual sobre el mismo FROM: era la misma consulta dos veces.
+   */
+  const tabsQuery = Prisma.sql`
+    SELECT
+      COUNT(*) FILTER (WHERE ct."archivedAt" IS NULL AND NOT ${YA_VENIA_EN_TRATAMIENTO})::int AS seguimiento,
+      COUNT(*) FILTER (WHERE ct."archivedAt" IS NULL AND ${YA_VENIA_EN_TRATAMIENTO})::int     AS repetidos,
+      COUNT(*) FILTER (WHERE ct."archivedAt" IS NOT NULL)::int                                AS archivados
+    ${armarFrom(Prisma.sql`TRUE`)}
+  `;
 
   // Los tiles resumen TODO el conjunto filtrado, no solo la página visible —
   // si contaran la página, "38 sin PIP" cambiaría al pasar de página.
@@ -267,13 +391,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   `;
 
   type Row = Record<string, unknown>;
-  const [rows, countRes, statsRes] = await Promise.all([
+  type Tabs = { seguimiento: number; repetidos: number; archivados: number };
+  /** Un adjuster tal como lo pinta la columna: nombre arriba, teléfono abajo. */
+  type Adjuster = { name: string | null; phone: string | null; ext: string | null };
+  const [rows, statsRes, tabsRes] = await Promise.all([
     db.$queryRaw<Row[]>(rowsQuery),
-    db.$queryRaw<{ total: number }[]>(countQuery),
     db.$queryRaw<Row[]>(statsQuery),
+    db.$queryRaw<Tabs[]>(tabsQuery),
   ]);
 
-  const total = countRes[0]?.total ?? 0;
+  const total = Number(statsRes[0]?.total ?? 0);
 
   return NextResponse.json({
     ok: true,
@@ -312,9 +439,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       claimNum:      r.claim_num,
       insComments:   r.ins_comments,
       pipAvailable:  r.pip,
-      adjusterName:  r.adjuster_name,
-      adjusterPhone: r.adjuster_phone,
-      adjusterExt:   r.adjuster_ext,
+      adjusters:     (r.adjusters ?? []) as Adjuster[],
       completedAt:   r.completed_at,
       archivedAt:    r.archived_at,
       lastNote:      r.last_note,
@@ -322,8 +447,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       noteCount:     r.note_count,
       managerCount:  r.manager_count,
       adjusterCount: r.adjuster_count,
+      // Por qué esta fila no es una primera visita. Null en la cola normal.
+      prevVisitAt:   r.prev_visit_at,
+      prevCaseId:    r.prev_case_id,
+      prevCaseCode:  isCipher(r.prev_case_code as string) ? dec(r.prev_case_code as string) : r.prev_case_code,
     })),
     stats: statsRes[0] ?? { total: 0, no_pip: 0, no_adjuster: 0, completed: 0, archivable: 0 },
+    tabs:  tabsRes[0]  ?? { seguimiento: 0, repetidos: 0, archivados: 0 },
+    vista,
     page,
     size,
     total,

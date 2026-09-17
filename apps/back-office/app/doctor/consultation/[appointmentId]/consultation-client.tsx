@@ -233,6 +233,20 @@ export function ConsultationClient({
   const [tab, setTab] = React.useState<Tab>('notes');
   const isCurrent = (n: StepView): boolean => n === currentStep;
 
+  /**
+   * ¿El paso que se está mirando es de verdad de solo lectura?
+   *
+   * Solo el 1 (resumen de llegada) y el 2 con el triaje ya cargado. El 3 —los
+   * seis tabs de trabajo— y el 4 —cierre, cobro y seguimiento— se usan enteros
+   * esté donde esté el flujo, y el cartel les decía "solo lectura" encima de una
+   * nota con Guardar, Guardar y salir y Terminar nota habilitados.
+   *
+   * Erick, 2026-09-17, sobre el pedido de los providers ("no stopping points"):
+   * un cartel que anuncia un freno que no existe frena igual, porque el que lo
+   * lee deja de escribir. Ver `regla-provider-desaloja-a-la-clinica`.
+   */
+  const soloLectura = view === 1 || (view === 2 && hasTriage);
+
   // El Resumen (nodo 4) lee la nota del payload del SERVER, así que hay que
   // refrescarlo al entrar: si no, el doctor escribe diagnósticos y el checklist
   // le dice que faltan.
@@ -438,13 +452,10 @@ export function ConsultationClient({
       {/* Banner al ver un paso distinto al actual — igual que Day Admission */}
       {view !== currentStep && (
         <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
-          {/* El paso 2 sin triaje NO es solo lectura: ahí el doctor lo carga.
-              Dejar el "solo lectura" del cartel contradiciendo un formulario
-              editable justo debajo es peor que no poner nada. */}
           <span className="text-[11px] text-amber">
-            {view === 2 && !hasTriage
-              ? t('viewingStepEditable', { n: view })
-              : t('viewingStep', { n: view })}
+            {soloLectura
+              ? t('viewingStep', { n: view })
+              : t('viewingStepEditable', { n: view })}
           </span>
           <button
             type="button"

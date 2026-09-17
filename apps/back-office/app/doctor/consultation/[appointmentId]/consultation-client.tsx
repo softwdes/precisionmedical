@@ -724,7 +724,17 @@ export function ConsultationClient({
               dice el motivo en vez de mostrar un explorador vacío. */}
           {tab === 'documentos' && (
             a.caseId ? (
-              <DocumentsTab caseId={a.caseId} />
+              /* SOLO LECTURA (Erick, 2026-09-16: "el provider no, solo back
+                 office"). Acá se montaba sin la bandera y el provider podía
+                 subir, renombrar y borrar documentos — mientras que entrando
+                 por el modal del caso era solo lectura. La misma persona y los
+                 mismos archivos con
+                 permisos opuestos según por qué puerta entró.
+
+                 Cerrarlo no le saca nada a nadie: medido el 2026-09-16, los
+                 12.521 documentos vigentes los subieron EMPLOYEE (213) o
+                 procesos de migración e intake; ningún provider subió uno. */
+              <DocumentsTab caseId={a.caseId} readOnly />
             ) : (
               <EmptyState.Rich icon={FolderOpen} title={t('docsNoCaseTitle')} subtitle={t('docsNoCaseHint')} />
             )

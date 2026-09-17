@@ -18,7 +18,7 @@ import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw, X, FileArchive, CloudUpload, RotateCcw, Pencil,
+  RefreshCw, X, FileArchive, CloudUpload, RotateCcw, Pencil, FolderInput,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
@@ -237,6 +237,90 @@ function RenameModal({ item, nombresEnCarpeta, guardando, onClose, onSave }: {
             {guardando ? t('renameGuardando') : tc('save')}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mover a otra carpeta ──────────────────────────────────────────────────────
+
+/**
+ * Elegir dónde va lo que se está moviendo.
+ *
+ * Una LISTA de carpetas y no un árbol, a propósito: el archivador real es de un
+ * solo nivel (4.755 carpetas, 6 anidadas, medido 2026-09-16). Un árbol acá sería
+ * resolver un caso que no existe y complicar el que sí.
+ *
+ * "La raíz" es una opción más y va primera: sacar algo de una carpeta es tan
+ * frecuente como meterlo, y si no estuviera, el único modo de desarchivar sería
+ * arrastrar al breadcrumb — que en el teléfono no se puede.
+ */
+function MoveModal({ items, carpetas, origenId, moviendo, onClose, onMove }: {
+  items: DocItem[];
+  /** Carpetas disponibles como destino. `null` = todavía cargando. */
+  carpetas: DocItem[] | null;
+  /** Dónde están ahora: esa opción se muestra deshabilitada, no escondida. */
+  origenId: string | null;
+  moviendo: boolean;
+  onClose: () => void;
+  onMove: (destino: string | null) => void;
+}) {
+  const t  = useTranslations('phoenix.caseTabs.documents');
+  const tc = useTranslations('phoenix.common');
+
+  // Una carpeta no puede ser su propio destino. Se saca de la lista en vez de
+  // dejarla y rechazarla después: ofrecer algo que va a fallar es una trampa.
+  const movidos = new Set(items.map(i => i.id));
+  const opciones = (carpetas ?? []).filter(c => !movidos.has(c.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <FolderInput className="w-4 h-4 text-brand-text" />
+          <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('moveTitle')}</h2>
+        </div>
+
+        <p className="text-[12px] text-text-2">
+          {items.length === 1 ? items[0].name : t('moveCount', { n: items.length })}
+        </p>
+
+        <div className="max-h-64 overflow-y-auto -mx-1 px-1 space-y-1">
+          <button
+            type="button"
+            disabled={moviendo || origenId === null}
+            onClick={() => onMove(null)}
+            className="w-full flex items-center gap-2 rounded-md px-3 min-h-11 sm:min-h-0 sm:py-2 text-left text-sm text-text-1 hover:bg-bg-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Home className="w-3.5 h-3.5 text-brand-text flex-shrink-0" />
+            <span className="truncate">{t('rootFolder')}</span>
+            {origenId === null && <span className="ml-auto text-[10px] text-text-muted">{t('moveYaEstaAca')}</span>}
+          </button>
+
+          {carpetas === null ? (
+            <div className="flex items-center justify-center py-6 text-text-muted">
+              <Loader2 className="w-4 h-4 animate-spin" />
+            </div>
+          ) : opciones.length === 0 ? (
+            <p className="text-[12px] text-text-muted py-4 text-center">{t('moveSinCarpetas')}</p>
+          ) : opciones.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              disabled={moviendo || origenId === c.id}
+              onClick={() => onMove(c.id)}
+              className="w-full flex items-center gap-2 rounded-md px-3 min-h-11 sm:min-h-0 sm:py-2 text-left text-sm text-text-1 hover:bg-bg-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Folder className="w-3.5 h-3.5 text-amber flex-shrink-0" />
+              <span className="truncate">{c.name}</span>
+              {origenId === c.id && <span className="ml-auto text-[10px] text-text-muted">{t('moveYaEstaAca')}</span>}
+            </button>
+          ))}
+        </div>
+
+        <Button variant="outline" size="sm" onClick={onClose} disabled={moviendo} className="w-full">
+          {moviendo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tc('cancel')}
+        </Button>
       </div>
     </div>
   );
@@ -533,6 +617,35 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
    */
   const [verPapelera, setVerPapelera]       = useState(false);
 
+  /**
+   * ─── Mover a otra carpeta (Erick, 2026-09-16) ─────────────────────────────
+   *
+   * Los items cuyo destino se está eligiendo. Es una LISTA y no un item suelto
+   * porque el mismo diálogo sirve para una fila y para la selección múltiple —
+   * que ya existía y no tenía ninguna acción útil colgada.
+   *
+   * Medido antes de construirlo: 3.212 archivos sueltos en la raíz, 938 de
+   * ellos subidos en v3. Moverlos de a uno no es una función, es un castigo.
+   */
+  const [porMover, setPorMover]   = useState<DocItem[] | null>(null);
+  const [moviendo, setMoviendo]   = useState(false);
+  /**
+   * Las carpetas del caso para el selector de destino.
+   *
+   * Son las de la RAÍZ y no todo el árbol, a propósito: en toda la base hay
+   * 4.755 carpetas y **6** anidadas (medido 2026-09-16). El archivador real es
+   * de un solo nivel, así que un selector con árbol resolvería un caso que no
+   * existe y complicaría el que sí. Si algún día se anidan de verdad, acá es
+   * donde hay que volver.
+   */
+  const [carpetasRaiz, setCarpetasRaiz] = useState<DocItem[] | null>(null);
+  /** La fila que se está arrastrando por encima, para pintarla como destino. */
+  const [dropEn, setDropEn] = useState<string | null>(null);
+
+  /** Tipo propio en el portapapeles del arrastre: distingue mover una FILA de
+   *  soltar un archivo del escritorio, que es otra cosa y otro destino. */
+  const TIPO_ARRASTRE = 'application/x-pm-doc';
+
   const load = useCallback(async (parentId: string | null, papelera = false) => {
     setLoading(true);
     setError(null);
@@ -622,6 +735,10 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
       }
       setNewFolderOpen(false);
       setNewFolderName('');
+      // La lista de destinos queda vieja: si acabás de crear "MRI Results" para
+      // meter algo ahí, el selector tiene que ofrecerla. Se invalida el caché y
+      // la próxima apertura la vuelve a pedir.
+      setCarpetasRaiz(null);
       load(currentParentId, verPapelera);
     } catch (e) {
       alert(e instanceof Error ? e.message : t('alertCreateFolder'));
@@ -739,6 +856,88 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
    * renombrado casi siempre cambia de lugar. Parchearlo lo dejaría con el
    * nombre nuevo en la posición vieja hasta la próxima recarga.
    */
+  /**
+   * ─── Mover ────────────────────────────────────────────────────────────────
+   *
+   * Un PATCH por item, en serie y no en paralelo: son pocos y el servidor
+   * escribe un audit log por cada uno. Mandar 40 a la vez no acelera nada que
+   * el usuario perciba y multiplica por 40 el pico de escritura.
+   *
+   * Si uno falla, se cuenta y se sigue: que el archivo 7 tenga un problema no
+   * es razón para dejar los otros 39 a mitad de camino. Al final se dice
+   * cuántos no pudieron.
+   */
+  async function moverA(items: DocItem[], destino: string | null) {
+    if (items.length === 0) return;
+    setMoviendo(true);
+    let fallaron = 0;
+    try {
+      for (const item of items) {
+        try {
+          const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parentId: destino }),
+          });
+          if (!res.ok) fallaron++;
+        } catch { fallaron++; }
+      }
+      if (fallaron > 0) alert(t('alertMoveFallo', { n: fallaron }));
+      setPorMover(null);
+      setSelected(new Set());
+      load(currentParentId, verPapelera);
+    } finally {
+      setMoviendo(false);
+    }
+  }
+
+  /**
+   * Abre el selector de destino. Trae las carpetas de la raíz la primera vez y
+   * las deja cacheadas: el diálogo se abre muchas veces seguidas mientras se
+   * ordena un expediente y pedir la misma lista cada vez sería ruido.
+   */
+  async function pedirDestino(items: DocItem[]) {
+    setPorMover(items);
+    if (carpetasRaiz !== null) return;
+    try {
+      const res = await fetch(`${api}/documents`);
+      const data = await res.json();
+      setCarpetasRaiz((data.documents ?? []).filter((d: DocItem) => d.isFolder));
+    } catch {
+      setCarpetasRaiz([]);
+    }
+  }
+
+  /**
+   * ¿Se puede mover esto?
+   *
+   * La carpeta virtual del intake queda afuera de las dos puntas: no existe en
+   * la base, así que no hay id que escribir como destino ni fila que mover como
+   * origen. Y en la papelera no se ordena: lo borrado se restaura primero.
+   */
+  function sePuedeMover(item: DocItem): boolean {
+    return !readOnly && !verPapelera && item.id !== CARPETA_INTAKE_ID;
+  }
+
+  /** ¿El arrastre que viene encima es una FILA nuestra, y no un archivo del
+   *  escritorio? Sin esto, arrastrar un PDF desde el explorador pintaría las
+   *  carpetas como destino y al soltarlo no pasaría nada. */
+  function esArrastreDeFila(e: React.DragEvent): boolean {
+    return Array.from(e.dataTransfer.types).includes(TIPO_ARRASTRE);
+  }
+
+  /**
+   * Qué se mueve al soltar.
+   *
+   * Si arrastraste una fila que está DENTRO de la selección, se mueve la
+   * selección entera —es lo que el usuario ve marcado y lo que espera—. Si
+   * arrastraste una fila de afuera, se mueve solo esa y la selección no se
+   * toca: nadie quiere mover 12 archivos por agarrar el decimotercero.
+   */
+  function loQueSeArrastra(item: DocItem): DocItem[] {
+    return selected.has(item.id) ? items.filter(i => selected.has(i.id)) : [item];
+  }
+
   async function confirmarRenombrado(item: DocItem, nombre: string) {
     if (nombre === item.name) { setPorRenombrar(null); return; }
     setRenombrando(true);
@@ -940,7 +1139,29 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                     {i === 0 ? t('rootFolder') : item.name}
                   </span>
                 ) : (
-                  <button onClick={() => navigateTo(item)} className="hover:text-brand-text transition-colors flex items-center gap-1">
+                  /* El breadcrumb también recibe: es la única forma de SACAR
+                     algo de una carpeta arrastrando. Sin esto el arrastre sería
+                     de ida nomás — se puede archivar, no desarchivar. */
+                  <button
+                    onClick={() => navigateTo(item)}
+                    onDragOver={e => {
+                      if (item.id === CARPETA_INTAKE_ID || !esArrastreDeFila(e)) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDropEn(`bc:${item.id ?? 'root'}`);
+                    }}
+                    onDragLeave={() => setDropEn(null)}
+                    onDrop={e => {
+                      if (item.id === CARPETA_INTAKE_ID || !esArrastreDeFila(e)) return;
+                      e.preventDefault();
+                      setDropEn(null);
+                      const arrastrado = items.find(i => i.id === e.dataTransfer.getData(TIPO_ARRASTRE));
+                      if (arrastrado) void moverA(loQueSeArrastra(arrastrado), item.id);
+                    }}
+                    className={`hover:text-brand-text transition-colors flex items-center gap-1 rounded px-1 ${
+                      dropEn === `bc:${item.id ?? 'root'}` ? 'bg-brand/15 ring-1 ring-brand/50 text-brand-text' : ''
+                    }`}
+                  >
                     {i === 0 && <Home className="w-3 h-3" />}
                     {i === 0 ? t('rootFolder') : item.name}
                   </button>
@@ -988,12 +1209,25 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
         {/* Bulk select bar */}
         {someSelected && (
           <div className="flex items-center gap-3 px-4 py-2 bg-brand/5 border-b border-brand/20 text-sm">
-            <span className="text-brand-text font-medium text-xs">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+            {/* Estaba en español duro con su plural a mano —"seleccionado{s}"—
+                así que a un usuario en inglés le salía en castellano. */}
+            <span className="text-brand-text font-medium text-xs">{t('bulkSelected', { n: selected.size })}</span>
+            {/* Mover la selección entera. Es la razón por la que esta barra
+                existía sin tener nada útil que ofrecer: con 3.212 archivos
+                sueltos en la raíz, ordenarlos de a uno no es viable. */}
+            {!readOnly && !verPapelera && (
+              <button
+                onClick={() => void pedirDestino(items.filter(i => selected.has(i.id) && sePuedeMover(i)))}
+                className="flex items-center gap-1.5 text-text-2 hover:text-brand-text transition-colors text-xs"
+              >
+                <FolderInput className="w-3.5 h-3.5" /> {t('moveTitle')}
+              </button>
+            )}
             <button
               onClick={() => alert(t('alertBulkS3'))}
               className="flex items-center gap-1.5 text-text-2 hover:text-brand-text transition-colors text-xs"
             >
-              <Download className="w-3.5 h-3.5" /> Descarga masiva
+              <Download className="w-3.5 h-3.5" /> {t('bulkDownload')}
             </button>
             <button onClick={() => setSelected(new Set())} className="ml-auto text-text-muted hover:text-text-1 transition-colors">
               <X className="w-3.5 h-3.5" />
@@ -1109,7 +1343,44 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
               {items.map(item => (
                 <tr
                   key={item.id}
-                  className={`hover:bg-white/[0.02] group transition-colors cursor-pointer ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}
+                  /* Arrastrar la fila para archivarla. Es el ATAJO, no el
+                     camino: en móvil el arrastre no existe (Regla #4) y por eso
+                     el botón "Mover a…" hace lo mismo desde el menú. */
+                  draggable={sePuedeMover(item)}
+                  onDragStart={e => {
+                    if (!sePuedeMover(item)) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    // Tipo propio: así una carpeta sabe que lo que viene es una
+                    // fila y no un PDF del escritorio.
+                    e.dataTransfer.setData(TIPO_ARRASTRE, item.id);
+                    e.dataTransfer.setData('text/plain', item.name);
+                  }}
+                  onDragEnd={() => setDropEn(null)}
+                  /* Una CARPETA es destino; un archivo no. Soltar sobre un
+                     archivo no significa nada, así que ni se pinta. */
+                  onDragOver={e => {
+                    if (!item.isFolder || !sePuedeMover(item) || !esArrastreDeFila(e)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDropEn(item.id);
+                  }}
+                  onDragLeave={e => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropEn(null);
+                  }}
+                  onDrop={e => {
+                    if (!item.isFolder || !sePuedeMover(item) || !esArrastreDeFila(e)) return;
+                    e.preventDefault();
+                    setDropEn(null);
+                    const id = e.dataTransfer.getData(TIPO_ARRASTRE);
+                    const arrastrado = items.find(i => i.id === id);
+                    // Soltar una carpeta sobre sí misma no es un error, es un
+                    // gesto sin efecto: se ignora en silencio.
+                    if (!arrastrado || arrastrado.id === item.id) return;
+                    void moverA(loQueSeArrastra(arrastrado).filter(i => i.id !== item.id), item.id);
+                  }}
+                  className={`hover:bg-white/[0.02] group transition-colors cursor-pointer ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''} ${
+                    dropEn === item.id ? 'bg-brand/10 ring-1 ring-inset ring-brand/50' : ''
+                  }`}
                   /* Un clic en el archivo lo ABRE, en el visor de verdad.
                      Antes abría un modal aparte que nunca mostró nada: decía
                      "el preview estará disponible cuando se configure S3" —un
@@ -1162,6 +1433,18 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                           title={t('renameTitle')}
                         >
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {/* Mover. El mismo acto que arrastrar la fila, con botón:
+                          el arrastre no existe en una pantalla táctil, y con el
+                          teclado tampoco. Este es el camino, no el respaldo. */}
+                      {sePuedeMover(item) && (
+                        <button
+                          onClick={() => void pedirDestino(loQueSeArrastra(item))}
+                          className="p-1 rounded text-text-muted hover:text-brand-text transition-colors"
+                          title={t('moveTitle')}
+                        >
+                          <FolderInput className="w-3.5 h-3.5" />
                         </button>
                       )}
                       {/* Descargar SÍ, borrar NO: el bufete se lleva copia del
@@ -1240,6 +1523,19 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
           guardando={renombrando}
           onClose={() => setPorRenombrar(null)}
           onSave={nuevo => void confirmarRenombrado(porRenombrar, nuevo)}
+        />
+      )}
+
+      {/* Elegir carpeta destino. Lo abren el botón de la fila, el de la barra
+          de selección y nadie más: el arrastre mueve derecho, sin preguntar. */}
+      {porMover && porMover.length > 0 && (
+        <MoveModal
+          items={porMover}
+          carpetas={carpetasRaiz}
+          origenId={currentParentId}
+          moviendo={moviendo}
+          onClose={() => setPorMover(null)}
+          onMove={destino => void moverA(porMover, destino)}
         />
       )}
 

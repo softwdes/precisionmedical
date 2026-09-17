@@ -3,7 +3,8 @@
  *   Manda a la PAPELERA un documento o una carpeta vacía.
  *
  * PATCH /api/admin/cases/[id]/documents/[docId]
- *   Le cambia el nombre (Erick, 2026-09-15). Ver el comentario del handler.
+ *   Le cambia el nombre (Erick, 2026-09-15) y/o la CARPETA donde vive
+ *   (Erick, 2026-09-16). Ver el comentario del handler.
  *
  * POST /api/admin/cases/[id]/documents/[docId]
  *   Lo restaura. Lo puede hacer cualquiera que vea la pantalla (Erick,
@@ -123,9 +124,21 @@ export async function DELETE(
  * pantalla, que no deja tocarla, y a propósito no se arregla acá: un servidor
  * que corrige el nombre a escondidas es peor que uno que guarda lo que le
  * mandaron.
+ *
+ * ── MOVER (2026-09-16) ─────────────────────────────────────────────────────
+ * El mismo PATCH cambia de carpeta: `parentId` con el id de la carpeta destino,
+ * o `null` para sacarlo a la raíz. Va acá y no en una ruta nueva porque es el
+ * mismo acto —editar la ficha del documento, sin tocar el bucket— y así el
+ * historial del caso lee los dos cambios del mismo lugar.
+ *
+ * Los dos campos son opcionales e independientes: se puede mandar uno, el otro
+ * o los dos. `parentId: null` es un valor CON significado ("a la raíz"), así que
+ * se distingue de "no vino" con `'parentId' in payload`; un `?? undefined` los
+ * confundiría y sacaría archivos de su carpeta al renombrarlos.
  */
-const RenameSchema = z.object({
-  name: z.string().trim().min(1).max(255),
+const EditarSchema = z.object({
+  name:     z.string().trim().min(1).max(255).optional(),
+  parentId: z.string().min(1).nullable().optional(),
 });
 
 export async function PATCH(
@@ -135,9 +148,11 @@ export async function PATCH(
   const actor = await resolveActor(req.headers);
   const { id: caseId, docId } = await ctx.params;
 
-  let parsed;
+  let cuerpo: unknown;
+  let parsed: z.infer<typeof EditarSchema>;
   try {
-    parsed = RenameSchema.parse(await req.json());
+    cuerpo = await req.json();
+    parsed = EditarSchema.parse(cuerpo);
   } catch (err) {
     return NextResponse.json(
       { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
@@ -145,26 +160,88 @@ export async function PATCH(
     );
   }
 
-  // Uno en la papelera no se renombra: para el que mira la pantalla no existe.
-  // Mismo criterio que la ruta de descarga.
+  // `parentId: null` significa "a la raíz" y es distinto de no haberlo mandado.
+  // Por eso se pregunta por la PRESENCIA de la clave, no por su valor.
+  const mueve    = typeof cuerpo === 'object' && cuerpo !== null && 'parentId' in cuerpo;
+  const renombra = parsed.name !== undefined;
+  if (!mueve && !renombra) {
+    return NextResponse.json({ error: 'NADA_QUE_CAMBIAR' }, { status: 400 });
+  }
+
+  // Uno en la papelera no se renombra ni se mueve: para el que mira la pantalla
+  // no existe. Mismo criterio que la ruta de descarga.
   const doc = await db.patientDocument.findFirst({
     where: { id: docId, ...VIGENTES },
-    select: { id: true, name: true, caseId: true, isFolder: true },
+    select: { id: true, name: true, caseId: true, isFolder: true, parentId: true },
   });
 
   if (!doc || doc.caseId !== caseId) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
 
+  const destino = parsed.parentId ?? null;
+
+  if (mueve && destino !== doc.parentId) {
+    if (destino !== null) {
+      /**
+       * La carpeta destino tiene que existir, ser carpeta, estar vigente y ser
+       * DEL MISMO CASO. Lo último es lo que importa de verdad: sin esa
+       * comprobación, un `parentId` de otro expediente movía el documento a la
+       * ficha de otro paciente —una divulgación de PHI disfrazada de mudanza—.
+       */
+      const carpeta = await db.patientDocument.findFirst({
+        where: { id: destino, ...VIGENTES },
+        select: { id: true, isFolder: true, caseId: true },
+      });
+      if (!carpeta || carpeta.caseId !== caseId) {
+        return NextResponse.json({ error: 'DESTINO_NO_ENCONTRADO' }, { status: 404 });
+      }
+      if (!carpeta.isFolder) {
+        return NextResponse.json({ error: 'DESTINO_NO_ES_CARPETA' }, { status: 400 });
+      }
+      if (carpeta.id === doc.id) {
+        return NextResponse.json({ error: 'DESTINO_ES_EL_MISMO' }, { status: 400 });
+      }
+
+      /**
+       * Una carpeta no puede caer dentro de sí misma ni de su descendencia: el
+       * `parentId` apunta a su propio subárbol y esas filas quedan huérfanas
+       * para siempre —ninguna pantalla las lista, porque ninguna llega a ellas
+       * desde la raíz—. Hoy hay 6 carpetas anidadas en todo el sistema, así que
+       * la cadena es cortísima; el tope existe para que un dato corrupto no
+       * cuelgue el request, no porque se espere profundidad.
+       */
+      if (doc.isFolder) {
+        let cursor: string | null = destino;
+        for (let saltos = 0; cursor && saltos < 50; saltos++) {
+          if (cursor === doc.id) {
+            return NextResponse.json({ error: 'DESTINO_ES_DESCENDIENTE' }, { status: 400 });
+          }
+          const padre: { parentId: string | null } | null = await db.patientDocument.findUnique({
+            where: { id: cursor },
+            select: { parentId: true },
+          });
+          cursor = padre?.parentId ?? null;
+        }
+      }
+    }
+  }
+
   // Sin cambio no se escribe ni se audita: dos clics seguidos en Guardar no son
-  // dos renombrados, y ensuciarían el historial del documento.
-  if (doc.name === parsed.name) {
+  // dos renombrados, y ensuciarían el historial del documento. Lo mismo vale
+  // para soltar un archivo en la carpeta donde ya estaba.
+  const cambiaNombre = renombra && parsed.name !== doc.name;
+  const cambiaPadre  = mueve    && destino     !== doc.parentId;
+  if (!cambiaNombre && !cambiaPadre) {
     return NextResponse.json({ ok: true, sinCambio: true, name: doc.name });
   }
 
   await db.patientDocument.update({
     where: { id: docId },
-    data: { name: parsed.name },
+    data: {
+      ...(cambiaNombre ? { name: parsed.name } : {}),
+      ...(cambiaPadre  ? { parentId: destino } : {}),
+    },
   });
 
   const caseRecord = await db.case.findUnique({
@@ -172,23 +249,55 @@ export async function PATCH(
     select: { caseCode: true },
   });
 
-  // `before`/`after` y no solo `metadata`: así el historial del caso puede
-  // mostrar "se llamaba X y ahora se llama Y" sin tabla nueva.
-  await writeAuditLog(db, {
-    actorType: actor.actorType,
+  /**
+   * Un renombrado y una mudanza son dos hechos distintos y se auditan por
+   * separado, aunque hayan viajado en el mismo PATCH: en el historial del caso
+   * "se llamaba X y ahora se llama Y" y "estaba en A y ahora está en B" se leen
+   * como dos renglones, no como uno que dice las dos cosas a medias.
+   */
+  const comun = {
+    actorType:   actor.actorType,
     actorUserId: actor.actorUserId,
-    actorRole: actor.actorRole,
-    action: 'RENAME_DOCUMENT',
-    entityType: 'cases',
-    entityId: caseId,
-    ipAddress: actor.ipAddress,
-    userAgent: actor.userAgent,
-    before: { name: doc.name },
-    after: { name: parsed.name },
-    metadata: { caseCode: caseRecord?.caseCode, documentId: docId, isFolder: doc.isFolder },
-  });
+    actorRole:   actor.actorRole,
+    entityType:  'cases' as const,
+    entityId:    caseId,
+    ipAddress:   actor.ipAddress,
+    userAgent:   actor.userAgent,
+  };
 
-  return NextResponse.json({ ok: true, name: parsed.name });
+  if (cambiaNombre) {
+    // `before`/`after` y no solo `metadata`: así el historial del caso puede
+    // mostrar "se llamaba X y ahora se llama Y" sin tabla nueva.
+    await writeAuditLog(db, {
+      ...comun,
+      action: 'RENAME_DOCUMENT',
+      before: { name: doc.name },
+      after:  { name: parsed.name },
+      metadata: { caseCode: caseRecord?.caseCode, documentId: docId, isFolder: doc.isFolder },
+    });
+  }
+
+  if (cambiaPadre) {
+    // El NOMBRE de las carpetas, no solo el id: el historial se lee meses
+    // después y "de Intake Form a MRI Results" dice algo; dos cuid no.
+    const [antes, ahora] = await Promise.all([
+      doc.parentId ? db.patientDocument.findUnique({ where: { id: doc.parentId }, select: { name: true } }) : null,
+      destino      ? db.patientDocument.findUnique({ where: { id: destino },      select: { name: true } }) : null,
+    ]);
+    await writeAuditLog(db, {
+      ...comun,
+      action: 'MOVE_DOCUMENT',
+      before: { parentId: doc.parentId, parentName: antes?.name ?? null },
+      after:  { parentId: destino,      parentName: ahora?.name ?? null },
+      metadata: { caseCode: caseRecord?.caseCode, documentId: docId, name: doc.name, isFolder: doc.isFolder },
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    name:     cambiaNombre ? parsed.name : doc.name,
+    parentId: cambiaPadre  ? destino     : doc.parentId,
+  });
 }
 
 /**

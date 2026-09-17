@@ -1010,7 +1010,15 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
       {activeTab === 'documentos' && (
         isAttorney && signatureRequired
           ? <DocumentsLocked onSign={onRequestSign} />
-          : <DocumentsTab caseId={caseInfo.id} readOnly={isReadOnly} portal={isAttorney ? 'attorney' : 'admin'} />
+          : <DocumentsTab
+              caseId={caseInfo.id}
+              readOnly={isReadOnly}
+              portal={isAttorney ? 'attorney' : 'admin'}
+              /* El mismo diálogo que abre el avatar. Se pasa la función en vez
+                 de montar un segundo: son el mismo, y duplicarlo dejaría dos
+                 estados que se desincronizan al subir una foto. */
+              onVerArchivosDelPaciente={isReadOnly ? undefined : () => setArchivosOpen(true)}
+            />
       )}
 
       {/**

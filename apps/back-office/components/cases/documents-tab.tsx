@@ -18,7 +18,7 @@ import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw, X, FileArchive, CloudUpload, RotateCcw, Pencil, FolderInput,
+  RefreshCw, X, FileArchive, CloudUpload, RotateCcw, Pencil, FolderInput, IdCard,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
@@ -557,7 +557,7 @@ function UploadModal({ onClose, onUpload, uploading, nombresEnCarpeta }: {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
+export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVerArchivosDelPaciente }: {
   caseId: string;
   /**
    * Portal legal: el bufete descarga los documentos del caso —para eso firma—
@@ -576,6 +576,14 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
    * bufete y **solo verbos de lectura**: ahí no hay a dónde mandar un borrado.
    */
   portal?: 'admin' | 'attorney';
+  /**
+   * Abre los archivos de la PERSONA. Sin esto no se dibuja el aviso de abajo.
+   *
+   * Lo pasa la pantalla que ya tiene ese diálogo montado —el detalle del caso,
+   * colgado del avatar— en vez de montar uno segundo acá: son el mismo diálogo
+   * y duplicarlo traería dos estados que se desincronizan al subir una foto.
+   */
+  onVerArchivosDelPaciente?: () => void;
 }) {
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
@@ -1154,6 +1162,34 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   return (
     <>
       <FileViewerDialog {...viewer.props} />
+      {/* ─── Dónde están los papeles de la PERSONA ───────────────────────────
+          Este tab lista los documentos DEL CASO. La licencia de conducir, la
+          tarjeta del seguro y la foto de perfil no están acá y no es un olvido:
+          cuelgan del paciente con `caseId` en NULL, a propósito, por dos razones
+          que no se tocan (ver `lib/fotos-identidad.ts`) — el portal legal sirve
+          todos los documentos de un caso, y 180 pacientes tienen dos o más casos
+          vivos, así que una licencia no pertenece a ninguno en particular.
+
+          Lo que faltaba era decirlo. El staff abría este tab, veía una sola
+          carpeta y concluía que la licencia no estaba guardada (reportado
+          2026-09-17). No es un enlace de más: es la única señal de que esos
+          papeles existen y viven al lado.
+
+          Sólo con `onVerArchivosDelPaciente`, o sea sólo donde el diálogo ya
+          está montado. El portal legal no lo recibe —ni debe: los documentos de
+          identidad del paciente no son suyos. */}
+      {onVerArchivosDelPaciente && !readOnly && (
+        <button
+          type="button"
+          onClick={onVerArchivosDelPaciente}
+          className="w-full mb-2 flex items-center gap-2 rounded-lg border border-cyan/25 bg-cyan/[0.04] hover:bg-cyan/[0.08] transition-colors px-3 min-h-11 sm:min-h-0 sm:py-2 text-left"
+        >
+          <IdCard className="w-3.5 h-3.5 text-cyan shrink-0" />
+          <span className="text-[12px] text-text-2 flex-1 min-w-0">{t('personalFilesHint')}</span>
+          <ChevronRight className="w-3.5 h-3.5 text-cyan shrink-0" />
+        </button>
+      )}
+
       <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-border bg-bg-2/40">

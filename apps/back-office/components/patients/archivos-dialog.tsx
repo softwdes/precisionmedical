@@ -21,7 +21,7 @@
  * último. Es una decisión de modelo pendiente, no de esta pantalla.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Camera, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
@@ -335,6 +335,36 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
     }
   }
 
+  /**
+   * ─── Los archivos, AGRUPADOS por qué son ───────────────────────────────────
+   *
+   * La lista sigue siendo PLANA —una sola tabla, sin navegar— y eso no cambia:
+   * acá la pregunta es "¿qué papeles tiene esta persona?" y meterla en carpetas
+   * la responde peor (ver el comentario de arriba). Lo que faltaba no era
+   * jerarquía, era orden: el staff abría esto buscando la licencia y le caían
+   * cuarenta filas en una sola corrida, con la licencia en el medio.
+   *
+   * Los grupos son un encabezado y nada más. No existen en la base: no hay
+   * carpetas nuevas que mantener ni filas que se puedan mover o borrar por
+   * error. Si mañana cambia el criterio, cambia acá y se acabó.
+   *
+   * Un grupo vacío no se dibuja. Con 3.197 fotos de identidad y 11 archivos
+   * sueltos de persona en todo el sistema (medido 2026-09-17), "Del paciente"
+   * va a estar vacío casi siempre y no tiene por qué ocupar una línea.
+   */
+  const SLOTS_DE_IDENTIDAD = /^(patient_photo|dl_front|dl_back|id_card_front|id_card_back)\./i;
+
+  const grupos = useMemo(() => {
+    const identificacion = docs.filter(d => !d.caseId && SLOTS_DE_IDENTIDAD.test(d.name));
+    const dePersona      = docs.filter(d => !d.caseId && !SLOTS_DE_IDENTIDAD.test(d.name));
+    const deCasos        = docs.filter(d => d.caseId);
+    return [
+      { clave: 'identificacion', titulo: t('archivosGrupoIdentificacion'), filas: identificacion },
+      { clave: 'persona',        titulo: t('archivosGrupoPersona'),        filas: dePersona },
+      { clave: 'casos',          titulo: t('archivosGrupoCasos'),          filas: deCasos },
+    ].filter(g => g.filas.length > 0);
+  }, [docs, t]);
+
   const vacio = !cargando && !error && casos.length === 0 && docs.length === 0;
 
   return (
@@ -373,7 +403,13 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
         ) : (
           <div className="max-h-[260px] overflow-y-auto scroll-thin divide-y divide-row-sep">
             {/* Un intake por caso, arriba y en cyan: es del sistema, no lo subió
-                nadie, y no se puede borrar. */}
+                nadie, y no se puede borrar. Lleva su propio encabezado porque es
+                lo único generado al vuelo — el resto son archivos de verdad. */}
+            {casos.length > 0 && (
+              <div className="px-3 py-1.5 bg-bg-2/40 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                {t('archivosGrupoAdmision')}
+              </div>
+            )}
             {casos.map((c) => (
               <button
                 key={`intake-${c.id}`}
@@ -400,27 +436,35 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
               </button>
             ))}
 
-            {docs.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => abrir(d)}
-                className="w-full text-left grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 hover:bg-white/[0.02] transition-colors group"
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                  <span className="truncate text-[12.5px] text-text-1 group-hover:text-brand-text transition-colors" title={d.name}>
-                    {d.name}
-                  </span>
-                  {d.caseCode && (
-                    <span className="text-[9.5px] font-mono text-text-muted shrink-0">{d.caseCode}</span>
-                  )}
-                </span>
-                <span className="text-[11px] text-text-muted tabular-nums">{formatBytes(d.size)}</span>
-                <span className="text-[11px] text-text-muted text-right tabular-nums">
-                  {new Date(d.createdAt).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </button>
+            {grupos.map((g) => (
+              <Fragment key={g.clave}>
+                <div className="px-3 py-1.5 bg-bg-2/40 text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-2">
+                  {g.titulo}
+                  <span className="tabular-nums font-normal opacity-70">{g.filas.length}</span>
+                </div>
+                {g.filas.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => abrir(d)}
+                    className="w-full text-left grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 hover:bg-white/[0.02] transition-colors group"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      <span className="truncate text-[12.5px] text-text-1 group-hover:text-brand-text transition-colors" title={d.name}>
+                        {d.name}
+                      </span>
+                      {d.caseCode && (
+                        <span className="text-[9.5px] font-mono text-text-muted shrink-0">{d.caseCode}</span>
+                      )}
+                    </span>
+                    <span className="text-[11px] text-text-muted tabular-nums">{formatBytes(d.size)}</span>
+                    <span className="text-[11px] text-text-muted text-right tabular-nums">
+                      {new Date(d.createdAt).toLocaleDateString(localeApp(), { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </button>
+                ))}
+              </Fragment>
             ))}
           </div>
         )}

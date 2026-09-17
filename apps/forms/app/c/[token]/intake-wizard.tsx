@@ -1004,14 +1004,53 @@ const CARD_BORDER  = 'rgba(255,255,255,0.08)';
 
 const S = {
   screen: {
+    /**
+     * Se queda en `100vh` a propósito. En iOS `100vh` sobra —es la altura con
+     * las barras del navegador escondidas— y la tentación es cambiarlo, pero
+     * acá `BG` (#0a1224) NO es el fondo del `body` (#060810): si esta caja
+     * deja de cubrir la pantalla, aparece una franja de otro color abajo. El
+     * arreglo de la iPad es el `sticky` de la barra, no esto.
+     */
     minHeight: '100vh', background: BG, color: '#fff',
     fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
   } as React.CSSProperties,
   container: {
     maxWidth: 480, margin: '0 auto', padding: '0 16px 60px',
   } as React.CSSProperties,
+  /**
+   * ── Esta barra dejó de estar pegada al tope (2026-09-17) ───────────────────
+   *
+   * Tenía `position: 'sticky', top: 0, zIndex: 20`.
+   *
+   * El 17-sep, en una iPad Air 2 (iOS 15.8, de 2014), el formulario se volvió
+   * inservible: los títulos y las tarjetas se dibujaban en su lugar pero los
+   * campos, las listas y los botones quedaban pintados donde estaban ANTES de
+   * desplazar la página. Por eso "no se podía hacer click en nada" — el campo
+   * real estaba en un lado y su dibujo en otro, así que cada toque caía al
+   * vacío. Hubo que pasar a papel y se perdieron dos pacientes.
+   *
+   * Se ve en la captura: arriba salen la tarjeta de preferencias de contacto,
+   * el recuadro de CIFO y los botones Atrás/Continuar —que van al FINAL del
+   * paso— y debajo, desparramados, los campos del principio.
+   *
+   * Un elemento `sticky` obliga a Safari a mantener la página en una capa
+   * aparte que tiene que re-pintar en cada desplazamiento. En los WebKit
+   * viejos, y con poca memoria, esa capa se desincroniza de los controles
+   * nativos del formulario, que Safari dibuja por su cuenta. Es el único
+   * elemento de esta pantalla que crea esa condición — buscado en toda la app:
+   * los otros dos `fixed` son el diálogo de seguro y la pantalla final, y
+   * ninguno está montado durante el paso 1.
+   *
+   * No se puede probar sin la iPad —y el mostrador, con razón, no está para
+   * hacernos pruebas— así que se saca. Lo que se pierde es que el 1/8 y los
+   * puntitos se vayan con el scroll, que es lo que hace cualquier formulario
+   * largo. Lo que se gana es que no exista la condición.
+   *
+   * ⚠️ Antes de volver a ponerla: hay que probarla EN una iPad vieja, no en
+   * un navegador de escritorio angosto. Ahí se ve perfecta.
+   */
   topBar: {
-    position: 'sticky', top: 0, zIndex: 20, background: BG,
+    position: 'static', zIndex: 20, background: BG,
     borderBottom: `1px solid ${CARD_BORDER}`, padding: '10px 16px',
   } as React.CSSProperties,
   input: {
@@ -1261,6 +1300,94 @@ function phoneFromDb(raw: string | null | undefined): string {
   // es inválido y volvería a trabar al paciente.
   if (!isValidNANP(raw)) return '';
   return formatPhone(raw);
+}
+
+/**
+ * ─── El empujón de re-dibujado para Safari táctil ────────────────────────────
+ *
+ * Esto es un PARCHE y conviene llamarlo así. No corrige una causa: corrige un
+ * síntoma, a propósito, porque el síntoma nos costó dos pacientes el 17-sep y
+ * la causa no la podemos probar sin la iPad.
+ *
+ * El síntoma: en una iPad Air 2 (iOS 15.8) la página se desplazaba y los
+ * títulos y las tarjetas se re-dibujaban en su lugar nuevo, pero los controles
+ * nativos —campos, listas, botones— se quedaban pintados donde estaban antes.
+ * El resultado es peor que una pantalla rota: es una pantalla que MIENTE. El
+ * campo está en un lado, su dibujo en otro, y cada toque cae al vacío. Quien lo
+ * usa no tiene forma de saber que lo que ve no está ahí.
+ *
+ * Aparte de esto se sacó el `sticky` de la barra de arriba, que es el
+ * disparador conocido (ver `S.topBar`). Este empujón existe por si ese
+ * disparador no era el único: cubre la familia entera del defecto, venga de
+ * donde venga, y por eso vale tenerlo aunque el otro cambio haya alcanzado.
+ *
+ * Cómo: después de que el desplazamiento se detiene, se toca la opacidad del
+ * contenedor por un cuadro. Eso obliga a WebKit a volver a pintar ese subárbol
+ * sin mover nada de lugar. `0.999` es imperceptible y no cambia el layout.
+ *
+ * Dónde: solo en Safari con pantalla táctil. Se detecta por `maxTouchPoints` y
+ * no por el nombre del sistema porque **iPadOS miente**: desde iPadOS 13 Safari
+ * se presenta como «Macintosh» en el modo de escritorio, que es el de fábrica
+ * para casi todo sitio. Buscar "iPad" en el user agent no lo habría encontrado
+ * — que es justo el dispositivo que necesitamos cubrir.
+ *
+ * También se dispara cuando cambia el viewport visual, que es lo que pasa al
+ * abrirse y cerrarse el teclado: es el otro momento en que el dibujo y la
+ * posición real se separan.
+ *
+ * El día que la clínica no tenga iPads de 2014, esto se borra.
+ */
+function useEmpujonDeRedibujado(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    if (!nav) return;
+
+    const ua = nav.userAgent;
+    const esSafari = /safari/i.test(ua) && !/chrome|chromium|crios|fxios|android|edg/i.test(ua);
+    if (!esSafari || nav.maxTouchPoints < 1) return;
+
+    let pendiente: ReturnType<typeof setTimeout> | undefined;
+
+    /**
+     * Siempre se restaura a `''`, nunca al valor que había.
+     *
+     * La primera versión guardaba el valor previo y lo reponía, y se rompía
+     * sola: `requestAnimationFrame` NO corre con la pestaña en segundo plano,
+     * así que si el paciente cambiaba de app en ese instante la opacidad
+     * quedaba en `0.999`, y el siguiente empujón guardaba ese `0.999` como
+     * "valor previo" y ya no volvía nunca. Salió probándolo.
+     *
+     * `''` es el único valor correcto porque nadie más le pone opacidad a esta
+     * caja. Y por si el cuadro no llega, hay un plazo que lo repone igual: los
+     * dos hacen lo mismo y sobra que corran los dos.
+     */
+    const restaurar = () => { if (ref.current) ref.current.style.opacity = ''; };
+
+    const empujar = () => {
+      const el = ref.current;
+      if (!el || document.visibilityState !== 'visible') return;
+      el.style.opacity = '0.999';
+      requestAnimationFrame(restaurar);
+      setTimeout(restaurar, 100);
+    };
+
+    /** Al terminar de desplazar, no durante: durante es caro y no hace falta. */
+    const alDesplazar = () => {
+      if (pendiente) clearTimeout(pendiente);
+      pendiente = setTimeout(empujar, 120);
+    };
+
+    window.addEventListener('scroll', alDesplazar, { passive: true });
+    window.visualViewport?.addEventListener('resize', alDesplazar);
+
+    return () => {
+      if (pendiente) clearTimeout(pendiente);
+      window.removeEventListener('scroll', alDesplazar);
+      window.visualViewport?.removeEventListener('resize', alDesplazar);
+      // Por si el desmontaje cae entre el empujón y su reposición.
+      restaurar();
+    };
+  }, [ref]);
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -2474,6 +2601,14 @@ export function IntakeWizard({
     ? (window.innerWidth < 768 ? (lang === 'es' ? 'Móvil' : 'Mobile') : 'Desktop')
     : '—';
 
+  /**
+   * El contenedor que se re-dibuja a la fuerza en Safari táctil. Va en la caja
+   * de más afuera para que el empujón alcance a todo lo que se ve, incluida la
+   * barra de arriba.
+   */
+  const refPantalla = useRef<HTMLDivElement>(null);
+  useEmpujonDeRedibujado(refPantalla);
+
   /** La pregunta de vigencia de la tarjeta de seguro, armada una sola vez. */
   const vigenciaSeguro = {
     pregunta: t.seguroVigentePreg, siLabel: t.seguroVigenteSi,
@@ -2483,7 +2618,7 @@ export function IntakeWizard({
 
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <div style={S.screen}>
+    <div style={S.screen} ref={refPantalla}>
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div style={S.topBar}>

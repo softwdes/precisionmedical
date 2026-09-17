@@ -23,12 +23,30 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 };
 
-// Mobile-first: el paciente entra desde su celular.
+/**
+ * Mobile-first: el paciente entra desde su celular.
+ *
+ * ── Se quitó el bloqueo del zoom (2026-09-17) ──────────────────────────────
+ *
+ * Tenía `maximumScale: 1` y `userScalable: false`, que es pedirle al navegador
+ * que NO deje agrandar la pantalla con los dedos.
+ *
+ * Eso está mal acá por una razón que no tiene nada que ver con lo técnico: es
+ * un formulario médico y buena parte de quien lo llena es gente grande. La
+ * paciente del 17-sep que se fue sin terminar nació en 1950. Si la letra le
+ * queda chica, con ese bloqueo no tenía ninguna salida.
+ *
+ * En la práctica Safari de iOS ignora estas dos propiedades desde iOS 10,
+ * justamente por accesibilidad, así que quitarlas probablemente no cambie nada
+ * visible. Pero dejamos de pedir algo que no queremos, y en cualquier navegador
+ * que sí las respete el paciente recupera el gesto.
+ *
+ * Salió mientras se buscaba por qué una iPad no respondía a los toques. No es
+ * la causa de aquello —hasta donde se pudo ver— pero se encontró ahí.
+ */
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#06B6D4',
 };
 

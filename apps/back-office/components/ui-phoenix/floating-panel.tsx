@@ -92,7 +92,25 @@ export function FloatingPanel({
   anchorRef, open, children, maxHeight = 208, className = '',
   width = 'anchor', align = 'start', onScrollClose, panelRef: panelRefExterno, scroll = true, minWidth = 0,
 }: FloatingPanelProps): React.ReactElement | null {
-  const [style, setStyle] = React.useState<React.CSSProperties>({ top: -9999, left: -9999, visibility: 'hidden' });
+  /**
+   * ⚠️ `position` va DESDE EL PRIMER RENDER, aunque todavía no se sepa si será
+   * `fixed` o `absolute`. Sin él el panel nace **estático**, o sea EN FLUJO.
+   *
+   * La secuencia era: se renderiza el panel sin `position` → el layout effect
+   * mide el ancla → pero en ese momento el panel todavía está en flujo dentro
+   * del diálogo y **ya corrió su contenido hacia abajo**, así que la medición
+   * sale con el ancla en un lugar que ya no es el suyo → el panel se dibuja ahí.
+   *
+   * Al segundo clic no pasaba: `style` conserva del cierre anterior el
+   * `position` ya calculado, así que el panel nunca vuelve a estar en flujo.
+   * De ahí el síntoma exacto que reportó Erick (16-sep) — "el primer clic la
+   * pone más abajo, le das otro y se arregla", y en TODAS las listas.
+   *
+   * Cuál de los dos valores se ponga acá da igual: el panel arranca oculto y a
+   * -9999, y lo único que importa es que no ocupe lugar. `compute()` lo pisa
+   * con el que corresponda antes de que se pinte.
+   */
+  const [style, setStyle] = React.useState<React.CSSProperties>({ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' });
   /** `maxHeight` acotado al lugar que hay de verdad en el lado elegido. */
   const [alto, setAlto] = React.useState(maxHeight);
   const [host, setHost] = React.useState<HTMLElement | null>(null);

@@ -5061,6 +5061,7 @@
         "emptyTitle": "No documents",
         "intakeFolderName": "Intake Form",
         "intakeName": "Patient Intake Form",
+        "lienName": "Lien Agreement",
         "intakeBadge": "System",
         "intakeAlwaysCurrent": "Always current",
         "uploadTitle": "Upload files",

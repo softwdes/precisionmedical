@@ -823,20 +823,32 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     lista y volver — un rodeo para llegar al mismo lugar.
                     El acuerdo solo se puede imprimir una vez firmado: es el
                     mismo criterio que abre el tab de Documentos. */}
-                {isAttorney && (
+                {/* FIRMAR es del bufete; VER EL ACUERDO, de los dos.
+                    Hasta el 2026-09-17 todo esto vivía adentro del `isAttorney`
+                    y la clínica —que es la que hace firmar el lien— era la única
+                    que no podía abrirlo: veía acá abajo que el paciente había
+                    firmado, con nombre y fecha, y no tenía dónde hacer clic.
+                    Lo reportó el staff como "el lien no aparece". */}
+                {(isAttorney || !isReadOnly) && (
                   <div className="flex items-center gap-2 flex-wrap mb-3">
-                    {signatureRequired && onRequestSign && (
+                    {isAttorney && signatureRequired && onRequestSign && (
                       <Button size="sm" onClick={onRequestSign}>
                         <PenLine className="w-3.5 h-3.5 mr-1.5" />
                         {ta('lienSignHere')}
                       </Button>
                     )}
                     {/* Imprimir se muestra SIEMPRE, firmado o no. Sin firma abre
-                        la previsualización bloqueada — ver LienPrintButton. */}
+                        la previsualización bloqueada — ver LienPrintButton.
+
+                        Para la clínica NUNCA está bloqueado: lo que traba al
+                        bufete es que falte la firma del ABOGADO, y esa regla no
+                        es suya. El propio acuerdo dice que vale igual aunque el
+                        abogado no lo firme. */}
                     <LienPrintButton
                       caseId={caseInfo.id}
-                      locked={signatureRequired}
-                      onSign={onRequestSign}
+                      portal={isAttorney ? 'attorney' : 'admin'}
+                      locked={isAttorney ? signatureRequired : false}
+                      onSign={isAttorney ? onRequestSign : undefined}
                     />
                   </div>
                 )}

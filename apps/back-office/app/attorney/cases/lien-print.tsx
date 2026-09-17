@@ -22,12 +22,21 @@ import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
 
-export function LienPrintButton({ caseId, locked, onSign }: {
+export function LienPrintButton({ caseId, locked, onSign, portal = 'attorney' }: {
   caseId: string;
   /** Falta la firma del abogado — el PDF todavía no se puede emitir. */
   locked: boolean;
   /** Abre el diálogo de firma. Ausente si esta cuenta no puede firmar. */
   onSign?: () => void;
+  /**
+   * Por qué puerta se pide el PDF.
+   *
+   * No se puede derivar de `locked`: el back office entra SIEMPRE destrabado, y
+   * aun así necesita su propia ruta. La del portal legal exige sesión de abogado
+   * —le daría 403— y además la firma del ABOGADO, que es una regla del bufete y
+   * no de la clínica (Erick, 2026-09-17).
+   */
+  portal?: 'admin' | 'attorney';
 }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
@@ -36,7 +45,7 @@ export function LienPrintButton({ caseId, locked, onSign }: {
   // Firmado: el PDF se abre en una pestaña, que ya trae el visor del navegador
   // con previsualización, impresión y descarga. No hace falta un visor propio.
   function abrir(): void {
-    window.open(`/api/attorney/cases/${caseId}/lien`, '_blank', 'noopener');
+    window.open(`/api/${portal}/cases/${caseId}/lien`, '_blank', 'noopener');
   }
 
   return (

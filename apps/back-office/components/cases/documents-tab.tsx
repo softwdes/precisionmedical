@@ -588,6 +588,18 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
   // del resto de los errores, así que usa `show` y no `open`.
   const viewer = useFileViewer(t('alertDownloadError'));
   const [items, setItems]           = useState<DocItem[]>([]);
+  /**
+   * La firma del lien de este caso — el HECHO, no el documento.
+   *
+   * Llega con la misma respuesta que la lista porque la fila del lien se pinta
+   * dentro de la misma tabla: pedirla aparte obligaría a esperar dos
+   * respuestas para dibujar un solo cuerpo.
+   *
+   * `null` = no hay firma. Eso cubre dos casos a la vez —el MVA que todavía no
+   * firmó y el caso general, que no lleva lien— y en los dos la respuesta es la
+   * misma: no hay documento que ofrecer.
+   */
+  const [lien, setLien] = useState<{ firmadoEl: string; firmadoPor: string | null } | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   // El nombre de la raíz se resuelve al pintar, no acá: `useState` corre una vez
@@ -668,6 +680,9 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data.documents ?? []);
+      // El portal legal no lo manda (su ruta sólo devuelve `documents`), así
+      // que el `?? null` deja la fila apagada ahí sin ninguna rama extra.
+      setLien(data.lien ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar documentos');
     } finally {
@@ -1070,11 +1085,26 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
    * cuando más se necesitaba (solo aparecía con `INTAKE_COMPLETED`).
    */
   const intakeFileName = `${t('intakeName')}.pdf`;
+  const lienFileName   = `${t('lienName')}.pdf`;
   function verIntake() {
     viewer.show({
       fileName:    intakeFileName,
       url:         `${api}/pdf`,
       downloadUrl: `${api}/pdf?download=1`,
+    });
+  }
+
+  /**
+   * El acuerdo firmado. Va SIEMPRE por `/api/admin/*`, nunca por `api`: la
+   * ruta del portal legal exige la firma del ABOGADO y le daría 409 a la
+   * clínica por una regla que no es suya. Y el bufete no ve esta fila —no le
+   * llega el dato— así que acá nadie golpea la puerta equivocada.
+   */
+  function verLien() {
+    viewer.show({
+      fileName:    lienFileName,
+      url:         `/api/admin/cases/${caseId}/lien`,
+      downloadUrl: `/api/admin/cases/${caseId}/lien`,
     });
   }
 
@@ -1331,6 +1361,56 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin' }: {
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       <a
                         href={`${api}/pdf?download=1`}
+                        className="p-1 rounded text-text-muted hover:text-cyan transition-colors"
+                        title={tc('download')}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {/* El LIEN, al lado del formulario de admisión.
+                  Las dos cosas que el paciente firma en el intake de un MVA, en
+                  el mismo cajón. Hasta el 2026-09-17 el acuerdo firmado sólo lo
+                  podía abrir el bufete: acá no aparecía nunca, y en el tab Caso
+                  el botón de imprimir vivía adentro de un `isAttorney`. La
+                  clínica lo hace firmar y era la única que no podía verlo.
+
+                  Sólo si hay firma del paciente. Sin firma no hay acuerdo que
+                  mostrar, y un caso que no es MVA no lleva lien — la ausencia de
+                  firma ya lo dice, no hace falta mirar el tipo de caso. */}
+              {mostrarIntake && lien && (
+                <tr
+                  className="hover:bg-cyan/[0.04] group transition-colors cursor-pointer bg-cyan/[0.02]"
+                  onClick={verLien}
+                >
+                  <td className="px-4 py-2.5">
+                    <FileText className="w-3.5 h-3.5 text-cyan mx-auto" />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate text-text-1 group-hover:text-cyan transition-colors font-normal" title={lienFileName}>
+                        {lienFileName}
+                      </span>
+                      <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px flex-shrink-0">
+                        {t('intakeBadge')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs font-mono hidden sm:table-cell whitespace-nowrap">—</td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs hidden md:table-cell whitespace-nowrap">
+                    {/* Acá SÍ va una fecha, al revés que el formulario: la firma
+                        ocurrió en un momento y ese momento es el dato que
+                        importa de un documento legal. */}
+                    {formatDate(lien.firmadoEl)}
+                  </td>
+                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={`/api/admin/cases/${caseId}/lien`}
+                        target="_blank"
+                        rel="noopener"
                         className="p-1 rounded text-text-muted hover:text-cyan transition-colors"
                         title={tc('download')}
                       >

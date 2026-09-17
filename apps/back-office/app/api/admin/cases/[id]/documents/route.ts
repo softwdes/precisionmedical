@@ -77,7 +77,34 @@ export async function GET(
     },
   });
 
-  return NextResponse.json({ documents: docs });
+  /**
+   * ¿El paciente firmó el lien de este caso?
+   *
+   * Va acá y no en una ruta aparte porque el tab pinta el lien como una FILA
+   * MÁS de la lista, al lado del formulario de admisión: si viajara por su
+   * cuenta, la pantalla tendría que esperar dos respuestas para dibujar una
+   * sola tabla.
+   *
+   * Sólo el HECHO de la firma y su fecha — nunca el trazo ni el texto del
+   * acuerdo. Con esto alcanza para decidir si la fila se ofrece o se muestra
+   * bloqueada; el documento se pide después, y sólo si lo abren.
+   *
+   * Los casos que no son MVA no llevan lien y nunca tienen firma, así que la
+   * fila no aparece sola en un caso de medicina general. No hace falta mirar
+   * el `caseType`: la ausencia de firma ya lo dice.
+   */
+  const firmaDelLien = await db.lienSignature.findFirst({
+    where: { caseId, signerType: { in: ['PATIENT', 'GUARDIAN'] } },
+    orderBy: { signedAt: 'desc' },
+    select: { signedAt: true, signerName: true },
+  });
+
+  return NextResponse.json({
+    documents: docs,
+    lien: firmaDelLien
+      ? { firmadoEl: firmaDelLien.signedAt.toISOString(), firmadoPor: firmaDelLien.signerName }
+      : null,
+  });
 }
 
 export async function POST(

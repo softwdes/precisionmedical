@@ -60,6 +60,14 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         select: {
           id: true, firstName: true, lastName: true,
           dateOfBirth: true, guardianPatientId: true,
+          // El resto es para la FOTO de lo confirmado — ver más abajo.
+          patientCode: true, email: true, phone: true, phone2: true,
+          addressLine1: true, addressCity: true, addressState: true, addressZip: true,
+          sex: true, maritalStatus: true, race: true, ethnicity: true,
+          preferredLanguage: true, communicationPreference: true,
+          preferredPharmacy: true, employer: true,
+          emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
+          emergency2Name: true, emergency2Phone: true, emergency2Relation: true,
         },
       },
       case: { select: { id: true, caseCode: true } },
@@ -110,6 +118,42 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const ip        = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? null;
   const userAgent = req.headers.get('user-agent') ?? null;
 
+  /**
+   * La FOTO de lo que el paciente confirmó.
+   *
+   * El documento dice "revisé la información proporcionada". Hasta acá se
+   * guardaba el trazo y su hash, pero no CUÁL era esa información — y desde que
+   * el paciente puede corregir su ficha desde la misma pantalla (el botón
+   * "Actualizar"), el dato puede haber cambiado minutos antes de la firma y
+   * puede volver a cambiar después, desde el back-office.
+   *
+   * Sin esto, "firmó conforme" no se puede sostener: no queda constancia de con
+   * qué estuvo conforme. Se toma del servidor, no de lo que manda el cliente.
+   */
+  const p = appt.patient;
+  const confirmado = {
+    patientCode:  p.patientCode,
+    nombre:       `${p.firstName} ${p.lastName}`.trim(),
+    nacimiento:   p.dateOfBirth ? p.dateOfBirth.toISOString().slice(0, 10) : null,
+    email:        p.email,
+    telefono:     p.phone,
+    movil:        p.phone2,
+    direccion:    p.addressLine1,
+    ciudad:       p.addressCity,
+    estado:       p.addressState,
+    zip:          p.addressZip,
+    sexo:         p.sex,
+    estadoCivil:  p.maritalStatus,
+    raza:         p.race,
+    etnia:        p.ethnicity,
+    idioma:       p.preferredLanguage,
+    contactoPref: p.communicationPreference,
+    farmacia:     p.preferredPharmacy,
+    empleador:    p.employer,
+    emergencia1:  { nombre: p.emergencyContactName, telefono: p.emergencyContactPhone, relacion: p.emergencyContactRelation },
+    emergencia2:  { nombre: p.emergency2Name,       telefono: p.emergency2Phone,       relacion: p.emergency2Relation },
+  };
+
   const signedAt = new Date();
   const sigHash  = createHash('sha256')
     .update(body.signatureSvg + appt.id + signerName + signedAt.toISOString())
@@ -145,6 +189,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       statusAlFirmar: appt.status,
       ipAddress:      ip,
       token:          token.slice(0, 8) + '…',
+      /** Los datos del paciente tal como estaban en el documento que firmó. */
+      confirmado,
     },
   });
 

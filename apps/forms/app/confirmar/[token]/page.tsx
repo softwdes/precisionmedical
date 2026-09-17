@@ -108,6 +108,9 @@ export default async function ConfirmarCitaPage({ params }: Props) {
           sex: true, maritalStatus: true, race: true, ethnicity: true,
           preferredLanguage: true, communicationPreference: true,
           preferredPharmacy: true, employer: true,
+          // Para el modal de "Actualizar": no se muestran en el documento pero
+          // el v2 los deja editar, así que tienen que llegar al formulario.
+          referralSource: true, referralSourceOther: true,
           emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
           emergency2Name: true, emergency2Phone: true, emergency2Relation: true,
         },
@@ -175,6 +178,10 @@ export default async function ConfirmarCitaPage({ params }: Props) {
 
     paciente: {
       nombre:      `${p.firstName} ${p.lastName}`.trim(),
+      // Por separado además de juntos: el documento muestra el nombre completo,
+      // pero el modal de corrección los edita como dos campos.
+      nombres:     p.firstName,
+      apellidos:   p.lastName,
       codigo:      p.patientCode,
       estado:      p.status,
       // ISO corto (YYYY-MM-DD): así el cliente no vuelve a pasar por Date con
@@ -195,7 +202,18 @@ export default async function ConfirmarCitaPage({ params }: Props) {
       contactoPref: p.communicationPreference,
       farmacia:    decryptFieldOrOriginal(p.preferredPharmacy),
       empleador:   decryptFieldOrOriginal(p.employer),
+      fuente:      p.referralSource,
+      fuenteOtra:  p.referralSourceOther,
     },
+
+    /**
+     * ¿Se puede corregir la ficha desde acá?
+     *
+     * Firmado es firmado: lo que el paciente confirmó no cambia debajo de su
+     * firma. La ruta de guardado lo vuelve a comprobar del lado del servidor —
+     * esto solo decide si el botón se dibuja.
+     */
+    puedeEditar: !appt.attendanceSignedAt,
 
     emergencia: [
       {

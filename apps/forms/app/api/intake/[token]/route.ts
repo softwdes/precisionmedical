@@ -13,38 +13,14 @@ import {
   db, writeAuditLog, promoverSeguroDeclarado,
   esSlotFoto, clavesDeFotosDelPaciente,
 } from '@precision-medical/database';
-import { decryptFieldOrOriginal, isCipher } from '@/lib/decrypt';
+import { decryptFieldOrOriginal } from '@/lib/decrypt';
+// `MAYBE_CIPHER` y `protegerCifrados` vivían acá. Se mudaron a `lib/` cuando la
+// pantalla de confirmación de cita empezó a escribir los mismos campos del
+// paciente: la protección tiene que ser UNA, no una copia por ruta.
+import { protegerCifrados } from '@/lib/campos-cifrados';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 type Ctx = { params: Promise<{ token: string }> };
-
-// Campos de la data migrada del v2 que pueden seguir cifrados (`e:…`). Sin la
-// clave `AES_GCM_KEY_B64` en el entorno, el GET los manda como null y el wizard
-// los pinta vacíos — si el paciente guarda ese vacío, el cifrado se iría a NULL
-// y no habría cómo recuperarlo ni configurando la clave después.
-const MAYBE_CIPHER = [
-  'employer', 'preferredPharmacy',
-  'addressCity', 'addressState', 'addressZip',
-  'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelation',
-  'emergency2Relation', 'guardianRelation',
-] as const;
-
-/**
- * Descarta del update los campos que llegan vacíos cuando lo guardado sigue
- * cifrado. Un vacío ahí significa "no pude mostrarte esto", no "borralo": el
- * paciente nunca vio el valor, así que no puede estar decidiendo eliminarlo.
- * Si escribe algo de verdad, ese valor sí gana y reemplaza el cifrado.
- */
-function protegerCifrados(
-  data: Record<string, unknown>,
-  guardado: Record<string, string | null>,
-): void {
-  for (const campo of MAYBE_CIPHER) {
-    if (campo in data && !data[campo] && isCipher(guardado[campo])) {
-      delete data[campo];
-    }
-  }
-}
 
 /**
  * ¿Este caso ya tiene respaldo legal como MVA?

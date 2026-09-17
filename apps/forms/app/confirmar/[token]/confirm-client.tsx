@@ -12,14 +12,16 @@
  *  · **Si el paciente es MENOR, firma el apoderado** y hay que escribir su
  *    nombre. Sin esto el documento sale firmado a nombre del menor — es el
  *    mismo bug que ya tuvimos en la firma del lien.
- *  · Los datos se muestran en solo lectura. Los dos modales de corrección
- *    ("Actualizar información" y "Seguros") son la fase siguiente: un botón que
- *    todavía no hace nada es peor que no tenerlo.
+ *  · **El paciente corrige su ficha acá mismo** con "Actualizar" (el `Update`
+ *    del v2), y recién después firma. El modal de Seguros sigue pendiente: es
+ *    otro dato, con su propia foto de la tarjeta, y va en su propia fase.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { isMinor } from '@precision-medical/database/age';
 import { FirmaCanvas } from '@/components/FirmaCanvas';
+import { EditarDatos, type DatosEditables } from './editar-datos';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Datos que arma el server component
@@ -43,17 +45,22 @@ export interface DatosConfirmacion {
   clinica: { nombre: string; direccion: string | null; telefono: string | null; email: string | null };
   provider: { nombre: string; especialidad: string | null } | null;
   paciente: {
-    nombre: string; codigo: string; estado: string;
+    nombre: string; nombres: string; apellidos: string;
+    codigo: string; estado: string;
     nacimiento: string | null;
     telefono: string | null; movil: string | null; email: string | null;
     direccion: string | null; ciudad: string | null; estadoUS: string | null; zip: string | null;
     sexo: string | null; estadoCivil: string | null; raza: string | null; etnia: string | null;
     idioma: string | null; contactoPref: string | null;
     farmacia: string | null; empleador: string | null;
+    /** No se muestran en el documento; existen para el modal de corrección. */
+    fuente: string | null; fuenteOtra: string | null;
   };
   emergencia: Array<{ nombre: string | null; telefono: string | null; relacion: string | null }>;
   caso: { codigo: string; tipo: string; estado: string; creado: string; accidenteEl: string | null } | null;
   consentimientos: Array<{ llave: string; aceptado: boolean }>;
+  /** Falso una vez firmada: el documento confirmado no se edita. */
+  puedeEditar: boolean;
 }
 
 type Lang = 'es' | 'en';
@@ -66,7 +73,7 @@ const T = {
   es: {
     marca: 'Sistema EHR integral',
     titulo: 'Documento de confirmación de cita',
-    bajada: 'Revise la información de la cita, del paciente y del caso antes de firmar. Si algo es incorrecto, avísele a recepción antes de confirmar.',
+    bajada: 'Revise la información de la cita, del paciente y del caso antes de firmar. Si algo está mal o falta, toque «Actualizar» y corríjalo antes de firmar.',
     secCita: 'Detalles de la cita',
     secCitaSub: 'Información completa sobre la cita programada',
     secClinica: 'Información de la clínica',
@@ -84,6 +91,9 @@ const T = {
     secCaso: 'Información médica del caso',
     secCasoSub: 'Detalles sobre el caso médico asociado con esta cita',
     secConsent: 'Consentimientos y autorizaciones firmados',
+    actualizar: 'Actualizar',
+    actualizarAviso: 'Si algo está mal o falta, tóquelo y corríjalo antes de firmar.',
+    guardado: 'Listo, sus datos quedaron actualizados.',
     fecha: 'Fecha de la cita',
     horaInicio: 'Hora de inicio',
     horaFin: 'Hora de finalización',
@@ -156,7 +166,7 @@ const T = {
   en: {
     marca: 'Integrated EHR system',
     titulo: 'Appointment confirmation document',
-    bajada: 'Review the appointment, patient and case information before signing. If anything is incorrect, let the front desk know before confirming.',
+    bajada: 'Review the appointment, patient and case information before signing. If anything is wrong or missing, tap “Update” and fix it before signing.',
     secCita: 'Appointment details',
     secCitaSub: 'Complete information about the scheduled appointment',
     secClinica: 'Clinic information',
@@ -174,6 +184,9 @@ const T = {
     secCaso: 'Medical case information',
     secCasoSub: 'Details about the medical case linked to this appointment',
     secConsent: 'Signed consents and authorizations',
+    actualizar: 'Update',
+    actualizarAviso: 'If anything is wrong or missing, tap it and fix it before signing.',
+    guardado: 'Done — your information was updated.',
     fecha: 'Appointment date',
     horaInicio: 'Start time',
     horaFin: 'End time',
@@ -368,16 +381,41 @@ const C = {
 const ZONA = 'America/Denver';
 
 export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
+  const router = useRouter();
+
   const [lang, setLang]       = useState<Lang>('es');
   const [firma, setFirma]     = useState<string | null>(null);
   const [enviando, setEnv]    = useState(false);
   const [error, setError]     = useState('');
   const [listo, setListo]     = useState(false);
 
+  // ── Corrección de datos ────────────────────────────────────────────────────
+  const [editando, setEditando]   = useState(false);
+  const [aviso, setAviso]         = useState('');
+
   const t = T[lang];
   const esMenor = isMinor(datos.paciente.nacimiento);
 
   const [firmante, setFirmante] = useState(esMenor ? '' : datos.paciente.nombre);
+
+  /**
+   * El nombre de quien firma sigue al nombre del paciente cuando este cambia.
+   *
+   * `useState` corre UNA sola vez: sin esto, un paciente que corrige su nombre
+   * en el modal —el primer campo del formulario— firmaba igual con el nombre
+   * viejo, y ese viejo es el que queda en el hash de la firma y en el audit.
+   *
+   * El ref guarda lo que NOSOTROS pusimos en el recuadro. Solo se pisa si sigue
+   * estando eso: si la persona escribió otra cosa (el apoderado, por ejemplo),
+   * no se le toca lo que tipeó.
+   */
+  const nombrePaciente = datos.paciente.nombre;
+  const autoFirmante   = useRef(esMenor ? '' : nombrePaciente);
+  useEffect(() => {
+    if (esMenor || autoFirmante.current === nombrePaciente) return;
+    setFirmante(actual => (actual === autoFirmante.current ? nombrePaciente : actual));
+    autoFirmante.current = nombrePaciente;
+  }, [esMenor, nombrePaciente]);
 
   // ── Formato ────────────────────────────────────────────────────────────────
   const loc = lang === 'es' ? 'es-US' : 'en-US';
@@ -424,6 +462,77 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
       mapa?.[valor.toUpperCase()] ??
       mapa?.[valor.toLowerCase()];
     return hit?.[lang] ?? valor.replace(/_/g, ' ');
+  };
+
+  /**
+   * La ficha tal como la edita el modal.
+   *
+   * Sale de lo MISMO que se está mostrando en pantalla, no de otra consulta: si
+   * el documento dice una cosa y el formulario abre con otra, el paciente
+   * "corrige" algo que nunca vio.
+   */
+  const editable: DatosEditables = useMemo(() => ({
+    firstName:    datos.paciente.nombres,
+    lastName:     datos.paciente.apellidos,
+    dateOfBirth:  datos.paciente.nacimiento,
+    email:        datos.paciente.email,
+    phone:        datos.paciente.telefono,
+    phone2:       datos.paciente.movil,
+    addressLine1: datos.paciente.direccion,
+    addressCity:  datos.paciente.ciudad,
+    addressState: datos.paciente.estadoUS,
+    addressZip:   datos.paciente.zip,
+    sex:          datos.paciente.sexo,
+    maritalStatus: datos.paciente.estadoCivil,
+    race:         datos.paciente.raza,
+    ethnicity:    datos.paciente.etnia,
+    preferredLanguage:       datos.paciente.idioma,
+    communicationPreference: datos.paciente.contactoPref,
+    referralSource:      datos.paciente.fuente,
+    referralSourceOther: datos.paciente.fuenteOtra,
+    preferredPharmacy: datos.paciente.farmacia,
+    employer:          datos.paciente.empleador,
+    emergencyContactName:     datos.emergencia[0]?.nombre   ?? null,
+    emergencyContactPhone:    datos.emergencia[0]?.telefono ?? null,
+    emergencyContactRelation: datos.emergencia[0]?.relacion ?? null,
+    emergency2Name:           datos.emergencia[1]?.nombre   ?? null,
+    emergency2Phone:          datos.emergencia[1]?.telefono ?? null,
+    emergency2Relation:       datos.emergencia[1]?.relacion ?? null,
+  }), [datos.paciente, datos.emergencia]);
+
+  /**
+   * Guardado: cierra el modal y pide los datos de nuevo al servidor.
+   *
+   * `router.refresh()` y no un estado local: la página es un server component y
+   * la fuente de verdad es la base. Así el documento que el paciente firma un
+   * segundo después muestra exactamente lo que quedó guardado — y si el
+   * servidor descartó algo (un teléfono inválido, un campo cifrado protegido),
+   * se ve enseguida en vez de quedar una pantalla mintiendo.
+   */
+  const alGuardar = () => {
+    setEditando(false);
+    setAviso(t.guardado);
+    router.refresh();
+  };
+
+  /** Botón de corrección. Desaparece una vez firmada — ya no hay qué corregir. */
+  const BotonActualizar = () => {
+    if (!datos.puedeEditar) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => { setAviso(''); setEditando(true); }}
+        style={{
+          flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '7px 13px', borderRadius: 9,
+          border: `1px solid ${C.cyan}`, background: 'rgba(6,182,212,0.10)',
+          color: C.cyan, fontSize: 13, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        ✎ {t.actualizar}
+      </button>
+    );
   };
 
   // ── Firmar ─────────────────────────────────────────────────────────────────
@@ -489,6 +598,18 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
         <p style={{ fontSize: 14, color: C.suave, lineHeight: 1.65 }}>{t.bajada}</p>
       </div>
 
+      {/* Confirmación de que el cambio entró. Sin esto el modal se cierra, la
+          pantalla se redibuja y no queda claro si se guardó algo. */}
+      {aviso && (
+        <div style={{
+          display: 'flex', gap: 9, alignItems: 'center', marginBottom: 20,
+          background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.30)',
+          borderRadius: 10, padding: '11px 13px', fontSize: 13.5, color: C.verde,
+        }}>
+          <span>✓</span><span>{aviso}</span>
+        </div>
+      )}
+
       {/* ── Cita ─────────────────────────────────────────────────────────── */}
       <Seccion icono="📅" titulo={t.secCita} sub={t.secCitaSub}>
         <Campos items={[
@@ -536,7 +657,7 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
       )}
 
       {/* ── Paciente ─────────────────────────────────────────────────────── */}
-      <Seccion icono="👤" titulo={t.secPaciente} sub={t.secPacienteSub}>
+      <Seccion icono="👤" titulo={t.secPaciente} sub={t.secPacienteSub} accion={<BotonActualizar />}>
         <Campos items={[
           { label: t.nombreCompleto, valor: p.nombre, fuerte: true },
           { label: t.nacimiento,     valor: fNacimiento(p.nacimiento) },
@@ -577,7 +698,10 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
       </Seccion>
 
       {/* ── Emergencia ───────────────────────────────────────────────────── */}
-      <Seccion icono="🚑" titulo={t.secEmergencia}>
+      {/* Mismo modal que el de arriba: es el contacto con más huecos (27% de los
+          pacientes no tiene ninguno cargado) y está a tres pantallas de scroll
+          del otro botón, así que necesita su propia entrada. */}
+      <Seccion icono="🚑" titulo={t.secEmergencia} accion={<BotonActualizar />}>
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           {datos.emergencia.map((e, i) => (
             <div key={i} style={{
@@ -676,9 +800,15 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
             onChange={e => setFirmante(e.target.value)}
             placeholder={t.firmantePh}
             style={{
-              width: '100%', padding: '11px 13px', fontSize: 15,
+              width: '100%', boxSizing: 'border-box', padding: '11px 13px',
+              // 16px es el piso del campo de texto en iOS: por debajo, Safari
+              // acerca la pantalla solo al enfocar. El bloqueo de zoom que lo
+              // tapaba se sacó de `app/layout.tsx` para que la gente mayor pueda
+              // agrandar la letra, así que ya no hay nada más que lo frene.
+              fontSize: 16,
               borderRadius: 9, border: `1px solid ${C.borde}`,
               background: 'rgba(255,255,255,0.05)', color: C.texto,
+              fontFamily: 'inherit',
             }}
           />
         </div>
@@ -710,6 +840,16 @@ export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
           {t.alFirmar}
         </div>
       </div>
+
+      {editando && (
+        <EditarDatos
+          datos={editable}
+          token={datos.token}
+          lang={lang}
+          onCancelar={() => setEditando(false)}
+          onGuardado={alGuardar}
+        />
+      )}
     </Marco>
   );
 }
@@ -765,15 +905,24 @@ function Marco({
 }
 
 function Seccion({
-  icono, titulo, sub, children,
+  icono, titulo, sub, accion, children,
 }: {
-  icono: string; titulo: string; sub?: string; children: React.ReactNode;
+  icono: string; titulo: string; sub?: string;
+  /** Botón al ras del título — hoy, "Actualizar". */
+  accion?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <section style={{ marginBottom: 22 }}>
-      <div style={{ display: 'flex', gap: 9, alignItems: 'center', marginBottom: sub ? 3 : 12 }}>
-        <span style={{ fontSize: 15 }}>{icono}</span>
-        <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>{titulo}</h2>
+      <div style={{
+        display: 'flex', gap: 9, alignItems: 'center',
+        justifyContent: 'space-between', marginBottom: sub ? 3 : 12,
+      }}>
+        <div style={{ display: 'flex', gap: 9, alignItems: 'center', minWidth: 0 }}>
+          <span style={{ fontSize: 15 }}>{icono}</span>
+          <h2 style={{ fontSize: 15.5, fontWeight: 700 }}>{titulo}</h2>
+        </div>
+        {accion}
       </div>
       {sub && <div style={{ fontSize: 12.5, color: C.tenue, marginBottom: 12, paddingLeft: 25 }}>{sub}</div>}
       <div style={{

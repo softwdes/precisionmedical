@@ -307,34 +307,81 @@ function CatalogoAdjusters({
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function AdjustersPopover({
-  caseId, rect, onClose, onAdd,
+  caseId, rect, onClose, onAdd, onChanged,
 }: {
   caseId: string;
   /** Rectangulo del boton que lo abrio — ver `AnchoredPanel`. */
   rect: AnchorRect;
   onClose: () => void;
+  /** Abre el modal, para escribir a alguien que no está en el catálogo. */
   onAdd: () => void;
+  /** Para que la grilla repinte la celda cuando se asigna desde acá. */
+  onChanged?: () => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
-  const { current, carrier, loading } = useCaseAdjusters(caseId);
+  const { current, carrier, loading, reload } = useCaseAdjusters(caseId);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  /**
+   * El catálogo se asigna DESDE ACÁ, sin pasar por el modal.
+   *
+   * El panel no se cierra al elegir: el asignado aparece arriba en el acto y
+   * Edson puede poner al segundo, que es el caso que él mismo describió
+   * ("Kenneth Kelly or Patricia Leon"). Se cierra con Escape o clic afuera.
+   */
+  async function asignar(adjusterId: string) {
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/adjusters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjusterId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.message ?? json.error ?? t('errSave'));
+        return;
+      }
+      await reload();
+      onChanged?.();
+    } catch { setError(t('errSave')); }
+    finally { setSaving(false); }
+  }
 
   return (
-    <AnchoredPanel rect={rect} width={290} onClose={onClose}>
+    <AnchoredPanel rect={rect} width={320} onClose={onClose}>
       {carrier && <div className="text-text-1 text-[13px] font-semibold">{carrier.name}</div>}
-
-      <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
-        {t('groupAdjusters')}
-      </div>
 
       {loading && (
         <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
           <Loader2 className="w-3 h-3 animate-spin" /> …
         </div>
       )}
-      {!loading && current.length === 0 && (
-        <p className="text-text-muted text-[12px] italic">{t('adjusterNone')}</p>
+
+      {/* Los que ya están, arriba: es lo que Edson viene a leer para llamar. */}
+      {!loading && current.length > 0 && (
+        <>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
+            {t('groupAdjusters')}
+          </div>
+          {current.map(a => <AdjusterCard key={a.id} a={a} />)}
+        </>
       )}
-      {current.map(a => <AdjusterCard key={a.id} a={a} />)}
+
+      {/*
+        * La lista va en el PANEL y no detrás de un modal. Antes eran tres pasos
+        * —panel, modal, botón "Agregar adjuster", recién ahí la lista— y Edson
+        * lo rechazó el 2026-09-18: "que se quite todo eso y quede como el
+        * provider: doble clic y aparece directo el listado".
+        */}
+      <CatalogoAdjusters
+        carrierId={carrier?.id ?? null}
+        onPick={(a) => void asignar(a.id)}
+        saving={saving}
+      />
+
+      {error && <div className="text-rose text-[12px]">{error}</div>}
 
       {carrier?.claimsAddress && (
         <div className="pt-1">
@@ -345,12 +392,14 @@ export function AdjustersPopover({
         </div>
       )}
 
+      {/* El que no está en el catálogo se escribe en el modal, que tiene sitio
+          para teléfono, extensión, fax y correo. */}
       <button
         type="button"
         onClick={() => { onClose(); onAdd(); }}
-        className="w-full flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1 hover:border-brand"
+        className="text-[11px] text-text-muted hover:text-text-1 underline underline-offset-2"
       >
-        <Plus className="w-3 h-3" /> {t('adjusterAdd')}
+        {t('adjusterNotInList')}
       </button>
     </AnchoredPanel>
   );

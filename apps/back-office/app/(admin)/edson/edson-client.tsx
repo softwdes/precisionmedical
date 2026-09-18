@@ -1012,9 +1012,19 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           <div className="relative">
                             <button
                               type="button"
-                              onClick={(e) => openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget)}
+                              /*
+                               * Doble clic, igual que Provider. El clic del
+                               * teclado (Enter/Espacio, `detail === 0`) sigue
+                               * abriendo: si no, la celda quedaba sin forma de
+                               * abrirse sin mouse.
+                               */
+                              onClick={(e) => {
+                                if (e.detail !== 0) return;
+                                openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget);
+                              }}
+                              onDoubleClick={(e) => openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget)}
                               title={t('adjustersOpen')}
-                              className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1"
+                              className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1 select-none"
                             >
                               {/*
                                 * El telefono baja como segunda linea en vez de
@@ -1055,6 +1065,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 rect={anchorRect}
                                 onClose={() => setAdjustersFor(null)}
                                 onAdd={() => { setEditingFocus('adjusters'); setEditing(row); }}
+                                // Al asignar desde el panel, la celda y su badge
+                                // tienen que repintarse sin recargar la página.
+                                onChanged={() => void load()}
                               />
                             )}
                           </div>

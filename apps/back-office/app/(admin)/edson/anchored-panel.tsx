@@ -17,7 +17,7 @@
  * escribe párrafos y necesita el ancho.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface AnchorRect {
@@ -34,6 +34,7 @@ export function AnchoredPanel({
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -42,15 +43,27 @@ export function AnchoredPanel({
      * Al scrollear se cierra en vez de perseguir al botón. Reposicionar en cada
      * frame es caro y, sobre todo, un panel que flota siguiendo la fila se lee
      * como un error: si el usuario movió la tabla, ya no está mirando eso.
+     *
+     * PERO el listener va en CAPTURA para enterarse del scroll de la tabla, que
+     * no burbujea hasta window — y en captura también le llega el scroll de
+     * ADENTRO del panel. Sin este `contains`, bajar por la lista la cerraba, y
+     * arrastrar su barra de scroll también. Lo reportó Edson el 2026-09-18: "se
+     * le da clic a la barra o se quiere bajar con el scroll y se cierra".
      */
-    const onScroll = () => onClose();
+    const onScroll = (e: Event) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    // Resize va por su cuenta: su `target` es `window`, que no es un Node y no
+    // se le puede preguntar a `contains`.
+    const onResize = () => onClose();
     window.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
     };
   }, [onClose]);
 
@@ -77,6 +90,7 @@ export function AnchoredPanel({
     <>
       <div className="fixed inset-0 z-[60]" onClick={onClose} />
       <div
+        ref={panelRef}
         style={style}
         className="z-[61] overflow-y-auto scroll-thin rounded-lg bg-surface shadow-2xl p-3 space-y-2 text-left"
       >

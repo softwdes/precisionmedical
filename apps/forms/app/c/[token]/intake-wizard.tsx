@@ -462,8 +462,15 @@ const STRINGS = {
     camGuideDoc: 'Alinea el documento dentro del marco',
     camCapture: 'Capturar',
     camCancel: 'Cancelar',
-    camPermError: 'No se pudo acceder a la cámara. Verifica los permisos de tu navegador.',
-    camFallback: 'Usar galería en su lugar',
+    camPermError: 'No se pudo abrir la cámara. Puede elegir la foto desde su teléfono con el botón de abajo.',
+    /**
+     * Cuando el navegador tiene la cámara BLOQUEADA para este sitio, volver a
+     * pedirla no sirve: Safari ni siquiera pregunta de nuevo. Así que no se le
+     * dice "revisá los permisos" —que no sabe hacer y no resuelve nada— sino
+     * por dónde salir.
+     */
+    camPermDenied: 'Su teléfono tiene la cámara bloqueada para esta página. No hace falta desbloquearla: puede elegir la foto desde su galería con el botón de abajo.',
+    camFallback: 'Elegir foto de mi teléfono',
     camLoading: 'Iniciando cámara...',
     // Step 7
     lienTitle: 'Firma del Lien',
@@ -805,8 +812,9 @@ const STRINGS = {
     camGuideDoc: 'Align the document within the frame',
     camCapture: 'Capture',
     camCancel: 'Cancel',
-    camPermError: 'Could not access camera. Please check your browser permissions.',
-    camFallback: 'Use gallery instead',
+    camPermError: 'We could not open the camera. You can pick the photo from your phone with the button below.',
+    camPermDenied: 'Your phone has the camera blocked for this page. You do not need to unblock it: you can pick the photo from your gallery with the button below.',
+    camFallback: 'Pick a photo from my phone',
     camLoading: 'Starting camera...',
     // Step 7
     lienTitle: 'Lien Signature',
@@ -4876,20 +4884,38 @@ function PhotoCaptureCard({
   // ── STAGE: In-app camera ───────────────────────────────────────────────────
   if (stage === 'camera') {
     return (
-      <InAppCamera
-        facingMode={capture}
-        guideType={guideType}
-        color={color}
-        colorRgb={colorRgb}
-        lang={lang}
-        onCapture={file => receiveFile(file)}
-        onCancel={() => setStage('guide')}
-        onPermissionError={() => {
-          setStage('guide');
-          // After error, clicking again will use fallback
-          document.getElementById(fallbackId)?.click();
-        }}
-      />
+      <>
+        {/*
+          El selector de archivos TIENE que estar montado acá.
+
+          Antes no lo estaba, y el botón de salida de la tarjeta de error hacía:
+
+              setStage('guide');
+              document.getElementById(fallbackId)?.click();
+
+          Las dos líneas fallan. `setStage` no redibuja de inmediato, así que
+          cuando corre el `getElementById` el input **todavía no existe en el
+          DOM** y el `?.` se come el null en silencio: el botón no hacía
+          absolutamente nada. Y aunque hubiera existido, apuntaba al input con
+          `capture`, que en iPhone abre la CÁMARA otra vez — justo lo que acaba
+          de fallar— y no la galería que promete la etiqueta.
+
+          Resultado real (17-sep, una paciente con iPhone): la cámara le falló,
+          tocó el único botón resaltado, no pasó nada, y el paso no la dejaba
+          avanzar sin las fotos. Callejón sin salida.
+        */}
+        {filePickerInput}
+        <InAppCamera
+          facingMode={capture}
+          guideType={guideType}
+          color={color}
+          colorRgb={colorRgb}
+          lang={lang}
+          filePickerId={filePickerId}
+          onCapture={file => receiveFile(file)}
+          onCancel={() => setStage('guide')}
+        />
+      </>
     );
   }
 
@@ -5110,16 +5136,23 @@ function PhotoCaptureCard({
 // Self-contained lifecycle: requests permission → streams video → captures frame.
 
 function InAppCamera({
-  facingMode, guideType, color, colorRgb, lang, onCapture, onCancel, onPermissionError,
+  facingMode, guideType, color, colorRgb, lang, filePickerId, onCapture, onCancel,
 }: {
   facingMode: 'user' | 'environment';
   guideType: 'face' | 'document';
   color: string;
   colorRgb: string;
   lang: Lang;
+  /**
+   * El `<input type="file">` SIN `capture` que monta la tarjeta. La salida de
+   * la pantalla de error es un `<label htmlFor>` apuntando acá, no un
+   * `.click()` por JavaScript: en iPhone, abrir el selector de archivos a mano
+   * solo funciona dentro del gesto del usuario, y cualquier `setState` en el
+   * medio ya rompe esa cadena. El `<label>` lo hace el navegador y no falla.
+   */
+  filePickerId: string;
   onCapture: (f: File) => void;
   onCancel: () => void;
-  onPermissionError: () => void;
 }) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -5145,8 +5178,17 @@ function InAppCamera({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-    }).catch(() => {
-      if (active) setError(t.camPermError);
+    }).catch((err: unknown) => {
+      if (!active) return;
+      // `NotAllowedError` es "el usuario o el sistema dijo que no", y es el
+      // único caso en que insistir no sirve para nada. Se separa porque el
+      // mensaje tiene que ser distinto: los demás fallos (cámara ocupada, sin
+      // cámara, error de hardware) sí pueden andar si reintenta.
+      const denegado = err instanceof Error && err.name === 'NotAllowedError';
+      setError(denegado ? t.camPermDenied : t.camPermError);
+      // El motivo real queda en la consola: el `.catch` vacío que había antes
+      // hacía imposible saber por qué falló en el teléfono de un paciente.
+      console.warn('[intake] getUserMedia falló:', err instanceof Error ? err.name : err);
     });
 
     return () => {
@@ -5198,11 +5240,14 @@ function InAppCamera({
             background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
             color: 'rgba(255,255,255,0.55)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
           }}>{t.camCancel}</button>
-          <button type="button" onClick={onPermissionError} style={{
+          {/* `<label htmlFor>`, no un botón con `.click()` — ver el comentario
+              de `filePickerId` arriba. El navegador abre el selector solo. */}
+          <label htmlFor={filePickerId} style={{
             flex: 2, padding: '11px 8px', borderRadius: 10,
             background: `rgba(${colorRgb},0.10)`, border: `1px solid rgba(${colorRgb},0.35)`,
             color: color, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}>{t.camFallback}</button>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+          }}>{t.camFallback}</label>
         </div>
       </div>
     );

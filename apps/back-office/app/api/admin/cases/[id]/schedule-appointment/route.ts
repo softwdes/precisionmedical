@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
@@ -93,9 +93,14 @@ export async function POST(
     return NextResponse.json({ error: 'PROVIDER_NOT_FOUND_OR_INACTIVE' }, { status: 404 });
   }
 
-  // Validar que scheduledFor sea futuro
+  // Validar que scheduledFor sea futuro. La regla y su hora de gracia viven en
+  // lib/scheduling-rules; acá estaba escrita a mano y SIN gracia, así que un
+  // horario elegido a las 8:59 y guardado a las 9:01 se rechazaba.
+  //
+  // Registrar una visita pasada a propósito se hace por /api/admin/appointments
+  // (bandera `allowPast`), que es la ruta que usa el diálogo de citas.
   const scheduledForDate = new Date(parsed.scheduledFor);
-  if (scheduledForDate.getTime() < Date.now()) {
+  if (horarioYaPaso(scheduledForDate)) {
     return NextResponse.json(
       { error: 'INVALID_DATE', message: 'La fecha/hora debe ser futura.' },
       { status: 400 },

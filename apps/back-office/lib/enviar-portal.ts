@@ -160,6 +160,10 @@ export function describirAvisoCita(
   t: (key: string) => string,
 ): string | null {
   if (!r || r.enviado) return null;
+  // A una visita que ya ocurrió no se le avisa al paciente: es la regla, no una
+  // falla. Decir "no salió el recordatorio" mandaría a recepción a avisar a mano
+  // algo que nadie tiene que avisar.
+  if (r.motivo === 'CITA_PASADA') return null;
 
   const que =
     tipo === 'reprogramacion' ? t('reprogramacionNoSalio')

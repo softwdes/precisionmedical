@@ -1,5 +1,5 @@
 'use client';
-import { localeApp, fechaCalendario } from '@/lib/fechas';
+import { localeApp, fechaCalendario, instanteEnClinica, claveDia } from '@/lib/fechas';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -296,6 +296,26 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [isOnline,      setIsOnline]      = useState(false);
   const [meetingUrl,    setMeetingUrl]    = useState('');
 
+  /**
+   * Registrar una visita que YA OCURRIÓ (Erick, 2026-09-18).
+   *
+   * Casos excepcionales: el paciente vino, se atendió y no se alcanzó a cargar.
+   * Sin esto la visita no existe en el sistema y no se puede facturar.
+   *
+   * Es una casilla y no un modo aparte porque todo lo demás —paciente, caso,
+   * sede, provider, duración, motivo— es idéntico. Lo único que cambia es CÓMO
+   * se elige el horario: el selector semanal busca un hueco LIBRE del provider,
+   * y para una visita que ya pasó la disponibilidad no es una pregunta; lo que
+   * importa es la hora real. Mismo criterio que el diálogo de avisos de agenda.
+   *
+   * La casilla es obligatoria a propósito: sin ella una fecha vieja sigue siendo
+   * un error, porque el caso abrumadoramente más común de una fecha vieja es un
+   * dedazo en el año.
+   */
+  const [visitaPasada,  setVisitaPasada]  = useState(false);
+  const [fechaPasada,   setFechaPasada]   = useState('');
+  const [horaPasada,    setHoraPasada]    = useState('');
+
   // Alert bloqueante: "esa duración no entra en el horario elegido, volvimos a la que sí"
   const [durationConflictAlert, setDurationConflictAlert] = useState(false);
 
@@ -512,6 +532,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setClinicId(initialClinicId ?? '');
       setProviderId(props.defaultProviderId ?? '');
       setSlotIso(null);
+      setVisitaPasada(false);
+      setFechaPasada('');
+      setHoraPasada('');
       setDuration(15);
       lastValidDuration.current = 15;
       setType(props.defaultType ?? 'AUTO_ACCIDENT');
@@ -856,7 +879,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
-  const scheduledForIso = slotIso;
+  /**
+   * La hora tecleada se arma en la zona de la CLÍNICA, no en la del navegador.
+   *
+   * `new Date('2026-09-14T10:00')` se lee en la zona de quien mira, así que la
+   * misma visita cargada desde otra zona quedaría guardada a otra hora. Con
+   * `instanteEnClinica` las 10:00 son las 10:00 en Utah siempre, y el cambio de
+   * horario de verano sale bien sin casos especiales.
+   */
+  const isoPasado = useMemo(() => {
+    if (!visitaPasada || !fechaPasada || !horaPasada) return null;
+    const [hh, mm] = horaPasada.split(':').map(Number);
+    if (hh === undefined || mm === undefined || Number.isNaN(hh) || Number.isNaN(mm)) return null;
+    return instanteEnClinica(fechaPasada, hh * 60 + mm).toISOString();
+  }, [visitaPasada, fechaPasada, horaPasada]);
+
+  const scheduledForIso = visitaPasada ? isoPasado : slotIso;
 
   const scheduledLabel = useMemo(() => {
     if (!scheduledForIso) return null;
@@ -884,15 +922,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const isFuture = scheduledForIso ? new Date(scheduledForIso).getTime() > Date.now() : false;
 
+  /**
+   * Con la casilla marcada, el horario tiene que estar en el PASADO: si no, no
+   * es una visita que ya ocurrió y corresponde el selector de siempre, que
+   * además chequea la disponibilidad del provider.
+   */
+  const retroOk = !visitaPasada || (!!scheduledForIso && !isFuture);
+
   const selectedClinic   = clinics.find((c) => c.id === clinicId);
   const selectedProvider = allProviders.find((p) => p.id === providerId);
 
   const canSubmit = useMemo(() => {
     const hasCase = isEditMode ? true : (props.mode === 'case' ? !!props.caseInfo?.id : !!caseId);
-    const slotOk = isEditMode ? !!scheduledForIso : (!!scheduledForIso && isFuture);
+    const slotOk = isEditMode ? !!scheduledForIso : (!!scheduledForIso && (visitaPasada ? retroOk : isFuture));
     return hasCase && !!clinicId && !!providerId && slotOk && !saving;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, saving]);
+  }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, visitaPasada, retroOk, saving]);
 
   // Refs for scrolling to missing fields
   const caseRef    = useRef<HTMLDivElement>(null);
@@ -930,8 +975,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         doctorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
-      if (!scheduledForIso || !isFuture) {
-        setError(t('validationSelectSlot'));
+      if (visitaPasada ? !retroOk : (!scheduledForIso || !isFuture)) {
+        setError(visitaPasada ? t('retroValidation') : t('validationSelectSlot'));
         slotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
@@ -1005,6 +1050,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         notes: notes.trim() || undefined,
         isOnline,
         meetingUrl: isOnline ? (meetingUrl.trim() || undefined) : undefined,
+        // Sin esta bandera el servidor rechaza cualquier fecha vieja, que es lo
+        // que tiene que seguir haciendo cuando nadie la marcó a propósito.
+        ...(visitaPasada && { allowPast: true }),
       },
     };
   };
@@ -1585,6 +1633,32 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
+            {/* ── Registrar una visita que ya ocurrió ──
+                Solo al CREAR: mover una cita ya guardada a una fecha pasada es
+                otro camino, libre desde el 2026-08-05 y con su propio PATCH. */}
+            {!isEditMode && !citaConDesenlace && (
+              <label
+                className={`mt-1.5 flex items-start gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                  visitaPasada
+                    ? 'bg-amber/5 border-amber/30 hover:bg-amber/10'
+                    : 'bg-bg-1 border-border hover:border-border-strong'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={visitaPasada}
+                  onChange={(e) => setVisitaPasada(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded accent-amber shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-medium ${visitaPasada ? 'text-amber' : 'text-text-1'}`}>
+                    {t('retroToggle')}
+                  </div>
+                  <div className="text-text-muted text-[11px] mt-0.5">{t('retroToggleHint')}</div>
+                </div>
+              </label>
+            )}
+
             {citaConDesenlace ? (
               <div className="mt-1.5 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-text-1 text-sm font-semibold capitalize">
@@ -1592,6 +1666,61 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   {scheduledLabel} <span className="text-text-muted font-normal">({duration} min)</span>
                 </div>
                 <p className="text-[11px] text-text-muted mt-1">{t('resolvedAppointmentHint')}</p>
+              </div>
+            ) : visitaPasada ? (
+              /* Fecha y hora a mano, sin el selector semanal: ese existe para
+                 encontrar un hueco LIBRE del provider, y en una visita que ya
+                 ocurrió la disponibilidad no es la pregunta — la hora real sí.
+                 Mismo criterio que el diálogo de avisos de agenda. */
+              <div className="mt-2 space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="appt-retro-date" className="block text-[11px] font-semibold text-text-2 mb-1">
+                      {t('retroFieldDate')} <span className="text-rose">*</span>
+                    </label>
+                    <input
+                      id="appt-retro-date"
+                      type="date"
+                      value={fechaPasada}
+                      /* El futuro se agenda con el selector de siempre, que además
+                         chequea la agenda del provider. */
+                      max={claveDia(new Date())}
+                      onChange={(e) => setFechaPasada(e.target.value)}
+                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="appt-retro-time" className="block text-[11px] font-semibold text-text-2 mb-1">
+                      {t('retroFieldTime')} <span className="text-rose">*</span>
+                    </label>
+                    <input
+                      id="appt-retro-time"
+                      type="time"
+                      value={horaPasada}
+                      step={900}
+                      onChange={(e) => setHoraPasada(e.target.value)}
+                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+
+                {scheduledForIso && !retroOk && (
+                  <p className="text-[11px] text-rose">{t('retroValidation')}</p>
+                )}
+
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                  {t('retroNotice')}
+                </div>
+
+                {scheduledLabel && retroOk && (
+                  <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      <strong className="capitalize">{scheduledLabel}</strong>
+                      <span className="opacity-70 font-normal"> ({duration} min)</span>
+                    </span>
+                  </div>
+                )}
               </div>
             ) : !providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">

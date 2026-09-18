@@ -39,9 +39,31 @@ import {
   idiomaDelPaciente, type DatosDeCita, type CorreoDeCita,
 } from '@/lib/portal-message';
 import { fechaParaSms, horaParaSms, fechaSolaParaCorreo } from '@/lib/fechas';
+import { horarioYaPaso } from '@/lib/scheduling-rules';
 
 /** Minutos antes de la cita a los que se le pide llegar. */
 const MINUTOS_ANTES_DE_LLEGAR = 15;
+
+/**
+ * A una cita que YA PASÓ no se le avisa nada al paciente.
+ *
+ * Desde el 2026-09-18 se pueden registrar visitas que ya ocurrieron —el
+ * paciente vino y no se alcanzó a cargar— y avisarle de una cita de la semana
+ * pasada es, en el mejor de los casos, ruido; en el peor, un "le reprogramamos
+ * su cita" por corregirle la hora a una visita vieja. Erick: "no envía ninguna
+ * notificación".
+ *
+ * El candado vive ACÁ y no en las rutas por la misma razón que el resto de este
+ * archivo: son tres rutas que crean citas más el PATCH que las mueve y cancela,
+ * y con una copia por ruta, la quinta que se escriba se olvida.
+ *
+ * Usa la misma gracia de una hora que el guard de creación, y eso deja un
+ * invariante cómodo: la cita que se pudo crear SIN `allowPast` se avisa, y la
+ * que necesitó la bandera no.
+ */
+function noSeAvisaPorqueYaPaso(cuando: Date): boolean {
+  return horarioYaPaso(cuando);
+}
 
 /**
  * Todo lo que hace falta para avisarle a alguien sobre una cita, resuelto UNA vez.
@@ -166,7 +188,7 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
 
 export type ResultadoRecordatorio =
   | { enviado: true;  messageLogId: string | null }
-  | { enviado: false; motivo: 'SIN_TELEFONO' | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO'; detalle?: string };
+  | { enviado: false; motivo: 'SIN_TELEFONO' | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO' | 'CITA_PASADA'; detalle?: string };
 
 /**
  * Manda el recordatorio de una cita recién creada.
@@ -183,6 +205,7 @@ export async function enviarRecordatorioDeCita(args: {
   try {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
+    if (noSeAvisaPorqueYaPaso(cita.scheduledFor)) return { enviado: false, motivo: 'CITA_PASADA' };
     if (!cita.telefono) return { enviado: false, motivo: 'SIN_TELEFONO' };
 
     // `cita.datos` ya trae el idioma, la fecha formateada, la hora de llegada
@@ -220,7 +243,7 @@ export async function enviarRecordatorioDeCita(args: {
 
 export type ResultadoAvisoEmail =
   | { enviado: true;  messageLogId: string | null }
-  | { enviado: false; motivo: 'SIN_EMAIL' | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO'; detalle?: string };
+  | { enviado: false; motivo: 'SIN_EMAIL' | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO' | 'CITA_PASADA'; detalle?: string };
 
 /**
  * Manda un correo sobre una cita. El tronco común de los dos de abajo.
@@ -313,6 +336,10 @@ export async function avisarReprogramacion(args: {
   try {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
+    // La fecha que se mira es la NUEVA (la cita ya se guardó). Mover una visita
+    // vieja para corregirle la hora no le avisa nada al paciente; mover una cita
+    // pasada a un día que viene sí, que es una reprogramación de verdad.
+    if (noSeAvisaPorqueYaPaso(cita.scheduledFor)) return { enviado: false, motivo: 'CITA_PASADA' };
 
     const correo = buildAppointmentRescheduleEmail({
       ...cita.datos,
@@ -351,6 +378,9 @@ export async function avisarCancelacion(args: {
   try {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
+    // Una cita que ya pasó no se "cancela" para el paciente: se corrige el
+    // registro. Avisarle sería contarle mal lo que pasó.
+    if (noSeAvisaPorqueYaPaso(cita.scheduledFor)) return { enviado: false, motivo: 'CITA_PASADA' };
 
     const correo = buildAppointmentCancelledEmail({
       lang:     cita.datos.lang,

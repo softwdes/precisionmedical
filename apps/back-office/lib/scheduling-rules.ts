@@ -163,3 +163,29 @@ export function describeOverlap(overlaps: OverlappingAppointment[]): string {
   const extra = overlaps.length > 1 ? ` (y ${overlaps.length - 1} más)` : '';
   return `El doctor ya tiene una cita a las ${time}${who}${extra} que se cruza con este horario.`;
 }
+
+/**
+ * Gracia para el horario que ya pasó: una hora.
+ *
+ * El selector de horarios puede quedar abierto un rato largo antes de que la
+ * persona apriete guardar, y el hueco que eligió sigue siendo legítimo. Sin la
+ * gracia, la cita que se elige a las 8:59 se rechaza al guardarla a las 9:01.
+ */
+export const GRACIA_HORARIO_PASADO_MS = 60 * 60 * 1000;
+
+/**
+ * ¿Este horario ya pasó?
+ *
+ * Vive acá y no en cada endpoint por lo mismo que el resto del archivo: la
+ * regla estaba escrita TRES veces —crear cita, agendar desde el caso y el
+ * wizard de caso nuevo— y ya había divergido (una perdonaba una hora y las
+ * otras dos no perdonaban nada).
+ *
+ * Quien llama decide qué hacer: hoy los tres rechazan, salvo que se esté
+ * registrando a propósito una visita que ya ocurrió (ver `allowPast` en el
+ * POST de citas). Mover una cita YA CREADA a una fecha pasada es libre desde el
+ * 2026-08-05 y por eso el PATCH no consulta esto.
+ */
+export function horarioYaPaso(cuando: Date, graciaMs: number = GRACIA_HORARIO_PASADO_MS): boolean {
+  return cuando.getTime() < Date.now() - graciaMs;
+}

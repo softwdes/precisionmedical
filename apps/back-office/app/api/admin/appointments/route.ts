@@ -18,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
@@ -280,6 +280,23 @@ const CreateSchema = z.object({
    * `allowOverlap`: son dos avisos distintos.
    */
   allowBlocked:    z.boolean().optional(),
+  /**
+   * Registrar una visita que YA OCURRIÓ.
+   *
+   * La clínica tiene casos excepcionales —el paciente vino y no se alcanzó a
+   * cargar— y sin esto la visita no entra al sistema y no se puede facturar
+   * (Erick, 2026-09-18). Mover una cita ya creada a una fecha pasada era legal
+   * desde el 2026-08-05; crearla ahí no, que es la mitad que faltaba.
+   *
+   * Tiene que venir explícita: sin la bandera, una fecha pasada sigue siendo un
+   * error, porque el caso abrumadoramente más común de una fecha vieja es un
+   * dedazo en el año.
+   *
+   * Dos consecuencias, las dos decididas por la clínica y NO configurables:
+   *  · nace ATENDIDA (`COMPLETED`) — es el único motivo por el que se carga;
+   *  · no se le avisa NADA al paciente (el candado está en `lib/recordatorio-cita`).
+   */
+  allowPast:       z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -295,10 +312,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Allow up to 60 min in the past — the slot picker can be open for a while
-  // before the user submits, and the slot is still legitimately chosen.
-  const GRACE_MS = 60 * 60 * 1000;
-  if (new Date(parsed.scheduledFor).getTime() < Date.now() - GRACE_MS) {
+  /**
+   * Dos preguntas distintas sobre la misma fecha, y por eso dos variables:
+   *
+   *  · ¿se RECHAZA? — con la gracia de una hora de lib/scheduling-rules, que
+   *    existe para que el horario elegido a las 8:59 no se caiga al guardarlo a
+   *    las 9:01.
+   *  · ¿es una VISITA QUE YA OCURRIÓ? — solo si quien agenda lo dijo, y sin
+   *    gracia ninguna.
+   *
+   * Con una sola variable graciada, una visita marcada como pasada pero de hace
+   * media hora nacía SCHEDULED y le mandaba el SMS al paciente: justo las dos
+   * cosas que no tienen que pasar.
+   */
+  const yaPaso        = new Date(parsed.scheduledFor).getTime() < Date.now();
+  const esRetroactiva = parsed.allowPast === true && yaPaso;
+  if (!parsed.allowPast && horarioYaPaso(new Date(parsed.scheduledFor))) {
     return NextResponse.json({
       error: 'DATE_IN_PAST',
       message: 'El horario seleccionado ya pasó. Por favor selecciona un nuevo horario disponible.',
@@ -308,6 +337,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Ninguna clínica atiende sábado/domingo — antes solo el sugeridor de
   // horarios (available-slots) respetaba esto; agendar a mano un fin de
   // semana se guardaba sin ningún chequeo.
+  //
+  // Vale TAMBIÉN para una visita retroactiva: Erick lo confirmó al abrir el
+  // registro de visitas pasadas (2026-09-18). La clínica no abre el fin de
+  // semana, así que una visita de un sábado es un error de carga, no una
+  // excepción.
   if (isWeekendInDenver(new Date(parsed.scheduledFor))) {
     return NextResponse.json({
       error: 'WEEKEND_NOT_ALLOWED',
@@ -397,7 +431,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     notes:           parsed.notes ?? null,
     isOnline:        parsed.isOnline,
     meetingUrl:      parsed.meetingUrl ?? null,
-    status:          'SCHEDULED' as const,
+    /**
+     * Una visita que ya ocurrió nace ATENDIDA.
+     *
+     * Como `SCHEDULED` quedaría pendiente para siempre: aparecería en el
+     * Check-in de un día que ya pasó, sumando al contador de pendientes de una
+     * jornada que nadie va a volver a abrir.
+     *
+     * NO se inventan los sellos de reloj (`checkedInAt`, `admittedAt`,
+     * `checkedOutAt`): son horas reales y de ahí salen las métricas de los
+     * providers. Quedan en null, que es como se leen "no medido".
+     */
+    status:          (esRetroactiva ? 'COMPLETED' : 'SCHEDULED') as 'COMPLETED' | 'SCHEDULED',
     // Quien agenda, para que Edson sepa a quien preguntarle. El nombre va
     // denormalizado: la grilla no puede hacer join a `users` en cada fila.
     createdByUserId: actor.actorUserId,
@@ -428,7 +473,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ipAddress:    actor.ipAddress,
     userAgent:    actor.userAgent,
     after:        appointment as unknown as Prisma.JsonValue,
-    metadata:     { caseId: parsed.caseId, caseActivated: shouldActivate },
+    // `retroactiva` queda en la auditoría a propósito: esta cita termina en un
+    // lien y en un HCFA, y una visita que aparece facturada sin que nadie la
+    // haya visto ocurrir tiene que poder explicarse.
+    metadata:     { caseId: parsed.caseId, caseActivated: shouldActivate, retroactiva: esRetroactiva },
   });
 
   /**
@@ -444,11 +492,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
    * `enviarRecordatorioDeCita` no lanza nunca. Lo peor que puede devolver es
    * un motivo.
    */
-  const recordatorio = await enviarRecordatorioDeCita({
-    appointmentId: appointment.id,
-    actorUserId:   actor.actorUserId,
-    actorName:     actor.actorName,
-  });
+  /**
+   * A una visita que ya ocurrió NO se le avisa nada al paciente (Erick,
+   * 2026-09-18). Ni se llama al recordatorio: el candado del clock que hay en
+   * `lib/recordatorio-cita` es la red por si alguien agrega otra ruta, pero acá
+   * se sabe la intención y decirla explícita es más barato que deducirla.
+   */
+  const recordatorio = esRetroactiva
+    ? { enviado: false as const, motivo: 'CITA_PASADA' as const }
+    : await enviarRecordatorioDeCita({
+        appointmentId: appointment.id,
+        actorUserId:   actor.actorUserId,
+        actorName:     actor.actorName,
+      });
 
   return NextResponse.json({ ok: true, appointment, recordatorio }, { status: 201 });
 }

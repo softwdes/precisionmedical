@@ -447,3 +447,30 @@ export function fechaParaSms(fecha: Date, lang: 'es' | 'en'): string {
 export function horaParaSms(fecha: Date): string {
   return partesEnClinica(fecha).hora12;
 }
+
+/**
+ * Los días con el nombre COMPLETO, solo para el correo.
+ *
+ * El SMS usa las abreviaturas sin acento de `DIAS_SMS` por una razón de costo
+ * —un solo acento pasa el mensaje a UCS-2 y el segmento cae de 153 a 67
+ * caracteres— pero esa restricción no existe en un correo. Ahí "viernes" se lee
+ * mejor que "vie", y el acento de "miércoles" y "sábado" no cuesta nada.
+ */
+const DIAS_CORREO = {
+  es: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+} as const;
+
+/**
+ * La fecha SIN la hora, para el correo: "viernes 18 de sep. de 2026".
+ *
+ * Existe aparte de `fechaParaSms` porque el correo las muestra en dos renglones
+ * distintos —"Nueva fecha" y "Hora de la cita"— y pegarlas para después
+ * separarlas sería armar y desarmar la misma string.
+ */
+export function fechaSolaParaCorreo(fecha: Date, lang: 'es' | 'en'): string {
+  const { diaSemana, dia, mes, anio } = partesEnClinica(fecha);
+  return lang === 'es'
+    ? `${DIAS_CORREO.es[diaSemana]} ${dia} de ${MESES_SMS.es[mes]}. de ${anio}`
+    : `${DIAS_CORREO.en[diaSemana]}, ${MESES_SMS.en[mes]} ${dia}, ${anio}`;
+}

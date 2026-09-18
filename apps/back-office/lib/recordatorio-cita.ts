@@ -34,10 +34,11 @@ import { sendSms } from '@/lib/sms';
 import { sendEmail } from '@/lib/email';
 import {
   buildAppointmentReminderSms, buildAppointmentReminderEmail,
-  buildAppointmentRescheduleEmail, buildAppointmentCancelledEmail, envolturaCorreo,
-  idiomaDelPaciente, type DatosDeCita,
+  buildAppointmentRescheduleEmail, buildAppointmentCancelledEmail,
+  correoDeCitaTexto, correoDeCitaHtml,
+  idiomaDelPaciente, type DatosDeCita, type CorreoDeCita,
 } from '@/lib/portal-message';
-import { fechaParaSms, horaParaSms } from '@/lib/fechas';
+import { fechaParaSms, horaParaSms, fechaSolaParaCorreo } from '@/lib/fechas';
 
 /** Minutos antes de la cita a los que se le pide llegar. */
 const MINUTOS_ANTES_DE_LLEGAR = 15;
@@ -143,7 +144,12 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
     nombreDestinatario: `${destino.firstName} ${destino.lastName ?? ''}`.trim(),
     datos: {
       lang,
+      nombreDestinatario: `${destino.firstName} ${destino.lastName ?? ''}`.trim(),
       cuando:      fechaParaSms(cita.scheduledFor, lang),
+      // El correo las muestra en renglones distintos ("Nueva fecha" / "Hora de
+      // la cita"); el SMS sigue usando `cuando`, que las trae pegadas.
+      fechaSola:   fechaSolaParaCorreo(cita.scheduledFor, lang),
+      horaCita:    horaParaSms(cita.scheduledFor),
       horaLlegada: horaParaSms(llegada),
       clinica:     cita.clinic.name,
       direccion:   cita.clinic.address,
@@ -226,20 +232,24 @@ export type ResultadoAvisoEmail =
  */
 async function enviarCorreoDeCita(args: {
   cita: CitaParaAvisar;
-  subject: string;
-  body: string;
+  correo: CorreoDeCita;
   actorUserId?: string | null;
   actorName?: string | null;
 }): Promise<ResultadoAvisoEmail> {
-  const { cita } = args;
+  const { cita, correo } = args;
   if (!cita.email) return { enviado: false, motivo: 'SIN_EMAIL' };
+
+  const lang = cita.datos.lang;
 
   const res = await sendEmail({
     to: cita.email,
     toName: cita.nombreDestinatario || null,
-    subject: args.subject,
-    html: envolturaCorreo(args.body),
-    text: args.body,
+    subject: correo.subject,
+    // El mismo contenido dibujado de dos formas. El HTML alinea las etiquetas
+    // en una tabla; el texto plano las lista con viñetas para el cliente que
+    // no renderiza — no son dos redacciones distintas.
+    html: correoDeCitaHtml(correo, lang),
+    text: correoDeCitaTexto(correo, lang),
     patientId:    cita.patientId,
     caseId:       cita.caseId,
     sentByUserId: args.actorUserId ?? null,
@@ -268,13 +278,13 @@ async function enviarCorreoDeCita(args: {
  */
 export async function enviarRecordatorio24h(cita: CitaParaAvisar): Promise<ResultadoAvisoEmail> {
   try {
-    const { subject, body } = buildAppointmentReminderEmail({
+    const correo = buildAppointmentReminderEmail({
       ...cita.datos,
       // El canal es el CORREO: se nombra al paciente según `sharesEmail`, no
       // según `sharesPhone`.
       nombrePaciente: cita.nombrePacienteEnCorreo,
     });
-    return await enviarCorreoDeCita({ cita, subject, body, actorName: 'Recordatorio automático' });
+    return await enviarCorreoDeCita({ cita, correo, actorName: 'Recordatorio automático' });
   } catch (err) {
     console.error('[recordatorio-24h] falló para %s:', cita.appointmentId, err);
     return { enviado: false, motivo: 'ERROR_ENVIO', detalle: String(err) };
@@ -304,7 +314,7 @@ export async function avisarReprogramacion(args: {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
 
-    const { subject, body } = buildAppointmentRescheduleEmail({
+    const correo = buildAppointmentRescheduleEmail({
       ...cita.datos,
       nombrePaciente: cita.nombrePacienteEnCorreo,
       cuandoAntes: args.scheduledForAnterior
@@ -313,7 +323,7 @@ export async function avisarReprogramacion(args: {
     });
 
     return await enviarCorreoDeCita({
-      cita, subject, body,
+      cita, correo,
       actorUserId: args.actorUserId,
       actorName:   args.actorName,
     });
@@ -342,15 +352,16 @@ export async function avisarCancelacion(args: {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
 
-    const { subject, body } = buildAppointmentCancelledEmail({
+    const correo = buildAppointmentCancelledEmail({
       lang:     cita.datos.lang,
+      nombreDestinatario: cita.nombreDestinatario,
       cuando:   cita.datos.cuando,
       telefono: cita.datos.telefono,
       nombrePaciente: cita.nombrePacienteEnCorreo,
     });
 
     return await enviarCorreoDeCita({
-      cita, subject, body,
+      cita, correo,
       actorUserId: args.actorUserId,
       actorName:   args.actorName,
     });

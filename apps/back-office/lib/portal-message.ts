@@ -207,8 +207,14 @@ export function buildAppointmentReminderSms(args: {
  */
 export interface DatosDeCita {
   lang: PortalMessageLang;
+  /** A quién se saluda: el paciente, o el apoderado del menor. */
+  nombreDestinatario?: string | null;
   /** Ya formateado en la zona de la clínica: "mar 15 de sep de 2026 a las 4:00 PM". */
   cuando: string;
+  /** Solo la fecha, para el correo: "viernes 18 de sep. de 2026". */
+  fechaSola?: string;
+  /** Solo la hora de la cita: "12:00 PM". */
+  horaCita?: string;
   /** Hora a la que tiene que llegar, 15 min antes: "3:45 PM". */
   horaLlegada: string;
   clinica: string;
@@ -221,191 +227,288 @@ export interface DatosDeCita {
 }
 
 /**
+ * ─── El correo de una cita, como estructura ─────────────────────────────────
+ *
+ * Los tres correos de cita —recordatorio, reprogramación, cancelación— dicen lo
+ * mismo con distinto encabezado: cuándo, a qué hora, a qué hora llegar, dónde.
+ * La clínica pidió (2026-09-18) que eso deje de ser prosa y pase a campos
+ * etiquetados, y tiene razón: un paciente no LEE un correo de la clínica, lo
+ * escanea buscando la hora y la dirección. En un párrafo esos dos datos están
+ * escondidos entre palabras; en una lista con etiquetas saltan solos.
+ *
+ * Por eso el armador devuelve ESTRUCTURA y no un string. Con texto plano habría
+ * que elegir entre un correo que se ve bien en HTML —con las etiquetas en
+ * negrita, alineadas— y uno que se lee bien en texto plano; devolviendo los
+ * campos por separado, cada formato los dibuja como le conviene y el contenido
+ * se escribe una sola vez.
+ */
+export interface DetalleCita {
+  etiqueta: string;
+  valor: string;
+}
+
+export interface CorreoDeCita {
+  subject: string;
+  /** "Estimado/a Juan," — con el nombre real cuando lo hay. */
+  saludo: string;
+  /** La frase que dice QUÉ pasó. Va antes de los campos. */
+  intro: string;
+  detalles: DetalleCita[];
+  /** Aclaración bajo los campos (la cita anterior). Opcional. */
+  nota?: string | null;
+  /** Qué hacer si algo no le sirve. */
+  cierre: string;
+}
+
+/** Lo que firma todos los correos de la clínica. */
+const FIRMA = { es: 'Atentamente,\nPrecision Medical', en: 'Sincerely,\nPrecision Medical' } as const;
+
+/**
+ * El saludo.
+ *
+ * Con el nombre del destinatario cuando lo tenemos —que es casi siempre— y
+ * "Estimado/a paciente" solo como respaldo. La propuesta de la clínica usaba el
+ * genérico para todos; usar el nombre no cuesta nada (ya está en la ficha, y es
+ * el mismo dato con el que se arma el `toName` del correo) y un correo que te
+ * nombra se lee como escrito para vos, no como un envío masivo.
+ *
+ * Ojo con el destinatario: cuando el paciente es menor, quien recibe es el
+ * apoderado, así que el saludo lleva SU nombre y el cuerpo nombra al menor.
+ */
+function saludoPara(lang: PortalMessageLang, nombre?: string | null): string {
+  const n = nombre?.trim();
+  if (lang === 'es') return n ? `Estimado/a ${n},` : 'Estimado/a paciente,';
+  return n ? `Dear ${n},` : 'Dear patient,';
+}
+
+/** Los campos comunes: cuándo, a qué hora, llegada y dónde. */
+function detallesDeLaCita(args: DatosDeCita, etiquetaFecha: string): DetalleCita[] {
+  const { lang, fechaSola, cuando, horaCita, horaLlegada, clinica, direccion, enLinea, enlace } = args;
+  const es = lang === 'es';
+
+  // `fechaSola`/`horaCita` son opcionales en el tipo porque el SMS no los usa.
+  // Si faltan, se cae al string combinado en vez de mostrar un campo vacío.
+  const fecha = fechaSola ?? cuando;
+  const hora  = horaCita  ?? null;
+
+  const d: DetalleCita[] = [{ etiqueta: etiquetaFecha, valor: fecha }];
+  if (hora) d.push({ etiqueta: es ? 'Hora de la cita' : 'Appointment time', valor: hora });
+
+  /**
+   * Telemedicina: ni dirección ni hora de llegada.
+   *
+   * No es un ajuste cosmético. Con la dirección puesta, el recordatorio lo hace
+   * manejar hasta la sede para una videollamada; con "llegue 15 minutos antes",
+   * encima lo hace salir temprano. Y el enlace NO se da por hecho: medido el
+   * 2026-09-14, 28 de las 29 citas en línea no lo tienen cargado, así que sin
+   * enlace se le dice que la clínica lo llama en vez de prometerle un link que
+   * no existe y dejarlo mirando una pantalla en blanco.
+   */
+  if (enLinea) {
+    d.push({
+      etiqueta: es ? 'Modalidad' : 'Format',
+      valor: enlace
+        ? (es ? `Videollamada — ${enlace}` : `Video visit — ${enlace}`)
+        : (es ? 'Videollamada — la clínica lo contactará a esa hora.'
+              : 'Video visit — the clinic will contact you at that time.'),
+    });
+    return d;
+  }
+
+  if (horaLlegada) {
+    d.push({ etiqueta: es ? 'Registro (llegada)' : 'Check-in (arrival)', valor: horaLlegada });
+  }
+  d.push({
+    etiqueta: es ? 'Ubicación' : 'Location',
+    // Con nombre Y dirección: con varias sedes, la dirección sola obliga a
+    // adivinar a cuál le corresponde. Si a la sede le falta la dirección
+    // —pasa—, queda el nombre en vez de un campo vacío.
+    valor: direccion ? `${clinica}\n${direccion}` : clinica,
+  });
+  return d;
+}
+
+/** "comuníquese al (801) …" o, sin teléfono cargado, sin número. */
+function comuniquese(lang: PortalMessageLang, telefono: string | null | undefined, motivo: string): string {
+  const es = lang === 'es';
+  return telefono
+    ? (es ? `${motivo}, favor de comunicarse al ${telefono}.`
+          : `${motivo}, please call us at ${telefono}.`)
+    : (es ? `${motivo}, favor de comunicarse con la clínica.`
+          : `${motivo}, please contact the clinic.`);
+}
+
+/**
  * El recordatorio de 24 h antes, POR CORREO.
  *
  * Decisión de Erick (2026-09-18): el del día antes va por correo y no por SMS.
  * El SMS del momento de agendar se queda como está.
  *
- * No es el texto del SMS con otro formato. Un correo no paga por carácter y no
- * necesita el "STOP para salir" del operador, así que puede escribir la
- * dirección entera en su propia línea —que es como se copia a un mapa— y decir
- * qué hacer si el paciente no puede venir. Eso último es lo que más sirve: un
+ * El cierre ofrece avisar si no puede venir, y eso es lo que más rinde: un
  * recordatorio que solo repite la hora no evita el asiento vacío; uno que abre
- * la puerta a avisar, sí.
+ * la puerta a avisar, sí — y libera el horario para otro paciente.
  */
-export function buildAppointmentReminderEmail(args: DatosDeCita): { subject: string; body: string } {
-  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace } = args;
+export function buildAppointmentReminderEmail(args: DatosDeCita): CorreoDeCita {
+  const { lang, telefono, nombrePaciente, nombreDestinatario } = args;
   const es = lang === 'es';
 
   const deQuien = nombrePaciente
     ? (es ? `la cita de ${nombrePaciente}` : `the appointment for ${nombrePaciente}`)
     : (es ? 'su cita' : 'your appointment');
 
-  const avisar = telefono
-    ? (es
-        ? `Si no puede venir, avísenos al ${telefono} y le damos otro horario. Un aviso a tiempo le deja el lugar a otro paciente.`
-        : `If you cannot make it, call us at ${telefono} and we will find another time. Letting us know frees the slot for someone else.`)
-    : (es
-        ? 'Si no puede venir, avísenos y le damos otro horario.'
-        : 'If you cannot make it, let us know and we will find another time.');
-
-  if (enLinea) {
-    return {
-      subject: es ? `Recordatorio: ${deQuien} es mañana por videollamada` : `Reminder: ${deQuien} is tomorrow by video`,
-      body: [
-        es ? `Le recordamos ${deQuien}:` : `A reminder about ${deQuien}:`,
-        `${cuando}\n${es ? 'Videollamada — no necesita venir a la clínica.' : 'Video visit — you do not need to come to the clinic.'}`,
-        enlace
-          ? (es ? `Conéctese desde:\n${enlace}` : `Join from:\n${enlace}`)
-          : (es ? 'La clínica lo contactará a esa hora.' : 'The clinic will contact you at that time.'),
-        avisar,
-        es ? 'Precision Medical' : 'Precision Medical',
-      ].join('\n\n'),
-    };
-  }
-
-  const lugar = direccion ? `${clinica}\n${direccion}` : clinica;
-
   return {
-    subject: es ? `Recordatorio: ${deQuien} es mañana` : `Reminder: ${deQuien} is tomorrow`,
-    body: [
-      es ? `Le recordamos ${deQuien}:` : `A reminder about ${deQuien}:`,
-      `${cuando}\n${lugar}`,
-      es
-        ? `Le pedimos llegar a las ${horaLlegada} para el registro. Con más de 15 minutos de retraso puede que haya que reprogramar.`
-        : `Please arrive at ${horaLlegada} for check-in. More than 15 minutes late may require rescheduling.`,
-      avisar,
-      'Precision Medical',
-    ].join('\n\n'),
+    subject: es ? `Recordatorio de ${deQuien} en Precision Medical`
+                : `Reminder: ${deQuien} at Precision Medical`,
+    saludo: saludoPara(lang, nombreDestinatario),
+    intro: es
+      ? `Le recordamos que ${deQuien} en Precision Medical es mañana.`
+      : `This is a reminder that ${deQuien} at Precision Medical is tomorrow.`,
+    detalles: detallesDeLaCita(args, es ? 'Fecha' : 'Date'),
+    cierre: comuniquese(lang, telefono,
+      es ? 'Si no puede asistir' : 'If you are unable to attend'),
   };
 }
 
 /**
  * El aviso de que la cita SE MOVIÓ, por correo.
  *
- * Decisión de Erick (2026-09-18): por correo, no por SMS.
+ * `cuandoAntes` es la fecha anterior, y solo se pasa cuando la hora cambió de
+ * verdad: si lo que se movió fue la sede o la modalidad, va en `null` y el
+ * correo habla de lugar. Sin esa distinción, un cambio de sede producía un
+ * correo que decía "ya no es el jueves a las 4" y dos renglones después "la
+ * nueva fecha es jueves a las 4".
  *
- * Lleva la fecha ANTERIOR además de la nueva, y esa es la parte que importa.
- * Un correo que solo dice "su cita es el jueves a las 3" no se distingue de un
- * recordatorio, y el paciente que ya tenía anotado el martes lo lee por arriba
- * y no cambia nada. Nombrar lo que se cayó es lo que hace que registre que hay
- * algo que corregir en su calendario.
+ * La cita anterior se nombra DESPUÉS de los datos nuevos y como aclaración: lo
+ * primero que el paciente tiene que poder anotar es cuándo es ahora. Y se dice
+ * "reemplaza a la cita del…" y no "se cancela la cita previa" —que era la
+ * redacción propuesta— porque "se cancela" es exactamente lo que dice el correo
+ * de cancelación: quien escanea las dos primeras palabras podría entender que
+ * se quedó sin cita.
  */
 export function buildAppointmentRescheduleEmail(
-  args: DatosDeCita & {
-    /**
-     * La fecha que TENÍA, solo si cambió. `null` cuando lo que se movió fue el
-     * lugar o la modalidad y la hora quedó igual.
-     *
-     * Sin esto, un cambio de sede producía un correo que decía "Ya NO es el
-     * jueves a las 4" y dos renglones después "La nueva fecha es: jueves a las
-     * 4" — el paciente leyendo dos veces la misma fecha y buscando la
-     * diferencia.
-     */
-    cuandoAntes: string | null;
-  },
-): { subject: string; body: string } {
-  const { lang, cuando, cuandoAntes, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace } = args;
+  args: DatosDeCita & { cuandoAntes: string | null },
+): CorreoDeCita {
+  const { lang, cuandoAntes, telefono, nombrePaciente, nombreDestinatario } = args;
   const es = lang === 'es';
 
   const deQuien = nombrePaciente
-    ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
-    : (es ? 'Su cita' : 'Your appointment');
+    ? (es ? `la cita de ${nombrePaciente}` : `the appointment for ${nombrePaciente}`)
+    : (es ? 'su cita' : 'your appointment');
 
-  // Qué es lo que puede "no servirle": el horario nuevo, o la sede nueva. El
-  // cierre tiene que nombrar lo que efectivamente cambió — ofrecerle cambiar el
-  // horario a quien solo se mudó de sede es responder otra pregunta.
-  const queCambio = cuandoAntes
-    ? (es ? 'Si este horario no le sirve' : 'If this new time does not work for you')
-    : (es ? 'Si esta sede no le queda cómoda' : 'If this location does not work for you');
-
-  const consultas = telefono
-    ? (es ? `${queCambio}, llámenos al ${telefono} y buscamos otra opción.`
-          : `${queCambio}, call us at ${telefono} and we will find another option.`)
-    : (es ? `${queCambio}, avísenos y buscamos otra opción.`
-          : `${queCambio}, let us know and we will find another option.`);
-
-  const donde = enLinea
-    ? (enlace
-        ? (es ? `Videollamada — conéctese desde:\n${enlace}` : `Video visit — join from:\n${enlace}`)
-        : (es ? 'Videollamada — la clínica lo contactará a esa hora.' : 'Video visit — the clinic will contact you at that time.'))
-    : (direccion ? `${clinica}\n${direccion}` : clinica);
-
-  const llegada = enLinea
-    ? null
-    : (es
-        ? `Le pedimos llegar a las ${horaLlegada} para el registro.`
-        : `Please arrive at ${horaLlegada} for check-in.`);
-
-  // Cambió la hora, o solo cambió el lugar. Son dos avisos distintos: el
-  // segundo no puede hablar de "nueva fecha" porque la fecha es la de siempre.
   const esHorario = !!cuandoAntes;
 
   return {
     subject: esHorario
-      ? (es ? `${deQuien} cambió de horario` : `${deQuien} has been rescheduled`)
-      : (es ? `${deQuien} cambió de lugar`   : `${deQuien} has a new location`),
-    body: [
+      ? (es ? `Su cita en Precision Medical ha sido reprogramada`
+            : `Your Precision Medical appointment has been rescheduled`)
+      : (es ? `Su cita en Precision Medical cambió de lugar`
+            : `Your Precision Medical appointment has a new location`),
+    saludo: saludoPara(lang, nombreDestinatario),
+    intro: esHorario
+      ? (es ? `Le informamos que ${deQuien} en Precision Medical ha sido reprogramada.`
+            : `We are writing to let you know that ${deQuien} at Precision Medical has been rescheduled.`)
+      : (es ? `Le informamos que ${deQuien} en Precision Medical mantiene su horario, pero cambió de lugar.`
+            : `We are writing to let you know that ${deQuien} at Precision Medical keeps its time, but the location changed.`),
+    detalles: detallesDeLaCita(args, esHorario ? (es ? 'Nueva fecha' : 'New date') : (es ? 'Fecha' : 'Date')),
+    nota: cuandoAntes
+      ? (es ? `Esta cita reemplaza a la del ${cuandoAntes}.`
+            : `This appointment replaces the one on ${cuandoAntes}.`)
+      : null,
+    cierre: comuniquese(lang, telefono,
       esHorario
-        ? (es ? `${deQuien} cambió de horario.` : `${deQuien} has been moved to a new time.`)
-        : (es ? `${deQuien} sigue en el mismo horario, pero cambió el lugar.`
-              : `${deQuien} is still at the same time, but the location changed.`),
-      esHorario
-        ? (es ? `Ya NO es el ${cuandoAntes}.` : `It is NO longer on ${cuandoAntes}.`)
-        : null,
-      esHorario
-        ? (es ? `La nueva fecha es:\n${cuando}\n${donde}` : `The new date is:\n${cuando}\n${donde}`)
-        : (es ? `${cuando}\n${donde}` : `${cuando}\n${donde}`),
-      llegada,
-      consultas,
-      'Precision Medical',
-    ].filter(Boolean).join('\n\n'),
+        ? (es ? 'Si requiere un horario diferente' : 'If you need a different time')
+        : (es ? 'Si esta sede no le queda cómoda'  : 'If this location does not work for you')),
   };
 }
 
 /**
- * El aviso de que la cita SE CANCELÓ, por correo.
+ * El aviso de que la cita SE CANCELÓ.
  *
- * Decisión de Erick (2026-09-18), después de la reprogramación: mismo criterio,
- * correo y no SMS.
+ * El único de los tres SIN campos: al paciente cuya cita se cayó no le sirve la
+ * dirección ni a qué hora tenía que llegar — eso ya no va a pasar. Lo único
+ * accionable es cuál era y cómo consigue otra, y una lista de cuatro campos que
+ * ya no aplican solo hace más difícil encontrar esas dos cosas.
  *
- * Es el más corto de los tres a propósito. Al paciente cuya cita se cayó no le
- * sirve la dirección de la sede ni a qué hora tenía que llegar — eso ya no va a
- * pasar. Lo único accionable es: cuál era, y cómo consigue otra. Repetir el
- * resto sería hacerle leer cinco renglones para encontrar los dos que importan.
- *
- * NO se usa para no-show. "No viniste" y "te la cancelamos" son cosas distintas
- * y mandarle la segunda a quien faltó es contarle mal su propia historia.
+ * NO se usa para no-show: "no viniste" y "te la cancelamos" son cosas distintas.
  */
 export function buildAppointmentCancelledEmail(args: {
   lang: PortalMessageLang;
+  nombreDestinatario?: string | null;
   /** La fecha que tenía, ya formateada. */
   cuando: string;
   telefono?: string | null;
   nombrePaciente?: string | null;
-}): { subject: string; body: string } {
-  const { lang, cuando, telefono, nombrePaciente } = args;
+}): CorreoDeCita {
+  const { lang, cuando, telefono, nombrePaciente, nombreDestinatario } = args;
   const es = lang === 'es';
 
   const deQuien = nombrePaciente
-    ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
-    : (es ? 'Su cita' : 'Your appointment');
-
-  const reagendar = telefono
-    ? (es ? `Para sacar otra, llámenos al ${telefono}.`
-          : `To book another one, call us at ${telefono}.`)
-    : (es ? 'Para sacar otra, comuníquese con la clínica.'
-          : 'To book another one, please contact the clinic.');
+    ? (es ? `la cita de ${nombrePaciente}` : `the appointment for ${nombrePaciente}`)
+    : (es ? 'su cita' : 'your appointment');
 
   return {
-    subject: es ? `${deQuien} fue cancelada` : `${deQuien} has been cancelled`,
-    body: [
-      es ? `${deQuien} del ${cuando} fue cancelada.`
-         : `${deQuien} on ${cuando} has been cancelled.`,
-      reagendar,
-      'Precision Medical',
-    ].join('\n\n'),
+    subject: es ? 'Su cita en Precision Medical ha sido cancelada'
+                : 'Your Precision Medical appointment has been cancelled',
+    saludo: saludoPara(lang, nombreDestinatario),
+    intro: es
+      ? `Le informamos que ${deQuien} en Precision Medical del ${cuando} ha sido cancelada.`
+      : `We are writing to let you know that ${deQuien} at Precision Medical on ${cuando} has been cancelled.`,
+    detalles: [],
+    cierre: comuniquese(lang, telefono,
+      es ? 'Para programar una nueva cita' : 'To book a new appointment'),
   };
+}
+
+/** El correo en texto plano, para el cliente que no renderiza HTML. */
+export function correoDeCitaTexto(c: CorreoDeCita, lang: PortalMessageLang): string {
+  return [
+    c.saludo,
+    c.intro,
+    c.detalles.length
+      ? c.detalles.map((d) => `• ${d.etiqueta}: ${d.valor.replace(/\n/g, ', ')}`).join('\n')
+      : null,
+    c.nota,
+    c.cierre,
+    FIRMA[lang],
+  ].filter(Boolean).join('\n\n');
+}
+
+/** El correo en HTML, con las etiquetas en negrita y alineadas. */
+export function correoDeCitaHtml(c: CorreoDeCita, lang: PortalMessageLang): string {
+  const p = (t: string, estilo = '') =>
+    `<p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#111827;${estilo}">${escapeHtml(t).replaceAll('\n', '<br/>')}</p>`;
+
+  /**
+   * Los campos van en una <table> y no en una lista con viñetas.
+   *
+   * Es lo único que se alinea igual en Gmail, Outlook y el correo de iPhone:
+   * `display:flex` y `display:grid` los ignoran o los rompen la mitad de los
+   * clientes de correo, y con viñetas las etiquetas quedan desalineadas y hay
+   * que leer cada renglón entero para encontrar la que se busca.
+   */
+  const filas = c.detalles.map((d) => `
+    <tr>
+      <td style="padding:3px 14px 3px 0;font-size:13px;line-height:1.6;color:#6b7280;white-space:nowrap;vertical-align:top;">${escapeHtml(d.etiqueta)}</td>
+      <td style="padding:3px 0;font-size:14px;line-height:1.6;color:#111827;font-weight:600;">${escapeHtml(d.valor).replaceAll('\n', '<br/>')}</td>
+    </tr>`).join('');
+
+  const tabla = c.detalles.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px;border-collapse:collapse;">${filas}</table>`
+    : '';
+
+  return [
+    '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f6f7f9;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">',
+    '<div style="max-width:520px;margin:0 auto;padding:28px 18px;">',
+    '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:26px;">',
+    '<p style="margin:0 0 14px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;">Precision Medical Care</p>',
+    p(c.saludo),
+    p(c.intro),
+    tabla,
+    c.nota ? p(c.nota, 'color:#6b7280;font-size:13px;') : '',
+    p(c.cierre),
+    p(FIRMA[lang]),
+    '</div></div></body></html>',
+  ].join('');
 }
 
 export function smsSegments(text: string): { chars: number; segments: number; gsm: boolean } {

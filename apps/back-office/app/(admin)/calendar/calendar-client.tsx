@@ -22,7 +22,7 @@ import {
  * Accent del módulo: cyan (Regla #5 tabla)
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -354,6 +354,46 @@ function apptTimeShort(iso: string): string {
 
 // ─── FilterChip ───────────────────────────────────────────────────────────────
 
+/**
+ * ¿Una cita entra en la marca elegida?
+ *
+ * Los predicados son ESPEJO de `baseEventStyle` (`lib/appointment-style.ts`), a
+ * propósito: el filtro tiene que devolver exactamente lo que la grilla pinta de
+ * ese color. Si acá y allá se separan, el usuario filtra por "cancelada" y le
+ * salen tarjetas que no se ven canceladas — y no hay forma de saber cuál de las
+ * dos miente.
+ *
+ * ⚠️ Si alguien toca el mapa de colores, esto va con él.
+ */
+export type MarcaDeCita =
+  | 'MVA_1ST' | 'FIRST_ANY' | 'UNCONFIRMED' | 'ATTENDED'
+  | 'CANCELLED' | 'CANCELLED_SAMEDAY' | 'NO_SHOW' | 'ONLINE';
+
+function cumpleMarca(
+  a: { status: string; visitNumber: number; isOnline?: boolean; cancelledSameDay?: boolean; case: { caseType: string } | null },
+  marca: string,
+): boolean {
+  const esPrimera = a.visitNumber === 0;
+  switch (marca as MarcaDeCita) {
+    // La de Edson: MVA **y** primera visita. Va combinada en una sola entrada
+    // —y no como "tipo + primera visita" en dos filtros— porque es UNA pregunta
+    // de su día, no dos condiciones que él tenga que armar cada vez.
+    case 'MVA_1ST':           return esPrimera && a.case?.caseType === 'MVA';
+    case 'FIRST_ANY':         return esPrimera;
+    // "Sin confirmar" es la rama `isPending` de la grilla: agendada o pendiente.
+    case 'UNCONFIRMED':       return a.status === 'PENDING' || a.status === 'SCHEDULED';
+    case 'ATTENDED':          return a.status === 'COMPLETED';
+    // Las dos cancelaciones son distintas y por eso van separadas: la del mismo
+    // día consumió el horario y admite penalidad.
+    case 'CANCELLED':         return a.status === 'CANCELLED' && a.cancelledSameDay !== true;
+    case 'CANCELLED_SAMEDAY': return a.status === 'CANCELLED' && a.cancelledSameDay === true;
+    case 'NO_SHOW':           return a.status === 'NO_SHOW';
+    // Modalidad, no desenlace: una cita en línea puede estar en cualquier estado.
+    case 'ONLINE':            return a.isOnline === true;
+    default:                  return true;
+  }
+}
+
 function FilterChip({
   emoji,
   placeholder,
@@ -364,7 +404,13 @@ function FilterChip({
   emoji: string;
   placeholder: string;
   value: string;
-  options: { value: string; label: string }[];
+  /**
+   * `separador` dibuja una línea DESPUÉS de esa opción. Existe para el filtro de
+   * la leyenda: "MVA · 1ª visita" va sola arriba porque es el trabajo diario de
+   * Edson (pedido suyo, 2026-09-18), y el resto —desenlaces y modalidad— abajo.
+   * Sin la línea, la primera entrada se lee como una más de la lista.
+   */
+  options: { value: string; label: string; separador?: boolean }[];
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -407,17 +453,19 @@ function FilterChip({
             </button>
             <div className="h-px bg-border/40 mx-2 my-0.5" />
             {options.map(o => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => { onChange(o.value); setOpen(false); }}
-                className={`w-full text-left flex items-center px-3 py-1.5 text-[12px] transition-colors hover:bg-white/5 ${
-                  value === o.value ? 'text-cyan font-semibold' : 'text-text-2'
-                }`}
-              >
-                {o.label}
-                {value === o.value && <span className="ml-auto text-[10px]">✓</span>}
-              </button>
+              <Fragment key={o.value}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                  className={`w-full text-left flex items-center px-3 py-1.5 text-[12px] transition-colors hover:bg-white/5 ${
+                    value === o.value ? 'text-cyan font-semibold' : 'text-text-2'
+                  }`}
+                >
+                  {o.label}
+                  {value === o.value && <span className="ml-auto text-[10px]">✓</span>}
+                </button>
+                {o.separador && <div className="h-px bg-border/40 mx-2 my-0.5" />}
+              </Fragment>
             ))}
           </div>
         </>
@@ -984,6 +1032,40 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   };
 
   const [filterSpecialty, setFilterSpecialty] = useState('');
+  /**
+   * ─── Filtro por lo que dice la LEYENDA ──────────────────────────────────────
+   *
+   * Pedido de Edson (2026-09-18): *"el primero debe ser 1st visit para MVA, ese
+   * sí o sí debe estar solo y encabezado"*. Es lo que mira todos los días —de
+   * 134 citas en los próximos 60 días, **10 son primeras visitas**, 7 de ellas
+   * MVA— así que pasa de buscarlas a golpe de vista a tenerlas solas.
+   *
+   * Los predicados son LOS MISMOS que usa `baseEventStyle` para pintar. Si acá
+   * dijeran otra cosa, el filtro devolvería citas de un color y la leyenda de
+   * otro, y nadie sabría cuál creer. Y las etiquetas salen de las claves
+   * `legend*` que ya usa la leyenda, por lo mismo: no pueden separarse.
+   */
+  const [filterMarca, setFilterMarca] = useState('');
+
+  /**
+   * El orden NO es alfabético ni por frecuencia: lo pidió Edson así.
+   * "MVA · 1ª visita" encabeza y queda sola, separada del resto por una línea.
+   * Debajo, los desenlaces en el orden en que se leen en la grilla, y al final
+   * la modalidad, que es de otro eje.
+   *
+   * Las etiquetas salen de las claves `legend*` que ya usa la leyenda: si
+   * mañana se renombra "No show", cambia en los dos lados sola.
+   */
+  const opcionesDeMarca = useMemo(() => [
+    { value: 'MVA_1ST',           label: t('legendMvaFirst'), separador: true },
+    { value: 'FIRST_ANY',         label: t('legendFirstVisitAny') },
+    { value: 'UNCONFIRMED',       label: t('legendUnconfirmed') },
+    { value: 'CANCELLED',         label: t('legendCancelled') },
+    { value: 'CANCELLED_SAMEDAY', label: t('legendCancelledSameDay') },
+    { value: 'NO_SHOW',           label: t('legendNoShow') },
+    { value: 'ATTENDED',          label: t('legendAttended') },
+    { value: 'ONLINE',            label: t('legendOnline') },
+  ], [t]);
 
   // ─── Catálogo real de especialidades (SpecialtyCatalog) + mapa doctor→especialidades ──
   // El filtro no puede depender de lo que haya cargado en pantalla (eso solo
@@ -1014,11 +1096,12 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const visibleAppointments = useMemo(() => {
     let result = patientQuery ? appointments.filter(a => a.patient.id === patientQuery) : appointments;
     if (filterType) result = result.filter(a => a.case?.caseType === filterType);
+    if (filterMarca) result = result.filter(a => cumpleMarca(a, filterMarca));
     if (filterSpecialty) {
       result = result.filter(a => a.provider?.id && (providerSpecialtyMap[a.provider.id] ?? []).includes(filterSpecialty));
     }
     return result;
-  }, [appointments, patientQuery, filterType, filterSpecialty, providerSpecialtyMap]);
+  }, [appointments, patientQuery, filterType, filterMarca, filterSpecialty, providerSpecialtyMap]);
 
   // Opciones del filtro: el catálogo completo, no lo derivado de citas visibles
   const specialtyOptions = useMemo(
@@ -1191,9 +1274,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             onChange={setFilterType} />
           <FilterChip emoji="🩺" placeholder={t('filterAllSpecialties')} value={filterSpecialty}
             options={specialtyOptions} onChange={setFilterSpecialty} />
-          {(filterClinic || filterProvider || filterType || filterSpecialty || selectedPatient) && (
+          <FilterChip emoji="🔖" placeholder={t('filterAllMarks')} value={filterMarca}
+            options={opcionesDeMarca} onChange={setFilterMarca} />
+          {(filterClinic || filterProvider || filterType || filterMarca || filterSpecialty || selectedPatient) && (
             <button type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); clearPatient(); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterMarca(''); setFilterSpecialty(''); clearPatient(); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">✕</button>
           )}
         </div>
@@ -1257,10 +1342,19 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             options={specialtyOptions}
             onChange={setFilterSpecialty}
           />
-          {(filterClinic || filterProvider || filterType || filterSpecialty || selectedPatient) && (
+          {/* La marca de la leyenda. Va al lado de Especialidad, como pidió
+              Erick, y encabezada por "MVA · 1ª visita" — ver `opcionesDeMarca`. */}
+          <FilterChip
+            emoji="🔖"
+            placeholder={t('filterAllMarks')}
+            value={filterMarca}
+            options={opcionesDeMarca}
+            onChange={setFilterMarca}
+          />
+          {(filterClinic || filterProvider || filterType || filterMarca || filterSpecialty || selectedPatient) && (
             <button
               type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); clearPatient(); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterMarca(''); setFilterSpecialty(''); clearPatient(); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors"
             >
               ✕

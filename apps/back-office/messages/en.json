@@ -2985,6 +2985,7 @@
       "filterTypeMva": "MVA",
       "filterTypeGm": "GM",
       "filterAllSpecialties": "Specialty",
+      "filterAllMarks": "Mark",
       "typeAutoAccident": "🚗 MVA (auto)",
       "typeFamilyPractice": "Family Practice",
       "typeUrgentCare": "Urgent Care",

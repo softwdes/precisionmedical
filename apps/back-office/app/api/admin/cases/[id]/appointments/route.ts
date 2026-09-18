@@ -27,6 +27,10 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
     select: {
       id: true,
       caseCode: true,
+      // Sin esto el panel de la cita no puede distinguir un MVA de un caso
+      // general, y termina pidiéndole a los dos lo mismo: fecha del accidente,
+      // abogado y PIP. En un caso general no existe ninguno de los tres.
+      caseType: true,
       accidentType: true,
       accidentDate: true,
       status: true,
@@ -76,6 +80,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
   const caseInfo = {
     id: caseRow.id,
     caseCode: caseRow.caseCode,
+    caseType: caseRow.caseType,
     accidentType: caseRow.accidentType,
     accidentDate: caseRow.accidentDate?.toISOString() ?? null,
     status: caseRow.status,

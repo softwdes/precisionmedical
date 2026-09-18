@@ -79,6 +79,24 @@ export interface CalendarAppointment {
   case: {
     id: string;
     caseCode: string;
+    /**
+     * `MVA` o `GENERAL` — y es OBLIGATORIO a propósito.
+     *
+     * De esto depende que a un caso general no se le pida la fecha del
+     * accidente, el abogado y el PIP, que es lo que venía pasando: el cartel de
+     * primera visita y el checklist estaban escritos para un choque y salían
+     * igual en un control de rutina, con dos advertencias que nadie podía
+     * resolver nunca (Erick, 17-sep-2026).
+     *
+     * Si fuera opcional, una pantalla que se olvidara de mandarlo volvería al
+     * bug sin que nada avise. Siendo obligatorio, el typecheck obliga a las
+     * CINCO pantallas que usan este panel a decidirlo.
+     *
+     * Y es `caseType`, no `accidentType`: el segundo está vacío en el 96% de
+     * los casos y además mal escrito en los GM creados desde el diálogo viejo
+     * —les estampaba `AUTO`—, así que no distingue nada.
+     */
+    caseType: string | null;
     accidentType: string | null;
     accidentDate: string | null;
     status: string;
@@ -322,6 +340,21 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const dt        = formatDateTime(appt.scheduledFor, locale);
   const statusCfgRaw = STATUS_CONFIG[appt.status];
   const statusCfg = { label: statusCfgRaw ? t(statusCfgRaw.tKey as Parameters<typeof t>[0]) : appt.status, state: (statusCfgRaw?.state ?? 'info') as StatusState };
+  /**
+   * ¿Es un caso de accidente?
+   *
+   * Lo que cuelga de esto: la fecha del accidente, el abogado y el PIP. Los
+   * tres son del choque — en un control de medicina general no existe ninguno,
+   * y pedirlos igual llenaba el panel de advertencias que nadie podía resolver
+   * nunca. Y una advertencia que no se puede resolver enseña a ignorar las
+   * advertencias (Erick, 17-sep-2026).
+   *
+   * La comparación es contra `GENERAL` y no `=== 'MVA'` a propósito: si algún
+   * día aparece un tercer tipo de caso, lo prudente es que herede el checklist
+   * COMPLETO y que alguien tenga que decidir sacarle cosas, no que empiece sin
+   * controles porque nadie se acordó de agregarlo acá.
+   */
+  const esAccidente   = appt.case?.caseType !== 'GENERAL';
   const intakeDone    = !!appt.case?.intakeFormCompletedAt;
   const lawyerDone    = !!appt.case?.attorney;
   const insuranceDone = !!appt.case?.primaryInsurance;
@@ -1062,7 +1095,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <span className="text-2xl shrink-0">🆕</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-white font-bold text-sm">{t('firstVisitBannerTitle')}</div>
-                      <div className="text-text-2 text-xs mt-1 leading-relaxed">{t('firstVisitBannerSubtitle')}</div>
+                      {/* Qué hay que verificar antes de que llegue — y depende
+                          del caso. El texto de MVA nombra el DOL y el abogado;
+                          en un caso general ninguna de las dos cosas existe, y
+                          el cartel le pedía a recepción datos de un accidente
+                          que nunca hubo. */}
+                      <div className="text-text-2 text-xs mt-1 leading-relaxed">
+                        {esAccidente ? t('firstVisitBannerSubtitle') : t('firstVisitBannerSubtitleGeneral')}
+                      </div>
                     </div>
                     {appt.patient.phone && (
                       <a href={`tel:${appt.patient.phone}`}
@@ -1217,8 +1257,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 {t('sectionPreVisitStatus')}</div>
                   <div className="space-y-2">
                     <CheckItem done={intakeDone}    label={t('checklistIntakeForm')}             sublabel={intakeDone ? t('checklistCompleted') : t('checklistIntakePending')} />
-                    <CheckItem done={lawyerDone}    label={t('checklistLawyerVerified')}         sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : t('checklistNoLawyer')} />
-                    <CheckItem done={insuranceDone} label={t('checklistInsuranceVerified')}      sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : t('checklistInsurancePending')} />
+                    {/* El abogado SOLO en un caso de accidente. No se muestra
+                        deshabilitado ni con un "no aplica": en un control de
+                        medicina general no es una tarea pendiente, es una
+                        pregunta que no va — y una fila permanentemente en ámbar
+                        vuelve decorativo al resto del checklist. */}
+                    {esAccidente && (
+                      <CheckItem done={lawyerDone}  label={t('checklistLawyerVerified')}         sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : t('checklistNoLawyer')} />
+                    )}
+                    {/* El seguro SÍ se queda en los dos: un paciente de medicina
+                        general puede tener cobertura y facturación la necesita
+                        verificada igual. Lo que cambia es el nombre — el PIP es
+                        del seguro del AUTO y fuera de un MVA no existe. */}
+                    <CheckItem done={insuranceDone} label={esAccidente ? t('checklistInsuranceVerified') : t('checklistInsuranceVerifiedGeneral')} sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : t('checklistInsurancePending')} />
                     <CheckItem done={appt.status === 'CONFIRMED'} label={t('checklistConfirmationCall')} sublabel={appt.status === 'CONFIRMED' ? t('checklistCallConfirmed') : t('checklistCallNotDone')} />
                   </div>
                 </div>

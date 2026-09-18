@@ -219,6 +219,9 @@ export default async function DoctorConsultationPage({
             ? {
                 id: a.case.id,
                 caseCode: a.case.caseCode,
+                // Decide si el panel pide accidente, abogado y PIP — en un caso
+                // general no existe ninguno de los tres. Ya estaba en el select.
+                caseType: a.case.caseType ?? null,
                 accidentType: a.case.accidentType ?? null,
                 accidentDate: a.case.accidentDate?.toISOString() ?? null,
                 status: 'ACTIVE',

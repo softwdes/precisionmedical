@@ -68,7 +68,19 @@ const InputSchema = z.object({
   // Accident
   accident: z.object({
     date: z.string().datetime().nullable().optional(),
-    type: z.enum(['AUTO', 'MOTORCYCLE', 'PEDESTRIAN', 'WORKPLACE', 'OTHER']).default('AUTO'),
+    /**
+     * `nullable` además del default: un caso SIN accidente tiene que poder
+     * decirlo.
+     *
+     * Era `.default('AUTO')` a secas, o sea que la única forma de no mandar un
+     * tipo de accidente era omitir el campo… y omitirlo volvía a poner `AUTO`.
+     * Un caso de medicina general quedaba guardado como accidente de auto, sin
+     * fecha y sin que nadie lo hubiera elegido.
+     *
+     * El default se queda para quien mande el campo a medias; lo que cambia es
+     * que ahora `null` es una respuesta válida y significa "no hubo accidente".
+     */
+    type: z.enum(['AUTO', 'MOTORCYCLE', 'PEDESTRIAN', 'WORKPLACE', 'OTHER']).nullable().default('AUTO'),
     location: z.string().max(200).nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
   }),

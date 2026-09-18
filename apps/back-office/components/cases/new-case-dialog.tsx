@@ -731,10 +731,31 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             dateOfBirth: dateOfBirth ? new Date(dateOfBirth + 'T12:00:00Z').toISOString() : null,
             preferredLanguage: language,
           },
-          accident: {
-            date: accidentDate ? new Date(accidentDate + 'T12:00:00Z').toISOString() : null,
-            type: accidentType, location: accidentLocation.trim() || null, notes: accidentNotes.trim() || null,
-          },
+          /**
+           * El bloque del accidente sale del TIPO DE CASO, no del estado suelto.
+           *
+           * `accidentType` arranca en `'AUTO'` y la sección del accidente solo
+           * se dibuja cuando el caso es MVA — así que un caso general se
+           * guardaba con `accidentType: AUTO` sin que nadie lo hubiera elegido
+           * ni visto. Medido en producción: GM-3382 y GM-3381 son `GENERAL`,
+           * sin fecha de accidente, y marcados como accidente de auto.
+           *
+           * No alcanzaba con limpiarlo al cambiar de tipo: lo correcto es que
+           * el payload no pueda contradecir al tipo de caso. Si el formulario
+           * no preguntó por el accidente, no tiene nada que contestar.
+           *
+           * Ojo: esto NO dice que un caso general no pueda tener accidente
+           * —el enum tiene `WORKPLACE` y `OTHER`, y una lesión de trabajo es un
+           * caso general con accidente real—; dice que ESTE diálogo, que no lo
+           * pregunta, no puede inventarlo. El día que lo pregunte, este `if`
+           * pasa a mirar el campo y no el tipo.
+           */
+          accident: caseType === 'MVA'
+            ? {
+                date: accidentDate ? new Date(accidentDate + 'T12:00:00Z').toISOString() : null,
+                type: accidentType, location: accidentLocation.trim() || null, notes: accidentNotes.trim() || null,
+              }
+            : { date: null, type: null, location: null, notes: null },
           legal: {
             lawyerStatus,
             lawFirmId:    lawyerStatus === 'HAS' ? (lawFirm?.id ?? null)  : null,

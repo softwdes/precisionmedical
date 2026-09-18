@@ -31,8 +31,29 @@ export type MissingKey =
   | 'missingMedicalHistory'
   | 'missingConsents';
 
-/** Cuántas secciones tiene el intake — el denominador del porcentaje. */
+/**
+ * Cuántas secciones tiene el intake — el denominador del porcentaje.
+ *
+ * Son SIETE en un caso de accidente y SEIS en uno general, porque ahí la
+ * sección del accidente no existe. El denominador tiene que moverse con el
+ * numerador: dejarlo clavado en 7 sería cambiar una sección imposible de
+ * completar por un porcentaje que nunca llega a 100, que es el mismo problema
+ * con otra cara.
+ */
 export const SECCIONES_INTAKE = 7;
+export const SECCIONES_INTAKE_GENERAL = 6;
+
+/**
+ * ¿A este caso le corresponde la sección del accidente?
+ *
+ * Contra `GENERAL` y no `=== 'MVA'`: un tipo de caso nuevo hereda el
+ * cuestionario completo y alguien tiene que decidir sacarle cosas, en vez de
+ * aparecer con una sección menos porque nadie se acordó de nombrarlo acá. Y
+ * ausente cuenta como accidente, que es como se comportaba antes.
+ */
+function pideAccidente(c: CasoIntake): boolean {
+  return c.caseType !== 'GENERAL';
+}
 
 type Fecha = string | Date | null | undefined;
 
@@ -41,6 +62,15 @@ export interface CasoIntake {
   intakeFormCompletedAt: Fecha;
   /** El blob del portal: consentimientos, firma y los seguros médicos. */
   consentsData: Record<string, unknown> | null | undefined;
+  /**
+   * `MVA` o `GENERAL` — decide si la sección del accidente se pide.
+   *
+   * Opcional porque no todas las pantallas lo traían, y **ausente cuenta como
+   * caso de accidente**: es exactamente lo que hacía antes, así que agregarlo
+   * no le cambia el número a nadie que todavía no lo mande. Lo que sí arregla
+   * es el caso general, que quedaba con una sección imposible de completar.
+   */
+  caseType?: string | null;
   accidentDate: Fecha;
   accidentType?: string | null;
   /**
@@ -111,8 +141,18 @@ export function progresoIntake(c: CasoIntake, p: PacienteIntake): ProgresoIntake
   if (!p.emergencyContactName) faltan.push('missingEmergency');
   // 3 · Demografía — raza, sexo, estado civil
   if (!p.race || !p.sex || !p.maritalStatus) faltan.push('missingDemographics');
-  // 4 · Info del accidente — la fecha registrada en el caso
-  if (!c.accidentDate && !c.accidentType) faltan.push('missingAccident');
+  /**
+   * 4 · Info del accidente — la fecha registrada en el caso.
+   *
+   * Solo si al caso le corresponde: a uno de medicina general no hay accidente
+   * que preguntarle, y pedírselo lo dejaba con una sección que nadie podía
+   * completar nunca. Hoy no se notaba porque el diálogo de alta le estampaba
+   * `accidentType: AUTO` a todos —ver `new-case-dialog`—, así que la sección
+   * contaba como hecha por un dato equivocado. Arreglar aquel bug sin arreglar
+   * éste habría hecho aparecer "Falta: info del accidente" en todos los casos
+   * generales: van juntos.
+   */
+  if (pideAccidente(c) && !c.accidentDate && !c.accidentType) faltan.push('missingAccident');
   // 5 · Seguros — los MEDICAL siguen en `consentsData`, el de auto vive en su
   //     propia tabla (`case_auto_insurances`). Cuenta cualquiera de los dos.
   const ins = cd.insurances;
@@ -123,6 +163,7 @@ export function progresoIntake(c: CasoIntake, p: PacienteIntake): ProgresoIntake
   // 7 · Consentimientos + firma
   if (!consentimientosFirmados(c.consentsData)) faltan.push('missingConsents');
 
-  const hechas = SECCIONES_INTAKE - faltan.length;
-  return { pct: Math.round((hechas / SECCIONES_INTAKE) * 100), faltan };
+  const total  = pideAccidente(c) ? SECCIONES_INTAKE : SECCIONES_INTAKE_GENERAL;
+  const hechas = total - faltan.length;
+  return { pct: Math.round((hechas / total) * 100), faltan };
 }

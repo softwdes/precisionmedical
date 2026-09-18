@@ -213,6 +213,9 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
         select: {
           id: true, caseCode: true,
           intakeFormCompletedAt: true, consentsData: true,
+          // Decide si al caso le corresponde la seccion del accidente: a uno
+          // general no, y pedirsela lo dejaba siempre incompleto en la cola.
+          caseType: true,
           accidentDate: true, accidentType: true,
           intakeSubmission: { select: { id: true } },
           autoInsurance: { select: { id: true } },
@@ -254,6 +257,7 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
     const caso = {
       intakeFormCompletedAt: c.intakeFormCompletedAt,
       consentsData: c.consentsData as Record<string, unknown> | null,
+      caseType: c.caseType,
       accidentDate: c.accidentDate,
       accidentType: c.accidentType,
       hasIntakeSubmission: !!c.intakeSubmission,

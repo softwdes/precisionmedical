@@ -618,6 +618,9 @@ export function AdmissionDetailClient({
               case: d.case ? {
                 id:                    d.case.id,
                 caseCode:              d.case.caseCode,
+                // Decide si el panel pide accidente, abogado y PIP — en un caso
+                // general no existe ninguno de los tres. La API ya lo devolvía.
+                caseType:              d.case.caseType,
                 accidentType:          d.case.accidentType,
                 accidentDate:          d.case.accidentDate,
                 status:                'ACTIVE',

@@ -94,8 +94,9 @@ export function CargosDialog({
           <DialogTitle className="text-text-1 font-semibold text-base">
             {t('chargesTitle')}
           </DialogTitle>
+          {/* El código solo si se sabe: un chip vacío se lee como un dato roto. */}
           <p className="text-text-muted text-xs mt-0.5 truncate">
-            <span className="font-mono text-cyan mr-1.5">{caseCode}</span>
+            {caseCode && <span className="font-mono text-cyan mr-1.5">{caseCode}</span>}
             {paciente}
           </p>
         </div>

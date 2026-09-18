@@ -414,7 +414,26 @@ export interface FinanzasTabHandle {
  * Servicios y en el Resumen, y sin el aviso seguían mostrando el saldo de antes
  * de cobrar.
  */
-export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string; readOnly?: boolean; onChanged?: () => void }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false, onChanged }, ref) {
+export const FinanzasTab = forwardRef<FinanzasTabHandle, {
+  caseId: string;
+  filterAppointmentId?: string;
+  readOnly?: boolean;
+  onChanged?: () => void;
+  /**
+   * Atajo a los CARGOS del caso desde el pie del modal de cobro.
+   *
+   * Es OPCIONAL a propósito, y lo decide quien monta el componente. En la vista
+   * del caso no hace falta —los tabs de Servicios y Férulas están ahí al lado—;
+   * en Finanzas sí, porque el modal se abre desde una lista y sin esto había que
+   * cerrarlo, desplegar la fila y entrar por otro botón (Erick, 18-sep-2026).
+   *
+   * Quien lo pasa se encarga de CERRAR este modal antes de abrir el suyo: dos
+   * ventanas apiladas dejan dos fondos oscuros encima, que es el problema que
+   * este archivo ya evita con los overlays internos de la nota y del pago por
+   * línea.
+   */
+  onAddCharge?: () => void;
+}>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false, onChanged, onAddCharge }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
   // Claves del CTA "Cobrar $X" — las mismas del Resumen (una sola voz)
@@ -1562,6 +1581,19 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 )}
                 {/* Sin repartidor, el botón no puede quedar solo a la izquierda. */}
                 {visitasDelModal.length <= 1 && <div className="flex-1" />}
+                {/* Agregar un cargo, al lado de cobrarlo.
+                    `outline` y no relleno: la acción de esta ventana es COBRAR;
+                    facturar es la salida de emergencia para cuando falta algo. */}
+                {onAddCharge && !readOnly && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onAddCharge}
+                    className="whitespace-nowrap"
+                  >
+                    {t('payAddCharge')}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   onClick={submitPayment}

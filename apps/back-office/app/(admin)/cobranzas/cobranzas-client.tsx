@@ -237,6 +237,16 @@ export function CobranzasClient() {
   function cobrar(f: Fila) {
     if (f.casosConDeuda === 1 && f.unicoCaseId) {
       setCobrando({ caseId: f.unicoCaseId, patientId: f.patientId });
+      /**
+       * El detalle se pide igual, aunque la fila no esté desplegada.
+       *
+       * De ahí sale el CÓDIGO del caso, y desde el modal de cobro se puede
+       * saltar a "+ Agregar cargo": sin esto el diálogo de cargos abría
+       * diciendo solo el nombre del paciente, sin decir sobre qué expediente
+       * se está facturando (visto en pantalla, 18-sep). Es una consulta que
+       * queda cacheada y que el desplegable iba a pedir igual.
+       */
+      void traerDetalle(f.patientId);
       return;
     }
     setAbierta(f.patientId);
@@ -436,6 +446,26 @@ export function CobranzasClient() {
             ref={finanzasRef}
             caseId={cobrando.caseId}
             onChanged={alCobrar}
+            /**
+             * Del cobro a los cargos sin pasar por la lista.
+             *
+             * Se CIERRA el de cobrar antes de abrir el de cargos —desmontando
+             * `cobrando`— en vez de apilarlos: dos ventanas encima dejan dos
+             * fondos oscuros, y además la de cargos necesita todo el alto.
+             * Al cerrar la de cargos se vuelve a la lista con la deuda ya
+             * recalculada, que es donde hay que decidir si ahora se cobra.
+             */
+            onAddCharge={() => {
+              const caso = detalles[cobrando.patientId]?.casos
+                .find(c => c.caseId === cobrando.caseId);
+              const fila = filas.find(f => f.patientId === cobrando.patientId);
+              setCobrando(null);
+              setCargosDe({
+                caseId: cobrando.caseId,
+                caseCode: caso?.caseCode ?? '',
+                paciente: fila ? `${fila.firstName} ${fila.lastName}`.trim() : '',
+              });
+            }}
           />
         </div>
       )}

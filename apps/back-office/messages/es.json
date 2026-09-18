@@ -5661,7 +5661,7 @@
       "adjusterFromCatalog": "Elegir del catálogo",
       "adjusterSearchPh": "Buscar por nombre, teléfono o aseguradora…",
       "adjusterCatalogEmpty": "Nadie en el catálogo con esa búsqueda.",
-      "adjusterOrByHand": "o escribirlo a mano",
+      "adjusterNotInList": "No está en la lista — escribirlo a mano",
       "adjusterPick": "De la aseguradora",
       "adjusterNew": "Persona nueva",
       "adjusterName": "Nombre",

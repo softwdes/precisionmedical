@@ -9,8 +9,16 @@
  *
  * Dos decisiones que conviene entender antes de tocar el archivo:
  *
- *  1. **Un solo clic**, no doble. El doble clic no tiene ninguna señal visual,
- *     no se descubre solo y en una grilla pelea con la seleccion de texto.
+ *  1. **Un solo clic**, no doble, en las celdas que se ESCRIBEN (claim, y los
+ *     combos de aseguradora, abogado y quiro). El doble clic no tiene señal
+ *     visual, no se descubre solo y pelea con la seleccion de texto.
+ *
+ *     La excepcion es la columna de **provider**, que abre con doble clic
+ *     (`abreConDobleClic`). Lo pidio Edson dos veces y lo confirmo el
+ *     2026-09-18 despues de que le plantee quedarnos con un clic: en esa
+ *     columna no se escribe, se ELIGE de una lista corta, y el gesto viene del
+ *     Excel del que salio esta vista. Ahi el doble clic si se descubre solo,
+ *     porque es el que ya tenia en la mano.
  *
  *  2. **Enter guarda; salir de la celda NO guarda.** Es lo contrario a Excel, y
  *     es a proposito: estas celdas no editan las notas de Edson, editan el CASO
@@ -112,6 +120,7 @@ export function InlineText({
  */
 export function InlineCombo({
   value, options, onSave, readOnly, title, emptyHint,
+  abreConLaLista = false, abreConDobleClic = false,
 }: {
   value: string | null;
   options: { id: string; name: string }[];
@@ -120,6 +129,30 @@ export function InlineCombo({
   readOnly?: boolean;
   title?: string;
   emptyHint: string;
+  /**
+   * Abrir mostrando TODA la lista en vez del valor actual.
+   *
+   * Por defecto el buscador arranca con el valor que ya tenia, y entonces la
+   * lista de abajo queda filtrada a esa sola fila: hay que borrar el texto para
+   * ver las opciones. En un catalogo de cientos (aseguradoras, bufetes) eso
+   * esta bien, porque la lista completa no se puede leer igual.
+   *
+   * Con una lista corta y enumerable —los 20 providers— es al reves: Edson
+   * abre para VER a quien puede poner, y ver solo al que ya esta no le sirve
+   * de nada. Lo reporto el 2026-09-18: "al dar clic no muestra la lista de
+   * providers, solo aparece el actual y para borrarlo".
+   */
+  abreConLaLista?: boolean;
+  /**
+   * Abrir con DOBLE clic en vez de uno solo. Lo pidió Edson para la columna de
+   * provider el 2026-09-18 y lo confirmó cuando le planteé quedarnos con un
+   * clic: viene del Excel, donde la celda se edita con doble clic.
+   *
+   * Va como opción y no como cambio general a propósito: las otras columnas
+   * (aseguradora, abogado, quiro) siguen abriendo con un clic, que es lo que
+   * dice la nota de arriba del archivo.
+   */
+  abreConDobleClic?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState('');
@@ -130,7 +163,11 @@ export function InlineCombo({
 
   const q = draft.trim().toLowerCase();
   // Se acota la lista: el catalogo tiene cientos y un panel con todos no ayuda.
-  const matches = (q ? options.filter(o => o.name.toLowerCase().includes(q)) : options).slice(0, 8);
+  // Se acota a 8 porque los catalogos grandes no se leen de un vistazo. Cuando
+  // la lista es corta y se abre entera, ese tope la cortaria justo en lo que
+  // Edson vino a ver — y ademas dejaria la fila resaltada fuera del arreglo.
+  const matches = (q ? options.filter(o => o.name.toLowerCase().includes(q)) : options)
+    .slice(0, abreConLaLista ? 50 : 8);
 
   useLayoutEffect(() => {
     if (editing) { inputRef.current?.focus(); inputRef.current?.select(); }
@@ -139,8 +176,11 @@ export function InlineCombo({
   function open(el: HTMLElement) {
     const r = el.getBoundingClientRect();
     setRect({ top: r.top, bottom: r.bottom, left: r.left, right: r.right });
-    setDraft(value ?? '');
-    setHi(0);
+    setDraft(abreConLaLista ? '' : (value ?? ''));
+    // Con la lista completa a la vista, se resalta el que ya esta puesto: asi
+    // Enter sin tocar nada no cambia nada, y las flechas arrancan desde ahi.
+    const actual = abreConLaLista && value ? options.findIndex(o => o.name === value) : -1;
+    setHi(actual >= 0 ? actual : 0);
     setEditing(true);
   }
 
@@ -173,8 +213,19 @@ export function InlineCombo({
         type="button"
         data-inline-edit
         title={title}
-        onClick={e => open(e.currentTarget)}
-        className={TRIGGER_CLS + ' truncate block' + (value ? ' text-text-2' : '') + (editing ? ' invisible' : '')}
+        /*
+         * Con doble clic, el clic simple del MOUSE no abre — pero el del
+         * TECLADO sí. Enter y Espacio sobre un <button> disparan un click con
+         * `detail === 0`, y si lo ignoráramos como al del mouse, la celda
+         * quedaría sin forma de abrirse sin mouse.
+         */
+        onClick={e => { if (abreConDobleClic && e.detail !== 0) return; open(e.currentTarget); }}
+        onDoubleClick={e => { if (abreConDobleClic) open(e.currentTarget); }}
+        className={TRIGGER_CLS + ' truncate block' + (value ? ' text-text-2' : '')
+          + (editing ? ' invisible' : '')
+          // Sin esto el doble clic selecciona la palabra antes de abrir y queda
+          // el texto resaltado en azul debajo del panel.
+          + (abreConDobleClic ? ' select-none' : '')}
       >
         {value || <Empty />}
       </button>
@@ -195,9 +246,17 @@ export function InlineCombo({
               if (e.key === 'Enter') {
                 e.preventDefault();
                 const pick = matches[hi];
-                // Con la lista filtrada, Enter toma la resaltada; si lo escrito
-                // no coincide con ninguna, se guarda tal cual.
-                if (pick && q) void commit({ id: pick.id, text: null });
+                /*
+                 * Con la lista filtrada, Enter toma la resaltada; si lo escrito
+                 * no coincide con ninguna, se guarda tal cual.
+                 *
+                 * El `q` del medio NO sobra: sin el, borrar el campo y apretar
+                 * Enter —que es como se saca un valor— guardaria la primera
+                 * opcion de la lista en vez de vaciarlo. Con `abreConLaLista` el
+                 * campo arranca vacio a proposito, asi que ahi Enter si tiene
+                 * que tomar la resaltada.
+                 */
+                if (pick && (q || abreConLaLista)) void commit({ id: pick.id, text: null });
                 else commitTyped();
               }
             }}

@@ -858,6 +858,15 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                   emptyHint={t('providerPick')}
                                   title={t('providerPick')}
                                   /*
+                                   * Abre con los 20 a la vista y el actual
+                                   * resaltado. Sin esto la lista salía filtrada
+                                   * al que ya estaba y había que borrarlo para
+                                   * ver a los demás.
+                                   */
+                                  abreConLaLista
+                                  /* Doble clic, como en el Excel del que viene. */
+                                  abreConDobleClic
+                                  /*
                                    * Solo de la lista: acá no hay texto libre.
                                    * El provider es una ficha real con NPI, y un
                                    * nombre escrito a mano no es nadie.

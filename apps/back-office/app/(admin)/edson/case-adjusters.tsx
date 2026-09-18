@@ -15,7 +15,7 @@
  * Ver docs/plan-vista-edson.md
  */
 
-import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, useRef, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, X, Mail, Phone, Printer, Loader2, MapPin } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
@@ -207,6 +207,10 @@ function CatalogoAdjusters({
   const [q, setQ] = useState('');
   const [lista, setLista] = useState<AdjusterDelCatalogo[]>([]);
   const [cargando, setCargando] = useState(true);
+  /** Fila resaltada: con flechas se mueve y con Enter se elige. */
+  const [hi, setHi] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
 
   // Debounce, por lo mismo que el buscador de la grilla: sin esto cada tecla
   // dispara una consulta.
@@ -220,20 +224,38 @@ function CatalogoAdjusters({
         if (carrierId) sp.set('carrierId', carrierId);
         const res  = await fetch(`/api/admin/adjusters?${sp}`);
         const json = await res.json().catch(() => ({}));
-        if (vivo && res.ok) setLista(json.adjusters ?? []);
+        if (vivo && res.ok) { setLista(json.adjusters ?? []); setHi(0); }
       } finally { if (vivo) setCargando(false); }
     }, q ? 300 : 0);
     return () => { vivo = false; clearTimeout(id); };
   }, [q, carrierId]);
+
+  // El foco arranca en el buscador: se abre y se escribe, sin un clic de más.
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // La fila resaltada se mantiene a la vista al moverse con las flechas.
+  useEffect(() => {
+    listaRef.current?.querySelector('[data-hi="1"]')?.scrollIntoView({ block: 'nearest' });
+  }, [hi]);
 
   return (
     <div className="space-y-1.5">
       <Label htmlFor="ca-buscar">{t('adjusterFromCatalog')}</Label>
       <Input
         id="ca-buscar"
+        ref={inputRef}
         value={q}
         onChange={e => setQ(e.target.value)}
         placeholder={t('adjusterSearchPh')}
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, lista.length - 1)); }
+          if (e.key === 'ArrowUp')   { e.preventDefault(); setHi(h => Math.max(h - 1, 0)); }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const elegido = lista[hi];
+            if (elegido && !saving) onPick(elegido);
+          }
+        }}
       />
 
       {cargando && (
@@ -248,8 +270,8 @@ function CatalogoAdjusters({
 
       {/* Sin borde: el escalón de fondo ya separa la lista de la caja (Regla #0). */}
       {!cargando && lista.length > 0 && (
-        <div className="max-h-52 overflow-y-auto rounded-md bg-bg-2/40">
-          {lista.map(a => {
+        <div ref={listaRef} className="max-h-52 overflow-y-auto rounded-md bg-bg-2/40">
+          {lista.map((a, i) => {
             // La aseguradora del caso se marca, para que elegir a alguien de
             // otra compañía sea una decisión y no un descuido.
             const esDelCaso = !!carrierId && a.insuranceCarrier?.id === carrierId;
@@ -258,8 +280,11 @@ function CatalogoAdjusters({
                 key={a.id}
                 type="button"
                 disabled={saving}
+                data-hi={i === hi ? '1' : undefined}
+                onMouseEnter={() => setHi(i)}
                 onClick={() => onPick(a)}
-                className="w-full text-left px-2.5 py-1.5 border-b border-row-sep last:border-0 hover:bg-white/[0.02] disabled:opacity-50 flex items-baseline gap-2"
+                className={'w-full text-left px-2.5 py-1.5 border-b border-row-sep last:border-0 disabled:opacity-50 flex items-baseline gap-2 '
+                  + (i === hi ? 'bg-brand/15' : 'hover:bg-white/[0.02]')}
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12.5px] text-text-1 truncate">{a.name}</span>
@@ -353,7 +378,12 @@ export function AdjustersSection({
   const [email, setEmail]     = useState('');
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
-
+  /**
+   * El formulario a mano queda detrás de un link. La lista del catálogo es el
+   * camino normal —"solo al dar clic muestra la lista, selecciona, enter y
+   * listo"— y escribir a alguien nuevo es la excepción, no el primer paso.
+   */
+  const [aMano, setAMano]     = useState(false);
 
   /**
    * Asignar a alguien del catálogo. Manda solo el id: el endpoint hace `upsert`
@@ -460,8 +490,15 @@ export function AdjustersSection({
       {adding && (
         <div className="rounded-lg bg-bg-1 p-3 space-y-3">
           {/*
-            * El buscador del catalogo va ARRIBA y el formulario queda abajo,
-            * siempre visible. No son pestañas.
+            * "Agregar adjuster" abre DIRECTO la lista, con el foco ya puesto en
+            * el buscador: se escribe, se baja con las flechas y Enter lo asigna.
+            * El formulario a mano queda detras de un link.
+            *
+            * Antes se abrian los dos juntos —lista arriba, formulario abajo— y
+            * Edson lo rechazo el 2026-09-18: "ahora llama al formulario y sale
+            * la lista para seleccionar y lo elige pero esta feo". Tenia razon:
+            * el 100% de las veces el camino es la lista, y poner el formulario
+            * en el medio hace ver un trabajo que casi nunca hay que hacer.
             *
             * Hubo un selector antes y se quito con razon: filtraba por la
             * aseguradora del caso y el catalogo estaba vacio, asi que salia en
@@ -474,17 +511,33 @@ export function AdjustersSection({
             * habia cargado, 2 no estan en el catalogo. Si el selector lo
             * reemplazara, perderia poder anotar a alguien nuevo.
             */}
-          <CatalogoAdjusters
-            carrierId={carrier?.id ?? null}
-            onPick={(a) => void asignarDelCatalogo(a.id)}
-            saving={saving}
-          />
+          {!aMano && (
+            <>
+              <CatalogoAdjusters
+                carrierId={carrier?.id ?? null}
+                onPick={(a) => void asignarDelCatalogo(a.id)}
+                saving={saving}
+              />
+              {error && <div className="text-rose text-[12px]">{error}</div>}
+              <button
+                type="button"
+                onClick={() => { setAMano(true); setError(''); }}
+                className="text-[11px] text-text-muted hover:text-text-1 underline underline-offset-2"
+              >
+                {t('adjusterNotInList')}
+              </button>
+            </>
+          )}
 
-          <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-[10px] uppercase tracking-wider text-text-muted">{t('adjusterOrByHand')}</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
+          {aMano && (
+          <>
+          <button
+            type="button"
+            onClick={() => { setAMano(false); setError(''); }}
+            className="text-[11px] text-text-muted hover:text-text-1 underline underline-offset-2"
+          >
+            ← {t('adjusterFromCatalog')}
+          </button>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="sm:col-span-2">
@@ -515,10 +568,12 @@ export function AdjustersSection({
             <Button onClick={() => void assign()} disabled={saving || !name.trim()}>
               {saving ? '…' : t('adjusterAdd')}
             </Button>
-            <Button variant="outline" onClick={() => { setAdding(false); setError(''); }}>
+            <Button variant="outline" onClick={() => { setAdding(false); setAMano(false); setError(''); }}>
               <X className="w-3.5 h-3.5" />
             </Button>
           </div>
+          </>
+          )}
         </div>
       )}
 

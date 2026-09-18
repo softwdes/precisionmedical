@@ -5661,7 +5661,7 @@
       "adjusterFromCatalog": "Pick from the catalog",
       "adjusterSearchPh": "Search by name, phone or carrier…",
       "adjusterCatalogEmpty": "No one in the catalog matches that search.",
-      "adjusterOrByHand": "or type it by hand",
+      "adjusterNotInList": "Not in the list — type it by hand",
       "adjusterPick": "From the carrier",
       "adjusterNew": "New person",
       "adjusterName": "Name",

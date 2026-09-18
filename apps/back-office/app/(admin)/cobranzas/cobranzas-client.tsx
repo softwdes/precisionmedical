@@ -147,7 +147,22 @@ export function CobranzasClient() {
    * o que se cargó un servicio de más— y hasta ahora tenía que irse a la vista
    * del caso para lo segundo.
    */
-  const [cargosDe, setCargosDe] = useState<{ caseId: string; caseCode: string; paciente: string } | null>(null);
+  const [cargosDe, setCargosDe] = useState<{
+    caseId: string;
+    caseCode: string;
+    paciente: string;
+    /**
+     * A dónde volver al cerrar.
+     *
+     * Con valor, el diálogo se abrió DESDE la ventana de cobro y al cerrarlo
+     * hay que devolver al usuario ahí: entró a agregar un cargo en medio de un
+     * cobro, y dejarlo tirado en la lista lo obliga a buscar al paciente de
+     * nuevo para cobrar lo que acaba de cargar (Erick, 18-sep-2026).
+     *
+     * En `null` se abrió desde la fila, y ahí la lista SÍ es el lugar correcto.
+     */
+    volverAlCobro: { caseId: string; patientId: string } | null;
+  } | null>(null);
 
   // ── Carga de la lista ──────────────────────────────────────────────────────
 
@@ -386,7 +401,9 @@ export function CobranzasClient() {
                       onCobrar={() => cobrar(f)}
                       onCobrarCaso={(caseId) => setCobrando({ caseId, patientId: f.patientId })}
                       onCargosCaso={(caseId, caseCode) => setCargosDe({
-                        caseId, caseCode, paciente: `${f.firstName} ${f.lastName}`.trim(),
+                        caseId, caseCode,
+                        paciente: `${f.firstName} ${f.lastName}`.trim(),
+                        volverAlCobro: null,
                       })}
                       t={t}
                       tc={tc}
@@ -433,7 +450,19 @@ export function CobranzasClient() {
           caseId={cargosDe.caseId}
           caseCode={cargosDe.caseCode}
           paciente={cargosDe.paciente}
-          onClose={() => setCargosDe(null)}
+          /**
+           * Cerrar devuelve al cobro cuando de ahí se vino.
+           *
+           * `FinanzasTab` se remonta (su `key` es el caso) y `openWhenLoaded`
+           * lo reabre ya recargado, así que el cargo recién agregado aparece
+           * listo para cobrarse. Si el usuario no agregó nada, el ida y vuelta
+           * es invisible: vuelve a la misma ventana que dejó.
+           */
+          onClose={() => {
+            const volver = cargosDe.volverAlCobro;
+            setCargosDe(null);
+            if (volver) setCobrando(volver);
+          }}
           onChanged={alCambiarCargos}
         />
       )}
@@ -464,6 +493,7 @@ export function CobranzasClient() {
                 caseId: cobrando.caseId,
                 caseCode: caso?.caseCode ?? '',
                 paciente: fila ? `${fila.firstName} ${fila.lastName}`.trim() : '',
+                volverAlCobro: { caseId: cobrando.caseId, patientId: cobrando.patientId },
               });
             }}
           />

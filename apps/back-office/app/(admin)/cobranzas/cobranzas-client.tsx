@@ -40,6 +40,7 @@ import {
   FotoGrandeDialog, type FotoGrande,
 } from '@/components/ui-phoenix';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
+import { CargosDialog } from './cargos-dialog';
 import { localeApp } from '@/lib/fechas';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -136,6 +137,17 @@ export function CobranzasClient() {
 
   /** La cara que se está mirando en grande, o `null`. Ver `FotoGrandeDialog`. */
   const [fotoGrande, setFotoGrande] = useState<FotoGrande | null>(null);
+
+  /**
+   * El caso cuyos CARGOS se están editando.
+   *
+   * Cobrar y facturar son dos cosas distintas y por eso son dos botones: el
+   * primero aplica plata contra lo que ya se debe, el segundo cambia lo que se
+   * debe. El que cobra necesita los dos —es quien descubre que falta una férula
+   * o que se cargó un servicio de más— y hasta ahora tenía que irse a la vista
+   * del caso para lo segundo.
+   */
+  const [cargosDe, setCargosDe] = useState<{ caseId: string; caseCode: string; paciente: string } | null>(null);
 
   // ── Carga de la lista ──────────────────────────────────────────────────────
 
@@ -251,6 +263,12 @@ export function CobranzasClient() {
     finanzasRef.current?.openWhenLoaded();
   }, [cobrando]);
 
+  /** Cambiaron los cargos de un caso: la deuda de ese paciente ya no es la misma. */
+  const alCambiarCargos = useCallback(() => {
+    void cargar();
+    if (cargosDe) void traerDetalle(cargosDe.caseId, true);
+  }, [cargar, cargosDe, traerDetalle]);
+
   /** Se cobró algo: la fila y los totales de arriba quedaron viejos. */
   const alCobrar = useCallback(() => {
     void cargar();
@@ -357,6 +375,9 @@ export function CobranzasClient() {
                       onFoto={() => abrirFoto(f)}
                       onCobrar={() => cobrar(f)}
                       onCobrarCaso={(caseId) => setCobrando({ caseId, patientId: f.patientId })}
+                      onCargosCaso={(caseId, caseCode) => setCargosDe({
+                        caseId, caseCode, paciente: `${f.firstName} ${f.lastName}`.trim(),
+                      })}
                       t={t}
                       tc={tc}
                     />
@@ -397,6 +418,16 @@ export function CobranzasClient() {
 
       <FotoGrandeDialog foto={fotoGrande} onClose={() => setFotoGrande(null)} cerrarLabel={tc('close')} />
 
+      {cargosDe && (
+        <CargosDialog
+          caseId={cargosDe.caseId}
+          caseCode={cargosDe.caseCode}
+          paciente={cargosDe.paciente}
+          onClose={() => setCargosDe(null)}
+          onChanged={alCambiarCargos}
+        />
+      )}
+
       {/* FinanzasTab escondido — el dueño del modal de cobro. Ver `cobrando`. */}
       {cobrando && (
         <div className="h-0 overflow-hidden">
@@ -417,7 +448,7 @@ export function CobranzasClient() {
 type Traducir = ReturnType<typeof useTranslations>;
 
 function FilaPaciente({
-  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, t, tc,
+  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCargosCaso, t, tc,
 }: {
   f: Fila;
   abierta: boolean;
@@ -426,6 +457,7 @@ function FilaPaciente({
   onAlternar: () => void;
   onFoto: () => void;
   onCobrar: () => void;
+  onCargosCaso: (caseId: string, caseCode: string) => void;
   onCobrarCaso: (caseId: string) => void;
   t: Traducir;
   tc: Traducir;
@@ -552,6 +584,18 @@ function FilaPaciente({
                           <span className={`font-mono text-xs tabular-nums font-semibold shrink-0 ${c.deuda > 0 ? 'text-rose' : 'text-text-muted'}`}>
                             {fmt$(c.deuda)}
                           </span>
+                          {/* Facturar NO se condiciona a que haya deuda: el caso
+                              sin saldo es justamente donde se descubre que falta
+                              cargar algo, y donde se quita lo que se cargó de
+                              más. Cobrar sí, porque sin deuda no hay qué cobrar. */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onCargosCaso(c.caseId, c.caseCode)}
+                            className="shrink-0 whitespace-nowrap"
+                          >
+                            {t('charges')}
+                          </Button>
                           <Button
                             size="sm"
                             variant={c.deuda > 0 ? 'default' : 'outline'}

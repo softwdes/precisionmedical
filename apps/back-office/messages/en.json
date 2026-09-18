@@ -1,6 +1,10 @@
 {
   "phoenix": {
     "cobranzas": {
+      "charges": "Charges",
+      "chargesTitle": "Case charges",
+      "chargesError": "This case’s services could not be loaded.",
+      "loading": "Loading…",
       "viewPhoto": "View the photo larger",
       "expandRow": "Show payments and cases",
       "collapseRow": "Hide the detail",

@@ -1,6 +1,10 @@
 {
   "phoenix": {
     "cobranzas": {
+      "charges": "Cargos",
+      "chargesTitle": "Cargos del caso",
+      "chargesError": "No se pudieron cargar los servicios de este caso.",
+      "loading": "Cargando…",
       "viewPhoto": "Ver la foto en grande",
       "expandRow": "Ver los pagos y los casos",
       "collapseRow": "Ocultar el detalle",

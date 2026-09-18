@@ -425,6 +425,18 @@ const STRINGS = {
     // Step 7
     idTitle: 'Tu identificación',
     idSub: 'Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita.',
+    /**
+     * La salida del paso de fotos. Existe porque el formulario se llena DESDE
+     * LA CASA del paciente: si ahí la cámara falla, no hay nadie al lado para
+     * ayudarlo, y hasta hoy el único final posible era abandonar el formulario
+     * entero después de haberlo llenado todo.
+     */
+    fotosNoPuedo: 'No puedo tomarlas ahora',
+    fotosDiferidasTitulo: '¿Prefiere traerlas a la clínica?',
+    fotosDiferidasTexto: 'Puede terminar el formulario ahora y traer sus documentos a su primera visita. Le tomamos las fotos en el mostrador, no demora.',
+    fotosDiferidasSi: 'Sí, las llevo a la clínica',
+    fotosDiferidasNo: 'Prefiero intentar de nuevo',
+    fotosDiferidasAviso: '📷 Va a terminar sin las fotos. Tráigalas a su primera visita.',
     selfieLabel: 'Selfie tipo ID',
     selfieBtn: 'Seleccionar selfie',
     dlLabel: 'Licencia de conducir',
@@ -775,6 +787,12 @@ const STRINGS = {
     // Step 7
     idTitle: 'Your identification',
     idSub: 'We need your ID to verify your identity. Phase 1A: photos are reviewed at your first visit.',
+    fotosNoPuedo: "I can't take them right now",
+    fotosDiferidasTitulo: 'Would you rather bring them to the clinic?',
+    fotosDiferidasTexto: 'You can finish the form now and bring your documents to your first visit. We take the photos at the front desk, it only takes a moment.',
+    fotosDiferidasSi: "Yes, I'll bring them to the clinic",
+    fotosDiferidasNo: 'I want to try again',
+    fotosDiferidasAviso: '📷 You will finish without the photos. Please bring them to your first visit.',
     selfieLabel: 'ID-style selfie',
     selfieBtn: 'Select selfie',
     dlLabel: "Driver's license",
@@ -1041,15 +1059,27 @@ const S = {
    * el problema en todos los iPhone sin ningún aviso, porque en un navegador
    * de escritorio se ve perfecto.
    */
+  /**
+   * ⚠️ El BORDE tampoco es decisión de diseño: es el mínimo legal de contraste.
+   *
+   * Estaba en `rgba(255,255,255,0.10)`, que sobre la tarjeta da **1,33:1**. El
+   * mínimo que exige WCAG para el borde de un control es **3:1**, así que un
+   * campo VACÍO era un rectángulo invisible: en la foto de un iPhone del
+   * mostrador no se distinguía ninguno de los ocho campos sin llenar, y los
+   * únicos dos que se veían eran los que tenían texto adentro.
+   *
+   * Con `0.35` da 3,2:1. Si alguien lo vuelve a bajar "porque se ve más
+   * limpio", está volviendo a esconderle los campos al paciente.
+   */
   input: {
     width: '100%', padding: '12px 14px',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.35)',
     borderRadius: 10, color: '#fff', fontSize: 16, outline: 'none',
     fontFamily: 'inherit', boxSizing: 'border-box',
   } as React.CSSProperties,
   textarea: {
     width: '100%', padding: '12px 14px',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.35)',
     borderRadius: 10, color: '#fff', fontSize: 16, outline: 'none',
     resize: 'none' as const, fontFamily: 'inherit', minHeight: 80, boxSizing: 'border-box',
   } as React.CSSProperties,
@@ -1995,6 +2025,10 @@ export function IntakeWizard({
 
   // ── Photo upload ─────────────────────────────────────────────────────────────
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  /** Se ofrece la salida recién después del primer intento fallido. */
+  const [ofrecerDiferir, setOfrecerDiferir] = useState(false);
+  /** El paciente eligió traer los documentos a la clínica. Queda en el caso. */
+  const [fotosDiferidas, setFotosDiferidas] = useState(false);
 
   const handlePhotoConfirm = (type: keyof typeof photoUrls) => async (file: File) => {
     setPhotoUploadError(null);
@@ -2203,6 +2237,9 @@ export function IntakeWizard({
       if (stepNum === 8) body = { fotos: {
         reusadas: [...heredadas],
         tarjetaSeguroVigente: seguroVigente,
+        // Qué falta y si el paciente eligió traerlo. El servidor no le cree las
+        // claves: vuelve a mirar qué fotos hay de verdad antes de anotarlo.
+        diferidas: fotosDiferidas,
       }};
       if (stepNum === 9) {
         const consentSvg = consentSigDataUrl || (consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '');
@@ -2326,10 +2363,26 @@ export function IntakeWizard({
       const faltan: string[] = [];
       if (!fotoGuardada(photoUrls.selfie))  faltan.push(t.selfieLabel);
       if (!fotoGuardada(photoUrls.dlFront)) faltan.push(t.dlLabel);
-      if (faltan.length > 0) {
+
+      /**
+       * Faltan fotos. Hasta el 17-sep esto era una pared: se mostraba "Falta:
+       * …" y no había forma de seguir. Con el formulario llenándose desde la
+       * CASA del paciente, esa pared no protege nada — el que no puede sacar la
+       * foto no la saca, y lo único que logramos es que abandone el formulario
+       * entero, incluido todo lo que ya había escrito.
+       *
+       * Ahora se pide igual (primero el aviso), pero si insiste puede diferirlo
+       * a propósito, con una pregunta explícita. No es un "saltar" escondido:
+       * hay que elegirlo, queda registrado en el caso y le avisa a la clínica.
+       */
+      if (faltan.length > 0 && !fotosDiferidas) {
         setPhotoUploadError(
           (lang === 'es' ? '⚠️ Falta: ' : '⚠️ Missing: ') + faltan.join(' · '),
         );
+        // La salida recién aparece después del primer intento: si se ofreciera
+        // de entrada, la mitad la tomaría por el camino fácil y la clínica se
+        // quedaría sin las fotos de todos.
+        setOfrecerDiferir(true);
         window.scrollTo(0, 0);
         return;
       }
@@ -2381,9 +2434,16 @@ export function IntakeWizard({
      * único que viaja acá es la constancia de las que reusó. Es un dato de
      * expediente, no del paciente: dejarlo trancado detrás de un error de red
      * sería frenarlo en un paso que para él ya terminó bien. Y no se manda
-     * nada si no heredó ninguna y no hubo pregunta que contestar.
+     * nada si no heredó ninguna, no hubo pregunta que contestar y no quedó
+     * nada pendiente.
+     *
+     * ⚠️ `fotosDiferidas` TIENE que estar en esta condición. Sin él, el caso
+     * más importante —el paciente que no pudo sacar ninguna foto, o sea el que
+     * no heredó nada y al que no se le preguntó por el seguro— es exactamente
+     * el que no manda nada, y la clínica nunca se entera de que tiene que
+     * tomárselas. Lo pillé probándolo: el aviso no llegaba a la base.
      */
-    if (fromStep === 8 && (heredadas.size > 0 || seguroVigente !== null)) {
+    if (fromStep === 8 && (heredadas.size > 0 || seguroVigente !== null || fotosDiferidas)) {
       await saveStepData(8);
     }
     // El siguiente paso sale de la lista, no de `step + 1`: así el salto del
@@ -4083,6 +4143,65 @@ export function IntakeWizard({
                       background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)',
                     }}>
                       <span style={{ fontSize: 12, color: 'rgba(239,68,68,0.90)', lineHeight: 1.55 }}>{photoUploadError}</span>
+                    </div>
+                  )}
+
+                  {/* ── La salida ────────────────────────────────────────────
+                      Aparece solo después de que intentó y no pudo. Es una
+                      pregunta, no un botón de saltar: el paciente tiene que
+                      decir que sí, y lo que elige queda registrado en el caso
+                      para que la clínica sepa que tiene que tomarlas ella. */}
+                  {ofrecerDiferir && !fotosDiferidas && (
+                    <div style={{
+                      padding: '14px 16px', borderRadius: 10,
+                      background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.28)',
+                    }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+                        {t.fotosDiferidasTitulo}
+                      </div>
+                      <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, margin: '0 0 12px' }}>
+                        {t.fotosDiferidasTexto}
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => { setFotosDiferidas(true); setPhotoUploadError(null); setOfrecerDiferir(false); }}
+                          style={{
+                            flex: '1 1 180px', padding: '12px 14px', borderRadius: 10,
+                            background: 'rgba(6,182,212,0.14)', border: '1px solid rgba(6,182,212,0.45)',
+                            color: CYAN, fontSize: 13.5, fontWeight: 700,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                          }}
+                        >
+                          {t.fotosDiferidasSi}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setOfrecerDiferir(false); setPhotoUploadError(null); }}
+                          style={{
+                            flex: '1 1 140px', padding: '12px 14px', borderRadius: 10,
+                            background: 'transparent', border: '1px solid rgba(255,255,255,0.20)',
+                            color: 'rgba(255,255,255,0.62)', fontSize: 13.5, fontWeight: 600,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                          }}
+                        >
+                          {t.fotosDiferidasNo}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ya eligió traerlas: se lo recuerda hasta que termine, para
+                      que no llegue al mostrador sin los documentos. */}
+                  {fotosDiferidas && (
+                    <div style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start',
+                      padding: '12px 14px', borderRadius: 10,
+                      background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.28)',
+                    }}>
+                      <span style={{ fontSize: 12.5, color: 'rgba(103,232,249,0.92)', lineHeight: 1.55 }}>
+                        {t.fotosDiferidasAviso}
+                      </span>
                     </div>
                   )}
 

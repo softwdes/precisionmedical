@@ -23,6 +23,21 @@ import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 type Ctx = { params: Promise<{ token: string }> };
 
 /**
+ * Las dos fotos que el formulario exige para cerrar el intake. La tarjeta del
+ * seguro se pide pero no bloquea, así que no entra acá.
+ */
+const SLOTS_OBLIGATORIOS = ['selfie', 'dlFront'] as const;
+type SlotObligatorio = typeof SLOTS_OBLIGATORIOS[number];
+
+const NOMBRE_DE_SLOT: Record<string, string> = {
+  selfie:  'selfie de identificación',
+  dlFront: 'licencia de conducir',
+};
+
+/** Prefijo de la nota que avisa que faltan fotos — también sirve para no repetirla. */
+const MARCA_FOTOS = '📷';
+
+/**
  * ¿Este caso ya tiene respaldo legal como MVA?
  *
  * Es la pregunta que decide si el paciente puede degradarlo a visita general.
@@ -297,6 +312,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         reusadas?: string[];
         /** `null` = no se le preguntó (no heredó ninguna tarjeta de seguro). */
         tarjetaSeguroVigente?: boolean | null;
+        /** El paciente eligió traer los documentos a la clínica. */
+        diferidas?: boolean;
       };
       consents?: {
         hipaa?: boolean;
@@ -583,6 +600,27 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
     const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
     const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
+
+    /**
+     * Qué fotos OBLIGATORIAS faltan de verdad.
+     *
+     * Se calcula acá y no se le cree al cliente: el navegador podría decir que
+     * difirió unas fotos que sí subió, o al revés. Se mira dónde están de
+     * verdad — primero en este caso, después entre las del paciente, que es de
+     * donde salen las que hereda de una visita anterior.
+     *
+     * Solo selfie y licencia: son las dos que el formulario exige. La tarjeta
+     * del seguro no bloquea a nadie.
+     */
+    let faltantes: SlotObligatorio[] = [];
+    if (data.fotos.diferidas === true) {
+      const delCaso = (prev.photos ?? {}) as Record<string, unknown>;
+      const dePersona = await clavesDeFotosDelPaciente(db, rec.patient.id);
+      faltantes = SLOTS_OBLIGATORIOS.filter(
+        (s) => !delCaso[s] && !dePersona[s] && !reusadas[s],
+      );
+    }
+
     await db.case.update({
       where: { id: rec.id },
       data: {
@@ -598,9 +636,45 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           ...(typeof vigente === 'boolean'
             ? { tarjetaSeguroVigente: vigente, tarjetaSeguroVigenteAt: ahora }
             : {}),
+          ...(faltantes.length > 0
+            ? { fotosPendientes: faltantes, fotosPendientesAt: ahora }
+            : { fotosPendientes: [] }),
         } as object,
       },
     });
+
+    /**
+     * Si el paciente eligió traer los documentos a la clínica, alguien del
+     * mostrador tiene que enterarse — si no, el formulario queda "completo" y
+     * nadie le pide nunca las fotos.
+     *
+     * Va como NOTA del caso y no solo como una llave del JSON porque la nota se
+     * ve en la línea de tiempo que el staff ya mira; un campo escondido adentro
+     * de `consentsData` no lo lee nadie. Ver el casillero "Lien firmado", que
+     * durante meses dependió de una nota que nada escribía.
+     *
+     * Solo una vez: el paciente puede volver a guardar este paso varias veces.
+     */
+    if (faltantes.length > 0) {
+      const yaAvisado = await db.caseNote.findFirst({
+        where:  { caseId: rec.id, content: { startsWith: MARCA_FOTOS } },
+        select: { id: true },
+      });
+      if (!yaAvisado) {
+        const nombres = faltantes.map(f => NOMBRE_DE_SLOT[f] ?? f).join(', ');
+        await db.caseNote.create({
+          data: {
+            caseId:     rec.id,
+            authorName: 'Formulario de admisión',
+            isPrivate:  true,
+            content:
+              `${MARCA_FOTOS} El paciente no pudo tomar sus fotos y eligió traer los ` +
+              `documentos a la clínica.\nFalta: ${nombres}.\nTomarlas en el mostrador ` +
+              `en su primera visita.`,
+          },
+        });
+      }
+    }
   }
 
   if (step === 9 && data.consents) {

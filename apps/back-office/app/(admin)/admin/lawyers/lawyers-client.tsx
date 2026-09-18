@@ -386,6 +386,22 @@ function DeleteConfirmDialog({
   const tc = useTranslations('phoenix.common');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Mismo criterio que el diálogo de alta/edición: un 403 no se reintenta. */
+  const [sinPermiso, setSinPermiso] = useState(false);
+
+  /**
+   * El padre lo monta SIEMPRE (`firm={deleting}`), así que cerrar no desmonta
+   * nada y el estado viaja al siguiente bufete. Ya pasaba con `error` —el
+   * fallo de uno se leía sobre otro—, y con `sinPermiso` sería peor: un 403
+   * dejaría el botón muerto para todos hasta recargar la página.
+   */
+  const firmId = firm?.id ?? null;
+  const [ultimoFirmId, setUltimoFirmId] = useState<string | null>(null);
+  if (firmId !== ultimoFirmId) {
+    setError(null);
+    setSinPermiso(false);
+    setUltimoFirmId(firmId);
+  }
 
   if (!firm) return null;
 
@@ -396,6 +412,18 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/lawyers?id=${firm.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        /**
+         * El 403 se traduce ACÁ también, no solo en `firm-dialog`.
+         *
+         * Ese diálogo ya dejó de pintar el código crudo el 2026-09-15, pero el
+         * de borrar vive en otro archivo y quedó como estaba: Edson leyó
+         * "⚠ FORBIDDEN" al intentar eliminar un bufete (2026-09-18). El mismo
+         * bug tenía dos puertas y solo se cerró una.
+         */
+        if (res.status === 403) {
+          setSinPermiso(true);
+          throw new Error(t('errorFirmForbiddenDelete'));
+        }
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
       }
       onConfirmed();
@@ -432,8 +460,12 @@ function DeleteConfirmDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('cancel')}</Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? tc('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {tc('btnDelete')}</>)}
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting || sinPermiso}>
+            {/* `btnDelete` no existe en ningún idioma: el botón mostraba
+                "phoenix.common.btnDelete" en crudo. Las otras cuatro listas del
+                mismo patrón (servicios, diagnósticos, ajustadores) usan
+                `delete`, que sí está. */}
+            {deleting ? tc('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {tc('delete')}</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

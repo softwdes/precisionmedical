@@ -1871,6 +1871,8 @@
       "fieldNotesLabel": "Notas internas (Edson) — privadas",
       "fieldActiveLabel": "Bufete activo (recibiendo referidos)",
       "errorFirmForbidden": "No tenés permiso para dar de alta un bufete. Pedíle a alguien de admisión que lo cree, o a un administrador el módulo Externos.",
+      "errorFirmForbiddenEdit": "No tenés permiso para editar bufetes. Pedile el módulo Externos a un administrador.",
+      "errorFirmForbiddenDelete": "No tenés permiso para eliminar bufetes. Pedile el módulo Externos a un administrador.",
       "errorFirmNameRequired": "El nombre del bufete es obligatorio",
       "errorSave": "Error al guardar",
       "errorDelete": "Error al eliminar",

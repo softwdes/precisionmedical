@@ -125,6 +125,14 @@ export function FirmDialog({
   const [isActive, setIsActive] = useState(editing?.status === 'ACTIVE');
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
+  /**
+   * Un 403 no se reintenta: los mismos datos dan el mismo 403.
+   *
+   * Con Guardar habilitado debajo del aviso rojo la pantalla se contradice
+   * —"no tenés permiso" y un botón que invita a probar otra vez—, así que el
+   * botón se queda a la vista y se bloquea, con el motivo justo arriba.
+   */
+  const [sinPermiso, setSinPermiso] = useState(false);
 
   const editingId = editing?.id ?? null;
   const [lastEditingId, setLastEditingId] = useState<string | null>(null);
@@ -142,6 +150,7 @@ export function FirmDialog({
     setNotes(editing?.notes ?? '');
     setIsActive(editing?.status === 'ACTIVE');
     setError(null);
+    setSinPermiso(false);
     setLastEditingId(editingId);
   }
 
@@ -199,10 +208,19 @@ export function FirmDialog({
          * Se pintaba crudo en el aviso rojo: la persona leía "⚠ FORBIDDEN"
          * después de llenar diez casillas y no tenía forma de saber que le
          * faltaba un permiso, ni a quién pedírselo (Erick, 2026-09-15).
+         *
+         * El mensaje depende del VERBO, y eso se arregló recién el 18-sep con
+         * Edson. El del alta manda a admisión —quien no administra el catálogo
+         * igual puede crear un bufete mientras toma un caso, por
+         * `quick-create`—, pero ese atajo no existe para editar ni para
+         * borrar: ahí la única puerta es el módulo Externos. A alguien que
+         * está editando un bufete que YA existe, "pedile a admisión que lo
+         * cree" lo manda a un trámite que no lleva a ningún lado.
          */
+        if (res.status === 403) setSinPermiso(true);
         throw new Error(
           res.status === 403
-            ? t('errorFirmForbidden')
+            ? t(editing ? 'errorFirmForbiddenEdit' : 'errorFirmForbidden')
             : (data.message ?? data.error ?? `HTTP ${res.status}`),
         );
       }
@@ -369,7 +387,7 @@ export function FirmDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || sinPermiso}>
             {saving ? tc('saving') : editing ? t('btnSaveChanges') : t('btnCreateFirm')}
           </Button>
         </DialogFooter>

@@ -1871,6 +1871,8 @@
       "fieldNotesLabel": "Internal notes (Edson) — private",
       "fieldActiveLabel": "Active firm (receiving referrals)",
       "errorFirmForbidden": "You do not have permission to add a law firm. Ask someone in admissions to create it, or an administrator for the Externals module.",
+      "errorFirmForbiddenEdit": "You do not have permission to edit law firms. Ask an administrator for the Externals module.",
+      "errorFirmForbiddenDelete": "You do not have permission to delete law firms. Ask an administrator for the Externals module.",
       "errorFirmNameRequired": "Firm name is required",
       "errorSave": "Error saving",
       "errorDelete": "Error deleting",

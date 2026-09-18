@@ -58,6 +58,24 @@ export interface DatePickerProps {
    * fecha.
    */
   alwaysShowDate?: boolean;
+  /**
+   * Primer día elegible (`YYYY-MM-DD`). Los anteriores quedan apagados y no
+   * responden al clic.
+   *
+   * Nació para el selector de horarios de una cita: ahí un día pasado no lleva a
+   * ningún lado, y dejarlo elegible obliga a que la pantalla de atrás lo
+   * rechace después — un obstáculo que aparece DESPUÉS del clic enseña menos que
+   * uno que se ve antes.
+   */
+  minKey?: string;
+  /**
+   * Apagar sábados y domingos.
+   *
+   * La clínica no atiende el fin de semana (ver `isWeekendInDenver` en
+   * `lib/scheduling-rules.ts`), así que ofrecerlos y después corregirlos en
+   * silencio sería mentir sobre lo que se eligió.
+   */
+  disableWeekends?: boolean;
 }
 
 const ACCENTS: Record<NonNullable<DatePickerProps['accent']>, { solid: string; ring: string; text: string }> = {
@@ -76,7 +94,7 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—' }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—', minKey, disableWeekends = false }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -239,17 +257,27 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
             {cells.map((c) => {
               const isSel = c.key === value;
               const isToday = c.key === today;
+              // El día de la semana sale de la CLAVE, no de un `Date` local:
+              // `new Date('2026-09-19')` se lee como UTC y en Utah es el 18.
+              const [cy, cm, cd] = c.key.split('-').map(Number) as [number, number, number];
+              const dow = new Date(Date.UTC(cy, cm - 1, cd, 12)).getUTCDay();
+              const off =
+                (minKey !== undefined && c.key < minKey)
+                || (disableWeekends && (dow === 0 || dow === 6));
               return (
                 <button
                   key={c.key}
                   type="button"
-                  onClick={() => pick(c.key)}
+                  disabled={off}
+                  onClick={() => { if (!off) pick(c.key); }}
                   className={[
                     'h-7 rounded text-[11px] tabular-nums transition-colors flex items-center justify-center',
-                    isSel ? 'text-white font-bold' : c.inMonth ? 'text-text-1 hover:bg-white/5' : 'text-text-muted hover:bg-white/5',
-                    !isSel && isToday ? `ring-1 ${a.ring} ${a.text} font-semibold` : '',
+                    off
+                      ? 'text-text-muted opacity-30 cursor-not-allowed'
+                      : isSel ? 'text-white font-bold' : c.inMonth ? 'text-text-1 hover:bg-white/5' : 'text-text-muted hover:bg-white/5',
+                    !off && !isSel && isToday ? `ring-1 ${a.ring} ${a.text} font-semibold` : '',
                   ].join(' ')}
-                  style={isSel ? { background: a.solid } : undefined}
+                  style={isSel && !off ? { background: a.solid } : undefined}
                 >
                   {c.day}
                 </button>

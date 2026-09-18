@@ -13,17 +13,12 @@ import { localeApp } from '@/lib/fechas';
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { DatePicker } from '@/components/ui-phoenix/date-picker';
+import { anclaDesde, habilesDesde } from '@/lib/fechas';
 
 // ─── Date helpers (noon-UTC trick para estabilidad con Denver TZ) ─────────────
 
-export function getMondayOf(now: Date): Date {
-  const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
-    .split('-').map(Number) as [number, number, number];
-  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  const dow = noonUtc.getUTCDay();
-  const diff = dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow;
-  return new Date(Date.UTC(y, m - 1, d + diff, 12, 0, 0));
-}
+
 
 export function addDays(d: Date, n: number): Date {
   return new Date(d.getTime() + n * 86_400_000);
@@ -68,9 +63,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
       const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
-      return getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
+      return anclaDesde(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
     }
-    return getMondayOf(new Date());
+    return anclaDesde(new Date());
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(initialDate ?? null);
   const [slots,       setSlots]       = useState<Slot[]>([]);
@@ -84,9 +79,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     const target = initialDate
       ? (() => {
           const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
-          return getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
+          return anclaDesde(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
         })()
-      : getMondayOf(new Date());
+      : anclaDesde(new Date());
     setWeekStart(prev => prev.getTime() === target.getTime() ? prev : target);
     setSelectedDay(initialDate ?? null);
   }, [providerId, clinicId, initialDate]); // duration intentionally excluded
@@ -98,8 +93,12 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     setLoading(true);
     setSlots([]);
 
+    const dias     = habilesDesde(weekStart, 5);
     const fromDate = weekStart.toISOString();
-    const toDate   = addDays(weekStart, 5).toISOString();
+    // Hasta el día siguiente al ÚLTIMO hábil. Con `+5` fijo, una tira que
+    // arranca miércoles termina el martes siguiente —siete días de calendario—
+    // y los dos últimos venían vacíos.
+    const toDate   = addDays(dias[dias.length - 1]!, 1).toISOString();
     // `limitPerDay` y NO `limit`: el techo global recortaba la semana ya ordenada
     // por fecha, así que lunes a jueves se comían los 200 cupos y el viernes
     // salía vacío — se leía como "el doctor no atiende ese día". 60 cubre de sobra
@@ -161,11 +160,10 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
 
   // Week scaffold: always Mon–Fri
   const todayDenver  = useMemo(() => toDenverDate(new Date()), []);
-  const minWeekStart = useMemo(() => getMondayOf(new Date()).getTime(), []);
+  const minWeekStart = useMemo(() => anclaDesde(new Date()).getTime(), []);
   const maxWeekStart = minWeekStart + maxWeeks * 7 * 86_400_000;
 
-  const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => {
-    const d   = addDays(weekStart, i);
+  const weekDays = useMemo(() => habilesDesde(weekStart, 5).map((d) => {
     const iso = toDenverDate(d);
     return {
       iso,
@@ -211,8 +209,28 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   const isPrevDisabled = weekStart.getTime() <= minWeekStart;
   const isNextDisabled = weekStart.getTime() >= maxWeekStart;
 
-  const prevWeek = () => { setWeekStart(d => addDays(d, -7)); setSelectedDay(null); };
-  const nextWeek = () => { setWeekStart(d => addDays(d, +7)); setSelectedDay(null); };
+  /**
+   * Se mueve de a 7 días de calendario y no de a 5 hábiles: así el ancla cae
+   * siempre en el mismo día de la semana y la tira no "rota" — un jueves sigue
+   * empezando en jueves. Moverse de a 5 hábiles haría que cada salto empiece en
+   * un día distinto y se pierde la referencia.
+   */
+  const prevWeek = () => {
+    setWeekStart(d => {
+      const anterior = anclaDesde(addDays(d, -7));
+      // No se puede retroceder más allá de hoy: esos días ya pasaron.
+      return anterior.getTime() < minWeekStart ? new Date(minWeekStart) : anterior;
+    });
+    setSelectedDay(null);
+  };
+  const nextWeek = () => { setWeekStart(d => anclaDesde(addDays(d, +7))); setSelectedDay(null); };
+
+  /** Ir a un día concreto desde el selector de mes. */
+  const irAlDia = (clave: string) => {
+    const [y, m, d] = clave.split('-').map(Number) as [number, number, number];
+    setWeekStart(anclaDesde(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))));
+    setSelectedDay(null);
+  };
 
   const selectedSlot = value ? slots.find(s => s.iso === value) : null;
   // Rango completo (inicio–fin) para la confirmación — mostrar solo la hora
@@ -234,9 +252,26 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
         >
           <ArrowLeft className="w-3 h-3" /> {t('prevWeek')}
         </button>
-        <span className="text-[11px] text-text-muted font-medium">
-          {weekDays[0] ? `${weekDays[0].dayNum} ${weekDays[0].monthShort} – ${weekDays[4]!.dayNum} ${weekDays[4]!.monthShort}` : ''}
-        </span>
+        {/* El rango era TEXTO y la única forma de llegar a una fecha lejana era
+            apretar "Next week" una vez por semana. Medido: 1 de cada 4 citas se
+            agenda a 2 semanas o más, y 1 de cada 12 a 4 semanas o más (90 días).
+            Ahora abre el mes y se elige el día (Erick, 2026-09-18).
+
+            NO muestra disponibilidad por día a propósito: el día más cargado que
+            existió usó 225 de 600 minutos y ningún día llegó a llenarse, así que
+            un mes pintado por disponibilidad saldría verde entero — información
+            inútil y cuatro veces más consultas. */}
+        <DatePicker
+          value={toDenverDate(weekStart)}
+          onChange={irAlDia}
+          accent="cyan"
+          size="sm"
+          minKey={toDenverDate(new Date(minWeekStart))}
+          disableWeekends
+          alwaysShowDate
+          todayLabel={t('today')}
+          todayKey={todayDenver}
+        />
         <button
           type="button"
           disabled={isNextDisabled}

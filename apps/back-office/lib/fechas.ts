@@ -158,6 +158,51 @@ export function rangoDelDia(clave?: string): { start: Date; end: Date; key: stri
 }
 
 /**
+ * ─── La tira de días del selector de horarios ───────────────────────────────
+ *
+ * Viven acá y no en el componente por la razón de siempre: dentro de un módulo
+ * con JSX no se pueden importar sin arrastrar React y `lucide-react`, y ahí
+ * dejan de poder correrse en una prueba. Cuando algo no se puede probar, el
+ * problema es DÓNDE VIVE. Este archivo es puro a propósito.
+ */
+
+/**
+ * El primer día que muestra la tira, a partir de una fecha cualquiera.
+ *
+ * Reemplaza al lunes como ancla. El lunes era el natural cuando la
+ * tira era "la semana", pero producía el problema que reportó la clínica: un
+ * viernes se abría el selector y CUATRO de las cinco columnas eran días
+ * pasados, apagados. Se leía como "el doctor casi no atiende" cuando en realidad
+ * ese viernes tenía 37 horarios libres (Erick, 2026-09-18).
+ *
+ * Ahora la tira arranca en el día pedido —hoy, por defecto— y muestra los cinco
+ * días HÁBILES siguientes. Nunca hay una columna muerta.
+ *
+ * Un sábado o domingo se corre al lunes: no hay nada que mostrar ahí.
+ */
+export function anclaDesde(dia: Date): Date {
+  const [y, m, d] = dia.toLocaleDateString('en-CA', { timeZone: ZONA_CLINICA })
+    .split('-').map(Number) as [number, number, number];
+  const noon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dow = noon.getUTCDay();
+  if (dow === 6) return new Date(Date.UTC(y, m - 1, d + 2, 12, 0, 0)); // sáb → lun
+  if (dow === 0) return new Date(Date.UTC(y, m - 1, d + 1, 12, 0, 0)); // dom → lun
+  return noon;
+}
+
+/** Los cinco días HÁBILES desde el ancla, salteando el fin de semana. */
+export function habilesDesde(ancla: Date, cuantos = 5): Date[] {
+  const salida: Date[] = [];
+  const cursor = new Date(ancla.getTime());
+  while (salida.length < cuantos) {
+    const dow = cursor.getUTCDay();
+    if (dow !== 0 && dow !== 6) salida.push(new Date(cursor.getTime()));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return salida;
+}
+
+/**
  * El día de la semana en la zona de la clínica: `Mon`, `Tue`, … `Sun`.
  *
  * Gemelo de `weekdayInDenver` de `scheduling-rules.ts`, que no se puede

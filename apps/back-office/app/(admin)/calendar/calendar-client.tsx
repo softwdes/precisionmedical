@@ -1041,7 +1041,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     apptMap[day][slot].push(appt);
   }
 
-  // Mismo bucketing que las citas: dia de Denver -> slot -> avisos.
+  /**
+   * Mismo bucketing que las citas: dia de Denver -> slot -> avisos.
+   *
+   * ⚠️ Desde que los bloqueos se repiten, la API manda una fila por OCURRENCIA
+   * y todas comparten el `id` de su regla: un almuerzo son cinco filas con el
+   * mismo id en la misma semana. Por eso el `key` de React es `id|startsAt` y
+   * no `id` — con el id solo, React deduplica y se pinta un solo día.
+   */
   const blockMap: Record<string, Record<string, TimeBlock[]>> = {};
   for (const b of blocks) {
     const day  = denverDateStr(new Date(b.startsAt));
@@ -1556,7 +1563,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             </div>
                           )}
                           {cellBlocks.map(b => (
-                            <BlockCard key={b.id} block={b} compact
+                            <BlockCard key={`${b.id}|${b.startsAt}`} block={b} compact
                               providerLabel={b.providerName ?? undefined}
                               onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
                           ))}
@@ -1715,7 +1722,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       mostrando a proposito — el aviso NO bloquea, la hora sigue
                       libre y se puede agendar. */}
                   {cellBlocks.map(b => (
-                    <div key={b.id} className="flex-1 min-w-0">
+                    <div key={`${b.id}|${b.startsAt}`} className="flex-1 min-w-0">
                       <BlockCard block={b} providerLabel={b.providerName ?? undefined}
                         onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
                     </div>
@@ -1946,7 +1953,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         >
                           {avisos.map(b => (
                             <div
-                              key={b.id}
+                              key={`${b.id}|${b.startsAt}`}
                               className="rounded px-1.5 py-0.5 text-[9.5px] font-semibold truncate bg-text-muted/10 border border-dashed border-text-muted/40 text-text-muted"
                               title={b.label}
                             >

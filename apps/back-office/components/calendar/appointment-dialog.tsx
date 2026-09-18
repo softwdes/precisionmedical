@@ -300,7 +300,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [success,        setSuccess]        = useState<{ clinicName: string; providerName: string; scheduledFor: string } | null>(null);
   const [duplicateAppts, setDuplicateAppts] = useState<DuplicateAppt[]>([]);
   // Aviso de cruce con otra cita del doctor — no bloquea, deja decidir.
-  const [overlapPrompt,  setOverlapPrompt]  = useState<{ pending: PendingSubmit; message: string } | null>(null);
+  /**
+   * El aviso que el servidor devolvió con 409, esperando que la persona decida.
+   *
+   * Guarda el CÓDIGO además del texto porque ahora hay dos motivos —el cruce con
+   * otra cita y un aviso de agenda (almuerzo, reunión)— y cada uno se acepta con
+   * su propia bandera. Sin el código, aceptar el almuerzo reenviaba
+   * `allowOverlap` y el servidor volvía a avisar lo mismo: el diálogo quedaba en
+   * bucle y parecía que el botón no hacía nada.
+   */
+  const [overlapPrompt,  setOverlapPrompt]  = useState<{
+    pending: PendingSubmit;
+    message: string;
+    codigo: 'SLOT_CONFLICT' | 'BLOCKED_SLOT';
+  } | null>(null);
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
   const skipSlotReset  = useRef(false);
@@ -925,7 +938,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
     const pending = buildSubmit();
     if (!pending) return; // nada cambió — buildSubmit ya cerró el diálogo
-    await submitAppointment(pending, false);
+    await submitAppointment(pending);
   };
 
   /**
@@ -992,14 +1005,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     };
   };
 
-  const submitAppointment = async (pending: PendingSubmit, allowOverlap: boolean) => {
+  const submitAppointment = async (
+    pending: PendingSubmit,
+    /** Qué avisos ya aceptó la persona. Cada uno viaja con su propia bandera. */
+    permitir: { overlap?: boolean; blocked?: boolean } = {},
+  ) => {
     setSaving(true);
     setError(null);
     try {
       const res = await fetch(pending.url, {
         method:  pending.mode === 'edit' ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...pending.body, ...(allowOverlap && { allowOverlap: true }) }),
+        body:    JSON.stringify({
+          ...pending.body,
+          ...(permitir.overlap && { allowOverlap: true }),
+          ...(permitir.blocked && { allowBlocked: true }),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -1007,7 +1028,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         // rechazar el guardado (misma regla que el arrastre del calendario,
         // confirmada por Erick 2026-08-05).
         if (res.status === 409 && data.canOverride && data.message) {
-          setOverlapPrompt({ pending, message: data.message as string });
+          setOverlapPrompt({
+            pending,
+            message: data.message as string,
+            codigo:  data.error === 'BLOCKED_SLOT' ? 'BLOCKED_SLOT' : 'SLOT_CONFLICT',
+          });
           return;
         }
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
@@ -1727,14 +1752,18 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     <ConfirmDialog
       open={!!overlapPrompt}
       variant="warning"
-      title={t('overlapTitle')}
+      title={overlapPrompt?.codigo === 'BLOCKED_SLOT' ? t('blockedSlotTitle') : t('overlapTitle')}
       description={overlapPrompt?.message ?? ''}
       confirmLabel={t('overlapConfirm')}
       cancelLabel={t('overlapCancel')}
       onConfirm={() => {
         const p = overlapPrompt;
         setOverlapPrompt(null);
-        if (p) void submitAppointment(p.pending, true);
+        // La bandera que corresponde al aviso que se aceptó, no las dos: aceptar
+        // el almuerzo no debería hacer pasar en silencio un cruce de citas que
+        // nadie miró.
+        if (p) void submitAppointment(p.pending,
+          p.codigo === 'BLOCKED_SLOT' ? { blocked: true } : { overlap: true });
       }}
       onCancel={() => setOverlapPrompt(null)}
     />

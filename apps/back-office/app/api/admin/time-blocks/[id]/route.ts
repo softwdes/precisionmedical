@@ -16,6 +16,14 @@ const PatchSchema = z.object({
   label:           z.string().trim().min(1).max(120).optional(),
   startsAt:        z.string().datetime().optional(),
   durationMinutes: z.number().int().min(5).max(720).optional(),
+  repeatMode:      z.enum(['NONE', 'WEEKDAYS', 'WEEKLY']).optional(),
+  /**
+   * `null` = para siempre. Y acá `null` es un valor CON significado, distinto
+   * de "no vino": con `?? undefined` sacarle la fecha de fin a un bloqueo sería
+   * imposible. Se distingue mirando la PRESENCIA de la clave, igual que el
+   * `parentId` del PATCH de documentos.
+   */
+  repeatUntil:     z.string().datetime().nullable().optional(),
 });
 
 export async function PATCH(
@@ -39,8 +47,15 @@ export async function PATCH(
       ...(d.label           !== undefined && { label: d.label }),
       ...(d.startsAt        !== undefined && { startsAt: new Date(d.startsAt) }),
       ...(d.durationMinutes !== undefined && { durationMinutes: d.durationMinutes }),
+      ...(d.repeatMode      !== undefined && { repeatMode: d.repeatMode }),
+      ...('repeatUntil' in (parsed.data as object) && {
+        repeatUntil: d.repeatUntil ? new Date(d.repeatUntil) : null,
+      }),
     },
-    select: { id: true, startsAt: true, durationMinutes: true, label: true, providerId: true, clinicId: true },
+    select: {
+      id: true, startsAt: true, durationMinutes: true, label: true,
+      providerId: true, clinicId: true, repeatMode: true, repeatUntil: true,
+    },
   });
 
   const actor = await resolveActor(req.headers);

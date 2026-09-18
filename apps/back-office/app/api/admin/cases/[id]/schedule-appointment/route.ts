@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
@@ -28,6 +28,8 @@ const InputSchema = z.object({
   notes: z.string().max(2000).optional(),
   /** Ver PatchSchema en appointments/[id]/route.ts: el cruce avisa y deja decidir. */
   allowOverlap: z.boolean().optional(),
+  /** Aceptar el aviso de agenda y guardar igual. Aparte de `allowOverlap`. */
+  allowBlocked: z.boolean().optional(),
 });
 
 export async function POST(
@@ -128,6 +130,29 @@ export async function POST(
         },
         { status: 409 },
       );
+    }
+  }
+
+  /**
+   * Los avisos de agenda: avisan, no impiden (Devin, 2026-09-17).
+   *
+   * Bandera aparte de `allowOverlap` a propósito: son dos motivos distintos y
+   * quien agenda puede aceptar uno y no el otro. Con una sola bandera, aceptar
+   * el cruce de citas habría hecho pasar el almuerzo en silencio.
+   */
+  if (!parsed.allowBlocked) {
+    const bloqueos = await findBlocksCovering({
+      providerId:      parsed.providerId,
+      start:           new Date(parsed.scheduledFor),
+      durationMinutes: parsed.durationMinutes,
+    });
+    if (bloqueos.length > 0) {
+      return NextResponse.json({
+        error:   'BLOCKED_SLOT',
+        message: describeBlocks(bloqueos),
+        blockIds: bloqueos.map((b) => b.id),
+        canOverride: true,
+      }, { status: 409 });
     }
   }
 

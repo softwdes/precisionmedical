@@ -4,10 +4,23 @@
  * GET  ?from=&to=[&providerId=]  → los del rango, para pintarlos en el calendario
  * POST { providerId, startsAt, durationMinutes, label, clinicId? }
  *
- * NO bloquean nada (decision de Erick 2026-08-20): el sugeridor de horarios los
- * ignora y se puede agendar encima sin aviso. Son informacion para que la lea una
- * persona, igual que en el v2. Por eso este endpoint no toca `available-slots`
- * ni `findOverlappingAppointments`.
+ * AVISAN, no impiden (Devin, 2026-09-17: *"you can use the warn but allow
+ * format"*). El sugeridor marca la hora como ocupada y el diálogo de cita avisa
+ * qué hay ahí, pero si se insiste se guarda igual — mismo criterio que el cruce
+ * de dos citas del mismo provider, confirmado por Erick el 2026-08-05.
+ *
+ * Hasta el 2026-09-17 no avisaban de NADA: eran texto suelto en la grilla y el
+ * sugeridor los ignoraba. La versión anterior de este comentario lo declaraba
+ * como decisión definitiva (Erick, 2026-08-20) y quedó revisada — con 0 filas
+ * creadas en un mes, no había ninguna evidencia a favor.
+ *
+ * ── SE REPITEN ──────────────────────────────────────────────────────────────
+ *
+ * `startsAt` ya NO es "cuándo es": es **cuándo es la primera vez**. El GET no
+ * puede filtrar por `startsAt` dentro del rango —un almuerzo creado en
+ * septiembre dejaría de verse en octubre—: trae las reglas vivas y las EXPANDE
+ * con `blockOccurrences`. Cada ocurrencia sale como una fila propia, con el id
+ * de su regla, así que el calendario no tiene que saber que hubo una regla.
  *
  * Los crea cualquiera del staff —recepcion, asistentes—, asi que no hay chequeo
  * de rol mas alla de estar autenticado.
@@ -17,6 +30,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { blockOccurrences } from '@/lib/bloqueos-recurrentes';
 
 const CrearSchema = z.object({
   /** Opcional: sin doctor, el aviso es del calendario y lo ve todo el mundo. */
@@ -25,6 +39,10 @@ const CrearSchema = z.object({
   startsAt:        z.string().datetime(),
   durationMinutes: z.number().int().min(5).max(720),
   label:           z.string().trim().min(1).max(120),
+  /** Ver `BlockRepeat` en el schema. Sin valor, no se repite: lo de siempre. */
+  repeatMode:      z.enum(['NONE', 'WEEKDAYS', 'WEEKLY']).optional(),
+  /** `null` o ausente = para siempre. Es lo que quiere el almuerzo. */
+  repeatUntil:     z.string().datetime().nullable().optional(),
 });
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -36,34 +54,68 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
   const providerId = searchParams.get('providerId') ?? undefined;
 
+  const desde = new Date(from);
+  const hasta = new Date(to);
+
   const blocks = await db.providerTimeBlock.findMany({
     where: {
-      startsAt: { gte: new Date(from), lte: new Date(to) },
+      /**
+       * Dos familias en un OR, y las dos son necesarias:
+       *
+       *  · las que NO se repiten se siguen filtrando por su fecha, como antes;
+       *  · las que SÍ se repiten entran si empezaron antes del fin del rango y
+       *    no terminaron antes del inicio. El filtro por `startsAt` dentro del
+       *    rango las habría dejado afuera en cuanto pasa el primer mes.
+       */
+      OR: [
+        { repeatMode: 'NONE', startsAt: { gte: desde, lte: hasta } },
+        {
+          repeatMode: { not: 'NONE' },
+          startsAt:   { lte: hasta },
+          OR: [{ repeatUntil: null }, { repeatUntil: { gte: desde } }],
+        },
+      ],
       // Con filtro de doctor se traen los suyos Y los que no tienen doctor: esos
       // son del calendario entero, asi que filtrarlos los haria desaparecer justo
       // cuando alguien mira la agenda de una sola persona.
-      ...(providerId ? { OR: [{ providerId }, { providerId: null }] } : {}),
+      ...(providerId ? { AND: [{ OR: [{ providerId }, { providerId: null }] }] } : {}),
     },
     orderBy: { startsAt: 'asc' },
     select: {
       id: true, startsAt: true, durationMinutes: true, label: true,
-      providerId: true, clinicId: true,
+      providerId: true, clinicId: true, repeatMode: true, repeatUntil: true,
       provider: { select: { firstName: true, lastName: true } },
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    blocks: blocks.map((b) => ({
+  /**
+   * Una fila por OCURRENCIA, no por regla.
+   *
+   * El calendario pinta lo que le llega y no sabe nada de repeticiones: así la
+   * grilla, la vista por sedes y la de Admisión no tienen que aprender a
+   * expandir cada una por su cuenta —que es exactamente cómo se separan dos
+   * implementaciones de la misma regla—.
+   *
+   * `id` sigue siendo el de la REGLA, repetido en cada ocurrencia: es lo que el
+   * diálogo necesita para editarla o borrarla. Y por eso el `key` de React no
+   * puede ser sólo el id (ver el calendario, que usa id + fecha).
+   */
+  const ocurrencias = blocks.flatMap((b) =>
+    blockOccurrences(b, desde, hasta).map((inicio) => ({
       id:              b.id,
-      startsAt:        b.startsAt.toISOString(),
+      startsAt:        inicio.toISOString(),
       durationMinutes: b.durationMinutes,
       label:           b.label,
       providerId:      b.providerId,
       clinicId:        b.clinicId,
       providerName:    b.provider ? `${b.provider.firstName} ${b.provider.lastName}`.trim() : null,
+      repeatMode:      b.repeatMode,
+      repeatUntil:     b.repeatUntil ? b.repeatUntil.toISOString() : null,
     })),
-  });
+  );
+  ocurrencias.sort((a, z) => a.startsAt.localeCompare(z.startsAt));
+
+  return NextResponse.json({ ok: true, blocks: ocurrencias });
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -94,6 +146,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       startsAt:        new Date(d.startsAt),
       durationMinutes: d.durationMinutes,
       label:           d.label,
+      repeatMode:      d.repeatMode ?? 'NONE',
+      repeatUntil:     d.repeatUntil ? new Date(d.repeatUntil) : null,
       createdByUserId: actor.actorUserId ?? null,
     },
     select: { id: true, startsAt: true, durationMinutes: true, label: true, providerId: true, clinicId: true },
@@ -112,6 +166,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       providerName:    provider ? `${provider.firstName} ${provider.lastName}`.trim() : null,
       startsAt:        block.startsAt.toISOString(),
       durationMinutes: block.durationMinutes,
+      repeatMode:      d.repeatMode ?? 'NONE',
+      repeatUntil:     d.repeatUntil ?? null,
     },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });

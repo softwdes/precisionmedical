@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl';
 import { CalendarOff, Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { DoctorCombobox, type DoctorComboboxProvider } from '@/components/ui-phoenix/doctor-combobox';
+import type { BlockRepeatMode as BlockRepeat } from '@/lib/bloqueos-recurrentes';
 
 export interface TimeBlock {
   id: string;
@@ -33,6 +34,10 @@ export interface TimeBlock {
   providerId: string | null;
   clinicId: string | null;
   providerName?: string | null;
+  /** Cómo se repite. Ausente en payloads viejos = no se repite. */
+  repeatMode?: BlockRepeat;
+  /** `null` = para siempre. */
+  repeatUntil?: string | null;
 }
 
 interface Props {
@@ -74,6 +79,59 @@ function isoToDenverParts(iso: string): { fecha: string; hora: string } {
   };
 }
 
+/**
+ * ─── Los presets ────────────────────────────────────────────────────────────
+ *
+ * Devin (2026-09-17) los pidió por ACTIVIDAD, no por "cada cuánto se repite":
+ * *"mas es por horas actividades entonces Almuerzo, Meeting, vacaciones,
+ * licencia"*. Cada uno rellena la forma que esa actividad tiene siempre.
+ *
+ * Rellenan y nada más: después se puede cambiar todo. Si el almuerzo de una
+ * sede es a las 12:30, lo corrigen y queda.
+ *
+ * ⚠️ El `texto` va en INGLÉS aunque la pantalla esté en español, y el `nombre`
+ * del botón traducido. No es una inconsistencia: la etiqueta del aviso es el
+ * DATO que se lee en la grilla —mismo criterio que "Intake Form" y "Lien
+ * Agreement", que tampoco se traducen—. Si se tradujera, una recepcionista en
+ * español guardaría "Almuerzo" y otra en inglés "Lunch", y el calendario
+ * mostraría las dos cosas para lo mismo, un día al lado del otro.
+ *
+ * `OTHER` es el primero y el default: es exactamente el comportamiento que el
+ * diálogo tenía antes de todo esto, y la mitad de los avisos reales son de una
+ * sola vez ("el Dr. X se fue temprano", "no hay luz").
+ */
+type Preset = {
+  clave: 'OTHER' | 'LUNCH' | 'MEETING' | 'VACATION' | 'LEAVE';
+  /** Lo que se escribe en la etiqueta. Vacío = lo escribe la persona. */
+  texto: string;
+  hora?: string;
+  duracion?: number;
+  repite?: BlockRepeat;
+  /** Pide fecha de fin: una ausencia sin fin no es una ausencia. */
+  exigeHasta?: boolean;
+};
+
+/**
+ * La 1 PM del almuerzo NO es una intuición: está medida.
+ *
+ * Citas por hora en los últimos 120 días, sólo días de semana: 11:00 → 218,
+ * 12:00 → 168, **13:00 → 19**, 14:00 → 207. Una caída del 91% con doscientas
+ * citas de cada lado. Si acá dijera 12:00, el preset habría estado mal todos
+ * los días del año.
+ */
+const HORA_DEL_ALMUERZO = '13:00';
+
+/** 08:00-18:00, el horario de atención entero — ver `OPEN_MIN`/`CLOSE_MIN`. */
+const JORNADA_COMPLETA = 600;
+
+const PRESETS: Preset[] = [
+  { clave: 'OTHER',    texto: '' },
+  { clave: 'LUNCH',    texto: 'Lunch',    hora: HORA_DEL_ALMUERZO, duracion: 60, repite: 'WEEKDAYS' },
+  { clave: 'MEETING',  texto: 'Meeting',  duracion: 60, repite: 'NONE' },
+  { clave: 'VACATION', texto: 'Vacation', hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'WEEKDAYS', exigeHasta: true },
+  { clave: 'LEAVE',    texto: 'Leave',    hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'WEEKDAYS', exigeHasta: true },
+];
+
 export function TimeBlockDialog({
   open, onClose, onSaved, providers, editing, defaultDate, defaultTime, defaultProviderId,
 }: Props) {
@@ -84,6 +142,10 @@ export function TimeBlockDialog({
   const [hora,       setHora]       = useState('');
   const [duracion,   setDuracion]   = useState(60);
   const [label,      setLabel]      = useState('');
+  const [repite,     setRepite]     = useState<BlockRepeat>('NONE');
+  /** `YYYY-MM-DD` del último día. Vacío = para siempre. */
+  const [hasta,      setHasta]      = useState('');
+  const [preset,     setPreset]     = useState<Preset['clave']>('OTHER');
   const [guardando,  setGuardando]  = useState(false);
   const [borrando,   setBorrando]   = useState(false);
   const [error,      setError]      = useState<string | null>(null);
@@ -97,17 +159,47 @@ export function TimeBlockDialog({
       setFecha(p.fecha); setHora(p.hora);
       setDuracion(editing.durationMinutes);
       setLabel(editing.label);
+      setRepite(editing.repeatMode ?? 'NONE');
+      setHasta(editing.repeatUntil ? isoToDenverParts(editing.repeatUntil).fecha : '');
+      // Al editar no se adivina el preset: la fila puede haber sido retocada a
+      // mano y marcar "Lunch" sobre algo que ya no lo es sería mentir.
+      setPreset('OTHER');
     } else {
       setProviderId(defaultProviderId ?? '');
       setFecha(defaultDate ?? new Date().toLocaleDateString('en-CA', { timeZone: ZONA }));
       setHora(defaultTime ?? '12:00');
       setDuracion(60);
       setLabel('');
+      setRepite('NONE');
+      setHasta('');
+      setPreset('OTHER');
     }
   }, [open, editing, defaultDate, defaultTime, defaultProviderId]);
 
+  /**
+   * Un preset rellena; no bloquea nada.
+   *
+   * La FECHA no se toca: la eligió el usuario, o vino del hueco del calendario
+   * en el que hizo clic. Un preset que además mueve el día se siente como que
+   * la pantalla decide por uno.
+   */
+  const aplicarPreset = (p: Preset): void => {
+    setPreset(p.clave);
+    if (p.texto) setLabel(p.texto);
+    if (p.hora) setHora(p.hora);
+    if (p.duracion) setDuracion(p.duracion);
+    if (p.repite) setRepite(p.repite);
+    if (!p.exigeHasta) setHasta('');
+  };
+
+  const exigeHasta = PRESETS.find((p) => p.clave === preset)?.exigeHasta === true;
+
   // Sin doctor tambien se guarda: ese es el caso por defecto.
-  const puedeGuardar = !!fecha && !!hora && label.trim().length > 0 && !guardando;
+  // Una ausencia SIN fecha de fin no es una ausencia: si el preset la exige, no
+  // se guarda hasta que esté. El almuerzo, al revés, no la exige nunca.
+  const puedeGuardar =
+    !!fecha && !!hora && label.trim().length > 0 && !guardando
+    && !(exigeHasta && repite !== 'NONE' && !hasta);
 
   const guardar = async (): Promise<void> => {
     setError(null); setGuardando(true);
@@ -117,11 +209,18 @@ export function TimeBlockDialog({
         startsAt: denverToIso(fecha, hora),
         durationMinutes: duracion,
         label: label.trim(),
+        repeatMode: repite,
+        // El último día se manda al CIERRE de la jornada, no a su medianoche:
+        // con las 00:00 el propio día de fin quedaba afuera por unas horas.
+        repeatUntil: repite !== 'NONE' && hasta ? denverToIso(hasta, '23:59') : null,
       };
       const res = editing
         ? await fetch(`/api/admin/time-blocks/${editing.id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ label: cuerpo.label, startsAt: cuerpo.startsAt, durationMinutes: cuerpo.durationMinutes }),
+            body: JSON.stringify({
+              label: cuerpo.label, startsAt: cuerpo.startsAt, durationMinutes: cuerpo.durationMinutes,
+              repeatMode: cuerpo.repeatMode, repeatUntil: cuerpo.repeatUntil,
+            }),
           })
         : await fetch('/api/admin/time-blocks', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -161,6 +260,28 @@ export function TimeBlockDialog({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <p className="text-[11px] text-text-muted">{t('blockHint')}</p>
 
+          {/* Qué es. Los presets rellenan la forma de cada actividad; "Other"
+              deja todo como estaba antes y es el que viene elegido. */}
+          <div>
+            <label className="block text-[11px] font-semibold text-text-2 mb-1.5">{t('blockFieldKind')}</label>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.clave}
+                  type="button"
+                  onClick={() => aplicarPreset(p)}
+                  className={`min-h-11 sm:min-h-0 sm:py-1.5 px-3 rounded-md border text-xs font-semibold transition-colors ${
+                    preset === p.clave
+                      ? 'border-cyan/50 bg-cyan/10 text-cyan'
+                      : 'border-border text-text-2 hover:border-cyan/30 hover:text-text-1'
+                  }`}
+                >
+                  {t(`blockKind_${p.clave}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-text-2 mb-1">
@@ -177,11 +298,40 @@ export function TimeBlockDialog({
             <div>
               <label className="block text-[11px] font-semibold text-text-2 mb-1">{t('fieldDuration')}</label>
               <select value={duracion} onChange={(e) => setDuracion(parseInt(e.target.value, 10))} className={campo}>
-                {[15, 30, 45, 60, 90, 120, 180, 240, 480].map((m) => (
-                  <option key={m} value={m}>{t('blockDurationMin', { m })}</option>
+                {[15, 30, 45, 60, 90, 120, 180, 240, 480, JORNADA_COMPLETA].map((m) => (
+                  <option key={m} value={m}>
+                    {m === JORNADA_COMPLETA ? t('blockDurationAllDay') : t('blockDurationMin', { m })}
+                  </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* ── Repetición ──
+              `hasta` vacío = para siempre, que es lo que quiere el almuerzo:
+              nadie va a renovarlo cada enero. Sólo aparece cuando hay algo que
+              repetir — un campo "hasta cuándo" sobre un aviso de una sola vez
+              no significa nada. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-text-2 mb-1">{t('blockFieldRepeat')}</label>
+              <select value={repite} onChange={(e) => setRepite(e.target.value as BlockRepeat)} className={campo}>
+                <option value="NONE">{t('blockRepeat_NONE')}</option>
+                <option value="WEEKDAYS">{t('blockRepeat_WEEKDAYS')}</option>
+                <option value="WEEKLY">{t('blockRepeat_WEEKLY')}</option>
+              </select>
+            </div>
+            {repite !== 'NONE' && (
+              <div>
+                <label className="block text-[11px] font-semibold text-text-2 mb-1">
+                  {t('blockFieldUntil')} {exigeHasta && <span className="text-rose">*</span>}
+                </label>
+                <input type="date" value={hasta} min={fecha} onChange={(e) => setHasta(e.target.value)} className={campo} />
+                <p className="text-[10px] text-text-muted mt-1">
+                  {hasta ? t('blockUntilSet') : t('blockUntilForever')}
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -191,6 +341,16 @@ export function TimeBlockDialog({
             <input type="text" value={label} maxLength={120} onChange={(e) => setLabel(e.target.value)}
               placeholder={t('blockLabelPlaceholder')} className={campo} autoFocus />
           </div>
+
+          {/* Editar o borrar un bloqueo repetido toca TODOS sus días, no el que
+              se abrió. Sin decirlo, alguien va a creer que corrigió el martes y
+              va a haber corregido el año. No hay "sólo este día": eso es el
+              mecanismo de excepciones y no existe todavía. */}
+          {editing && editing.repeatMode && editing.repeatMode !== 'NONE' && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+              {t('blockRepeatWarning')}
+            </div>
+          )}
 
           {/* El doctor va ULTIMO y es opcional: por defecto el aviso es de todo
               el calendario, que es el caso comun (almuerzo general, corte de luz). */}

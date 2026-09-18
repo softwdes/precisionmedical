@@ -9,6 +9,19 @@
 
 import { db } from '@precision-medical/database';
 
+/**
+ * La expansión de los bloqueos vive en `lib/bloqueos-recurrentes.ts`, que NO
+ * importa Prisma: es aritmética de calendario y así se puede correr sin base.
+ * Este archivo la re-exporta para que los cuatro llamadores —el sugeridor y los
+ * tres endpoints que guardan— sigan pidiéndole todas las reglas de agenda a un
+ * solo lugar, que es la razón por la que este archivo existe.
+ */
+export {
+  type BlockRepeatMode, type BlockRule,
+  blockOccurrences, blocksCovering, describeBlocks,
+} from '@/lib/bloqueos-recurrentes';
+import { blocksCovering } from '@/lib/bloqueos-recurrentes';
+
 const TIMEZONE = 'America/Denver';
 
 /** Devuelve el día de semana en America/Denver (Mon, Tue, ..., Sun) */
@@ -22,6 +35,54 @@ export function weekdayInDenver(date: Date): string {
 export function isWeekendInDenver(date: Date): boolean {
   const weekday = weekdayInDenver(date);
   return weekday === 'Sat' || weekday === 'Sun';
+}
+
+
+/**
+ * Los avisos de agenda que pisan `[start, start + duration)`.
+ *
+ * Vive acá y no en la pantalla por la misma razón que el resto de este archivo:
+ * lo consultan CUATRO lugares —el sugeridor de horarios y los tres endpoints que
+ * guardan una cita— y con una copia por lugar, el día que alguien toque una, las
+ * otras tres siguen con la regla vieja. Es literalmente lo que pasó con la regla
+ * de fin de semana, que estaba sólo en el sugeridor: agendar un sábado a mano
+ * se guardaba sin ningún chequeo.
+ *
+ * NO impide nada: devuelve lo que pisa y quien llama decide. El aviso y el
+ * "dale igual" son de la pantalla, igual que con el cruce de dos citas del
+ * mismo provider (regla de Erick, 2026-08-05).
+ *
+ * Trae los que no tienen doctor —son del calendario entero— más los de ESTE
+ * doctor. Y no filtra por `startsAt` dentro del rango: una regla repetida
+ * empieza una sola vez, así que se traen las vivas y se expanden.
+ */
+export async function findBlocksCovering(opts: {
+  providerId: string | null | undefined;
+  start: Date;
+  durationMinutes: number;
+}): Promise<Array<{ id: string; label: string }>> {
+  const fin = new Date(opts.start.getTime() + opts.durationMinutes * 60_000);
+
+  const vivos = await db.providerTimeBlock.findMany({
+    where: {
+      OR: [
+        { repeatMode: 'NONE', startsAt: { lte: fin } },
+        {
+          repeatMode: { not: 'NONE' },
+          startsAt:   { lte: fin },
+          OR: [{ repeatUntil: null }, { repeatUntil: { gte: opts.start } }],
+        },
+      ],
+      AND: [{ OR: [{ providerId: null }, ...(opts.providerId ? [{ providerId: opts.providerId }] : [])] }],
+    },
+    select: {
+      id: true, label: true, startsAt: true, durationMinutes: true,
+      repeatMode: true, repeatUntil: true,
+    },
+  });
+
+  return blocksCovering(vivos, opts.start, opts.durationMinutes)
+    .map((b) => ({ id: b.id, label: b.label }));
 }
 
 // ─── Cruce de horarios del doctor ───────────────────────────────────────────

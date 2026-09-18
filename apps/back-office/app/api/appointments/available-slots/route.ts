@@ -24,7 +24,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@precision-medical/database';
-import { isWeekendInDenver } from '@/lib/scheduling-rules';
+import { isWeekendInDenver , blocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const TIMEZONE = 'America/Denver';
 
@@ -180,6 +180,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     },
   });
 
+  /**
+   * ─── Los bloqueos de agenda ─────────────────────────────────────────────
+   *
+   * AVISAN, no impiden (Devin, 2026-09-17). Por eso el horario bloqueado sigue
+   * saliendo en la lista, con `bloqueadoPor` puesto: el que decide es la persona
+   * que agenda, y **si se quitaran de la lista sería un bloqueo DURO por
+   * accidente** — la decisión quedaría anulada sin que nadie se dé cuenta.
+   *
+   * Se traen los que no tienen doctor (son del calendario entero) más los de
+   * ESTE doctor. Y no se filtran por `startsAt` dentro del rango: una regla
+   * repetida empieza una sola vez, así que se traen las vivas y se expanden.
+   */
+  const bloqueos = await db.providerTimeBlock.findMany({
+    where: {
+      OR: [
+        { repeatMode: 'NONE', startsAt: { gte: fromDate, lt: toDate } },
+        {
+          repeatMode: { not: 'NONE' },
+          startsAt:   { lt: toDate },
+          OR: [{ repeatUntil: null }, { repeatUntil: { gte: fromDate } }],
+        },
+      ],
+      AND: [{ OR: [{ providerId: null }, { providerId: query.providerId }] }],
+    },
+    select: {
+      id: true, label: true, startsAt: true, durationMinutes: true,
+      repeatMode: true, repeatUntil: true,
+    },
+  });
+
   // ─── Genera candidatos y filtra conflictos ─────────────────────────────
   const candidates = generateCandidates(fromDate, toDate, query.durationMinutes);
   const durationMs = query.durationMinutes * 60 * 1000;
@@ -206,13 +236,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     ? limitarPorDia(libres, query.limitPerDay)
     : libres.slice(0, query.limit);
 
-  const available = recortados.map((slot) => ({
-    startAt:         slot.toISOString(),
-    endAt:           new Date(slot.getTime() + durationMs).toISOString(),
-    durationMinutes: query.durationMinutes,
-    clinicId:        query.clinicId,
-    providerId:      query.providerId,
-  }));
+  const available = recortados.map((slot) => {
+    // Qué aviso pisa este horario, si alguno. El selector lo muestra tachado y
+    // con el motivo, y deja elegirlo igual.
+    const pisan = blocksCovering(bloqueos, slot, query.durationMinutes);
+    return {
+      startAt:         slot.toISOString(),
+      endAt:           new Date(slot.getTime() + durationMs).toISOString(),
+      durationMinutes: query.durationMinutes,
+      clinicId:        query.clinicId,
+      providerId:      query.providerId,
+      /** `null` = libre. Con valor, la etiqueta del aviso que lo pisa. */
+      bloqueadoPor:    pisan.length > 0 ? describeBlocks(pisan) : null,
+    };
+  });
 
   return NextResponse.json({
     ok:    true,
@@ -227,6 +264,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // exactamente el bug: la respuesta se veía sana y un día entero faltaba.
       cap:              query.limitPerDay ? { perDay: query.limitPerDay } : { total: query.limit },
       freeCount:        libres.length,
+      // Cuántos de los devueltos caen sobre un aviso. Si mañana alguien reporta
+      // "no me deja agendar al mediodía", este número dice si es el almuerzo.
+      blockedCount:     available.filter((s) => s.bloqueadoPor !== null).length,
       returnedCount:    available.length,
     },
   });

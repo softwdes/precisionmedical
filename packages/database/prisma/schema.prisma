@@ -4651,6 +4651,18 @@ model ReleaseEntry {
 /// todos. Los dos vinculos son opcionales y solo se usan para acotar cuando de
 /// verdad corresponde — un doctor puntual que se fue temprano, o una sede que
 /// cierra por feriado.
+/// Cada cuánto se repite un bloqueo de agenda. Ver `ProviderTimeBlock.repeatMode`.
+enum BlockRepeat {
+  /// Una sola vez — el comportamiento de siempre y el default del diálogo.
+  NONE
+  /// Todos los días de semana, lunes a viernes. El almuerzo.
+  WEEKDAYS
+  /// Cada semana, el mismo día que `startsAt`. La reunión de los martes.
+  WEEKLY
+
+  @@map("BlockRepeat")
+}
+
 model ProviderTimeBlock {
   id String @id @default(cuid())
 
@@ -4674,7 +4686,34 @@ model ProviderTimeBlock {
   durationMinutes Int
 
   /// Texto libre, lo que el staff quiera escribir. Es el dato principal.
+  ///
+  /// Los presets del diálogo (Lunch, Meeting, Vacation, Leave) lo RELLENAN y
+  /// nada más: después se puede cambiar. Y lo rellenan SIEMPRE EN INGLÉS aunque
+  /// la pantalla esté en español, por la misma razón que "Intake Form" y "Lien
+  /// Agreement" no se traducen — esto es DATO, no interfaz. Si se tradujera,
+  /// una recepcionista en español guardaría "Almuerzo" y otra en inglés
+  /// "Lunch", y la grilla mostraría las dos cosas para lo mismo.
   label String
+
+  /// ── Repetición ────────────────────────────────────────────────────────────
+  ///
+  /// Una REGLA, no una fila por día. Materializar necesita un horizonte y un
+  /// proceso que lo estire, y cuando el horizonte se queda corto el almuerzo
+  /// desaparece solo, sin que nadie toque nada.
+  ///
+  /// `WEEKDAYS` es lunes a viernes, no siete días: la clínica no atiende fines
+  /// de semana (`isWeekendInDenver`). `WEEKLY` repite el mismo día de la semana
+  /// que `startsAt`.
+  ///
+  /// ⚠️ Con esto, `startsAt` deja de ser "cuándo es" y pasa a ser "cuándo es la
+  /// PRIMERA vez". Toda consulta que liste bloqueos por rango de fechas tiene
+  /// que EXPANDIR la regla, no filtrar por `startsAt` — si filtra, un almuerzo
+  /// creado en septiembre deja de verse en octubre.
+  repeatMode BlockRepeat @default(NONE)
+
+  /// Último día en que la regla aplica. `null` = para siempre, que es lo que
+  /// quiere el almuerzo: nadie va a renovarlo cada enero.
+  repeatUntil DateTime?
 
   createdByUserId String?
   createdAt       DateTime @default(now())

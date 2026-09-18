@@ -158,6 +158,65 @@ export function rangoDelDia(clave?: string): { start: Date; end: Date; key: stri
 }
 
 /**
+ * El día de la semana en la zona de la clínica: `Mon`, `Tue`, … `Sun`.
+ *
+ * Gemelo de `weekdayInDenver` de `scheduling-rules.ts`, que no se puede
+ * importar desde acá: ese archivo trae Prisma y `lib/fechas.ts` es puro a
+ * propósito. La duplicación es de UNA línea de `Intl` y se paga a cambio de
+ * que la expansión de bloqueos se pueda correr sin base.
+ */
+export function weekdayEnClinica(cuando: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA_CLINICA, weekday: 'short',
+  }).format(cuando);
+}
+
+/**
+ * El instante UTC de una hora CIVIL de la clínica, consciente de DST.
+ *
+ * `instanteEnClinica('2026-09-17', 13 * 60)` → la 1 PM de Utah de ese día, en UTC.
+ *
+ * Existe para los bloqueos que se repiten. Un almuerzo "todos los días a la 1"
+ * no se puede expandir sumando 24 horas al instante anterior: los dos domingos
+ * del año en que cambia la hora, el día tiene 23 o 25 horas, y a partir de ahí
+ * el almuerzo queda corrido una hora **para siempre**. La regla guarda la hora
+ * civil y cada ocurrencia se reconstruye desde su propio día.
+ *
+ * El offset se toma del MEDIODÍA UTC del día pedido, no de "ahora" ni de la
+ * medianoche: en esos dos domingos el offset de la medianoche es ambiguo y el
+ * del mediodía no. Misma técnica que `rangoDelDia`, por la misma razón.
+ *
+ * @param clave    `YYYY-MM-DD` del día, en la zona de la clínica
+ * @param minutos  minutos desde la medianoche civil (13:00 → 780)
+ */
+export function instanteEnClinica(clave: string, minutos: number): Date {
+  const sonda = new Date(`${clave}T12:00:00Z`);
+  const parte = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA_CLINICA, timeZoneName: 'shortOffset',
+  })
+    .formatToParts(sonda)
+    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-6';
+  const m = /GMT([+-]\d+)/.exec(parte);
+  const horas = m?.[1] ? parseInt(m[1], 10) : -6;
+  const hh = String(Math.abs(horas)).padStart(2, '0');
+  const medianoche = new Date(`${clave}T00:00:00${horas <= 0 ? '-' : '+'}${hh}:00`);
+  return new Date(medianoche.getTime() + minutos * 60_000);
+}
+
+/**
+ * Minutos desde la medianoche CIVIL de la clínica — la hora del día, sin fecha.
+ *
+ * El complemento de `instanteEnClinica`: saca de un instante la hora que el
+ * staff ve en la grilla, para poder reconstruirla en otro día.
+ */
+export function minutosDelDiaEnClinica(cuando: Date): number {
+  const [hh, mm] = new Intl.DateTimeFormat('en-GB', {
+    timeZone: ZONA_CLINICA, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(cuando).split(':').map(Number) as [number, number];
+  return hh * 60 + mm;
+}
+
+/**
  * La HORA local de la clínica (0-23) en un instante dado.
  *
  * La usa el cron del parte de la mañana: los crons de Vercel corren en UTC, así

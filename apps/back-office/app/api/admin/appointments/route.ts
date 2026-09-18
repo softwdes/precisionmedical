@@ -18,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
@@ -275,6 +275,11 @@ const CreateSchema = z.object({
   meetingUrl:      z.string().url().nullable().optional(),
   /** Ver PatchSchema en [id]/route.ts: el cruce avisa y deja decidir. */
   allowOverlap:    z.boolean().optional(),
+  /**
+   * Aceptar el aviso de agenda (almuerzo, reunión) y guardar igual. Aparte de
+   * `allowOverlap`: son dos avisos distintos.
+   */
+  allowBlocked:    z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -345,6 +350,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           message: describeOverlap(overlaps),
           conflictAppointmentId: overlaps[0]!.id,
           overlapCount: overlaps.length,
+          canOverride: true,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  /**
+   * ─── Los avisos de agenda ────────────────────────────────────────────────
+   *
+   * Avisan, no impiden (Devin, 2026-09-17: *"warn but allow"*). Va DESPUÉS del
+   * cruce de citas y con su propia bandera: son dos motivos distintos y quien
+   * agenda puede querer aceptar uno y no el otro. Un solo `allowOverlap` para
+   * los dos dejaría pasar en silencio el que no se miró.
+   */
+  if (!parsed.allowBlocked) {
+    const bloqueos = await findBlocksCovering({
+      providerId:      parsed.providerId,
+      start:           new Date(parsed.scheduledFor),
+      durationMinutes: parsed.durationMinutes,
+    });
+    if (bloqueos.length > 0) {
+      return NextResponse.json(
+        {
+          error:   'BLOCKED_SLOT',
+          message: describeBlocks(bloqueos),
+          blockIds: bloqueos.map((b) => b.id),
           canOverride: true,
         },
         { status: 409 },

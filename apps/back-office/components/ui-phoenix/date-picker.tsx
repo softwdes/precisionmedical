@@ -15,9 +15,9 @@
  */
 
 import * as React from 'react';
-import { createPortal } from 'react-dom';
 import { useLocale } from 'next-intl';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FloatingPanel } from './floating-panel';
 
 export interface DatePickerProps {
   /** YYYY-MM-DD seleccionado */
@@ -99,51 +99,27 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
   const popRef = React.useRef<HTMLDivElement>(null);
-  /**
-   * El calendario se renderiza en un PORTAL con `position: fixed`.
-   *
-   * Dentro de un diálogo el cuerpo scrollea (`overflow-y-auto`) y un popover
-   * `absolute` queda RECORTADO — se veía medio calendario. Además el
-   * `transform` del DialogContent haría de bloque contenedor de cualquier
-   * `fixed` hijo (ver memoria: css-fixed-inside-dialog-trap), así que el
-   * portal a `body` es la única salida. Mismo patrón que ui-phoenix/autocomplete.
-   */
-  const [popStyle, setPopStyle] = React.useState<React.CSSProperties>({ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' });
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => { setMounted(true); }, []);
 
+  /**
+   * El calendario se dibuja con `FloatingPanel` y NO con un portal propio a
+   * `document.body`.
+   *
+   * Portalear a `body` deja el popover FUERA del subárbol del diálogo, y
+   * mientras hay un Radix Dialog modal abierto `body` lleva
+   * `pointer-events: none`: el calendario se veía perfecto y no recibía un solo
+   * clic — ni los días, ni las flechas de mes. Peor todavía, el clic aterrizaba
+   * en el diálogo de abajo y el "cerrar al clickear afuera" de acá lo tomaba por
+   * un clic externo, así que el calendario se CERRABA sin elegir nada. Lo reportó
+   * la clínica al intentar agendar una cita a diez días (2026-09-18).
+   *
+   * `FloatingPanel` monta dentro del `[role="dialog"]` cuando hay uno y en
+   * `body` cuando no, que es la salida que el proyecto ya había encontrado para
+   * este mismo bug en el buscador de casos, el picker de labs y el de
+   * diagnósticos.
+   */
   const POP_W = 248;
-  const POP_H = 300; // alto aproximado del popover (header + grid + pie)
-
-  React.useLayoutEffect(() => {
-    if (!open) return;
-    const compute = (): void => {
-      const el = rootRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      // Alineado a la derecha del trigger, sin salirse de la ventana
-      const left = Math.max(8, Math.min(r.right - POP_W, window.innerWidth - POP_W - 8));
-      // Abre hacia arriba si abajo no entra
-      const abreArriba = r.bottom + POP_H > window.innerHeight && r.top > POP_H;
-      setPopStyle(abreArriba
-        ? { position: 'fixed', bottom: window.innerHeight - r.top + 4, left, visibility: 'visible' }
-        : { position: 'fixed', top: r.bottom + 4, left, visibility: 'visible' });
-    };
-    compute();
-    // Seguir al contenedor scrolleable del diálogo
-    let scrollable: HTMLElement | null = rootRef.current?.parentElement ?? null;
-    while (scrollable) {
-      const oy = window.getComputedStyle(scrollable).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      scrollable = scrollable.parentElement;
-    }
-    scrollable?.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute, { passive: true });
-    return () => {
-      scrollable?.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [open]);
   const a = ACCENTS[accent];
   const today = todayKey ?? localTodayKey();
 
@@ -224,8 +200,20 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         {triggerLabel}
       </button>
 
-      {open && mounted && createPortal(
-        <div ref={popRef} style={popStyle} className="z-[9999] w-[248px] rounded-lg border border-border bg-bg-1 shadow-2xl p-3">
+      <FloatingPanel
+        anchorRef={rootRef}
+        panelRef={popRef}
+        open={open && mounted}
+        width={POP_W}
+        align="end"
+        /* Alto real del calendario (cabecera + 6 filas + pie). Con el default de
+           208 se voltearía hacia arriba aun teniendo lugar de sobra abajo. */
+        maxHeight={330}
+        /* Sin borde: un panel flotante se define con la SOMBRA que ya pone
+           FloatingPanel (regla de bordes del back-office). */
+        className="p-3"
+      >
+        <div>
           {/* Header: mes + navegación */}
           <div className="flex items-center justify-between mb-2">
             <button
@@ -295,9 +283,8 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
               {todayLabel}
             </button>
           </div>
-        </div>,
-        document.body,
-      )}
+        </div>
+      </FloatingPanel>
     </div>
   );
 }

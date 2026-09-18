@@ -225,11 +225,19 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   };
   const nextWeek = () => { setWeekStart(d => anclaDesde(addDays(d, +7))); setSelectedDay(null); };
 
-  /** Ir a un día concreto desde el selector de mes. */
+  /**
+   * Ir a un día concreto desde el selector de mes.
+   *
+   * El día elegido queda SELECCIONADO, no solo visible: el selector apaga los
+   * fines de semana, así que `anclaDesde` lo deja siempre en la primera columna
+   * de la tira y sus horarios se pueden mostrar de una. Dejándolo en `null` el
+   * usuario elegía el 28 en el calendario y tenía que volver a clickear el "28"
+   * de la tira para ver las horas — el mismo día, dos veces.
+   */
   const irAlDia = (clave: string) => {
     const [y, m, d] = clave.split('-').map(Number) as [number, number, number];
     setWeekStart(anclaDesde(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))));
-    setSelectedDay(null);
+    setSelectedDay(clave);
   };
 
   const selectedSlot = value ? slots.find(s => s.iso === value) : null;

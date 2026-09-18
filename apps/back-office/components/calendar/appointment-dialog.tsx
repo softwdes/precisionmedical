@@ -13,6 +13,8 @@ import { localeApp, fechaCalendario } from '@/lib/fechas';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { describirAvisoCita } from '@/lib/enviar-portal';
+import { useToast } from '@/components/ui-phoenix';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
   FileText, FilePlus, ChevronRight, Calendar as CalendarIcon, CalendarDays, User, Search, X, Link2, UserPlus, Video,
@@ -211,7 +213,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const { open, onOpenChange, onSuccess, initialDate, initialTime, initialClinicId, editAppointment, isReschedule } = props;
   const isEditMode = !!editAppointment;
   const router = useRouter();
-  const t = useTranslations('phoenix.calendar');
+  const t   = useTranslations('phoenix.calendar');
+  const tac = useTranslations('phoenix.avisoCita');
+  const toast = useToast();
 
   /**
    * Estados en los que la cita YA TIENE UN DESENLACE y su fecha no se toca más.
@@ -1038,6 +1042,25 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
       }
       if (pending.mode === 'edit') {
+        /**
+         * Qué pasó con el aviso al paciente.
+         *
+         * El PATCH devuelve `avisoReprogramacion` y `avisoCancelacion` desde el
+         * 2026-09-18, y este diálogo los tiraba junto con el resto de la
+         * respuesta: movías una cita, el correo al paciente se rechazaba, y la
+         * pantalla se cerraba en verde igual que si hubiera salido.
+         *
+         * Va por toast y no bloqueando: el cambio de la cita YA se guardó, así
+         * que no hay nada que decidir acá — solo algo que saber.
+         */
+        const dataEdit = await res.json().catch(() => ({}));
+        for (const [r, tipo] of [
+          [dataEdit.avisoReprogramacion, 'reprogramacion'],
+          [dataEdit.avisoCancelacion,    'cancelacion'],
+        ] as const) {
+          const msg = describirAvisoCita(r, tipo, tac);
+          if (msg) toast.info(msg, { durationMs: 9000 });
+        }
         router.refresh();
         onSuccess?.();
         onOpenChange(false);
@@ -1049,6 +1072,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         clinicName:   data.appointment.clinic.name,
         providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
       });
+      // El recordatorio al paciente. El server lo espera con `await` —en vez de
+      // dispararlo y seguir— justamente para que recepción pueda verlo acá.
+      const avisoAlAgendar = describirAvisoCita(data.recordatorio, 'recordatorio', tac);
+      if (avisoAlAgendar) toast.info(avisoAlAgendar, { durationMs: 9000 });
+
       router.refresh();
       onSuccess?.();
     } catch (e) {

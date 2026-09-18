@@ -4675,6 +4675,17 @@
       "frNoReplyYet": "Sin respuesta todavía",
       "colTo": "Para"
     },
+    "avisoCita": {
+      "recordatorioNoSalio": "No se le pudo avisar la cita al paciente.",
+      "reprogramacionNoSalio": "No se le pudo avisar al paciente que la cita cambió.",
+      "cancelacionNoSalio": "No se le pudo avisar al paciente que la cita se canceló.",
+      "sinTelefono": "No tiene teléfono cargado.",
+      "sinEmail": "No tiene correo cargado.",
+      "dadoDeBaja": "Respondió STOP y se dio de baja de los mensajes.",
+      "canalApagado": "El canal de aviso está apagado.",
+      "falloGenerico": "El envío falló.",
+      "avisarAMano": "Avisale por teléfono."
+    },
     "portalEnvio": {
       "canalEmail": "el correo",
       "canalSms": "el SMS",

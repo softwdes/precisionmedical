@@ -17,7 +17,9 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
-import { TagPill } from '@/components/ui-phoenix';
+import { TagPill, useToast } from '@/components/ui-phoenix';
+import { useTranslations } from 'next-intl';
+import { describirAvisoCita } from '@/lib/enviar-portal';
 
 // B.10 — Agendar primera cita (post-CONFIRMED)
 
@@ -84,6 +86,8 @@ const SPECIALTY_COLORS: Record<string, string> = {
 
 export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: ScheduleAppointmentDialogProps) {
   const router = useRouter();
+  const tac   = useTranslations('phoenix.avisoCita');
+  const toast = useToast();
 
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -185,6 +189,12 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         clinicName: data.appointment.clinic.name,
         providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
       });
+
+      // Si el recordatorio al paciente no salió, se dice. La ruta lo devuelve
+      // en `recordatorioCita` y acá se descartaba con el resto de la respuesta.
+      const aviso = describirAvisoCita(data.recordatorioCita, 'recordatorio', tac);
+      if (aviso) toast.info(aviso, { durationMs: 9000 });
+
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al agendar');

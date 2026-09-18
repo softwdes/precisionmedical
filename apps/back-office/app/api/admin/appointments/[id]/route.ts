@@ -10,6 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
+import { avisarReprogramacion, avisarCancelacion } from '@/lib/recordatorio-cita';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
@@ -83,7 +84,7 @@ export async function PATCH(
 
   const existing = await db.appointment.findUnique({
     where: { id },
-    select: { id: true, status: true, caseId: true, providerId: true, scheduledFor: true, durationMinutes: true },
+    select: { id: true, status: true, caseId: true, providerId: true, scheduledFor: true, durationMinutes: true, clinicId: true, isOnline: true },
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
@@ -318,5 +319,77 @@ export async function PATCH(
     metadata:    { changes: parsed },
   });
 
-  return NextResponse.json({ ok: true, appointment: updated });
+  /**
+   * Al paciente le avisamos que su cita se movió.
+   *
+   * Hasta acá esta ruta no le decía NADA a nadie: aceptaba cambiar la fecha, la
+   * sede, el provider y la duración, y el paciente —que ya tenía su SMS con la
+   * hora vieja— se presentaba cuando le habían dicho la primera vez. Es peor
+   * que no haber avisado nunca: el sistema le dio un dato y después lo cambió
+   * a sus espaldas.
+   *
+   * Cuándo sí: los tres cambios que le cambian el día al paciente.
+   *
+   *   · la FECHA Y HORA  — tiene que venir en otro momento
+   *   · la SEDE          — tiene que manejar a otra dirección
+   *   · presencial ⇄ en línea — o maneja al pedo, o se queda esperando en casa
+   *
+   * Cuándo no: el provider y la duración. Son cosas nuestras — el paciente
+   * llega a la misma hora al mismo lugar, y un correo por cada ajuste interno
+   * entrena a no leer los correos de la clínica, que es el costo que después se
+   * paga en el aviso que sí importaba.
+   *
+   * La sede entró después de escribir esto mirando solo el reloj. Mandar a
+   * alguien a un edificio equivocado es exactamente el mismo daño que mandarlo
+   * a la hora equivocada, y no lo cubre `scheduledFor`.
+   *
+   * Por correo y no por SMS — decisión de Erick, 2026-09-18.
+   *
+   * `existing` se leyó ANTES del update: para acá la fila ya tiene los datos
+   * nuevos y los anteriores no están en ninguna parte. La fecha vieja es
+   * justamente lo que hace que el correo se distinga de un recordatorio.
+   */
+  const cambio = <T,>(nuevo: T | undefined, viejo: T) => nuevo !== undefined && nuevo !== viejo;
+
+  const cambioLaHora =
+    parsed.scheduledFor !== undefined &&
+    new Date(parsed.scheduledFor).getTime() !== new Date(existing.scheduledFor).getTime();
+
+  const seMovio =
+    cambioLaHora
+    || cambio(parsed.clinicId, existing.clinicId)
+    || cambio(parsed.isOnline, existing.isOnline);
+
+  // Una cita cancelada no se "reprograma": si en el mismo PATCH se la cancela,
+  // mandarle la fecha nueva sería decirle que la espere.
+  const avisoReprogramacion = (seMovio && parsed.status !== 'CANCELLED')
+    ? await avisarReprogramacion({
+        appointmentId:        id,
+        scheduledForAnterior: cambioLaHora ? new Date(existing.scheduledFor) : null,
+        actorUserId:          actor.actorUserId,
+        actorName:            actor.actorName,
+      })
+    : null;
+
+  /**
+   * Y el aviso de cancelación.
+   *
+   * Solo en la TRANSICIÓN a cancelada: `existing.status !== 'CANCELLED'`. Sin
+   * eso, cualquier PATCH posterior sobre una cita ya cancelada —corregir la
+   * nota, cargar el motivo— le mandaría el correo de nuevo. (El guard de
+   * `ALREADY_CANCELLED` de más arriba tapa el caso más común, pero depende de
+   * que el caller mande `status`, y esta condición no depende de nada.)
+   *
+   * NO_SHOW no entra: "no viniste" y "te la cancelamos" son cosas distintas, y
+   * mandarle la segunda a quien faltó es contarle mal lo que pasó.
+   */
+  const avisoCancelacion = (parsed.status === 'CANCELLED' && existing.status !== 'CANCELLED')
+    ? await avisarCancelacion({
+        appointmentId: id,
+        actorUserId:   actor.actorUserId,
+        actorName:     actor.actorName,
+      })
+    : null;
+
+  return NextResponse.json({ ok: true, appointment: updated, avisoReprogramacion, avisoCancelacion });
 }

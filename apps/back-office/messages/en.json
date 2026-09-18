@@ -4675,6 +4675,17 @@
       "frNoReplyYet": "No reply yet",
       "colTo": "To"
     },
+    "avisoCita": {
+      "recordatorioNoSalio": "The patient could not be notified about the appointment.",
+      "reprogramacionNoSalio": "The patient could not be notified that the appointment changed.",
+      "cancelacionNoSalio": "The patient could not be notified that the appointment was cancelled.",
+      "sinTelefono": "No phone number on file.",
+      "sinEmail": "No email address on file.",
+      "dadoDeBaja": "They replied STOP and opted out of messages.",
+      "canalApagado": "The notification channel is turned off.",
+      "falloGenerico": "The send failed.",
+      "avisarAMano": "Call them instead."
+    },
     "portalEnvio": {
       "canalEmail": "the email",
       "canalSms": "the SMS",

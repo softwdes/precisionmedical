@@ -31,7 +31,7 @@ import { idiomaDelPaciente } from '@/lib/portal-message';
 import { calcAge, isMinor } from '@precision-medical/database/age';
 import { ActiveCallBar } from './active-call-bar';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
-import { enviarPortal, describirFallo } from '@/lib/enviar-portal';
+import { enviarPortal, describirFallo, describirAvisoCita } from '@/lib/enviar-portal';
 import {
   ContactoCompartidoDialog, type CandidatoContacto, type VinculoElegido,
 } from '@/components/patients/contacto-compartido-dialog';
@@ -172,6 +172,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // español, así que "Sem. ant." / "Sem. sig." salían igual con la UI en inglés.
   const tcal = useTranslations('phoenix.calendar');
   const tpe  = useTranslations('phoenix.portalEnvio');
+  const tac  = useTranslations('phoenix.avisoCita');
 
   // ─── Twilio Voice ──────────────────────────────────────────────────────
   const twilio = useTwilioDevice();
@@ -825,7 +826,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       // just generate-portal-token for display only.
       let portalUrl: string | null = null;
       let qrDataUrl: string | null = null;
-      let falloEnvio: string[] = [];
+      /**
+       * Los avisos que no salieron, en una sola lista.
+       *
+       * Arranca con el recordatorio de la CITA —si el alta agendó una— y
+       * después se le suman los canales del formulario. Van juntos a propósito:
+       * para recepción es un solo problema ("a este paciente no le llegó lo que
+       * le teníamos que mandar"), no dos avisos en cajas distintas.
+       */
+      let falloEnvio: string[] = [
+        describirAvisoCita(data.recordatorioCita, 'recordatorio', tac),
+      ].filter((x): x is string => !!x);
       try {
         const channels: Array<'EMAIL' | 'SMS'> = [
           ...(emailOn ? ['EMAIL' as const] : []),
@@ -841,7 +852,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
            */
           const envio = await enviarPortal({ caseId, canales: channels, language });
           portalUrl  = envio.portalUrl;
-          falloEnvio = envio.fallidos.map((r) => describirFallo(r, tpe));
+          falloEnvio = [...falloEnvio, ...envio.fallidos.map((r) => describirFallo(r, tpe))];
         } else {
           // Sin canal de entrega — solo se genera el token para mostrarlo.
           const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });

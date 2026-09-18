@@ -125,3 +125,53 @@ export function describirFallo(
     default:                      return t('falloGenerico', { canal });
   }
 }
+
+// ─── Los avisos de CITA ──────────────────────────────────────────────────────
+//
+// Mismo problema que arriba, otra familia de avisos. Las rutas que crean,
+// mueven o cancelan una cita devuelven el resultado del aviso al paciente —
+// `appointments/route.ts` lo hace con un `await` deliberado y un comentario que
+// dice que recepción tiene que poder verlo en el acto— y ninguna pantalla lo
+// leía. El dato viajaba y se tiraba.
+
+/** Lo que devuelven `enviarRecordatorioDeCita`, `avisarReprogramacion` y `avisarCancelacion`. */
+export interface ResultadoAvisoCita {
+  enviado: boolean;
+  motivo?: string;
+  detalle?: string;
+}
+
+/** Cuál de los tres avisos falló: cambia la frase, no el motivo. */
+export type TipoAvisoCita = 'recordatorio' | 'reprogramacion' | 'cancelacion';
+
+/**
+ * Una frase para recepción sobre un aviso de cita que no salió.
+ *
+ * Devuelve `null` cuando salió bien o cuando no había nada que mandar — la
+ * pantalla no tiene que decir nada en ese caso. El que llama hace
+ * `const aviso = describirAvisoCita(...); if (aviso) toast.info(aviso)`.
+ *
+ * `t` es el `useTranslations('phoenix.avisoCita')` de la pantalla, por la misma
+ * razón que en `describirFallo`: lo llaman componentes que ya tienen el suyo.
+ */
+export function describirAvisoCita(
+  r: ResultadoAvisoCita | null | undefined,
+  tipo: TipoAvisoCita,
+  t: (key: string) => string,
+): string | null {
+  if (!r || r.enviado) return null;
+
+  const que =
+    tipo === 'reprogramacion' ? t('reprogramacionNoSalio')
+    : tipo === 'cancelacion'  ? t('cancelacionNoSalio')
+    : t('recordatorioNoSalio');
+
+  const porque =
+    r.motivo === 'SIN_TELEFONO' ? t('sinTelefono')
+    : r.motivo === 'SIN_EMAIL'  ? t('sinEmail')
+    : r.motivo === 'OPTED_OUT'  ? t('dadoDeBaja')
+    : r.motivo === 'DESHABILITADO' ? t('canalApagado')
+    : t('falloGenerico');
+
+  return `${que} ${porque} ${t('avisarAMano')}`;
+}

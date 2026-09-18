@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/alertas-admin",
       "schedule": "45 13,14 * * *"
+    },
+    {
+      "path": "/api/cron/recordatorio-cita",
+      "schedule": "0 * * * *"
     }
   ]
 }

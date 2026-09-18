@@ -13,7 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
-import { enviarPortal, describirFallo, type CanalPortal } from '@/lib/enviar-portal';
+import { enviarPortal, describirFallo, describirAvisoCita, type CanalPortal } from '@/lib/enviar-portal';
 import { idiomaDelPaciente } from '@/lib/portal-message';
 import { useToast } from '@/components/ui-phoenix';
 import {
@@ -423,6 +423,7 @@ export function QuickRegisterDialog({
      tres pantallas que crean casos y no se duplican por namespace. */
   const tcw    = useTranslations('caseWizard');
   const tpe    = useTranslations('phoenix.portalEnvio');
+  const tac    = useTranslations('phoenix.avisoCita');
   const toast  = useToast();
   const router = useRouter();
   /** GM ya existente del paciente — se ofrece abrirlo en vez de crear otro. */
@@ -694,6 +695,17 @@ export function QuickRegisterDialog({
        * nos abrió ya la tiene. Lo que sigue es el formulario, y si no sale, el
        * paciente igual existe.
        */
+      /**
+       * El recordatorio de la cita, si el alta agendó una.
+       *
+       * `POST /api/admin/cases` lo devuelve en `recordatorioCita` —o `null` si
+       * no se agendó nada, que es distinto de "se intentó y falló"—. Se avisa
+       * antes del formulario porque es el mismo paciente y el mismo momento:
+       * quien está mirando la pantalla puede resolver los dos de una.
+       */
+      const avisoCita = describirAvisoCita(json.recordatorioCita, 'recordatorio', tac);
+      if (avisoCita) toast.info(avisoCita, { durationMs: 9000 });
+
       const caseIdCreado = json.case?.id ?? '';
       if (mode === 'form' && caseIdCreado) {
         const canales: CanalPortal[] = [

@@ -1190,6 +1190,18 @@ model Appointment {
   signToken          String?   @unique
   signTokenExpiresAt DateTime?
 
+  /// Cuándo el cron PROCESÓ esta cita para el recordatorio de 24 h antes.
+  ///
+  /// Marca el intento, no la entrega: si salió o no, y por qué, vive en
+  /// `message_logs`. Acá solo importa "ya me ocupé de ésta", que es lo que
+  /// evita el correo repetido si el cron se dispara dos veces —los de Vercel
+  /// corren en UTC y el horario de verano hace que una hora pase dos veces al
+  /// año, cosa que ya le pasa a `parte-manana`.
+  ///
+  /// La ventana del cron (entre 24 h y 25 h antes) por sí sola no alcanza: un
+  /// reintento dentro de esa misma hora volvería a mandarlo.
+  recordatorio24hAt DateTime?
+
   // B.16 Triaje — registro de signos vitales capturados por MA
   triageRecord TriageRecord?
 

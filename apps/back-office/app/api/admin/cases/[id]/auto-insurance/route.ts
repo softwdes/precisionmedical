@@ -20,7 +20,9 @@ const InputSchema = z.object({
   carrierNameRaw: z.string().max(200).nullable().optional(),
   policyId: z.string().max(60).nullable().optional(),
   lossDate: z.string().nullable().optional(),
-  pipAvailable: z.enum(['YES', 'NO', 'UNKNOWN']).default('UNKNOWN'),
+  // NOT_APPLICABLE = al caso no le aplica el PIP. Es una RESPUESTA, no un
+  // "todavía no se sabe": sale de la cola de Edson igual que YES y NO.
+  pipAvailable: z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_APPLICABLE']).default('UNKNOWN'),
   claimNum: z.string().max(60).nullable().optional(),
   adjusterId: z.string().nullable().optional(),
   adjusterNameRaw: z.string().max(200).nullable().optional(),
@@ -42,7 +44,7 @@ const PartialSchema = z.object({
   carrierNameRaw: z.string().max(200).nullable().optional(),
   policyId: z.string().max(60).nullable().optional(),
   lossDate: z.string().nullable().optional(),
-  pipAvailable: z.enum(['YES', 'NO', 'UNKNOWN']).optional(),
+  pipAvailable: z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_APPLICABLE']).optional(),
   claimNum: z.string().max(60).nullable().optional(),
   adjusterId: z.string().nullable().optional(),
   adjusterNameRaw: z.string().max(200).nullable().optional(),

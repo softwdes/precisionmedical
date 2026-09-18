@@ -194,11 +194,28 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
    */
   const armarFrom = (vistaSql: Prisma.Sql) => Prisma.sql`
     FROM cases c
+    /*
+     * La PRIMERA visita del caso, y las canceladas van al final del orden.
+     *
+     * Antes era la cita mas vieja a secas, y cuando a alguien le MOVIAN la
+     * primera visita la fila se quedaba viviendo en el dia de la cita anulada:
+     * Edson la buscaba el 1-sep y el paciente venia el 4. Lo marco el en su
+     * hoja ("her appointment was moved to Sep. 4"). Medido el 2026-09-17: 11
+     * filas de 1.053 estaban en el dia equivocado, algunas por casi dos meses.
+     *
+     * El booleano ordena false primero, asi que una cancelada solo gana si NO
+     * hay ninguna sin cancelar — y ahi tiene que ganar: el que anulo y no
+     * volvio a reservar es justo a quien Edson persigue. Son 7 filas y se ven
+     * tachadas.
+     *
+     * NO_SHOW no entra en esto. El que no vino SI tuvo su primera visita, y ese
+     * dia es el dato.
+     */
     JOIN LATERAL (
       SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId", a."createdByName"
       FROM appointments a
       WHERE a."caseId" = c."id"
-      ORDER BY a."scheduledFor" ASC
+      ORDER BY (a."status" = 'CANCELLED') ASC, a."scheduledFor" ASC
       LIMIT 1
     ) fa ON TRUE
     /*

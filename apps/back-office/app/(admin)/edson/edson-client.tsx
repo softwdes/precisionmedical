@@ -98,7 +98,7 @@ interface Row {
    * to…" cuando el caso no va por seguro sino por lien del abogado.
    */
   insComments: string | null;
-  pipAvailable: 'YES' | 'NO' | 'UNKNOWN';
+  pipAvailable: Pip;
   /**
    * TODOS los adjusters del caso, en el orden en que se asignaron. Si no hay
    * ninguno asignado pero el caso migrado traía el nombre suelto, viene ese como
@@ -159,8 +159,18 @@ const APPT_STATUSES: Array<[value: string, tKey: string]> = [
   ['NO_SHOW',     'statusNoShow'],
 ];
 
-const PIP_CYCLE: Record<string, 'YES' | 'NO' | 'UNKNOWN'> = {
-  UNKNOWN: 'YES', YES: 'NO', NO: 'UNKNOWN',
+/**
+ * Los cuatro estados del PIP, y la línea que los parte en dos: UNKNOWN es
+ * "nadie llamó todavía" —la cola de Edson y el número del tile— y los otros
+ * tres son respuestas. N/A (`NOT_APPLICABLE`) es para el caso al que el PIP no
+ * le aplica: va por lien, es de fuera del estado o la póliza no lo cubre. Sin
+ * él, esos casos se quedaban en la cola para siempre.
+ */
+type Pip = 'YES' | 'NO' | 'UNKNOWN' | 'NOT_APPLICABLE';
+
+/** El clic recorre los cuatro y vuelve a empezar. */
+const PIP_CYCLE: Record<string, Pip> = {
+  UNKNOWN: 'YES', YES: 'NO', NO: 'NOT_APPLICABLE', NOT_APPLICABLE: 'UNKNOWN',
 };
 
 const DENVER = 'America/Denver';
@@ -331,6 +341,60 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       return true;
     } catch {
       patchRow(caseId, undo);
+      setError(t('saveFailed'));
+      return false;
+    }
+  }
+
+  /**
+   * Cambiar el provider de la primera visita.
+   *
+   * Cambia UN campo de UNA cita —la que se ve en la fila— y se refleja solo en
+   * todo lo demás, porque el calendario, las métricas y el claim leen ese mismo
+   * campo en vivo. Medido el 2026-09-17, lo que NO toca:
+   *
+   *   · el cargo facturado: `appointment_billing` no guarda provider.
+   *   · la nota de visita: guarda su propio firmante (`signedByName`).
+   *
+   * Sí llega al HCFA en los 227 casos de una sola cita, porque el claim toma el
+   * provider de la cita más RECIENTE del caso y ahí la primera es la única.
+   *
+   * Si el provider elegido ya tenía otra cita a esa hora, el endpoint contesta
+   * 409 y se muestra su mensaje. No se fuerza desde acá: solapar a alguien en
+   * una visita que ya pasó no puede ser un clic distraído.
+   */
+  async function cambiarProvider(
+    row: Row, elegido: { id: string | null; text: string | null },
+  ): Promise<boolean> {
+    /*
+     * Un nombre escrito a mano NO es un provider: la ficha real lleva NPI y es
+     * la que va al claim. Se rechaza con mensaje y la celda queda abierta —
+     * aceptarlo en silencio guardaba nada y parecía que había guardado.
+     */
+    if (elegido.text) { setError(t('providerOnlyFromList')); return false; }
+
+    const providerId = elegido.id;
+    const nombre = providerId ? providers.find(p => p.id === providerId)?.name ?? null : null;
+    if (providerId && !nombre) return false;
+    if ((nombre ?? null) === (row.appointment.providerName ?? null)) return true;
+
+    const antes = row.appointment.providerName;
+    patchRow(row.caseId, { appointment: { ...row.appointment, providerName: nombre } });
+    try {
+      const res = await fetch(`/api/admin/appointments/${row.appointment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        patchRow(row.caseId, { appointment: { ...row.appointment, providerName: antes } });
+        setError(json.message ?? t('saveFailed'));
+        return false;
+      }
+      return true;
+    } catch {
+      patchRow(row.caseId, { appointment: { ...row.appointment, providerName: antes } });
       setError(t('saveFailed'));
       return false;
     }
@@ -777,15 +841,31 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             * el tooltip, que es donde Edson lo consulta cuando
                             * necesita saber quien agendo — no de un vistazo.
                             */}
-                          <div className="min-w-0">
-                            <span
-                              className="text-text-2 truncate block max-w-[160px]"
-                              title={row.appointment.createdBy
-                                ? `${row.appointment.providerName ?? ''} — ${t('createdByShort', { name: row.appointment.createdBy })}`
-                                : row.appointment.providerName ?? undefined}
-                            >
-                              {row.appointment.providerName ?? <Empty />}
-                            </span>
+                          <div className="min-w-0 w-full flex"
+                               title={row.appointment.createdBy
+                                 ? `${row.appointment.providerName ?? ''} — ${t('createdByShort', { name: row.appointment.createdBy })}`
+                                 : row.appointment.providerName ?? undefined}
+                          >
+                            {archived ? (
+                              <span className="text-text-2 truncate block max-w-[160px]">
+                                {row.appointment.providerName ?? <Empty />}
+                              </span>
+                            ) : (
+                              <div className="flex-1 min-w-0">
+                                <InlineCombo
+                                  value={row.appointment.providerName}
+                                  options={providers}
+                                  emptyHint={t('providerPick')}
+                                  title={t('providerPick')}
+                                  /*
+                                   * Solo de la lista: acá no hay texto libre.
+                                   * El provider es una ficha real con NPI, y un
+                                   * nombre escrito a mano no es nadie.
+                                   */
+                                  onSave={(elegido) => cambiarProvider(row, elegido)}
+                                />
+                              </div>
+                            )}
                           </div>
                         </DataTable.Td>
                         <DataTable.Td className={COL_LG}>
@@ -1215,10 +1295,20 @@ function StatusLegend() {
 
 function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCycle: () => void }) {
   const t = useTranslations('phoenix.edsonTracking');
-  const label = row.pipAvailable === 'YES' ? t('pipYes') : row.pipAvailable === 'NO' ? t('pipNo') : t('pipUnknown');
+  const label =
+    row.pipAvailable === 'YES' ? t('pipYes')
+    : row.pipAvailable === 'NO' ? t('pipNo')
+    : row.pipAvailable === 'NOT_APPLICABLE' ? t('pipNa')
+    : t('pipUnknown');
+  /*
+   * El borde PUNTEADO es lo que dice "acá falta trabajo", y lo lleva solo
+   * UNKNOWN. N/A es una respuesta, así que va con borde sólido aunque sea
+   * gris: de un vistazo, punteado = pendiente.
+   */
   const tone =
     row.pipAvailable === 'YES' ? 'bg-emerald/15 text-emerald border-emerald/30'
     : row.pipAvailable === 'NO' ? 'bg-rose/15 text-rose border-rose/30'
+    : row.pipAvailable === 'NOT_APPLICABLE' ? 'bg-bg-3 text-text-3 border-border-strong'
     : 'text-text-muted border-dashed border-border-strong';
   const base = `min-w-[38px] inline-block rounded-md px-2 py-0.5 text-[8px] font-semibold border ${tone}`;
 
@@ -1519,7 +1609,7 @@ function TrackingDialog({
   const [carrierId, setCarrierId] = useState('');
   const [claimNum, setClaimNum]   = useState(row.claimNum ?? '');
   const [lossDate, setLossDate]   = useState(row.lossDate ? row.lossDate.slice(0, 10) : '');
-  const [pip, setPip]             = useState<'YES' | 'NO' | 'UNKNOWN'>(row.pipAvailable);
+  const [pip, setPip]             = useState<Pip>(row.pipAvailable);
   const [chiropractor, setChiro]  = useState(row.chiropractor ?? '');
   const [insComments, setInsComments] = useState(row.insComments ?? '');
   const managersRef  = useRef<HTMLDivElement>(null);
@@ -1794,11 +1884,12 @@ function TrackingDialog({
             </div>
             <div>
               <Label htmlFor="tr-pip">{t('fieldPip')}</Label>
-              <select id="tr-pip" value={pip} onChange={e => setPip(e.target.value as 'YES' | 'NO' | 'UNKNOWN')}
+              <select id="tr-pip" value={pip} onChange={e => setPip(e.target.value as Pip)}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                 <option value="UNKNOWN">— {t('kpiNoPipSub')}</option>
                 <option value="YES">Y</option>
                 <option value="NO">N</option>
+                <option value="NOT_APPLICABLE">{t('pipNa')} — {t('pipNaHint')}</option>
               </select>
             </div>
           </div>

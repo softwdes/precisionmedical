@@ -41,6 +41,73 @@ function toData(parsed: z.infer<typeof InputSchema>) {
   };
 }
 
+/** Tope de la lista: hoy el catálogo tiene 103 y el buscador lo achica. */
+const MAX_LISTA = 60;
+
+/**
+ * GET /api/admin/adjusters?q=&carrierId=   → el catálogo, para el selector.
+ *
+ * Devuelve el catálogo ENTERO y no solo el de la aseguradora del caso, y esa
+ * es la decisión que hace que el selector sirva. Medido el 2026-09-17: de las
+ * 1.053 filas de la cola de Edson, solo **261** tienen aseguradora resuelta y
+ * apenas **177** caen en una aseguradora que además tenga gente en el catálogo.
+ * Filtrando solo por aseguradora, el selector saldría VACÍO en el 83% de los
+ * casos — que es justo por lo que se lo quitó la primera vez (ver el comentario
+ * en `case-adjusters.tsx`).
+ *
+ * `carrierId` no filtra: ORDENA. Los de la aseguradora del caso suben primero,
+ * que es lo que Edson necesita ver arriba, y el resto sigue alcanzable.
+ */
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const sp = req.nextUrl.searchParams;
+  const q = (sp.get('q') ?? '').trim();
+  const carrierId = sp.get('carrierId') ?? '';
+
+  const where: Prisma.InsuranceAdjusterWhereInput = { deletedAt: null, status: 'ACTIVE' };
+  if (q) {
+    // También por teléfono: Edson muchas veces tiene el número y no el nombre.
+    where.OR = [
+      { name: { contains: q, mode: 'insensitive' } },
+      { phone: { contains: q } },
+      { insuranceCarrier: { name: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
+
+  const SELECT = {
+    id: true, name: true, phone: true, extension: true, phone2: true,
+    fax: true, email: true,
+    insuranceCarrier: { select: { id: true, name: true } },
+  } as const;
+
+  /*
+   * Dos consultas y no una con `sort` después, y el motivo es el tope.
+   *
+   * Ordenar en memoria lo que ya vino recortado NO sube nada: el recorte pasa
+   * primero. Con el catálogo de hoy (103 activos, tope 60) eso dejaba afuera a
+   * 10 de los 24 de Progressive y a 5 de los 9 de State Farm — los de apellido
+   * tardío. Edson tendría que escribir el nombre para encontrarlos, que es
+   * justo lo que no sabe cuando abre la lista.
+   *
+   * Así, los de la aseguradora del caso entran TODOS y el resto rellena.
+   */
+  const delCaso = carrierId
+    ? await db.insuranceAdjuster.findMany({
+        where: { ...where, insuranceCarrierId: carrierId },
+        orderBy: { name: 'asc' },
+        select: SELECT,
+      })
+    : [];
+
+  const resto = await db.insuranceAdjuster.findMany({
+    where: carrierId ? { ...where, NOT: { insuranceCarrierId: carrierId } } : where,
+    orderBy: { name: 'asc' },
+    take: Math.max(0, MAX_LISTA - delCaso.length),
+    select: SELECT,
+  });
+
+  return NextResponse.json({ ok: true, adjusters: [...delCaso, ...resto] });
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
   let parsed;

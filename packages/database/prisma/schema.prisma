@@ -3215,13 +3215,21 @@ model InsuranceAdjuster {
 
 /// Y / N / vacio de la columna "PIP Available?" del Excel de Edson.
 ///
-/// Es TRI-estado a proposito: vacio no significa "no tiene PIP", significa que
-/// todavia nadie llamo a la aseguradora a preguntar. Colapsar los dos en un
-/// boolean borraria justo el dato que Edson persigue todos los dias.
+/// NO es un boolean a proposito: vacio no significa "no tiene PIP", significa
+/// que todavia nadie llamo a la aseguradora a preguntar. Colapsar los dos
+/// borraria justo el dato que Edson persigue todos los dias.
+///
+/// Los cuatro estados, y la linea que los parte en dos:
+///   UNKNOWN         nadie pregunto todavia  -> ES la cola de Edson
+///   YES / NO        se pregunto y esta es la respuesta
+///   NOT_APPLICABLE  al caso no le aplica el PIP (lien, fuera del estado, la
+///                   poliza no lo cubre). Tambien es una RESPUESTA, asi que
+///                   sale de la cola igual que YES y NO.
 enum PipAvailability {
   YES
   NO
   UNKNOWN
+  NOT_APPLICABLE
 }
 
 /// Seguro de auto del caso (B.12 — bandeja de Edson).

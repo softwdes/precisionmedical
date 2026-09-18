@@ -152,9 +152,16 @@ function Scroll({ children, maxHeight, headHeight = '34px' }: {
 function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: number }) {
   return (
     <tr>
+      {/*
+        * La línea de arriba cruza la tabla ENTERA y no solo el texto: el `<td>`
+        * abarca todas las columnas, así que el borde llega hasta la última.
+        * Sin ella los días se leían pegados, porque el texto del separador vive
+        * en un `sticky` angosto del lado izquierdo y a la derecha no quedaba
+        * nada que marcara el corte. Lo pidió Edson.
+        */}
       <td
         colSpan={colSpan}
-        className="sticky top-[var(--dt-head-h)] z-[15] bg-bg-1 px-4 py-1.5"
+        className="sticky top-[var(--dt-head-h)] z-[15] bg-bg-1 px-4 py-1.5 border-t border-border-strong"
       >
         <div className="sticky left-4 w-fit">{children}</div>
       </td>

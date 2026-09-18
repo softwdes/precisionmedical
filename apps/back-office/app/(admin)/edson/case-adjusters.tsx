@@ -179,6 +179,106 @@ function BillingAddress({ carrier, onSaved }: { carrier: Carrier | null; onSaved
   );
 }
 
+// ─── Buscador del catálogo ───────────────────────────────────────────────────
+
+interface AdjusterDelCatalogo {
+  id: string;
+  name: string;
+  phone: string | null;
+  extension: string | null;
+  insuranceCarrier: { id: string; name: string } | null;
+}
+
+/**
+ * La gente que ya está cargada en el catálogo, para elegir en vez de tipear.
+ *
+ * Trae el catálogo entero y sube primero a los de la aseguradora del caso — no
+ * filtra por ella. Ver el comentario del GET en `api/admin/adjusters`: filtrar
+ * dejaba la lista vacía en el 83% de los casos.
+ */
+function CatalogoAdjusters({
+  carrierId, onPick, saving,
+}: {
+  carrierId: string | null;
+  onPick: (a: AdjusterDelCatalogo) => void;
+  saving: boolean;
+}) {
+  const t = useTranslations('phoenix.edsonTracking');
+  const [q, setQ] = useState('');
+  const [lista, setLista] = useState<AdjusterDelCatalogo[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  // Debounce, por lo mismo que el buscador de la grilla: sin esto cada tecla
+  // dispara una consulta.
+  useEffect(() => {
+    let vivo = true;
+    const id = setTimeout(async () => {
+      setCargando(true);
+      try {
+        const sp = new URLSearchParams();
+        if (q.trim()) sp.set('q', q.trim());
+        if (carrierId) sp.set('carrierId', carrierId);
+        const res  = await fetch(`/api/admin/adjusters?${sp}`);
+        const json = await res.json().catch(() => ({}));
+        if (vivo && res.ok) setLista(json.adjusters ?? []);
+      } finally { if (vivo) setCargando(false); }
+    }, q ? 300 : 0);
+    return () => { vivo = false; clearTimeout(id); };
+  }, [q, carrierId]);
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="ca-buscar">{t('adjusterFromCatalog')}</Label>
+      <Input
+        id="ca-buscar"
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder={t('adjusterSearchPh')}
+      />
+
+      {cargando && (
+        <div className="flex items-center gap-2 text-text-muted text-[12px] py-1">
+          <Loader2 className="w-3 h-3 animate-spin" /> …
+        </div>
+      )}
+
+      {!cargando && lista.length === 0 && (
+        <p className="text-[12px] text-text-muted italic py-1">{t('adjusterCatalogEmpty')}</p>
+      )}
+
+      {/* Sin borde: el escalón de fondo ya separa la lista de la caja (Regla #0). */}
+      {!cargando && lista.length > 0 && (
+        <div className="max-h-52 overflow-y-auto rounded-md bg-bg-2/40">
+          {lista.map(a => {
+            // La aseguradora del caso se marca, para que elegir a alguien de
+            // otra compañía sea una decisión y no un descuido.
+            const esDelCaso = !!carrierId && a.insuranceCarrier?.id === carrierId;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                disabled={saving}
+                onClick={() => onPick(a)}
+                className="w-full text-left px-2.5 py-1.5 border-b border-row-sep last:border-0 hover:bg-white/[0.02] disabled:opacity-50 flex items-baseline gap-2"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] text-text-1 truncate">{a.name}</span>
+                  <span className="block text-[11px] text-text-muted truncate">
+                    {withExt(a.phone, a.extension) ?? '—'}
+                  </span>
+                </span>
+                <span className={`shrink-0 text-[10px] ${esDelCaso ? 'text-brand-text font-semibold' : 'text-text-muted'}`}>
+                  {a.insuranceCarrier?.name ?? '—'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function AdjustersPopover({
@@ -254,6 +354,31 @@ export function AdjustersSection({
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
 
+
+  /**
+   * Asignar a alguien del catálogo. Manda solo el id: el endpoint hace `upsert`
+   * sobre (caseId, adjusterId), así que volver a elegir a quien ya estaba lo
+   * reactiva en vez de fallar por el único.
+   */
+  async function asignarDelCatalogo(adjusterId: string) {
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/adjusters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjusterId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
+        return;
+      }
+      setAdding(false);
+      await reload();
+      onChanged?.();
+    } catch { setError(t('errSave')); }
+    finally { setSaving(false); }
+  }
 
   async function assign() {
     setSaving(true); setError('');
@@ -335,11 +460,32 @@ export function AdjustersSection({
       {adding && (
         <div className="rounded-lg bg-bg-1 p-3 space-y-3">
           {/*
-            * Un solo formulario, sin pestañas. Antes habia una para elegir del
-            * catalogo de la aseguradora, pero el catalogo esta vacio y elegir
-            * de ahi exigia que el caso tuviera carrier — dos condiciones para
-            * algo que se resuelve escribiendo el nombre.
+            * El buscador del catalogo va ARRIBA y el formulario queda abajo,
+            * siempre visible. No son pestañas.
+            *
+            * Hubo un selector antes y se quito con razon: filtraba por la
+            * aseguradora del caso y el catalogo estaba vacio, asi que salia en
+            * blanco. Las dos cosas cambiaron. El catalogo tiene 93 personas
+            * reales cargadas el 2026-09-12, y este buscador NO filtra por
+            * aseguradora —solo la sube primero—, porque solo 177 de las 1.053
+            * filas de la cola tienen una aseguradora con gente en el catalogo.
+            *
+            * Y el formulario a mano se queda: de los 4 adjusters que Edson ya
+            * habia cargado, 2 no estan en el catalogo. Si el selector lo
+            * reemplazara, perderia poder anotar a alguien nuevo.
             */}
+          <CatalogoAdjusters
+            carrierId={carrier?.id ?? null}
+            onPick={(a) => void asignarDelCatalogo(a.id)}
+            saving={saving}
+          />
+
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] uppercase tracking-wider text-text-muted">{t('adjusterOrByHand')}</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="sm:col-span-2">
               <Label htmlFor="ca-name">{t('adjusterName')}</Label>

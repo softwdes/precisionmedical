@@ -1306,10 +1306,19 @@ const INS_TYPE_COLOR: Record<string, string> = {
  */
 const AUTO_ENTRY_ID = '__auto__';
 
-const PIP_TO_TEXT: Record<string, string> = { YES: 'Y', NO: 'N', UNKNOWN: '' };
+const PIP_TO_TEXT: Record<string, string> = {
+  YES: 'Y', NO: 'N', UNKNOWN: '', NOT_APPLICABLE: 'N/A',
+};
 
-function textToPip(raw: string): 'YES' | 'NO' | 'UNKNOWN' {
+/**
+ * Acá se escribe a mano, así que hay que aceptar lo que la gente realmente
+ * tipea. Ojo con el orden: "na" y "n/a" tienen que mirarse ANTES que "n", o
+ * un "N/A" terminaría guardado como NO —que significa lo contrario— y el caso
+ * se leería como "se preguntó y no hay PIP".
+ */
+function textToPip(raw: string): 'YES' | 'NO' | 'UNKNOWN' | 'NOT_APPLICABLE' {
   const v = raw.trim().toLowerCase();
+  if (['n/a', 'na', 'no aplica', 'not applicable'].includes(v)) return 'NOT_APPLICABLE';
   if (['y', 'yes', 'si', 'sí', 's', 'true', '1'].includes(v)) return 'YES';
   if (['n', 'no', 'false', '0'].includes(v)) return 'NO';
   return 'UNKNOWN';

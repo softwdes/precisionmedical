@@ -18,6 +18,7 @@
  * (2026-08-25).
  */
 
+import * as React from 'react';
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -55,32 +56,51 @@ const ATTORNEY_ACK =
   `its terms as accepted by their client. The absence of the attorney's acknowledgment or signature shall not ` +
   `affect the validity or enforceability of this lien.`;
 
+/**
+ * ─── Todo el acuerdo entra en UNA hoja ──────────────────────────────────────
+ *
+ * v2 lo imprimía en una sola página —la referencia que pasó la clínica dice
+ * "4 / 4"— y el nuestro se desbordaba a una segunda. Con el acuerdo pegado al
+ * final del intake eso convertía un papel de 4 hojas en uno de 5, con la firma
+ * cayendo sola en la última (Erick, 2026-09-18).
+ *
+ * De 712 puntos útiles el contenido pedía ~936: sobraban unos 225, el 24%. El
+ * grueso está en los SEIS párrafos legales, así que ahí va el recorte más
+ * fuerte —cuerpo e interlineado— y el resto sale de los aires: el margen del
+ * encabezado, el del título, el alto de la firma y el respiro entre filas del
+ * recuadro de datos.
+ *
+ * ⚠️ El TEXTO no se toca nunca: es el contrato vigente. Si algún día no entra,
+ * se achica la tipografía, no el acuerdo.
+ */
 const styles = StyleSheet.create({
-  page:      { paddingTop: 34, paddingBottom: 46, paddingHorizontal: 40, fontSize: 9, color: '#111' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  logo:      { width: 132 },
-  clinic:    { fontSize: 7, textAlign: 'right', lineHeight: 1.5 },
-  clinicName:{ fontSize: 7, fontWeight: 'bold' },
-  title:     { fontSize: 13, fontWeight: 'bold', textAlign: 'center', marginBottom: 14 },
+  page:      { paddingTop: 28, paddingBottom: 34, paddingHorizontal: 38, fontSize: 9, color: '#111' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  logo:      { width: 112 },
+  clinic:    { fontSize: 6.5, textAlign: 'right', lineHeight: 1.35 },
+  clinicName:{ fontSize: 6.5, fontWeight: 'bold' },
+  title:     { fontSize: 12, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
 
-  box:       { backgroundColor: '#EFEFEF', padding: 10, marginBottom: 14 },
-  boxTitle:  { fontSize: 10, fontWeight: 'bold', marginBottom: 6 },
-  cols:      { flexDirection: 'row', gap: 18 },
+  box:       { backgroundColor: '#EFEFEF', padding: 7, marginBottom: 8 },
+  boxTitle:  { fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
+  cols:      { flexDirection: 'row', gap: 14 },
   col:       { flex: 1 },
-  row:       { flexDirection: 'row', marginBottom: 2 },
-  key:       { fontSize: 8, fontWeight: 'bold' },
-  val:       { fontSize: 8, flexShrink: 1 },
+  row:       { flexDirection: 'row', marginBottom: 1 },
+  key:       { fontSize: 7, fontWeight: 'bold' },
+  val:       { fontSize: 7, flexShrink: 1 },
 
-  sectTitle: { fontSize: 10, fontWeight: 'bold', marginBottom: 6 },
-  para:      { fontSize: 8.5, textAlign: 'justify', marginBottom: 7, lineHeight: 1.45 },
+  sectTitle: { fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
+  // El recorte grande: 8,5 → 7,2 de cuerpo y 1,45 → 1,25 de interlineado. Son
+  // ~39 renglones que pasan a ~33, y cada uno de 12,3 a 9 puntos.
+  para:      { fontSize: 7.2, textAlign: 'justify', marginBottom: 4, lineHeight: 1.25 },
 
-  signRow:   { flexDirection: 'row', gap: 28, marginTop: 18 },
+  signRow:   { flexDirection: 'row', gap: 24, marginTop: 10 },
   signCol:   { flex: 1 },
-  signImg:   { height: 42, marginBottom: 2 },
-  signLabel: { fontSize: 8, fontWeight: 'bold' },
-  signMeta:  { fontSize: 7, color: '#555' },
+  signImg:   { height: 34, marginBottom: 2 },
+  signLabel: { fontSize: 7.5, fontWeight: 'bold' },
+  signMeta:  { fontSize: 6.5, color: '#555' },
 
-  footer:    { position: 'absolute', bottom: 24, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: '#555' },
+  footer:    { position: 'absolute', bottom: 16, left: 38, right: 38, flexDirection: 'row', justifyContent: 'space-between', fontSize: 6.5, color: '#555' },
 });
 
 /**
@@ -116,26 +136,15 @@ function Field({ k, value }: { k: string; value: string }): React.ReactElement {
   );
 }
 
-export async function respuestaLienPdf(id: string, opts: {
-  /**
-   * Recorte de alcance del que pide. Lo manda el portal legal con el filtro de
-   * su bufete; el back office no manda nada porque ve la clínica entera.
-   */
-  alcance?: Prisma.CaseWhereInput;
-  /**
-   * Exigir la firma del ABOGADO para emitir el PDF.
-   *
-   * `true` en el portal legal: firmar es lo que le abre el expediente. `false`
-   * en el back office, donde esa regla no aplica — la clínica necesita el papel
-   * que firmó el PACIENTE, y el abogado puede tardar días o no firmar nunca
-   * (el propio acuerdo dice que sigue siendo válido igual).
-   */
-  exigirFirmaDelAbogado: boolean;
-}): Promise<Response> {
-
-  const caseRecord = await db.case.findFirst({
-    where: opts.alcance ? { AND: [opts.alcance, { id }] } : { id },
-    select: {
+/**
+ * Lo que la página del lien necesita de la base.
+ *
+ * Se exporta porque el INTAKE la agrega como última página (v2 imprimía las dos
+ * cosas en un solo papel, "Case Report … 4 de 4", y así lo pidió la clínica el
+ * 2026-09-18). Si el intake armara su propio `select`, el día que la página pida
+ * un campo más saldría vacío ahí y lleno acá, sin ningún error.
+ */
+export const SELECT_DEL_LIEN = {
       id: true, caseCode: true, accidentDate: true, signatureExempt: true,
       patient: {
         select: {
@@ -156,7 +165,177 @@ export async function respuestaLienPdf(id: string, opts: {
         orderBy: { signedAt: 'asc' },
         select: { signerType: true, signerName: true, signatureSvg: true, signedAt: true },
       },
-    },
+} satisfies Prisma.CaseSelect;
+
+/** Lo que devuelve ese select, para tipar a quien arma la página. */
+export type DatosDelLien = Prisma.CaseGetPayload<{ select: typeof SELECT_DEL_LIEN }>;
+
+/**
+ * La página del acuerdo, sin `Document` alrededor.
+ *
+ * Es un `<Page>` suelto a propósito: así la sirve sola la ruta del lien y la
+ * agrega el intake al final de las suyas, sin duplicar el texto legal — que es
+ * el contrato vigente y no puede existir en dos versiones.
+ */
+export function PaginaDelLien({ caseRecord }: { caseRecord: DatosDelLien }): React.ReactElement {
+    const attorneySig = [...caseRecord.lienSignatures].reverse().find((s) => s.signerType === 'ATTORNEY');
+    const patientSig = [...caseRecord.lienSignatures].reverse()
+      .find((s) => s.signerType === 'PATIENT' || s.signerType === 'GUARDIAN');
+
+    const p = caseRecord.patient;
+    const fullName = `${p.firstName} ${p.lastName}`.trim();
+
+    const age = edad(p.dateOfBirth);
+
+    // Locale fijo a propósito: el acuerdo es un documento legal en inglés y sale
+    // igual aunque el bufete tenga la interfaz en español. UTC porque una fecha de
+    // nacimiento es un día del calendario, no un instante (ver lib/fechas.ts).
+    const fmtDia = (d: Date): string =>
+      new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }).format(d);
+
+    const dob = p.dateOfBirth ? fmtDia(new Date(p.dateOfBirth)) : null;
+    const accident = caseRecord.accidentDate ? fmtDia(new Date(caseRecord.accidentDate)) : null;
+
+    const address = [p.addressCity, p.addressState, p.addressZip].filter(Boolean).join(', ');
+
+    // OJO: `join(' ')` devuelve '' cuando no hay nada, y '' NO es nullish — con
+    // `??` encadenado el proveedor que refirió no aparecía nunca.
+    const nombre = (a?: string | null, b?: string | null): string => [a, b].filter(Boolean).join(' ');
+    const referred =
+      p.lawyerReferrer?.firmName
+      || nombre(p.lawyerReferrer?.firstName, p.lawyerReferrer?.lastName)
+      || nombre(p.providerReferrer?.firstName, p.providerReferrer?.lastName);
+
+    const emergency = [
+      p.emergencyContactName,
+      p.emergencyContactRelation ? `(${p.emergencyContactRelation})` : null,
+      p.emergencyContactPhone,
+    ].filter(Boolean).join(' ');
+
+    const attorneyName = caseRecord.attorney
+      ? `${caseRecord.attorney.firstName ?? ''} ${caseRecord.attorney.lastName ?? ''}`.trim()
+      : '';
+
+    const fmtSigned = (d: Date): string =>
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Denver', year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      }).format(d);
+
+    const generatedAt = fmtSigned(new Date());
+    const patientSrc  = imgSrc(patientSig?.signatureSvg);
+    const attorneySrc = imgSrc(attorneySig?.signatureSvg);
+
+
+  return (
+          <Page size="LETTER" style={styles.page}>
+            <View style={styles.headerRow} fixed>
+              {LOGO_B64 ? <Image src={LOGO_B64} style={styles.logo} /> : <Text>Precision Medical</Text>}
+              <View style={styles.clinic}>
+                <Text style={styles.clinicName}>Precision Medical</Text>
+                <Text>75 South 200 East Suite 202 Provo, UT, 84606</Text>
+                <Text>Email: info@precisionmedicalcare.com</Text>
+                <Text>Tel: (801) 375-2207</Text>
+                <Text>Fax: (801) 375-2307</Text>
+              </View>
+            </View>
+
+            <Text style={styles.title}>Medical Lien Agreement</Text>
+
+            <View style={styles.box}>
+              <Text style={styles.boxTitle}>Patient Information</Text>
+              <View style={styles.cols}>
+                <View style={styles.col}>
+                  <Field k="Name" value={v(fullName)} />
+                  <Field k="Sex" value={v(p.sex)} />
+                  <Field k="Date of Birth" value={v(dob)} />
+                  <Field k="Age" value={age === null ? '—' : `${age} years`} />
+                  <Field k="Ethnicity" value={v(p.ethnicity)} />
+                  <Field k="Race" value={v(p.race)} />
+                  <Field k="Marital Status" value={v(p.maritalStatus)} />
+                  <Field k="Refered By" value={v(referred)} />
+                  <Field k="Emergency Contact" value={v(emergency)} />
+                </View>
+                <View style={styles.col}>
+                  <Field k="Address" value={v(address)} />
+                  <Field k="Phone" value={v(p.phone)} />
+                  <Field k="Email" value={v(p.email)} />
+                  <Field k="Employer" value={v(p.employer)} />
+                  <Field k="Preferred Language" value={v(p.preferredLanguage)} />
+                  <Field k="Preferred Pharmacy" value={v(p.preferredPharmacy)} />
+                  <Field k="Notification Method" value={v(p.communicationPreference)} />
+                  <Field k="Law Firm" value={v(caseRecord.lawFirm?.firmName)} />
+                  <Field k="Date of Accident" value={v(accident)} />
+                  <Field k="Case" value={v(caseRecord.caseCode)} />
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.sectTitle}>Lien</Text>
+            {LIEN_PARAGRAPHS.map((text, i) => (
+              <Text key={i} style={styles.para}>{text}</Text>
+            ))}
+
+            <Text style={[styles.para, { marginTop: 6 }]}>{ATTORNEY_ACK}</Text>
+
+            {/* Las firmas REALES, no una línea en blanco. v2 imprime el renglón
+                vacío aunque las tenga guardadas; acá se estampan las que existen y
+                debajo queda quién firmó y cuándo. */}
+            <View style={styles.signRow} wrap={false}>
+              <View style={styles.signCol}>
+                {patientSrc
+                  ? <Image src={patientSrc} style={styles.signImg} />
+                  : <View style={{ height: 42 }} />}
+                <View style={{ borderTopWidth: 1, borderTopColor: '#000', paddingTop: 3 }}>
+                  <Text style={styles.signLabel}>Patient Signature</Text>
+                  <Text style={styles.signMeta}>{v(patientSig?.signerName ?? fullName)}</Text>
+                  {patientSig && <Text style={styles.signMeta}>{fmtSigned(patientSig.signedAt)}</Text>}
+                </View>
+              </View>
+
+              <View style={styles.signCol}>
+                {attorneySrc
+                  ? <Image src={attorneySrc} style={styles.signImg} />
+                  : <View style={{ height: 42 }} />}
+                <View style={{ borderTopWidth: 1, borderTopColor: '#000', paddingTop: 3 }}>
+                  <Text style={styles.signLabel}>Attorney Signature</Text>
+                  <Text style={styles.signMeta}>{v(attorneySig?.signerName ?? attorneyName)}</Text>
+                  {attorneySig && <Text style={styles.signMeta}>{fmtSigned(attorneySig.signedAt)}</Text>}
+                  {caseRecord.attorney?.barNumber && (
+                    <Text style={styles.signMeta}>Bar #{caseRecord.attorney.barNumber}</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.footer} fixed>
+              <Text>{caseRecord.caseCode} · {generatedAt}</Text>
+              <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+            </View>
+          </Page>
+  );
+}
+
+export async function respuestaLienPdf(id: string, opts: {
+  /**
+   * Recorte de alcance del que pide. Lo manda el portal legal con el filtro de
+   * su bufete; el back office no manda nada porque ve la clínica entera.
+   */
+  alcance?: Prisma.CaseWhereInput;
+  /**
+   * Exigir la firma del ABOGADO para emitir el PDF.
+   *
+   * `true` en el portal legal: firmar es lo que le abre el expediente. `false`
+   * en el back office, donde esa regla no aplica — la clínica necesita el papel
+   * que firmó el PACIENTE, y el abogado puede tardar días o no firmar nunca
+   * (el propio acuerdo dice que sigue siendo válido igual).
+   */
+  exigirFirmaDelAbogado: boolean;
+}): Promise<Response> {
+
+  const caseRecord = await db.case.findFirst({
+    where: opts.alcance ? { AND: [opts.alcance, { id }] } : { id },
+    select: SELECT_DEL_LIEN,
   });
   if (!caseRecord) return new Response('Not found', { status: 404 });
 
@@ -167,140 +346,9 @@ export async function respuestaLienPdf(id: string, opts: {
     return new Response('Signature required', { status: 409 });
   }
 
-  const patientSig = [...caseRecord.lienSignatures].reverse()
-    .find((s) => s.signerType === 'PATIENT' || s.signerType === 'GUARDIAN');
-
-  const p = caseRecord.patient;
-  const fullName = `${p.firstName} ${p.lastName}`.trim();
-
-  const age = edad(p.dateOfBirth);
-
-  // Locale fijo a propósito: el acuerdo es un documento legal en inglés y sale
-  // igual aunque el bufete tenga la interfaz en español. UTC porque una fecha de
-  // nacimiento es un día del calendario, no un instante (ver lib/fechas.ts).
-  const fmtDia = (d: Date): string =>
-    new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }).format(d);
-
-  const dob = p.dateOfBirth ? fmtDia(new Date(p.dateOfBirth)) : null;
-  const accident = caseRecord.accidentDate ? fmtDia(new Date(caseRecord.accidentDate)) : null;
-
-  const address = [p.addressCity, p.addressState, p.addressZip].filter(Boolean).join(', ');
-
-  // OJO: `join(' ')` devuelve '' cuando no hay nada, y '' NO es nullish — con
-  // `??` encadenado el proveedor que refirió no aparecía nunca.
-  const nombre = (a?: string | null, b?: string | null): string => [a, b].filter(Boolean).join(' ');
-  const referred =
-    p.lawyerReferrer?.firmName
-    || nombre(p.lawyerReferrer?.firstName, p.lawyerReferrer?.lastName)
-    || nombre(p.providerReferrer?.firstName, p.providerReferrer?.lastName);
-
-  const emergency = [
-    p.emergencyContactName,
-    p.emergencyContactRelation ? `(${p.emergencyContactRelation})` : null,
-    p.emergencyContactPhone,
-  ].filter(Boolean).join(' ');
-
-  const attorneyName = caseRecord.attorney
-    ? `${caseRecord.attorney.firstName ?? ''} ${caseRecord.attorney.lastName ?? ''}`.trim()
-    : '';
-
-  const fmtSigned = (d: Date): string =>
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Denver', year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    }).format(d);
-
-  const generatedAt = fmtSigned(new Date());
-  const patientSrc  = imgSrc(patientSig?.signatureSvg);
-  const attorneySrc = imgSrc(attorneySig?.signatureSvg);
-
   const buffer = await renderToBuffer(
     <Document>
-      <Page size="LETTER" style={styles.page}>
-        <View style={styles.headerRow} fixed>
-          {LOGO_B64 ? <Image src={LOGO_B64} style={styles.logo} /> : <Text>Precision Medical</Text>}
-          <View style={styles.clinic}>
-            <Text style={styles.clinicName}>Precision Medical</Text>
-            <Text>75 South 200 East Suite 202 Provo, UT, 84606</Text>
-            <Text>Email: info@precisionmedicalcare.com</Text>
-            <Text>Tel: (801) 375-2207</Text>
-            <Text>Fax: (801) 375-2307</Text>
-          </View>
-        </View>
-
-        <Text style={styles.title}>Medical Lien Agreement</Text>
-
-        <View style={styles.box}>
-          <Text style={styles.boxTitle}>Patient Information</Text>
-          <View style={styles.cols}>
-            <View style={styles.col}>
-              <Field k="Name" value={v(fullName)} />
-              <Field k="Sex" value={v(p.sex)} />
-              <Field k="Date of Birth" value={v(dob)} />
-              <Field k="Age" value={age === null ? '—' : `${age} years`} />
-              <Field k="Ethnicity" value={v(p.ethnicity)} />
-              <Field k="Race" value={v(p.race)} />
-              <Field k="Marital Status" value={v(p.maritalStatus)} />
-              <Field k="Refered By" value={v(referred)} />
-              <Field k="Emergency Contact" value={v(emergency)} />
-            </View>
-            <View style={styles.col}>
-              <Field k="Address" value={v(address)} />
-              <Field k="Phone" value={v(p.phone)} />
-              <Field k="Email" value={v(p.email)} />
-              <Field k="Employer" value={v(p.employer)} />
-              <Field k="Preferred Language" value={v(p.preferredLanguage)} />
-              <Field k="Preferred Pharmacy" value={v(p.preferredPharmacy)} />
-              <Field k="Notification Method" value={v(p.communicationPreference)} />
-              <Field k="Law Firm" value={v(caseRecord.lawFirm?.firmName)} />
-              <Field k="Date of Accident" value={v(accident)} />
-              <Field k="Case" value={v(caseRecord.caseCode)} />
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.sectTitle}>Lien</Text>
-        {LIEN_PARAGRAPHS.map((text, i) => (
-          <Text key={i} style={styles.para}>{text}</Text>
-        ))}
-
-        <Text style={[styles.para, { marginTop: 6 }]}>{ATTORNEY_ACK}</Text>
-
-        {/* Las firmas REALES, no una línea en blanco. v2 imprime el renglón
-            vacío aunque las tenga guardadas; acá se estampan las que existen y
-            debajo queda quién firmó y cuándo. */}
-        <View style={styles.signRow} wrap={false}>
-          <View style={styles.signCol}>
-            {patientSrc
-              ? <Image src={patientSrc} style={styles.signImg} />
-              : <View style={{ height: 42 }} />}
-            <View style={{ borderTopWidth: 1, borderTopColor: '#000', paddingTop: 3 }}>
-              <Text style={styles.signLabel}>Patient Signature</Text>
-              <Text style={styles.signMeta}>{v(patientSig?.signerName ?? fullName)}</Text>
-              {patientSig && <Text style={styles.signMeta}>{fmtSigned(patientSig.signedAt)}</Text>}
-            </View>
-          </View>
-
-          <View style={styles.signCol}>
-            {attorneySrc
-              ? <Image src={attorneySrc} style={styles.signImg} />
-              : <View style={{ height: 42 }} />}
-            <View style={{ borderTopWidth: 1, borderTopColor: '#000', paddingTop: 3 }}>
-              <Text style={styles.signLabel}>Attorney Signature</Text>
-              <Text style={styles.signMeta}>{v(attorneySig?.signerName ?? attorneyName)}</Text>
-              {attorneySig && <Text style={styles.signMeta}>{fmtSigned(attorneySig.signedAt)}</Text>}
-              {caseRecord.attorney?.barNumber && (
-                <Text style={styles.signMeta}>Bar #{caseRecord.attorney.barNumber}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.footer} fixed>
-          <Text>{caseRecord.caseCode} · {generatedAt}</Text>
-          <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-        </View>
-      </Page>
+      <PaginaDelLien caseRecord={caseRecord} />
     </Document>,
   );
 

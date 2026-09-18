@@ -20,6 +20,7 @@ import { localeApp, edad } from '@/lib/fechas';
 
 import { NextResponse } from 'next/server';
 import { db, segurosMedicosDeclarados } from '@precision-medical/database';
+import { PaginaDelLien, SELECT_DEL_LIEN } from '@/lib/lien-pdf';
 import {
   renderToBuffer, Document, Page, Text, View, StyleSheet, Image,
 } from '@react-pdf/renderer';
@@ -348,6 +349,17 @@ function TableRow2({
 
 // ─── PDF Builder ──────────────────────────────────────────────────────────────
 async function buildPDF(data: {
+  /**
+   * La página del acuerdo, para pegarla al final.
+   *
+   * Llega ARMADA y no como datos: el texto legal vive en `lib/lien-pdf.tsx` y no
+   * puede existir en dos versiones — es el contrato vigente.
+   *
+   * `null` en los casos que no llevan lien (todo lo que no es MVA). Pegarle un
+   * acuerdo en blanco a un intake de medicina general sería un error, y son
+   * 1.942 casos GENERAL contra 1.132 MVA (medido 2026-09-18).
+   */
+  paginaDelLien?: React.ReactElement | null;
   patient: {
     firstName: string; lastName: string;
     dateOfBirth: Date | null; phone: string | null; phone2: string | null; email: string | null;
@@ -722,6 +734,11 @@ async function buildPDF(data: {
           <Text style={s.footerText}>{caseData.caseCode} · {completedDate ?? 'Pending'}</Text>
         </View>
       </Page>
+
+      {/* La última hoja: el acuerdo. v2 imprimía las dos cosas en un solo papel
+          —"Case Report … 4 de 4"— y la clínica pidió volver a eso (2026-09-18).
+          Sólo en MVA; ver `paginaDelLien`. */}
+      {data.paginaDelLien}
     </Document>
   );
 
@@ -747,6 +764,15 @@ export async function respuestaIntakePdf(
   const caseRecord = await db.case.findUnique({
     where: { id },
     select: {
+      /**
+       * Lo del LIEN va primero, y lo propio del intake lo pisa donde se repite
+       * (`caseCode`, `accidentDate`): son los mismos campos con el mismo valor.
+       *
+       * ⚠️ El spread NO entra en los objetos anidados. Sin fusionar `patient` a
+       * mano —abajo— el `patient` del intake reemplazaba entero al del lien y la
+       * última página salía sin quién refirió al paciente, sin un error.
+       */
+      ...SELECT_DEL_LIEN,
       caseCode:              true,
       caseType:              true,
       accidentDate:          true,
@@ -763,6 +789,8 @@ export async function respuestaIntakePdf(
       secondaryPolicyNumber: true,
       patient: {
         select: {
+          // Los del lien primero; abajo siguen los del intake.
+          ...SELECT_DEL_LIEN.patient.select,
           firstName: true, lastName: true,
           dateOfBirth: true, phone: true, phone2: true, email: true,
           addressLine1: true, addressCity: true, addressState: true, addressZip: true,
@@ -788,7 +816,20 @@ export async function respuestaIntakePdf(
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
 
+  /**
+   * v2 imprimía el intake y el lien como UN solo papel — "Case Report … 4 de 4"
+   * — y así lo pidió la clínica sobre esa misma referencia (Erick, 2026-09-18).
+   *
+   * Se arma SIEMPRE que el caso sea MVA, firmado o no: en v2 la hoja sale igual
+   * con las líneas en blanco, y exigir la firma del abogado la haría desaparecer
+   * casi siempre — sólo 37 de 1.132 casos MVA la tienen.
+   */
+  const paginaDelLien = caseRecord.caseType === 'MVA'
+    ? <PaginaDelLien caseRecord={caseRecord} />
+    : null;
+
   const buffer = await buildPDF({
+    paginaDelLien,
     patient:  decryptScalars(caseRecord.patient),
     caseData: {
       caseCode:              caseRecord.caseCode,

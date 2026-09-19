@@ -69,6 +69,14 @@ export interface DatePickerProps {
    */
   minKey?: string;
   /**
+   * Último día elegible (`YYYY-MM-DD`). Los posteriores quedan apagados.
+   *
+   * El gemelo de `minKey`, y nació por el motivo opuesto: al registrar una
+   * visita que YA OCURRIÓ, el futuro no es una opción — para eso está el
+   * selector de horarios, que además chequea la agenda del provider.
+   */
+  maxKey?: string;
+  /**
    * Apagar sábados y domingos.
    *
    * La clínica no atiende el fin de semana (ver `isWeekendInDenver` en
@@ -94,7 +102,7 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—', minKey, disableWeekends = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—', minKey, maxKey, disableWeekends = false }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -178,6 +186,22 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
       ? todayLabel
       : new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`));
 
+  /**
+   * ¿"Hoy" está fuera de lo elegible? Entonces el atajo del pie no puede
+   * dispararlo: elegiría un día que la grilla muestra apagado y el servidor
+   * rechaza después.
+   *
+   * Mira las TRES reglas, no solo los topes. Un sábado con `disableWeekends`
+   * —el caso real: registrar una visita pasada un fin de semana— dejaba el
+   * atajo activo aunque el 19 estuviera gris dos centímetros más arriba.
+   */
+  const [ty, tm, td] = today.split('-').map(Number) as [number, number, number];
+  const dowHoy = new Date(Date.UTC(ty, tm - 1, td, 12)).getUTCDay();
+  const hoyNoElegible =
+    (minKey !== undefined && today < minKey)
+    || (maxKey !== undefined && today > maxKey)
+    || (disableWeekends && (dowHoy === 0 || dowHoy === 6));
+
   const pick = (k: string): void => { onChange(k); setOpen(false); };
 
   return (
@@ -251,6 +275,7 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
               const dow = new Date(Date.UTC(cy, cm - 1, cd, 12)).getUTCDay();
               const off =
                 (minKey !== undefined && c.key < minKey)
+                || (maxKey !== undefined && c.key > maxKey)
                 || (disableWeekends && (dow === 0 || dow === 6));
               return (
                 <button
@@ -277,8 +302,9 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
           <div className="mt-2 pt-2 border-t border-border flex justify-end">
             <button
               type="button"
+              disabled={hoyNoElegible}
               onClick={() => pick(today)}
-              className={`text-[11px] font-semibold ${a.text} hover:underline`}
+              className={`text-[11px] font-semibold ${a.text} hover:underline disabled:opacity-30 disabled:cursor-not-allowed disabled:no-underline`}
             >
               {todayLabel}
             </button>

@@ -54,11 +54,26 @@ interface Props {
    *  que su propio horario actual no se vea a sí mismo como "ocupado" y
    *  desaparezca de la lista de disponibles. */
   excludeAppointmentId?: string;
+  /**
+   * Qué hacer cuando eligen un día que YA PASÓ en el calendario del mes.
+   *
+   * Sin esto, los días pasados salen apagados y el camino para registrar una
+   * visita vieja es una casilla aparte, arriba del selector — que la clínica no
+   * encontró: *"cuando editas una cita que pasó se puede para atrás; lo que
+   * falta es al crear una nueva, ahí está bloqueado todo lo de atrás"* (Erick,
+   * 19-sep-2026). El calendario es donde la gente va a buscar la fecha, así que
+   * es el calendario el que tiene que dejarla pasar.
+   *
+   * No se navega la semana a ese día a propósito: los horarios se generan desde
+   * "ahora", así que la tira saldría vacía y se leería como "el provider no
+   * atiende". El padre cambia a registrar una visita pasada con ese día puesto.
+   */
+  onDiaPasado?: (clave: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched, excludeAppointmentId }: Props) {
+export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched, excludeAppointmentId, onDiaPasado }: Props) {
   const t = useTranslations('phoenix.calendar');
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
@@ -235,6 +250,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
    * de la tira para ver las horas — el mismo día, dos veces.
    */
   const irAlDia = (clave: string) => {
+    // Un día que ya pasó no tiene horarios que ofrecer. Se lo devuelve al padre
+    // en vez de mover la tira a una semana vacía (ver `onDiaPasado`).
+    if (onDiaPasado && clave < todayDenver) { onDiaPasado(clave); return; }
     const [y, m, d] = clave.split('-').map(Number) as [number, number, number];
     setWeekStart(anclaDesde(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))));
     setSelectedDay(clave);
@@ -274,7 +292,10 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           onChange={irAlDia}
           accent="cyan"
           size="sm"
-          minKey={toDenverDate(new Date(minWeekStart))}
+          /* Con `onDiaPasado` el pasado SÍ se puede elegir: el padre lo recibe
+             y cambia a registrar una visita que ya ocurrió. Sin el callback
+             (cualquier otro consumidor) sigue apagado como antes. */
+          minKey={onDiaPasado ? undefined : toDenverDate(new Date(minWeekStart))}
           disableWeekends
           alwaysShowDate
           todayLabel={t('today')}

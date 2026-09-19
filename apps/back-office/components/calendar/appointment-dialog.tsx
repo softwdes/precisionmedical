@@ -1,5 +1,5 @@
 'use client';
-import { localeApp, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica } from '@/lib/fechas';
+import { localeApp, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica, weekdayEnClinica } from '@/lib/fechas';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -31,6 +31,7 @@ import {
 import { PersonAvatar } from '@/components/ui-phoenix';
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { DatePicker } from '@/components/ui-phoenix/date-picker';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1711,7 +1712,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 <input
                   type="checkbox"
                   checked={visitaPasada}
-                  onChange={(e) => setVisitaPasada(e.target.checked)}
+                  onChange={(e) => {
+                    setVisitaPasada(e.target.checked);
+                    /* La visita sin cargar es casi siempre la de HOY a la
+                       mañana, así que el día viene puesto y solo queda elegir
+                       la hora. Solo si no hay fecha todavía: al editar, la que
+                       ya tiene la cita manda.
+
+                       En fin de semana no se propone nada: la clínica no abre,
+                       el servidor rechaza esa fecha y el propio calendario la
+                       muestra apagada — ponerla de arranque sería entregar un
+                       formulario que ya nace inválido (visto un sábado). */
+                    if (e.target.checked && !fechaPasada) {
+                      const dow = weekdayEnClinica(new Date());
+                      if (dow !== 'Sat' && dow !== 'Sun') setFechaPasada(claveDia(new Date()));
+                    }
+                  }}
                   className="w-4 h-4 mt-0.5 rounded accent-amber shrink-0"
                 />
                 <div className="flex-1 min-w-0">
@@ -1744,15 +1760,26 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     <label htmlFor="appt-retro-date" className="block text-[11px] font-semibold text-text-2 mb-1">
                       {t('retroFieldDate')} <span className="text-rose">*</span>
                     </label>
-                    <input
-                      id="appt-retro-date"
-                      type="date"
+                    {/* El mismo calendario del selector de horarios, no el campo
+                        nativo del navegador: es el control que el equipo ya usa
+                        para elegir una fecha, y acá además apaga solo los días
+                        que la regla no acepta —el futuro y el fin de semana— en
+                        vez de dejar que el servidor los rechace después. */}
+                    <DatePicker
                       value={fechaPasada}
+                      onChange={setFechaPasada}
+                      accent="amber"
+                      size="lg"
+                      labelFormat="numeric"
+                      alwaysShowDate
+                      placeholder={t('retroFieldDate')}
                       /* El futuro se agenda con el selector de siempre, que además
                          chequea la agenda del provider. */
-                      max={claveDia(new Date())}
-                      onChange={(e) => setFechaPasada(e.target.value)}
-                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                      maxKey={claveDia(new Date())}
+                      disableWeekends
+                      todayKey={claveDia(new Date())}
+                      todayLabel={t('today')}
+                      className="[&>button]:w-full [&>button]:h-9 [&>button]:justify-start [&>button]:bg-bg-2 [&>button]:rounded-md [&>button]:px-3 [&>button]:font-normal [&>button]:normal-case"
                     />
                   </div>
                   <div>
@@ -1816,6 +1843,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   onSlotsFetched={handleSlotsFetched}
                   excludeAppointmentId={isEditMode ? editAppointment?.id : undefined}
                   maxWeeks={8}
+                  /* Elegir un día pasado en el calendario del mes no lleva a una
+                     semana vacía: prende "visita que ya ocurrió" con ese día
+                     puesto. Es donde la clínica iba a buscar la fecha. */
+                  onDiaPasado={(clave) => { setVisitaPasada(true); setFechaPasada(clave); }}
                   /* Una cita que ya venció pero sigue editable NO lleva su fecha
                      vieja como semana inicial: el selector abriría una semana sin
                      un solo hueco (los candidatos salen desde "ahora") y se leería

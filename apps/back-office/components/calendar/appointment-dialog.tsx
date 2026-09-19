@@ -202,6 +202,38 @@ interface DuplicateAppt {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+/**
+ * Las horas que se pueden elegir a mano: 08:00 a 18:00 cada 15 minutos.
+ *
+ * Una LISTA y no un `input[type=time]` (Erick, 18-sep-2026). El campo nativo
+ * obliga a tipear hora y minuto por separado, cambia de forma en cada
+ * navegador y acepta las 03:47 de la madrugada — que no es un horario en el
+ * que la clínica atienda a nadie.
+ *
+ * El rango es el horario de atención, que en un SELECTOR es un techo duro (a
+ * diferencia de la grilla del calendario, donde es un default que se estira).
+ * El paso de 15 min es el mismo de la vista de día.
+ */
+const OPEN_MIN_MANUAL  = 8 * 60;   // 08:00
+const CLOSE_MIN_MANUAL = 18 * 60;  // 18:00
+const PASO_MIN_MANUAL  = 15;
+
+const HORAS_MANUALES: string[] = (() => {
+  const out: string[] = [];
+  for (let m = OPEN_MIN_MANUAL; m <= CLOSE_MIN_MANUAL; m += PASO_MIN_MANUAL) {
+    out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  }
+  return out;
+})();
+
+/** "14:45" → "2:45 PM". El equipo lee las horas en 12 h, como el resto de la app. */
+function rotuloHora(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12  = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FOLLOW_UP';
@@ -1727,14 +1759,27 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     <label htmlFor="appt-retro-time" className="block text-[11px] font-semibold text-text-2 mb-1">
                       {t('retroFieldTime')} <span className="text-rose">*</span>
                     </label>
-                    <input
+                    <select
                       id="appt-retro-time"
-                      type="time"
                       value={horaPasada}
-                      step={900}
                       onChange={(e) => setHoraPasada(e.target.value)}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-                    />
+                    >
+                      {/* Sin valor todavía: una opción vacía, o el navegador
+                          muestra la primera de la lista y parece elegida. */}
+                      {!horaPasada && <option value="">—</option>}
+                      {/* La hora que YA tiene la cita, si cae fuera de la grilla
+                          de 15 min o del horario de atención. Sin esto, abrir una
+                          cita de las 11:37 —o de las 19:00— dejaría el campo en
+                          blanco y el primer guardado le movería la hora sin que
+                          nadie lo pidiera. */}
+                      {horaPasada && !HORAS_MANUALES.includes(horaPasada) && (
+                        <option value={horaPasada}>{rotuloHora(horaPasada)}</option>
+                      )}
+                      {HORAS_MANUALES.map((h) => (
+                        <option key={h} value={h}>{rotuloHora(h)}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

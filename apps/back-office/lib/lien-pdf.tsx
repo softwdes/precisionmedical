@@ -23,7 +23,6 @@ import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image } from '@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { db, type Prisma } from '@precision-medical/database';
-import { edad } from '@/lib/fechas';
 
 const LOGO_B64 = (() => {
   try {
@@ -64,11 +63,16 @@ const ATTORNEY_ACK =
  * final del intake eso convertía un papel de 4 hojas en uno de 5, con la firma
  * cayendo sola en la última (Erick, 2026-09-18).
  *
- * De 712 puntos útiles el contenido pedía ~936: sobraban unos 225, el 24%. El
- * grueso está en los SEIS párrafos legales, así que ahí va el recorte más
- * fuerte —cuerpo e interlineado— y el resto sale de los aires: el margen del
- * encabezado, el del título, el alto de la firma y el respiro entre filas del
- * recuadro de datos.
+ * La primera vez el lugar se sacó apretando: los párrafos bajaron a 7,2pt con
+ * interlineado 1,25. Ese mismo día la clínica pidió sacar la ficha demográfica
+ * del encabezado —diecinueve campos que ahora son cuatro— y ahí apareció el
+ * espacio de verdad, así que el texto volvió a un cuerpo CÓMODO: 9pt / 1,45,
+ * por encima incluso del 8,5 que tenía antes de todo esto.
+ *
+ * Los números están MEDIDOS, no estimados: renderizando esta misma página se
+ * desborda a dos hojas entre 10 y 11pt, en los tres escenarios que importan
+ * (bufete con nombre largo, campos vacíos, y el caso típico). A 9pt queda un
+ * punto entero de margen — unas cuatro filas más de recuadro.
  *
  * ⚠️ El TEXTO no se toca nunca: es el contrato vigente. Si algún día no entra,
  * se achica la tipografía, no el acuerdo.
@@ -81,18 +85,17 @@ const styles = StyleSheet.create({
   clinicName:{ fontSize: 6.5, fontWeight: 'bold' },
   title:     { fontSize: 12, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
 
-  box:       { backgroundColor: '#EFEFEF', padding: 7, marginBottom: 8 },
-  boxTitle:  { fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
-  cols:      { flexDirection: 'row', gap: 14 },
-  col:       { flex: 1 },
-  row:       { flexDirection: 'row', marginBottom: 1 },
-  key:       { fontSize: 7, fontWeight: 'bold' },
-  val:       { fontSize: 7, flexShrink: 1 },
+  box:       { backgroundColor: '#EFEFEF', padding: 6, marginBottom: 10 },
+  // `wrap` y no cuatro columnas fijas: "Law Firm" puede ser un nombre largo, y
+  // preferimos que caiga al renglón de abajo antes que partirse a la mitad.
+  cols:      { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 2 },
+  row:       { flexDirection: 'row' },
+  key:       { fontSize: 8, fontWeight: 'bold' },
+  val:       { fontSize: 8, flexShrink: 1 },
 
   sectTitle: { fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
-  // El recorte grande: 8,5 → 7,2 de cuerpo y 1,45 → 1,25 de interlineado. Son
-  // ~39 renglones que pasan a ~33, y cada uno de 12,3 a 9 puntos.
-  para:      { fontSize: 7.2, textAlign: 'justify', marginBottom: 4, lineHeight: 1.25 },
+  // El techo medido es 10pt: a 11 se va a dos hojas. Ver el bloque de arriba.
+  para:      { fontSize: 9, textAlign: 'justify', marginBottom: 4, lineHeight: 1.45 },
 
   signRow:   { flexDirection: 'row', gap: 24, marginTop: 10 },
   signCol:   { flex: 1 },
@@ -146,17 +149,12 @@ function Field({ k, value }: { k: string; value: string }): React.ReactElement {
  */
 export const SELECT_DEL_LIEN = {
       id: true, caseCode: true, accidentDate: true, signatureExempt: true,
+      // Tres campos del paciente y nada más (2026-09-18). No es minimalismo: el
+      // portal legal le sirve este PDF al BUFETE, y la raza, la etnia, el estado
+      // civil, el empleador y la farmacia no tienen nada que ver con un acuerdo
+      // de deuda. Lo que no se trae no se puede filtrar por descuido.
       patient: {
-        select: {
-          firstName: true, lastName: true, sex: true, dateOfBirth: true,
-          race: true, ethnicity: true, maritalStatus: true, email: true,
-          phone: true, employer: true, preferredLanguage: true,
-          preferredPharmacy: true, communicationPreference: true,
-          addressCity: true, addressState: true, addressZip: true,
-          emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
-          lawyerReferrer:   { select: { firmName: true, firstName: true, lastName: true } },
-          providerReferrer: { select: { firstName: true, lastName: true } },
-        },
+        select: { firstName: true, lastName: true, dateOfBirth: true },
       },
       lawFirm:  { select: { firmName: true } },
       attorney: { select: { firstName: true, lastName: true, barNumber: true } },
@@ -185,8 +183,6 @@ export function PaginaDelLien({ caseRecord }: { caseRecord: DatosDelLien }): Rea
     const p = caseRecord.patient;
     const fullName = `${p.firstName} ${p.lastName}`.trim();
 
-    const age = edad(p.dateOfBirth);
-
     // Locale fijo a propósito: el acuerdo es un documento legal en inglés y sale
     // igual aunque el bufete tenga la interfaz en español. UTC porque una fecha de
     // nacimiento es un día del calendario, no un instante (ver lib/fechas.ts).
@@ -195,22 +191,6 @@ export function PaginaDelLien({ caseRecord }: { caseRecord: DatosDelLien }): Rea
 
     const dob = p.dateOfBirth ? fmtDia(new Date(p.dateOfBirth)) : null;
     const accident = caseRecord.accidentDate ? fmtDia(new Date(caseRecord.accidentDate)) : null;
-
-    const address = [p.addressCity, p.addressState, p.addressZip].filter(Boolean).join(', ');
-
-    // OJO: `join(' ')` devuelve '' cuando no hay nada, y '' NO es nullish — con
-    // `??` encadenado el proveedor que refirió no aparecía nunca.
-    const nombre = (a?: string | null, b?: string | null): string => [a, b].filter(Boolean).join(' ');
-    const referred =
-      p.lawyerReferrer?.firmName
-      || nombre(p.lawyerReferrer?.firstName, p.lawyerReferrer?.lastName)
-      || nombre(p.providerReferrer?.firstName, p.providerReferrer?.lastName);
-
-    const emergency = [
-      p.emergencyContactName,
-      p.emergencyContactRelation ? `(${p.emergencyContactRelation})` : null,
-      p.emergencyContactPhone,
-    ].filter(Boolean).join(' ');
 
     const attorneyName = caseRecord.attorney
       ? `${caseRecord.attorney.firstName ?? ''} ${caseRecord.attorney.lastName ?? ''}`.trim()
@@ -242,32 +222,31 @@ export function PaginaDelLien({ caseRecord }: { caseRecord: DatosDelLien }): Rea
 
             <Text style={styles.title}>Medical Lien Agreement</Text>
 
+            {/* ─── Cuatro campos, no diecinueve ───────────────────────────
+                La clínica leyó el acuerdo el 2026-09-18 y pidió sacar la ficha
+                demográfica: *"Basta con el nombre y fecha de nacimiento"*.
+
+                Quedaron cuatro y no dos porque el TEXTO se apoya en dos de
+                ellos, y sin el campo el contrato apunta a la nada:
+
+                  · `Date of Accident` — el primer párrafo dice "the accident or
+                    injury that occurred on or around **the date referenced
+                    above**". Ese "above" es esta línea.
+                  · `Law Firm` — el texto instruye a "my attorney" a pagar. El
+                    abogado está al pie con su bar number, pero SÓLO si firmó, y
+                    el back office emite el lien sin esa firma a propósito.
+
+                Lo demás se fue por duplicado y por privacidad: cuando esta
+                página va como la última del intake, la primera ya imprime lo
+                mismo —y mejor, porque traduce los códigos con `ETHNICITY_LABEL`
+                y compañía, que acá no existen—. El `caseCode` sigue en el pie de
+                cada hoja. Ver el recorte del `select`, más arriba. */}
             <View style={styles.box}>
-              <Text style={styles.boxTitle}>Patient Information</Text>
               <View style={styles.cols}>
-                <View style={styles.col}>
-                  <Field k="Name" value={v(fullName)} />
-                  <Field k="Sex" value={v(p.sex)} />
-                  <Field k="Date of Birth" value={v(dob)} />
-                  <Field k="Age" value={age === null ? '—' : `${age} years`} />
-                  <Field k="Ethnicity" value={v(p.ethnicity)} />
-                  <Field k="Race" value={v(p.race)} />
-                  <Field k="Marital Status" value={v(p.maritalStatus)} />
-                  <Field k="Refered By" value={v(referred)} />
-                  <Field k="Emergency Contact" value={v(emergency)} />
-                </View>
-                <View style={styles.col}>
-                  <Field k="Address" value={v(address)} />
-                  <Field k="Phone" value={v(p.phone)} />
-                  <Field k="Email" value={v(p.email)} />
-                  <Field k="Employer" value={v(p.employer)} />
-                  <Field k="Preferred Language" value={v(p.preferredLanguage)} />
-                  <Field k="Preferred Pharmacy" value={v(p.preferredPharmacy)} />
-                  <Field k="Notification Method" value={v(p.communicationPreference)} />
-                  <Field k="Law Firm" value={v(caseRecord.lawFirm?.firmName)} />
-                  <Field k="Date of Accident" value={v(accident)} />
-                  <Field k="Case" value={v(caseRecord.caseCode)} />
-                </View>
+                <Field k="Name" value={v(fullName)} />
+                <Field k="Date of Birth" value={v(dob)} />
+                <Field k="Date of Accident" value={v(accident)} />
+                <Field k="Law Firm" value={v(caseRecord.lawFirm?.firmName)} />
               </View>
             </View>
 

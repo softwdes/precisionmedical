@@ -1,5 +1,5 @@
 'use client';
-import { localeApp, fechaCalendario, instanteEnClinica, claveDia } from '@/lib/fechas';
+import { localeApp, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica } from '@/lib/fechas';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -485,6 +485,33 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       const horarioYaNoSirve = isReschedule
         || (!citaConDesenlace && new Date(editAppointment.scheduledFor).getTime() < Date.now());
       setSlotIso(horarioYaNoSirve ? null : editAppointment.scheduledFor);
+
+      /**
+       * Una cita que YA PASÓ se edita por fecha y hora A MANO, no con el
+       * selector semanal.
+       *
+       * El selector solo ofrece días de hoy en adelante —y la API de horarios
+       * recorta a `now`—, así que la propia fecha de la cita no aparece en la
+       * lista y NO HAY FORMA de corregirle la hora desde la pantalla. El PATCH
+       * sí lo permite desde el 2026-08-05; lo que faltaba era la puerta.
+       *
+       * El caso que lo destapó (Erick, 18-sep-2026): David Johnson con dos
+       * visitas el 17, la del segundo accidente cargada a las 12:00 en vez de
+       * las 11:45. Sin esto había que borrarla y crearla de nuevo, que es de
+       * donde salen las citas duplicadas.
+       *
+       * Se enciende SOLA y con los valores puestos: quien abre una cita vieja
+       * viene a corregirla, no a descubrir una casilla.
+       */
+      const yaPaso = !isReschedule && !citaConDesenlace
+        && new Date(editAppointment.scheduledFor).getTime() < Date.now();
+      setVisitaPasada(yaPaso);
+      if (yaPaso) {
+        const cuando = new Date(editAppointment.scheduledFor);
+        const min = minutosDelDiaEnClinica(cuando);
+        setFechaPasada(claveDia(cuando));
+        setHoraPasada(`${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`);
+      }
       setDuration(editAppointment.durationMinutes);
       setType(editAppointment.type as AppointmentType);
       setNotes(editAppointment.notes ?? '');
@@ -1633,10 +1660,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
-            {/* ── Registrar una visita que ya ocurrió ──
-                Solo al CREAR: mover una cita ya guardada a una fecha pasada es
-                otro camino, libre desde el 2026-08-05 y con su propio PATCH. */}
-            {!isEditMode && !citaConDesenlace && (
+            {/* ── Fecha y hora a mano ──
+                Al CREAR: registrar una visita que ya ocurrió y no se alcanzó a
+                cargar. Al EDITAR: corregirle la fecha o la hora a una cita vieja
+                —el selector semanal no muestra días pasados, así que sin esto la
+                cita quedaba imposible de arreglar y había que borrarla y
+                rehacerla (Erick, 18-sep-2026).
+
+                En una cita con desenlace no va: ahí la fecha ya no se discute. */}
+            {!citaConDesenlace && (
               <label
                 className={`mt-1.5 flex items-start gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
                   visitaPasada
@@ -1652,9 +1684,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className={`text-sm font-medium ${visitaPasada ? 'text-amber' : 'text-text-1'}`}>
-                    {t('retroToggle')}
+                    {isEditMode ? t('retroToggleEdit') : t('retroToggle')}
                   </div>
-                  <div className="text-text-muted text-[11px] mt-0.5">{t('retroToggleHint')}</div>
+                  <div className="text-text-muted text-[11px] mt-0.5">
+                    {isEditMode ? t('retroToggleEditHint') : t('retroToggleHint')}
+                  </div>
                 </div>
               </label>
             )}

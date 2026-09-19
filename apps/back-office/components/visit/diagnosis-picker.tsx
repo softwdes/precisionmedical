@@ -10,6 +10,7 @@
 
 import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
+import { useToast } from '@/components/ui-phoenix';
 import { Search, Star, Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -33,6 +34,7 @@ interface Props {
 
 export function DiagnosisPicker({ open, onClose, mode, userId, onPick }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const toast = useToast();
   const [q, setQ] = React.useState('');
   const [debouncedQ, setDebouncedQ] = React.useState('');
   const [onlyFavorites, setOnlyFavorites] = React.useState(false);
@@ -77,16 +79,31 @@ export function DiagnosisPicker({ open, onClose, mode, userId, onPick }: Props):
     return () => controller.abort();
   }, [open, page, pageSize, debouncedQ, onlyFavorites, userId]);
 
+  /**
+   * La estrella se pinta al instante y se DESPINTA si el servidor no la aceptó.
+   *
+   * Acá había un `catch` vacío que decía "el próximo fetch trae el estado real".
+   * Era cierto y por eso mismo tapaba el bug: la ruta devolvía 500 en TODOS los
+   * casos —escribía un userId inventado contra un FK— y el único síntoma era una
+   * estrella que se apagaba sola. Devin lo reportó como "los favoritos no
+   * aparecen" y nadie podía verlo desde acá. Un fallo que el usuario no ve es un
+   * fallo que nadie arregla.
+   */
   const toggleFav = async (row: DiagnosisRow): Promise<void> => {
     const isFav = favIds.has(row.id);
-    setFavIds((s) => {
+    const aplicar = (marcar: boolean): void => setFavIds((s) => {
       const next = new Set(s);
-      if (isFav) next.delete(row.id); else next.add(row.id);
+      if (marcar) next.add(row.id); else next.delete(row.id);
       return next;
     });
+    aplicar(!isFav);
     try {
-      await fetch(`/api/admin/diagnoses/${row.id}/favorite`, { method: isFav ? 'DELETE' : 'POST' });
-    } catch { /* el próximo fetch trae el estado real */ }
+      const res = await fetch(`/api/admin/diagnoses/${row.id}/favorite`, { method: isFav ? 'DELETE' : 'POST' });
+      if (!res.ok) { aplicar(isFav); toast.error(t('pickFavError')); }
+    } catch {
+      aplicar(isFav);
+      toast.error(t('pickFavError'));
+    }
   };
 
   return (

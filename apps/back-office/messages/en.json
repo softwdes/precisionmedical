@@ -1105,6 +1105,7 @@
       "pickIcdSearch": "Search ICD-10 by code or name",
       "pickSnomedSearch": "Search SNOMED by code or name",
       "pickFavorites": "Favorites",
+      "pickFavError": "Couldn't save the favorite. Try again.",
       "pickRows": "{n} rows",
       "pickName": "Name",
       "pickAction": "Action",

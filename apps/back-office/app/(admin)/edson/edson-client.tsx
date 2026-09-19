@@ -232,6 +232,14 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
   const [clinicId, setClinicId]     = useState('');
   const [providerId, setProviderId] = useState('');
   const [apptStatus, setApptStatus] = useState('');
+  /**
+   * Horizonte de la cola, en días. 90 por defecto; 'todo' abre el historial.
+   *
+   * Es un selector y no un número fijo a propósito: así Edson lo mueve él mismo
+   * el día que le quede corto, sin esperar un deploy. El motivo del recorte y
+   * por qué 90 están medidos en la API.
+   */
+  const [dias, setDias] = useState('90');
   const [carrierId, setCarrierId]   = useState('');
   const [flag, setFlag]             = useState('');
   const [page, setPage]             = useState(1);
@@ -284,6 +292,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       if (clinicId)   sp.set('clinicId', clinicId);
       if (providerId) sp.set('providerId', providerId);
       if (apptStatus) sp.set('apptStatus', apptStatus);
+      // Siempre se manda, incluso el default: si no, el back tiene que adivinar
+      // si el cliente no lo mandó o si pidió el historial entero.
+      sp.set('dias', dias);
       if (carrierId)  sp.set('carrierId', carrierId);
       if (flag)       sp.set('flag', flag);
       // La grilla se lee siempre por fecha de cita, más reciente primero —
@@ -300,14 +311,16 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       setTotal(json.total ?? 0);
     } catch { setError(t('errLoad')); }
     finally { setLoading(false); }
-  }, [page, vista, q, clinicId, providerId, apptStatus, carrierId, flag, t]);
+  }, [page, vista, q, clinicId, providerId, apptStatus, carrierId, flag, dias, t]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const anyFilter = !!(q || clinicId || providerId || apptStatus || carrierId || flag);
+  // El horizonte cuenta como filtro solo cuando NO es el default: si no, el
+  // botón de limpiar estaría siempre encendido sin nada que limpiar.
+  const anyFilter = !!(q || clinicId || providerId || apptStatus || carrierId || flag) || dias !== '90';
   function clearFilters() {
     setQLive(''); setQ(''); setClinicId(''); setProviderId('');
-    setApptStatus(''); setCarrierId(''); setFlag(''); setPage(1);
+    setApptStatus(''); setCarrierId(''); setFlag(''); setDias('90'); setPage(1);
   }
 
   /** Cambia un campo de la fila en pantalla sin recargar toda la tabla. */
@@ -558,6 +571,17 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
           <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <Input className="pl-8 !h-8 !text-[11px]" placeholder={t('searchPlaceholder')} value={qLive} onChange={e => setQLive(e.target.value)} />
         </div>
+        {/*
+          * El horizonte va primero entre los selectores porque es el que más
+          * cambia lo que se ve: con 90 días la cola pasa de 1.047 filas a 112.
+          * Los demás filtran adentro de eso.
+          */}
+        <select value={dias} onChange={e => { setDias(e.target.value); setPage(1); }} className={selectCls}>
+          {['30', '60', '90', '180'].map(d => (
+            <option key={d} value={d}>{t('horizonDays', { n: d })}</option>
+          ))}
+          <option value="todo">{t('horizonAll')}</option>
+        </select>
         <select value={clinicId} onChange={e => { setClinicId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allClinics')}</option>
           {clinics.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -733,6 +757,12 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                      * que no se pierde nada.
                      */
                     const rowBg = apptRowBg(status) ?? (done ? READY_BG : undefined);
+                    /*
+                     * Quién agendó. Gana el autor de la CITA y el del caso queda
+                     * de respaldo — ver la segunda línea de la celda del
+                     * paciente, más abajo.
+                     */
+                    const autorFila = row.appointment.createdBy ?? row.caseCreatedBy;
                     return (
                       <Fragment key={row.caseId}>
                       <DataTable.Row style={rowBg ? { background: rowBg } : undefined}>
@@ -782,19 +812,33 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               </span>
                             </div>
                             {/*
-                              * Quien dio de alta el caso, pedido por Edson.
+                              * Quien agendo, pedido por Edson: "missing here who
+                              * created this appointment".
                               *
                               * Va en segunda linea a pedido suyo, sabiendo que
                               * cuesta alto de fila: es el mismo apilado que se
                               * quito para pasar de 10 filas visibles a ~22.
                               *
-                              * Solo sale cuando hay dato. Hoy lo tienen 25 de
-                              * 1103 casos MVA: los creados en v3. Los migrados
-                              * del v2 no traen autor.
+                              * Antes salia SOLO el autor del caso y por eso casi
+                              * todas las filas la tenian vacia:
+                              * `cases.createdByUserId` lo tienen 25 de 1103 casos
+                              * MVA. El de la CITA lo tienen 2.675 desde el
+                              * backfill del 2026-09-18, que lo saco del export
+                              * del v2 — la migracion nunca habia leido
+                              * `registeredById`.
+                              *
+                              * Para esta vista los dos son casi siempre la misma
+                              * persona: la fila ES la primera cita del caso, asi
+                              * que quien lo dio de alta es quien la agendo. Pero
+                              * no son el mismo dato, y por eso el tooltip dice
+                              * cual de los dos se esta viendo.
                               */}
-                            {row.caseCreatedBy && (
-                              <div className="text-amber text-[9.5px] italic truncate" title={t('colCreatedByCase')}>
-                                {t('createdByShort', { name: row.caseCreatedBy })}
+                            {autorFila && (
+                              <div
+                                className="text-amber text-[9.5px] italic truncate"
+                                title={row.appointment.createdBy ? t('colCreatedBy') : t('colCreatedByCase')}
+                              >
+                                {t('createdByShort', { name: autorFila })}
                               </div>
                             )}
                             </div>

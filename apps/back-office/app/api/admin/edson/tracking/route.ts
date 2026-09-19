@@ -104,6 +104,34 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // 'noPip' | 'noAdjuster' | 'noClaim' | 'noAttorney' | 'completed' | 'pending'
   const flag       = sp.get('flag')       ?? '';
   /**
+   * Horizonte: cuántos días hacia atrás se miran las PRIMERAS visitas.
+   *
+   * Sin esto la cola no tenía fondo. Medido el 2026-09-18: de las 1.047 filas
+   * sin archivar, **solo 334 son de 2026** — 629 son de 2025, 82 de 2024 y 2 de
+   * 2023. En los últimos 30 días hay 50. O sea que Edson buscaba su trabajo del
+   * día dentro de una lista donde 19 de cada 20 filas no le tocaban, y de ahí
+   * salía casi todo lo que venía reportando como "esta no es un MVA nuevo":
+   * tenía razón siempre, pero el problema no era la clasificación de cada fila
+   * sino la ANTIGÜEDAD de la lista entera.
+   *
+   * Por qué un filtro y no archivar en masa: de los 935 casos con más de 90
+   * días, CERO tienen `completedAt`. No hay ningún dato que diga cuáles están
+   * cerrados, así que archivarlos sería adivinar. Un filtro no toca nada y se
+   * deshace solo.
+   *
+   * El default son 90 días y no 30 porque perseguir un PIP o un adjuster lleva
+   * semanas: con 30 le escondería trabajo que sigue vivo.
+   *
+   * Va en `where` —junto a clínica y provider— y no en la vista, así los
+   * contadores de las tres pestañas hablan del mismo recorte que la tabla.
+   */
+  const DIAS_VALIDOS = [30, 60, 90, 180];
+  const diasParam = sp.get('dias') ?? '';
+  const dias: number | null =
+    diasParam === 'todo'                      ? null
+    : DIAS_VALIDOS.includes(Number(diasParam)) ? Number(diasParam)
+    : 90;
+  /**
    * Tres vistas que PARTEN el conjunto, no que lo filtran: cada caso cae en una
    * sola y ninguno queda invisible.
    *
@@ -165,6 +193,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (apptStatus) where.push(Prisma.sql`la."status"::text = ${apptStatus}`);
   if (pip)        where.push(Prisma.sql`COALESCE(cai."pipAvailable"::text, 'UNKNOWN') = ${pip}`);
   if (carrierId)  where.push(Prisma.sql`COALESCE(cai."carrierId", c."primaryInsuranceId") = ${carrierId}`);
+  // `Prisma.raw` acá es seguro y es la única forma: un intervalo no se puede
+  // parametrizar. El valor no sale del pedido sino de `DIAS_VALIDOS`, que son
+  // cuatro enteros escritos arriba — lo mismo que ya se hace con `SORT_COLUMNS`.
+  if (dias !== null) {
+    where.push(Prisma.sql`fa."scheduledFor" >= NOW() - (${Prisma.raw(String(dias))} * INTERVAL '1 day')`);
+  }
 
   if (flag === 'noPip')        where.push(Prisma.sql`COALESCE(cai."pipAvailable"::text, 'UNKNOWN') = 'UNKNOWN'`);
   if (flag === 'noAdjuster')   where.push(Prisma.sql`

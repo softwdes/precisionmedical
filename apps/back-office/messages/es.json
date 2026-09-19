@@ -5563,6 +5563,8 @@
       "allProviders": "Todos los providers",
       "allStatuses": "Todos los estados de cita",
       "allCarriers": "Todas las aseguradoras",
+      "horizonDays": "Últimos {n} días",
+      "horizonAll": "Todo el historial",
       "flagNoPip": "Sin PIP",
       "flagNoAdjuster": "Sin adjuster",
       "flagNoClaim": "Sin claim #",

@@ -5563,6 +5563,8 @@
       "allProviders": "All providers",
       "allStatuses": "All appointment statuses",
       "allCarriers": "All carriers",
+      "horizonDays": "Last {n} days",
+      "horizonAll": "All history",
       "flagNoPip": "No PIP",
       "flagNoAdjuster": "No adjuster",
       "flagNoClaim": "No claim #",

@@ -28,7 +28,7 @@
 import { NextResponse, after, type NextRequest } from 'next/server';
 import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { requireMessagingActor, resolveRecipientUsers, sanitizeAttachments, verificarAbogadosEnAlcance } from '@/lib/messaging';
+import { requireMessagingActor, ADMIN_ROLES, resolveRecipientUsers, sanitizeAttachments, verificarAbogadosEnAlcance } from '@/lib/messaging';
 import { archivarAdjuntosDelHilo } from '@/lib/messaging-documents';
 import { avisarAbogadosPorEmail } from '@/lib/mensajeria/aviso-abogado';
 import { avisarMensajeNuevo } from '@/lib/push';
@@ -46,6 +46,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const sp = req.nextUrl.searchParams;
   const targetUserId = sp.get('userId') || actor.actorUserId;
+
+  /**
+   * Mirar la bandeja de OTRO es solo de admin.
+   *
+   * No habia ningun chequeo: bastaba pasar `?userId=` para leer los mensajes de
+   * cualquiera, y `requireMessagingActor` deja entrar a EMPLOYEE, FRONT_DESK y
+   * DOCTOR. O sea que las 28 personas podian leerse entre si — incluidos hilos
+   * clinicos de pacientes que no atienden. El selector tampoco estaba gateado en
+   * la interfaz, asi que ni siquiera hacia falta tocar la URL.
+   *
+   * El AuditLog de abajo lo registraba, pero REGISTRAR NO ES AUTORIZAR.
+   *
+   * Se cierra ahora y no antes porque recien ahora se pudo medir: `audit_logs`
+   * tiene 2.763 eventos y CERO de `MESSAGING_VIEWED_OTHER_INBOX`. Nadie la uso
+   * nunca, asi que cerrarla no le rompe el dia a nadie — es el caso raro en que
+   * sacar permiso no cuesta nada.
+   *
+   * Si manana alguien de recepcion lo necesita de verdad, el patron de la casa
+   * es darselo por CAPACIDAD (como `notesAudit` o "ver como doctor"), no
+   * reabrirlo para todos.
+   */
+  if (targetUserId !== actor.actorUserId
+      && !ADMIN_ROLES.includes(actor.actorRole as (typeof ADMIN_ROLES)[number])) {
+    return NextResponse.json({ error: 'FORBIDDEN_OTHER_INBOX' }, { status: 403 });
+  }
   const page = Math.max(1, Number(sp.get('page') || '1'));
   const priority = sp.get('priority'); // NORMAL | URGENT
   const type = sp.get('type'); // ALERT | REMINDER | REQUEST | MESSAGE | REFERRAL

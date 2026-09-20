@@ -2,9 +2,10 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Inbox, Scale } from 'lucide-react';
+import { Inbox, Scale, Trash2 } from 'lucide-react';
 import { InboxClient } from './inbox-client';
 import { FirmRequestsClient } from './firm-requests-client';
+import { DeletedThreadsClient } from './deleted-threads-client';
 
 /**
  * /messages · dos pestañas: la bandeja propia y —solo admin— TODOS los pedidos
@@ -29,11 +30,17 @@ export function MessagesHub({ currentUserId, currentUserName, isAdmin, canSeeFir
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
-  const view = canSeeFirmRequests && sp.get('view') === 'firms' ? 'firms' : 'inbox';
+  /**
+   * Las dos pestañas de admin van juntas bajo el mismo permiso: quien puede ver
+   * lo que piden los bufetes es quien revisa lo que se elimino.
+   */
+  const pedida = sp.get('view');
+  const view: 'inbox' | 'firms' | 'deleted' =
+    canSeeFirmRequests && (pedida === 'firms' || pedida === 'deleted') ? pedida : 'inbox';
 
-  function ir(v: 'inbox' | 'firms'): void {
+  function ir(v: 'inbox' | 'firms' | 'deleted'): void {
     const next = new URLSearchParams(sp.toString());
-    if (v === 'firms') next.set('view', 'firms'); else next.delete('view');
+    if (v === 'inbox') next.delete('view'); else next.set('view', v);
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
@@ -46,6 +53,7 @@ export function MessagesHub({ currentUserId, currentUserName, isAdmin, canSeeFir
             {([
               { id: 'inbox', icon: Inbox, label: t('hubInbox') },
               { id: 'firms', icon: Scale, label: t('hubFirmRequests') },
+              { id: 'deleted', icon: Trash2, label: t('hubDeleted') },
             ] as const).map((tab) => {
               const Icon = tab.icon;
               const active = view === tab.id;
@@ -69,9 +77,13 @@ export function MessagesHub({ currentUserId, currentUserName, isAdmin, canSeeFir
         </div>
       )}
 
-      {view === 'firms'
-        ? <FirmRequestsClient currentUserId={currentUserId} clinics={clinics} />
-        : <InboxClient currentUserId={currentUserId} currentUserName={currentUserName} isAdmin={isAdmin} />}
+      {view === 'firms' ? (
+        <FirmRequestsClient currentUserId={currentUserId} clinics={clinics} />
+      ) : view === 'deleted' ? (
+        <DeletedThreadsClient />
+      ) : (
+        <InboxClient currentUserId={currentUserId} currentUserName={currentUserName} isAdmin={isAdmin} />
+      )}
     </div>
   );
 }

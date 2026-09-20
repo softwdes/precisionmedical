@@ -646,7 +646,24 @@ export function ThreadViewDialog({
                 title={t('tipDeleteAll')} onClick={() => setConfirm('DELETE_ALL')}>
                 {t('actDeleteAll')}
               </button>
-              {isAdmin && thread.patient && (
+              {/*
+                Sin `isAdmin`: lo ve CUALQUIERA que participe del hilo.
+
+                Estaba escondido detras del rol y eso dejaba a 25 de 28 personas
+                sin forma de limpiar un mensaje de prueba del expediente de una
+                paciente. El reporte fue textual: "¿como puedo borrar este
+                mensaje? no quiero que permanezca en el chart". No pedia un
+                permiso — preguntaba como se hace, porque para ella la opcion no
+                existia. Es la regla de la casa: el boton condicionado se MUESTRA;
+                esconderlo hace que parezca que la funcion no existe.
+
+                Se puede abrir porque es reversible: un admin lo ve y lo devuelve
+                desde la pestaña Eliminados.
+
+                `thread.patient` sigue: sin paciente no hay historial del que
+                sacarlo, y el boton no tendria sentido.
+              */}
+              {thread.patient && (
                 <button type="button" className={dangerBtn} disabled={busy}
                   title={t('tipDeleteHistory')} onClick={() => setConfirm('DELETE_HISTORY')}>
                   {t('actDeleteHistory')}

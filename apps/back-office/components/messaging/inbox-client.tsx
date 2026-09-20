@@ -345,7 +345,14 @@ export function InboxClient({
 
       {/* Bandeja de… + filtros finos + acciones */}
       <div className="flex items-end gap-3 flex-wrap">
-        <div className="space-y-1">
+        {/*
+          Mirar la bandeja de otro es solo de admin (el servidor lo impone; esto
+          es la mitad visible). Se MUESTRA bloqueado y no se esconde: es la regla
+          de la casa — un control que desaparece parece que la funcion no existe,
+          y ya nos paso con el boton de eliminar, que una usuaria buscaba sin
+          encontrarlo.
+        */}
+        <div className="space-y-1" title={isAdmin ? undefined : t('inboxOfOnlyAdmin')}>
           <label className={labelCls}>{t('inboxOf')}</label>
           <UserSelect
             users={users}
@@ -354,6 +361,7 @@ export function InboxClient({
             currentUserId={currentUserId}
             myLabel={t('inboxMine')}
             searchPlaceholder={t('toPlaceholder')}
+            disabled={!isAdmin}
           />
         </div>
         {!soloUrgentes && (

@@ -109,6 +109,28 @@ const MAX_ARCHIVOS = 10;
  */
 const MAX_BYTES = 50 * 1024 * 1024;
 
+/**
+ * Las acciones de una fila: se revelan al pasar el mouse — pero SOLO donde hay
+ * mouse.
+ *
+ * Eran `opacity-0 group-hover:opacity-100` a secas, y en una pantalla táctil no
+ * existe el hover: los botones quedaban con opacidad **0 medida**, o sea
+ * invisibles y aun así clickeables. En el iPad de recepción, renombrar, mover y
+ * borrar estaban ahí y había que adivinar dónde tocar (medido con Erick,
+ * 20-sep-2026).
+ *
+ * La pregunta correcta es si el aparato tiene puntero fino, NO cuán ancha es la
+ * pantalla: un iPad en horizontal mide 1024px y caería en `lg:` igual que un
+ * monitor. Por eso va `@media (hover: hover)` y no un breakpoint — con un
+ * breakpoint el bug seguía vivo justo en el aparato que lo tiene.
+ *
+ * Con mouse no cambia nada: la fila sigue limpia y las acciones aparecen al
+ * acercarse, que es el diseño de siempre.
+ */
+const ACCIONES_DE_FILA =
+  'flex items-center gap-1 justify-end transition-opacity ' +
+  'opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100';
+
 /** Los formatos que el pie del diálogo promete. */
 const TIPOS_OK = [
   'image/',
@@ -1394,7 +1416,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                     {t('intakeAlwaysCurrent')}
                   </td>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className={ACCIONES_DE_FILA}>
                       <a
                         href={`${api}/pdf?download=1`}
                         className="p-1 rounded text-text-muted hover:text-cyan transition-colors"
@@ -1442,7 +1464,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                     {formatDate(lien.firmadoEl)}
                   </td>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className={ACCIONES_DE_FILA}>
                       <a
                         href={`/api/admin/cases/${caseId}/lien`}
                         target="_blank"
@@ -1534,7 +1556,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                     {formatDate(item.createdAt)}
                   </td>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className={ACCIONES_DE_FILA}>
                       {!item.isFolder && (
                         <button onClick={() => void abrirArchivo(item)} className="p-1 rounded text-text-muted hover:text-brand-text transition-colors" title={tc('download')}>
                           <Download className="w-3.5 h-3.5" />

@@ -26,6 +26,7 @@ import { PatientEditDialog } from '../patient-edit-dialog';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
 import { ContactoCompartidoNota } from '@/components/patients/contacto-compartido-nota';
 import { conCasoAbierto } from '@/lib/case-modal-url';
+import { telefonoDe } from '@/lib/telefono-paciente';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -82,6 +83,9 @@ interface PatientData {
   lastName: string;
   email: string | null;
   phone: string | null;
+  /** El celular. Existía en la base y en el diálogo de edición; la ficha no lo
+   *  miraba, así que quien solo tenía celular figuraba sin teléfono. */
+  phone2: string | null;
   dateOfBirth: Date | null;
   status: PatientStatus;
   createdAt: Date;
@@ -232,11 +236,15 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
               <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
               {t('actionBack')}
             </Button>
-            {patient.phone && (
+            {/* Llamar: el principal, y si no hay, el celular. Con `patient.phone`
+                a secas el botón NO APARECÍA para quien sólo tiene celular —la
+                mitad del padrón— y desde su propia ficha no había forma de
+                llamarlo. Ver `lib/telefono-paciente`. */}
+            {telefonoDe(patient) && (
               <Button
                 variant="outline"
                 className="shrink-0"
-                onClick={() => window.open(`tel:${patient.phone}`)}
+                onClick={() => window.open(`tel:${telefonoDe(patient)}`)}
               >
                 <Phone className="w-3.5 h-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('actionCall')}</span>
@@ -295,6 +303,30 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
                     <a href={`tel:${patient.phone}`} className="text-brand-text hover:underline font-mono text-[12.5px]">{patient.phone}</a>
                     <ContactoCompartidoNota patient={patient} canal="PHONE" />
                   </>
+                : <span className="text-text-muted italic">—</span>
+            }
+          />
+          {/**
+           * El CELULAR, que hasta hoy no se mostraba en ninguna parte de la
+           * ficha.
+           *
+           * `phone2` existía en la base y en el diálogo de edición, pero la
+           * ficha leía solo `phone`: un paciente que en el formulario dio
+           * únicamente su celular aparecía acá con "—" y sin botón de llamar,
+           * con el número cargado. Medido el 20-sep-2026: **38 de los 200
+           * pacientes más recientes** están así —1 de cada 5—, y sobre el
+           * padrón entero son 3.077 de 5.737.
+           *
+           * Va como fila propia y no reemplazando a la de arriba porque esto es
+           * una FICHA: tiene que decir qué hay cargado y dónde, que es lo que
+           * después se edita. Elegir uno solo es trabajo de `telefonoDe()`, y
+           * eso es para llamar, no para mostrar el expediente.
+           */}
+          <InfoRow
+            label={t('fieldPhone2')}
+            value={
+              patient.phone2
+                ? <a href={`tel:${patient.phone2}`} className="text-brand-text hover:underline font-mono text-[12.5px]">{patient.phone2}</a>
                 : <span className="text-text-muted italic">—</span>
             }
           />

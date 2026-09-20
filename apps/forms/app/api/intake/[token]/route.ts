@@ -335,7 +335,20 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const patientData: Record<string, unknown> = {};
     if (p.firstName)              patientData.firstName                  = p.firstName;
     if (p.lastName)               patientData.lastName                   = p.lastName;
-    if (p.phone)                  patientData.phone                      = p.phone;
+    /**
+     * Los dos teléfonos se tratan IGUAL: `!== undefined`, no `if (p.phone)`.
+     *
+     * Con la condición de verdad, un teléfono vacío no se guardaba nunca: el
+     * paciente que entraba a corregir su ficha para sacar un número viejo que
+     * ya no es suyo lo borraba en pantalla, guardaba, y el número seguía ahí.
+     * El celular sí se podía borrar, en la línea de abajo, con la forma
+     * correcta — la asimetría no estaba justificada en ningún lado.
+     *
+     * Borrar acá es seguro: `phone` no está en `MAYBE_CIPHER`, así que el
+     * formulario siempre mostró el valor real y un vacío es una decisión del
+     * paciente, no un dato que no se pudo descifrar.
+     */
+    if (p.phone !== undefined)     patientData.phone                     = p.phone || null;
     if (p.cellPhone !== undefined) patientData.phone2                    = p.cellPhone || null;
     // Solo actualiza email si realmente cambió (evita conflicto unique en mismo paciente)
     if (p.email !== undefined && p.email !== rec.patient.email) patientData.email = p.email || null;

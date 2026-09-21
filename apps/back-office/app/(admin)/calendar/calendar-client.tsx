@@ -24,7 +24,7 @@ import {
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -212,6 +212,14 @@ function getFirstDayOfMonth(d: Date): Date {
   const [y, m] = denverDateStr(d).split('-').map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, 1, 12, 0, 0));
 }
+
+/**
+ * Dónde se recuerda si la vista de día muestra el motivo.
+ *
+ * Es preferencia de pantalla, no dato: quien trabaja mirando motivos todo el día
+ * no tiene que volver a prenderlo en cada recarga, y quien no lo usa nunca lo ve.
+ */
+const PREF_MOTIVO = 'pm.calendario.mostrarMotivo';
 
 function denverMonthOf(d: Date): number {
   return parseInt(denverDateStr(d).slice(5, 7), 10) - 1;
@@ -731,6 +739,37 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [patientQuery,    setPatientQuery]     = useState(''); // for client-side filter (selected patient id)
   const [calView, setCalView] = useState<CalendarView>('week');
+
+  /**
+   * Mostrar el MOTIVO de la visita en vez de `doctor · caso · visita`.
+   *
+   * Copiado de Medusa, que en su vista de día tiene un botón "Reason" que
+   * cambia esa columna entera (Erick, 21-sep-2026). Reemplaza y no agrega: la
+   * fila del día mide 15 minutos de alto y un tercer renglón no entra — y
+   * mezclar los dos datos en el mismo renglón es justo lo que le quita el golpe
+   * de vista que la hace útil.
+   *
+   * El dato ya existía y no se mostraba en ninguna parte de la grilla: es el
+   * "Reason for visit" del diálogo de cita (`notes`). Medido antes de
+   * construir esto: de las citas cargadas en los últimos 90 días, el 93% trae
+   * motivo, con una mediana de 15 caracteres.
+   *
+   * Solo en la vista de DÍA: en la de semana y mes la tarjeta no da para más de
+   * un nombre.
+   */
+  const [mostrarMotivo, setMostrarMotivo] = useState(false);
+  /**
+   * Se lee en un efecto y no en el `useState`: en el primer render el servidor
+   * no tiene `localStorage` y leerlo acá rompería la hidratación.
+   */
+  useEffect(() => {
+    try { setMostrarMotivo(localStorage.getItem(PREF_MOTIVO) === '1'); } catch { /* ventana privada */ }
+  }, []);
+  const alternarMotivo = () => setMostrarMotivo(v => {
+    const siguiente = !v;
+    try { localStorage.setItem(PREF_MOTIVO, siguiente ? '1' : '0'); } catch { /* ventana privada */ }
+    return siguiente;
+  });
 
   // ─── Data loading — AbortController pattern ──────────────────────────────
   // Cada vez que cambia weekStart, calView o filtros, el efecto se re-ejecuta.
@@ -1449,6 +1488,26 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               ✕
             </button>
           )}
+
+          {/* Motivo — solo en la vista de día, que es donde la tarjeta tiene
+              renglón para mostrarlo. No es un filtro (no esconde nada): cambia
+              QUÉ dice cada cita, por eso lleva icono de texto y no de embudo. */}
+          {calView === 'day' && (
+            <button
+              type="button"
+              onClick={alternarMotivo}
+              aria-pressed={mostrarMotivo}
+              title={t('reasonToggleHint')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded text-[11px] font-medium border transition-all ${
+                mostrarMotivo
+                  ? 'border-cyan bg-cyan/15 text-cyan'
+                  : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border hover:text-text-1'
+              }`}
+            >
+              <FileText className="w-3 h-3 shrink-0" />
+              {t('reasonToggle')}
+            </button>
+          )}
         </div>
 
         {/* Patient search with dropdown */}
@@ -1861,11 +1920,31 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             const contAppts = covers[slot] ?? [];
             const isCont    = cellAppts.length === 0 && contAppts.length > 0;
             const isDrop    = dropTarget === `${dayKey}|${slot}`;
+            /**
+             * La fila con cita mide 44px y la vacía 24px.
+             *
+             * Antes todas medían 30 y el texto se achicaba para entrar: el
+             * nombre del paciente a 11px y el renglón de abajo a 9,5px al 65% de
+             * opacidad, cuando el estándar del back-office (ver CLAUDE.md) es
+             * 14px para celda y 12,5px para texto largo. La clínica lo comparó
+             * con Medusa y tenía razón (Erick, 21-sep-2026).
+             *
+             * El alto sale de las filas VACÍAS, que no necesitan 30px: medido
+             * sobre los últimos 30 días, de los 40 slots de la jornada solo 12,6
+             * tienen cita — 27 filas de cada 40 son la píldora "Disponible"
+             * repetida. Con 13×44 + 27×24 el día entero sigue midiendo lo mismo
+             * que antes y el texto crece un 30%.
+             *
+             * NO se agrupan los tramos libres en una sola fila, que era la idea
+             * original: cada fila vacía es un destino de arrastre, y juntarlas
+             * dejaría sin dónde soltar una cita que se mueve a las 10:30.
+             */
+            const filaVacia = cellAppts.length === 0 && cellBlocks.length === 0 && !isCont;
             return (
-              <div key={slot} className="grid grid-cols-[58px_1fr] border-b border-row-sep last:border-b-0 min-h-[30px]">
+              <div key={slot} className={`grid grid-cols-[64px_1fr] border-b border-row-sep last:border-b-0 ${filaVacia ? 'min-h-[24px]' : 'min-h-[44px]'}`}>
                 <div className="border-r border-row-sep flex items-center justify-end pr-2">
                   <span className={`font-mono tabular-nums ${
-                    slot.endsWith(':00') ? 'text-[12.5px] text-text-1 font-bold' : 'text-[10.5px] text-text-3 font-semibold'
+                    slot.endsWith(':00') ? 'text-sm text-text-1 font-bold' : 'text-[11.5px] text-text-3 font-semibold'
                   }`}>{slotLabel(slot)}</span>
                 </div>
                 <div
@@ -1893,7 +1972,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           textDecoration: s.strike ? 'line-through' : undefined,
                           ...edgeStyle(s),
                         }}>
-                        <span className="text-[9.5px] truncate" style={{ color: s.text, opacity: 0.7 }}>
+                        <span className="text-[11.5px] truncate" style={{ color: s.text, opacity: 0.8 }}>
                           ↳ {t('slotContinues', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
                         </span>
                       </div>
@@ -1933,8 +2012,26 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     const s = getEventStyle(appt);
                     const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                     const drName = appt.provider ? drShort(appt.provider) : '';
-                    const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
+                    /**
+                     * El rango (`8:00–8:15`) SOLO cuando la cita ocupa más de una
+                     * fila. Si entra en una sola, va la hora de inicio y nada más.
+                     *
+                     * El final de una cita de 15 minutos es, por definición, el
+                     * borde de su propia fila: no informa, y encima confunde. La
+                     * clínica leyó "8:00 AM – 8:15 AM" en la tarjeta, vio la fila
+                     * rotulada `8:15` vacía dos centímetros más abajo y concluyó
+                     * que faltaba pintarla (Erick, 21-sep-2026).
+                     *
+                     * La grilla estaba bien: esa fila es la franja 8:15→8:30 y
+                     * está libre. Pintarla sería inventar un turno ocupado en el
+                     * 97,4% de las citas, que son las de 15 minutos.
+                     */
+                    const ocupaVariasFilas = Math.max(DAY_SLOT_MIN, appt.durationMinutes) > DAY_SLOT_MIN;
+                    const timeRange = ocupaVariasFilas
+                      ? apptTimeRange(appt.scheduledFor, appt.durationMinutes)
+                      : apptTimeShort(appt.scheduledFor);
                     const isDragging = draggingId === appt.id;
+                    const motivo = appt.notes?.trim() ?? '';
                     return (
                       <button key={appt.id} type="button"
                         draggable
@@ -1943,18 +2040,40 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                         className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                         style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
-                        <div className="flex items-baseline gap-1 leading-tight">
-                          <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
+                        <div className="flex items-baseline gap-1.5 leading-tight">
+                          {/* 14px = el `text-sm` que el back-office fija como piso
+                              para una celda. Estaba a 11px. */}
+                          <span className="text-sm font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                             {appt.patient.firstName} {appt.patient.lastName}
                           </span>
                           {appt.isOnline && (
-                            <Video className="w-3.5 h-3.5 shrink-0 text-cyan" aria-label={t('legendOnline')} />
+                            <Video className="w-4 h-4 shrink-0 text-cyan" aria-label={t('legendOnline')} />
                           )}
-                          {s.badge && <span className="text-[13px] leading-none shrink-0">{s.badge}</span>}
-                          <span className="text-[9.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{timeRange}</span>
+                          {s.badge && <span className="text-[15px] leading-none shrink-0">{s.badge}</span>}
+                          <span className="text-[11.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.9 }}>{timeRange}</span>
                         </div>
-                        <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
-                          {drName}{appt.case?.caseCode && ` · #${appt.case.caseCode.replace('PMC-','')}`}{visitLabel && ` · ${visitLabel}`}
+                        {/* El renglón de contexto. Con "Motivo" prendido dice el
+                            motivo de la visita y NADA más: media línea de motivo
+                            junto a media de doctor no se lee de un golpe, que es
+                            para lo que sirve.
+
+                            La cita sin motivo cargado pone una raya en vez de
+                            caer al texto viejo — así la columna se lee pareja y
+                            se ve de una cuáles faltan. El `title` es para los 59
+                            motivos de toda la base que pasan de 40 caracteres. */}
+                        {/* 12,5px y 85% de opacidad: es el tamaño que el
+                            back-office fija para texto largo, y al 65% sobre un
+                            fondo tintado este renglón perdía por los dos lados
+                            —tamaño y contraste— que es de lo que se quejó la
+                            clínica. */}
+                        <div
+                          className="text-[12.5px] leading-tight truncate mt-0.5"
+                          style={{ color: s.text, opacity: mostrarMotivo && !motivo ? 0.45 : 0.85 }}
+                          title={mostrarMotivo && motivo ? motivo : undefined}
+                        >
+                          {mostrarMotivo
+                            ? (motivo || '—')
+                            : `${drName}${appt.case?.caseCode ? ` · #${appt.case.caseCode.replace('PMC-','')}` : ''}${visitLabel ? ` · ${visitLabel}` : ''}`}
                         </div>
                       </button>
                     );

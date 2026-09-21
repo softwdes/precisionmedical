@@ -3249,6 +3249,8 @@
       "validationSelectDoctor": "Select a provider.",
       "validationSelectSlot": "Select an available time slot.",
       "monthOpenDay": "Open day {day}",
+      "reasonToggle": "Reason",
+      "reasonToggleHint": "Shows each visit's reason instead of the provider, the case and the visit number",
       "retroToggle": "Record a visit that already happened",
       "retroToggleEdit": "Set the date and time by hand",
       "retroToggleEditHint": "To fix a visit that was logged wrong. The picker above only shows today onward.",

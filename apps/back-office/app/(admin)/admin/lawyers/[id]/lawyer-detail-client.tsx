@@ -38,6 +38,7 @@ interface Firm {
   address: string | null;
   city: string | null;
   state: string | null;
+  zip: string | null;
   notes: string | null;
   paymentSpeed: string | null;
   caseflowFlags: string[];
@@ -122,10 +123,10 @@ export function LawyerDetailClient({ firm, members }: Props) {
                   {firm.phone}
                 </div>
               )}
-              {(firm.city || firm.state) && (
+              {(firm.city || firm.state || firm.zip) && (
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-text-muted" />
-                  {[firm.city, firm.state].filter(Boolean).join(', ')}
+                  {[[firm.city, firm.state].filter(Boolean).join(', '), firm.zip].filter(Boolean).join(' ')}
                 </div>
               )}
             </div>
@@ -250,6 +251,7 @@ function SummaryTab({
           <InfoRow label="Teléfono"        value={firm.phone ?? <Empty />} mono />
           <InfoRow label="Dirección"       value={firm.address ?? <Empty />} />
           <InfoRow label="Ciudad / Estado" value={[firm.city, firm.state].filter(Boolean).join(', ') || <Empty />} />
+          <InfoRow label="Código postal"   value={firm.zip ?? <Empty />} mono />
         </Card>
 
         <Card title="Configuración operativa">
@@ -585,6 +587,7 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
           address: firm.address,
           city: firm.city,
           state: firm.state,
+          zip: firm.zip,
           paymentSpeed: firm.paymentSpeed,
           caseflowFlags: firm.caseflowFlags,
           notes: notes.trim() || null,

@@ -38,6 +38,7 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
         address: firm.address,
         city: firm.city,
         state: firm.state,
+        zip: firm.zip,
         notes: firm.notes,
         paymentSpeed: firm.paymentSpeed,
         caseflowFlags: firm.caseflowFlags,

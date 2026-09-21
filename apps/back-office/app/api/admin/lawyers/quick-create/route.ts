@@ -54,6 +54,7 @@ const AltaRapidaSchema = z.object({
   address:       z.string().max(500).nullable().optional(),
   city:          z.string().max(100).nullable().optional(),
   state:         z.string().max(2).nullable().optional(),
+  zip:           z.string().max(20).nullable().optional(),
   paymentSpeed:  z.enum(['FAST', 'AVERAGE', 'SLOW', 'UNKNOWN']).default('UNKNOWN'),
   caseflowFlags: z.array(z.string().max(50)).default([]),
 });
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       address:       parsed.address ?? null,
       city:          parsed.city ?? null,
       state:         parsed.state ?? null,
+      zip:           parsed.zip ?? null,
       paymentSpeed:  parsed.paymentSpeed,
       caseflowFlags: parsed.caseflowFlags,
       // Sin `notes`: son privadas de Edson y esta puerta no las abre.

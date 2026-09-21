@@ -230,7 +230,7 @@ export default async function SettingsPage() {
       initialFirms={firms.map((f) => ({
         id: f.id, firmName: f.firmName ?? '—', entityType: f.entityType,
         email: f.email, phone: f.phone, address: f.address, city: f.city,
-        state: f.state, notes: f.notes, paymentSpeed: f.paymentSpeed,
+        state: f.state, zip: f.zip, notes: f.notes, paymentSpeed: f.paymentSpeed,
         caseflowFlags: f.caseflowFlags, status: f.status,
         memberCount: f._count.members, createdAt: f.createdAt, updatedAt: f.updatedAt,
       }))}

@@ -48,6 +48,7 @@ export interface FirmEditable {
   address: string | null;
   city: string | null;
   state: string | null;
+  zip: string | null;
   notes: string | null;
   paymentSpeed: string | null;
   caseflowFlags: string[];
@@ -119,6 +120,7 @@ export function FirmDialog({
   const [address, setAddress]   = useState(editing?.address ?? '');
   const [city, setCity]         = useState(editing?.city ?? '');
   const [state, setState]       = useState(editing?.state ?? 'UT');
+  const [zip, setZip]           = useState(editing?.zip ?? '');
   const [paymentSpeed, setPaymentSpeed] = useState(editing?.paymentSpeed ?? 'UNKNOWN');
   const [flagsInput, setFlagsInput]     = useState(editing?.caseflowFlags.join(', ') ?? '');
   const [notes, setNotes]   = useState(editing?.notes ?? '');
@@ -145,6 +147,7 @@ export function FirmDialog({
     setAddress(editing?.address ?? '');
     setCity(editing?.city ?? '');
     setState(editing?.state ?? 'UT');
+    setZip(editing?.zip ?? '');
     setPaymentSpeed(editing?.paymentSpeed ?? 'UNKNOWN');
     setFlagsInput(editing?.caseflowFlags.join(', ') ?? '');
     setNotes(editing?.notes ?? '');
@@ -193,6 +196,7 @@ export function FirmDialog({
           address: address.trim() || null,
           city: city.trim() || null,
           state: state.trim() || null,
+          zip: zip.trim() || null,
           paymentSpeed,
           caseflowFlags: flags,
           // La ruta rápida no acepta ninguno de los dos: el alta nace activa y
@@ -322,7 +326,13 @@ export function FirmDialog({
             <Input id="address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Center St, Suite 200" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {/* Ciudad · Estado · ZIP. El ZIP es del BUFETE: la columna ya existía
+              en la tabla, pero solo la pedía el formulario de miembro, así que
+              un bufete dado de alta acá nacía sin código postal — y esa es la
+              dirección que después sale en las cartas al bufete (Erick,
+              2026-09-21). En móvil la ciudad se lleva la fila entera y
+              Estado/ZIP van a la par. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="col-span-2">
               <Label htmlFor="city">{t('fieldCity')}</Label>
               <Input id="city" value={city ?? ''} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
@@ -330,6 +340,10 @@ export function FirmDialog({
             <div>
               <Label htmlFor="state">{t('fieldState')}</Label>
               <Input id="state" value={state ?? ''} onChange={(e) => setState(e.target.value)} placeholder="UT" maxLength={2} />
+            </div>
+            <div>
+              <Label htmlFor="zip">{t('fieldZip')}</Label>
+              <Input id="zip" value={zip ?? ''} onChange={(e) => setZip(e.target.value)} placeholder="84601" maxLength={10} inputMode="numeric" />
             </div>
           </div>
 

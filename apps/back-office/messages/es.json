@@ -1962,7 +1962,8 @@
       "deleteWarning": "Tiene {count, plural, one {1 miembro} other {{count} miembros}} (attorneys / case managers). Se marcarán como inactivos también.",
       "tooltipViewCases": "Ver casos",
       "noFirmMatch": "Ningún bufete coincide con la búsqueda",
-      "noAttorneyMatch": "Ningún miembro de este bufete coincide"
+      "noAttorneyMatch": "Ningún miembro de este bufete coincide",
+      "fieldZip": "Código postal"
     },
     "insurances": {
       "title": "Aseguradoras",

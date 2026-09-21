@@ -48,6 +48,7 @@ interface Firm {
   address: string | null;
   city: string | null;
   state: string | null;
+  zip: string | null;
   notes: string | null;
   paymentSpeed: string | null;
   caseflowFlags: string[];

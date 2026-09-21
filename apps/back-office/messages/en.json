@@ -1962,7 +1962,8 @@
       "deleteWarning": "Has {count, plural, one {1 member} other {{count} members}} (attorneys / case managers). They will also be marked inactive.",
       "tooltipViewCases": "View cases",
       "noFirmMatch": "No firm matches your search",
-      "noAttorneyMatch": "No member of this firm matches"
+      "noAttorneyMatch": "No member of this firm matches",
+      "fieldZip": "ZIP code"
     },
     "insurances": {
       "title": "Insurance Carriers",

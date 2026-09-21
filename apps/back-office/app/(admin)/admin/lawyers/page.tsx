@@ -29,6 +29,7 @@ export default async function LawyersPage() {
         address: f.address,
         city: f.city,
         state: f.state,
+        zip: f.zip,
         notes: f.notes,
         paymentSpeed: f.paymentSpeed,
         caseflowFlags: f.caseflowFlags,

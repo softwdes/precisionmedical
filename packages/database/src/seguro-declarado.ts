@@ -53,6 +53,15 @@ export interface SeguroDeclarado {
   holderName?: string;
   holderDOB?: string;
   holderRelation?: string;
+  /**
+   * Los tres de abajo SIEMPRE estuvieron en el JSON —el diálogo de seguros del
+   * back-office los escribe— pero esta interfaz no los declaraba, así que para
+   * el compilador no existían. Se agregaron el 21-sep, cuando el intake impreso
+   * pasó a imprimir la ficha completa del seguro y no solo nombre y póliza.
+   */
+  effectiveDate?: string;
+  copay?: string;
+  deductible?: string;
   /** `MEDICAL` o `AUTO`. El de auto vive en `case_auto_insurances`, no acá. */
   insType?: string;
   /**

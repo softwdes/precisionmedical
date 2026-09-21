@@ -329,6 +329,27 @@ function TableRow({ label, value, last }: { label: string; value?: string | null
   );
 }
 
+/**
+ * `YYYY-MM-DD` → `MM/DD/YYYY`, a mano y sin pasar por `Date`.
+ *
+ * La fecha de vigencia no lleva hora ni zona: construir un `Date` con ella la
+ * corre un día en cuanto el servidor no está en UTC, y el PDF terminaría
+ * imprimiendo una vigencia que empieza un día antes de la real.
+ */
+function fechaCorta(iso?: string | null): string | null {
+  const v = iso?.trim();
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return v || null;
+  const [y, m, d] = v.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+/** Importe con `$`. Devuelve `null` si no hay nada, para que salga "N/A". */
+function montoOEnBlanco(v?: string | null): string | null {
+  const t = v?.trim();
+  if (!t) return null;
+  return t.startsWith('$') ? t : `$${t}`;
+}
+
 function TableRow2({
   l1, v1, l2, v2, last,
 }: { l1: string; v1?: string | null; l2: string; v2?: string | null; last?: boolean }) {
@@ -408,11 +429,27 @@ async function buildPDF(data: {
    * del caso cuando el nombre coincide con el catálogo, así que este respaldo
    * queda para los que no coinciden y para los casos viejos sin backfill.
    */
-  const declarado = segurosMedicosDeclarados(cd)[0] ?? null;
-  const seguroDeclarado = declarado?.carrier?.trim()
-    ? `${declarado.carrier.trim()} (declared)`
-    : null;
-  const polizaDeclarada = declarado?.policyId?.trim() || null;
+  /**
+   * TODOS los seguros médicos cargados, no solo el primero.
+   *
+   * Antes acá se tomaba `[0]` y el resto se tiraba, así que un paciente con dos
+   * pólizas salía impreso con una sola. Lo reportó recepción el 21-sep sobre
+   * Steven Smith (GM-1523), que tiene Medicare y United American cargadas y en
+   * el PDF salía Medicare a secas.
+   */
+  const seguros = segurosMedicosDeclarados(cd);
+
+  /**
+   * ¿Cuál de las cargadas es la que el staff verificó contra la tarjeta?
+   *
+   * El caso tiene una aseguradora ENLAZADA al catálogo (`primaryInsurance`), que
+   * no vale lo mismo que la que escribió el paciente de memoria. Se compara por
+   * nombre normalizado para poder rotular cada una como corresponde en vez de
+   * imprimirlas todas iguales — mezclar los dos sin decir cuál es cuál es peor
+   * que no mostrar nada.
+   */
+  const normNombre = (v?: string | null) => (v ?? '').trim().toLowerCase();
+  const nombreVerificado = normNombre(caseData.primaryInsurance?.name);
 
   /**
    * Personas autorizadas a recibir información médica.
@@ -553,24 +590,74 @@ async function buildPDF(data: {
           es cuál es peor que uno que no muestre nada.
         */}
         <View style={s.sectionHeader}><Text style={s.sectionTitle}>Insurance</Text></View>
-        <View style={s.sectionBody}>
-          <TableRow2
-            l1="Primary:"
-            v1={caseData.primaryInsurance?.name ?? seguroDeclarado}
-            l2="Policy #:"
-            v2={caseData.primaryPolicyNumber ?? polizaDeclarada}
-            last={!caseData.secondaryInsurance && !caseData.secondaryPolicyNumber}
-          />
-          {(caseData.secondaryInsurance || caseData.secondaryPolicyNumber) && (
+
+        {seguros.length > 0 ? (
+          /*
+            Una ficha por póliza, con los mismos datos que ve el staff en
+            pantalla. Antes salían dos renglones sueltos con nombre y número:
+            el titular, el parentesco y la fecha de vigencia se cargaban y no se
+            imprimían en ninguna parte.
+          */
+          seguros.map((seg, i) => {
+            const verificado = !!nombreVerificado && normNombre(seg.carrier) === nombreVerificado;
+            const rotulo = i === 0 ? 'Primary' : i === 1 ? 'Secondary' : `Insurance ${i + 1}`;
+            return (
+              <View key={seg.id ?? `seg-${i}`} style={s.sectionBody} wrap={false}>
+                <TableRow2
+                  l1={`${rotulo}:`}
+                  // "(verified)" solo cuando la aseguradora está enlazada al
+                  // catálogo. El resto va "(declared)": lo escribió el paciente
+                  // y nadie lo contrastó con la tarjeta todavía.
+                  v1={`${seg.carrier?.trim() || '—'} ${verificado ? '(verified)' : '(declared)'}`}
+                  l2="Policy #:"
+                  v2={seg.policyId?.trim() || null}
+                />
+                <TableRow2
+                  l1="Policyholder:"
+                  v1={seg.holderName?.trim() || null}
+                  l2="Relationship:"
+                  v2={seg.holderRelation?.trim() || null}
+                />
+                <TableRow2
+                  l1="Effective date:"
+                  v1={fechaCorta(seg.effectiveDate)}
+                  l2="Group #:"
+                  v2={seg.groupNum?.trim() || null}
+                />
+                <TableRow2
+                  l1="Copay:"
+                  v1={montoOEnBlanco(seg.copay)}
+                  l2="Deductible:"
+                  v2={montoOEnBlanco(seg.deductible)}
+                  last
+                />
+              </View>
+            );
+          })
+        ) : (
+          /*
+            Respaldo para los casos viejos: los que no tienen la lista cargada
+            pero sí las dos columnas del caso. Es como se imprimía siempre.
+          */
+          <View style={s.sectionBody}>
             <TableRow2
-              l1="Secondary:"
-              v1={caseData.secondaryInsurance?.name ?? null}
+              l1="Primary:"
+              v1={caseData.primaryInsurance?.name ?? null}
               l2="Policy #:"
-              v2={caseData.secondaryPolicyNumber}
-              last
+              v2={caseData.primaryPolicyNumber}
+              last={!caseData.secondaryInsurance && !caseData.secondaryPolicyNumber}
             />
-          )}
-        </View>
+            {(caseData.secondaryInsurance || caseData.secondaryPolicyNumber) && (
+              <TableRow2
+                l1="Secondary:"
+                v1={caseData.secondaryInsurance?.name ?? null}
+                l2="Policy #:"
+                v2={caseData.secondaryPolicyNumber}
+                last
+              />
+            )}
+          </View>
+        )}
 
         {/* Medical History */}
         {intake && (

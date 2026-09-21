@@ -1122,7 +1122,26 @@ function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
     }
     if (tab === 'MEDICAL') {
       if (!entry.holderRelation.trim()) e.holderRelation = t('segurosErrRequired');
-      if (!entry.effectiveDate) e.effectiveDate = t('segurosErrRequired');
+      /**
+       * La fecha de vigencia NO es obligatoria (pedido de recepción, 17-sep).
+       *
+       * Decía:
+       *
+       *     if (!entry.effectiveDate) e.effectiveDate = t('segurosErrRequired');
+       *
+       * Muchas tarjetas de seguro no la traen. Exigirla no conseguía el dato:
+       * conseguía una fecha inventada, que es peor que un campo vacío porque
+       * parece real y nadie la vuelve a mirar.
+       *
+       * Y ya estaba al revés: en el formulario que llena el PACIENTE este campo
+       * siempre fue opcional. O sea que la encargada —que tiene la tarjeta en la
+       * mano— estaba sujeta a una regla más estricta que el paciente.
+       *
+       * Sacarlo no rompe nada: el seguro médico se guarda en el JSON de
+       * `consentsData.insurances[]` (no hay columna con NOT NULL), ninguna ruta
+       * ni librería lee este campo, y la tarjeta que lo muestra ya se dibuja
+       * condicionada a que exista.
+       */
       if (entry.holderDOB && entry.holderDOB < minDOB) e.holderDOB = t('segurosErrDOBRange');
       const copayVal = parseFloat(entry.copay);
       if (entry.copay && (isNaN(copayVal) || copayVal < 0 || copayVal > 999999)) e.copay = t('segurosErrAmount');
@@ -1198,7 +1217,7 @@ function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={insLabel}>{t('segurosEffectiveDate')} <span className="text-rose">*</span></label>
+                  <label className={insLabel}>{t('segurosEffectiveDate')}</label>
                   <input
                     type="date"
                     className={`${insInput} [color-scheme:dark] ${errors.effectiveDate ? 'border-rose' : ''}`}

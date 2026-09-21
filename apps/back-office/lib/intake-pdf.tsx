@@ -352,7 +352,7 @@ function montoOEnBlanco(v?: string | null): string | null {
 
 function TableRow2({
   l1, v1, l2, v2, last,
-}: { l1: string; v1?: string | null; l2: string; v2?: string | null; last?: boolean }) {
+}: { l1: string; v1?: string | null; l2?: string; v2?: string | null; last?: boolean }) {
   const RowStyle = last ? s.tableRowLast : s.tableRow;
   return (
     <View style={RowStyle}>
@@ -360,9 +360,15 @@ function TableRow2({
       <View style={s.cell2Value}>
         {v1?.trim() ? <Text style={s.cellValueText}>{v1.trim()}</Text> : <Text style={s.cellValueEmpty}>N/A</Text>}
       </View>
-      <View style={s.cell2Label}><Text style={s.cellLabelText}>{l2}</Text></View>
+      {/* Sin `l2` la fila queda con UN solo par y las dos celdas de la derecha
+          vacías, sin rótulo y sin "N/A". Hace falta para los bloques de número
+          impar de campos: un "N/A" suelto bajo ninguna pregunta se lee como un
+          dato que falta, cuando en realidad no hay dato que pedir ahí. */}
+      <View style={s.cell2Label}>{l2 ? <Text style={s.cellLabelText}>{l2}</Text> : null}</View>
       <View style={s.cell2ValueLast}>
-        {v2?.trim() ? <Text style={s.cellValueText}>{v2.trim()}</Text> : <Text style={s.cellValueEmpty}>N/A</Text>}
+        {l2
+          ? (v2?.trim() ? <Text style={s.cellValueText}>{v2.trim()}</Text> : <Text style={s.cellValueEmpty}>N/A</Text>)
+          : null}
       </View>
     </View>
   );
@@ -615,20 +621,37 @@ async function buildPDF(data: {
                 <TableRow2
                   l1="Policyholder:"
                   v1={seg.holderName?.trim() || null}
-                  l2="Relationship:"
-                  v2={seg.holderRelation?.trim() || null}
+                  /**
+                   * La fecha de nacimiento del TITULAR.
+                   *
+                   * El formulario la pide y la guarda, y este bloque no la
+                   * imprimía: la aseguradora la usa para identificar la póliza
+                   * cuando el titular no es el paciente, así que faltaba justo
+                   * en el papel que se manda a cobrar (Erick, 21-sep-2026).
+                   *
+                   * Con `fmtDob` y NO con `fechaCorta`: una fecha de nacimiento
+                   * es un día del calendario y se formatea en UTC. Con la zona
+                   * de la clínica, un titular nacido el 1 de enero sale impreso
+                   * el 31 de diciembre — ver `lib/fechas.ts`.
+                   */
+                  l2="Holder DOB:"
+                  v2={fmtDob(seg.holderDOB)}
                 />
                 <TableRow2
-                  l1="Effective date:"
-                  v1={fechaCorta(seg.effectiveDate)}
+                  l1="Relationship:"
+                  v1={seg.holderRelation?.trim() || null}
                   l2="Group #:"
                   v2={seg.groupNum?.trim() || null}
                 />
                 <TableRow2
-                  l1="Copay:"
-                  v1={montoOEnBlanco(seg.copay)}
-                  l2="Deductible:"
-                  v2={montoOEnBlanco(seg.deductible)}
+                  l1="Effective date:"
+                  v1={fechaCorta(seg.effectiveDate)}
+                  l2="Copay:"
+                  v2={montoOEnBlanco(seg.copay)}
+                />
+                <TableRow2
+                  l1="Deductible:"
+                  v1={montoOEnBlanco(seg.deductible)}
                   last
                 />
               </View>

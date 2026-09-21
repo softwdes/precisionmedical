@@ -1,4 +1,4 @@
-import { db } from '@precision-medical/database';
+import { db, segurosMedicosDeclarados } from '@precision-medical/database';
 import type { ComponentProps } from 'react';
 import type { CaseDetailClient } from '@/app/(admin)/front-office/[id]/case-detail-client';
 import { getSessionUser } from '@/lib/session';
@@ -283,6 +283,25 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
       attorney: caseRecord.attorney,
       primaryInsurance: caseRecord.primaryInsurance,
       secondaryInsurance: caseRecord.secondaryInsurance,
+      /**
+       * El seguro que DECLARÓ el paciente en su formulario.
+       *
+       * La tarjeta de seguros miraba solo la aseguradora enlazada al catálogo, y
+       * cuando no hay ninguna decía "sin seguro principal" aunque el paciente
+       * hubiera cargado el suyo: Erick, 21-sep-2026, mirando a Alexander Lutz
+       * —su intake impreso muestra "BlueCrossBlueShiled (declared), póliza
+       * 901639254" y el caso salía vacío—.
+       *
+       * Pasa cuando el nombre no coincide con el catálogo, que es seguido: ahí
+       * está escrito de memoria y con un dedazo ("BlueCrossBlueShiled"), así que
+       * la promoción automática del intake no lo enlaza y el dato se queda en el
+       * JSON sin que nadie lo vea. El PDF ya lo imprimía; la pantalla no.
+       *
+       * Va SIEMPRE, no solo cuando falta el enlazado: la tarjeta decide qué
+       * mostrar. Y rotulado como declarado en la pantalla, porque no es lo mismo
+       * que lo que el staff verificó contra la tarjeta.
+       */
+      segurosDeclarados: segurosMedicosDeclarados(caseRecord.consentsData),
       specialty: caseRecord.specialty,
       notes: caseRecord.notes,
       appointments: caseRecord.appointments,

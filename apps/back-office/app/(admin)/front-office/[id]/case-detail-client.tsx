@@ -165,6 +165,17 @@ interface CaseInfo {
     hcfaChannel: string;
     preauthRequired: boolean;
   } | null;
+  /**
+   * Lo que el paciente escribió en su formulario, sin enlazar al catálogo.
+   * Opcional porque no todas las superficies que arman este objeto lo mandan.
+   */
+  segurosDeclarados?: Array<{
+    id?: string;
+    carrier?: string;
+    policyId?: string;
+    groupNum?: string;
+    holderName?: string;
+  }>;
   secondaryInsurance: {
     id: string;
     name: string;
@@ -934,6 +945,47 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     </div>
                   )}
                 </div>
+              ) : caseInfo.segurosDeclarados && caseInfo.segurosDeclarados.length > 0 ? (
+                /**
+                 * Lo que el paciente DECLARÓ, cuando no hay ninguna aseguradora
+                 * enlazada al catálogo.
+                 *
+                 * Acá decía "sin seguro principal" y punto, aunque el paciente
+                 * hubiera cargado el suyo en el formulario: el dato estaba en el
+                 * caso, salía impreso en el intake, y la pantalla lo escondía
+                 * (Erick, 21-sep-2026, sobre Alexander Lutz).
+                 *
+                 * Va en ÁMBAR y rotulado "declarado": no es lo que el staff
+                 * verificó contra la tarjeta, y pintarlo igual que el verificado
+                 * sería peor que no mostrarlo — alguien lo daría por confirmado.
+                 */
+                <div className="space-y-2">
+                  {caseInfo.segurosDeclarados.map((s, i) => (
+                    <div key={s.id ?? i} className="rounded-md border border-amber/30 bg-amber/5 p-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-text-1 font-semibold text-sm">{s.carrier || t('insuranceNoName')}</span>
+                        <span className="text-[9px] uppercase tracking-wider font-semibold text-amber border border-amber/30 rounded px-1.5 py-px">
+                          {t('insuranceDeclared')}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1 text-xs">
+                        {s.policyId && (
+                          <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{s.policyId}</code></div>
+                        )}
+                        {s.holderName && (
+                          <div><span className="text-text-muted">{t('holderLabel')}</span> <span className="text-text-1">{s.holderName}</span></div>
+                        )}
+                        {s.groupNum && (
+                          <div><span className="text-text-muted">{t('groupLabel')}</span> <code className="text-text-1 font-mono">{s.groupNum}</code></div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {/* Qué hacer con esto: el staff lo verifica y lo enlaza al
+                      catálogo con el lápiz de arriba. Sin esta línea, el ámbar
+                      es un cartel sin salida. */}
+                  <p className="text-[11px] text-text-muted">{t('insuranceDeclaredHint')}</p>
+                </div>
               ) : (
                 <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>
               )}
@@ -1018,6 +1070,13 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                  de montar un segundo: son el mismo, y duplicarlo dejaría dos
                  estados que se desincronizan al subir una foto. */
               onVerArchivosDelPaciente={isReadOnly ? undefined : () => setArchivosOpen(true)}
+              /* Con el paciente, el tab agrega la carpeta "Identificación" con
+                 su foto, su licencia y su tarjeta del seguro. Va solo acá —no
+                 en la consulta ni en Day Admission— porque esta es la pantalla
+                 donde se administran los papeles (Erick, 21-sep-2026). Y NUNCA
+                 al bufete: esos archivos no son del caso, y el portal legal
+                 sirve por caso. Ver `CARPETA_IDENTIDAD_ID`. */
+              patientId={isAttorney || isReadOnly ? undefined : caseInfo.patient?.id}
             />
       )}
 

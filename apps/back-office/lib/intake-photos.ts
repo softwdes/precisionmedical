@@ -65,10 +65,49 @@ const TIPOS: Record<string, string> = {
   'image/webp': 'webp',
   'image/heic': 'heic',
   'image/heif': 'heif',
+  /**
+   * PDF, desde el 21-sep-2026.
+   *
+   * La clínica recibe licencias y tarjetas de seguro que el paciente o su
+   * abogado mandan escaneadas, y muchas veces el único archivo que existe es un
+   * PDF. Hasta hoy no había forma de guardarlo en el recuadro que le
+   * corresponde: o se rechazaba, o alguien le sacaba una foto a la pantalla.
+   *
+   * Entra un PDF y NO un SVG, aunque los dos sean "documentos con scripts",
+   * porque no corren en el mismo lugar: el SVG se ejecuta en el ORIGEN que lo
+   * sirve —y este bucket es público, así que sería XSS puesto por nosotros—,
+   * mientras que el PDF lo abre el visor del navegador, aislado del documento.
+   *
+   * ⚠️ Lo que sí hereda es la deuda que ya tenía este archivo: el bucket es
+   * PÚBLICO y la URL no vence. Vale para las fotos de hoy y ahora también para
+   * los PDF. La cura es la misma que está anotada arriba —mover esto al bucket
+   * privado con URL firmada— y este cambio le agrega una razón más.
+   */
+  'application/pdf': 'pdf',
 };
 
 /** 10 MB. Una foto de un documento con la cámara del teléfono pesa 2–4 MB. */
 export const MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * 4 MB para los PDF — más bajo que el de las imágenes, y a propósito.
+ *
+ * No es una preferencia: es el techo REAL de este camino. La foto se manda a
+ * nuestra API dentro de un `FormData`, y el cuerpo de una función serverless no
+ * pasa de ~4,5 MB. Una imagen nunca se acerca porque el diálogo la comprime a
+ * ~1,4 MB antes de salir; **un PDF no se puede comprimir ahí** —se comprime con
+ * un `canvas` y un PDF no se dibuja—, así que viaja como vino.
+ *
+ * Poner 20 MB acá sería dejar pasar la validación para que el archivo muera
+ * después en el transporte, con un error que no explica nada. Es exactamente el
+ * problema que el encabezado de este archivo dice haber arreglado.
+ *
+ * Un escaneo de una licencia o una tarjeta ronda los 200 KB–2 MB, así que entra
+ * con margen. Si algún día hace falta más, el camino existe y está a la vista:
+ * el explorador de documentos sube con URL firmada DIRECTO al bucket y por eso
+ * aguanta 50 MB. Mover esta subida a ese patrón es la cura, no subir el número.
+ */
+export const MAX_BYTES_PDF = 4 * 1024 * 1024;
 
 export interface FotoValida {
   ok: true;
@@ -98,7 +137,10 @@ export async function validarFoto(
 
   const ext = TIPOS[file.type.toLowerCase()];
   if (!ext) return { ok: false, error: 'INVALID_FILE_TYPE' };
-  if (file.size > MAX_BYTES) return { ok: false, error: 'FILE_TOO_LARGE' };
+  // El PDF tiene su propio techo, y es más bajo — ver `MAX_BYTES_PDF`.
+  if (file.size > (ext === 'pdf' ? MAX_BYTES_PDF : MAX_BYTES)) {
+    return { ok: false, error: 'FILE_TOO_LARGE' };
+  }
 
   return {
     ok: true,

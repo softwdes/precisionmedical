@@ -24,7 +24,7 @@
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Camera, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Camera, Download, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
@@ -486,6 +486,8 @@ export function ArchivosDialog({
   soloLectura = false, onClose,
 }: ArchivosDialogProps) {
   const t      = useTranslations('phoenix.patients');
+  /** "Descargar" ya existe en común — el mismo texto que el resto del sistema. */
+  const tc     = useTranslations('phoenix.common');
   const router = useRouter();
   /**
    * El mismo visor que usan los documentos del expediente, acá para las cuatro
@@ -553,13 +555,28 @@ export function ArchivosDialog({
     // subida no había funcionado.
     setFallidas(f => ({ ...f, [photoKey]: false }));
 
+    /**
+     * El PDF NO pasa por la compresión — se sube tal cual.
+     *
+     * `compressImage` dibuja el archivo en un `<canvas>`, y un PDF no se dibuja
+     * ahí: el `img.onerror` rechaza y caíamos al `catch`, que sube el original.
+     * O sea que "funcionaba" por accidente, dando una vuelta entera y un error
+     * silencioso en cada subida. Mejor no pedírselo.
+     *
+     * Por eso también el PDF tiene un techo más chico del lado del servidor
+     * (`MAX_BYTES_PDF`): es el único archivo que viaja sin achicar.
+     */
+    const esPdf = file.type === 'application/pdf';
+
     // Compress/resize to ≤1.5MB before upload (Vercel body limit is 4.5MB,
     // multipart overhead + JPEG at 1920×1080 can exceed it)
     let uploadFile = file;
-    try {
-      uploadFile = await compressImage(file, 1400);
-    } catch {
-      // If compression fails, attempt upload with original (may fail on large files)
+    if (!esPdf) {
+      try {
+        uploadFile = await compressImage(file, 1400);
+      } catch {
+        // If compression fails, attempt upload with original (may fail on large files)
+      }
     }
 
     // Optimistic preview
@@ -729,7 +746,11 @@ export function ArchivosDialog({
                   <input
                     ref={el => { fileRefs.current[key] = el; }}
                     type="file"
-                    accept="image/*"
+                    /* También PDF: la licencia y la tarjeta del seguro llegan
+                       escaneadas muchas veces, y ese es el único archivo que
+                       existe (pedido de la clínica, 21-sep-2026). La cámara
+                       sigue dando JPEG; esto es para el botón "Archivo". */
+                    accept="image/*,application/pdf"
                     className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(key, f); e.target.value = ''; }}
                   />
@@ -755,12 +776,24 @@ export function ArchivosDialog({
                           title={t('photoView')}
                           className="absolute inset-0 w-full h-full cursor-zoom-in"
                         >
-                          <img
-                            src={url}
-                            alt={label}
-                            className="w-full h-full object-cover"
-                            onError={() => setFallidas(f => ({ ...f, [key]: true }))}
-                          />
+                          {/* Un PDF no se puede pintar en un `<img>`: el
+                              recuadro quedaba en blanco y parecía que la subida
+                              había fallado. Se muestra la ficha del archivo, y
+                              el clic sigue abriendo el visor igual que una
+                              foto — ahí el PDF sí se ve. */}
+                          {/\.pdf(\?|$)/i.test(url) ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-bg-2">
+                              <FileText className="w-7 h-7 text-rose/70" />
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">PDF</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={url}
+                              alt={label}
+                              className="w-full h-full object-cover"
+                              onError={() => setFallidas(f => ({ ...f, [key]: true }))}
+                            />
+                          )}
                           <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
                             <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 rounded px-2 py-1">
                               <Eye className="w-3.5 h-3.5 text-white" />
@@ -768,12 +801,55 @@ export function ArchivosDialog({
                             </span>
                           </span>
                         </button>
-                        {/* Reemplazar y Eliminar quedan ENCIMA de la foto. El
-                            contenedor no recibe clicks (`pointer-events-none`):
-                            sin eso taparía la foto entera y no se podría abrir.
-                            Cada botón los vuelve a habilitar para sí mismo. */}
-                        {!soloLectura && (
-                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 p-1.5 pointer-events-none">
+                        {/* Las acciones quedan ENCIMA de la foto. El contenedor
+                            no recibe clicks (`pointer-events-none`): sin eso
+                            taparía la foto entera y no se podría abrir. Cada
+                            botón los vuelve a habilitar para sí mismo. */}
+                        {/* `flex-wrap` porque ahora son TRES acciones: medido en
+                            un teléfono de 375 px, la barra ocupa 266 px dentro
+                            de una tarjeta de 268 — entra por dos píxeles. Sin
+                            esto, una palabra más larga en cualquier idioma la
+                            desborda, y es la regla de la guía para 3+ items. */}
+                        <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-1.5 p-1.5 pointer-events-none">
+                          {/**
+                            * Bajar la foto SIN abrirla.
+                            *
+                            * Ya se podía desde el visor, pero eso son dos pasos
+                            * para algo que el mostrador hace en serie: abrir,
+                            * bajar, cerrar, y otra vez con la siguiente. Acá
+                            * baja de una (pedido de la clínica, 21-sep-2026).
+                            *
+                            * Un `<a>` y no un botón: el navegador ya sabe
+                            * descargar. Y con `stopPropagation` porque está
+                            * dentro del área que abre el visor — sin eso, bajar
+                            * la foto también la abría.
+                            *
+                            * No lleva `download`: ese atributo se IGNORA entre
+                            * orígenes y estas URLs son de Storage. El nombre lo
+                            * pone `urlParaDescargar` por query, que es lo que
+                            * hace que Storage conteste con `attachment`.
+                            *
+                            * Va FUERA de `!soloLectura`: bajar es leer, y el
+                            * provider que puede abrirla ya puede bajarla desde
+                            * el visor. Lo que no le toca es reemplazar y borrar.
+                            */}
+                          {/* Solo la flecha, sin la palabra: es el ícono que
+                              todo el mundo reconoce (Erick, 21-sep-2026), y con
+                              tres acciones en una tarjeta de 268 px el texto de
+                              más es justo lo que la apretaba. El nombre viaja
+                              en `title` y en `aria-label`, así que el tooltip y
+                              el lector de pantalla lo siguen diciendo. */}
+                          <a
+                            href={urlParaDescargar(url, nombreDeFoto(lastName, firstName, label, url))}
+                            onClick={(e) => e.stopPropagation()}
+                            title={tc('download')}
+                            aria-label={tc('download')}
+                            className="pointer-events-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 hover:bg-white/30 rounded p-1.5"
+                          >
+                            <Download className="w-3.5 h-3.5 text-white" />
+                          </a>
+                          {!soloLectura && (
+                            <>
                             <button
                               onClick={() => fileRefs.current[key]?.click()}
                               className="pointer-events-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 hover:bg-white/30 rounded px-2 py-1"
@@ -794,8 +870,9 @@ export function ArchivosDialog({
                                 <span className="text-[10px] text-white font-medium">{t('photoDelete')}</span>
                               </button>
                             )}
-                          </div>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </>
                     ) : (
                       <button

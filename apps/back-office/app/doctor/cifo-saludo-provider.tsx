@@ -50,6 +50,19 @@ export interface DatosSaludoProvider {
    * sigue sentado. `minutos` se calcula en el servidor con el check-in.
    */
   esperando: { appointmentId: string; paciente: string; minutos: number } | null;
+  /**
+   * Los de hoy a los que hay que cobrarles antes de atenderlos.
+   *
+   * Ya viene filtrado y ordenado por `lib/deudas-del-dia.ts` — ahí está por qué
+   * el saldo se mira por el circuito del MOSTRADOR y no por `balanceDue`.
+   */
+  cobrar: Array<{
+    patientId: string;
+    nombre: string;
+    monto: number;
+    marcado: boolean;
+    nota: string | null;
+  }>;
 }
 
 export function CifoSaludoProvider({ datos }: { datos: DatosSaludoProvider }): React.ReactElement | null {
@@ -70,6 +83,35 @@ export function CifoSaludoProvider({ datos }: { datos: DatosSaludoProvider }): R
       boton: {
         etiqueta: t('saludoProvAtender'),
         ir: () => router.push(`/doctor/consultation/${datos.esperando!.appointmentId}`),
+      },
+    });
+  }
+
+  /**
+   * A quién cobrarle antes de atenderlo — va ANTES del resumen del día.
+   *
+   * Es lo único de este saludo que cambia lo que el provider hace en los
+   * próximos minutos: una vez que lo hizo pasar, el momento de cobrar ya se
+   * perdió. El conteo de citas puede esperar quince segundos.
+   *
+   * ⚠️ Él no cobra: la acción es avisarle a recepción. Por eso el botón abre la
+   * FICHA —donde está el detalle y el teléfono— y no un modal de cobro que no
+   * le corresponde.
+   *
+   * Solo los dos primeros. Con cinco marcados el saludo dejaría de ser un aviso
+   * para ser una tabla, y hay una pantalla para eso.
+   */
+  for (const c of datos.cobrar.slice(0, 2)) {
+    lineas.push({
+      texto: c.nota
+        // La nota que escribió una persona gana sobre cualquier número: dice
+        // qué hacer, y el monto solo dice cuánto.
+        ? t('saludoProvCobrarNota', { paciente: c.nombre, nota: c.nota })
+        : t('saludoProvCobrar', { paciente: c.nombre, monto: c.monto.toFixed(2) }),
+      urgente: true,
+      boton: {
+        etiqueta: t('saludoProvVerFicha'),
+        ir: () => router.push(`/doctor/patients/${c.patientId}`),
       },
     });
   }

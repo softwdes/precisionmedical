@@ -34,6 +34,20 @@ export interface DatosBienvenida {
    * invisible sin que nadie entendiera por qué.
    */
   urgente: { caseId: string; caseCode: string; tarde: boolean } | null;
+  /**
+   * Los de hoy a los que hay que cobrarles antes de atenderlos.
+   *
+   * Ya viene filtrado y ordenado por `lib/deudas-del-dia.ts`, que es donde está
+   * escrito por qué el saldo se mira por el circuito del MOSTRADOR y no por
+   * `balanceDue` — con `balanceDue` esto le saltaría a casi todos.
+   */
+  cobrar: Array<{
+    patientId: string;
+    nombre: string;
+    monto: number;
+    marcado: boolean;
+    nota: string | null;
+  }>;
 }
 
 export function CifoBienvenida({ datos }: { datos: DatosBienvenida }): React.ReactElement | null {
@@ -67,6 +81,33 @@ export function CifoBienvenida({ datos }: { datos: DatosBienvenida }): React.Rea
     texto: t('saludoCitas', { citas: datos.citasHoy, faltan: datos.sinLlegarTodavia }),
     boton: { etiqueta: t('saludoVerAgenda'), ir: () => router.push('/calendar') },
   });
+
+  /**
+   * A quién cobrarle antes de atenderlo, justo debajo del panorama del día.
+   *
+   * Va con NOMBRE, y es la primera vez que este saludo nombra a un paciente.
+   * Es deliberado: sin el nombre la línea no sirve para nada —"1 paciente con
+   * saldo" no le dice a quién parar en el mostrador— y recepción ve nombres
+   * todo el día en la pantalla que está debajo. La regla de no mandar nombres
+   * es del AGENTE, que le habla a un modelo; esto se calcula en el servidor y
+   * no sale de la clínica.
+   *
+   * Hasta tres: es el aviso, no la lista. La cola de cobranzas es la pantalla.
+   */
+  for (const c of datos.cobrar.slice(0, 3)) {
+    lineas.push({
+      texto: c.nota
+        // Si alguien se tomó el trabajo de escribir por qué, eso es lo que hay
+        // que leer. El monto sin contexto no dice si se le cobra o se lo frena.
+        ? t('saludoCobrarNota', { paciente: c.nombre, nota: c.nota })
+        : t('saludoCobrar', { paciente: c.nombre, monto: c.monto.toFixed(2) }),
+      urgente: true,
+      boton: {
+        etiqueta: t('saludoVerFicha'),
+        ir: () => router.push(`/patients/${c.patientId}`),
+      },
+    });
+  }
 
   if (datos.sinIntakeFirmado > 0) {
     lineas.push({

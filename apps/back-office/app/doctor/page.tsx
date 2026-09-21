@@ -14,6 +14,7 @@ import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
+import { deudasDelDia } from '@/lib/deudas-del-dia';
 import { MyDayClient, type MyDayAppointment } from './my-day-client';
 import { CifoSaludoProvider } from './cifo-saludo-provider';
 
@@ -219,11 +220,25 @@ export default async function DoctorMyDayPage({
   const enSala = appointments.find(
     (a) => a.checkedInAt !== null && a.status !== 'IN_PROGRESS' && !yaSalio(a.status),
   );
+  /**
+   * A quién hay que cobrarle antes de atenderlo — la única consulta nueva.
+   *
+   * Rompe a propósito el "cero consultas" de arriba, y es el único caso en que
+   * vale: no hay forma de deducirlo de la lista del día, porque ni el saldo del
+   * mostrador ni la marca manual viajan con la cita. Se pide solo para los
+   * pacientes de HOY (`esHoy`), así que en los días que se navegan con las
+   * flechas no se pide nada.
+   *
+   * El alcance sigue siendo el de él: le pasa los pacientes de SUS citas.
+   */
+  const deudas = esHoy ? await deudasDelDia(appts.map((a) => a.patient.id)) : [];
+
   const saludo = {
     hoy: todayKey,
     citasHoy: appointments.length,
     porAtender: appointments.filter((a) => !yaSalio(a.status)).length,
     notasSinCerrar: pendingNotesTotal,
+    cobrar: deudas,
     esperando: enSala
       ? {
           appointmentId: enSala.id,

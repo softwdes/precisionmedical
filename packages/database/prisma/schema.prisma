@@ -845,6 +845,26 @@ model Patient {
   contactAuthorizedByUserId String?
   contactAuthorizedAt       DateTime?
 
+  // ─── Cobrar antes de atender ─────────────────────────────────────────────
+  //
+  // La marca roja del v2, traída a v3 (Erick, 2026-09-20). En el v2 era texto
+  // libre arriba de la ficha: *"Not to be seen w/out sizable pymt on bal"*.
+  //
+  // ⚠️ **Es una marca de CRITERIO, no un saldo.** Y tiene que existir porque el
+  // saldo solo no alcanza para esto: de $1.377.546 de deuda en la base,
+  // $1.377.371 son del seguro o del abogado y **$164,81 del mostrador** (medido
+  // el 2026-09-16). Decidir por el número le haría pedir al paciente de MVA la
+  // plata que debe su bufete — justo lo que `payer` existe para evitar.
+  //
+  // Quién la puso y cuándo se guardan por la misma razón que en el bloque de
+  // arriba: es una instrucción que frena la atención de una persona, así que
+  // tiene que tener dueño y fecha. No se borra sola.
+  collectBeforeVisit     Boolean   @default(false)
+  /// Lo que hay que saber al recibirlo. Sale tal cual en el saludo de CIFO.
+  collectBeforeVisitNote String?
+  collectBeforeVisitBy   String?
+  collectBeforeVisitAt   DateTime?
+
   // ─── EMR / Historial médico (JSON blob, Phase 1A) ───────────────────────
   medicalHistory Json?
 

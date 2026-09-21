@@ -3,7 +3,8 @@ import { DashboardClient } from './dashboard-client';
 import { colaIntake } from '@/lib/cola-intake';
 import { atrasosRecepcion } from '@/lib/atrasos-recepcion';
 import { canAskCifo } from '@/lib/cifo-access';
-import { citasDeHoy } from '@/lib/citas-de-hoy';
+import { citasDeHoy, pacientesDeHoy } from '@/lib/citas-de-hoy';
+import { deudasDelDia } from '@/lib/deudas-del-dia';
 import { contarLiensSinFirmaCerrados } from '@/lib/liens-sin-firma';
 import { claveDia } from '@/lib/fechas';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
@@ -140,6 +141,17 @@ export default async function DashboardPage({ searchParams }: {
    * competir con ella, que era la preocupación real detrás de la regla vieja.
    */
   const [citas, liens] = await Promise.all([citasDeHoy(), contarLiensSinFirmaCerrados()]);
+
+  /**
+   * A quién hay que cobrarle antes de atenderlo.
+   *
+   * Dos consultas encadenadas —quiénes vienen hoy, y de esos quiénes tienen
+   * saldo del mostrador o marca— y son las únicas que este saludo agrega. No
+   * salen de nada que la pantalla ya tenga: ni el saldo ni la marca viajan con
+   * la cita. El criterio de qué cuenta como deuda vive en `deudas-del-dia.ts`.
+   */
+  const deudas = await deudasDelDia(await pacientesDeHoy());
+
   const t = intake.titular;
   const bienvenida = {
     hoy: claveDia(new Date()),
@@ -147,6 +159,7 @@ export default async function DashboardPage({ searchParams }: {
     sinLlegarTodavia: citas.sinLlegarTodavia,
     sinIntakeFirmado: intake.filas.length,
     liensCerradosSinFirma: liens,
+    cobrar: deudas,
     urgente: t && (t.nivel === 'TARDE' || t.nivel === 'AHORA')
       ? { caseId: t.caseId, caseCode: t.caseCode, tarde: t.nivel === 'TARDE' }
       : null,

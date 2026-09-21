@@ -53,6 +53,26 @@ export interface CitasDeHoy {
  * Así que el reparto es el de siempre acá: el criterio vive una sola vez, y cada
  * punta trae lo que necesita.
  */
+/**
+ * Quiénes vienen hoy — solo los `patientId`, sin traer la cita entera.
+ *
+ * Vive acá porque comparte el criterio con `citasDeHoy()`: el mismo día de la
+ * clínica y la misma exclusión de las canceladas. Si se separaran, el saludo
+ * podría avisar por alguien cuya cita se canceló esta mañana.
+ *
+ * `distinct` porque un paciente puede tener dos citas el mismo día —control y
+ * laboratorio— y no hay que avisar dos veces por la misma persona.
+ */
+export async function pacientesDeHoy(): Promise<string[]> {
+  const { desde, hasta } = rangoDeHoy();
+  const citas = await db.appointment.findMany({
+    where: { scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
+    select: { patientId: true },
+    distinct: ['patientId'],
+  });
+  return citas.map((c) => c.patientId);
+}
+
 export async function citasDeHoy(): Promise<CitasDeHoy> {
   const { desde, hasta } = rangoDeHoy();
 

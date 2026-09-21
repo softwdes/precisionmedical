@@ -66,6 +66,10 @@ export const ACTION_FAMILY: Record<string, ActionFamily> = {
   CHARGE_CASH_SERVICE: 'charges', DISPENSE_BRACE: 'charges',
   REGISTER_BILLING_PAYMENT: 'charges', SETTLEMENT_PROCESSED: 'charges',
   HCFA_GENERATED: 'charges', BILLING_NOTE_ADDED: 'charges',
+  // Frenar y liberar la atención de un paciente por plata. Va en `charges` y no
+  // en `patients` porque lo que mide es trabajo de COBRO: toca la ficha, pero la
+  // decisión es de mostrador, igual que dispensar una férula.
+  SET_COLLECT_BEFORE_VISIT: 'charges', CLEAR_COLLECT_BEFORE_VISIT: 'charges',
 
   // Envíos al paciente / portal
   SEND_PORTAL_LINK: 'portal', GENERATE_PORTAL_TOKEN: 'portal', REVOKE_PORTAL_TOKEN: 'portal',

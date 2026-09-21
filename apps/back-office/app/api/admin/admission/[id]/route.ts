@@ -35,7 +35,6 @@ export async function GET(
           select: {
             id:                    true,
             caseCode:              true,
-            caseType:              true,
             accidentDate:          true,
             accidentType:          true,
             pipVerifiedAt:         true,

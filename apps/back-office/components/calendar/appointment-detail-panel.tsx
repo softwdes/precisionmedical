@@ -192,6 +192,7 @@ interface Props {
 const COVERAGE_UNSET: CoverageDTO = {
   type: 'UNKNOWN', answered: false, verifyMethod: null, verifiedAt: null,
   verifiedByName: null, carrierName: null, note: null, suggestion: null, suggestionSource: null,
+  caseType: null,
 };
 
 type Tab = 'detail' | 'services';

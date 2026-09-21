@@ -25,6 +25,19 @@
 import type { Prisma } from '@precision-medical/database';
 
 export type CoverageType = 'UNKNOWN' | 'INSURANCE' | 'SELF_PAY' | 'LIEN';
+/**
+ * `Case.caseType`. Decide QUÉ PRECIO cotizar: los mismos códigos valen distinto
+ * en un accidente que en medicina general (el 99214 son $300 y $166).
+ *
+ * Viaja acá y no en su propio prop porque este módulo existe justamente para
+ * eso —"dato operativo para saber qué precio cotizar"— y porque las cinco
+ * pantallas que abren el picker de cargos ya reciben la cobertura. Agregar un
+ * prop aparte serían cinco cadenas de props nuevas para el mismo viaje.
+ *
+ * Es distinto de `coverageType`, que dice QUIÉN paga (seguro, bolsillo, lien).
+ * Un MVA con lien y un MVA con seguro cotizan al MISMO precio.
+ */
+export type CaseKind = 'MVA' | 'GENERAL' | 'WORKERS_COMP' | 'NURSING_HOME';
 export type CoverageVerifyMethod = 'DECLARED' | 'VERIFIED';
 
 /**
@@ -50,6 +63,7 @@ export type CoverageVerifyMethod = 'DECLARED' | 'VERIFIED';
  * de cobertura se agrega en UN lugar.
  */
 export const COVERAGE_FIELDS = {
+  caseType: true,
   coverageType: true,
   coverageVerifyMethod: true,
   coverageVerifiedAt: true,
@@ -112,6 +126,17 @@ export interface CoverageState {
   suggestion: CoverageType | null;
   /** De dónde salió la sugerencia, para poder explicarla en el UI. */
   suggestionSource: 'INTAKE_MEDICAL' | 'INTAKE_LIEN' | 'CASE_TYPE_MVA' | null;
+  /**
+   * Tipo de caso — lo consume el picker de cargos para elegir el renglón de
+   * precio. `null` cuando la consulta no lo trajo: ahí se cotiza al precio de
+   * MVA, que es el que estuvo vigente siempre y no cambia nada.
+   */
+  caseType: CaseKind | null;
+}
+
+/** Normaliza lo que venga de la base; cualquier cosa rara vale `null`. */
+function asCaseKind(v: string | null | undefined): CaseKind | null {
+  return v === 'MVA' || v === 'GENERAL' || v === 'WORKERS_COMP' || v === 'NURSING_HOME' ? v : null;
 }
 
 /** Las entradas de seguro del intake, si el JSON las trae en forma usable. */
@@ -155,6 +180,7 @@ export function resolveCoverage(input: CoverageInput): CoverageState {
       note: input.coverageNote?.trim() || null,
       suggestion: null,
       suggestionSource: null,
+      caseType: asCaseKind(input.caseType),
     };
   }
 
@@ -184,6 +210,7 @@ export function resolveCoverage(input: CoverageInput): CoverageState {
     note: input.coverageNote?.trim() || null,
     suggestion,
     suggestionSource: source,
+    caseType: asCaseKind(input.caseType),
   };
 }
 
@@ -209,6 +236,7 @@ export interface CoverageDTO {
   note: string | null;
   suggestion: CoverageType | null;
   suggestionSource: CoverageState['suggestionSource'];
+  caseType: CaseKind | null;
 }
 
 export function serializeCoverage(state: CoverageState): CoverageDTO {

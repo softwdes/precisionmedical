@@ -135,6 +135,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       verifiedByName: updated.coverageVerifiedByName,
       suggestion: null,
       suggestionSource: null,
+      caseType: updated.caseType,
     },
   });
 }

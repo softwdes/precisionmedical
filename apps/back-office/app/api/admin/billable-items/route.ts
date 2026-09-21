@@ -43,7 +43,28 @@ export interface BillableItem {
   refId: string;
   code: string;
   name: string;
+  /** El precio de MVA — el del tarifario. Es el que rige salvo aviso. */
   price: number;
+  /**
+   * El precio de MEDICINA GENERAL, cuando el código tiene dos.
+   *
+   * `null` quiere decir "cobra igual en los dos", que es lo normal (7 códigos
+   * de 408 tienen dos precios). Siempre `null` en el circuito de efectivo: ahí
+   * el precio no depende de si hubo un accidente.
+   *
+   * Se mandan LOS DOS y elige el cliente, porque el mismo catálogo se pide una
+   * vez y se usa en pantallas que pueden tener casos de distinto tipo abiertos.
+   */
+  priceGeneral: number | null;
+  /**
+   * El precio 0 es a propósito: la visita queda registrada y no se cobra
+   * (88888 "No Charge Visit", 99024 posoperatoria).
+   *
+   * Lo que lo separa de un ítem al que simplemente le falta el precio, que en
+   * este catálogo pueden ser miles de dólares. Siempre `false` en efectivo: los
+   * ítems de efectivo sin precio ya quedan fuera de la lista.
+   */
+  isNoCharge: boolean;
   category: string | null;
   unitLabel: string | null;
   isFavorite: boolean;
@@ -83,7 +104,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             ],
           } : {}),
         },
-        select: { id: true, code: true, shortDescription: true, category: true, currentFee: true, isFavorite: true },
+        select: { id: true, code: true, shortDescription: true, category: true, currentFee: true, feeGeneral: true, isFavorite: true, isNoCharge: true },
         orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
       }),
       db.catalogItem.findMany({
@@ -142,6 +163,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       code: c.code,
       name: c.shortDescription,
       price: Number(c.currentFee),
+      priceGeneral: c.feeGeneral === null ? null : Number(c.feeGeneral),
+      isNoCharge: c.isNoCharge,
       category: c.category,
       unitLabel: null,
       isFavorite: esFavorito(c.isFavorite, favCodeIds.has(c.id)),
@@ -159,6 +182,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         code: i.code,
         name: i.name,
         price: Number(i.publicPrice),
+        priceGeneral: null,
+        isNoCharge: false,
         category: i.kind,
         unitLabel: i.unitLabel,
         isFavorite: esFavorito(i.isFavorite, favCatalogIds.has(i.id)),

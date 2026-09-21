@@ -91,7 +91,7 @@ export default async function DoctorMyDayPage({
         // `consentsData` NO se trae acá: es el JSON de todos los consentimientos
         // y por 20 filas es payload que la lista no usa — la sugerencia derivada
         // del intake solo hace falta en el diálogo, que trae un caso solo.
-        case: { select: { id: true, caseCode: true, caseType: true, ...COVERAGE_LIST_SELECT } },
+        case: { select: { id: true, caseCode: true, ...COVERAGE_LIST_SELECT } },
         clinic: { select: { name: true } },
         /* Los SEIS vitales que evalúa `hallazgosVitales`, no cuatro.
            Antes traía solo presión, pulso y dolor, así que un O₂ de 86 o una

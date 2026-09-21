@@ -21,7 +21,6 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
     select: {
       id: true,
       caseCode: true,
-      caseType: true,
       status: true,
       accidentType: true,
       accidentDate: true,

@@ -30,9 +30,9 @@ import { usePathname } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import {
   Search, Loader2, X, Star, Shield, ShieldCheck, ShieldQuestion, Banknote, Scale, Plus,
-  Check, AlertTriangle, ExternalLink,
+  Check, AlertTriangle, ExternalLink, Pencil,
 } from 'lucide-react';
-import type { CoverageDTO } from '@/lib/coverage';
+import type { CoverageDTO, CaseKind } from '@/lib/coverage';
 
 export type BillableSource = 'INSURANCE' | 'CASH';
 
@@ -42,7 +42,13 @@ export interface BillableItem {
   refId: string;
   code: string;
   name: string;
+  /** El precio de MVA — el del tarifario. */
   price: number;
+  /** El de medicina general, si el código tiene dos. `null` = cobra igual en
+   *  los dos, que es lo normal. Siempre `null` en efectivo. */
+  priceGeneral: number | null;
+  /** El precio 0 es a propósito — "No Charge Visit". Ver `addBtn`. */
+  isNoCharge: boolean;
   category: string | null;
   unitLabel: string | null;
   isFavorite: boolean;
@@ -98,6 +104,21 @@ interface Props {
   onAdd: (item: BillableItem) => Promise<void>;
 }
 
+/**
+ * Qué precio le corresponde a este cargo.
+ *
+ * Los mismos códigos valen distinto según el caso: el 99214 son $300 en un MVA
+ * y $166 en medicina general. Solo `GENERAL` cambia de renglón — workers' comp
+ * y las visitas domiciliarias cotizan al precio de tarifario, igual que MVA,
+ * porque nunca tuvieron uno propio (en el v2 los casos eran solo 'MVA' y 'GM').
+ *
+ * Sin `caseType` —una pantalla que no lo trae— se cotiza al de tarifario, que es
+ * el que rigió siempre: no saber nunca abarata un cargo por accidente.
+ */
+export function precioDeCargo(item: BillableItem, caseType: CaseKind | null): number {
+  return caseType === 'GENERAL' && item.priceGeneral !== null ? item.priceGeneral : item.price;
+}
+
 const EMPTY: Payload = {
   pairs: [], insurance: [], cash: [],
   counts: { insurance: 0, cash: 0, pairs: 0 },
@@ -119,8 +140,18 @@ export function ChargePickerDialog({
   const [loading, setLoading] = React.useState(true);
   const [addingKey, setAddingKey] = React.useState<string | null>(null);
   const [togglingFav, setTogglingFav] = React.useState<string | null>(null);
-  /** Ítem sin precio al que se le está escribiendo el monto de ESTA visita. */
+  /** Ítem al que se le está escribiendo el monto de ESTE cargo. */
   const [pricing, setPricing] = React.useState<{ key: string; value: string } | null>(null);
+
+  /**
+   * Los dos renglones del código, para ofrecerlos de un clic en el editor.
+   * Vacío cuando cobra igual en los dos — ahí el editor es solo la caja.
+   */
+  const tarifas = (item: BillableItem): Array<{ etiqueta: string; monto: number }> =>
+    item.priceGeneral === null
+      ? []
+      : [{ etiqueta: t('tierMva'), monto: item.price },
+         { etiqueta: t('tierGeneral'), monto: item.priceGeneral }];
 
   // Con la caja vacía no hay debounce: el listado inicial tiene que aparecer
   // solo, sin escribir nada.
@@ -182,10 +213,14 @@ export function ChargePickerDialog({
   const add = async (item: BillableItem, priceOverride?: number): Promise<void> => {
     setAddingKey(item.key);
     try {
-      // El monto escrito acá viaja como el precio del ítem: aplica SOLO a esta
-      // visita. El precio del catálogo no se toca — cambiarlo es editar el fee
-      // schedule y eso vive en el catálogo, con su rastro de verificación.
-      await onAdd(priceOverride !== undefined ? { ...item, price: priceOverride } : item);
+      // El monto viaja como el precio del ítem: aplica SOLO a este cargo. El
+      // catálogo no se toca — cambiarlo es editar el fee schedule y eso vive en
+      // el catálogo, con su rastro de verificación.
+      //
+      // Sin monto escrito se usa el del renglón que le toca al caso, que puede
+      // no ser `item.price`: en medicina general el 99214 son $166 y no $300.
+      const monto = priceOverride ?? precioDeCargo(item, coverage.caseType);
+      await onAdd({ ...item, price: monto });
       setPricing(null);
     } finally { setAddingKey(null); }
   };
@@ -228,6 +263,9 @@ export function ChargePickerDialog({
   const addBtn = (item: BillableItem, label: string): React.ReactElement | null => {
     const cash = item.source === 'CASH';
     const busy = addingKey === item.key;
+    /** El precio que le toca a este caso, y si salió del renglón de general. */
+    const precio = precioDeCargo(item, coverage.caseType);
+    const esGeneral = item.priceGeneral !== null && precio === item.priceGeneral;
 
     /**
      * El botón desaparece cuando el ítem ya está y repetirlo no tiene sentido:
@@ -238,42 +276,86 @@ export function ChargePickerDialog({
      */
     if ((!cash || bloquearRepetidos) && added.has(item.key)) return null;
 
-    // Sin precio cargado. No se agrega en cero: `sync-billing` saltea los
-    // servicios con fee <= 0, así que entraba a la visita y NUNCA generaba
-    // cobro — en silencio. Se pide el monto antes.
-    if (item.price <= 0) {
-      if (pricing?.key === item.key) {
-        const value = Number.parseFloat(pricing.value);
-        const valid = Number.isFinite(value) && value > 0;
-        return (
-          <span className="inline-flex items-center gap-1.5 shrink-0">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              autoFocus
-              value={pricing.value}
-              onChange={(e) => setPricing({ key: item.key, value: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && valid) void add(item, value);
-                if (e.key === 'Escape') setPricing(null);
-              }}
-              placeholder="0.00"
-              aria-label={t('setAmount')}
-              className="w-[74px] text-right tabular-nums bg-bg-2 border border-amber/40 rounded px-1.5 py-0.5 text-[11px] font-semibold text-text-1 outline-none focus:border-amber"
-            />
+    /**
+     * El monto de ESTE cargo — editable siempre.
+     *
+     * Antes solo se podía escribir cuando el catálogo no traía precio. Pero el
+     * catálogo guarda UN precio y la clínica cobra a DOS: el 99214 son $300 en
+     * un MVA y $166 en medicina general. Una visita de general salía al doble y
+     * no había manera de corregirla ("I can't finish those visits without it",
+     * 2026-09-21). En el v2 el campo fue editable siempre — el precio de general
+     * no existía en ninguna lista, se tipeaba a mano, una vez por visita.
+     *
+     * Lo escrito acá vale SOLO para este cargo. El catálogo no se toca: cambiar
+     * el tarifario es otra cosa y lleva su propio rastro de verificación.
+     */
+    if (pricing?.key === item.key) {
+      const value = Number.parseFloat(pricing.value);
+      const valid = Number.isFinite(value) && value > 0;
+      return (
+        <span className="inline-flex items-center gap-1.5 shrink-0">
+          {tarifas(item).map((tf) => (
             <button
+              key={tf.etiqueta}
               type="button"
-              disabled={!valid || busy}
-              onClick={() => void add(item, value)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber/20 text-amber border border-amber/40 hover:bg-amber/30 disabled:opacity-40 transition-colors"
+              onClick={() => setPricing({ key: item.key, value: tf.monto.toFixed(2) })}
+              title={t('useTariff', { tier: tf.etiqueta })}
+              className={`px-1.5 py-0.5 rounded text-[10.5px] font-semibold tabular-nums border transition-colors ${
+                Math.abs(value - tf.monto) < 0.005
+                  ? 'bg-violet/15 text-violet border-violet/40'
+                  : 'bg-bg-2 text-text-muted border-border hover:text-text-1'
+              }`}
             >
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              {t('confirmAmount')}
+              {tf.etiqueta} {fmt$(tf.monto)}
             </button>
-          </span>
-        );
-      }
+          ))}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            autoFocus
+            value={pricing.value}
+            onChange={(e) => setPricing({ key: item.key, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && valid) void add(item, value);
+              if (e.key === 'Escape') setPricing(null);
+            }}
+            placeholder="0.00"
+            aria-label={t('setAmount')}
+            className="w-[74px] text-right tabular-nums bg-bg-2 border border-amber/40 rounded px-1.5 py-0.5 text-[11px] font-semibold text-text-1 outline-none focus:border-amber"
+          />
+          <button
+            type="button"
+            disabled={!valid || busy}
+            onClick={() => void add(item, value)}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber/20 text-amber border border-amber/40 hover:bg-amber/30 disabled:opacity-40 transition-colors"
+          >
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+            {t('confirmAmount')}
+          </button>
+        </span>
+      );
+    }
+
+    /**
+     * Sin precio cargado: se pide el monto ANTES de agregar.
+     *
+     * `sync-billing` saltea todo cargo con `fee <= 0`, así que entraría a la
+     * visita y nunca generaría cobro, sin avisar. Y no es un riesgo teórico: en
+     * este catálogo hay códigos en cero que en el v2 se cobraron a $2.500
+     * (62323, 64483) y a $2.000 (64491 50) — les falta el precio, no son gratis.
+     *
+     * `isNoCharge` es la excepción, no un caso más. 88888 se llama "No Charge
+     * Visit" y sus 84 cargos del v2 fueron todos en cero: ahí el precio correcto
+     * ES cero. Ese se agrega de un clic, sin pedir nada — antes había que abrir
+     * la caja, y con el 0 puesto el botón quedaba apagado, así que no había forma
+     * de registrar la visita (Darrell, 2026-09-21).
+     *
+     * Lo que se agrega igual queda registrado: el cargo vive en
+     * `plannedServiceCodes` y la pestaña Servicios lo muestra desde ahí. Lo único
+     * que no pasa es la fila de cobro, que es el punto.
+     */
+    if (precio <= 0 && !item.isNoCharge) {
       return (
         <button
           type="button"
@@ -287,19 +369,48 @@ export function ChargePickerDialog({
     }
 
     return (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void add(item)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${
-          cash
-            ? 'bg-emerald/15 text-emerald border border-emerald/30 hover:bg-emerald/25'
-            : 'bg-cyan/15 text-cyan border border-cyan/30 hover:bg-cyan/25'
-        }`}
-      >
-        {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-        {`${label} · ${fmt$(item.price)}`}
-      </button>
+      <span className="inline-flex items-center gap-1 shrink-0">
+        {/* Por qué este cargo sale más barato que el tarifario. Sin esto el
+            precio distinto es un misterio y el primer reflejo es desconfiar. */}
+        {item.isNoCharge && (
+          <span
+            title={t('noChargeHint')}
+            className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-bg-2 text-text-muted border border-border cursor-default"
+          >
+            {t('tierNoCharge')}
+          </span>
+        )}
+        {esGeneral && (
+          <span
+            title={t('generalTariffHint', { mva: fmt$(item.price) })}
+            className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-violet/15 text-violet border border-violet/30 cursor-default"
+          >
+            {t('tierGeneral')}
+          </span>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void add(item)}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+            cash
+              ? 'bg-emerald/15 text-emerald border border-emerald/30 hover:bg-emerald/25'
+              : 'bg-cyan/15 text-cyan border border-cyan/30 hover:bg-cyan/25'
+          }`}
+        >
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+          {`${label} · ${fmt$(precio)}`}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPricing({ key: item.key, value: precio.toFixed(2) })}
+          title={t('editPrice')}
+          aria-label={t('editPrice')}
+          className="text-text-muted hover:text-text-1 transition-colors p-0.5 shrink-0"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </span>
     );
   };
 

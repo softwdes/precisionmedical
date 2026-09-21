@@ -61,7 +61,7 @@ export default async function DoctorConsultationPage({
       patient: { select: PATIENT_CONTEXT_SELECT },
       case: {
         select: {
-          id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
+          id: true, caseCode: true, accidentType: true, accidentDate: true,
           pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
           // Cobertura: las columnas del helper, sin su `primaryInsurance` —
           // este select trae el suyo con más campos. Ver COVERAGE_FIELDS.

@@ -108,14 +108,32 @@ type EstadoFiltro = 'all' | 'noShow' | 'cancelledSameDay' | 'unpenalized';
 type Desenlace = 'noShow' | 'cancel' | 'cancelSameDay';
 
 /**
- * La cola no trae la cobertura del caso, y en el picker la cobertura solo ORDENA
- * qué circuito se muestra primero — nunca esconde el otro. Así que sin responder
- * es honesto: se ve la lista completa igual.
+ * La cola no trae la cobertura del caso, y ahí la cobertura solo ORDENA qué
+ * circuito se muestra primero — nunca esconde el otro. Así que sin responder es
+ * honesto: se ve la lista completa igual.
+ *
+ * El `caseType` sí se completa (ver `coberturaDelCargo`): desde que hay dos
+ * renglones de precio ya no es solo cosmético — un no-show son $100 en un MVA y
+ * $50 en medicina general, y la cola sí sabe de qué tipo es el caso.
  */
 const COVERAGE_UNSET: CoverageDTO = {
   type: 'UNKNOWN', answered: false, verifyMethod: null, verifiedAt: null,
   verifiedByName: null, carrierName: null, note: null, suggestion: null, suggestionSource: null,
+  caseType: null,
 };
+
+/**
+ * La cobertura que recibe el picker: sin responder salvo el tipo de caso, que es
+ * lo que decide el precio. Sin esto un no-show de medicina general se cobraría
+ * al precio de MVA.
+ */
+function coberturaDelCargo(caseType: string | null | undefined): CoverageDTO {
+  return {
+    ...COVERAGE_UNSET,
+    caseType: caseType === 'MVA' || caseType === 'GENERAL'
+      || caseType === 'WORKERS_COMP' || caseType === 'NURSING_HOME' ? caseType : null,
+  };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1203,7 +1221,7 @@ export function AdmissionClient() {
             Servicios de la consulta — el encargado elige el código y listo. */}
         {cargoTarget && (
           <ChargePickerDialog
-            coverage={COVERAGE_UNSET}
+            coverage={coberturaDelCargo(cargoTarget.case?.caseType)}
             /* El picker indexa por `item.key`, que para el circuito de seguro es
                `s<refId>` (ver `addedCharges` en el panel de la cita). Con la clave
                mal armada el ítem ya cargado no se marcaría y se agregaría dos

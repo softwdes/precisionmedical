@@ -1,0 +1,128 @@
+-- 20260921d — Precios del catálogo que no coinciden con lo que se cobra
+--
+-- ⚠️⚠️  ESTE ARCHIVO NO SE APLICÓ. ESPERA LA APROBACIÓN DE ERICK.  ⚠️⚠️
+--
+-- Cambiar un precio del tarifario no es una corrección técnica: es una decisión
+-- de negocio. Acá está la evidencia de cada uno para que se revise antes de
+-- correrlo. Si alguno no va, se borra su línea y se aplica el resto.
+--
+-- ✅ El 99213 SÍ está confirmado por quien factura. Darrell, 2026-09-21, después
+--    de buscar en sus registros y en la empresa de facturación:
+--
+--      "I am not having any luck finding an MVA code for 99213. I suggest we
+--       change the amount of the 99213 code at 155. (...) I have that code a lot
+--       for GM visits and always have to change it."
+--
+--    Los otros 6 siguen siendo propuesta mía a partir del historial: nadie de la
+--    clínica los miró todavía.
+--
+-- ── Qué se comparó ──────────────────────────────────────────────────────────
+--
+-- El "currentFee" de v3 contra lo que la clínica efectivamente cobró en el v2
+-- ("appointment_service.cost"), desde 2025-01-01. Se cruzó con "cases.type" para
+-- separar MVA de medicina general, porque currentFee es el precio de MVA (ver
+-- 20260921b-precio-de-medicina-general.sql).
+--
+-- ⚠️ Y se miró MES A MES, no el total acumulado. El precio más REPETIDO no es el
+-- precio VIGENTE: el 99213 se cobró $110 unas 176 veces y $155 solo 74, pero el
+-- $110 no se usa desde mayo de 2026. Agrupar por año mezcla cuatro meses del
+-- precio viejo con uno del nuevo y hace ganar al que ya no existe. Esa
+-- equivocación casi deja el 99213 afuera de esta lista.
+--
+-- Se revisó también si ese salto fue parte de una actualización general de
+-- tarifario: no lo fue. De los 348 códigos activos, solo DOS cambiaron de precio
+-- alrededor de mayo de 2026 (99213 y 87880), así que el resto de la lista no
+-- está afectado por el problema de recencia. Los precios sembrados en
+-- 20260921b también se revalidaron contra los últimos cuatro meses y aguantan
+-- (99214 $300/$166 con 290 y 197 cargos recientes, 99204, 20552, 20553,
+-- NO SHOW y 97110 todos OK).
+--
+-- De los 348 activos, estos 7 tienen una diferencia con evidencia suficiente. El
+-- resto coincide o no tiene uso que permita decir nada.
+--
+-- ── Esto NO toca ningún cargo ya emitido ────────────────────────────────────
+--
+-- "sync-billing" factura con el fee que quedó guardado en la cita
+-- ("plannedServiceCodes"), no con el del catálogo. Un cargo viejo conserva su
+-- precio. Esto cambia lo que se cotiza de acá en adelante.
+--
+-- ── Los 7 que propongo ──────────────────────────────────────────────────────
+--
+--   código   v3 dice   se cobra   evidencia
+--   ─────────────────────────────────────────────────────────────────────────
+--   99213      $250      $155     68 de 70 desde junio-2026 (ver abajo)
+--   99203      $350      $224     162 de 168 · 95%  (62 en 2025, 100 en 2026)
+--   99396      $170      $255      57 de  62 · 92%  (17 en 2025,  40 en 2026)
+--   99385      $183      $215      43 de  44 · 93%  (17 en 2025,  26 en 2026)
+--   20610      $500      $400      28 de  30 · 83%  (13 en 2025,  15 en 2026)
+--   81003       $10     $3.50      20 de  26 · 73%  ( 5 en 2025,  15 en 2026)
+--   99386      $245      $218      16 de  18 · 83%  ( 9 en 2025,   7 en 2026)
+--
+-- Notas de cada uno:
+--
+-- · 99213 es FAVORITO y el 2.º código más cargado (266 usos). Cambió de precio a
+--   mediados de mayo de 2026 y el corte es limpio:
+--
+--       2026-04   $110 x22
+--       2026-05   $110 x10 · $155 x5     ← la transición
+--       2026-06   $155 x8
+--       2026-07   $155 x27
+--       2026-08   $155 x22
+--       2026-09   $155 x11
+--
+--   El $110 no aparece ni una vez después de mayo. El $250 que tiene hoy v3 se
+--   usó 9 veces en 266. No lleva segundo renglón de medicina general: el MVA son
+--   9 cargos en total y al mismo precio que general.
+--
+-- · 99203 es FAVORITO y el 4.º más usado. El catálogo del v2 también decía $224
+--   — el $350 se introdujo en v3. Hoy cotiza $126 de más por visita.
+-- · 99396 / 99385 / 99386 son los wellness exams. Van al revés: v3 cotiza MENOS
+--   de lo que se cobra, o sea que se está facturando de menos.
+-- · 20610 solo cambia el precio de MVA. El de general ($176) ya quedó cargado
+--   como feeGeneral y no se toca acá. Ojo igual: el lado de general de ese
+--   código es ruidoso (se vieron $69, $176, $200, $235, $400 en el mismo año),
+--   así que ese $176 es la mejor estimación disponible y no una certeza.
+-- · 81003 es el urianálisis. $10 contra $3.50 es 3x, y el $3.50 se afirmó en
+--   2026 (15 de 20 usos son de este año).
+--
+-- ── El que NO propongo, y por qué ───────────────────────────────────────────
+--
+-- 87880 (estreptococo grupo A) parece estar bajando de $54 a $25, pero está a
+-- mitad de camino y la evidencia es de cinco cargos:
+--
+--       2026-06   $54 x1
+--       2026-07   $25 x3 · $54 x2      ← los dos precios el mismo mes
+--       2026-08   $25 x2
+--
+-- Con dos cobros de $54 en julio no se puede afirmar que el $25 ya rija. Queda
+-- en $54 y se revisa cuando haya más datos; mientras tanto es editable en el
+-- cargo. Vale la pena preguntarle a la clínica si efectivamente bajó.
+--
+-- ── Aparte: los 7 códigos SIN precio ────────────────────────────────────────
+--
+-- No entran acá porque no es "el precio está mal" sino "no hay precio", y cuatro
+-- de ellos son caros (62323 y 64483 a $2.500, 64491 50 a $2.000, 77002 a $341).
+-- Los otros tres (64493, 64636, 93219) no se usaron nunca en el v2, así que no
+-- hay de dónde sacar el número. Van en su propia revisión.
+--
+-- Idempotente: cada UPDATE filtra por el valor que va a poner.
+--
+-- ⚠️ Se aplica con:
+--    node scripts/apply-sql.cjs prisma/sql/20260921d-precios-que-no-coinciden.sql
+
+UPDATE "service_codes" SET "currentFee" = 155   WHERE "code" = '99213' AND "currentFee" <> 155;
+UPDATE "service_codes" SET "currentFee" = 224   WHERE "code" = '99203' AND "currentFee" <> 224;
+UPDATE "service_codes" SET "currentFee" = 255   WHERE "code" = '99396' AND "currentFee" <> 255;
+UPDATE "service_codes" SET "currentFee" = 215   WHERE "code" = '99385' AND "currentFee" <> 215;
+UPDATE "service_codes" SET "currentFee" = 400   WHERE "code" = '20610' AND "currentFee" <> 400;
+UPDATE "service_codes" SET "currentFee" = 3.50  WHERE "code" = '81003' AND "currentFee" <> 3.50;
+UPDATE "service_codes" SET "currentFee" = 218   WHERE "code" = '99386' AND "currentFee" <> 218;
+
+-- ── Para verificar ──────────────────────────────────────────────────────────
+--
+--   SELECT code, "shortDescription", "currentFee" AS mva, "feeGeneral" AS general
+--     FROM service_codes
+--    WHERE code IN ('99213','99203','99396','99385','20610','81003','99386','87880')
+--    ORDER BY code;
+--
+-- Esperado: los 7 con su precio nuevo (99213 en $155) y 87880 todavía en $54.

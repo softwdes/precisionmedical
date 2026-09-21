@@ -39,7 +39,6 @@ const APPT_INCLUDE = {
     select: {
       id: true,
       caseCode: true,
-      caseType: true,
       accidentType: true,
       accidentDate: true,
       status: true,

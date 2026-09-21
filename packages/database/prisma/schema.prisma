@@ -1468,6 +1468,22 @@ model VisitNote {
   waitingByName       String?
   waitingSince        DateTime?
 
+  // ─── REABIERTA PARA CORREGIR (2026-09-21) ───────────────────────────────
+  /// Una nota firmada que se reabrió dentro de su ventana de 48 h.
+  ///
+  /// El estado se queda en SIGNED a propósito. Hay 25 lugares que preguntan
+  /// `status === 'SIGNED'` —Facturación, el HCFA, el seguimiento de Edson, el
+  /// portal del bufete, la impresión— y devolverla a DRAFT la haría desaparecer
+  /// de la lista de Facturación en mitad del ciclo de cobro. Lo que habilita la
+  /// edición es ESTE campo, no el estado: dos guards contra veinticinco
+  /// lecturas que no se tocan. Ver `regla-los-cargos-no-se-congelan`.
+  reopenedAt          DateTime?
+  reopenedById        String?
+  reopenedByName      String?
+
+  /// Copia de lo que se firmó, una por firma. Ver el modelo de abajo.
+  versions            VisitNoteVersion[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1476,6 +1492,54 @@ model VisitNote {
   /// Barrido de candados vencidos: se busca por la fecha de latido.
   @@index([editingHeartbeatAt])
   @@map("visit_notes")
+}
+
+// ─── Versiones de la nota firmada (2026-09-21) ────────────────────────────────
+/// Una fila POR FIRMA: la 1 es la primera, y cada vez que la nota se reabre y se
+/// vuelve a firmar se escribe la siguiente. Entre medio no se guarda nada —
+/// mientras está reabierta, la última versión firmada sigue siendo la anterior,
+/// que es justo lo que hay que poder mostrar.
+///
+/// Existe porque hasta hoy NO quedaba copia de lo firmado: el PUT de la nota no
+/// audita contenido y el /sign solo guardaba metadata. Sin esto, reabrir y
+/// editar sobreescribe el texto firmado sin rastro — la versión que reprueba una
+/// auditoría (CMS PIM 3.3.2.5: la enmienda se identifica, lleva fecha y autor, y
+/// no borra ni tapa el original).
+///
+/// Tabla en DB: prisma/sql/20260921e-versiones-de-la-nota.sql
+model VisitNoteVersion {
+  id          String    @id @default(cuid())
+  visitNoteId String
+  visitNote   VisitNote @relation(fields: [visitNoteId], references: [id], onDelete: Cascade)
+  version     Int
+
+  // Las seis secciones, tal cual se firmaron.
+  chiefComplaint String?
+  hpi            String?
+  ros            String?
+  physicalExam   String?
+  assessment     String?
+  plan           String?
+
+  /// Foto de los diagnósticos: [{icd10Code, icd10Label, snomedCode, snomedLabel}].
+  /// Va como JSON y no como relación porque es una FOTO: si mañana se borra un
+  /// diagnóstico del catálogo, lo que se firmó no se puede mover.
+  diagnoses Json @default("[]")
+
+  /// Snapshots, no referencias: el nombre tiene que sobrevivir a que la persona
+  /// cambie de apellido o deje la clínica.
+  signedAt     DateTime
+  signedById   String?
+  signedByName String?
+
+  /// FIRMA_INICIAL | REFIRMA — para leer el historial sin deducirlo del número.
+  motivo String @default("FIRMA_INICIAL")
+
+  createdAt DateTime @default(now())
+
+  @@unique([visitNoteId, version])
+  @@index([visitNoteId])
+  @@map("visit_note_versions")
 }
 
 // ─── B.21 VisitServiceCode ────────────────────────────────────────────────────
@@ -2762,7 +2826,40 @@ model ServiceCode {
   category ServiceCategory
 
   // Fee schedule actual (Phase 1A: un solo fee per code · Phase 2: tabla historical)
+  //
+  /// Ojo: `currentFee` es el precio de MVA. Ver `feeGeneral`.
   currentFee Decimal @db.Decimal(10, 2)
+
+  /// El segundo precio: lo que se cobra en un caso de MEDICINA GENERAL
+  /// (`Case.caseType = GENERAL`). `null` = un solo precio para todos, que es lo
+  /// normal — hoy solo 7 códigos de 408 tienen dos.
+  ///
+  /// Los mismos códigos valen distinto según el caso: el 99214 son $300 en un
+  /// MVA y $166 en medicina general. El v2 NO tenía dos columnas —tenía el
+  /// precio de MVA y un campo editable por cargo, y el de general se tipeaba a
+  /// mano cada vez—, así que estos números salieron de lo que la clínica
+  /// realmente cobró (ver `prisma/sql/20260921b-precio-de-medicina-general.sql`,
+  /// que explica cada uno y por qué los demás quedaron afuera).
+  ///
+  /// Esto SUGIERE, no impone: el precio sigue siendo editable en cada cargo,
+  /// que es como se trabajó siempre. Un código sin `feeGeneral` no está
+  /// incompleto — quiere decir que cobra igual en los dos.
+  feeGeneral Decimal? @db.Decimal(10, 2)
+
+  /// El precio 0 es INTENCIONAL, no un dato que falta.
+  ///
+  /// Hoy `currentFee = 0` tapa dos cosas distintas: 88888 ("No Charge Visit",
+  /// 84 usos en el v2 y los 84 en cero) vale cero de verdad, mientras que 62323
+  /// o 64483 están en cero porque nadie les cargó el precio — y en el v2 se
+  /// cobraron a $2.500.
+  ///
+  /// El picker agrega los marcados de un clic. Los demás en cero siguen pidiendo
+  /// el monto, porque `sync-billing` saltea todo cargo con `fee <= 0`: sin ese
+  /// freno, registrar una epidural dejaría la factura en nada y sin aviso.
+  ///
+  /// No habilita poner $0 a mano en un código con precio: perdonar un cargo va
+  /// por el descuento del pago, que deja rastro de quién y cuándo.
+  isNoCharge Boolean @default(false)
   fiscalYear Int     @default(2026)
 
   // Modificadores CPT permitidos (e.g. "-25", "-59")

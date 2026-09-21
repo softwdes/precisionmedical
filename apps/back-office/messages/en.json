@@ -1940,6 +1940,7 @@
       "fieldEmail": "Primary email",
       "fieldCity": "City",
       "fieldState": "State",
+      "fieldZip": "ZIP code",
       "fieldPaymentSpeed": "Payment speed",
       "fieldFlags": "Caseflow flags",
       "fieldFlagsHint": "(comma · e.g.: PIP-COVERED, MED-PAY)",
@@ -1962,8 +1963,7 @@
       "deleteWarning": "Has {count, plural, one {1 member} other {{count} members}} (attorneys / case managers). They will also be marked inactive.",
       "tooltipViewCases": "View cases",
       "noFirmMatch": "No firm matches your search",
-      "noAttorneyMatch": "No member of this firm matches",
-      "fieldZip": "ZIP code"
+      "noAttorneyMatch": "No member of this firm matches"
     },
     "insurances": {
       "title": "Insurance Carriers",
@@ -3416,6 +3416,8 @@
       "blockKind_OTHER": "Other",
       "blockKind_LUNCH": "Lunch",
       "blockKind_MEETING": "Meeting",
+      "blockKind_CLOSED": "Closed",
+      "blockKind_HOLIDAY": "Holiday",
       "blockFieldRepeat": "Repeats",
       "blockRepeat_NONE": "Does not repeat",
       "blockRepeat_WEEKDAYS": "Every weekday (Mon–Fri)",
@@ -3456,9 +3458,7 @@
       "reopenLoading": "Reopening…",
       "errorReopen": "The appointment could not be reopened. Try again.",
       "dupUpcomingTitle": "This patient already has {count, plural, one {an appointment} other {# appointments}} coming up",
-      "dupMore": "and {count} more",
-      "blockKind_CLOSED": "Closed",
-      "blockKind_HOLIDAY": "Holiday"
+      "dupMore": "and {count} more"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5869,7 +5869,18 @@
       "debeHint": "Braces, counter services and labs — not the CPTs, which the insurer or the attorney pays",
       "proxima": "Next appointment",
       "sinProxima": "No next appointment",
-      "sinProximaHint": "In treatment and nothing scheduled — worth a call"
+      "sinProximaHint": "In treatment and nothing scheduled — worth a call",
+      "marcaTitulo": "Collect before the visit",
+      "marcaQuitar": "Paid",
+      "marcaQuitando": "Removing…",
+      "marcaSoloRecepcion": "The front desk clears it when they collect.",
+      "marcaGuardar": "Flag",
+      "marcaGuardando": "Saving…",
+      "marcaCancelar": "Cancel",
+      "marcaPlaceholder": "What to know when they arrive. E.g. do not see them without a payment toward the balance.",
+      "marcaAyuda": "This is what whoever receives them will read, in CIFO's greeting.",
+      "marcaSinPermiso": "You do not have permission to change this. The front desk does it.",
+      "marcaError": "Could not save. Try again."
     }
   },
   "caseWizard": {

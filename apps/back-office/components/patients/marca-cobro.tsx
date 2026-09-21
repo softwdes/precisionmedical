@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Lock, LockOpen } from 'lucide-react';
 
@@ -50,6 +51,15 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
    */
   onCambio?: (estado: { marcado: boolean; nota: string | null }) => void;
 }): React.ReactElement {
+  /**
+   * Los textos salen de i18n, como todo lo visible (regla #2).
+   *
+   * Estaban en duro en español, así que en la ficha en inglés aparecía
+   * "Cobrar antes de atender" entre "Call" y "Edit" — lo vio Erick el 21-sep.
+   * Viven en `avisosPaciente` porque es el espacio de los avisos de la ficha,
+   * que es donde este recuadro se monta.
+   */
+  const t = useTranslations('phoenix.avisosPaciente');
   const router = useRouter();
 
   /**
@@ -99,8 +109,8 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
         // El 403 se nombra: es "no es tuyo", no "se rompió". Cualquier otra cosa
         // sí es una falla y se ofrece reintentar.
         setError(r.status === 403
-          ? 'No tenés permiso para cambiar esto. Lo hace recepción.'
-          : 'No se pudo guardar. Probá de nuevo.');
+          ? t('marcaSinPermiso')
+          : t('marcaError'));
         return;
       }
       setMarcado(nuevoActivo);
@@ -114,7 +124,7 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
       // cabecera también sale de la ficha.
       router.refresh();
     } catch {
-      setError('No se pudo guardar. Probá de nuevo.');
+      setError(t('marcaError'));
     } finally {
       setGuardando(false);
     }
@@ -128,14 +138,14 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
           <Lock className="w-3.5 h-3.5 text-rose shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold text-rose uppercase tracking-wider">
-              Cobrar antes de atender
+              {t('marcaTitulo')}
             </p>
             {notaActual && (
               <p className="text-[12.5px] text-text-1 mt-0.5 break-words">{notaActual}</p>
             )}
             {/* El provider ve la marca y por qué no la puede sacar él. */}
             {soloLectura && (
-              <p className="text-[11px] text-text-muted mt-0.5">Lo saca recepción al cobrar.</p>
+              <p className="text-[11px] text-text-muted mt-0.5">{t('marcaSoloRecepcion')}</p>
             )}
           </div>
           {!soloLectura && (
@@ -146,7 +156,7 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
               className="h-10 sm:h-7 px-3.5 sm:px-2.5 rounded text-[12.5px] sm:text-[11.5px] font-semibold bg-rose/15 text-rose hover:bg-rose/25 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
             >
               <LockOpen className="w-3 h-3" />
-              {guardando ? 'Sacando…' : 'Ya pagó'}
+              {guardando ? t('marcaQuitando') : t('marcaQuitar')}
             </button>
           )}
         </div>
@@ -170,7 +180,7 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
     return (
       <div className="rounded-md bg-bg-2/40 p-3 space-y-2">
         <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-          Cobrar antes de atender
+          {t('marcaTitulo')}
         </p>
         <textarea
           value={texto}
@@ -178,12 +188,12 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
           maxLength={280}
           rows={2}
           autoFocus
-          placeholder="Qué hay que saber al recibirlo. Ej: no atender sin un pago a cuenta del saldo."
+          placeholder={t('marcaPlaceholder')}
           className="w-full rounded border border-border bg-bg-1 px-2.5 py-2 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
         />
         {/* El texto es lo que de verdad sirve — el monto ya se ve solo. */}
         <p className="text-[11px] text-text-muted">
-          Esto es lo que va a leer quien lo reciba, en el saludo de CIFO.
+          {t('marcaAyuda')}
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
           <button
@@ -192,14 +202,14 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
             disabled={guardando}
             className="w-full sm:w-auto h-10 sm:h-8 px-3.5 rounded text-[12.5px] font-semibold bg-rose/15 text-rose hover:bg-rose/25 transition-colors disabled:opacity-50"
           >
-            {guardando ? 'Guardando…' : 'Marcar'}
+            {guardando ? t('marcaGuardando') : t('marcaGuardar')}
           </button>
           <button
             type="button"
             onClick={() => { setAbierto(false); setTexto(notaActual ?? ''); setError(null); }}
             className="w-full sm:w-auto h-10 sm:h-8 px-3.5 rounded text-[12.5px] font-semibold text-text-2 hover:text-text-1 hover:bg-white/[0.04] transition-colors"
           >
-            Cancelar
+            {t('marcaCancelar')}
           </button>
         </div>
         {error && <p className="text-[11px] text-rose">{error}</p>}
@@ -221,7 +231,7 @@ export function MarcaCobro({ patientId, activo, nota, soloLectura = false, onCam
       className="inline-flex items-center gap-1.5 h-10 sm:h-7 px-3.5 sm:px-2.5 rounded text-[12.5px] sm:text-[11.5px] font-semibold text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
     >
       <Lock className="w-3 h-3" />
-      Cobrar antes de atender
+      {t('marcaTitulo')}
     </button>
   );
 }

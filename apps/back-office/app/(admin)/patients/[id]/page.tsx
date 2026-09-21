@@ -17,6 +17,7 @@ import { db as prisma } from '@precision-medical/database';
 // en el diálogo de edición que escribe sobre ellos. `decryptScalars` cubre el
 // objeto entero, así que una columna nueva del schema queda cubierta sola.
 import { decryptScalars } from '@/lib/decrypt';
+import { saldoDeMostrador } from '@/lib/saldo-de-mostrador';
 import { PatientDetailClient } from './patient-detail-client';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
@@ -77,13 +78,48 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
+  /**
+   * Los dos avisos de la cabecera. Van en el servidor y no en un `fetch` del
+   * cliente: son lo primero que hay que ver al abrir la ficha, y pedidos
+   * después aparecerían medio segundo tarde — justo cuando recepción ya saludó
+   * al paciente y siguió.
+   *
+   * La próxima cita se busca del PACIENTE, no del caso: puede estar agendada en
+   * el caso viejo y la persona es una sola. `CANCELLED` afuera — una cita
+   * cancelada no es una cita que viene.
+   */
+  const [saldo, proximaCita] = await Promise.all([
+    saldoDeMostrador(id),
+    prisma.appointment.findFirst({
+      where: {
+        patientId: id,
+        scheduledFor: { gte: new Date() },
+        status: { not: 'CANCELLED' },
+      },
+      orderBy: { scheduledFor: 'asc' },
+      select: {
+        id: true,
+        scheduledFor: true,
+        clinic: { select: { name: true } },
+      },
+    }),
+  ]);
+
   // Cast: Prisma enum types ($Enums.CaseStatus, CaseTypeWorkflow, etc.) no son
   // directamente assignables a las string unions del client. Mismo pattern que
   // front-office/page.tsx — deuda técnica conocida, safe en runtime.
   return (
     <>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <PatientDetailClient patient={decryptScalars(patient) as any} />
+      <PatientDetailClient
+        patient={decryptScalars(patient) as any}
+        saldo={saldo}
+        proximaCita={proximaCita && {
+          id: proximaCita.id,
+          scheduledFor: proximaCita.scheduledFor.toISOString(),
+          clinicName: proximaCita.clinic?.name ?? null,
+        }}
+      />
 
       {/* El caso abierto viaja en `?case=` de ESTA ficha — misma mecánica que
           la lista, así que recargar vuelve a la ficha con el caso encima en vez

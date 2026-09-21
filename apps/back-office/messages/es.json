@@ -3451,7 +3451,9 @@
       "clinicIsTelemedicine": "Telemedicina — el paciente no viene a la sede",
       "actionReopen": "Reabrir para mover la hora",
       "reopenLoading": "Reabriendo…",
-      "errorReopen": "No se pudo reabrir la cita. Probá de nuevo."
+      "errorReopen": "No se pudo reabrir la cita. Probá de nuevo.",
+      "dupUpcomingTitle": "Este paciente ya tiene {count, plural, one {una cita} other {# citas}} más adelante",
+      "dupMore": "y {count} más"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -5841,6 +5843,13 @@
       "desactualizado": "Datos del {fecha}. Se actualizan una vez por semana, hasta que haya integración en vivo.",
       "estadoActiva": "Al día",
       "estadoVencida": "Vencida"
+    },
+    "avisosPaciente": {
+      "debe": "Debe {monto} en el mostrador",
+      "debeHint": "Férulas, servicios de mostrador y labs — sin los CPT, que los paga el seguro o el abogado",
+      "proxima": "Próxima cita",
+      "sinProxima": "Sin próxima cita",
+      "sinProximaHint": "En tratamiento y sin nada agendado — conviene llamarlo"
     }
   },
   "caseWizard": {

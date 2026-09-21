@@ -3451,7 +3451,9 @@
       "clinicIsTelemedicine": "Telemedicine — the patient does not come to the office",
       "actionReopen": "Reopen to change the time",
       "reopenLoading": "Reopening…",
-      "errorReopen": "The appointment could not be reopened. Try again."
+      "errorReopen": "The appointment could not be reopened. Try again.",
+      "dupUpcomingTitle": "This patient already has {count, plural, one {an appointment} other {# appointments}} coming up",
+      "dupMore": "and {count} more"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5841,6 +5843,13 @@
       "desactualizado": "Data as of {fecha}. Refreshed once a week, until live integration is in place.",
       "estadoActiva": "Current",
       "estadoVencida": "Expired"
+    },
+    "avisosPaciente": {
+      "debe": "Owes {monto} at the front desk",
+      "debeHint": "Braces, counter services and labs — not the CPTs, which the insurer or the attorney pays",
+      "proxima": "Next appointment",
+      "sinProxima": "No next appointment",
+      "sinProximaHint": "In treatment and nothing scheduled — worth a call"
     }
   },
   "caseWizard": {

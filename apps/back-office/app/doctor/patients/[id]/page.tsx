@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { db as prisma } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { saldoDeMostrador } from '@/lib/saldo-de-mostrador';
 import { auditarFichaAjenaDesdeLaPagina } from '@/lib/patient-access';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 
@@ -80,11 +81,32 @@ export default async function DoctorPatientDetailPage({
 
   if (!patient) notFound();
 
+  /* Los mismos dos avisos que en la ficha de la clínica. El provider también
+     los necesita: es el que ve al paciente en el consultorio, y si debe en el
+     mostrador tiene que saberlo antes de despedirlo. */
+  const [saldo, proximaCita] = await Promise.all([
+    saldoDeMostrador(id),
+    prisma.appointment.findFirst({
+      where: { patientId: id, scheduledFor: { gte: new Date() }, status: { not: 'CANCELLED' } },
+      orderBy: { scheduledFor: 'asc' },
+      select: { id: true, scheduledFor: true, clinic: { select: { name: true } } },
+    }),
+  ]);
+
   return (
     <>
       {/* Mismo cast que /patients/[id] — deuda técnica conocida, safe en runtime. */}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <PatientDetailClient patient={patient as any} doctorMode />
+      <PatientDetailClient
+        patient={patient as any}
+        doctorMode
+        saldo={saldo}
+        proximaCita={proximaCita && {
+          id: proximaCita.id,
+          scheduledFor: proximaCita.scheduledFor.toISOString(),
+          clinicName: proximaCita.clinic?.name ?? null,
+        }}
+      />
 
       {/* El caso abre como modal sobre la ficha, igual que en Mis Pacientes. El
           portal abre el caso de cualquier paciente. */}

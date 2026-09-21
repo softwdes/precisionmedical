@@ -14,7 +14,7 @@ import { fecha, fechaCalendario, edad } from '@/lib/fechas';
  * o (futuro) clic en nombre de paciente en la queue.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 // El diálogo de edición es el mismo que usa la lista de pacientes. Había una
@@ -30,7 +30,7 @@ import { telefonoDe } from '@/lib/telefono-paciente';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
-  Cake, Hash, Clock, Stethoscope,
+  Cake, Hash, Clock, Stethoscope, DollarSign,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import {
@@ -44,6 +44,10 @@ import {
 } from '@/components/ui-phoenix';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import { useMembresia } from '@/components/membresias/use-membresia';
+import {
+  AvisoDeSaldo, AvisoProximaCita, type CitaDeAviso,
+} from '@/components/patients/avisos-del-paciente';
+import { MarcaCobro } from '@/components/patients/marca-cobro';
 
 // ─── Tipos derivados del include de Prisma ────────────────────────────────────
 
@@ -89,6 +93,11 @@ interface PatientData {
   dateOfBirth: Date | null;
   status: PatientStatus;
   createdAt: Date;
+  /** "No lo atiendan sin pasar por caja" — la marca de criterio de la clínica.
+   *  Es la entrada de lo que avisa CIFO a la mañana; el saldo solo no alcanza
+   *  (de $1.377.546 de deuda, $164,81 son del mostrador). Ver `MarcaCobro`. */
+  collectBeforeVisit: boolean;
+  collectBeforeVisitNote: string | null;
   preferredLanguage: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
@@ -145,10 +154,29 @@ const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = 
 
 // ─── Component principal ──────────────────────────────────────────────────────
 
-export function PatientDetailClient({ patient, doctorMode = false }: { patient: PatientData; doctorMode?: boolean }) {
+export function PatientDetailClient({
+  patient, doctorMode = false, saldo = 0, proximaCita = null,
+}: {
+  patient: PatientData;
+  doctorMode?: boolean;
+  /** Lo que debe en el mostrador — ver `lib/saldo-de-mostrador`. */
+  saldo?: number;
+  /** La cita que viene. Los KPI de abajo cuentan las pasadas, no ésta. */
+  proximaCita?: CitaDeAviso | null;
+}) {
   /** Socio de la clínica: la misma pastilla que sale en el caso y al agendar. */
   const membresiaDelPaciente = useMembresia(patient.id);
   const t = useTranslations('phoenix.patients');
+  /**
+   * El botón de cobrar usa la MISMA clave que el botón de Finanzas al que
+   * lleva (`sumCollect`: "Pay debts" / "Cobrar"), y no una propia.
+   *
+   * Son el mismo acto y tienen que decir lo mismo: con dos claves, un día
+   * alguien cambia una y la clínica termina con dos nombres para lo mismo. Vive
+   * en `phoenix.doctor` porque ahí nació; no se movió para no tocar las cuatro
+   * pantallas que ya la usan.
+   */
+  const tCobro = useTranslations('phoenix.doctor');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -172,6 +200,42 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
    */
   const [archivosOpen, setArchivosOpen] = useState(false);
   const casoReciente = patient.cases[0] ?? null;
+
+  /**
+   * El caso al que va el cobro: el último ACTIVO, y si no hay, el más reciente.
+   *
+   * No es una elección de comodidad — el cargo queda escrito en el caso que se
+   * elija. Un cobro de mostrador de hoy pertenece al expediente que está
+   * abierto, no al que se cerró hace dos años.
+   */
+  /**
+   * La marca, en el cliente, para que el botón de cobrar se entere al toque.
+   *
+   * `patient.collectBeforeVisit` viene del servidor y no cambia hasta la
+   * próxima carga, así que al marcar el recuadro rojo aparecía y el botón
+   * "Cobrar" de al lado no — media tarjeta actualizada y media no, que es la
+   * forma de que alguien concluya que algo falló. `MarcaCobro` avisa por
+   * `onCambio` DESPUÉS de que el servidor confirmó: no hay estado optimista,
+   * solo una forma de enterarse.
+   */
+  const [hayMarca, setHayMarca] = useState(patient.collectBeforeVisit);
+  /**
+   * Y se sincroniza cuando el SERVIDOR trae algo distinto — otra pestaña, una
+   * recarga, o el `router.refresh()` que viene después de guardar.
+   *
+   * Sin esto, el botón sobrevivía 23 segundos a la marca que ya no estaba
+   * (medido: el recuadro se iba a los 7,3 s y el botón a los 30,4 s).
+   *
+   * No reintroduce el parpadeo que temía: un payload viejo trae el valor que el
+   * prop YA tenía, así que las deps no cambian y el effect no corre. Solo corre
+   * con un valor distinto, que es justo el payload fresco.
+   */
+  useEffect(() => { setHayMarca(patient.collectBeforeVisit); }, [patient.collectBeforeVisit]);
+
+  const CASOS_CERRADOS: CaseStatus[] = ['CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED'];
+  const casoParaCobrar =
+    patient.cases.find(c => !CASOS_CERRADOS.includes(c.status))
+    ?? casoReciente;
   const fotos = fotosDelCaso(casoReciente?.consentsData);
   const fotosEliminadas = fotosEliminadasDelCaso(casoReciente?.consentsData);
 
@@ -222,6 +286,11 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
                 <span className="text-text-muted text-xs font-normal flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {t('registeredRelative', { relative: formatRelative(patient.createdAt, t) })}
                 </span>
+                {/* Los dos avisos, pegados al nombre y no en una tarjeta más
+                    abajo: el que abre la ficha con el paciente enfrente tiene
+                    que verlos ANTES de hacer cualquier otra cosa. */}
+                <AvisoDeSaldo saldo={saldo} compacto />
+                <AvisoProximaCita cita={proximaCita} compacto />
               </div>
             </div>
           </div>
@@ -248,6 +317,51 @@ export function PatientDetailClient({ patient, doctorMode = false }: { patient: 
               >
                 <Phone className="w-3.5 h-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('actionCall')}</span>
+              </Button>
+            )}
+            {/* La marca "cobrar antes de atender", que es lo que el v2 tenía en
+                esa franja roja. Va en las acciones y no entre las pastillas de
+                arriba porque es algo que se PONE, no que se lee. El componente
+                es de la sesión de CIFO — acá solo se monta. */}
+            {/* La marca la PONE recepción; el provider solo la lee. El prop
+                sale de `doctorMode` y no de la página del portal porque esta
+                ficha es la MISMA para los dos: montarlo dos veces sería tener
+                dos lugares donde acordarse de esto. */}
+            <MarcaCobro
+              patientId={patient.id}
+              activo={patient.collectBeforeVisit}
+              nota={patient.collectBeforeVisitNote}
+              soloLectura={doctorMode}
+              onCambio={({ marcado }) => setHayMarca(marcado)}
+            />
+            {/**
+              * Cobrar sin salir de la ficha.
+              *
+              * El aviso decía que había algo que cobrar y después te dejaba
+              * solo: el modal de pago vive en el caso, en Finanzas, así que
+              * había que salir de la ficha, abrir el caso y buscar el tab —
+              * con el paciente enfrente. Esto abre ese mismo tab en un clic;
+              * no es una pantalla nueva ni una segunda forma de cobrar.
+              *
+              * Aparece solo cuando hay MOTIVO (saldo o marca). Un botón de
+              * cobrar en todas las fichas invita a cobrarle a los MVA, que es
+              * justo lo que no hay que hacer: ahí paga el abogado.
+              *
+              * Lo abre quien esté en el mostrador en ese momento — decisión de
+              * Erick, 2026-09-20: "el encargado de ese momento lo puede
+              * procesar". Por eso tampoco se esconde en el portal del provider.
+              */}
+            {casoParaCobrar && (saldo > 0 || hayMarca) && (
+              <Button
+                variant="outline"
+                className="shrink-0 border-rose/30 text-rose hover:bg-rose/10"
+                onClick={() => router.push(
+                  conCasoAbierto(pathname, searchParams, casoParaCobrar.id, 'finanzas'),
+                  { scroll: false },
+                )}
+              >
+                <DollarSign className="w-3.5 h-3.5 mr-1.5" />
+                {tCobro('sumCollect')}
               </Button>
             )}
             <PatientEditDialog patient={patient} />

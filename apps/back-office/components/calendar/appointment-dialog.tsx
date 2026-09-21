@@ -915,27 +915,40 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   useEffect(() => {
     setDuplicateAppts([]);
-    if (isEditMode || isReschedule || !slotIso) return;
+    if (isEditMode || isReschedule) return;
     const patientId = props.mode === 'free' ? selectedPatient?.id : null;
     if (!patientId) return;
 
-    const targetDate = new Date(slotIso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+    /*
+     * Todo lo que VIENE, no solo el día elegido.
+     *
+     * Hasta el 2026-09-20 esto pedía únicamente las citas de la fecha del
+     * horario elegido, así que agendarle el martes a alguien que ya tenía el
+     * jueves no avisaba nada — y esa es justo la que se agenda dos veces,
+     * porque nadie se acuerda de lo que pidió el paciente la semana pasada
+     * (pedido de la clínica, 2026-09-20). Y ahora dispara al elegir al
+     * PACIENTE, sin esperar a que se toque el horario: con el aviso atado al
+     * slot, quien elegía la persona y miraba la agenda no veía nada todavía.
+     */
+    const desde = new Date().toISOString();
+    const hasta = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
     const controller = new AbortController();
     fetch(
-      `/api/admin/appointments?patientId=${patientId}&from=${targetDate}T00:00:00.000Z&to=${targetDate}T23:59:59.999Z`,
+      `/api/admin/appointments?patientId=${patientId}&from=${desde}&to=${hasta}`,
       { signal: controller.signal },
     )
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
-        const conflicts = ((data.appointments ?? []) as DuplicateAppt[])
-          .filter((a: DuplicateAppt) => a.status !== 'CANCELLED');
-        setDuplicateAppts(conflicts);
+        const proximas = ((data.appointments ?? []) as DuplicateAppt[])
+          .filter((a: DuplicateAppt) => a.status !== 'CANCELLED')
+          .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
+        setDuplicateAppts(proximas);
       })
       .catch(() => {});
     return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotIso, selectedPatient?.id]);
+  }, [selectedPatient?.id]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -1863,42 +1876,78 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             )}
           </div>
 
-          {/* ── Duplicate appointment warning ── */}
-          {duplicateAppts.length > 0 && (
-            <div className="rounded-lg border border-amber/40 bg-amber/8 p-3 space-y-2">
-              <div className="flex items-start gap-2">
-                <span className="text-amber text-base leading-none mt-0.5">⚠</span>
-                <div>
-                  <p className="text-amber font-semibold text-[12.5px]">{t('dupWarningTitle')}</p>
-                  <p className="text-amber/70 text-[11px] mt-0.5">{t('dupWarningHint')}</p>
+          {/* ── Ya tiene cita ──
+               Dos niveles en un solo aviso, y ninguno bloquea:
+
+               · MISMO DÍA que el horario elegido → rojo. Es la que casi siempre
+                 es un error de verdad: dos citas el mismo día.
+               · Más adelante → ámbar. No es un error —un paciente en tratamiento
+                 tiene varias— pero es lo que hay que saber ANTES de agendar
+                 otra. Se muestran las 3 más próximas y se cuenta el resto: con
+                 un tratamiento semanal, listarlas todas tapa la pantalla. */}
+          {duplicateAppts.length > 0 && (() => {
+            const diaElegido = slotIso
+              ? new Date(slotIso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+              : null;
+            const esDelDia = (a: DuplicateAppt) => !!diaElegido
+              && new Date(a.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' }) === diaElegido;
+
+            const mismoDia = duplicateAppts.filter(esDelDia);
+            const masAdelante = duplicateAppts.filter(a => !esDelDia(a));
+            const hayChoque = mismoDia.length > 0;
+            /* Clases LITERALES y no `text-${tono}`: Tailwind lee el código
+               fuente, así que una clase armada por interpolación no se emite y
+               el texto sale del color por defecto, sin ningún error. */
+            const claseTexto = hayChoque ? 'text-rose' : 'text-amber';
+            const claseTenue = hayChoque ? 'text-rose/70' : 'text-amber/70';
+            const visibles = [...mismoDia, ...masAdelante.slice(0, 3)];
+            const ocultas = masAdelante.length - Math.min(masAdelante.length, 3);
+
+            return (
+              <div className={`rounded-lg border p-3 space-y-2 ${hayChoque ? 'border-rose/40 bg-rose/8' : 'border-amber/40 bg-amber/8'}`}>
+                <div className="flex items-start gap-2">
+                  <span className={`text-base leading-none mt-0.5 ${claseTexto}`}>⚠</span>
+                  <div>
+                    <p className={`font-semibold text-[12.5px] ${claseTexto}`}>
+                      {hayChoque ? t('dupWarningTitle') : t('dupUpcomingTitle', { count: duplicateAppts.length })}
+                    </p>
+                    <p className={`text-[11px] mt-0.5 ${claseTenue}`}>{t('dupWarningHint')}</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {visibles.map(a => {
+                    const cuando = new Date(a.scheduledFor);
+                    const dia  = cuando.toLocaleDateString(localeApp(), {
+                      weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Denver',
+                    });
+                    const hora = cuando.toLocaleTimeString(localeApp(), {
+                      hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+                    });
+                    const propia = esDelDia(a);
+                    return (
+                      <div
+                        key={a.id}
+                        className={`flex items-center gap-3 rounded-md border bg-bg-1/60 px-3 py-2 text-[11px] ${propia ? 'border-rose/20' : 'border-amber/20'}`}
+                      >
+                        <span className={`font-bold text-xs shrink-0 ${propia ? 'text-rose' : 'text-amber'}`}>
+                          {dia} · {hora}
+                        </span>
+                        {a.clinic && <span className="text-text-2 truncate">{a.clinic.name}</span>}
+                        {a.provider && (
+                          <span className="text-text-muted truncate">
+                            {a.provider.firstName} {a.provider.lastName}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {ocultas > 0 && (
+                    <p className="text-text-muted text-[11px] pl-1">{t('dupMore', { count: ocultas })}</p>
+                  )}
                 </div>
               </div>
-              <div className="space-y-1.5">
-                {duplicateAppts.map(a => {
-                  const time = new Date(a.scheduledFor).toLocaleTimeString(localeApp(), {
-                    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-                  });
-                  return (
-                    <div key={a.id} className="flex items-center gap-3 rounded-md border border-amber/20 bg-bg-1/60 px-3 py-2 text-[11px]">
-                      <span className="font-bold text-amber text-xs w-16 shrink-0">{time}</span>
-                      {a.clinic && (
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-text-muted uppercase tracking-wider text-[9px] font-semibold">Clinic</span>
-                          <span className="text-text-2 truncate">{a.clinic.name}</span>
-                        </div>
-                      )}
-                      {a.provider && (
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-text-muted uppercase tracking-wider text-[9px] font-semibold">Provider</span>
-                          <span className="text-text-2 truncate">{a.provider.firstName} {a.provider.lastName}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── Telemedicina ──
                Acá vivía también el selector de "Tipo de cita", y se sacó el

@@ -2774,6 +2774,22 @@ model ServiceCode {
   // Metadata
   isActive       Boolean @default(true)
   isInternalOnly Boolean @default(false) // True para CUSTOM_PM
+
+  /// Favorito de LA CLÍNICA, no de una persona.
+  ///
+  /// Igual que `services.isFavorite` del v2, de donde salieron los 9 que están
+  /// marcados hoy. El picker de cargos los muestra arriba para TODOS, sin que
+  /// nadie tenga que armar su lista.
+  ///
+  /// Existe porque la estrella por usuario —que sigue funcionando— nace vacía
+  /// para cada persona: medido el 2026-09-21, **27 favoritos en toda la base y
+  /// de solo 3 personas**. Y no se puede sembrar por persona: esos favoritos se
+  /// guardan con el id de Supabase Auth, y de las 18 personas que usan el
+  /// sistema solo 3 tienen fila en `auth.users` que matchee por correo.
+  ///
+  /// El favorito efectivo que ve alguien es "global O mío": esta marca se SUMA
+  /// a `user_service_favorites`, no la reemplaza.
+  isFavorite Boolean @default(false)
   sortOrder      Int     @default(0)
   notes          String? @db.Text
 
@@ -3776,6 +3792,12 @@ model CatalogItem {
 
   // ─── Estado ─────────────────────────────────────────────────────────────
   isActive Boolean @default(true)
+
+  /// Ver `ServiceCode.isFavorite`. Hoy ninguno está marcado: el v2 solo marcó
+  /// códigos de seguro. La columna existe para que el lado de efectivo pueda
+  /// tener favoritos sin otra migración — el picker busca sobre los dos
+  /// catálogos y no distingue de cuál salió cada ítem.
+  isFavorite Boolean @default(false)
   /// Existe pero no se puede tomar/ofrecer (ej. HIV 139825 sin p24).
   isOrderable Boolean @default(true)
   /// Código que lo sustituye (ej. Histopathology 500918 → 599999).

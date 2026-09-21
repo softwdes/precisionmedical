@@ -83,7 +83,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             ],
           } : {}),
         },
-        select: { id: true, code: true, shortDescription: true, category: true, currentFee: true },
+        select: { id: true, code: true, shortDescription: true, category: true, currentFee: true, isFavorite: true },
         orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
       }),
       db.catalogItem.findMany({
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         },
         select: {
           id: true, code: true, name: true, kind: true, publicPrice: true,
-          unitLabel: true, cptCode: true, hcpcsCode: true,
+          unitLabel: true, cptCode: true, hcpcsCode: true, isFavorite: true,
         },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
@@ -113,10 +113,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         : Promise.resolve([]),
     ]);
 
-    // Los favoritos de los DOS catálogos salen de la misma tabla (una fila apunta
-    // a uno de los dos, garantizado por un CHECK en la DB).
+    /**
+     * Los favoritos PERSONALES. Los de los dos catálogos salen de la misma
+     * tabla (una fila apunta a uno de los dos, garantizado por un CHECK).
+     */
     const favCodeIds = new Set(favorites.map((f) => f.serviceCodeId).filter(Boolean));
     const favCatalogIds = new Set(favorites.map((f) => f.catalogItemId).filter((v): v is number => v !== null));
+
+    /**
+     * ── El favorito efectivo es "de la clínica O mío" ───────────────────────
+     *
+     * `isFavorite` de la tabla es la lista de LA CLÍNICA, heredada del v2
+     * (9 códigos). Se muestra para todos, sin que nadie arme su lista.
+     *
+     * Antes el grupo salía SOLO de la estrella personal, y esa nace vacía:
+     * medido el 2026-09-21, **27 favoritos en toda la base y de 3 personas**.
+     * La función existía y no la mantenía nadie, así que en la práctica el
+     * picker abría sin favoritos para el 100% del equipo.
+     *
+     * La estrella personal no se toca: suma encima de la lista común.
+     */
+    const esFavorito = (global: boolean, personal: boolean): boolean => global || personal;
 
     let insuranceItems: BillableItem[] = codes.map((c) => ({
       key: `s${c.id}`,
@@ -127,7 +144,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       price: Number(c.currentFee),
       category: c.category,
       unitLabel: null,
-      isFavorite: favCodeIds.has(c.id),
+      isFavorite: esFavorito(c.isFavorite, favCodeIds.has(c.id)),
       insuranceCode: c.code,
     }));
 
@@ -144,7 +161,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         price: Number(i.publicPrice),
         category: i.kind,
         unitLabel: i.unitLabel,
-        isFavorite: favCatalogIds.has(i.id),
+        isFavorite: esFavorito(i.isFavorite, favCatalogIds.has(i.id)),
         insuranceCode: i.cptCode ?? i.hcpcsCode ?? null,
       }));
 

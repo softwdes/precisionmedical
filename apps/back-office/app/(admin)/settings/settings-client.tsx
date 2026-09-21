@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { useTranslations } from 'next-intl';
 import {
-  Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
+  Building2, Stethoscope, Scale, ShieldCheck, DollarSign, Share2,
   FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, Headset, Rocket, Mail, Inbox,
   FlaskConical,
 } from 'lucide-react';
@@ -21,6 +21,7 @@ import { SpecialtiesClient } from '@/app/(admin)/admin/specialties/specialties-c
 import { LawyersClient }     from '@/app/(admin)/admin/lawyers/lawyers-client';
 import { InsurancesClient }  from '@/app/(admin)/admin/insurances/insurances-client';
 import { AdjustersClient }   from '@/app/(admin)/admin/adjusters/adjusters-client';
+import { ReferralPartnersClient } from '@/app/(admin)/admin/referral-partners/referral-partners-client';
 import { ServicesClient }    from '@/app/(admin)/admin/services/services-client';
 import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
 import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
@@ -37,7 +38,7 @@ interface Clinic {
 
 // Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
 // en el portal del doctor (/doctor/templates), con editor rich text y diagnósticos.
-type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'servicios' | 'labs' | 'diagnosticos' | 'snippets' | 'escritorios' | 'auditlog' | 'releases';
+type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'ajustadores' | 'referidores' | 'servicios' | 'labs' | 'diagnosticos' | 'snippets' | 'escritorios' | 'auditlog' | 'releases';
 
 // La etiqueta sale de `phoenix.settings.tabs.<id>` — antes era texto fijo en
 // español y no cambiaba al pasar la app a inglés.
@@ -48,6 +49,10 @@ const TABS: Array<{ id: Tab; icon: React.ElementType; adminOnly?: boolean }> = [
   { id: 'bufetes',        icon: Scale       },
   { id: 'aseguradoras',   icon: ShieldCheck },
   { id: 'ajustadores',    icon: Headset     },
+  // Quienes nos mandan pacientes y no son bufetes: quiropracticos y centros de
+  // accidente. Va pegado a Bufetes porque los dos contestan lo mismo — de donde
+  // vino este paciente.
+  { id: 'referidores',    icon: Share2      },
   { id: 'servicios',      icon: DollarSign  },
   // Catálogo de precios (labs · inyectables · seguro · férulas). Va pegado a
   // Servicios porque los dos son catálogo de plata, y NO es una pantalla nueva:
@@ -79,6 +84,8 @@ interface Props {
   initialInsurances:  React.ComponentProps<typeof InsurancesClient>['insurances'];
   insuranceStats:     React.ComponentProps<typeof InsurancesClient>['stats'];
   initialAdjusters:   React.ComponentProps<typeof AdjustersClient>['adjusters'];
+  initialPartners:    React.ComponentProps<typeof ReferralPartnersClient>['partners'];
+  partnerStats:       React.ComponentProps<typeof ReferralPartnersClient>['stats'];
   adjusterCarriers:   React.ComponentProps<typeof AdjustersClient>['carriers'];
   adjusterStats:      React.ComponentProps<typeof AdjustersClient>['stats'];
   initialServices:    React.ComponentProps<typeof ServicesClient>['services'];
@@ -117,6 +124,7 @@ export function SettingsClient({
   initialFirms,       firmStats,
   initialInsurances,  insuranceStats,
   initialAdjusters,   adjusterCarriers, adjusterStats,
+  initialPartners,    partnerStats,
   initialServices,    serviceStats,
   diagnosisStats,     diagnosisUserId,
   initialProviders,   providerStats,
@@ -343,6 +351,7 @@ export function SettingsClient({
       {activeTab === 'bufetes'        && <LawyersClient firms={initialFirms} stats={firmStats} />}
       {activeTab === 'aseguradoras'   && <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />}
       {activeTab === 'ajustadores'    && <AdjustersClient adjusters={initialAdjusters} carriers={adjusterCarriers} stats={adjusterStats} />}
+      {activeTab === 'referidores'    && <ReferralPartnersClient partners={initialPartners} stats={partnerStats} />}
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'labs'           && <LabsTabClient />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}

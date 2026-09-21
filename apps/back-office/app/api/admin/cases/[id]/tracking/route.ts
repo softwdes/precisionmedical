@@ -80,7 +80,29 @@ export async function PATCH(
         : { archivedAt: null, archivedById: null, archivedByName: null }
       : {}),
     ...(parsed.chiroReferral !== undefined
-      ? { chiroReferral: parsed.chiroReferral ?? null }
+      ? {
+          chiroReferral: parsed.chiroReferral ?? null,
+          /**
+           * Y el vínculo con el catálogo, cuando el nombre coincide con uno.
+           *
+           * El texto se sigue guardando igual: es lo que la grilla muestra y lo
+           * que aguanta a alguien que escribe un lugar que todavía no está dado
+           * de alta. Lo que agrega el id es poder CONTAR — con el texto solo,
+           * "Axcess" y "Axcess Referral" son dos lugares distintos.
+           *
+           * Sin distinguir mayúsculas: el desplegable manda el nombre exacto del
+           * catálogo, pero este campo también se escribe a mano.
+           */
+          referralPartnerId: parsed.chiroReferral
+            ? (await db.referralPartner.findFirst({
+                where: {
+                  name: { equals: parsed.chiroReferral.trim(), mode: 'insensitive' },
+                  deletedAt: null,
+                },
+                select: { id: true },
+              }))?.id ?? null
+            : null,
+        }
       : {}),
   };
 

@@ -758,6 +758,11 @@ model Patient {
   providerReferrerId String?
   providerReferrer   Provider? @relation("ProviderReferrer", fields: [providerReferrerId], references: [id])
 
+  /// Quien lo refirio y NO es un bufete: el quiropractico, el centro de
+  /// accidentes. Hermano de `lawyerReferrerId` — ver `ReferralPartner`.
+  referralPartnerId String?
+  referralPartner   ReferralPartner? @relation("PatientReferralPartner", fields: [referralPartnerId], references: [id])
+
   status PatientStatus @default(NEW)
 
   // ─── Demografía ──────────────────────────────────────────────────────────
@@ -865,6 +870,7 @@ model Patient {
   @@index([contactOwnerId])
   @@index([lawyerReferrerId])
   @@index([providerReferrerId])
+  @@index([referralPartnerId])
   @@index([status])
   @@map("patients")
 }
@@ -3341,12 +3347,83 @@ model CaseTracking {
   /// corrige lo que USA sin alterar lo que el paciente DECLARO.
   chiroReferral  String?
 
+  /// El mismo dato que `chiroReferral`, pero apuntando al catalogo.
+  ///
+  /// Convive con el texto a proposito: el texto guarda lo que se escribio
+  /// cuando no habia catalogo (15 valores, con "Axcess" escrito de tres formas
+  /// distintas), y el catalogo es lo que se elige de ahora en mas. Lo que se
+  /// LEE resuelve el id primero y cae al texto — ver `nombreDelReferidor()`.
+  referralPartnerId String?
+  referralPartner   ReferralPartner? @relation(fields: [referralPartnerId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([completedAt])
   @@index([archivedAt])
+  @@index([referralPartnerId])
   @@map("case_tracking")
+}
+
+/// Quien nos manda pacientes y NO es un bufete: quiropracticos, centros de
+/// accidente, otras clinicas.
+///
+/// ── Por que una tabla y no `Provider` ──────────────────────────────────────
+///
+/// `Provider` es el personal PROPIO: alimenta la agenda, las tarifas y las
+/// recetas. Un quiropractico de afuera metido ahi aparece en el selector de
+/// "con que doctor se agenda", que es justo lo que no puede pasar.
+///
+/// ── Por que hacia falta ────────────────────────────────────────────────────
+///
+/// Medido el 2026-09-20: de 600 pacientes, **98** declaran que los mando un
+/// quiropractico — la segunda fuente mas comun — y en casi ninguno se sabe
+/// cual, porque el campo era texto libre sin lista. En toda la base hay 15
+/// valores escritos, con "Axcess / Axcess Referral / Axcess AF Referral" para
+/// el mismo lugar y "Michael Grant / Mike Grant" para la misma persona.
+model ReferralPartner {
+  id String @id @default(cuid())
+
+  type ReferralPartnerType @default(CHIROPRACTOR)
+
+  /// El nombre del LUGAR ("Saratoga Chiropractic"): es lo que recepcion
+  /// escucha del paciente.
+  name String
+  /// La persona con la que se habla ahi ("Dr. Michael Grant"), si la hay.
+  contactName String?
+
+  phone   String?
+  email   String?
+  address String?
+  city    String?
+  state   String?
+  zip     String?
+
+  notes String? @db.Text
+
+  status ExternalStatus @default(ACTIVE)
+
+  referredPatients Patient[]      @relation("PatientReferralPartner")
+  caseTrackings    CaseTracking[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  /// El unico indice unico es el nombre exacto; el choque por mayusculas y
+  /// acentos lo resuelve la API antes de insertar (Postgres compara byte a
+  /// byte y dejaria entrar "axcess" al lado de "Axcess").
+  @@unique([name])
+  @@index([type])
+  @@index([status])
+  @@map("referral_partners")
+}
+
+enum ReferralPartnerType {
+  CHIROPRACTOR // Saratoga Chiropractic, Cascade Spinal Rehab…
+  ACCIDENT_CENTER // Axcess y los demas centros de accidente
+  MEDICAL_PROVIDER // otra clinica o consultorio
+  OTHER
 }
 
 /// Observaciones de Edson — la columna "Observations" del Excel.

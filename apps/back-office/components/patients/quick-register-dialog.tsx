@@ -30,6 +30,8 @@ import {
 /* Reemplaza al `LawFirmAutocomplete` privado que vivía acá y creaba el bufete
    con el nombre solo. Ver el comentario de `components/lawyers/law-firm-field`. */
 import { LawFirmField } from '@/components/lawyers/law-firm-field';
+import { ReferralPartnerField } from '@/components/referrals/referral-partner-field';
+import type { AutoResult } from '@/components/ui-phoenix';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,39 @@ function Field({ label, required, error, children }: { label: string; required?:
 const INPUT  = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors';
 const SELECT = `${INPUT} appearance-none`;
 
+/**
+ * El valor del select mezcla dos catálogos, así que los referidores que no son
+ * bufetes llevan prefijo. El id pelado sigue siendo un BUFETE: así el precargado
+ * desde un referido del portal legal (`initial.lawFirmId`) no necesita saber
+ * nada de esto.
+ */
+const PREFIJO_REFERIDOR = 'rp:';
+
+interface ReferidorElegido {
+  id: string;
+  name: string;
+  type: 'CHIROPRACTOR' | 'ACCIDENT_CENTER' | 'MEDICAL_PROVIDER' | 'OTHER';
+}
+
+/** La fuente sale del referidor cuando nadie la eligió a mano. */
+function fuenteDelReferidor(tipo: ReferidorElegido['type']): string {
+  return tipo === 'ACCIDENT_CENTER' ? 'ACCIDENT_CENTER' : 'CHIROPRACTOR';
+}
+
+/**
+ * Qué lista corresponde a cada "¿Cómo nos encontró?".
+ *
+ * `FIRMA` es el catálogo de bufetes; el resto son tipos de `ReferralPartner`.
+ * Una fuente que no está acá (Google, Familia…) no tiene catálogo propio y
+ * muestra los dos.
+ */
+const CATALOGO_DE_LA_FUENTE: Record<string, 'FIRMA' | ReferidorElegido['type']> = {
+  LAW_FIRM:          'FIRMA',
+  LAW_FIRM_REFERRAL: 'FIRMA',
+  CHIROPRACTOR:      'CHIROPRACTOR',
+  ACCIDENT_CENTER:   'ACCIDENT_CENTER',
+};
+
 // ─── ReferredBy Select — lista de firmas cargada desde DB ────────────────────
 
 /**
@@ -58,28 +93,77 @@ const SELECT = `${INPUT} appearance-none`;
  * nombre no hay forma de resolverlo sin adivinar. El dato existía en la
  * respuesta del autocomplete y se tiraba en el `.map`.
  */
-function ReferredBySelect({ value, onChange, placeholder, otherLabel }: {
-  value: string; onChange: (v: string) => void; placeholder: string; otherLabel: string;
+function ReferredBySelect({ value, onChange, placeholder, otherLabel, firmsLabel, partnersLabel, fuente }: {
+  value: string;
+  /** El segundo argumento viene solo cuando lo elegido es un referidor del catálogo. */
+  onChange: (v: string, partner?: ReferidorElegido) => void;
+  placeholder: string; otherLabel: string;
+  firmsLabel: string; partnersLabel: string;
+  /**
+   * Lo elegido en "¿Cómo nos encontró?". MANDA sobre esta lista: si dice
+   * quiropráctico, acá se ofrecen quiroprácticos; si dice bufete, bufetes.
+   *
+   * Es la corrección de Erick del 2026-09-20 sobre la primera versión, que
+   * mostraba los dos catálogos juntos siempre: con 10 bufetes y 13 referidores
+   * en el mismo desplegable, recepción tiene que buscar en 23 nombres cuando ya
+   * dijo, en el campo de al lado, cuál de los dos es.
+   */
+  fuente: string;
 }) {
   const [firms, setFirms] = useState<Array<{ id: string; label: string }>>([]);
+  const [partners, setPartners] = useState<ReferidorElegido[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/lawyers/autocomplete')
       .then(r => r.json())
       .then(j => setFirms((j.results ?? []).map((f: { id: string; label: string }) => ({ id: f.id, label: f.label }))))
       .catch(() => {});
+    /* Los que NO son bufetes. Hasta el 2026-09-20 esta lista tenía SOLO bufetes,
+       así que un paciente que mandaba el quiropráctico caía siempre en "Otro…" y
+       el nombre terminaba de texto suelto: en toda la base quedaron 15 valores,
+       con el mismo lugar escrito de tres formas. */
+    fetch('/api/admin/referral-partners')
+      .then(r => r.json())
+      .then(j => setPartners(j.partners ?? []))
+      .catch(() => {});
   }, []);
+
+  /* Qué catálogo pidió la fuente. `null` = no lo dice, y entonces se ofrecen
+     los dos: quien todavía no eligió cómo nos encontró no puede quedar sin
+     lista. */
+  const pide = CATALOGO_DE_LA_FUENTE[fuente] ?? null;
+  const firmsVisibles    = !pide || pide === 'FIRMA' ? firms : [];
+  const partnersVisibles = !pide
+    ? partners
+    : pide === 'FIRMA' ? [] : partners.filter(p => p.type === pide);
+  /* Los rótulos de grupo solo cuando hay dos listas que distinguir. */
+  const agrupar = firmsVisibles.length > 0 && partnersVisibles.length > 0;
+
+  const opcionesPartner = partnersVisibles.map(p => (
+    <option key={p.id} value={`${PREFIJO_REFERIDOR}${p.id}`}>{p.name}</option>
+  ));
+  const opcionesFirma = firmsVisibles.map(f => (
+    <option key={f.id} value={f.id}>{f.label}</option>
+  ));
 
   return (
     <select
       className={SELECT}
       value={value}
-      onChange={e => onChange(e.target.value)}
+      onChange={e => {
+        const v = e.target.value;
+        onChange(v, partners.find(p => `${PREFIJO_REFERIDOR}${p.id}` === v));
+      }}
     >
       <option value="">{placeholder}</option>
-      {firms.map(f => (
-        <option key={f.id} value={f.id}>{f.label}</option>
-      ))}
+      {agrupar ? (
+        <>
+          <optgroup label={firmsLabel}>{opcionesFirma}</optgroup>
+          <optgroup label={partnersLabel}>{opcionesPartner}</optgroup>
+        </>
+      ) : (
+        <>{opcionesFirma}{opcionesPartner}</>
+      )}
       <option value="__otro__">{otherLabel}</option>
     </select>
   );
@@ -124,71 +208,6 @@ function AttorneySelect({
       ))}
       <option value="__otro__">Otro…</option>
     </select>
-  );
-}
-
-// ─── ProviderAutocomplete — buscar quiroprácticos / proveedores ───────────────
-
-interface ProviderOption { id: string; label: string; }
-
-function ProviderAutocomplete({
-  value, onChange, placeholder,
-}: {
-  value: string; onChange: (v: string) => void; placeholder: string;
-}) {
-  const [query,   setQuery]   = useState(value);
-  const [results, setResults] = useState<ProviderOption[]>([]);
-  const [open,    setOpen]    = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setQuery(value); }, [value]);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (!q) { setResults([]); return; }
-    const id = setTimeout(() => {
-      fetch(`/api/admin/providers?q=${encodeURIComponent(q)}&limit=10`)
-        .then(r => r.json())
-        .then(j => setResults((j.providers ?? j.data ?? []).map((p: { firstName?: string; lastName?: string; id: string }) => ({
-          id: p.id,
-          label: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
-        }))))
-        .catch(() => {});
-    }, 200);
-    return () => clearTimeout(id);
-  }, [query]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        className={INPUT}
-        value={query}
-        placeholder={placeholder}
-        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-      />
-      {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg overflow-hidden">
-          {results.map(p => (
-            <button
-              key={p.id} type="button"
-              className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2"
-              onClick={() => { onChange(p.label); setQuery(p.label); setOpen(false); setResults([]); }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -456,6 +475,8 @@ export function QuickRegisterDialog({
   const [howFoundOther,    setHowFoundOther]    = useState('');
   const [referredBy,       setReferredBy]       = useState('');
   const [referredByFreeText, setReferredByFreeText] = useState('');
+  /** Tipo del referidor elegido, cuando salió del catálogo. Decide la fuente. */
+  const [referidorTipo, setReferidorTipo] = useState<ReferidorElegido['type'] | null>(null);
 
   // Case info
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
@@ -463,7 +484,16 @@ export function QuickRegisterDialog({
   const [lawFirmId,    setLawFirmId]    = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
   const [attorney,     setAttorney]     = useState('');
-  const [chiropractor, setChiropractor] = useState('');
+  /** El quiropráctico del catálogo. Antes era texto libre — ver el campo. */
+  const [chiroPartner, setChiroPartner] = useState<AutoResult | null>(null);
+  /**
+   * Lo último que puso el auto-llenado desde "¿Quién lo refirió?".
+   *
+   * Sin esto, cambiar el referidor dejaría al quiropráctico anterior colgado; y
+   * pisar siempre sería peor, porque borraría lo que recepción eligió a mano.
+   * Solo se pisa lo que puso el auto-llenado.
+   */
+  const autoChiro = useRef<string | null>(null);
   const [description,  setDescription]  = useState('');
 
   // UI state
@@ -519,9 +549,9 @@ export function QuickRegisterDialog({
 
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setPhone('');
-    setEmail(''); setLanguage('es'); setHowFound(''); setHowFoundOther(''); setReferredBy(''); setReferredByFreeText('');
+    setEmail(''); setLanguage('es'); setHowFound(''); setHowFoundOther(''); setReferredBy(''); setReferredByFreeText(''); setReferidorTipo(null);
     setCaseType('MVA'); setAccidentDate(''); setLawFirmId(''); setLawFirm('');
-    setAttorney(''); setChiropractor(''); setDescription('');
+    setAttorney(''); setChiroPartner(null); autoChiro.current = null; setDescription('');
     setError(''); setFieldErrors({}); setSuccessInfo(null);
   }
 
@@ -550,6 +580,17 @@ export function QuickRegisterDialog({
     return Object.keys(errs).length === 0;
   }
 
+  /** Suelta el referidor y, con él, lo que el auto-llenado había puesto abajo. */
+  function limpiarReferidor() {
+    setReferredBy('');
+    setReferidorTipo(null);
+    setReferredByFreeText('');
+    if (chiroPartner && chiroPartner.id === autoChiro.current) {
+      setChiroPartner(null);
+      autoChiro.current = null;
+    }
+  }
+
   function clearFieldError(field: string) {
     setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
   }
@@ -571,6 +612,15 @@ export function QuickRegisterDialog({
     try {
       const dobIso = dob ? new Date(dob + 'T12:00:00').toISOString() : null;
       const accIso = accidentDate ? new Date(accidentDate + 'T12:00:00').toISOString() : null;
+
+      /* Un solo desplegable, dos catálogos. El prefijo dice cuál — ver
+         `PREFIJO_REFERIDOR`. */
+      const referidorDelCatalogo = referredBy.startsWith(PREFIJO_REFERIDOR)
+        ? referredBy.slice(PREFIJO_REFERIDOR.length)
+        : '';
+      const referidorBufete = referredBy && referredBy !== '__otro__' && !referidorDelCatalogo
+        ? referredBy
+        : '';
 
       const res = await fetch('/api/admin/cases', {
         method:  'POST',
@@ -611,10 +661,13 @@ export function QuickRegisterDialog({
            * Con bufete elegido y sin fuente, la fuente ES el bufete: quien carga
            * no tiene por qué decir dos veces lo mismo.
            */
-          ...(referredBy && referredBy !== '__otro__'
-            ? { referrer: { lawFirmId: referredBy } }
-            : {}),
-          source: (howFound || (referredBy && referredBy !== '__otro__' ? 'LAW_FIRM' : 'WALK_IN')) as 'WALK_IN',
+          ...(referidorBufete ? { referrer: { lawFirmId: referidorBufete } } : {}),
+          /* Y el referidor que no es bufete, que hasta hoy no tenía dónde ir:
+             terminaba de texto en `referralSourceOther` o no se guardaba. */
+          ...(referidorDelCatalogo ? { referralPartnerId: referidorDelCatalogo } : {}),
+          source: (howFound
+            || (referidorTipo ? fuenteDelReferidor(referidorTipo) : '')
+            || (referidorBufete ? 'LAW_FIRM' : 'WALK_IN')) as 'WALK_IN',
           /* Texto libre: gana el de "Referido por" — es más específico que "de
              qué manera nos encontró". */
           sourceOther: referredByFreeText.trim() || howFoundOther.trim() || null,
@@ -634,8 +687,11 @@ export function QuickRegisterDialog({
             treatment: false, financial: false, medicalHistory: false,
             lawFirm:      isMVA ? (lawFirm.trim() || null) : null,
             attorney:     isMVA ? (attorney.trim() || null) : null,
-            chiropractor: isMVA ? (chiropractor.trim() || null) : null,
+            /* El NOMBRE sigue yendo al JSON del caso, que es lo que leen el
+               wizard y la ficha; el id va aparte, a `case_tracking`. */
+            chiropractor: isMVA ? (chiroPartner?.label ?? null) : null,
           },
+          chiroPartnerId: isMVA ? (chiroPartner?.id ?? null) : null,
         }),
       });
 
@@ -881,7 +937,15 @@ export function QuickRegisterDialog({
                     </select>
                   </Field>
                   <Field label={t('howFound')}>
-                    <select className={SELECT} value={howFound} onChange={e => { setHowFound(e.target.value); if (e.target.value !== 'OTHER') setHowFoundOther(''); }}>
+                    <select className={SELECT} value={howFound} onChange={e => {
+                      setHowFound(e.target.value);
+                      if (e.target.value !== 'OTHER') setHowFoundOther('');
+                      /* La lista de al lado cambia con la fuente, así que lo que
+                         estuviera elegido puede no estar más entre las opciones.
+                         Un `<select>` con un value que no existe se ve VACÍO y
+                         sigue mandando el id viejo al guardar: hay que soltarlo. */
+                      limpiarReferidor();
+                    }}>
                       <option value="">{t('selectOption')}</option>
                       {REFERRAL_OPTIONS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -900,9 +964,30 @@ export function QuickRegisterDialog({
                   <Field label={t('referredBy')}>
                     <ReferredBySelect
                       value={referredBy}
-                      onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }}
+                      onChange={(v, partner) => {
+                        setReferredBy(v);
+                        setReferidorTipo(partner?.type ?? null);
+                        if (v !== '__otro__') setReferredByFreeText('');
+                        /* Lo que pidió recepción: si quien lo refirió es el
+                           quiropráctico, no hay que volver a escribirlo abajo.
+                           Solo pisa lo vacío o lo que puso este mismo automatismo. */
+                        if (partner) {
+                          if (!chiroPartner || chiroPartner.id === autoChiro.current) {
+                            setChiroPartner({ id: partner.id, label: partner.name });
+                            autoChiro.current = partner.id;
+                          }
+                        } else if (chiroPartner && chiroPartner.id === autoChiro.current) {
+                          setChiroPartner(null);
+                          autoChiro.current = null;
+                        }
+                      }}
                       placeholder={t('selectOption')}
-                      otherLabel={t('referralOther')}
+                      /* "Otro" a secas no decía que abajo aparece una cajita para
+                         escribir: la salida existía y no se veía. */
+                      otherLabel={t('otherTyped')}
+                      firmsLabel={t('groupFirms')}
+                      partnersLabel={t('groupPartners')}
+                      fuente={howFound}
                     />
                     {referredBy === '__otro__' && (
                       <input
@@ -993,10 +1078,11 @@ export function QuickRegisterDialog({
                       />
                     </Field>
                     <Field label={t('chiropractor')}>
-                      <ProviderAutocomplete
-                        value={chiropractor}
-                        onChange={setChiropractor}
+                      <ReferralPartnerField
+                        selected={chiroPartner}
+                        onSelect={(r) => { setChiroPartner(r); autoChiro.current = null; }}
                         placeholder={t('searchChiro')}
+                        tipoPorDefecto="CHIROPRACTOR"
                       />
                     </Field>
                   </div>

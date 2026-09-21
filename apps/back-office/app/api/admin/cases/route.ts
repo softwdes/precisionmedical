@@ -192,6 +192,22 @@ const InputSchema = z.object({
   }).nullable().optional(),
 
   /**
+   * Quién refirió al paciente cuando NO fue un bufete: el quiropráctico, el
+   * centro de accidentes. Hermano de `referrer` — ver `ReferralPartner`.
+   *
+   * Sin `.cuid()` a propósito: las filas que cargó el backfill del catálogo
+   * tienen id de `gen_random_uuid()`, no de Prisma, y validar el formato
+   * rechazaría justo a los referidores que ya existían.
+   */
+  referralPartnerId: z.string().min(1).nullable().optional(),
+  /**
+   * El quiropráctico TRATANTE del caso, del catálogo. Va a
+   * `CaseTracking.referralPartnerId`, al lado del texto que ya estaba —
+   * `consentsData.chiropractor` sigue guardando lo que se declaró, intacto.
+   */
+  chiroPartnerId: z.string().min(1).nullable().optional(),
+
+  /**
    * `true` cuando el contacto compartido ya se revisó CON UNA PERSONA en el
    * diálogo. Sin esto no se puede distinguir "nadie miró" de "recepción vio a la
    * familia y decidió", y el servidor tiene que frenar por las dudas.
@@ -622,6 +638,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                esquema. Solo se toca si vino: no se pisa con null un referido que
                ya estaba cargado de un caso anterior. */
             ...(parsed.referrer && { lawyerReferrerId: parsed.referrer.lawFirmId }),
+            /* Mismo criterio para el referidor que no es bufete. */
+            ...(parsed.referralPartnerId && { referralPartnerId: parsed.referralPartnerId }),
             /* Mismo criterio con el texto libre. `referralSource` NO se toca en
                un paciente que ya existe: el wizard siempre manda `source` (con
                default WALK_IN), así que pisarlo convertiría "referido por el
@@ -654,6 +672,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             accidentType: parsed.accident.type,
             /* El REFERIDO. Antes era `parsed.legal.lawFirmId` (el representante). */
             lawyerReferrerId: parsed.referrer?.lawFirmId ?? null,
+            referralPartnerId: parsed.referralPartnerId ?? null,
             /**
              * De dónde vino el paciente. El `source` se guardaba SOLO en el
              * caso, así que `Patient.referralSource` quedaba vacío en las altas
@@ -750,6 +769,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         firstAppointmentConfirmedById: parsed.appointment ? actor.actorUserId : null,
       },
     });
+
+    /**
+     * El quiropráctico del catálogo, en la fila de tracking.
+     *
+     * Va acá y no en `consentsData` porque son dos hechos distintos: el JSON
+     * del caso guarda lo que se DECLARÓ (y queda con el formulario firmado),
+     * `case_tracking` guarda lo que la clínica USA. Es la misma división que ya
+     * existía entre `consentsData.chiropractor` y `chiroReferral` — lo único
+     * nuevo es que ahora apunta al catálogo y no a un texto.
+     */
+    if (parsed.chiroPartnerId) {
+      await tx.caseTracking.upsert({
+        where:  { caseId: newCase.id },
+        create: { caseId: newCase.id, referralPartnerId: parsed.chiroPartnerId },
+        update: { referralPartnerId: parsed.chiroPartnerId },
+      });
+    }
 
     // Crear appointment si fue agendado en la llamada
     let appointment = null;

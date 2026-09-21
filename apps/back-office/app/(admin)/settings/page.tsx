@@ -21,7 +21,7 @@ export default async function SettingsPage() {
    *
    * Acotar la concurrencia ACA y no solo en la URL: el numero del env hay que
    * afinarlo en cada entorno (local, Vercel) y nadie se acuerda. Dos tandas de 7
-   * y 5 entran en cualquier limite razonable. Cuesta un viaje de ida y vuelta
+   * y 6 entran en cualquier limite razonable. Cuesta un viaje de ida y vuelta
    * extra —unos 150 ms— en una pantalla de configuracion que se mira poco.
    */
   const [
@@ -77,12 +77,22 @@ export default async function SettingsPage() {
   const [
     serviceFavs,
     diagnosisFavs,
+    referralPartners,
     diagnosisCounts,
     auditCounts,
     auditLogs,
   ] = await Promise.all([
     db.userServiceFavorite.findMany({ where: { userId: userId }, select: { serviceCodeId: true } }),
     db.userDiagnosisFavorite.findMany({ where: { userId: userId }, select: { diagnosisId: true } }),
+    /* Los conteos van en el `_count` de la MISMA consulta y no en la API: son
+       la única columna de la pantalla que contesta la pregunta por la que este
+       catálogo existe —a quién hay que agradecerle— y pedirlos aparte serían
+       dos viajes más en una pantalla que ya rompió dos veces por eso. */
+    db.referralPartner.findMany({
+      where: { deletedAt: null },
+      orderBy: [{ status: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { referredPatients: true, caseTrackings: true } } },
+    }),
     /**
      * Los 3 conteos de diagnosticos y los 4 de auditoria, en 2 viajes en vez de 7.
      *
@@ -265,6 +275,20 @@ export default async function SettingsPage() {
         active: adjusters.filter((a) => a.status === 'ACTIVE').length,
         carriersCovered: new Set(adjusters.map((a) => a.insuranceCarrierId)).size,
         noPhone: adjusters.filter((a) => !a.phone && !a.phone2).length,
+      }}
+      initialPartners={referralPartners.map((p) => ({
+        id: p.id, type: p.type, name: p.name, contactName: p.contactName,
+        phone: p.phone, email: p.email, address: p.address,
+        city: p.city, state: p.state, zip: p.zip,
+        notes: p.notes, status: p.status,
+        patientCount: p._count.referredPatients,
+        caseCount: p._count.caseTrackings,
+      }))}
+      partnerStats={{
+        total: referralPartners.length,
+        active: referralPartners.filter((p) => p.status === 'ACTIVE').length,
+        chiropractors: referralPartners.filter((p) => p.type === 'CHIROPRACTOR').length,
+        noPhone: referralPartners.filter((p) => !p.phone).length,
       }}
       initialServices={services.map((s) => ({
         id: s.id, code: s.code, type: s.type, shortDescription: s.shortDescription,

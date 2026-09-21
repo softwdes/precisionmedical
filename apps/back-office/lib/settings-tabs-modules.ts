@@ -52,7 +52,7 @@ export interface GrupoDeTabs {
  */
 export const GRUPOS_DE_SETTINGS: readonly GrupoDeTabs[] = [
   { grupo: 'clinica',   tabs: ['clinicas', 'especialidades', 'doctores'] },
-  { grupo: 'externos',  tabs: ['bufetes', 'aseguradoras', 'ajustadores'] },
+  { grupo: 'externos',  tabs: ['bufetes', 'aseguradoras', 'ajustadores', 'referidores'] },
   { grupo: 'catalogos', tabs: ['servicios', 'labs', 'diagnosticos', 'snippets'] },
   { grupo: 'registros', tabs: ['auditlog', 'releases'] },
 ];

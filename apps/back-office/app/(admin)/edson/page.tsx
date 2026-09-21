@@ -54,22 +54,21 @@ export default async function EdsonPage() {
       select: { id: true, firstName: true, lastName: true },
     }),
     /*
-     * Sugerencias del quiropractico. No hay catalogo —el dato viene escrito en
-     * el formulario de admision— asi que la lista se arma con lo YA usado,
-     * ordenado por frecuencia. Se acota a 40: es un autocompletado para no
-     * escribir "Cascade Chiropractic" de cero cada vez, no un catalogo.
+     * Sugerencias del quiropractico. Desde el 2026-09-20 SI hay catalogo
+     * (`referral_partners`), y la lista sale de ahi.
+     *
+     * Antes se armaba con lo ya escrito, ordenado por frecuencia: servia para
+     * no teclear "Cascade Chiropractic" de cero, pero cada variante nueva
+     * entraba a la lista y se ofrecia como si fuera un lugar mas — por eso
+     * "Axcess", "Axcess Referral" y "Axcess AF Referral" convivian. El catalogo
+     * arranco cargado con esos mismos nombres, asi que no se pierde ninguno; lo
+     * que cambia es que ahora se pueden fusionar.
      */
-    db.$queryRaw<{ name: string }[]>`
-      SELECT name, COUNT(*) AS n FROM (
-        SELECT NULLIF(TRIM(ct."chiroReferral"), '') AS name
-          FROM case_tracking ct WHERE ct."chiroReferral" IS NOT NULL
-        UNION ALL
-        SELECT NULLIF(TRIM(c."consentsData" ->> 'chiropractor'), '') AS name
-          FROM cases c WHERE c."consentsData" ->> 'chiropractor' IS NOT NULL
-      ) t
-      WHERE name IS NOT NULL
-      GROUP BY name ORDER BY COUNT(*) DESC, name ASC LIMIT 40
-    `,
+    db.referralPartner.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      orderBy: { name: 'asc' },
+      select: { name: true },
+    }),
   ]);
 
   return (

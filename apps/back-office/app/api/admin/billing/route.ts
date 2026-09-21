@@ -67,12 +67,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const cptRows = noteIds.length > 0
       ? await db.$queryRaw<{ visit_note_id: string; total: number; count: number }[]>`
           SELECT
-            visit_note_id,
-            SUM(COALESCE(fee_override, fee_catalog) * units)::float AS total,
+            "visitNoteId" AS visit_note_id,
+            SUM(COALESCE("feeOverride", "feeCatalog") * units)::float AS total,
             COUNT(*)::int AS count
           FROM visit_service_codes
-          WHERE visit_note_id = ANY(${noteIds})
-          GROUP BY visit_note_id
+          WHERE "visitNoteId" = ANY(${noteIds})
+          GROUP BY "visitNoteId"
         `
       : [];
 

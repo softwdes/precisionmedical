@@ -66,13 +66,13 @@ export async function GET(
     const cptRows = signedNoteIds.length > 0
       ? await db.$queryRaw<{ visit_note_id: string; cpt_code: string; description: string; fee: number }[]>`
           SELECT
-            visit_note_id,
-            cpt_code,
+            "visitNoteId" AS visit_note_id,
+            "cptCode"     AS cpt_code,
             description,
-            COALESCE(fee_override, fee_catalog)::float AS fee
+            COALESCE("feeOverride", "feeCatalog")::float AS fee
           FROM visit_service_codes
-          WHERE visit_note_id = ANY(${signedNoteIds})
-          ORDER BY visit_note_id, cpt_code
+          WHERE "visitNoteId" = ANY(${signedNoteIds})
+          ORDER BY "visitNoteId", "cptCode"
         `
       : [];
 

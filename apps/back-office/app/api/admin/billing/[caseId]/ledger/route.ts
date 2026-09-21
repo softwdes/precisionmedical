@@ -142,14 +142,14 @@ export async function GET(
   if (noteIds.length > 0) {
     cptRows = await db.$queryRaw<CptRow[]>`
       SELECT
-        vsc.visit_note_id,
-        vsc.cpt_code,
+        vsc."visitNoteId" AS visit_note_id,
+        vsc."cptCode"     AS cpt_code,
         vsc.description,
         vsc.units::int AS units,
-        COALESCE(vsc.fee_override, vsc.fee_catalog)::float AS amount
+        COALESCE(vsc."feeOverride", vsc."feeCatalog")::float AS amount
       FROM visit_service_codes vsc
-      WHERE vsc.visit_note_id = ANY(${noteIds}::text[])
-      ORDER BY vsc.visit_note_id, vsc.cpt_code
+      WHERE vsc."visitNoteId" = ANY(${noteIds}::text[])
+      ORDER BY vsc."visitNoteId", vsc."cptCode"
     `;
   }
 

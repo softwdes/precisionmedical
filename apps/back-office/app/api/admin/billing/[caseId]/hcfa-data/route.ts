@@ -180,14 +180,14 @@ export async function GET(
   if (noteIds.length > 0) {
     const cptRows = await db.$queryRaw<CptRow[]>`
       SELECT
-        vsc.visit_note_id,
-        vsc.cpt_code,
+        vsc."visitNoteId" AS visit_note_id,
+        vsc."cptCode"     AS cpt_code,
         vsc.description,
         vsc.units::int             AS units,
-        COALESCE(vsc.fee_override, vsc.fee_catalog)::float AS amount
+        COALESCE(vsc."feeOverride", vsc."feeCatalog")::float AS amount
       FROM visit_service_codes vsc
-      WHERE vsc.visit_note_id = ANY(${noteIds}::text[])
-      ORDER BY vsc.visit_note_id, vsc.cpt_code
+      WHERE vsc."visitNoteId" = ANY(${noteIds}::text[])
+      ORDER BY vsc."visitNoteId", vsc."cptCode"
     `;
 
     const noteToDate = new Map<string, Date>();
@@ -208,10 +208,12 @@ export async function GET(
   // Diagnoses via $queryRaw
   const diagRows = noteIds.length > 0
     ? await db.$queryRaw<DiagRow[]>`
-        SELECT vnd.visit_note_id, vnd.icd10_code, vnd.icd10_label
+        SELECT vnd."noteId"    AS visit_note_id,
+               vnd."icd10Code"  AS icd10_code,
+               vnd."icd10Label" AS icd10_label
         FROM visit_note_diagnoses vnd
-        WHERE vnd.visit_note_id = ANY(${noteIds}::text[])
-        ORDER BY vnd.icd10_code
+        WHERE vnd."noteId" = ANY(${noteIds}::text[])
+        ORDER BY vnd."icd10Code"
       `
     : [] as DiagRow[];
 
@@ -242,9 +244,9 @@ export async function GET(
     // Look up by matching email via Employee.
     // Phase 1A: raw query for simplicity
     const npiRows = await db.$queryRaw<{ npi_number: string | null }[]>`
-      SELECT dc.npi_number
+      SELECT dc."npiNumber" AS npi_number
       FROM doctor_credentials dc
-      JOIN employees e ON e.id = dc.employee_id
+      JOIN employees e ON e.id = dc."employeeId"
       JOIN providers p ON p.email = e.email
       WHERE p.id = ${provider.id}
       LIMIT 1

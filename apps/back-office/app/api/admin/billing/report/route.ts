@@ -91,13 +91,13 @@ export async function GET(req: NextRequest) {
       COALESCE(c.name, 'Sin clínica')                              AS clinic_name,
       COUNT(DISTINCT a.id)::bigint                                 AS visit_count,
       COALESCE(SUM(
-        COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float
+        COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float
       ), 0)::float                                                 AS total_charged
     FROM appointments a
     JOIN providers p    ON p.id  = a."providerId"
     LEFT JOIN clinics c ON c.id  = a."clinicId"
     JOIN visit_notes vn  ON vn."appointmentId" = a.id AND vn.status = 'SIGNED'
-    JOIN visit_service_codes vsc ON vsc.visit_note_id = vn.id
+    JOIN visit_service_codes vsc ON vsc."visitNoteId" = vn.id
     WHERE a."scheduledFor" >= ${monthStart}
       AND a."scheduledFor" <  ${monthEnd}
       AND a.status = 'COMPLETED'
@@ -108,11 +108,11 @@ export async function GET(req: NextRequest) {
   // Previous month totals for % change
   const prevRows = await db.$queryRaw<{ total_charged: number }[]>`
     SELECT COALESCE(SUM(
-      COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float
+      COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float
     ), 0)::float AS total_charged
     FROM appointments a
     JOIN visit_notes vn  ON vn."appointmentId" = a.id AND vn.status = 'SIGNED'
-    JOIN visit_service_codes vsc ON vsc.visit_note_id = vn.id
+    JOIN visit_service_codes vsc ON vsc."visitNoteId" = vn.id
     WHERE a."scheduledFor" >= ${prevMonthStart}
       AND a."scheduledFor" <  ${monthStart}
       AND a.status = 'COMPLETED'
@@ -203,18 +203,18 @@ export async function GET(req: NextRequest) {
       lf."firmName"                                                 AS firm_name,
       EXTRACT(DAY FROM NOW() - c."accidentDate")::bigint           AS days_since_dol,
       COALESCE(SUM(
-        COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float
+        COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float
       ), 0)::float                                                  AS total_charged
     FROM cases c
     JOIN patients pat ON pat.id = c."patientId"
-    LEFT JOIN law_firms lf ON lf.id = c."lawFirmId"
+    LEFT JOIN lawyers lf ON lf.id = c."lawFirmId"
     LEFT JOIN appointments a ON a."caseId" = c.id AND a.status = 'COMPLETED'
     LEFT JOIN visit_notes vn ON vn."appointmentId" = a.id AND vn.status = 'SIGNED'
-    LEFT JOIN visit_service_codes vsc ON vsc.visit_note_id = vn.id
+    LEFT JOIN visit_service_codes vsc ON vsc."visitNoteId" = vn.id
     WHERE c.status NOT IN ('SETTLED', 'CLOSED', 'ARCHIVED')
       AND c."accidentDate" IS NOT NULL
     GROUP BY c.id, pat."firstName", pat."lastName", lf."firmName", c."accidentDate"
-    HAVING SUM(COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float) > 0
+    HAVING SUM(COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float) > 0
     ORDER BY days_since_dol DESC
   `;
 
@@ -257,15 +257,15 @@ export async function GET(req: NextRequest) {
       lf."firmName"                                                 AS firm_name,
       COUNT(DISTINCT c.id)::bigint                                  AS case_count,
       COALESCE(SUM(
-        COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float
+        COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float
       ), 0)::float                                                  AS total_charged
-    FROM law_firms lf
+    FROM lawyers lf
     JOIN cases c ON c."lawFirmId" = lf.id AND c.status NOT IN ('SETTLED','CLOSED','ARCHIVED')
     LEFT JOIN appointments a ON a."caseId" = c.id AND a.status = 'COMPLETED'
     LEFT JOIN visit_notes vn ON vn."appointmentId" = a.id AND vn.status = 'SIGNED'
-    LEFT JOIN visit_service_codes vsc ON vsc.visit_note_id = vn.id
+    LEFT JOIN visit_service_codes vsc ON vsc."visitNoteId" = vn.id
     GROUP BY lf.id, lf."firmName"
-    HAVING SUM(COALESCE(vsc.fee_override, vsc.fee_catalog)::float * vsc.units::float) > 0
+    HAVING SUM(COALESCE(vsc."feeOverride", vsc."feeCatalog")::float * vsc.units::float) > 0
     ORDER BY total_charged DESC
     LIMIT 5
   `;

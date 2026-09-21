@@ -696,7 +696,11 @@ export function ConsultationClient({
           <div className={`grid grid-cols-1 gap-4 items-start ${tab === 'notes' ? 'lg:grid-cols-[290px_1fr]' : ''}`}>
           {tab === 'notes' && (
             <div className="lg:sticky lg:top-4 space-y-2">
-              <PatientContextPanel patient={patientContext} />
+              {/* `editable`: cada sección del historial abre la ficha completa, la
+                  misma que el botón de la barra. Va acá y NO en Day Admission —
+                  que el asistente vea lo mismo no decide que edite la ficha
+                  clínica, y eso lo tiene que decidir Erick. */}
+              <PatientContextPanel patient={patientContext} editable />
               <MensajesDelCasoCard
                 datos={mensajes}
                 currentUserId={userId}

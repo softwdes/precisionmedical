@@ -12,9 +12,18 @@ import { fechaCalendario, edad, anioOFecha } from '@/lib/fechas';
  * (Erick, 2026-08-13: "el asistente debe ver lo mismo que el doctor"). Vivía
  * dentro de la carpeta de la consulta y por eso el asistente no lo tenía.
  *
- * Solo lectura acá — para editar está el botón "Historial médico" de la barra de
- * la nota, que abre la ficha completa. Este panel es para consultar de un vistazo
- * sin salir de lo que se está escribiendo.
+ * Con `editable`, cada sección del historial lleva un lápiz que abre la ficha
+ * completa —el MISMO diálogo del botón "Historial médico" de la barra—. Devin,
+ * 2026-09-17: pidió "access to sidebar history from note to edit these things".
+ * La función ya existía; lo que faltaba era que se notara, porque el panel
+ * mostraba el dato en gris y nada decía que el botón de arriba lo editaba.
+ *
+ * Sin `editable` el panel es de solo lectura, como nació. Day Admission lo deja
+ * así a propósito: que el asistente VEA lo mismo que el doctor (Erick,
+ * 2026-08-13) no dice que edite la ficha clínica desde ahí, y eso es una
+ * decisión aparte.
+ *
+ * "Datos del seguro" NO lleva lápiz: no es historial médico, vive en el caso.
  *
  * El payload lo arma `lib/patient-context.ts`, compartido por las dos pantallas.
  */
@@ -23,9 +32,10 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ChevronDown, User, ShieldCheck, Activity, HeartPulse, Pill, Stethoscope,
-  Users, MessageSquare,
+  Users, MessageSquare, Pencil,
 } from 'lucide-react';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
+import { useMedicalHistoryDialog } from '@/components/patients/medical-history-button';
 import type { PatientContext } from '@/lib/patient-context';
 
 export type { PatientContext };
@@ -57,29 +67,47 @@ function Nota({ texto }: { texto?: string | null }): React.ReactElement | null {
 }
 
 function Section({
-  title, icon: Icon, children, defaultOpen = true, count,
+  title, icon: Icon, children, defaultOpen = true, count, onEdit, editLabel,
 }: {
   title: string;
   icon: React.ElementType;
   children: React.ReactNode;
   defaultOpen?: boolean;
   count?: number;
+  /** Con esto la sección muestra el lápiz que abre la ficha completa. */
+  onEdit?: () => void;
+  editLabel?: string;
 }): React.ReactElement {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
     <div className="rounded-lg bg-bg-2/30 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white/[0.02] transition-colors"
-      >
-        <Icon className="w-3.5 h-3.5 text-violet-text shrink-0" />
-        <span className="text-[12px] font-semibold text-text-1 flex-1 text-left">{title}</span>
-        {count !== undefined && count > 0 && (
-          <span className="text-[10px] font-bold text-violet-text bg-violet/15 rounded px-1.5 py-0.5">{count}</span>
+      {/* El lápiz es HERMANO del botón de plegar, no va adentro: un <button>
+          dentro de otro es HTML inválido y el navegador desarma el marcado. */}
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2.5 hover:bg-white/[0.02] transition-colors"
+        >
+          <Icon className="w-3.5 h-3.5 text-violet-text shrink-0" />
+          <span className="text-[12px] font-semibold text-text-1 flex-1 text-left truncate">{title}</span>
+          {count !== undefined && count > 0 && (
+            <span className="text-[10px] font-bold text-violet-text bg-violet/15 rounded px-1.5 py-0.5">{count}</span>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
+        </button>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            title={editLabel}
+            aria-label={editLabel}
+            className="shrink-0 px-2.5 flex items-center text-text-muted hover:text-violet-text hover:bg-white/[0.03] transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
         )}
-        <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
-      </button>
+      </div>
       {open && <div className="px-3 pb-3">{children}</div>}
     </div>
   );
@@ -105,9 +133,25 @@ function fmtDate(iso: string | null | undefined): string | null {
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
-export function PatientContextPanel({ patient: p }: { patient: PatientContext }): React.ReactElement {
+export function PatientContextPanel({
+  patient: p, editable = false,
+}: {
+  patient: PatientContext;
+  /** Dibuja el lápiz de "editar" en las secciones del historial. */
+  editable?: boolean;
+}): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const age = edad(p.dateOfBirth);
+  const { abrir, dialogo } = useMedicalHistoryDialog(p.id);
+  /**
+   * Las seis secciones del historial comparten el mismo destino: la ficha
+   * completa. Deep-link a la sección exacta pediría tocar el diálogo de 2.800
+   * líneas; abrirlo ya resuelve el problema que Devin reportó, que era no tener
+   * por dónde entrar.
+   */
+  const editarFicha = editable
+    ? { onEdit: () => void abrir(), editLabel: t('ctxEdit') }
+    : {};
   const h = p.history;
   const activeMeds = h.medications.filter((m) => m.status === 'IN_USE');
   const social = h.socialHistory;
@@ -246,7 +290,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         No se fusionan: confirmar lo que dijo el paciente es un acto del staff,
         y presentarlo ya confirmado sería inventar esa revisión.
       */}
-      <Section title={t('ctxAllergies')} icon={Activity}>
+      <Section title={t('ctxAllergies')} icon={Activity} {...editarFicha}>
         {!alergiasFicha && !alergiasDeclaradas ? (
           // Sin nada cargado. Si el paciente contestó que NO tiene, eso es una
           // confirmación y no un hueco de información — se dice cuál de las dos.
@@ -271,7 +315,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       </Section>
 
       {/* Lista de problemas */}
-      <Section title={t('ctxProblems')} icon={HeartPulse} count={h.problems.length}>
+      <Section title={t('ctxProblems')} icon={HeartPulse} count={h.problems.length} {...editarFicha}>
         {h.problems.length === 0 ? <EmptyNote text={t('ctxNoProblems')} /> : (
           <div className="space-y-1">
             {h.problems.map((pr, i) => (
@@ -289,7 +333,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       </Section>
 
       {/* Medicamentos activos */}
-      <Section title={t('ctxMedications')} icon={Pill} count={activeMeds.length}>
+      <Section title={t('ctxMedications')} icon={Pill} count={activeMeds.length} {...editarFicha}>
         {activeMeds.length === 0 ? <EmptyNote text={t('ctxNoMedications')} /> : (
           <div className="space-y-1">
             {activeMeds.map((m, i) => (
@@ -314,7 +358,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       </Section>
 
       {/* Cirugías y procedimientos */}
-      <Section title={t('ctxSurgeries')} icon={Stethoscope} count={h.surgeries.length} defaultOpen={false}>
+      <Section title={t('ctxSurgeries')} icon={Stethoscope} count={h.surgeries.length} defaultOpen={false} {...editarFicha}>
         {h.surgeries.length === 0 ? <EmptyNote text={t('ctxNoSurgeries')} /> : (
           <div className="space-y-1">
             {h.surgeries.map((s, i) => (
@@ -331,7 +375,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       </Section>
 
       {/* Antecedentes familiares */}
-      <Section title={t('ctxFamilyHistory')} icon={Users} count={h.familyHistory.length} defaultOpen={false}>
+      <Section title={t('ctxFamilyHistory')} icon={Users} count={h.familyHistory.length} defaultOpen={false} {...editarFicha}>
         {h.familyHistory.length === 0 ? <EmptyNote text={t('ctxNoFamilyHistory')} /> : (
           <div className="space-y-1">
             {h.familyHistory.map((f, i) => (
@@ -351,7 +395,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
       </Section>
 
       {/* Historia social */}
-      <Section title={t('ctxSocialHistory')} icon={MessageSquare} defaultOpen={false}>
+      <Section title={t('ctxSocialHistory')} icon={MessageSquare} defaultOpen={false} {...editarFicha}>
         {!social || Object.values(social).every((v) => !v) ? (
           <EmptyNote text={t('ctxNoSocialHistory')} />
         ) : (
@@ -387,6 +431,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         )}
       </Section>
       </div>
+      {dialogo}
     </div>
   );
 }

@@ -41,21 +41,26 @@ const MedicalHistoryDialog = dynamic(
   { ssr: false },
 );
 
-export interface MedicalHistoryButtonProps {
-  patientId: string;
-  /** Clases extra del botón (alineación en la barra que lo contiene). */
-  className?: string;
-}
-
-export function MedicalHistoryButton({
-  patientId, className = '',
-}: MedicalHistoryButtonProps): React.ReactElement {
+/**
+ * El estado y el diálogo, sin la forma del disparador.
+ *
+ * Existe porque hay DOS entradas al mismo historial: el botón de la barra de la
+ * nota y —desde 2026-09-19— el lápiz de cada sección del panel de contexto, que
+ * es donde el provider está mirando el dato cuando descubre que está mal. Las
+ * dos tienen que abrir exactamente el mismo diálogo y refrescar igual al cerrar;
+ * duplicar esa lógica es cómo se desincronizan.
+ */
+export function useMedicalHistoryDialog(patientId: string): {
+  abrir: () => Promise<void>;
+  cargando: boolean;
+  dialogo: React.ReactNode;
+} {
   const t = useTranslations('phoenix.doctor');
   const toast = useToast();
   const router = useRouter();
 
   const [patient, setPatient] = React.useState<PatientRow | null>(null);
-  const [loading, setLoading] = React.useState(false);
+  const [cargando, setCargando] = React.useState(false);
   /** Si se guardó algo, al cerrar hay que refrescar lo que quedó atrás. */
   const changed = React.useRef(false);
 
@@ -68,7 +73,7 @@ export function MedicalHistoryButton({
    * otra sección desde esa vista escribiría el estado viejo.
    */
   const abrir = async (): Promise<void> => {
-    setLoading(true);
+    setCargando(true);
     try {
       const res = await fetch(`/api/admin/patients/${patientId}/medical-history`, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
@@ -77,7 +82,7 @@ export function MedicalHistoryButton({
     } catch {
       toast.error(t('mhLoadError'));
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
   };
 
@@ -91,6 +96,32 @@ export function MedicalHistoryButton({
     router.refresh();
   };
 
+  return {
+    abrir,
+    cargando,
+    dialogo: patient ? (
+      <MedicalHistoryDialog
+        patient={patient}
+        open
+        onClose={cerrar}
+        onChanged={() => { changed.current = true; }}
+      />
+    ) : null,
+  };
+}
+
+export interface MedicalHistoryButtonProps {
+  patientId: string;
+  /** Clases extra del botón (alineación en la barra que lo contiene). */
+  className?: string;
+}
+
+export function MedicalHistoryButton({
+  patientId, className = '',
+}: MedicalHistoryButtonProps): React.ReactElement {
+  const t = useTranslations('phoenix.doctor');
+  const { abrir, cargando, dialogo } = useMedicalHistoryDialog(patientId);
+
   return (
     <>
       {/* Mismo primitivo que sus vecinos de la barra de la nota: un botón con
@@ -100,21 +131,14 @@ export function MedicalHistoryButton({
       <Button
         variant="ghost"
         onClick={() => void abrir()}
-        loading={loading}
+        loading={cargando}
         className={`h-9 gap-1.5 ${className}`}
       >
         <ClipboardList className="w-3.5 h-3.5" />
         {t('mhOpen')}
       </Button>
 
-      {patient && (
-        <MedicalHistoryDialog
-          patient={patient}
-          open
-          onClose={cerrar}
-          onChanged={() => { changed.current = true; }}
-        />
-      )}
+      {dialogo}
     </>
   );
 }

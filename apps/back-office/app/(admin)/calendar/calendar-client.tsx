@@ -36,6 +36,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { DatePicker } from '@/components/ui-phoenix/date-picker';
 import { getEventStyle, edgeStyle, ONLINE_EDGE, type EventStyle } from '@/lib/appointment-style';
 import { nombreProvider, nombreProviderCorto } from '@/lib/provider-name';
+import { coloresDeProviders } from '@/lib/provider-color';
 
 /**
  * `clinics` es el MISMO día que `day`, repartido en una columna por sede.
@@ -719,6 +720,38 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   /** Tarjetas del grid: las de 15 min ya están apretadas y el nombre completo no
    *  entra — inicial y apellido alcanzan para distinguir. "B. Clanton" */
   const drShort = nombreProviderCorto;
+
+  /**
+   * El color de identidad de cada provider (ver `lib/provider-color`).
+   *
+   * Sale de TODOS los providers y no de los del día: si dependiera de quién
+   * atiende hoy, el color de una persona cambiaría de un día para otro y no
+   * habría nada que memorizar.
+   */
+  const colorDeProvider = useMemo(
+    () => coloresDeProviders(providers.map(p => p.id)),
+    [providers],
+  );
+
+  /**
+   * El rótulo de visita: SOLO cuando es la primera.
+   *
+   * Antes decía también "visita 4", "visita 11". La clínica pidió sacarlo: *"no
+   * es necesario saber el número de visitas, a menos que sea la primera"*
+   * (Erick, 21-sep-2026). Y es el 78% de las citas de los últimos 90 días, o sea
+   * que ese texto ocupaba lugar en cuatro de cada cinco tarjetas sin decir nada
+   * que alguien usara.
+   *
+   * La primera SÍ se queda: es lo que separa a un paciente nuevo —papeles,
+   * intake, más tiempo— de uno que ya viene en tratamiento, y es el trabajo
+   * diario de Edson (por algo el filtro de la leyenda encabeza con "MVA · 1ª
+   * visita").
+   *
+   * El número completo sigue estando en el panel de detalle de la cita, que es
+   * donde se va a buscar el historial y donde sí hay lugar.
+   */
+  const rotuloVisita = (visitNumber: number): string =>
+    visitNumber === 0 ? t('visitFirst') : '';
 
   const [weekStart, setWeekStart]       = useState<Date>(() => getMondayOf(new Date()));
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
@@ -1709,7 +1742,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               {dayAppts.map(appt => {
                 const s = getEventStyle(appt);
                 const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
-                const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                const visitLabel = rotuloVisita(appt.visitNumber);
                 const drName = appt.provider ? drShort(appt.provider) : '';
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
@@ -1811,7 +1844,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           ))}
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
-                            const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                            const visitLabel = rotuloVisita(appt.visitNumber);
                             const drName = appt.provider ? drShort(appt.provider) : '';
                             const isDragging = draggingId === appt.id;
                             return (
@@ -1884,6 +1917,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             a => denverDateStr(new Date(a.scheduledFor)) === dayKey,
           );
 
+          /**
+           * Los providers que atienden ESTE día, para distinguirlos por color.
+           *
+           * El punto aparece SOLO si hay dos o más: con uno solo, un color que
+           * no se contrasta con nada no distingue nada — es ruido en el 60% de
+           * los días, que es la proporción medida de días con un solo provider.
+           */
+          const providersDelDia = [...new Map(
+            dayAppts.filter(a => a.provider).map(a => [a.provider!.id, a.provider!]),
+          ).values()].sort((a, b) => drShort(a).localeCompare(drShort(b)));
+          const distinguirPorColor = providersDelDia.length > 1;
+
           // Horario de atención FIJO, igual que la semana: 08:00-18:00. Se estiraba
           // para no esconder ninguna cita, y con las citas de PRUEBA de las
           // 18/19/20h eso pasaba todos los días — ver `OPEN_MIN`/`CLOSE_MIN`.
@@ -1940,8 +1985,26 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
              * dejaría sin dónde soltar una cita que se mueve a las 10:30.
              */
             const filaVacia = cellAppts.length === 0 && cellBlocks.length === 0 && !isCont;
+            /**
+             * ¿Algún bloque de esta fila sigue en la de abajo?
+             *
+             * Con eso la cita larga se dibuja como UN bloque sólido y no como una
+             * tarjeta seguida de rayas con "↳ continúa Fulano", que la clínica
+             * leía como otra cosa y no como la misma cita (Erick, 21-sep-2026:
+             * *"que avance todo el bloque y no el enter y las flechitas"*).
+             *
+             * La fila no dibuja su línea inferior cuando el bloque la cruza, y
+             * el relleno vertical se saca de los dos lados de esa costura: sin
+             * eso quedan 5px de aire en el medio y el bloque se ve partido.
+             */
+            const minSlot = slotToMin(slot);
+            const sigueAbajo = [...cellAppts, ...contAppts].some(a =>
+              slotToMin(slotOf15(a.scheduledFor)) + Math.max(DAY_SLOT_MIN, a.durationMinutes) > minSlot + DAY_SLOT_MIN,
+            );
+            /** La continuación no lleva texto, así que no necesita alto de tarjeta. */
+            const altoFila = filaVacia || isCont ? 'min-h-[24px]' : 'min-h-[44px]';
             return (
-              <div key={slot} className={`grid grid-cols-[64px_1fr] border-b border-row-sep last:border-b-0 ${filaVacia ? 'min-h-[24px]' : 'min-h-[44px]'}`}>
+              <div key={slot} className={`grid grid-cols-[64px_1fr] ${sigueAbajo ? '' : 'border-b border-row-sep'} last:border-b-0 ${altoFila}`}>
                 <div className="border-r border-row-sep flex items-center justify-end pr-2">
                   <span className={`font-mono tabular-nums ${
                     slot.endsWith(':00') ? 'text-sm text-text-1 font-bold' : 'text-[11.5px] text-text-3 font-semibold'
@@ -1952,7 +2015,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                   onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                  className={`p-0.5 flex gap-0.5 items-stretch group transition-colors min-w-0 ${isCont ? '' : 'cursor-pointer'} ${
+                  className={`px-0.5 ${isCont ? 'pt-0' : 'pt-0.5'} ${sigueAbajo ? 'pb-0' : 'pb-0.5'} flex gap-0.5 items-stretch group transition-colors min-w-0 ${isCont ? '' : 'cursor-pointer'} ${
                     isDrop ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                     slot.endsWith(':00') ? 'bg-white/[0.012]' : ''
                   } ${!isDrop && !isCont ? 'hover:bg-white/[0.015]' : ''}`}>
@@ -1960,22 +2023,29 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   {/* Slots que citas anteriores siguen ocupando — una banda por
                       cita, con el color de cada una, para que se vea cuando son
                       dos pacientes distintos a la misma hora. */}
+                  {/* La continuación del bloque: el MISMO relleno y los mismos
+                      bordes laterales que la tarjeta de arriba, sin texto y sin
+                      línea que los separe. Se cierra abajo sólo en el último
+                      tramo, que es el que lleva las esquinas redondeadas.
+
+                      Es un botón y no un div: si se ve como un solo bloque,
+                      tiene que abrirse desde cualquier parte del bloque. */}
                   {isCont && !isDrop && contAppts.map(appt => {
                     const s = getEventStyle(appt);
+                    const finMin = slotToMin(slotOf15(appt.scheduledFor)) + Math.max(DAY_SLOT_MIN, appt.durationMinutes);
+                    const esUltimoTramo = finMin <= minSlot + DAY_SLOT_MIN;
                     return (
-                      <div key={appt.id}
+                      <button key={appt.id} type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
                         title={`${appt.patient.firstName} ${appt.patient.lastName} · ${apptTimeRange(appt.scheduledFor, appt.durationMinutes)}`}
-                        className="flex-1 min-w-0 rounded flex items-center px-2 border border-dashed"
+                        className={`flex-1 min-w-0 transition-all hover:brightness-110 cursor-pointer ${esUltimoTramo ? 'rounded-b' : ''}`}
                         style={{
-                          borderColor: s.border,
-                          background: 'repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 6px,transparent 6px 12px)',
-                          textDecoration: s.strike ? 'line-through' : undefined,
+                          background: s.bg,
+                          borderLeft: `1px solid ${s.border}`,
+                          borderRight: `1px solid ${s.border}`,
+                          borderBottom: esUltimoTramo ? `1px solid ${s.border}` : undefined,
                           ...edgeStyle(s),
-                        }}>
-                        <span className="text-[11.5px] truncate" style={{ color: s.text, opacity: 0.8 }}>
-                          ↳ {t('slotContinues', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
-                        </span>
-                      </div>
+                        }} />
                     );
                   })}
 
@@ -2010,7 +2080,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
                   {cellAppts.map(appt => {
                     const s = getEventStyle(appt);
-                    const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                    const visitLabel = rotuloVisita(appt.visitNumber);
                     const drName = appt.provider ? drShort(appt.provider) : '';
                     /**
                      * El rango (`8:00–8:15`) SOLO cuando la cita ocupa más de una
@@ -2038,9 +2108,33 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
                         onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                         onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
-                        className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
+                        /* Con más de una fila la tarjeta cierra arriba y a los
+                           lados, pero NO abajo: ahí sigue el bloque. */
+                        className={`flex-1 min-w-0 text-left px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${ocupaVariasFilas ? 'rounded-t' : 'rounded'} ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
+                        style={{
+                          background: s.bg,
+                          borderTop: `1px solid ${s.border}`,
+                          borderLeft: `1px solid ${s.border}`,
+                          borderRight: `1px solid ${s.border}`,
+                          borderBottom: ocupaVariasFilas ? undefined : `1px solid ${s.border}`,
+                          boxShadow: s.glow,
+                          textDecoration: s.strike ? 'line-through' : undefined,
+                          ...edgeStyle(s),
+                        }}>
                         <div className="flex items-baseline gap-1.5 leading-tight">
+                          {/* El punto del provider. Va PRIMERO y en la línea del
+                              nombre porque es lo único que queda para saber de
+                              quién es la cita cuando "Motivo" borra el renglón de
+                              abajo. `shrink-0` para que no lo coma un nombre
+                              largo, que es cuando más falta hace. */}
+                          {distinguirPorColor && appt.provider && (
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0 self-center"
+                              style={{ background: colorDeProvider.get(appt.provider.id) ?? 'transparent' }}
+                              title={drShort(appt.provider)}
+                              aria-hidden="true"
+                            />
+                          )}
                           {/* 14px = el `text-sm` que el back-office fija como piso
                               para una celda. Estaba a 11px. */}
                           <span className="text-sm font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
@@ -2105,6 +2199,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     {dayNum}
                   </div>
                 </div>
+                {/* Quién es cada color. Un punto sin su referencia no distingue:
+                    obliga a abrir una cita para averiguar de quién era. */}
+                {distinguirPorColor && (
+                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-2.5 pb-2.5">
+                    {providersDelDia.map(p => (
+                      <span key={p.id} className="flex items-center gap-1.5 text-[11px] text-text-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colorDeProvider.get(p.id) ?? 'transparent' }} />
+                        {drShort(p)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Dos columnas en desktop · una sola en mobile/tablet (Regla #4) */}

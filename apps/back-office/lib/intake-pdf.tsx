@@ -1,4 +1,4 @@
-import { localeApp, edad } from '@/lib/fechas';
+import { edad } from '@/lib/fechas';
 /**
  * El formulario de intake del caso, como PDF. Diseño fiel al V2: fondo blanco,
  * 3 páginas, textos legales completos.
@@ -266,9 +266,38 @@ const s = StyleSheet.create({
 function v(val: string | null | undefined) {
   return val?.trim() || null;
 }
+/**
+ * ─── Las fechas de este PDF van SIEMPRE en `en-US` ──────────────────────────
+ *
+ * No es una preferencia de idioma: es que el formato no puede depender de la
+ * máquina que renderiza. Estas funciones usaban `localeApp()`, que resuelve el
+ * locale leyendo la cookie del navegador — y este PDF se arma en el SERVIDOR,
+ * donde no hay `document`. Ahí `localeApp()` devuelve `undefined` y
+ * `toLocaleDateString` cae al locale por defecto del proceso de Node.
+ *
+ * Lo vio la sesión de Forms generando el intake real de GM-1523, y salieron dos
+ * fechas contiguas en formatos opuestos en la misma página:
+ *
+ *     Effective date: 10/02/2025   ← MM/DD, de `fechaCorta`, que arma el texto a mano
+ *     Entry date:     21/09/2026   ← DD/MM, del locale del proceso
+ *
+ * En un papel que se manda a cobrar eso es ilegible: `10/02` puede ser el 2 de
+ * octubre o el 10 de febrero y no hay forma de saber cuál desde el papel. En
+ * Vercel el default probablemente sea `en-US` y no se note — y ese es justo el
+ * problema, que se note o no depende de dónde corra.
+ *
+ * Es un documento clínico y de facturación de una clínica de Utah que va a
+ * aseguradoras estadounidenses. `en-US` fijo, igual que `fechaCorta`.
+ *
+ * ⚠️ La misma trampa vive en `fecha()` y `fechaConDia()` de `lib/fechas.ts`,
+ * que también llevan `localeApp()` adentro y también se usan desde el servidor
+ * en otros PDFs. Ese arreglo es de esos archivos, no de éste.
+ */
+const LOCALE_PDF = 'en-US';
+
 function fmtDate(d: Date | string | null | undefined) {
   if (!d) return null;
-  return new Date(d).toLocaleDateString(localeApp(), { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return new Date(d).toLocaleDateString(LOCALE_PDF, { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 /**
  * Nacimiento: fecha de CALENDARIO, sin zona. Este PDF sale de la clínica, así
@@ -276,7 +305,7 @@ function fmtDate(d: Date | string | null | undefined) {
  */
 function fmtDob(dob: Date | string | null | undefined) {
   if (!dob) return null;
-  return new Date(dob).toLocaleDateString(localeApp(), {
+  return new Date(dob).toLocaleDateString(LOCALE_PDF, {
     year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
   });
 }

@@ -44,6 +44,15 @@ export interface DatePickerProps {
   /** Qué mostrar cuando `value` viene vacío (solo `inline`). */
   placeholder?: string;
   /**
+   * Texto del trigger, cuando el caller ya tiene el suyo.
+   *
+   * Nació para la barra del calendario, donde el rótulo cambia con la vista:
+   * `Sep 2026` en semana y mes, `21 Sep 2026` en día. Ninguno de los tres
+   * `labelFormat` dice eso, y agregar un cuarto formato sería inventar una regla
+   * de presentación acá para un caso que la pantalla ya resuelve.
+   */
+  label?: string;
+  /**
    * Formato del label del trigger:
    *  · short   "28 jul 2026"
    *  · long    "lunes, 28 de julio de 2026"
@@ -102,7 +111,7 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—', minKey, maxKey, disableWeekends = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short', alwaysShowDate = false, placeholder = '—', label, minKey, maxKey, disableWeekends = false }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -180,7 +189,9 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         : { day: 'numeric', month: 'short', year: 'numeric' };
   // Sin valor no hay nada que formatear: `new Date('T12:00:00')` es Invalid Date
   // y el trigger salia con "Invalid Date" escrito.
-  const triggerLabel = !value
+  const triggerLabel = label !== undefined
+    ? label
+    : !value
     ? placeholder
     : isTodayValue && !alwaysShowDate
       ? todayLabel

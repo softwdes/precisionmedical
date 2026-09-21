@@ -3248,6 +3248,7 @@
       "validationSelectClinic": "Selecciona una clínica.",
       "validationSelectDoctor": "Selecciona un Provider.",
       "validationSelectSlot": "Selecciona un horario disponible.",
+      "monthOpenDay": "Ver el día {day}",
       "retroToggle": "Registrar una visita que ya ocurrió",
       "retroToggleEdit": "Corregir la fecha o la hora a mano",
       "retroToggleEditHint": "Para arreglar una visita cargada mal. El selector de arriba solo muestra días de hoy en adelante.",

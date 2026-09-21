@@ -33,6 +33,7 @@ import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { DatePicker } from '@/components/ui-phoenix/date-picker';
 import { getEventStyle, edgeStyle, ONLINE_EDGE, type EventStyle } from '@/lib/appointment-style';
 import { nombreProvider, nombreProviderCorto } from '@/lib/provider-name';
 
@@ -214,6 +215,18 @@ function getFirstDayOfMonth(d: Date): Date {
 
 function denverMonthOf(d: Date): number {
   return parseInt(denverDateStr(d).slice(5, 7), 10) - 1;
+}
+
+/**
+ * `YYYY-MM-DD` → el `Date` de mediodía UTC con el que trabaja todo este archivo.
+ *
+ * El inverso de `denverDateStr`. Mediodía y no medianoche por lo mismo que en
+ * `getMondayOf`: a las 00:00 el día civil de Denver es el anterior y toda la
+ * grilla se corre un casillero.
+ */
+function fromDenverKey(clave: string): Date {
+  const [y, m, d] = clave.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 }
 
 /** Devuelve un array de semanas (7 días c/u) que cubren el mes completo. */
@@ -980,6 +993,63 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
+
+  /**
+   * Saltar a un día concreto desde el calendario del rótulo, SIN cambiar de vista.
+   *
+   * Las flechas mueven de a un período y nada más, así que llegar a un día de
+   * dentro de dos meses eran decenas de clics — en vista de día, unos sesenta.
+   * El rótulo era un `<span>` de texto (Erick, 20-sep-2026: *"necesitamos abrir
+   * todo el calendario para seleccionar un día específico"*).
+   *
+   * Cada vista se ancla donde le corresponde: la de día en ese día, la de semana
+   * en su lunes, la de mes en su día 1.
+   */
+  const irAlDia = (clave: string) => {
+    const dia = fromDenverKey(clave);
+    if (calView === 'week')       setWeekStart(getMondayOf(dia));
+    else if (calView === 'month') setWeekStart(getFirstDayOfMonth(dia));
+    else                          setWeekStart(nextWeekday(dia));
+  };
+
+  /**
+   * A qué día abre la vista de Día cuando se entra desde otra vista.
+   *
+   * Si el período que se estaba mirando contiene HOY, abre en hoy: quien está en
+   * la semana en curso y aprieta "Día" quiere el día de hoy. Si no, abre en el
+   * primer día hábil de ese período — quien navegó hasta noviembre fue a ver
+   * noviembre.
+   *
+   * Antes abría SIEMPRE en hoy, así que navegar dos meses y apretar "Día" tiraba
+   * la navegación a la basura sin decir nada (medido: desde Nov 2026 caía en el
+   * 21 de septiembre).
+   */
+  const diaAlEntrarAVistaDia = (ancla: Date, desde: CalendarView): Date => {
+    /**
+     * La PERTENENCIA se mide con el día de hoy crudo y contra el período
+     * completo (lunes a domingo, o el mes entero), pero lo que se ABRE es el
+     * día hábil.
+     *
+     * Los dos son distintos justo el fin de semana, que es cuando esto se
+     * probó: un domingo, `getMondayOf` devuelve el lunes de SEIS días atrás, así
+     * que la semana en pantalla es la que pasó y el próximo hábil —el lunes que
+     * viene— no está en ella. Midiendo con el hábil, apretar "Día" un domingo
+     * abría el lunes anterior en vez del siguiente.
+     */
+    const hoyCrudo = denverDateStr(new Date());
+    const hoyHabil = nextWeekday(new Date());
+    if (desde === 'week') {
+      const lunes = getMondayOf(ancla);
+      const domingo = denverDateStr(addDays(lunes, 6));
+      return hoyCrudo >= denverDateStr(lunes) && hoyCrudo <= domingo ? hoyHabil : nextWeekday(lunes);
+    }
+    if (desde === 'month') {
+      return hoyCrudo.slice(0, 7) === denverDateStr(ancla).slice(0, 7)
+        ? hoyHabil
+        : nextWeekday(getFirstDayOfMonth(ancla));
+    }
+    return nextWeekday(ancla); // clinics → el mismo día que se estaba mirando
+  };
   // Mobile nav — step depends on mobileView
   const mobileGoToPrev = () => {
     if (mobileView === 'week')       setMobileDate(d => addDays(d, -7));
@@ -994,12 +1064,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const mobileGoToToday = () => setMobileDate(nextWeekday(new Date()));
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
+    const desde = calView;
     setCalView(v);
     if (v === 'clinics')    return;   // mismo día que estabas mirando
     if (v === 'week')       setWeekStart(w => getMondayOf(w));
-    else if (v === 'day')   setWeekStart(nextWeekday(new Date())); // HOY, o el lunes si hoy es finde
+    else if (v === 'day')   setWeekStart(w => diaAlEntrarAVistaDia(w, desde));
     else if (v === 'month') setWeekStart(w => getFirstDayOfMonth(w));
-    // day: mantiene el weekStart actual como "día seleccionado"
+  };
+
+  /** Abrir un día de la grilla del mes en la vista de día. Igual que en móvil. */
+  const abrirDiaDelMes = (dia: Date) => {
+    setCalView('day');
+    setWeekStart(nextWeekday(dia));
   };
 
   // ─── Patient search dropdown ─────────────────────────────────────────────────
@@ -1293,7 +1369,20 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          <span className="text-text-1 font-bold text-sm px-2 min-w-[110px] text-center">{monthLabel}</span>
+          {/* El rótulo ES el calendario: abre el mes y se elige el día. El texto
+              lo sigue poniendo esta pantalla (`label`), porque cambia con la
+              vista y ningún formato del primitivo dice "Sep 2026". */}
+          <DatePicker
+            value={denverDateStr(weekStart)}
+            onChange={irAlDia}
+            label={monthLabel}
+            accent="cyan"
+            size="sm"
+            disableWeekends
+            todayLabel={t('today')}
+            todayKey={denverDateStr(new Date())}
+            className="[&>button]:min-w-[132px] [&>button]:justify-center [&>button]:font-bold [&>button]:text-sm [&>button]:text-text-1"
+          />
           <button type="button" onClick={goToNext}
             className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
             <ChevronRight className="w-3.5 h-3.5" />
@@ -2124,9 +2213,30 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       const overflow = dayAppts.length - visible.length;
                       return (
                         <div key={di}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-1.5 flex flex-col ${
+                          className={`relative border-r border-white/[0.04] last:border-r-0 p-1.5 flex flex-col ${
                             !isCurrentMonth ? 'opacity-[0.22]' : ''
                           } ${isToday ? 'bg-cyan/[0.04]' : ''}`}>
+                          {/*
+                            Toda la celda abre ese día, como en el teléfono.
+                            Antes no era clickeable en escritorio: la grilla del
+                            mes muestra 3 citas y esconde el resto detrás de un
+                            "+N" que tampoco lo era — en septiembre, 55 visibles
+                            contra 284 escondidas, sin ninguna puerta de entrada.
+
+                            Es un botón ABSOLUTO detrás del contenido y no un
+                            `onClick` en el div: un botón dentro de otro botón no
+                            es HTML válido, y las tarjetas de cita ya son botones.
+                            Ellas se ponen por encima con `relative z-10`; el
+                            número del día y el "+N" quedan debajo a propósito,
+                            para que clickearlos también abra el día.
+                          */}
+                          <button
+                            type="button"
+                            onClick={() => abrirDiaDelMes(day)}
+                            aria-label={t('monthOpenDay', { day: day.getDate() })}
+                            title={t('monthOpenDay', { day: day.getDate() })}
+                            className="absolute inset-0 z-0 cursor-pointer hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan/50 transition-colors"
+                          />
                           {/* Date circle */}
                           <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-bold mb-1 shrink-0 ${
                             isToday ? 'bg-cyan text-bg-1' : 'text-text-1'
@@ -2138,7 +2248,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             const s = getEventStyle(appt);
                             return (
                               <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
-                                className="w-full text-left text-[9.5px] px-1.5 py-[2px] rounded mb-[2px] truncate font-semibold transition-all hover:brightness-110"
+                                className="relative z-10 w-full text-left text-[9.5px] px-1.5 py-[2px] rounded mb-[2px] truncate font-semibold transition-all hover:brightness-110"
                                 style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined, textDecoration: s.strike ? 'line-through' : undefined, ...edgeStyle(s) }}>
                                 {s.badge && <span className="mr-0.5">{s.badge}</span>}
                                 {appt.patient.firstName} {appt.patient.lastName[0]}.

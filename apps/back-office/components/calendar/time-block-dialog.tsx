@@ -101,7 +101,7 @@ function isoToDenverParts(iso: string): { fecha: string; hora: string } {
  * sola vez ("el Dr. X se fue temprano", "no hay luz").
  */
 type Preset = {
-  clave: 'OTHER' | 'LUNCH' | 'MEETING' | 'VACATION' | 'LEAVE';
+  clave: 'OTHER' | 'LUNCH' | 'MEETING' | 'CLOSED' | 'HOLIDAY';
   /** Lo que se escribe en la etiqueta. Vacío = lo escribe la persona. */
   texto: string;
   hora?: string;
@@ -128,8 +128,28 @@ const PRESETS: Preset[] = [
   { clave: 'OTHER',    texto: '' },
   { clave: 'LUNCH',    texto: 'Lunch',    hora: HORA_DEL_ALMUERZO, duracion: 60, repite: 'WEEKDAYS' },
   { clave: 'MEETING',  texto: 'Meeting',  duracion: 60, repite: 'NONE' },
-  { clave: 'VACATION', texto: 'Vacation', hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'WEEKDAYS', exigeHasta: true },
-  { clave: 'LEAVE',    texto: 'Leave',    hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'WEEKDAYS', exigeHasta: true },
+  /**
+   * Cerrado y Feriado, no "Vacaciones" y "Licencia" (Erick, 21-sep-2026: *"no
+   * tienen mucho sentido"*).
+   *
+   * Y tenía razón por debajo del nombre: los dos viejos eran la ausencia de UNA
+   * PERSONA, pero este diálogo escribe un aviso en el calendario de TODOS y el
+   * provider es opcional. Lo que la clínica necesita marcar es cuándo no se
+   * atiende, que es lo que ahora dicen los dos presets.
+   *
+   * Se diferencian en cuántos días abarcan, y de ahí salen sus valores por
+   * defecto:
+   *  · Cerrado — puede durar varios días ("cerrado lunes a miércoles"), así que
+   *    repite en días hábiles y pide fecha de fin.
+   *  · Feriado — es UN día con nombre propio (Navidad, Acción de Gracias): no
+   *    repite y no pide fin. El del año que viene es otro feriado.
+   *
+   * `clave` es solo del diálogo: lo que se guarda es el texto, la hora, la
+   * duración y la repetición. Por eso renombrarlas no toca la base ni deja
+   * avisos viejos huérfanos.
+   */
+  { clave: 'CLOSED',  texto: 'Closed',  hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'WEEKDAYS', exigeHasta: true },
+  { clave: 'HOLIDAY', texto: 'Holiday', hora: '08:00', duracion: JORNADA_COMPLETA, repite: 'NONE' },
 ];
 
 export function TimeBlockDialog({

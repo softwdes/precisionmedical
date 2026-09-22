@@ -29,6 +29,20 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
               id: true, status: true, signedAt: true, signedByName: true,
               chiefComplaint: true, assessment: true, plan: true,
               diagnoses: { select: { icd10Code: true, icd10Label: true } },
+              /**
+               * Cuántas veces se firmó. Más de una = la clínica la corrigió
+               * DESPUÉS de que el bufete pudo haberla leído o descargado.
+               *
+               * Devin, 2026-09-21 (punto 4D): *"The alert to the biller could
+               * also go to the attorney portal signifying theres been a change
+               * and they need to re-download the new version"*.
+               *
+               * El versionado deja el expediente correcto, pero no le avisa a
+               * quien ya leyó — son dos problemas distintos, y este es el
+               * segundo. Sin canal nuevo: la marca aparece sobre la nota misma,
+               * que es lo que el abogado está mirando.
+               */
+              _count: { select: { versions: true } },
             },
           },
           provider: { select: { firstName: true, lastName: true } },
@@ -69,5 +83,21 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     metadata:    { caseCode: c.caseCode },
   });
 
-  return NextResponse.json({ ok: true, case: c, signatures: sigs });
+  /**
+   * `_count.versions` es el número de FIRMAS; lo que el abogado necesita saber
+   * es cuántas veces se CORRIGIÓ, que es una menos. Se traduce acá y no en la
+   * pantalla para que el portal no tenga que conocer cómo guardamos las
+   * versiones — si mañana cambia, cambia de este lado.
+   */
+  const caso = {
+    ...c,
+    appointments: c.appointments.map((a) => ({
+      ...a,
+      visitNote: a.visitNote
+        ? { ...a.visitNote, revisiones: Math.max(0, (a.visitNote._count?.versions ?? 1) - 1) }
+        : null,
+    })),
+  };
+
+  return NextResponse.json({ ok: true, case: caso, signatures: sigs });
 }

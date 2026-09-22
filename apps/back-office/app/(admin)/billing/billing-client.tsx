@@ -23,10 +23,13 @@ import {
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { KpiCard    } from '@/components/ui-phoenix/kpi-card';
 import { EmptyState  } from '@/components/ui-phoenix/empty-state';
+import { TagPill } from '@/components/ui-phoenix';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface BillingItem {
   noteId:       string;
+  /** 0 = se firmó una sola vez. 1+ = se corrigió DESPUÉS de firmada. */
+  revisiones:   number;
   caseId:       string;
   caseCode:     string;
   caseType:     string;
@@ -115,8 +118,21 @@ function CaseRow({ item, onHcfa, t }: {
             )}
           </div>
 
-          <div className="font-bold text-text-1 text-sm mb-1">
-            {item.patient.firstName} {item.patient.lastName}
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="font-bold text-text-1 text-sm">
+              {item.patient.firstName} {item.patient.lastName}
+            </span>
+            {/* La nota se corrigió después de firmada, así que lo que
+                Facturación tiene de esta visita puede estar viejo (Devin 4C).
+                Va PEGADO al nombre y no entre los metadatos de abajo: es lo
+                único de esta fila que pide una acción. */}
+            {item.revisiones > 0 && (
+              <TagPill
+                label={t('rowRevised')}
+                colorClass="bg-amber/15 text-amber border-amber/30"
+                compact
+              />
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-text-muted">

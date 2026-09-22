@@ -14,6 +14,8 @@ interface Diagnosis { icd10Code: string | null; icd10Label: string | null }
 interface VisitNote {
   id: string; status: string;
   signedAt: string | null; signedByName: string | null;
+  /** 0 = una sola firma. 1+ = corregida después de firmada. */
+  revisiones?: number;
   chiefComplaint: string | null; assessment: string | null; plan: string | null;
   diagnoses: Diagnosis[];
 }
@@ -160,6 +162,20 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 9, color: '#34d399', fontWeight: 700 }}>✓ FIRMADA</span>
+                        {/* La clínica la corrigió después de firmarla: lo que el
+                            bufete tenga descargado puede estar viejo. En ámbar y
+                            pegado a "FIRMADA" — si estuviera abajo con el resto
+                            de los datos, se leería como un dato más y no como
+                            algo que hay que hacer. */}
+                        {(note.revisiones ?? 0) > 0 && (
+                          <span style={{
+                            fontSize: 9, color: '#f59e0b', fontWeight: 700,
+                            border: '1px solid rgba(245,158,11,0.35)',
+                            borderRadius: 999, padding: '1px 6px',
+                          }}>
+                            CORREGIDA · DESCARGAR DE NUEVO
+                          </span>
+                        )}
                         {note.signedByName && (
                           <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>
                             {note.signedByName}

@@ -29,6 +29,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         signedAt:     true,
         signedByName: true,
         assessment:   true,
+        /**
+         * Cuántas veces se firmó esta nota.
+         *
+         * Más de una = se reabrió y se volvió a firmar DESPUÉS de que
+         * Facturación ya la vio. Devin, 2026-09-21 (punto 4C): *"we need to have
+         * an alert go the billing department automatically if a note has been
+         * reopened and resigned so they know they need to update it on their end
+         * with billing"*.
+         *
+         * No hace falta ningún canal de aviso: Brunella vive en esta lista, y la
+         * bandera aparece donde ya está mirando. Un sistema de notificaciones
+         * aparte sería más maquinaria para la misma señal — y `notifications`
+         * está muerta (0 filas, nadie escribe en ella).
+         *
+         * `signedAt` ya es la fecha de la ÚLTIMA firma, así que con el conteo
+         * alcanza: no hace falta traer las versiones enteras.
+         */
+        _count: { select: { versions: true } },
         appointment: {
           select: {
             id:    true,
@@ -125,6 +143,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         caseStatus:    c.status,
         accidentDate:  c.accidentDate?.toISOString() ?? null,
         signedAt:      i.signedAt?.toISOString() ?? null,
+        // 0 = se firmó una sola vez. 1+ = se corrigió después de firmada, y
+        // `signedAt` es la fecha de esa corrección.
+        revisiones:    Math.max(0, (i._count?.versions ?? 1) - 1),
         signedByName:  i.signedByName,
         cptCount:      i.cptCount,
         cptTotal:      i.cptTotal,

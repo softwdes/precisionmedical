@@ -17,7 +17,7 @@ import { enviarPortal, describirFallo, describirAvisoCita, type CanalPortal } fr
 import { idiomaDelPaciente } from '@/lib/portal-message';
 import { useToast } from '@/components/ui-phoenix';
 import {
-  UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
+  UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save, Clock3,
   Check, Copy, ExternalLink, RotateCcw,
 } from 'lucide-react';
 import {
@@ -434,6 +434,12 @@ interface Props {
 
 type SaveMode = 'exit' | 'form' | 'qr';
 
+/**
+ * Lo que se elige en "Tipo de caso". `SIN_CASO` no es un tipo: es la decisión
+ * de NO abrir expediente todavía y dejarlo para cuando se agende la cita.
+ */
+type TipoElegido = 'MVA' | 'GENERAL' | 'SIN_CASO';
+
 export function QuickRegisterDialog({
   open, onOpenChange, providerId, initialFirstName, initialLastName, initial, referralId, onCreated,
 }: Props) {
@@ -479,7 +485,26 @@ export function QuickRegisterDialog({
   const [referidorTipo, setReferidorTipo] = useState<ReferidorElegido['type'] | null>(null);
 
   // Case info
-  const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
+  /**
+   * Tipo de caso — o ninguno.
+   *
+   * `SIN_CASO` es el DEFAULT y no crea `Case`: solo el paciente. Antes esto
+   * arrancaba en `'MVA'`, y una respuesta que viene contestada nadie la
+   * corrige: medido en la base el 22-sep-2026, **594 de 1.112 casos MVA no
+   * tienen ni fecha de accidente ni bufete** — el 53%. Casi todos son GM mal
+   * tipados nacidos de este `useState`.
+   *
+   * No se reemplazó por "ninguna opción marcada" porque eso no resuelve nada:
+   * `Case.caseType` es NOT NULL con `@default(GENERAL)`, así que guardar sin
+   * elegir crearía un caso GM EN SILENCIO. Y un GM mal tipado es peor que un
+   * MVA mal tipado: el MVA canta (no tiene fecha de accidente ni bufete) y el
+   * GM no canta nada, no hay con qué encontrarlo después.
+   *
+   * La tercera opción dice en pantalla qué va a pasar, no bloquea nada, y el
+   * camino ya existe: sin caso, el diálogo de citas muestra "Crear caso acá" y
+   * abre el wizard, que es donde se decide el tipo con el paciente agendando.
+   */
+  const [caseType,     setCaseType]     = useState<TipoElegido>('SIN_CASO');
   const [accidentDate, setAccidentDate] = useState('');
   const [lawFirmId,    setLawFirmId]    = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
@@ -506,7 +531,9 @@ export function QuickRegisterDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
 
-  const isMVA = caseType === 'MVA';
+  const isMVA   = caseType === 'MVA';
+  /** Sin caso: no se crea expediente, solo el paciente. */
+  const sinCaso = caseType === 'SIN_CASO';
 
   /**
    * Repone la precarga cada vez que se ABRE, no solo al montar.
@@ -550,7 +577,7 @@ export function QuickRegisterDialog({
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setPhone('');
     setEmail(''); setLanguage('es'); setHowFound(''); setHowFoundOther(''); setReferredBy(''); setReferredByFreeText(''); setReferidorTipo(null);
-    setCaseType('MVA'); setAccidentDate(''); setLawFirmId(''); setLawFirm('');
+    setCaseType('SIN_CASO'); setAccidentDate(''); setLawFirmId(''); setLawFirm('');
     setAttorney(''); setChiroPartner(null); autoChiro.current = null; setDescription('');
     setError(''); setFieldErrors({}); setSuccessInfo(null);
   }
@@ -621,6 +648,73 @@ export function QuickRegisterDialog({
       const referidorBufete = referredBy && referredBy !== '__otro__' && !referidorDelCatalogo
         ? referredBy
         : '';
+
+      /**
+       * ─── Sin caso: solo el paciente ────────────────────────────────────
+       *
+       * Otra ruta, no un `if` adentro del payload de casos: `POST
+       * /api/admin/cases` crea paciente + caso + seguimiento + token del portal
+       * + cita en UNA transacción, y todo lo que viene después del `case.create`
+       * depende de él. Meterle una bifurcación "no crees el caso" sería poner un
+       * camino que no se usa nunca en el medio del alta que sí se usa siempre.
+       *
+       * `POST /api/admin/patients` ya hacía exactamente esto —código de
+       * paciente, chequeo de contacto compartido, audit log— y solo le faltaba
+       * aceptar los tres campos del referidor, que se le agregaron.
+       */
+      if (sinCaso) {
+        const resPac = await fetch('/api/admin/patients', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(contacto ? { contactoYaRevisado: true, contactLink: contacto.vinculo } : {}),
+            firstName:         firstName.trim(),
+            lastName:          lastName.trim(),
+            phone:             phone.replace(/\D/g, '') || null,
+            email:             email.trim() || null,
+            dateOfBirth:       dobIso,
+            preferredLanguage: language,
+            referralSource: (howFound
+              || (referidorTipo ? fuenteDelReferidor(referidorTipo) : '')
+              || (referidorBufete ? 'LAW_FIRM' : 'WALK_IN')),
+            referralSourceOther: referredByFreeText.trim() || howFoundOther.trim() || null,
+            ...(referidorBufete      ? { lawyerReferrerId:  referidorBufete }      : {}),
+            ...(referidorDelCatalogo ? { referralPartnerId: referidorDelCatalogo } : {}),
+            ...(providerId ? { providerReferrerId: providerId } : {}),
+          }),
+        });
+
+        const jsonPac = await resPac.json().catch(() => ({}));
+        if (!resPac.ok) {
+          /* El mismo desvío que el alta con caso: el contacto compartido no
+             bloquea, pregunta el parentesco y reintenta. */
+          if (Array.isArray(jsonPac.candidatos) && jsonPac.candidatos.length > 0) {
+            setCandidatosContacto(jsonPac.candidatos as CandidatoContacto[]);
+            return;
+          }
+          setError(jsonPac.message ?? 'An error occurred. Please try again.');
+          return;
+        }
+
+        /* `caseId: null` es el dato que importa río abajo: el diálogo de citas
+           lo lee y muestra "Crear caso acá", que es donde ahora se decide si es
+           MVA o GM. */
+        onCreated?.({
+          patientId:   jsonPac.patient?.id         ?? '',
+          patientCode: jsonPac.patient?.patientCode ?? null,
+          firstName:   firstName.trim(),
+          lastName:    lastName.trim(),
+          phone:       phone.trim() || null,
+          caseId:      null,
+          caseCode:    null,
+        });
+
+        toast.success(t('savedPatientNoCase'));
+        reset();
+        onOpenChange(false);
+        router.refresh();
+        return;
+      }
 
       const res = await fetch('/api/admin/cases', {
         method:  'POST',
@@ -1015,15 +1109,25 @@ export function QuickRegisterDialog({
                 </p>
 
                 <Field label={t('caseType')} required>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['MVA', 'GENERAL'] as const).map(ct => {
+                  {/*
+                    Tres opciones, no dos, y la que viene marcada es "todavía
+                    no". Ver el comentario del `useState`: con MVA puesto de
+                    fábrica, el 53% de los casos MVA de la base salieron sin
+                    fecha de accidente ni bufete.
+
+                    Una columna en el teléfono: son tres tarjetas con texto y
+                    apretarlas de a tres en 375px es pedir un error de dedo en
+                    la decisión más importante de la pantalla.
+                  */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {(['MVA', 'GENERAL', 'SIN_CASO'] as const).map(ct => {
                       const active = caseType === ct;
                       return (
                         <button
                           key={ct}
                           type="button"
                           onClick={() => setCaseType(ct)}
-                          className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium transition-all
+                          className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium transition-all text-left
                             ${active
                               ? 'border-brand bg-brand/10 text-brand-text'
                               : 'border-border bg-bg-2 text-text-muted hover:border-brand/40'
@@ -1033,15 +1137,35 @@ export function QuickRegisterDialog({
                             ${active ? 'border-brand' : 'border-text-muted/40'}`}>
                             {active && <span className="w-1.5 h-1.5 rounded-full bg-brand block" />}
                           </span>
-                          {ct === 'MVA'
-                            ? <><Car className="w-3.5 h-3.5 shrink-0" /> MVA</>
-                            : <><Stethoscope className="w-3.5 h-3.5 shrink-0" /> GM</>
-                          }
+                          {ct === 'MVA'     && <><Car className="w-3.5 h-3.5 shrink-0" /> MVA</>}
+                          {ct === 'GENERAL' && <><Stethoscope className="w-3.5 h-3.5 shrink-0" /> GM</>}
+                          {ct === 'SIN_CASO' && (
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-1.5">
+                                <Clock3 className="w-3.5 h-3.5 shrink-0" /> {t('caseTypeNone')}
+                              </span>
+                              {/* El subtítulo dice el EFECTO, no el nombre de la
+                                  opción: quien la deja puesta tiene que saber
+                                  qué va a pasar sin tener que preguntar. */}
+                              <span className="block text-[10px] font-normal text-text-muted mt-0.5 leading-tight">
+                                {t('caseTypeNoneHint')}
+                              </span>
+                            </span>
+                          )}
                         </button>
                       );
                     })}
                   </div>
                 </Field>
+
+                {/* Qué pasa con "todavía no", dicho una vez y completo. Sustituye
+                    a los campos del caso que se pliegan abajo: sin esto la
+                    sección queda vacía y parece que algo se rompió. */}
+                {sinCaso && (
+                  <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan-text">
+                    {t('caseNoneExplain')}
+                  </div>
+                )}
 
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1088,15 +1212,22 @@ export function QuickRegisterDialog({
                   </div>
                 )}
 
-                <Field label={t('caseDescription')}>
-                  <textarea
-                    rows={3}
-                    className={INPUT}
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder={t('caseDescriptionPlaceholder')}
-                  />
-                </Field>
+                {/* La descripción es del CASO (`accident.notes`), así que sin
+                    caso no tiene dónde guardarse. Se pliega en vez de quedar
+                    escribible y perderse al guardar — un campo que acepta texto
+                    y lo tira es peor que uno que no está. El wizard la vuelve a
+                    pedir al abrir el caso, minutos después, al agendar. */}
+                {!sinCaso && (
+                  <Field label={t('caseDescription')}>
+                    <textarea
+                      rows={3}
+                      className={INPUT}
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder={t('caseDescriptionPlaceholder')}
+                    />
+                  </Field>
+                )}
               </div>
 
               {error && (
@@ -1148,6 +1279,23 @@ export function QuickRegisterDialog({
             </Button>
 
             <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+              {/*
+                El formulario y el QR cuelgan del CASO: `IntakeSubmission.caseId`
+                es obligatorio y único, y el token del portal es `Case.portalToken`.
+                Sin caso no hay a qué colgarlos.
+
+                Los botones se MUESTRAN y se bloquean explicando, no desaparecen
+                (regla de Erick): un botón que se esfuma no enseña nada, y acá lo
+                que hay que entender es que la decisión de arriba tiene esta
+                consecuencia. El motivo va en un renglón al lado, no solo en el
+                `title` — un tooltip no existe en una tablet.
+              */}
+              {sinCaso && (
+                <p className="text-[11px] text-text-muted basis-full text-right sm:basis-auto sm:text-left">
+                  {t('needsCaseForFormQr')}
+                </p>
+              )}
+
               <Button
                 variant="outline"
                 onClick={() => handleSave('exit')}
@@ -1155,13 +1303,14 @@ export function QuickRegisterDialog({
                 className="flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Save className="w-3.5 h-3.5 shrink-0" />
-                {t('saveExit')}
+                {saving ? t('saving') : t('saveExit')}
               </Button>
 
               <Button
                 variant="outline"
                 onClick={() => handleSave('form')}
-                disabled={saving}
+                disabled={saving || sinCaso}
+                title={sinCaso ? t('needsCaseForFormQr') : undefined}
                 className="flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Send className="w-3.5 h-3.5 shrink-0" />
@@ -1170,7 +1319,8 @@ export function QuickRegisterDialog({
 
               <Button
                 onClick={() => handleSave('qr')}
-                disabled={saving}
+                disabled={saving || sinCaso}
+                title={sinCaso ? t('needsCaseForFormQr') : undefined}
                 className="flex items-center gap-1.5 whitespace-nowrap bg-cyan hover:bg-cyan/90 text-white border-cyan"
               >
                 <QrCode className="w-3.5 h-3.5 shrink-0" />

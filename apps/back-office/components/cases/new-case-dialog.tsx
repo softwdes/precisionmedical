@@ -285,7 +285,22 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [gRelation,  setGRelation]  = useState('MOTHER');
 
   // ─── Section 2: Case type + accident + lawyer + insurance ─────────────
-  const [caseType, setCaseType] = useState<CaseType>('MVA');
+  /**
+   * El tipo de caso arranca SIN elegir.
+   *
+   * Estaba en `useState<CaseType>('MVA')`, o sea que el wizard abría con MVA ya
+   * marcado — y una respuesta que viene contestada nadie la corrige. Medido en
+   * la base el 22-sep-2026: **594 de 1.112 casos MVA no tienen ni fecha de
+   * accidente ni bufete**, el 53%. Casi todos son GM que nacieron así.
+   *
+   * Acá el tipo SÍ es obligatorio —se está abriendo un expediente a propósito,
+   * y de este campo salen la tarifa y el flujo de lien—, así que `canGoToStep3`
+   * no deja pasar sin elegirlo. Lo que no puede es venir respondido.
+   *
+   * El hermano de este cambio está en el alta rápida, que además ganó una
+   * tercera opción ("todavía no") y en ese caso no crea ningún caso.
+   */
+  const [caseType, setCaseType] = useState<CaseType | null>(null);
   const [accidentDate, setAccidentDate] = useState('');
   const [accidentType, setAccidentType] = useState('AUTO');
   const [accidentLocation, setAccidentLocation] = useState('');
@@ -646,7 +661,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setLawyerStatus('HAS');
   }, [referrerFirm, lawFirm]);
 
-  const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
+  // `!!caseType` es la parte nueva: sin tipo elegido no se avanza. Ver el
+  // comentario del `useState` — antes venía en MVA y por eso nadie lo miraba.
+  const canGoToStep3 = canGoToStep2 && !!caseType && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
   const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
   const canSubmit = canGoToStep4;
 
@@ -667,6 +684,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     action: 'finalize' | 'pause',
     contacto?: { vinculo: VinculoElegido | null },
   ) => {
+    /* Cinturón: el botón ya está bloqueado sin tipo (`canGoToStep3`), pero este
+       campo decide la tarifa y el flujo de lien y no puede viajar en null. */
+    if (!caseType) return;
     setError(null);
     setSaving(true);
     try {
@@ -1668,9 +1688,18 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </InfoCard>
               )}
 
+              {/* Qué falta para poder seguir, dicho donde se mira.
+
+                  El del tipo es nuevo: desde que el wizard ya no abre con MVA
+                  puesto, "Siguiente" puede estar bloqueado sin que nada en
+                  pantalla lo explique — y un botón apagado sin motivo es el
+                  peor de los dos mundos. */}
+              {!caseType && (
+                <Note tone="amber">{t('pickCaseTypeToContinue')}</Note>
+              )}
 
               {!canGoToStep3 && caseType === 'MVA' && lawyerStatus === 'HAS' && !lawFirm && (
-                <Note tone="amber">Select the law firm to continue.</Note>
+                <Note tone="amber">{t('pickLawFirmToContinue')}</Note>
               )}
             </>
           )}

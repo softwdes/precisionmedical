@@ -2480,6 +2480,8 @@
         "sectionCaseType": "Case type",
         "caseMVA": "MVA",
         "caseMVADesc": "Auto accident · PI with lien",
+        "pickCaseTypeToContinue": "Choose the case type to continue.",
+        "pickLawFirmToContinue": "Select the law firm to continue.",
         "caseGM": "GM",
         "caseGMDesc": "General medicine · no lien",
         "sectionAccident": "Accident details",
@@ -3789,6 +3791,9 @@
       "holderLabel": "Policyholder:",
       "groupLabel": "Group:",
       "insuranceDeclaredHint": "What the patient wrote on their form. Nobody has checked it against the card — verify it and link the insurer with the button below.",
+      "policyDeclaredLabel": "Policy as declared:",
+      "linkInsurerToCatalog": "Link insurer to catalog",
+      "changeLinkedInsurer": "Change linked insurer",
       "timelineCaseCreated": "Case created",
       "sourceLabelLawFirm": "Law firm referral",
       "sourceLabelPatient": "Patient referral",
@@ -3818,10 +3823,7 @@
       "sectionInternalNotes": "Internal notes",
       "noteSaved": "Note saved",
       "notesEmpty": "No notes yet.",
-      "notePrivate": "Private",
-      "policyDeclaredLabel": "Policy as declared:",
-      "linkInsurerToCatalog": "Link insurer to catalog",
-      "changeLinkedInsurer": "Change linked insurer"
+      "notePrivate": "Private"
     },
     "patients": {
       "patientStatus": {
@@ -6140,6 +6142,7 @@
     "reviewNone": "Not specified",
     "caseTypeMVA": "MVA (Motor vehicle accident)",
     "caseTypeGM": "GM (General medicine)",
+    "pickCaseTypeToContinue": "Choose the case type to continue.",
     "consents": {
       "hipaa": {
         "title": "MEDICAL INFORMATION DISCLOSURE",
@@ -6188,12 +6191,12 @@
   },
   "quickRegister": {
     "title": "Quick patient registration",
-    "subtitle": "Create the patient and case with only the data reception needs right now.",
-    "requiredNotice": "Required fields: first name, last name, date of birth, and case type. Everything else can be completed from the QR form.",
+    "subtitle": "Create the patient with only the data reception needs right now.",
+    "requiredNotice": "Required fields: first name, last name and date of birth. Everything else can be completed later.",
     "sectionPatient": "Basic patient data",
     "sectionPatientSub": "Demographic data most frequently used at reception.",
     "sectionCase": "Case information",
-    "sectionCaseSub": "GM only needs the case type. MVA details are optional and can be completed later.",
+    "sectionCaseSub": "If you already know the case type, choose it. If not, leave \"Not yet\" and it gets decided when you schedule the appointment.",
     "firstName": "First name",
     "lastName": "Last name",
     "dob": "Date of birth",
@@ -6226,6 +6229,11 @@
     "specifyHowFound": "Specify: how did you hear about us?",
     "typeReferredBy": "Type the name...",
     "caseDescriptionPlaceholder": "Briefly describe the symptoms and reason for consultation.",
+    "caseTypeNone": "Not yet",
+    "caseTypeNoneHint": "decided when scheduling",
+    "caseNoneExplain": "No case is opened now — only the patient. When you schedule their first appointment the system will ask whether it is MVA or GM.",
+    "needsCaseForFormQr": "The form and the QR need a case.",
+    "savedPatientNoCase": "Patient created. The case is opened when you schedule the first appointment.",
     "langEs": "Spanish",
     "langEn": "English",
     "errFirstName": "First name is required.",

@@ -48,6 +48,24 @@ const CreateSchema = z.object({
   guardianRelation:        z.enum(['FATHER','MOTHER','LEGAL_GUARDIAN','OTHER']).nullable().optional(),
   providerReferrerId:      z.string().cuid().nullable().optional().or(empty),
 
+  /**
+   * El REFERIDOR del paciente, los tres campos que hasta ahora solo sabía
+   * escribir el alta CON caso (`POST /api/admin/cases`).
+   *
+   * Hicieron falta cuando el alta rápida pasó a poder guardar sin crear caso
+   * (Erick, 22-sep-2026): si esta ruta no los aceptaba, elegir "lo refirió el
+   * bufete X" y guardar sin caso perdía el dato en silencio — exactamente el
+   * agujero que se había cerrado en la otra ruta.
+   *
+   * `lawyerReferrerId` se llama así porque esa es la columna; el valor que le
+   * manda el alta rápida sale del selector de bufete, igual que en la ruta de
+   * casos. Se mantiene el MISMO contrato a propósito: dos altas que escriben
+   * distinto en la misma columna es cómo se empieza a desconfiar del dato.
+   */
+  referralSourceOther:     z.string().max(200).nullable().optional().or(empty),
+  lawyerReferrerId:        z.string().min(1).nullable().optional().or(empty),
+  referralPartnerId:       z.string().min(1).nullable().optional().or(empty),
+
   /** El contacto compartido ya se revisó en el diálogo — ver el POST. */
   contactoYaRevisado:      z.boolean().optional(),
   /** `null` = se revisó y es coincidencia. Con valor = es familiar. */
@@ -157,6 +175,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(d.guardianPhone     !== undefined && { guardianPhone:     d.guardianPhone }),
         ...(d.guardianRelation      !== undefined && { guardianRelation:      d.guardianRelation }),
         ...(d.providerReferrerId    !== undefined && { providerReferrerId:    d.providerReferrerId }),
+        ...(d.referralSourceOther   !== undefined && { referralSourceOther:   d.referralSourceOther }),
+        ...(d.lawyerReferrerId      !== undefined && { lawyerReferrerId:      d.lawyerReferrerId }),
+        ...(d.referralPartnerId     !== undefined && { referralPartnerId:     d.referralPartnerId }),
         ...(d.dateOfBirth ? { dateOfBirth: new Date(d.dateOfBirth) } : {}),
         /**
          * El vínculo de contacto compartido, si recepción respondió "es un

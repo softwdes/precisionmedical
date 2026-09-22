@@ -164,7 +164,23 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   const [gmExistente, setGmExistente] = useState<{ id: string; caseCode: string } | null>(null);
 
   // Step 1 form
-  const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
+  /**
+   * El tipo de caso arranca SIN elegir.
+   *
+   * Era `useState<'MVA'|'GENERAL'>('MVA')`, el TERCER lugar del sistema donde la
+   * pregunta venía contestada. Medido en la base el 22-sep-2026: **594 de 1.112
+   * casos MVA no tienen ni fecha de accidente ni bufete**, el 53%. Nadie corrige
+   * una respuesta que ya está puesta.
+   *
+   * Ojo con el reset de abajo: reponía `'MVA'` en cada cierre y era invisible
+   * mientras este `useState` decía lo mismo. Los dos tienen que decir `null` o
+   * el preseleccionado vuelve por la puerta de atrás — pasó exactamente eso en
+   * `new-case-dialog.tsx` y costó encontrarlo.
+   *
+   * En modo EDICIÓN no cambia nada: el tipo real del caso se carga del servidor
+   * unas líneas más abajo.
+   */
+  const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL' | null>(null);
   const isMVA = caseType === 'MVA';
   const [accidentDate, setAccidentDate] = useState('');
   const [description,  setDescription]  = useState('');
@@ -185,7 +201,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   useEffect(() => {
     if (!open) {
       setStep(1);
-      setCaseType('MVA');
+      setCaseType(null); // ver el comentario del useState: los dos tienen que decir null
       setAccidentDate('');
       setDescription('');
       setLawFirm('');
@@ -242,8 +258,19 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
+  /**
+   * El paso 1 sí tiene un campo obligatorio: el TIPO DE CASO.
+   *
+   * Devolvía `true` fijo, con el comentario "Step 1 has no required fields
+   * beyond caseType (pre-selected)" — o sea que la única razón para no pedirlo
+   * era que venía contestado. Sacado el preseleccionado, hay que pedirlo: de
+   * este campo salen la tarifa (MVA vs GM) y el flujo de lien.
+   *
+   * Y además nadie llamaba a esta función: el botón "Siguiente" solo miraba el
+   * paso 2. Ahora la mira — ver el `disabled` del footer.
+   */
   function canGoStep2() {
-    return true; // Step 1 has no required fields beyond caseType (pre-selected)
+    return !!caseType;
   }
 
   function canGoStep3() {
@@ -278,6 +305,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   // ── Submit ──────────────────────────────────────────────────────────────────
 
   async function handleCreate() {
+    /* Cinturón: sin tipo no se guarda. El paso 1 ya lo exige, pero un `null`
+       que llegue hasta acá cae en el `: 'GENERAL'` de abajo y crea un GM en
+       silencio — que es el mismo bug al revés. */
+    if (!caseType) { setError(t('pickCaseTypeToContinue')); return; }
     setSaving(true);
     setError('');
     try {
@@ -379,6 +410,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   // ── Save (edit mode) ────────────────────────────────────────────────────────
 
   async function handleSave() {
+    /* Cinturón: sin tipo no se guarda. El paso 1 ya lo exige, pero un `null`
+       que llegue hasta acá cae en el `: 'GENERAL'` de abajo y crea un GM en
+       silencio — que es el mismo bug al revés. */
+    if (!caseType) { setError(t('pickCaseTypeToContinue')); return; }
     setSaving(true);
     setError('');
     try {
@@ -474,7 +509,9 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
 
               {/* Tipo de caso */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">{t('caseType')}</label>
+                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                  {t('caseType')} <span className="text-rose">*</span>
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([['MVA', t('caseTypeMVA'), Car], ['GENERAL', t('caseTypeGM'), Stethoscope]] as const).map(([val, label, Icon]) => (
                     <button
@@ -494,6 +531,11 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     </button>
                   ))}
                 </div>
+                {/* Por qué "Siguiente" está apagado, dicho donde se mira. Un
+                    botón bloqueado sin motivo es peor que uno que no está. */}
+                {!caseType && (
+                  <p className="text-[11px] text-amber">{t('pickCaseTypeToContinue')}</p>
+                )}
               </div>
 
               {/* Campos solo para MVA */}
@@ -884,7 +926,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
               </Button>
               <Button
                 onClick={handleNext}
-                disabled={saving || (step === 2 && !canGoStep3())}
+                disabled={saving || (step === 1 && !canGoStep2()) || (step === 2 && !canGoStep3())}
                 className="w-full sm:w-auto flex items-center gap-1"
               >
                 {t('next')} <ChevronRight className="w-3.5 h-3.5" />

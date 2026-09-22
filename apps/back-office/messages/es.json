@@ -2480,6 +2480,8 @@
         "sectionCaseType": "Tipo de caso",
         "caseMVA": "MVA",
         "caseMVADesc": "Accidente de tránsito · PI con lien",
+        "pickCaseTypeToContinue": "Elegí el tipo de caso para continuar.",
+        "pickLawFirmToContinue": "Elegí el bufete para continuar.",
         "caseGM": "MG",
         "caseGMDesc": "Medicina general · sin lien",
         "sectionAccident": "Datos del accidente",
@@ -3789,6 +3791,9 @@
       "holderLabel": "Titular:",
       "groupLabel": "Grupo:",
       "insuranceDeclaredHint": "Es lo que el paciente escribió en su formulario. Nadie lo verificó contra la tarjeta — confirmalo y enlazá la aseguradora con el botón de abajo.",
+      "policyDeclaredLabel": "Póliza declarada:",
+      "linkInsurerToCatalog": "Enlazar la aseguradora al catálogo",
+      "changeLinkedInsurer": "Cambiar la aseguradora enlazada",
       "timelineCaseCreated": "Caso creado",
       "sourceLabelLawFirm": "Bufete de abogados",
       "sourceLabelPatient": "Referido por paciente",
@@ -3818,10 +3823,7 @@
       "sectionInternalNotes": "Notas internas",
       "noteSaved": "Nota guardada",
       "notesEmpty": "Sin notas todavía.",
-      "notePrivate": "Privada",
-      "policyDeclaredLabel": "Póliza declarada:",
-      "linkInsurerToCatalog": "Enlazar la aseguradora al catálogo",
-      "changeLinkedInsurer": "Cambiar la aseguradora enlazada"
+      "notePrivate": "Privada"
     },
     "patients": {
       "patientStatus": {
@@ -6140,6 +6142,7 @@
     "reviewNone": "No especificado",
     "caseTypeMVA": "MVA (Accidente de vehículo a motor)",
     "caseTypeGM": "GM (Medicina general)",
+    "pickCaseTypeToContinue": "Elegí el tipo de caso para continuar.",
     "consents": {
       "hipaa": {
         "title": "DIVULGACIÓN DE INFORMACIÓN MÉDICA",
@@ -6188,12 +6191,12 @@
   },
   "quickRegister": {
     "title": "Registro rápido de paciente",
-    "subtitle": "Crea el paciente y el caso con solo los datos que recepción necesita ahora.",
-    "requiredNotice": "Campos obligatorios: nombre, apellido, fecha de nacimiento y tipo de caso. Todo lo demás se puede completar desde el formulario QR.",
+    "subtitle": "Crea el paciente con solo los datos que recepción necesita ahora.",
+    "requiredNotice": "Campos obligatorios: nombre, apellido y fecha de nacimiento. Todo lo demás se puede completar después.",
     "sectionPatient": "Datos básicos del paciente",
     "sectionPatientSub": "Datos demográficos usados con más frecuencia en recepción.",
     "sectionCase": "Información del caso",
-    "sectionCaseSub": "GM solo necesita el tipo de caso. Los detalles de MVA son opcionales y pueden completarse después.",
+    "sectionCaseSub": "Si ya sabés el tipo de caso, elegilo. Si no, dejá \"Todavía no\" y se define al agendar la cita.",
     "firstName": "Nombre",
     "lastName": "Apellido",
     "dob": "Fecha de nacimiento",
@@ -6226,6 +6229,11 @@
     "specifyHowFound": "Especificar: ¿Cómo se enteró de nosotros?",
     "typeReferredBy": "Escribe el nombre...",
     "caseDescriptionPlaceholder": "Describe brevemente los síntomas y el motivo de consulta.",
+    "caseTypeNone": "Todavía no",
+    "caseTypeNoneHint": "se define al agendar",
+    "caseNoneExplain": "No se abre ningún caso ahora, solo el paciente. Al agendar su primera cita el sistema va a preguntar si es MVA o GM.",
+    "needsCaseForFormQr": "El formulario y el QR necesitan un caso.",
+    "savedPatientNoCase": "Paciente creado. El caso se abre al agendar la primera cita.",
     "langEs": "Español",
     "langEn": "English",
     "errFirstName": "El nombre es obligatorio.",

@@ -704,7 +704,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       firstName:      creado.firstName,
       lastName:       creado.lastName,
       phone:          creado.phone,
-      casesCount:     1,
+      // Desde que el alta rápida puede guardar SIN caso, esto no es siempre 1:
+      // con `caseId` nulo el paciente queda con cero casos, y de ese cero sale
+      // el aviso ámbar con "Crear caso acá", que es donde ahora se elige MVA o
+      // GM. Con el 1 fijo la pantalla decía "1 caso" y no ofrecía abrir ninguno.
+      casesCount:     creado.caseId ? 1 : 0,
       lastCaseCode:   creado.caseCode,
       lastCaseStatus: null,
       isArchived:     false,

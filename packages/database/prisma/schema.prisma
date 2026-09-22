@@ -1481,8 +1481,24 @@ model VisitNote {
   reopenedById        String?
   reopenedByName      String?
 
+  // ─── LA GRACIA DEL DESALOJADO (2026-09-22) ──────────────────────────────
+  /// A quién le sacó la nota el último desalojo por provider, y cuándo.
+  ///
+  /// Sin esto, lo que el desalojado tenía sin guardar no se podía guardar más:
+  /// el texto seguía en pantalla pero el autoguardado volvía 409 y, si cerraba
+  /// la pestaña, se perdía. Con estos dos campos el PUT le acepta UN guardado
+  /// tardío dentro de la gracia.
+  ///
+  /// No puede pisar al provider que entró: ese guardado viaja con su
+  /// `baseUpdatedAt` y el control de versión lo convierte en STALE_NOTE si el
+  /// otro guardó primero — o sea, en el cartel de conflicto que ya existe.
+  desalojadoAUserId   String?
+  desalojadoEn        DateTime?
+
   /// Copia de lo que se firmó, una por firma. Ver el modelo de abajo.
   versions            VisitNoteVersion[]
+  /// Bloques agregados al pie DESPUÉS de firmar, sin tocar el cuerpo.
+  addenda             VisitNoteAddendum[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1540,6 +1556,41 @@ model VisitNoteVersion {
   @@unique([visitNoteId, version])
   @@index([visitNoteId])
   @@map("visit_note_versions")
+}
+
+// ─── Addendum de la nota firmada (2026-09-22) ─────────────────────────────────
+/// Un bloque agregado al PIE de una nota ya firmada, con su fecha y su firma.
+///
+/// Es la corrección de después: la reapertura de 48 h edita el cuerpo y vuelve a
+/// firmarlo (ver VisitNoteVersion); pasada esa ventana el cuerpo no se toca más y
+/// lo que se agrega va acá. El original queda literalmente intacto, que es lo que
+/// pide la regla de enmiendas (CMS PIM 3.3.2.5).
+///
+/// Nace FIRMADO: un addendum es una atestiguación, no un borrador — se escribe y
+/// se firma en el mismo acto, por eso `signedAt` no es opcional.
+///
+/// Tabla en DB: prisma/sql/20260922-addendum-de-la-nota.sql
+model VisitNoteAddendum {
+  id          String    @id @default(cuid())
+  visitNoteId String
+  visitNote   VisitNote @relation(fields: [visitNoteId], references: [id], onDelete: Cascade)
+
+  /// 1, 2, 3… Es lo que se imprime ("Addendum 2") y lo que desambigua dos
+  /// addenda del mismo minuto.
+  numero Int
+
+  /// El texto, en el mismo HTML que las secciones de la nota.
+  texto String
+
+  signedAt     DateTime
+  signedById   String?
+  signedByName String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([visitNoteId, numero])
+  @@index([visitNoteId])
+  @@map("visit_note_addenda")
 }
 
 // ─── B.21 VisitServiceCode ────────────────────────────────────────────────────

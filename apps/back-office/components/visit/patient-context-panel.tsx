@@ -23,7 +23,9 @@ import { fechaCalendario, edad, anioOFecha } from '@/lib/fechas';
  * 2026-08-13) no dice que edite la ficha clínica desde ahí, y eso es una
  * decisión aparte.
  *
- * "Datos del seguro" NO lleva lápiz: no es historial médico, vive en el caso.
+ * "Datos del seguro" lleva lápiz APARTE: no es historial médico, vive en el
+ * caso (Erick, 2026-09-22), así que su destino es el expediente y no la ficha.
+ * Lo trae el que monta el panel con `onVerSeguro` — el panel no sabe navegar.
  *
  * El payload lo arma `lib/patient-context.ts`, compartido por las dos pantallas.
  */
@@ -134,11 +136,16 @@ function fmtDate(iso: string | null | undefined): string | null {
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
 export function PatientContextPanel({
-  patient: p, editable = false,
+  patient: p, editable = false, onVerSeguro,
 }: {
   patient: PatientContext;
   /** Dibuja el lápiz de "editar" en las secciones del historial. */
   editable?: boolean;
+  /**
+   * Abre el expediente en el tab del caso, que es donde se cargan los seguros.
+   * Sin esto, "Datos del seguro" no lleva lápiz: el panel no navega solo.
+   */
+  onVerSeguro?: () => void;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const age = edad(p.dateOfBirth);
@@ -249,7 +256,11 @@ export function PatientContextPanel({
       </div>
 
       {/* Seguros */}
-      <Section title={t('ctxInsurance')} icon={ShieldCheck}>
+      <Section
+        title={t('ctxInsurance')}
+        icon={ShieldCheck}
+        {...(onVerSeguro ? { onEdit: onVerSeguro, editLabel: t('ctxEditInsurance') } : {})}
+      >
         <div className="space-y-2">
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">

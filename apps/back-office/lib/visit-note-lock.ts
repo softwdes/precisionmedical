@@ -38,6 +38,27 @@ export const TTL_MS = 60_000;
  */
 export const INACTIVIDAD_MS = 10 * 60_000;
 
+/**
+ * Cuánto tiempo le queda al desalojado para guardar lo que tenía escrito.
+ *
+ * Un minuto: tiene que cubrir el latido con el que se entera (20 s) más el
+ * debounce del autoguardado (2,5 s) más el tiempo de leer el cartel y decidir,
+ * con margen. Más que eso no aporta —a esa altura el provider ya escribió— y el
+ * control de versión lo resolvería igual como conflicto.
+ */
+export const GRACIA_DESALOJO_MS = 60_000;
+
+/** ¿Este usuario está dentro de su gracia de desalojo? */
+export const dentroDeLaGracia = (
+  desalojadoAUserId: string | null | undefined,
+  desalojadoEn: Date | null | undefined,
+  userId: string | null | undefined,
+  ahora: Date,
+): boolean =>
+  !!userId && !!desalojadoAUserId && !!desalojadoEn
+  && desalojadoAUserId === userId
+  && ahora.getTime() - desalojadoEn.getTime() <= GRACIA_DESALOJO_MS;
+
 /** Los campos del candado que hacen falta para evaluarlo. */
 export interface CamposCandado {
   editingByUserId: string | null;

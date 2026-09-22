@@ -295,7 +295,11 @@ export function DoctorStepPanel({
             contenido son tablas y el ancho es el recurso escaso. */}
         {patientContext && tab === 'notes' && (
           <div className="lg:sticky lg:top-4 space-y-2">
-            <PatientContextPanel patient={patientContext} />
+            {/* Erick, 2026-09-22: el asistente TAMBIÉN edita la ficha desde acá.
+                Es coherente con que vea lo mismo que el doctor (2026-08-13) — y
+                es quien más veces tiene el dato correcto delante, porque acaba
+                de hablar con el paciente en el mostrador. */}
+            <PatientContextPanel patient={patientContext} editable />
             {/* Los mensajes del caso van DEBAJO del contexto y como hermano, no
                 adentro: en mobile ese panel se pliega entero y un aviso
                 escondido detrás de un tap no es un aviso. */}

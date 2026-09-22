@@ -15,7 +15,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { nombreProvider, nombreProviderONull } from '@/lib/provider-name';
-import { evaluarCandado, puedeDesalojar } from '@/lib/visit-note-lock';
+import { evaluarCandado, puedeDesalojar, dentroDeLaGracia } from '@/lib/visit-note-lock';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -100,17 +100,30 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const existing = await db.visitNote.findUnique({
     where: { appointmentId },
     select: {
-      id: true, status: true, updatedAt: true,
+      id: true, status: true, updatedAt: true, reopenedAt: true,
       // El candado: se evalúa acá porque si el servidor no lo aplica, es
       // decoración — el navegador de al lado puede guardar igual.
       editingByUserId: true, editingByName: true, editingSince: true,
       editingHeartbeatAt: true, editingTypedAt: true,
       waitingByUserId: true, waitingByName: true, waitingSince: true,
+      // La gracia del desalojado, para dejarlo guardar lo último que escribió.
+      desalojadoAUserId: true, desalojadoEn: true,
     },
   });
 
-  // Nota firmada = inmutable (HIPAA)
-  if (existing?.status === 'SIGNED') {
+  /**
+   * Nota firmada = inmutable (HIPAA)… salvo que esté REABIERTA.
+   *
+   * La reabierta conserva `status: 'SIGNED'` a propósito —si volviera a DRAFT
+   * desaparecería de la lista de Facturación en mitad del ciclo de cobro, ver el
+   * comentario del schema—, así que el estado ya no alcanza para decidir. Lo que
+   * manda es `reopenedAt`: mientras no sea null, el provider está corrigiendo y
+   * el PUT tiene que dejarlo.
+   *
+   * Lo que se escriba acá NO pisa lo firmado: la copia de la versión anterior ya
+   * está en `visit_note_versions` y sale de ahí.
+   */
+  if (existing?.status === 'SIGNED' && !existing.reopenedAt) {
     return NextResponse.json({ error: 'NOTE_ALREADY_SIGNED' }, { status: 409 });
   }
 
@@ -176,7 +189,24 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         ? (await db.user.findUnique({ where: { id: candado.porUserId }, select: { role: true } }))?.role ?? null
         : null;
 
-      if (!puedeDesalojar(actor.actorRole, rolQueLaTiene)) {
+      /**
+       * LA GRACIA DEL DESALOJADO.
+       *
+       * Al que un provider acaba de sacar de la nota se le acepta UN guardado
+       * tardío: es el texto que ya tenía escrito cuando le sacaron el candado, y
+       * sin esto no tiene dónde caer — queda en su pantalla y se pierde al
+       * cerrar la pestaña.
+       *
+       * No puede pisar al provider que entró: este PUT viaja con su
+       * `baseUpdatedAt` y el control de versión de más abajo lo convierte en
+       * STALE_NOTE si el otro ya guardó. El peor caso es el cartel de conflicto,
+       * que la pantalla ya sabe mostrar.
+       */
+      const conGracia = dentroDeLaGracia(
+        existing?.desalojadoAUserId, existing?.desalojadoEn, actor.actorUserId, new Date(),
+      );
+
+      if (!conGracia && !puedeDesalojar(actor.actorRole, rolQueLaTiene)) {
         return NextResponse.json({
           error: 'NOTE_LOCKED',
           holderName: candado.porNombre,

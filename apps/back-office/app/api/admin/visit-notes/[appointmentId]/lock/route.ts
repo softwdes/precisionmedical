@@ -32,6 +32,8 @@ const CAMPOS = {
   editingHeartbeatAt: true, editingTypedAt: true,
   waitingByUserId: true, waitingByName: true, waitingSince: true,
   status: true,
+  /** Reabierta para corregir: vuelve a ser editable y por lo tanto candadeable. */
+  reopenedAt: true,
 } as const;
 
 const BodySchema = z.object({
@@ -119,8 +121,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  // Una nota firmada es inmutable: no se bloquea porque no se edita.
-  if (nota.status === 'SIGNED') {
+  // Una nota firmada es inmutable: no se bloquea porque no se edita. La
+  // REABIERTA sí se edita, así que necesita su candado como cualquier borrador —
+  // si no, dos personas corrigiéndola a la vez se pisan sin aviso.
+  if (nota.status === 'SIGNED' && !nota.reopenedAt) {
     return NextResponse.json({
       mio: false, porNombre: null, desde: null, esperando: null,
     } satisfies RespuestaCandado);
@@ -254,6 +258,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       // justamente quien la tomó, dejarlo puesto le mostraría a sí mismo el
       // banner de "alguien está esperando".
       ...(tomandoDeNuevo ? { waitingByUserId: null, waitingByName: null, waitingSince: null } : {}),
+      /**
+       * La gracia del desalojado: se anota a quién se le sacó y cuándo, para
+       * que el PUT le acepte UN guardado tardío de lo que tenía escrito. Sin
+       * esto ese texto quedaba en su pantalla sin ningún lugar donde caer.
+       */
+      ...(desalojando ? { desalojadoAUserId: estado.porUserId, desalojadoEn: ahora } : {}),
     },
   });
 

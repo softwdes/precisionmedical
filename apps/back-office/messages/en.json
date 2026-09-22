@@ -5068,6 +5068,8 @@
         "payAllVisit": "All",
         "payColService": "Service",
         "payColVisit": "Visit",
+        "payBilledToInsurance": "Insurance",
+        "payBilledToInsuranceHint": "This visit's balance is billed to insurance. Collect only the patient's share — copay, deductible or coinsurance — not the full amount.",
         "payColPending": "Pending",
         "payColTakes": "Applied",
         "payColPay": "Pay",

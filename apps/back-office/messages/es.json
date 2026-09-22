@@ -5068,6 +5068,8 @@
         "payAllVisit": "Todo",
         "payColService": "Servicio",
         "payColVisit": "Visita",
+        "payBilledToInsurance": "Al seguro",
+        "payBilledToInsuranceHint": "El saldo de esta visita se le factura al seguro. Cobrale al paciente solo lo que le toca — copago, deducible o coaseguro — y no el total.",
         "payColPending": "Pendiente",
         "payColTakes": "Se aplica",
         "payColPay": "Pagar",

@@ -870,14 +870,42 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const saldoTerceros = pendientesTerceros.reduce((s, b) => s + b.balanceDue, 0);
 
   /**
+   * Lo que puede pagar EL PACIENTE: lo del mostrador **y** los CPT.
+   *
+   * Un copago es plata del paciente sobre un CPT que se le factura al seguro, y
+   * el CPT vive en el circuito de terceros. Mientras el origen `PATIENT` ofrecía
+   * solo las líneas de mostrador, esa plata no tenía dónde entrar: elegías
+   * "Paciente" y la lista salía vacía. Darrell, 2026-09-22: *"I can see where I
+   * think it should be, but I can't make it work."*
+   *
+   * No era un caso de borde. Medido el 2026-09-22 sobre los pagos vivos, **los
+   * 243 pagos del paciente están sobre un CPT**: 184 copagos, 53 de bolsillo,
+   * 3 no-show, 2 deducibles y 1 coaseguro. Los únicos dos pagos de la historia
+   * sobre un cargo de mostrador son los dos copagos que alguien logró meter ahí
+   * el 21-sep. O sea que la lista restringida no cubría el flujo normal: cubría
+   * la excepción.
+   *
+   * Se agrupa la UNIÓN y no se concatenan dos agrupaciones: una visita puede
+   * tener una férula y un CPT a la vez, y agrupar dos veces por
+   * `appointmentId` daría dos filas con la MISMA clave — claves de React
+   * repetidas y, peor, dos montos peleando por `payAmounts[key]`.
+   */
+  const visitasDelPaciente = React.useMemo(
+    () => agruparPorVisita([...pending, ...pendientesTerceros]),
+    [pending, pendientesTerceros]);
+
+  /**
    * Las visitas que el modal está ofreciendo AHORA, según quién paga.
    *
-   * Es lo que hace que un mismo modal sirva para los dos circuitos sin poder
-   * mezclarlos: al cambiar la fuente cambia la lista, y los montos tecleados se
-   * descartan (ver el `onChange` del selector) porque pertenecían a otros
-   * cargos.
+   * El origen dice QUIÉN entrega el dinero, no qué se puede pagar. Cobrarle al
+   * seguro o al abogado sigue viendo solo los CPT —una férula no se la factura
+   * nadie más que el paciente—, pero el paciente ve todo lo que tiene saldo.
+   *
+   * Lo que protege el mostrador no es esconder la línea sino ROTULARLA: las
+   * visitas facturadas al seguro se muestran marcadas, para que nadie le cobre
+   * al paciente el CPT entero creyendo que es suyo.
    */
-  const visitasDelModal = paySource === 'PATIENT' ? visitasPendientes : visitasTerceros;
+  const visitasDelModal = paySource === 'PATIENT' ? visitasDelPaciente : visitasTerceros;
 
   /**
    * El total del circuito que el modal está mostrando.
@@ -1332,6 +1360,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                     const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
                     const reparto = repartir(v.lineas, monto);
                     const abierta = detalleVisita === v.key;
+                    /**
+                     * La visita lleva CPT, o sea que su saldo es del seguro.
+                     *
+                     * Se rotula SOLO cuando paga el paciente: es ahí donde hace
+                     * falta la advertencia. Con el origen en Seguro la lista
+                     * entera es del seguro y la marca sería ruido en cada fila.
+                     */
+                    const deSeguro = paySource === 'PATIENT'
+                      && v.lineas.some(l => l.payer === 'INSURANCE');
                     return (
                       <div key={v.key}>
                         <div className="flex items-center gap-3 px-4 py-3 flex-wrap">
@@ -1349,6 +1386,17 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                             <span className="text-[11px] text-text-muted">
                               {t('payVisitLines', { count: v.lineas.length })}
                             </span>
+                            {/* Lo que antes "protegía" el mostrador escondiendo la
+                                línea. Esconderla dejaba el copago sin dónde entrar;
+                                rotularla avisa igual y no bloquea nada. */}
+                            {deSeguro && (
+                              <span
+                                title={t('payBilledToInsuranceHint')}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-cyan/10 text-cyan border border-cyan/25 whitespace-nowrap cursor-default"
+                              >
+                                {t('payBilledToInsurance')}
+                              </span>
+                            )}
                             {/* Pago parcial, a la vista sin desplegar: "a veces no
                                 pagan todo" es el caso normal, y saber cuánto queda
                                 es lo que se le dice al paciente antes de que se

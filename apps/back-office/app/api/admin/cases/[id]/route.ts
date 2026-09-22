@@ -194,6 +194,55 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
 
   const actor = await resolveActor(req.headers);
 
+  /*
+   * Las citas del caso siguen al tipo del caso — pero SOLO las dos que lo
+   * espejan.
+   *
+   * `Appointment.type` es un campo aparte de `Case.caseType`: se fija al crear
+   * la cita y nadie lo volvia a tocar. Por eso un caso pasado a GM seguia
+   * mostrando "Auto accident" en Day Admission. Lo pidio Erick el 2026-09-22 al
+   * habilitar la columna de Tipo en la grilla de Edson, y tiene razon: dejar la
+   * contradiccion es la clase de media-correccion que vuelve como queja.
+   *
+   * Se cambian UNICAMENTE AUTO_ACCIDENT <-> FAMILY_PRACTICE, que son los dos
+   * que la migracion derivo del tipo de caso y que por eso lo espejan. Los otros
+   * tres del enum —FOLLOW_UP, URGENT_CARE, CONSULTATION— describen QUE ES esa
+   * visita, no de que es el caso: pisarlos convertiria una cita de control en un
+   * accidente y se perderia el dato sin forma de recuperarlo.
+   */
+  let citasRetipadas = 0;
+  if (parsed.data.caseType !== undefined) {
+    const espejo = parsed.data.caseType === 'MVA'
+      ? { desde: 'FAMILY_PRACTICE' as const, hacia: 'AUTO_ACCIDENT'  as const }
+      : { desde: 'AUTO_ACCIDENT'  as const, hacia: 'FAMILY_PRACTICE' as const };
+    const r = await db.appointment.updateMany({
+      where: { caseId: id, type: espejo.desde },
+      data:  { type: espejo.hacia },
+    });
+    citasRetipadas = r.count;
+    if (citasRetipadas > 0) {
+      // Entrada propia y no metida en las de UPDATE_CASE: esas tienen tres
+      // ramas segun que mas venia en el PATCH, y esto tiene que quedar
+      // registrado en todas — tambien cuando el codigo no se renombra.
+      await writeAuditLog(db, {
+        actorType:   actor.actorType,
+        actorUserId: actor.actorUserId,
+        actorRole:   actor.actorRole,
+        action:      'RETYPE_CASE_APPOINTMENTS',
+        entityType:  'cases',
+        entityId:    id,
+        metadata: {
+          caseCode:    updated.caseCode,
+          caseType:    parsed.data.caseType,
+          de:          espejo.desde,
+          a:           espejo.hacia,
+          appointments: citasRetipadas,
+        },
+        ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+      });
+    }
+  }
+
   // Write one audit entry per changed assignment field
   if (changingAssignment && prevCase) {
     type PrevPerson = { id: string; firstName: string | null; lastName: string | null } | null;

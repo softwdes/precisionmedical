@@ -63,7 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (input.grantAccess && !input.email) {
     return NextResponse.json(
-      { error: 'NO_EMAIL', message: 'Para dar acceso al portal hace falta un email.' },
+      { error: 'NO_EMAIL' },
       { status: 400 },
     );
   }
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true } });
     if (dup) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', message: `Ya existe una ficha con el email "${input.email}".` },
+        { error: 'DUPLICATE_EMAIL', params: { email: input.email } },
         { status: 409 },
       );
     }
@@ -133,7 +133,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     access = {
       ok: granted.ok,
       error: granted.error,
-      message: granted.message,
+      params: granted.params,
+      detail: granted.detail,
       emailSent: granted.emailSent ?? false,
       activationLink: granted.activationLink ?? null,
     };
@@ -184,7 +185,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true } });
     if (dup && dup.id !== member.id) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', message: `Ya existe una ficha con el email "${input.email}".` },
+        { error: 'DUPLICATE_EMAIL', params: { email: input.email } },
         { status: 409 },
       );
     }
@@ -221,7 +222,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const granted = await grantLawyerAccess({ ...updated, parentFirm: firm });
     if (!granted.ok) {
       return NextResponse.json(
-        { error: granted.error, message: granted.message },
+        { error: granted.error, params: granted.params, detail: granted.detail },
         { status: HTTP_STATUS[granted.error ?? ''] ?? 500 },
       );
     }
@@ -242,7 +243,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const revoked = await revokeLawyerAccess(updated);
     if (!revoked.ok) {
       return NextResponse.json(
-        { error: revoked.error, message: revoked.message },
+        { error: revoked.error, params: revoked.params, detail: revoked.detail },
         { status: HTTP_STATUS[revoked.error ?? ''] ?? 500 },
       );
     }
@@ -286,7 +287,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   // Nadie se borra a sí mismo: dejaría al despacho sin quien administre.
   if (member.id === lawyer.id) {
     return NextResponse.json(
-      { error: 'CANNOT_DELETE_SELF', message: 'No podés darte de baja a vos mismo.' },
+      { error: 'CANNOT_DELETE_SELF' },
       { status: 400 },
     );
   }

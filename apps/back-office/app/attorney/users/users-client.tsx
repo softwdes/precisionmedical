@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Plus, Pencil, Trash2, KeyRound, Ban, Loader2, Mail, Phone, MapPin } from 'lucide-react';
 import {
   PageHeader, StatusPill, TagPill, EmptyState, PersonAvatar, IconAction, FormField,
@@ -72,6 +73,7 @@ const EMPTY_FORM: FormState = {
 export function AttorneyUsersClient({ members }: { members: MemberRow[] }): React.ReactElement {
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const router = useRouter();
   // El acceso rápido "Invitar personal" del Panel entra con `?new=1` y abre el
   // alta directo, sin obligar a buscar el botón después de navegar.
@@ -94,17 +96,16 @@ export function AttorneyUsersClient({ members }: { members: MemberRow[] }): Reac
 
   /** Toda respuesta pasa por acá: un solo lugar decide error, enlace y refresh. */
   async function handle(res: Response): Promise<boolean> {
-    const data = await res.json().catch(() => ({})) as {
-      message?: string; error?: string;
-      access?: { emailSent?: boolean; activationLink?: string | null; message?: string; ok?: boolean } | null;
+    const data = await res.json().catch(() => ({})) as ServerErrorBody & {
+      access?: (ServerErrorBody & { emailSent?: boolean; activationLink?: string | null; ok?: boolean }) | null;
     };
     if (!res.ok) {
-      setError(data.message ?? data.error ?? t('actionError'));
+      setError(serverError(data, t('actionError')));
       return false;
     }
     // El alta puede salir bien y el acceso fallar: son dos pasos, no uno.
     if (data.access && data.access.ok === false) {
-      setError(data.access.message ?? t('actionError'));
+      setError(serverError(data.access, t('actionError')));
     } else if (data.access && !data.access.emailSent && data.access.activationLink) {
       setManualLink(data.access.activationLink);
     }

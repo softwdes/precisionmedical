@@ -30,6 +30,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Plus } from 'lucide-react';
 import {
   Button, Input, Label,
@@ -125,6 +126,7 @@ function AttorneyDialog({
 }) {
   const t  = useTranslations('phoenix.lawyers');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
 
   /**
    * El nombre buscado se parte en nombre y apellido: la ruta pide los dos por
@@ -175,7 +177,7 @@ function AttorneyDialog({
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       if (data.member?.id) {
         onCreated({
           id: data.member.id,

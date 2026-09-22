@@ -45,7 +45,7 @@ export async function POST(
   const result = await grantLawyerAccess(lawyer);
   if (!result.ok) {
     return NextResponse.json(
-      { error: result.error, message: result.message },
+      { error: result.error, params: result.params, detail: result.detail },
       { status: HTTP_STATUS[result.error ?? ''] ?? 500 },
     );
   }
@@ -95,7 +95,7 @@ export async function DELETE(
   const result = await revokeLawyerAccess(lawyer);
   if (!result.ok) {
     return NextResponse.json(
-      { error: result.error, message: result.message },
+      { error: result.error, params: result.params, detail: result.detail },
       { status: HTTP_STATUS[result.error ?? ''] ?? 500 },
     );
   }

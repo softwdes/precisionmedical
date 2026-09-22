@@ -2,6 +2,8 @@
 import { localeApp } from '@/lib/fechas';
 
 import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users, Ban, History, X, AlertTriangle, KeyRound } from 'lucide-react';
@@ -73,6 +75,8 @@ interface Props {
 type Tab = 'summary' | 'members' | 'cases' | 'notes';
 
 export function LawyerDetailClient({ firm, members }: Props) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -95,7 +99,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
       {/* Breadcrumb + back */}
       <Link href="/admin/lawyers" className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors">
         <ArrowLeft className="w-4 h-4" />
-        <span>Volver a Bufetes</span>
+        <span>{t('backTo')}</span>
       </Link>
 
       {/* Hero */}
@@ -141,21 +145,21 @@ export function LawyerDetailClient({ firm, members }: Props) {
             )}
           </div>
           <Button variant="outline" onClick={() => setEditFirmOpen(true)}>
-            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+            <Pencil className="w-3.5 h-3.5 mr-1" /> {tc('edit')}
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
-        <TabButton active={tab === 'summary'} onClick={() => setTab('summary')}>Resumen</TabButton>
+        <TabButton active={tab === 'summary'} onClick={() => setTab('summary')}>{t('tabSummary')}</TabButton>
         <TabButton active={tab === 'members'} onClick={() => setTab('members')}>
-          Miembros <span className="text-text-muted ml-1 font-mono">({members.length})</span>
+          {t('tabMembers')} <span className="text-text-muted ml-1 font-mono">({members.length})</span>
         </TabButton>
         <TabButton active={tab === 'cases'} onClick={() => setTab('cases')}>
-          Casos
+          {t('tabCases')}
         </TabButton>
-        <TabButton active={tab === 'notes'} onClick={() => setTab('notes')}>Notas internas</TabButton>
+        <TabButton active={tab === 'notes'} onClick={() => setTab('notes')}>{t('tabNotes')}</TabButton>
       </div>
 
       {/* Tab content */}
@@ -243,21 +247,23 @@ function SummaryTab({
   attorneys: Member[];
   caseManagers: Member[];
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
-        <Card title="Información de contacto">
-          <InfoRow label="Email principal" value={firm.email ? <a href={`mailto:${firm.email}`} className="text-cyan hover:text-text-1">{firm.email}</a> : undefined} />
-          <InfoRow label="Teléfono"        value={firm.phone ?? <Empty />} mono />
-          <InfoRow label="Dirección"       value={firm.address ?? <Empty />} />
-          <InfoRow label="Ciudad / Estado" value={[firm.city, firm.state].filter(Boolean).join(', ') || <Empty />} />
-          <InfoRow label="Código postal"   value={firm.zip ?? <Empty />} mono />
+        <Card title={t('sectionContact')}>
+          <InfoRow label={t('fieldEmail')} value={firm.email ? <a href={`mailto:${firm.email}`} className="text-cyan hover:text-text-1">{firm.email}</a> : undefined} />
+          <InfoRow label={t('colPhone')}       value={firm.phone ?? <Empty />} mono />
+          <InfoRow label={t('colAddress')}     value={firm.address ?? <Empty />} />
+          <InfoRow label={t('infoCityState')}  value={[firm.city, firm.state].filter(Boolean).join(', ') || <Empty />} />
+          <InfoRow label={t('fieldZip')}       value={firm.zip ?? <Empty />} mono />
         </Card>
 
-        <Card title="Configuración operativa">
-          <InfoRow label="Estado"           value={<StatusPill status={firm.status} />} />
-          <InfoRow label="Velocidad pago"   value={<PaymentSpeedPill speed={firm.paymentSpeed} />} />
-          <InfoRow label="Caseflow flags"   value={
+        <Card title={t('sectionConfig')}>
+          <InfoRow label={tc('status')}            value={<StatusPill status={firm.status} />} />
+          <InfoRow label={t('fieldPaymentSpeed')}  value={<PaymentSpeedPill speed={firm.paymentSpeed} />} />
+          <InfoRow label={t('fieldFlags')}         value={
             firm.caseflowFlags.length === 0 ? <Empty /> : (
               <div className="flex flex-wrap gap-1">
                 {firm.caseflowFlags.map((f) => (
@@ -266,28 +272,28 @@ function SummaryTab({
               </div>
             )
           } />
-          <InfoRow label="Registrado"       value={formatDate(firm.createdAt)} mono />
+          <InfoRow label={t('infoRegistered')}      value={formatDate(firm.createdAt)} mono />
         </Card>
       </div>
 
       <div className="space-y-4">
-        <Card title="Miembros del bufete">
+        <Card title={t('sectionMembers')}>
           <div className="text-center py-4">
             <div className="text-4xl font-bold text-text-1">{members.length}</div>
-            <div className="text-text-muted text-xs uppercase tracking-wider mt-1">Total miembros</div>
+            <div className="text-text-muted text-xs uppercase tracking-wider mt-1">{t('totalMembers')}</div>
           </div>
           <div className="space-y-2 pt-3 border-t border-border">
-            <SummaryStatRow label="Attorneys"     count={attorneys.length} />
-            <SummaryStatRow label="Case Managers" count={caseManagers.length} />
-            <SummaryStatRow label="Paralegals + Otros" count={members.length - attorneys.length - caseManagers.length} />
+            <SummaryStatRow label={t('groupATTORNEY')}     count={attorneys.length} />
+            <SummaryStatRow label={t('groupCASE_MANAGER')} count={caseManagers.length} />
+            <SummaryStatRow label={t('summaryOthers')}     count={members.length - attorneys.length - caseManagers.length} />
           </div>
         </Card>
 
-        <Card title="Métricas PI (Phase 2)">
+        <Card title={t('sectionMetrics')}>
           <div className="text-text-muted text-xs italic text-center py-6">
-            Casos activos · Settlements · Recovery rate · Avg days
+            {t('metricsPlaceholder')}
             <br /><br />
-            Disponible cuando exista módulo de Casos.
+            {t('metricsHint')}
           </div>
         </Card>
       </div>
@@ -317,25 +323,26 @@ function MembersTab({
   onEditMember: (m: Member) => void;
   onDeletedMember: () => void;
 }) {
+  const t = useTranslations('phoenix.lawyers');
   const total = attorneys.length + caseManagers.length + paralegals.length + legalAssistants.length + others.length;
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div className="text-text-2 text-sm">{total} miembros</div>
+        <div className="text-text-2 text-sm">{t('membersCount', { count: total })}</div>
         <Button onClick={onAddMember}>
-          <Plus className="w-4 h-4 mr-1" /> Agregar miembro
+          <Plus className="w-4 h-4 mr-1" /> {t('btnAddMember')}
         </Button>
       </div>
 
-      <MemberGroup title="Attorneys" icon={Briefcase} members={attorneys} onEdit={onEditMember} onDeleted={onDeletedMember} />
-      <MemberGroup title="Case Managers" icon={UserCircle} members={caseManagers} onEdit={onEditMember} onDeleted={onDeletedMember} />
-      <MemberGroup title="Paralegals" icon={UserCircle} members={paralegals} onEdit={onEditMember} onDeleted={onDeletedMember} />
-      <MemberGroup title="Legal Assistants" icon={UserCircle} members={legalAssistants} onEdit={onEditMember} onDeleted={onDeletedMember} />
-      <MemberGroup title="Otros" icon={UserCircle} members={others} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title={t('groupATTORNEY')} icon={Briefcase} members={attorneys} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title={t('groupCASE_MANAGER')} icon={UserCircle} members={caseManagers} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title={t('groupPARALEGAL')} icon={UserCircle} members={paralegals} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title={t('groupLEGAL_ASSISTANT')} icon={UserCircle} members={legalAssistants} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title={t('groupOTHER')} icon={UserCircle} members={others} onEdit={onEditMember} onDeleted={onDeletedMember} />
 
       {total === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-8 text-center text-text-muted text-sm">
-          Sin miembros aún. Agregá el primero arriba.
+          {t('emptyMembers')}
         </div>
       )}
     </div>
@@ -379,22 +386,25 @@ function MemberGroup({
  * así que después de cada acción se refresca la página en vez de mutar estado
  * local: la fuente de verdad está del otro lado y adivinarla acá sería mentir.
  */
-const ACCESS_BADGE: Record<Member['access'], { label: string; className: string } | null> = {
+const ACCESS_BADGE: Record<Member['access'], { key: string; className: string } | null> = {
   none:         null,
-  pending:      { label: 'Invitado',  className: 'bg-amber/10 text-amber-text border-amber/20' },
-  active:       { label: 'Con acceso', className: 'bg-emerald/10 text-emerald-text border-emerald/20' },
-  revoked:      { label: 'Revocado',  className: 'bg-rose/10 text-rose-text border-rose/20' },
-  'other-role': { label: 'Otro rol',  className: 'bg-white/5 text-text-muted border-white/10' },
+  pending:      { key: 'accessInvited',   className: 'bg-amber/10 text-amber-text border-amber/20' },
+  active:       { key: 'accessActive',    className: 'bg-emerald/10 text-emerald-text border-emerald/20' },
+  revoked:      { key: 'accessRevoked',   className: 'bg-rose/10 text-rose-text border-rose/20' },
+  'other-role': { key: 'accessOtherRole', className: 'bg-white/5 text-text-muted border-white/10' },
 };
 
 function MemberAccessControl({ member, onChanged }: { member: Member; onChanged: () => void }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Solo se muestra cuando el correo NO salió: sin RESEND_API_KEY configurado
   // este enlace es la única forma de que la persona entre.
   const [manualLink, setManualLink] = useState<string | null>(null);
 
-  const name = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || 'este miembro';
+  const name = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || t('accessThisMember');
   const badge = ACCESS_BADGE[member.access];
 
   const call = async (method: 'POST' | 'DELETE') => {
@@ -402,19 +412,19 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
     setError(null);
     try {
       const res = await fetch(`/api/admin/lawyers/${member.id}/access`, { method });
-      const data = await res.json() as { message?: string; error?: string; emailSent?: boolean; activationLink?: string | null };
-      if (!res.ok) { setError(data.message ?? data.error ?? 'No se pudo completar la acción'); return; }
+      const data = await res.json() as ServerErrorBody & { emailSent?: boolean; activationLink?: string | null };
+      if (!res.ok) { setError(serverError(data, t('accessErrorGeneric'))); return; }
       if (method === 'POST' && !data.emailSent && data.activationLink) setManualLink(data.activationLink);
       onChanged();
     } catch {
-      setError('Error de conexión');
+      setError(t('accessErrorNetwork'));
     } finally {
       setBusy(false);
     }
   };
 
   const revoke = () => {
-    if (!confirm(`¿Revocar el acceso al portal de ${name}? No podrá volver a entrar.`)) return;
+    if (!confirm(t('accessRevokeConfirm', { name }))) return;
     void call('DELETE');
   };
 
@@ -422,16 +432,16 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
     <>
       {badge && (
         <span className={`text-[10px] px-1.5 py-0.5 rounded border mr-1 ${badge.className}`}>
-          {badge.label}
+          {t(badge.key)}
         </span>
       )}
 
       {member.access === 'other-role' ? (
-        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title="Ese email ya tiene una cuenta de otro rol">
+        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title={t('accessTooltipOtherRole')}>
           <Ban className="w-3.5 h-3.5" />
         </span>
       ) : !member.email ? (
-        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title="Sin email: no se puede crear un acceso. Agregá el email primero.">
+        <span className="w-8 h-8 flex items-center justify-center text-text-muted/40" title={t('accessTooltipNoEmail')}>
           <KeyRound className="w-3.5 h-3.5" />
         </span>
       ) : member.access === 'active' ? (
@@ -439,7 +449,7 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
           onClick={revoke}
           disabled={busy}
           className="w-8 h-8 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 disabled:opacity-50"
-          title="Revocar acceso al portal"
+          title={t('accessTooltipRevoke')}
         >
           <Ban className="w-3.5 h-3.5 mx-auto" />
         </button>
@@ -449,9 +459,9 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
           disabled={busy}
           className="w-8 h-8 rounded-md text-text-muted hover:text-brand-text hover:bg-brand/10 disabled:opacity-50"
           title={
-            member.access === 'pending' ? 'Reenviar el enlace de activación'
-            : member.access === 'revoked' ? 'Reactivar el acceso al portal'
-            : 'Crear acceso al portal legal'
+            member.access === 'pending' ? t('accessTooltipResend')
+            : member.access === 'revoked' ? t('accessTooltipReactivate')
+            : t('accessTooltipCreate')
           }
         >
           <KeyRound className="w-3.5 h-3.5 mx-auto" />
@@ -462,11 +472,11 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
         <Dialog open onOpenChange={() => setError(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>No se pudo crear el acceso</DialogTitle>
+              <DialogTitle>{t('accessErrorTitle')}</DialogTitle>
               <DialogDescription>{error}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setError(null)}>Entendido</Button>
+              <Button onClick={() => setError(null)}>{t('accessErrorOk')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -476,10 +486,9 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
         <Dialog open onOpenChange={() => setManualLink(null)}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Acceso creado — el correo no salió</DialogTitle>
+              <DialogTitle>{t('accessManualTitle')}</DialogTitle>
               <DialogDescription>
-                La cuenta de {name} quedó creada, pero no hay envío de correo configurado en
-                este entorno. Pasale este enlace de activación por otro medio.
+                {t('accessManualDesc', { name })}
               </DialogDescription>
             </DialogHeader>
             <div className="rounded-md border border-white/10 bg-black/30 p-3 text-xs font-mono break-all text-text-2">
@@ -487,9 +496,9 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => { void navigator.clipboard.writeText(manualLink); }}>
-                Copiar enlace
+                {t('accessManualCopy')}
               </Button>
-              <Button onClick={() => setManualLink(null)}>Cerrar</Button>
+              <Button onClick={() => setManualLink(null)}>{tc('close')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -499,10 +508,12 @@ function MemberAccessControl({ member, onChanged }: { member: Member; onChanged:
 }
 
 function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: Member) => void; onDeleted: () => void }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!confirm(`¿Eliminar a ${member.firstName} ${member.lastName}?`)) return;
+    if (!confirm(t('memberDeleteConfirm', { name: `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() }))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/admin/lawyers/members?id=${member.id}`, { method: 'DELETE' });
@@ -512,7 +523,7 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
     }
   };
 
-  const fullName = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || '(sin nombre)';
+  const fullName = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || t('memberNoName');
   const isAttorney = member.memberRole === 'ATTORNEY';
 
   return (
@@ -537,27 +548,27 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
           )}
           {isAttorney && member.barNumber && (
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand-text border border-brand/20">
-              Bar #{member.barNumber}
+              {t('memberBarNumber', { number: member.barNumber })}
             </span>
           )}
           {isAttorney && member.recoveryRate != null && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet/10 text-violet-text border border-violet/20">
-              {member.recoveryRate.toFixed(1)}% honorarios
+              {t('memberFeeRate', { rate: member.recoveryRate.toFixed(1) })}
             </span>
           )}
           {isAttorney && member.casesCount > 0 && (
             <span className="text-text-muted text-[10px]">
-              {member.casesCount} caso{member.casesCount !== 1 ? 's' : ''}
+              {t('memberCases', { count: member.casesCount })}
             </span>
           )}
         </div>
       </div>
       <div className="flex items-center gap-1">
         <MemberAccessControl member={member} onChanged={onDeleted} />
-        <button onClick={() => onEdit(member)} className="w-8 h-8 rounded-md text-text-muted hover:text-text-1 hover:bg-white/5" title="Editar">
+        <button onClick={() => onEdit(member)} className="w-8 h-8 rounded-md text-text-muted hover:text-text-1 hover:bg-white/5" title={tc('edit')}>
           <Pencil className="w-3.5 h-3.5 mx-auto" />
         </button>
-        <button onClick={handleDelete} disabled={deleting} className="w-8 h-8 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 disabled:opacity-50" title="Eliminar">
+        <button onClick={handleDelete} disabled={deleting} className="w-8 h-8 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 disabled:opacity-50" title={tc('delete')}>
           <Trash2 className="w-3.5 h-3.5 mx-auto" />
         </button>
       </div>
@@ -568,6 +579,8 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
 // ─── Notes Tab ──────────────────────────────────────────────────────────────
 
 function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [notes, setNotes] = useState(firm.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -606,21 +619,19 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-text-2 text-sm">
-        Notas privadas del bufete (visibles solo para Super Admin y Edson). Útiles para registrar contexto operativo: paga lento, prefiere email, etc.
-      </div>
+      <div className="text-text-2 text-sm">{t('notesHint')}</div>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         className="w-full bg-bg-2 border border-border rounded-md px-4 py-3 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[200px]"
-        placeholder="Escribí las notas internas aquí..."
+        placeholder={t('placeholderInternalNotes')}
       />
       <div className="flex items-center justify-between">
         <span className="text-xs text-text-muted">
-          {saved && <span className="text-emerald">✓ Guardado</span>}
+          {saved && <span className="text-emerald">✓ {t('notesSaved')}</span>}
         </span>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando...' : 'Guardar notas'}
+          {saving ? tc('saving') : t('btnSaveNotes')}
         </Button>
       </div>
     </div>
@@ -659,22 +670,25 @@ const CASE_TYPE_COLORS: Record<string, string> = {
   NURSING_HOME: 'bg-violet/15 text-violet-text border-violet/30',
 };
 
-const CASE_STATUS_LABELS: Record<string, string> = {
-  NEW_REFERRAL:      'Nuevo',
-  INTAKE_PENDING:    'Intake pendiente',
-  INTAKE_COMPLETED:  'Intake completo',
-  CONFIRMED:         'Confirmado',
-  ACTIVE:            'Activo',
-  MMI:               'MMI',
-  CLOSED:            'Cerrado',
-  SETTLED:           'Liquidado',
-  ARCHIVED:          'Archivado',
-  CANCELLED:         'Cancelado',
-};
+/** Solo el ORDEN del filtro: la etiqueta de cada estado vive en `caseStatus*`. */
+const CASE_STATUSES = [
+  'NEW_REFERRAL',
+  'INTAKE_PENDING',
+  'INTAKE_COMPLETED',
+  'CONFIRMED',
+  'ACTIVE',
+  'MMI',
+  'CLOSED',
+  'SETTLED',
+  'ARCHIVED',
+  'CANCELLED',
+] as const;
 
 const PAGE_SIZE = 10;
 
 function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [stats, setStats] = useState<CasesStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -765,15 +779,15 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
       {/* KPIs 2×2 + Sparkline — estándar aprobado */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <KpiCard label="Total casos" value={stats?.total ?? '—'} compact icon={FileText} iconBg="bg-brand/10" iconColor="text-brand-text" />
-          <KpiCard label="Abogados" value={attorneys.length} compact icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text" />
-          <KpiCard label="Tasa de firma" value={stats ? `${stats.signatureRate}%` : '—'} compact icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
-          <KpiCard label="Últimos 30 días" value={stats?.recentCount ?? '—'} compact icon={Clock} iconBg="bg-cyan/10" iconColor="text-cyan" />
+          <KpiCard label={t('kpiTotalCases')} value={stats?.total ?? '—'} compact icon={FileText} iconBg="bg-brand/10" iconColor="text-brand-text" />
+          <KpiCard label={t('kpiAttorneys')} value={attorneys.length} compact icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text" />
+          <KpiCard label={t('kpiSignRate')} value={stats ? `${stats.signatureRate}%` : '—'} compact icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
+          <KpiCard label={t('kpiLast30')} value={stats?.recentCount ?? '—'} compact icon={Clock} iconBg="bg-cyan/10" iconColor="text-cyan" />
         </div>
 
         {/* Sparkline a la derecha */}
         <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-col">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Casos por mes</div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('casesPerMonth')}</div>
           {monthCounts.length > 0 ? (
             <>
               <svg viewBox={`0 0 ${monthCounts.length * 60} 60`} className="w-full h-12 flex-1" preserveAspectRatio="none">
@@ -812,7 +826,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-text-muted text-xs">Sin datos aún</div>
+            <div className="flex-1 flex items-center justify-center text-text-muted text-xs">{t('noDataYet')}</div>
           )}
         </div>
       </div>
@@ -823,7 +837,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por caso o paciente..."
+          placeholder={t('searchCasesPlaceholder')}
           className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
         />
         <select
@@ -831,9 +845,9 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
         >
-          <option value="">Todos los estados</option>
-          {Object.entries(CASE_STATUS_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
+          <option value="">{t('filterAllStatuses')}</option>
+          {CASE_STATUSES.map((v) => (
+            <option key={v} value={v}>{t(`caseStatus${v}`)}</option>
           ))}
         </select>
       </div>
@@ -877,7 +891,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
       ) : cases.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-10 text-center">
           <Briefcase className="w-10 h-10 text-text-muted mx-auto mb-2" />
-          <div className="text-text-2 text-sm">Sin casos encontrados</div>
+          <div className="text-text-2 text-sm">{t('noCasesFound')}</div>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
@@ -885,14 +899,14 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-row-sep bg-bg-2/50 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                  <th className="sticky left-0 z-10 bg-bg-2 px-4 py-2.5 text-left">Caso</th>
-                  <th className="px-4 py-2.5 text-left">Tipo</th>
-                  <th className="px-4 py-2.5 text-left">Fecha</th>
-                  <th className="px-4 py-2.5 text-left">Paciente</th>
-                  <th className="px-4 py-2.5 text-left">Abogado</th>
-                  <th className="px-4 py-2.5 text-left">Paralegal / Gestor</th>
-                  <th className="px-4 py-2.5 text-left">Asistente legal</th>
-                  <th className="px-4 py-2.5 text-left">Firma</th>
+                  <th className="sticky left-0 z-10 bg-bg-2 px-4 py-2.5 text-left">{t('colCase')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('columnType')}</th>
+                  <th className="px-4 py-2.5 text-left">{tc('date')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('colPatient')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('colAttorney')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('colParalegal')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('colAssistant')}</th>
+                  <th className="px-4 py-2.5 text-left">{t('colSignature')}</th>
                   <th className="sticky right-0 z-10 bg-bg-2 px-4 py-2.5" />
                 </tr>
               </thead>
@@ -919,7 +933,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
             </table>
           </div>
           <div className="px-4 py-2 border-t border-row-sep flex items-center justify-between text-[11px] text-text-muted">
-            <span>{cases.length} caso{cases.length !== 1 ? 's' : ''} · página {page} de {totalPages}</span>
+            <span>{t('casesFooter', { count: cases.length, page, total: totalPages })}</span>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <button
@@ -927,14 +941,14 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                   disabled={page === 1}
                   className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  ← Anterior
+                  ← {t('pagerPrev')}
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  Siguiente →
+                  {t('pagerNext')} →
                 </button>
               </div>
             )}
@@ -958,6 +972,7 @@ function AssignDropdown({
   placeholder: string;
   onChange: (m: CaseMember | null) => void;
 }) {
+  const t = useTranslations('phoenix.lawyers');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -999,7 +1014,7 @@ function AssignDropdown({
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar..."
+              placeholder={t('assignSearchPlaceholder')}
               className="w-full bg-bg-1 border border-border rounded px-2 py-1 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
@@ -1008,15 +1023,13 @@ function AssignDropdown({
               onClick={() => { onChange(null); setOpen(false); }}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-white/5 transition-colors"
             >
-              <span className="italic">— Sin asignar</span>
+              <span className="italic">{t('assignUnassigned')}</span>
             </button>
             {filtered.map((m) => {
               const name = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
               const isSelected = value?.id === m.id;
-              const roleLabel = m.memberRole === 'CASE_MANAGER' ? 'Gestor de casos'
-                : m.memberRole === 'PARALEGAL' ? 'Paralegal'
-                : m.memberRole === 'LEGAL_ASSISTANT' ? 'Asistente legal'
-                : m.memberRole === 'ATTORNEY' ? 'Abogado'
+              const roleLabel = m.memberRole && ['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT'].includes(m.memberRole)
+                ? t(`role${m.memberRole}`)
                 : null;
               return (
                 <button
@@ -1027,14 +1040,14 @@ function AssignDropdown({
                 >
                   <span className="flex items-center gap-1.5">
                     {isSelected && <span className="text-brand-text">✓</span>}
-                    {name || '(sin nombre)'}
+                    {name || t('memberNoName')}
                   </span>
                   {roleLabel && <span className="text-[10px] text-text-muted shrink-0">{roleLabel}</span>}
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <div className="px-3 py-2 text-xs text-text-muted italic">Sin resultados</div>
+              <div className="px-3 py-2 text-xs text-text-muted italic">{t('assignNoResults')}</div>
             )}
           </div>
         </div>
@@ -1067,6 +1080,7 @@ function CaseTableRow({
   onRemove: () => void;
   onHistory: () => void;
 }) {
+  const t = useTranslations('phoenix.lawyers');
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
   const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
   const dateStr = new Date(row.createdAt).toLocaleDateString(localeApp(), { year: 'numeric', month: 'short', day: 'numeric' });
@@ -1093,7 +1107,7 @@ function CaseTableRow({
         <AssignDropdown
           value={row.attorney}
           options={attorneys}
-          placeholder="Seleccionar abogado"
+          placeholder={t('placeholderAttorney')}
           onChange={(m) => onAssign(row.id, 'attorneyId', m)}
         />
       </td>
@@ -1101,7 +1115,7 @@ function CaseTableRow({
         <AssignDropdown
           value={row.paralegal}
           options={caseManagers}
-          placeholder="Seleccionar gestor"
+          placeholder={t('placeholderParalegal')}
           onChange={(m) => onAssign(row.id, 'paralegalId', m)}
         />
       </td>
@@ -1109,21 +1123,21 @@ function CaseTableRow({
         <AssignDropdown
           value={row.legalAssistant}
           options={legalAssists}
-          placeholder="Seleccionar asistente"
+          placeholder={t('placeholderAssistant')}
           onChange={(m) => onAssign(row.id, 'legalAssistantId', m)}
         />
       </td>
       <td className="px-4 py-1.5">
         {row.hasSigned ? (
           <span className="text-[10px] text-emerald font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Firmado
+            <CheckCircle2 className="w-3 h-3" /> {t('signSigned')}
           </span>
         ) : row.signatureExempt ? (
           <span className="text-[10px] text-amber font-semibold flex items-center gap-1">
-            <Ban className="w-3 h-3" /> Exento
+            <Ban className="w-3 h-3" /> {t('signExempt')}
           </span>
         ) : (
-          <span className="text-[10px] text-text-muted">Pendiente</span>
+          <span className="text-[10px] text-text-muted">{t('signPending')}</span>
         )}
       </td>
       <td className="sticky right-0 z-10 bg-bg-1 px-4 py-1.5">
@@ -1153,7 +1167,7 @@ function CaseTableRow({
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5 text-brand-text" />
-              Ver caso
+              {t('menuViewCase')}
             </Link>
 
             <div className="h-px bg-border/50 my-1" />
@@ -1164,13 +1178,13 @@ function CaseTableRow({
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
               >
                 <PenLine className="w-3.5 h-3.5 text-emerald" />
-                Firmar como abogado
+                {t('menuSign')}
               </button>
             )}
             {row.hasSigned && (
               <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted cursor-default">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
-                Ya firmado
+                {t('menuAlreadySigned')}
               </div>
             )}
             {!row.hasSigned && (
@@ -1179,7 +1193,7 @@ function CaseTableRow({
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
               >
                 <Ban className="w-3.5 h-3.5 text-amber" />
-                {row.signatureExempt ? 'Quitar exención de firma' : 'Firma no requerida'}
+                {row.signatureExempt ? t('menuUnexempt') : t('menuExempt')}
               </button>
             )}
 
@@ -1190,7 +1204,7 @@ function CaseTableRow({
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
             >
               <History className="w-3.5 h-3.5 text-cyan" />
-              Ver historial
+              {t('menuHistory')}
             </button>
 
             <div className="h-px bg-border/50 my-1" />
@@ -1200,7 +1214,7 @@ function CaseTableRow({
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose hover:bg-rose/5 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Eliminar de firma
+              {t('menuRemove')}
             </button>
           </div>
         </FloatingPanel>
@@ -1222,6 +1236,8 @@ function SignAttorneyModal({
   onClose: () => void;
   onSigned: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [signerName, setSignerName] = useState(defaultName);
   const [signerEmail, setSignerEmail] = useState('');
   const [signaturePng, setSignaturePng] = useState<string | null>(null);
@@ -1249,7 +1265,7 @@ function SignAttorneyModal({
       }
       onSigned();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar la firma');
+      setError(e instanceof Error ? e.message : t('errorSignSave'));
     } finally {
       setSaving(false);
     }
@@ -1263,7 +1279,7 @@ function SignAttorneyModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
-            <PenLine className="w-4 h-4 text-brand-text" /> Firmar lien — {caseRow.caseCode}
+            <PenLine className="w-4 h-4 text-brand-text" /> {t('signTitle', { code: caseRow.caseCode })}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 text-lg leading-none">×</button>
         </div>
@@ -1271,29 +1287,29 @@ function SignAttorneyModal({
         {alreadySigned ? (
           <div className="rounded-md border border-emerald/30 bg-emerald/10 px-4 py-3 text-sm text-emerald text-center">
             <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
-            Este caso ya fue firmado por un abogado.
+            {t('signAlready')}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">
-                  Nombre del firmante <span className="text-rose">*</span>
+                  {t('signerName')} <span className="text-rose">*</span>
                 </label>
                 <input
                   value={signerName}
                   onChange={(e) => setSignerName(e.target.value)}
-                  placeholder="Nombre completo del abogado"
+                  placeholder={t('placeholderFullName')}
                   className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Email (opcional)</label>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('signerEmail')}</label>
                 <input
                   type="email"
                   value={signerEmail}
                   onChange={(e) => setSignerEmail(e.target.value)}
-                  placeholder="abogado@firma.com"
+                  placeholder={t('signerEmailPlaceholder')}
                   className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
@@ -1301,11 +1317,11 @@ function SignAttorneyModal({
 
             <div>
               <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-2">
-                Firma digital <span className="text-rose">*</span>
+                {t('signPadLabel')} <span className="text-rose">*</span>
               </label>
               <SignaturePad
                 onChange={setSignaturePng}
-                hintLabel="Firme aquí con el mouse o dedo"
+                hintLabel={t('signPadHint')}
                 height={240}
               />
             </div>
@@ -1317,9 +1333,7 @@ function SignAttorneyModal({
                 onChange={(e) => setAgreed(e.target.checked)}
                 className="mt-0.5 w-4 h-4 rounded accent-brand shrink-0"
               />
-              <span className="text-[11px] text-text-2">
-                Confirmo que estoy autorizado para firmar este lien en nombre del cliente y del bufete representado.
-              </span>
+              <span className="text-[11px] text-text-2">{t('signConsent')}</span>
             </label>
 
             {error && (
@@ -1331,14 +1345,14 @@ function SignAttorneyModal({
                 onClick={onClose}
                 className="flex-1 px-4 py-2 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
               >
-                Cancelar
+                {tc('cancel')}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className="flex-1 px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? 'Guardando...' : 'Confirmar firma'}
+                {saving ? tc('saving') : t('signSubmit')}
               </button>
             </div>
           </>
@@ -1384,31 +1398,34 @@ function Empty() {
 }
 
 function StatusPill({ status }: { status: string }) {
+  const t = useTranslations('phoenix.lawyers');
   if (status === 'ACTIVE') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald/15 text-emerald border border-emerald/30">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald" /> Activo
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald" /> {t('statusActive')}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border">
-      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" /> Inactivo
+      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" /> {t('statusInactive')}
     </span>
   );
 }
 
+const SPEED_KEY: Record<string, string> = { FAST: 'speedFast', AVERAGE: 'speedAverage', SLOW: 'speedSlow' };
+
 function PaymentSpeedPill({ speed }: { speed: string | null }) {
-  if (!speed || speed === 'UNKNOWN') return <span className="text-text-muted text-[10px] italic">Sin data</span>;
+  const t = useTranslations('phoenix.lawyers');
+  if (!speed || !SPEED_KEY[speed]) return <span className="text-text-muted text-[10px] italic">{t('speedNoData')}</span>;
   const styles: Record<string, string> = {
     FAST:    'bg-emerald/15 text-emerald border-emerald/30',
     AVERAGE: 'bg-cyan/15 text-cyan border-cyan/30',
     SLOW:    'bg-amber/15 text-amber border-amber/30',
   };
-  const labels: Record<string, string> = { FAST: '⚡ Rápido', AVERAGE: '~ Promedio', SLOW: '⚠ Lento' };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${styles[speed]}`}>
-      {labels[speed]}
+      {t(SPEED_KEY[speed])}
     </span>
   );
 }
@@ -1423,20 +1440,8 @@ function formatDate(d: Date): string {
 
 // ─── Member Dialog ──────────────────────────────────────────────────────────
 
-const MEMBER_ROLES = [
-  { value: 'ATTORNEY',        label: 'Attorney (Abogado)' },
-  { value: 'CASE_MANAGER',    label: 'Case Manager' },
-  { value: 'PARALEGAL',       label: 'Paralegal' },
-  { value: 'LEGAL_ASSISTANT', label: 'Legal Assistant' },
-  { value: 'OTHER',           label: 'Otro' },
-];
-
-const PAYMENT_SPEEDS = [
-  { value: 'UNKNOWN', label: '— Desconocida' },
-  { value: 'FAST',    label: '✅ Rápido (< 60 días)' },
-  { value: 'MEDIUM',  label: '⚡ Normal (60–120 días)' },
-  { value: 'SLOW',    label: '⚠ Lento (> 150 días)' },
-];
+/** Solo el ORDEN del select: la etiqueta de cada rol vive en `role*`. */
+const MEMBER_ROLES = ['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'] as const;
 
 function MemberDialog({
   open,
@@ -1451,6 +1456,9 @@ function MemberDialog({
   editing: Member | null;
   onSaved: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [firstName,    setFirstName]    = useState(editing?.firstName ?? '');
   const [lastName,     setLastName]     = useState(editing?.lastName ?? '');
   const [email,        setEmail]        = useState(editing?.email ?? '');
@@ -1488,7 +1496,7 @@ function MemberDialog({
 
   const handleSave = async () => {
     setError(null);
-    if (!firstName.trim() || !lastName.trim()) return setError('Nombre y apellido son obligatorios');
+    if (!firstName.trim() || !lastName.trim()) return setError(t('errorAttorneyNameRequired'));
     setSaving(true);
     try {
       const res = await fetch('/api/admin/lawyers/members', {
@@ -1513,12 +1521,12 @@ function MemberDialog({
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({})) as ServerErrorBody;
+        throw new Error(serverError(data));
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -1528,89 +1536,89 @@ function MemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Editar miembro' : 'Agregar miembro al bufete'}</DialogTitle>
-          <DialogDescription>Attorney, Case Manager, Paralegal o Legal Assistant del bufete.</DialogDescription>
+          <DialogTitle>{editing ? t('memberDialogEditTitle') : t('memberDialogCreateTitle')}</DialogTitle>
+          <DialogDescription>{t('memberDialogDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="firstName">Nombre <span className="text-rose">*</span></Label>
+              <Label htmlFor="firstName">{t('fieldFirstName')} <span className="text-rose">*</span></Label>
               <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
             </div>
             <div>
-              <Label htmlFor="lastName">Apellido <span className="text-rose">*</span></Label>
+              <Label htmlFor="lastName">{t('fieldLastName')} <span className="text-rose">*</span></Label>
               <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('fieldEmailPlain')}</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
-              <FormField.Phone label="Teléfono" value={phone ?? ''} onChange={(v) => setPhone(v)} />
+              <FormField.Phone label={t('colPhone')} value={phone ?? ''} onChange={(v) => setPhone(v)} />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="address">Dirección</Label>
+            <Label htmlFor="address">{t('fieldAddress')}</Label>
             <Input id="address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <LocationSelect
-              label="Estado"
+              label={t('fieldState')}
               value={state ?? ''}
               onChange={(v) => { setState(v); setCity(''); }}
               options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
-              placeholder="Seleccionar estado..."
+              placeholder={t('selectStatePlaceholder')}
             />
             <LocationSelect
-              label="Ciudad"
+              label={t('fieldCity')}
               value={city ?? ''}
               onChange={(v) => { setCity(v); setZip((prev) => CITY_ZIP[v] ?? prev); }}
               options={state ? (CITIES_BY_STATE[US_STATES.find(s => s.name === state)?.code ?? ''] ?? []) : []}
-              placeholder={state ? 'Seleccionar ciudad...' : 'Primero elige un estado'}
+              placeholder={state ? t('selectCityPlaceholder') : t('selectStateFirst')}
               disabled={!state}
             />
             <div>
-              <Label htmlFor="zip">ZIP</Label>
+              <Label htmlFor="zip">{t('fieldZipShort')}</Label>
               <Input id="zip" value={zip ?? ''} onChange={(e) => setZip(e.target.value)} placeholder="84601" maxLength={10} />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="memberRole">Rol</Label>
+            <Label htmlFor="memberRole">{t('fieldRole')}</Label>
             <select
               id="memberRole"
               value={memberRole ?? 'ATTORNEY'}
               onChange={(e) => setMemberRole(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
-              {MEMBER_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {MEMBER_ROLES.map((r) => <option key={r} value={r}>{t(`role${r}`)}</option>)}
             </select>
           </div>
 
           {memberRole === 'ATTORNEY' && (
             <div className="rounded-md border border-brand/20 bg-brand/5 p-3 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-text">
-                Datos del abogado
+                {t('attorneyDataSection')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="barNumber">Número de colegiado</Label>
+                  <Label htmlFor="barNumber">{t('fieldBarNumber')}</Label>
                   <Input
                     id="barNumber"
                     value={barNumber}
                     onChange={(e) => setBarNumber(e.target.value)}
-                    placeholder="Ej. 123456"
+                    placeholder={t('barNumberPlaceholder')}
                     maxLength={50}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="recoveryRate">Honorarios típicos (%)</Label>
+                  <Label htmlFor="recoveryRate">{t('fieldRecoveryRate')}</Label>
                   <div className="relative">
                     <Input
                       id="recoveryRate"
@@ -1638,9 +1646,9 @@ function MemberDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">{tc('cancel')}</Button>
           <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
-            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Agregar miembro'}
+            {saving ? tc('saving') : editing ? t('btnSaveChanges') : t('btnAddMember')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1659,6 +1667,8 @@ function ConfirmRemoveModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
@@ -1670,25 +1680,23 @@ function ConfirmRemoveModal({
             <AlertTriangle className="w-5 h-5 text-rose" />
           </div>
           <div>
-            <div className="text-text-1 font-semibold text-sm">Eliminar de firma</div>
+            <div className="text-text-1 font-semibold text-sm">{t('removeTitle')}</div>
             <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseRow.caseCode}</div>
           </div>
         </div>
-        <p className="text-text-2 text-sm">
-          Se quitará el vínculo de este caso con el bufete. El caso y el paciente no se eliminan — solo se desvincula la firma legal.
-        </p>
+        <p className="text-text-2 text-sm">{t('removeDesc')}</p>
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
           >
-            Cancelar
+            {tc('cancel')}
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 text-sm text-white bg-rose hover:bg-rose/80 rounded-md transition-colors"
           >
-            Eliminar vínculo
+            {t('removeConfirm')}
           </button>
         </div>
       </div>
@@ -1707,6 +1715,8 @@ function ConfirmExemptModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const isExempting = !caseRow.signatureExempt;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -1720,28 +1730,26 @@ function ConfirmExemptModal({
           </div>
           <div>
             <div className="text-text-1 font-semibold text-sm">
-              {isExempting ? 'Firma no requerida' : 'Requerir firma'}
+              {isExempting ? t('exemptTitle') : t('requireSignTitle')}
             </div>
             <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseRow.caseCode}</div>
           </div>
         </div>
         <p className="text-text-2 text-sm">
-          {isExempting
-            ? 'Este caso quedará exento del requisito de firma del abogado. El expediente puede procesarse sin firma.'
-            : 'Se volverá a requerir la firma del abogado para este caso.'}
+          {isExempting ? t('exemptDesc') : t('requireSignDesc')}
         </p>
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
           >
-            Cancelar
+            {tc('cancel')}
           </button>
           <button
             onClick={onConfirm}
             className={`px-4 py-2 text-sm text-white rounded-md transition-colors ${isExempting ? 'bg-amber hover:bg-amber/80' : 'bg-brand hover:bg-brand/80'}`}
           >
-            {isExempting ? 'Confirmar exención' : 'Requerir firma'}
+            {isExempting ? t('exemptConfirm') : t('requireSignTitle')}
           </button>
         </div>
       </div>
@@ -1766,13 +1774,18 @@ type HistoryEvent = {
 };
 
 function ActionBadge({ action }: { action: string | null }) {
+  const t = useTranslations('phoenix.lawyers');
   if (!action) return null;
   const color =
     action === 'Asignado'    ? 'bg-emerald/15 text-emerald border-emerald/30' :
     action === 'Removido'    ? 'bg-rose/15 text-rose border-rose/30' :
     'bg-brand/15 text-brand-text border-brand/30';
+  const label =
+    action === 'Asignado' ? t('historyActionAssigned') :
+    action === 'Removido' ? t('historyActionRemoved') :
+    action;
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${color}`}>{action}</span>
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${color}`}>{label}</span>
   );
 }
 
@@ -1783,6 +1796,8 @@ function CaseHistoryDrawer({
   caseRow: CaseRow;
   onClose: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [events, setEvents] = useState<HistoryEvent[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
@@ -1806,7 +1821,7 @@ function CaseHistoryDrawer({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <div className="text-text-1 font-semibold text-sm flex items-center gap-2">
-              <History className="w-4 h-4 text-cyan" /> Historial de cambios
+              <History className="w-4 h-4 text-cyan" /> {t('historyTitle')}
             </div>
             <div className="text-text-muted text-[11px] font-mono mt-0.5">
               {caseRow.caseCode} · {caseRow.patient.firstName} {caseRow.patient.lastName}
@@ -1825,7 +1840,7 @@ function CaseHistoryDrawer({
           ) : events.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted">
               <History className="w-8 h-8" />
-              <span className="text-sm">Sin historial registrado</span>
+              <span className="text-sm">{t('historyEmpty')}</span>
             </div>
           ) : (
             <>
@@ -1833,19 +1848,19 @@ function CaseHistoryDrawer({
               {assignmentEvents.length > 0 && (
                 <div className="p-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-2">
-                    <History className="w-3 h-3" /> Historial de asignaciones ({assignmentEvents.length})
+                    <History className="w-3 h-3" /> {t('historyAssignments', { count: assignmentEvents.length })}
                   </div>
                   <div className="rounded-lg border border-border overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr className="border-b border-border bg-bg-2/40">
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Fecha</th>
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Tipo</th>
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Acción</th>
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Usuario</th>
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Anterior</th>
-                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Nuevo</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{tc('date')}</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{t('columnType')}</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{t('colAction')}</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{t('colUser')}</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{t('colPrevious')}</th>
+                            <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">{t('colNew')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1864,8 +1879,8 @@ function CaseHistoryDrawer({
                                 <ActionBadge action={ev.changeAction} />
                               </td>
                               <td className="px-3 py-2 text-text-2 whitespace-nowrap">{ev.changedByEmail ?? '—'}</td>
-                              <td className="px-3 py-2 text-text-muted">{ev.previousValue ?? <span className="text-text-muted italic">Vacío</span>}</td>
-                              <td className="px-3 py-2 text-text-1 font-medium">{ev.newValue ?? <span className="text-text-muted italic">Vacío</span>}</td>
+                              <td className="px-3 py-2 text-text-muted">{ev.previousValue ?? <span className="text-text-muted italic">{t('historyEmptyValue')}</span>}</td>
+                              <td className="px-3 py-2 text-text-1 font-medium">{ev.newValue ?? <span className="text-text-muted italic">{t('historyEmptyValue')}</span>}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1879,7 +1894,7 @@ function CaseHistoryDrawer({
               {otherEvents.length > 0 && (
                 <div className="px-4 pb-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-2">
-                    <History className="w-3 h-3" /> Otros eventos ({otherEvents.length})
+                    <History className="w-3 h-3" /> {t('historyOther', { count: otherEvents.length })}
                   </div>
                   <div className="relative">
                     <div className="absolute left-3 top-0 bottom-0 w-px bg-border/40" />
@@ -1911,7 +1926,7 @@ function CaseHistoryDrawer({
             className="text-brand-text text-xs hover:underline flex items-center gap-1"
             onClick={onClose}
           >
-            <ExternalLink className="w-3 h-3" /> Ver caso completo
+            <ExternalLink className="w-3 h-3" /> {t('historyViewCase')}
           </Link>
         </div>
       </div>

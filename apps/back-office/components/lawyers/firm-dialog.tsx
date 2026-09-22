@@ -26,6 +26,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { MapPin, Phone as PhoneIcon } from 'lucide-react';
 import {
   Button,
@@ -106,6 +107,7 @@ export function FirmDialog({
 }) {
   const t  = useTranslations('phoenix.lawyers');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
 
   const PAYMENT_SPEEDS = [
     { value: 'UNKNOWN', label: t('speedUnknown') },
@@ -225,7 +227,7 @@ export function FirmDialog({
         throw new Error(
           res.status === 403
             ? t(editing ? 'errorFirmForbiddenEdit' : 'errorFirmForbidden')
-            : (data.message ?? data.error ?? `HTTP ${res.status}`),
+            : serverError(data as ServerErrorBody),
         );
       }
       /* El wizard necesita el id para SELECCIONARLO. Va antes de `onSaved`

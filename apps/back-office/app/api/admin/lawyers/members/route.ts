@@ -50,7 +50,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', message: `Ya existe un usuario con email "${parsed.email}"` },
+        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email } },
         { status: 409 },
       );
     }
@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', message: `Ya existe un usuario con email "${parsed.email}"` },
+        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email } },
         { status: 409 },
       );
     }

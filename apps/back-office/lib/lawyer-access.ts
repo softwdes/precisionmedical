@@ -74,7 +74,10 @@ export type GrantError =
 export interface GrantResult {
   ok: boolean;
   error: GrantError | null;
-  message?: string;
+  /** Datos para armar la frase EN EL CLIENTE. Acá no se escribe copy. */
+  params?: Record<string, string>;
+  /** Texto de aguas arriba (Supabase). No es nuestro, así que no se traduce. */
+  detail?: string;
   created?: boolean;
   emailSent?: boolean;
   activationLink?: string | null;
@@ -114,10 +117,10 @@ export async function grantLawyerAccess(lawyer: LawyerForAccess): Promise<GrantR
   // El email ES la llave del puente entre Phoenix y el directorio Admin. Sin él
   // la cuenta no podría vincularse nunca con la ficha.
   if (!lawyer.email) {
-    return { ok: false, error: 'NO_EMAIL', message: 'Esta ficha no tiene email. Agregalo antes de crear el acceso.' };
+    return { ok: false, error: 'NO_EMAIL' };
   }
   if (lawyer.status !== 'ACTIVE') {
-    return { ok: false, error: 'NOT_ACTIVE', message: 'La ficha no está activa.' };
+    return { ok: false, error: 'NOT_ACTIVE' };
   }
 
   const email = lawyer.email;
@@ -131,11 +134,7 @@ export async function grantLawyerAccess(lawyer: LawyerForAccess): Promise<GrantR
   // Cuenta ya existente de OTRO rol: no se pisa. Reetiquetarla a LAWYER le
   // quitaría de golpe los accesos que ya tiene.
   if (existing && existing.role !== 'LAWYER') {
-    return {
-      ok: false,
-      error: 'EMAIL_IN_USE',
-      message: `Ese email ya tiene una cuenta con rol ${existing.role}. No se puede convertir en acceso de abogado.`,
-    };
+    return { ok: false, error: 'EMAIL_IN_USE', params: { role: existing.role } };
   }
 
   let userId = existing?.id ?? null;
@@ -148,7 +147,7 @@ export async function grantLawyerAccess(lawyer: LawyerForAccess): Promise<GrantR
       email_confirm: false,
     });
     if (authError || !authData?.user) {
-      return { ok: false, error: 'AUTH_CREATE_FAILED', message: authError?.message ?? 'No se pudo crear la cuenta' };
+      return { ok: false, error: 'AUTH_CREATE_FAILED', detail: authError?.message };
     }
 
     const now = new Date().toISOString();
@@ -167,7 +166,7 @@ export async function grantLawyerAccess(lawyer: LawyerForAccess): Promise<GrantR
     if (insertError) {
       // Sin este rollback queda un auth user huérfano que bloquea todo reintento.
       await admin.auth.admin.deleteUser(authData.user.id);
-      return { ok: false, error: 'USER_INSERT_FAILED', message: insertError.message };
+      return { ok: false, error: 'USER_INSERT_FAILED', detail: insertError.message };
     }
 
     userId = authData.user.id;
@@ -253,7 +252,9 @@ export type RevokeError = 'NO_EMAIL' | 'NO_ACCESS' | 'NOT_A_LAWYER_ACCOUNT' | 'B
 export interface RevokeResult {
   ok: boolean;
   error: RevokeError | null;
-  message?: string;
+  params?: Record<string, string>;
+  /** Texto de aguas arriba (Supabase). No es nuestro, así que no se traduce. */
+  detail?: string;
   directoryUserId?: string | null;
 }
 
@@ -279,7 +280,7 @@ export async function revokeLawyerAccess(
   const { error: banError } = await admin.auth.admin.updateUserById(existing.id, {
     ban_duration: BAN_FOREVER,
   });
-  if (banError) return { ok: false, error: 'BAN_FAILED', message: banError.message };
+  if (banError) return { ok: false, error: 'BAN_FAILED', detail: banError.message };
 
   await admin.from('users')
     .update({ status: 'INACTIVE', updatedAt: new Date().toISOString() })

@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import {
   Eye, Pencil, Trash2, Plus, Search as SearchIcon,
   Phone, Mail, MapPin,
@@ -385,6 +386,7 @@ function DeleteConfirmDialog({
 }) {
   const t  = useTranslations('phoenix.lawyers');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Mismo criterio que el diálogo de alta/edición: un 403 no se reintenta. */
@@ -425,7 +427,7 @@ function DeleteConfirmDialog({
           setSinPermiso(true);
           throw new Error(t('errorFirmForbiddenDelete'));
         }
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {

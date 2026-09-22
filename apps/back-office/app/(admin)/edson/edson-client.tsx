@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   Search as SearchIcon, Check, ChevronLeft, ChevronRight, Pencil,
-  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, AlertTriangle, Trash2, Users,
+  Archive, ArchiveRestore, X, Loader2, MessageSquarePlus, Trash2, Users,
   History,
 } from 'lucide-react';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -60,12 +60,34 @@ const COL_SM = 'hidden sm:table-cell';   // Claim # · PIP · Listo
 const COL_MD = 'hidden md:table-cell';   // Quiropráctico/Referido · Aseguradora
 const COL_LG = 'hidden lg:table-cell';   // Hora·Clínica · Provider · Fecha del accidente
 const COL_XL = 'hidden xl:table-cell';   // Ajustador · Observaciones · Archivado
+/*
+ * Tipo de caso. Las otras COL_* son SOLO visibilidad (`hidden … table-cell`), no
+ * ancho: con el layout automatico la tabla le daba a esta columna lo justo para
+ * "M…" y el valor entero no se leia.
+ *
+ * 46px sale de medir en pantalla, no de tantear: "MVA" ocupa 21px a 10px de
+ * letra, "GM" 17 y el encabezado "Type" 23 — el mas ancho de los tres — mas los
+ * 16px de padding de la celda. Es el minimo que no corta y no roba espacio a las
+ * columnas que si llevan texto largo.
+ */
+const COL_TIPO = 'hidden sm:table-cell min-w-[46px] w-[46px] whitespace-nowrap';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
+
+/**
+ * Los dos tipos entre los que Edson puede mover un caso desde esta pantalla.
+ *
+ * Son dos y no cuatro porque `PATCH /api/admin/cases/[id]` solo acepta estos:
+ * `WORKERS_COMP` y `NURSING_HOME` existen en el enum pero esa ruta no los toma,
+ * y ofrecer una opcion que el backend rechaza es peor que no ofrecerla.
+ */
+const TIPOS_DE_CASO = ['MVA', 'GENERAL'] as const;
 
 interface Row {
   caseId: string;
   caseCode: string;
+  /** 'MVA' | 'GENERAL'. Hoy siempre MVA: la vista filtra por eso. */
+  caseType: string;
   patient: { id: string; firstName: string; lastName: string; dateOfBirth: string | null; phone: string | null; phone2: string | null };
   appointment: {
     id: string; scheduledFor: string; status: string;
@@ -413,6 +435,42 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
     }
   }
 
+  /**
+   * Cambia el tipo del caso — el unico arreglo real para "this is NOT new MVA".
+   *
+   * Edson venia marcando filas asi y las dos salidas que habia eran malas:
+   * adivinar por el texto de la nota de la cita (`PHYSICAL`, `MVA RETALING
+   * CARE`) o archivarlas. Archivar solo ESCONDE: el caso sigue siendo MVA para
+   * facturacion, para el portal del abogado y para los reportes.
+   *
+   * Lo decidio Erick el 2026-09-22 y el argumento es el correcto: el dato no
+   * esta en ningun lado de la base, esta en la cabeza de quien atendio. Ninguna
+   * regla lo puede deducir; Edson si lo sabe.
+   *
+   * No se parchea la fila en pantalla: al dejar de ser MVA se cae de la vista
+   * —que filtra por `caseType = 'MVA'`— y cambian los contadores de las tres
+   * pestanas. Se recarga, y que la fila desaparezca ES la confirmacion.
+   */
+  async function cambiarTipo(
+    row: Row, elegido: { id: string | null; text: string | null },
+  ): Promise<boolean> {
+    if (elegido.text || !elegido.id) { setError(t('caseTypeOnlyFromList')); return false; }
+    if (elegido.id === row.caseType) return true;
+    try {
+      const res = await fetch(`/api/admin/cases/${row.caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseType: elegido.id }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      await load();
+      return true;
+    } catch {
+      setError(t('saveFailed'));
+      return false;
+    }
+  }
+
   /** Igual que `saveCell`, contra el endpoint que corresponda. */
   async function saveTo(url: string, caseId: string, patch: Partial<Row>, body: Record<string, unknown>) {
     const prev = rows.find(r => r.caseId === caseId);
@@ -691,6 +749,22 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
         <DataTable.Table gridLines className="text-[7.5px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px] [&_th]:!font-bold [&_th]:!text-text-1 [&_th]:!tracking-normal">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
+              {/*
+                * Tipo de caso. En toda la tabla dice MVA —la vista filtra por
+                * eso— y aun asi la columna gana su lugar, porque no esta para
+                * informar sino para CORREGIR.
+                *
+                * Edson venia marcando filas como "this is NOT new MVA" y las
+                * unicas salidas eran adivinar por el texto de una nota o
+                * archivarlas. Archivar solo las esconde: el caso sigue siendo
+                * MVA para facturacion, para el portal del abogado y para los
+                * reportes. Cambiarle el tipo lo arregla de verdad, y la fila se
+                * va sola de la cola. Lo decidio Erick el 2026-09-22: "en tu
+                * caso tampoco vas a poder saber si realmente es MVA o no, mejor
+                * que lo haga Edson manualmente". Tiene razon — el dato no esta
+                * en ningun lado, esta en la cabeza de quien atendio.
+                */}
+              <DataTable.Th className={COL_TIPO}>{t('colCaseType')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colTime')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colProvider')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colLossDate')}</DataTable.Th>
@@ -716,14 +790,14 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
             </DataTable.Head>
             <tbody>
               {loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 14 : 13}>
+                <tr><DataTable.Td colSpan={archived ? 15 : 14}>
                   <div className="flex items-center justify-center gap-2 py-8 text-text-muted text-[12px]">
                     <Loader2 className="w-4 h-4 animate-spin" /> {t('loading')}
                   </div>
                 </DataTable.Td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><DataTable.Td colSpan={archived ? 14 : 13}>
+                <tr><DataTable.Td colSpan={archived ? 15 : 14}>
                   <EmptyState.Inline message={t(
                     vista === 'archivados' ? 'emptyArchived'
                     : vista === 'repetidos' ? 'emptyRepeat'
@@ -734,7 +808,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
 
               {groups.map(group => (
                 <Fragment key={group.key}>
-                  <DataTable.GroupRow colSpan={archived ? 14 : 13}>
+                  <DataTable.GroupRow colSpan={archived ? 15 : 14}>
                     <div className="flex items-center gap-2 text-[7.5px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
@@ -843,6 +917,21 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             )}
                             </div>
                           </div>
+                        </DataTable.Td>
+                        <DataTable.Td className={COL_TIPO + ' !text-[10px]'}>
+                          <InlineCombo
+                            value={row.caseType === 'GENERAL' ? t('caseTypeGm') : t('caseTypeMva')}
+                            options={TIPOS_DE_CASO.map(v => ({
+                              id: v, name: v === 'GENERAL' ? t('caseTypeGm') : t('caseTypeMva'),
+                            }))}
+                            emptyHint={t('caseTypePick')}
+                            title={t('caseTypeHint')}
+                            /* Mismo gesto que provider: doble clic y la lista entera. */
+                            abreConLaLista
+                            abreConDobleClic
+                            readOnly={archived}
+                            onSave={next => cambiarTipo(row, next)}
+                          />
                         </DataTable.Td>
                         <DataTable.Td className={COL_LG}>
                           {/*
@@ -1189,7 +1278,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                       {row.prevVisitAt && (
                         <tr>
                           <DataTable.Td
-                            colSpan={archived ? 14 : 13}
+                            colSpan={archived ? 15 : 14}
                             className="!py-1.5"
                             style={rowBg ? { background: rowBg } : undefined}
                           >
@@ -1205,29 +1294,27 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           </DataTable.Td>
                         </tr>
                       )}
-                      {row.insComments && (
-                        <tr>
-                          <DataTable.Td
-                            colSpan={archived ? 14 : 13}
-                            className="!py-1.5"
-                            style={rowBg ? { background: rowBg } : undefined}
-                          >
-                            {/*
-                              * `sticky left-4` por lo mismo que la fila de
-                              * grupo: el <td> ocupa todo el ancho de la tabla,
-                              * asi que al scrollear en horizontal el texto se
-                              * iba de pantalla y la banda quedaba vacia — justo
-                              * el aviso que tiene que verse siempre.
-                              */}
-                            <div className="sticky left-4 w-fit flex items-start gap-2">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
-                              <span className="text-[9px] text-text-1 font-medium whitespace-pre-wrap">
-                                {row.insComments}
-                              </span>
-                            </div>
-                          </DataTable.Td>
-                        </tr>
-                      )}
+                      {/*
+                        * Aca vivia una banda con los comentarios del seguro,
+                        * debajo de la fila y con triangulo ambar. Se quito el
+                        * 2026-09-22 a pedido de Edson: "these kind of comments
+                        * are NOT necessary to appear on this tracking".
+                        *
+                        * Tenia razon, y el motivo se ve mirando lo que habia
+                        * adentro: notas legitimas de cobertura ("Liability may
+                        * be disputed but $3k in PIP should be available
+                        * according to atty. - BT") mezcladas con datos metidos
+                        * en el campo equivocado — el telefono y la extension de
+                        * un adjuster que ya tiene su propia columna, y la
+                        * bitacora entera de la persecucion del PIP. Un aviso
+                        * que la mitad de las veces repite otra columna deja de
+                        * leerse, y ademas costaba un renglon de alto por fila.
+                        *
+                        * EL DATO NO SE PIERDE: `comments` de
+                        * `case_auto_insurances` se sigue viendo y editando en el
+                        * modal del caso (campo "Comentarios del seguro"). Por eso
+                        * `insComments` sigue viajando en la fila.
+                        */}
                       </Fragment>
                     );
                   })}

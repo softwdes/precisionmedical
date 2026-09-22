@@ -127,9 +127,15 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
                 {/* Cuántas secciones tienen texto — se ve de un vistazo si la nota
                     quedó a medias sin tener que abrirla. */}
                 <span className="text-[10.5px] text-text-muted tabular-nums">{filled.length}/6</span>
+                {/* La archivada NO es "abierta": vino de Medusa cerrada, y
+                    pintarla de ámbar la haría parecer trabajo pendiente — que es
+                    justo lo que archivarla vino a resolver. Gris, porque es
+                    historia y no una tarea. */}
                 {n.status === 'SIGNED'
                   ? <TagPill label={t('noteSigned')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-                  : <TagPill label={t('visitNoteOpen')} colorClass="bg-amber/15 text-amber border-amber/30" />}
+                  : n.status === 'ARCHIVED'
+                    ? <TagPill label={t('noteArchived')} colorClass="bg-bg-2 text-text-muted border-border" />
+                    : <TagPill label={t('visitNoteOpen')} colorClass="bg-amber/15 text-amber border-amber/30" />}
               </span>
             </button>
 

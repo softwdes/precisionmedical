@@ -29,7 +29,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export interface CaseVisitNote {
   appointmentId: string;
   scheduledFor: string;
-  status: 'DRAFT' | 'SIGNED';
+  status: 'DRAFT' | 'SIGNED' | 'ARCHIVED';
   signedAt: string | null;
   signedByName: string | null;
   providerName: string | null;
@@ -52,7 +52,16 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const rows = await db.visitNote.findMany({
     where: {
-      status: { in: ['DRAFT', 'SIGNED'] },
+      /**
+       * Las ARCHIVADAS también.
+       *
+       * Archivar saca la nota de la cola de trabajo, no del expediente: las 161
+       * que entraron con la migración tienen texto clínico real y 142 tienen CPT.
+       * Esconderlas acá sería perder el historial del paciente para arreglar una
+       * lista de tareas. Las VOIDED siguen afuera, que esas sí se declararon sin
+       * valor.
+       */
+      status: { in: ['DRAFT', 'SIGNED', 'ARCHIVED'] },
       appointment: { caseId },
     },
     orderBy: { appointment: { scheduledFor: 'desc' } },

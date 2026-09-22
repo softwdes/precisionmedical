@@ -1375,6 +1375,17 @@ enum VisitNoteStatus {
   DRAFT // Auto-guardado, no firmado
   SIGNED // Firmado por doctor — inmutable
   VOIDED // Anulado (solo Super Admin)
+
+  /// Vino con la migración y su historia terminó en el sistema anterior.
+  ///
+  /// NO es lo mismo que VOIDED: anulada significa "sin valor", y estas son
+  /// documentación clínica válida —con texto real y códigos de cobro— que
+  /// simplemente no es trabajo pendiente acá.
+  ///
+  /// Las dos colas de trabajo preguntan por DRAFT, así que las archivadas salen
+  /// de ahí solas. Pero SIGUEN en el expediente del paciente: archivar la saca
+  /// de la lista de tareas, no del registro.
+  ARCHIVED
 }
 
 /// Nota clínica SOAP generada por el doctor durante la visita.

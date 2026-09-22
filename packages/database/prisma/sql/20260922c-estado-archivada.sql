@@ -1,0 +1,48 @@
+-- 20260922c — Un estado para la nota que vino migrada y ya estaba cerrada
+--
+-- ⚠️ ESTE ARCHIVO VA SOLO. El de al lado (`20260922d`) es el que archiva. Están
+-- separados porque PostgreSQL **no deja usar un valor de enum recién agregado en
+-- la misma transacción** que lo agregó. Primero este, después el otro.
+--
+-- ── Qué problema resuelve ───────────────────────────────────────────────────
+--
+-- Devin, 2026-09-21: *"The providers have not been working in LM yet so any open
+-- notes in LM should've already been managed in MEDUSA and will just need to be
+-- archived in LM."*
+--
+-- Hoy hay 166 notas en borrador contra 1 firmada, y la cola de "notas sin
+-- cerrar" las muestra todas como trabajo pendiente. No lo son: la enorme mayoría
+-- entró con la migración del 12-sep y su historia terminó en Medusa.
+--
+-- ── Por qué NO alcanza con VOIDED ───────────────────────────────────────────
+--
+-- Porque `VOIDED` significa **anulada** — un documento que se declaró sin valor,
+-- y en el schema está anotado como algo que solo hace un Super Admin. Estas
+-- notas son lo contrario: **documentación clínica válida**, con texto real (hasta
+-- 33.352 caracteres) y 142 de ellas con códigos de cobro colgando. Marcarlas como
+-- anuladas sería escribir una falsedad en el expediente, y quedaría escrita para
+-- siempre.
+--
+-- `ARCHIVED` dice lo que de verdad pasó: **está cerrada y no es trabajo
+-- pendiente, pero sigue siendo parte del registro del paciente.**
+--
+-- ── Qué cambia solo, al agregarlo ───────────────────────────────────────────
+--
+-- Las dos colas de trabajo preguntan por `status = 'DRAFT'`
+-- (`app/doctor/page.tsx` y `lib/notes-audit.ts`), así que las archivadas
+-- desaparecen de ahí sin tocar una línea de esas consultas.
+--
+-- Lo que SÍ hay que tocar es `cases/[id]/visit-notes`, que filtra
+-- `status IN ('DRAFT','SIGNED')`: ahí las archivadas tienen que SEGUIR
+-- apareciendo. Archivar saca la nota de la lista de tareas, **no del expediente
+-- del paciente** — esconder 161 notas con contenido clínico real sería mucho peor
+-- que el problema que estamos resolviendo.
+--
+-- ── Cómo se aplica ──────────────────────────────────────────────────────────
+--
+--   node scripts/apply-sql.cjs prisma/sql/20260922c-estado-archivada.sql
+--   node scripts/apply-sql.cjs prisma/sql/20260922d-archivar-notas-migradas.sql
+--
+-- Idempotente: `IF NOT EXISTS` lo hace repetible.
+
+ALTER TYPE "VisitNoteStatus" ADD VALUE IF NOT EXISTS 'ARCHIVED';

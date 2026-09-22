@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
@@ -125,11 +125,14 @@ export async function POST(
       durationMinutes: parsed.durationMinutes,
     });
     if (overlaps.length > 0) {
+      const detalle = overlapDetails(overlaps)!;
       return NextResponse.json(
         {
           error:   'SLOT_CONFLICT',
           message: describeOverlap(overlaps),
           conflictAppointmentId: overlaps[0]!.id,
+          conflictAt:      detalle.at,
+          conflictPatient: detalle.patient,
           overlapCount: overlaps.length,
           canOverride: true,
         },

@@ -161,7 +161,42 @@ export function describeOverlap(overlaps: OverlappingAppointment[]): string {
   });
   const who   = first.patient ? ` con ${first.patient.firstName} ${first.patient.lastName}` : '';
   const extra = overlaps.length > 1 ? ` (y ${overlaps.length - 1} más)` : '';
-  return `El doctor ya tiene una cita a las ${time}${who}${extra} que se cruza con este horario.`;
+  return `El provider ya tiene una cita a las ${time}${who}${extra} que se cruza con este horario.`;
+}
+
+/**
+ * Los mismos datos del cruce, SIN la oración armada.
+ *
+ * Existe porque `describeOverlap` escribe en español fijo y el cartel que lo
+ * muestra tiene el título y los botones en el idioma de la app: la clínica en
+ * inglés veía "Overlaps another appointment" con el cuerpo en castellano
+ * (Erick, 21-sep-2026). La frase se arma en el cliente con next-intl y el
+ * servidor manda lo único que no puede saber el navegador: CUÁL cita choca.
+ *
+ * `describeOverlap` se queda para el `message` del 409, que sigue siendo lo que
+ * lee cualquier consumidor sin traducir (y lo que termina en un toast genérico
+ * si algo falla antes de componer).
+ *
+ * La hora va en ISO y no formateada a propósito: el huso de la clínica lo
+ * aplica el cliente junto con su idioma, que es donde ya vive esa regla.
+ */
+export interface OverlapDetails {
+  /** Arranque de la cita con la que se cruza, en ISO. */
+  at: string;
+  /** Nombre y apellido, o null si la cita no tiene paciente cargado. */
+  patient: string | null;
+  /** Cuántas citas se cruzan en total, contando esta. */
+  count: number;
+}
+
+export function overlapDetails(overlaps: OverlappingAppointment[]): OverlapDetails | null {
+  const first = overlaps[0];
+  if (!first) return null;
+  return {
+    at:      first.scheduledFor.toISOString(),
+    patient: first.patient ? `${first.patient.firstName} ${first.patient.lastName}` : null,
+    count:   overlaps.length,
+  };
 }
 
 /**

@@ -557,7 +557,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json(
           {
             error:   'SLOT_CONFLICT',
-            message: `El doctor ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
+            message: `El provider ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
+            // Los mismos campos que el resto de los 409 de cruce, para que el
+            // día que el wizard arme su cartel no tenga que volver a tocar esto.
+            // Acá el texto SIGUE saliendo en español: los tres diálogos del alta
+            // muestran `message` tal cual (ver pending-tasks.md).
+            conflictAppointmentId: conflict.id,
+            conflictAt:      conflict.scheduledFor.toISOString(),
+            conflictPatient: `${conflict.patient.firstName} ${conflict.patient.lastName}`,
+            overlapCount: 1,
           },
           { status: 409 },
         );

@@ -1152,10 +1152,29 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         // Cruce con otra cita del doctor: avisa y deja decidir en vez de
         // rechazar el guardado (misma regla que el arrastre del calendario,
         // confirmada por Erick 2026-08-05).
-        if (res.status === 409 && data.canOverride && data.message) {
+        if (res.status === 409 && data.canOverride) {
+          /**
+           * La frase se arma acá y no viene del servidor: el título y los
+           * botones del cartel salen de next-intl, y con el cuerpo escrito en
+           * el backend quedaba mitad en inglés y mitad en castellano (Erick,
+           * 21-sep-2026). El aviso de agenda sigue mostrando `message`, que ahí
+           * son las etiquetas que escribió la clínica y no se traducen.
+           */
+          const esCruce = data.error !== 'BLOCKED_SLOT';
+          let cuerpo: string = (data.message as string | undefined) ?? '';
+          if (esCruce && typeof data.conflictAt === 'string') {
+            const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
+              hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+            });
+            const cuantas = (data.overlapCount as number | undefined) ?? 1;
+            cuerpo = data.conflictPatient
+              ? t('overlapBody', { time: hora, patient: data.conflictPatient as string })
+              : t('overlapBodyAnon', { time: hora });
+            if (cuantas > 1) cuerpo += ' ' + t('overlapMore', { count: cuantas - 1 });
+          }
           setOverlapPrompt({
             pending,
-            message: data.message as string,
+            message: cuerpo,
             codigo:  data.error === 'BLOCKED_SLOT' ? 'BLOCKED_SLOT' : 'SLOT_CONFLICT',
           });
           return;

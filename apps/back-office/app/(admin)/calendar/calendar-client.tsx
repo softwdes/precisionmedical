@@ -374,6 +374,25 @@ function apptTimeShort(iso: string): string {
 }
 
 
+/**
+ * El 409 de cruce o de aviso de agenda.
+ *
+ * `message` viene en español fijo del servidor y se usa solo de respaldo: la
+ * frase que ve el usuario se arma acá con next-intl a partir de los otros
+ * campos. Antes se mostraba `message` tal cual y el cartel quedaba mitad y
+ * mitad —título y botones en inglés, cuerpo en castellano— (Erick, 21-sep-2026).
+ */
+interface RespuestaDeCruce {
+  error?: string;
+  message?: string;
+  canOverride?: boolean;
+  /** La cita con la que se cruza: id, arranque en ISO y paciente. */
+  conflictAppointmentId?: string;
+  conflictAt?: string;
+  conflictPatient?: string | null;
+  overlapCount?: number;
+}
+
 // ─── FilterChip ───────────────────────────────────────────────────────────────
 
 /**
@@ -889,6 +908,42 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     { apptId: string; targetIso: string; message: string } | null
   >(null);
 
+  /**
+   * La frase del cartel, armada acá.
+   *
+   * Dos cosas que el servidor no puede resolver:
+   *
+   * 1. **El idioma.** El título y los botones salen de next-intl; si el cuerpo
+   *    llega escrito del backend, el cartel queda mitad en inglés y mitad en
+   *    castellano, que es justo lo que reportó la clínica.
+   * 2. **Si la cita del choque se está VIENDO.** Pasó de verdad el 21-sep-2026:
+   *    con el filtro "MVA · primera visita" puesto, la cita que chocaba era una
+   *    segunda visita, no se dibujaba, y el hueco se veía libre — así un
+   *    rechazo correcto se lee como una falla del sistema. El servidor no sabe
+   *    qué filtros hay puestos; el cliente sí.
+   *
+   * El aviso de agenda (BLOCKED_SLOT) sigue mostrando `message`: ahí el cuerpo
+   * son las etiquetas que escribió la clínica ("Cerrado", "Almuerzo"), que no
+   * se traducen.
+   */
+  const textoDelCruce = (data: RespuestaDeCruce): string => {
+    if (data.error !== 'SLOT_CONFLICT' || !data.conflictAt) return data.message ?? '';
+    const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
+      hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+    });
+    const partes = [
+      data.conflictPatient
+        ? t('overlapBody', { time: hora, patient: data.conflictPatient })
+        : t('overlapBodyAnon', { time: hora }),
+    ];
+    const cuantas = data.overlapCount ?? 1;
+    if (cuantas > 1) partes.push(t('overlapMore', { count: cuantas - 1 }));
+    if (data.conflictAppointmentId && !visiblesRef.current.has(data.conflictAppointmentId)) {
+      partes.push(t('overlapHidden'));
+    }
+    return partes.join(' ');
+  };
+
   /** El PATCH del arrastre, en un solo lugar: el reintento con allowOverlap usa lo mismo. */
   const patchSchedule = async (apptId: string, targetIso: string, allowOverlap: boolean) => {
     setDragSaving(true);
@@ -903,10 +958,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         setRefreshKey(k => k + 1);
         return;
       }
-      const data = await res.json() as { message?: string; error?: string; canOverride?: boolean };
+      const data = await res.json() as RespuestaDeCruce;
       // Cruce que el usuario puede decidir: en vez de rechazar, se le pregunta.
-      if (res.status === 409 && data.canOverride && data.message) {
-        setOverlapPrompt({ apptId, targetIso, message: data.message });
+      if (res.status === 409 && data.canOverride) {
+        setOverlapPrompt({ apptId, targetIso, message: textoDelCruce(data) });
         return;
       }
       // Se muestra el mensaje REAL del servidor. Antes el toast renderizaba una
@@ -1250,6 +1305,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     }
     return result;
   }, [appointments, patientQuery, filterType, filterMarca, filterSpecialty, providerSpecialtyMap]);
+
+  /**
+   * Los id de lo que está DIBUJADO ahora mismo.
+   *
+   * Va en una ref y no se lee `visibleAppointments` directo porque el cartel se
+   * arma dentro de `patchSchedule`, que está declarado más arriba. La ref se
+   * refresca en cada render y solo se lee cuando alguien suelta una cita, así
+   * que siempre trae la foto de lo que el usuario tenía en pantalla.
+   */
+  const visiblesRef = useRef<Set<string>>(new Set());
+  visiblesRef.current = new Set(visibleAppointments.map(a => a.id));
 
   // Opciones del filtro: el catálogo completo, no lo derivado de citas visibles
   const specialtyOptions = useMemo(

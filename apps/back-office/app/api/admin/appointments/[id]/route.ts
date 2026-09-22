@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { avisarReprogramacion, avisarCancelacion } from '@/lib/recordatorio-cita';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
 import { puedeEscribirLaCita } from '@/lib/appointment-scope';
 
@@ -236,10 +236,15 @@ export async function PATCH(
         excludeAppointmentId: id,
       });
       if (overlaps.length > 0) {
+        const detalle = overlapDetails(overlaps)!;
         return NextResponse.json({
           error:   'SLOT_CONFLICT',
+          // `message` es el respaldo en español; el cartel arma su propia frase
+          // con los tres campos de abajo y el idioma de quien mira.
           message: describeOverlap(overlaps),
           conflictAppointmentId: overlaps[0]!.id,
+          conflictAt:      detalle.at,
+          conflictPatient: detalle.patient,
           overlapCount: overlaps.length,
           // El cruce avisa y deja decidir: el cliente puede reintentar con
           // allowOverlap para solapar a propósito.

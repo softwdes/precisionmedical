@@ -18,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
@@ -377,11 +377,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       durationMinutes: parsed.durationMinutes,
     });
     if (overlaps.length > 0) {
+      const detalle = overlapDetails(overlaps)!;
       return NextResponse.json(
         {
           error:   'SLOT_CONFLICT',
           message: describeOverlap(overlaps),
           conflictAppointmentId: overlaps[0]!.id,
+          conflictAt:      detalle.at,
+          conflictPatient: detalle.patient,
           overlapCount: overlaps.length,
           canOverride: true,
         },

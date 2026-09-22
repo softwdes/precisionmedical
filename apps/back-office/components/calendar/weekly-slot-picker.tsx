@@ -69,11 +69,20 @@ interface Props {
    * atiende". El padre cambia a registrar una visita pasada con ese día puesto.
    */
   onDiaPasado?: (clave: string) => void;
+  /**
+   * No dibujar la línea de confirmación del final.
+   *
+   * Para el consumidor que ya muestra la suya y con más datos: el alta de caso
+   * cierra el paso con un recuadro que dice provider, sede y que al paciente le
+   * va a llegar el correo — cosas que el selector no puede saber. Con las dos
+   * quedaban dos confirmaciones pegadas diciendo casi lo mismo.
+   */
+  hideSummary?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched, excludeAppointmentId, onDiaPasado }: Props) {
+export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched, excludeAppointmentId, onDiaPasado, hideSummary }: Props) {
   const t = useTranslations('phoenix.calendar');
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
@@ -425,7 +434,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       )}
 
       {/* ── Confirmación del slot seleccionado — rango completo, no solo el inicio ── */}
-      {selectedSlot && (
+      {selectedSlot && !hideSummary && (
         <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan flex items-center gap-2">
           <Check className="w-3.5 h-3.5 shrink-0" />
           <span>

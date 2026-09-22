@@ -24,6 +24,23 @@ import {
 } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField, Autocomplete, type AutoResult } from '@/components/ui-phoenix';
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
+/**
+ * El MISMO selector de horarios que usa "Nueva cita".
+ *
+ * Este archivo tenía su propia copia, escrita a mano. El componente compartido
+ * salió justamente de acá —lo dice su encabezado: *"extrae la lógica del step 3
+ * de NewCaseDialog"*— pero el original nunca se borró, así que quedaron dos. El
+ * compartido siguió mejorando y esta copia se quedó quieta: sin el botón de
+ * calendario para saltar a una fecha (Erick, 22-sep-2026: *"en esta vista no me
+ * aparece el calendario para buscar la fecha"*), diciendo "20 hrs" donde son
+ * HORARIOS y no horas, con "selecciona hora" en español duro dentro de la app en
+ * inglés, sin las franjas AM/PM/Noche y arrancando la tira en lunes en vez de
+ * hoy.
+ *
+ * Ninguna de esas cuatro era un pedido nuevo: las cuatro ya estaban resueltas a
+ * diez metros de acá. Por eso se borra la copia en vez de parcharla.
+ */
+import { WeeklySlotPicker, type Slot } from '@/components/calendar/weekly-slot-picker';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
 import { idiomaDelPaciente } from '@/lib/portal-message';
@@ -312,10 +329,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [slotIso, setSlotIso]         = useState<string | null>(null);
   const [duration, setDuration]       = useState(45);
   const [showAllProviders, setShowAllProviders] = useState(false);
-  const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  /** El horario que llegó del calendario. Lo consume el efecto de slots, una vez. */
-  const slotDelCalendario = useRef<string | null>(null);
+  /**
+   * La cita que llegó del CALENDARIO, partida en día y hora.
+   *
+   * El selector la recibe como `initialDate`/`initialTime`: abre la tira en esa
+   * semana, marca el día y elige solo el horario. Antes esto era un ref que
+   * sobrevivía una corrida al efecto que limpiaba la elección; ahora la semana y
+   * el día viven adentro del selector, así que alcanza con decirle dónde abrir.
+   */
+  const [citaDelCalendario, setCitaDelCalendario] = useState<{ fecha: string; hora: string } | null>(null);
 
   // ─── Section 3: Form delivery ──────────────────────────────────────────
   const [formDelivery, setFormDelivery] = useState<FormDelivery>({ email: true, sms: true });
@@ -368,13 +390,19 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setWizardStep(1);
     setGuardianLinked(null);
     setGFirstName(''); setGLastName(''); setGEmail(''); setGPhone(''); setGDob(''); setGRelation('MOTHER');
-    setCaseType('MVA');
+    /* `null` y no `'MVA'`: este reset corre en CADA apertura y era el que
+       reponía la respuesta que se acaba de sacar del `useState`. Con el
+       preseleccionado arriba pasaba desapercibido —repetía el mismo valor—,
+       y al quitarlo quedó como la ÚNICA fuente del MVA puesto de fábrica.
+       Medido en pantalla el 22-sep: el diálogo abría con MVA marcado aunque
+       el estado inicial ya era null. */
+    setCaseType(null);
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setShowAllProviders(false);
-    setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
+    setCitaDelCalendario(null);
     setFormDelivery({ email: true, sms: true });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
 
@@ -417,22 +445,26 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       if (initialState.cita) {
         setScheduleNow(true);
         setSlotIso(initialState.cita.scheduledFor);
-        // El efecto de slots lo borra al montar; el ref lo repone una vez.
-        slotDelCalendario.current = initialState.cita.scheduledFor;
         if (initialState.cita.clinicId)   setClinicId(initialState.cita.clinicId);
         if (initialState.cita.providerId) setProviderId(initialState.cita.providerId);
         if (initialState.cita.durationMinutes) setDuration(initialState.cita.durationMinutes);
-        // El selector de horarios abre en la SEMANA de la cita elegida, no en
-        // la actual: si el horario es de dentro de tres semanas, el paso 3 se
-        // abriría mirando una semana donde la propia elección no aparece, y
-        // parecería que se perdió.
+        // El selector abre en la SEMANA de la cita elegida, no en la actual: si
+        // el horario es de dentro de tres semanas, el paso 3 se abriría mirando
+        // una semana donde la propia elección no aparece, y parecería que se
+        // perdió.
         const cuando = new Date(initialState.cita.scheduledFor);
         if (!Number.isNaN(cuando.getTime())) {
-          setWeekStart(getMondayOf(cuando));
-          // `toDenverDate` y no `toISOString()`: la clave del día es la del
-          // huso de la clínica. Una cita de las 6 PM de Utah cae al día
-          // siguiente en UTC, y el día quedaría marcado en la columna que no es.
-          setSelectedDay(toDenverDate(cuando));
+          setCitaDelCalendario({
+            // `toDenverDate` y no `toISOString()`: la clave del día es la del
+            // huso de la clínica. Una cita de las 6 PM de Utah cae al día
+            // siguiente en UTC, y el día quedaría marcado en la columna que no es.
+            fecha: toDenverDate(cuando),
+            // 24 h fijas y locale neutro: es un valor para el selector, no un
+            // texto para leer.
+            hora: cuando.toLocaleTimeString('en-GB', {
+              hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver',
+            }),
+          });
         }
       }
     } else {
@@ -516,99 +548,29 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   }, [specialtyId, filteredProviders, providerId]);
 
   // ─── Slots ─────────────────────────────────────────────────────────────
-  const [slotOptions, setSlotOptions]   = useState<Array<{ iso: string; label: string; dayLabel: string }>>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
+  /**
+   * La lista que trajo el selector, para poder nombrar el horario elegido.
+   *
+   * El selector hace el pedido y sabe dibujar la semana; acá solo se guarda lo
+   * que devuelve, porque el recuadro verde de confirmación y la pantalla de
+   * éxito necesitan el rótulo del horario ("Tue, Sep 29 · 5:00 PM") y no el ISO.
+   */
+  const [slotOptions, setSlotOptions] = useState<Slot[]>([]);
 
+  /**
+   * Cambiar de sede, de provider o de duración invalida el horario elegido.
+   *
+   * Corre también al montar, y está bien: cuando la cita viene del calendario,
+   * el selector la vuelve a elegir sola en cuanto llegan los horarios
+   * (`initialDate` + `initialTime`). Antes hacía falta un ref que sobreviviera
+   * una corrida, porque el mismo efecto que limpiaba era el que pedía los datos.
+   */
   useEffect(() => {
-    if (!providerId || !clinicId || !scheduleNow) {
-      setSlotOptions([]); setSlotIso(null); setSelectedDay(null); return;
-    }
-    const controller = new AbortController();
-    setSlotsLoading(true);
+    setSlotIso(null);
+  }, [providerId, clinicId, duration, scheduleNow]);
 
-    /**
-     * El horario que vino del CALENDARIO sobrevive a esta limpieza — una vez.
-     *
-     * Este efecto borra la elección de horario cada vez que corre, porque
-     * cambiar de clínica, de doctor o de duración invalida el slot elegido. Pero
-     * también corre al MONTAR, y ahí la elección no es vieja: es la que el
-     * usuario acaba de hacer en la grilla. Sin esto, abrir el caso desde el
-     * calendario perdía el horario en el mismo instante en que se abría, y había
-     * que elegirlo de nuevo — justo lo que este camino viene a evitar.
-     *
-     * El ref se consume acá y queda en `null`: de la segunda corrida en
-     * adelante el comportamiento es el de siempre, y cambiar de doctor limpia
-     * el horario como corresponde.
-     */
-    const precargado = slotDelCalendario.current;
-    slotDelCalendario.current = null;
-    if (precargado) {
-      setSlotIso(precargado);
-      setSelectedDay(toDenverDate(new Date(precargado)));
-    } else {
-      setSlotIso(null); setSelectedDay(null);
-    }
-    const fromDate = weekStart.toISOString();
-    const toDate   = addDays(weekStart, 5).toISOString();
-    // Igual que el selector del calendario: techo POR DÍA. Acá el `limit: 100`
-    // era peor todavía — con 30 min la semana genera 140 y se vaciaban jueves y
-    // viernes, sin necesidad de bajar a citas de 15 min.
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
-    fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.ok) return;
-        setSlotOptions(
-          (data.slots as Array<{ startAt: string }>).map((s) => {
-            const d = new Date(s.startAt);
-            return {
-              iso: s.startAt,
-              label: d.toLocaleString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
-              dayLabel: d.toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
-            };
-          }),
-        );
-      })
-      .catch(() => {})
-      .finally(() => setSlotsLoading(false));
-    return () => controller.abort();
-  }, [providerId, clinicId, duration, scheduleNow, weekStart]);
-
-  // Group slots by Denver-date key (YYYY-MM-DD)
-  const slotsByDayIso = useMemo(() => {
-    const map = new Map<string, typeof slotOptions>();
-    for (const s of slotOptions) {
-      const key = toDenverDate(new Date(s.iso));
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(s);
-    }
-    return map;
-  }, [slotOptions]);
-
-  // Week scaffold: always 5 weekday columns Mon–Fri
-  const todayDenver  = useMemo(() => toDenverDate(new Date()), []); // YYYY-MM-DD, computed once on mount
-  const minWeekStart = useMemo(() => getMondayOf(new Date()).getTime(), []);
-
-  const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => {
-    const d   = addDays(weekStart, i);
-    const iso = toDenverDate(d);
-    return {
-      iso,
-      isPast:   iso < todayDenver,
-      slots:    slotsByDayIso.get(iso) ?? [],
-      dayName:  d.toLocaleDateString(localeApp(), { weekday: 'short', timeZone: 'America/Denver' }),
-      dayNum:   d.toLocaleDateString(localeApp(), { day: 'numeric', timeZone: 'America/Denver' }),
-      monthShort: d.toLocaleDateString(localeApp(), { month: 'short', timeZone: 'America/Denver' }),
-    };
-  }), [weekStart, slotsByDayIso, todayDenver]);
-
-  const selectedDaySlots = useMemo(() =>
-    selectedDay ? (slotsByDayIso.get(selectedDay) ?? []) : [],
-    [selectedDay, slotsByDayIso],
-  );
-
-  const isPrevWeekDisabled = weekStart.getTime() <= minWeekStart;
-  const isNextWeekDisabled = weekStart.getTime() >= minWeekStart + 28 * 24 * 60 * 60 * 1000;
+  // El día de hoy en la clínica. Lo usa la validación de la fecha del accidente.
+  const todayDenver = useMemo(() => toDenverDate(new Date()), []);
 
   // ─── Menor de edad → requiere apoderado ────────────────────────────────
   // La fecha de nacimiento es obligatoria justamente para poder decidir esto:
@@ -1706,6 +1668,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </InfoCard>
               )}
 
+
               {!canGoToStep3 && caseType === 'MVA' && lawyerStatus === 'HAS' && !lawFirm && (
                 <Note tone="amber">Select the law firm to continue.</Note>
               )}
@@ -1768,110 +1731,29 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {/* Selector semanal de horarios */}
                   <div>
                     <Label className="mb-2 block">
+                      {/* Sin el "cargando…" de al lado: el selector ya dibuja el
+                          esqueleto en cada columna mientras pide los horarios. */}
                       {t('slotsLabel')}
-                      {slotsLoading && (
-                        <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">{t('slotsLoading')}</span>
-                      )}
                     </Label>
 
                     {!providerId || !clinicId ? (
                       <p className="text-[11px] text-text-muted italic">{t('slotsSelectFirst')}</p>
                     ) : (
                       <>
-                        {/* ── Navegación de semana ── */}
-                        <div className="flex items-center justify-between mb-2 gap-2">
-                          <button
-                            type="button"
-                            disabled={isPrevWeekDisabled}
-                            onClick={() => { setWeekStart(addDays(weekStart, -7)); setSelectedDay(null); }}
-                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                          >
-                            <ArrowLeft className="w-3 h-3" />
-                            <span className="hidden sm:inline">{tcal('prevWeek')}</span>
-                          </button>
-                          <span className="text-[11px] text-text-muted font-medium text-center">
-                            {weekDays[0]
-                              ? `${weekDays[0].dayNum} ${weekDays[0].monthShort} – ${weekDays[4].dayNum} ${weekDays[4].monthShort}`
-                              : ''}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={isNextWeekDisabled}
-                            onClick={() => { setWeekStart(addDays(weekStart, 7)); setSelectedDay(null); }}
-                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                          >
-                            <span className="hidden sm:inline">{tcal('nextWeek')}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-
-                        {/* ── 5 columnas día ── */}
-                        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 mb-3">
-                          {weekDays.map((wd) => {
-                            const isSelected = selectedDay === wd.iso;
-                            const hasSlots   = wd.slots.length > 0;
-                            return (
-                              <button
-                                key={wd.iso}
-                                type="button"
-                                disabled={slotsLoading || (!hasSlots && !wd.isPast)}
-                                onClick={() => !wd.isPast && hasSlots && setSelectedDay(isSelected ? null : wd.iso)}
-                                className={`flex flex-col items-center py-1.5 sm:py-2 px-0.5 sm:px-1 rounded-lg border text-[10px] font-medium transition-colors ${
-                                  isSelected
-                                    ? 'bg-emerald/15 border-emerald/50 text-emerald'
-                                    : wd.isPast
-                                    ? 'bg-bg-2/30 border-border/40 text-text-muted opacity-50 cursor-not-allowed'
-                                    : hasSlots
-                                    ? 'bg-bg-2 border-border text-text-2 hover:border-emerald/40 hover:bg-emerald/5 cursor-pointer'
-                                    : 'bg-bg-2/30 border-border/40 text-text-muted cursor-not-allowed'
-                                }`}
-                              >
-                                <span className="uppercase tracking-wide font-semibold text-[9px] sm:text-[10px]">{wd.dayName}</span>
-                                <span className="text-xs sm:text-sm font-bold mt-0.5">{wd.dayNum}</span>
-                                {slotsLoading ? (
-                                  <div className="mt-1 w-4 sm:w-6 h-2 rounded bg-border animate-pulse" />
-                                ) : hasSlots ? (
-                                  <span className={`mt-1 text-[8px] sm:text-[9px] ${isSelected ? 'text-emerald' : 'text-text-muted'}`}>
-                                    {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
-                                  </span>
-                                ) : (
-                                  <span className="mt-1 text-[8px] sm:text-[9px] text-text-muted">—</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* ── Slots del día seleccionado ── */}
-                        {selectedDay && selectedDaySlots.length > 0 && (
-                          <div>
-                            <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-1.5">
-                              {weekDays.find((d) => d.iso === selectedDay)?.dayName ?? ''} {weekDays.find((d) => d.iso === selectedDay)?.dayNum} · selecciona hora
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {selectedDaySlots.map((s) => (
-                                <button
-                                  key={s.iso}
-                                  type="button"
-                                  onClick={() => setSlotIso(s.iso)}
-                                  className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                                    slotIso === s.iso
-                                      ? 'bg-emerald/15 border-emerald/40 text-emerald font-semibold'
-                                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                                  }`}
-                                >
-                                  {s.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {!selectedDay && !slotsLoading && (
-                          <p className="text-[11px] text-text-muted italic">
-                            Select a day to see available time slots.
-                          </p>
-                        )}
+                        <WeeklySlotPicker
+                          clinicId={clinicId}
+                          providerId={providerId}
+                          duration={duration}
+                          value={slotIso}
+                          onChange={setSlotIso}
+                          initialDate={citaDelCalendario?.fecha}
+                          initialTime={citaDelCalendario?.hora}
+                          onSlotsFetched={setSlotOptions}
+                          /* El resumen lo pone el recuadro verde de abajo, que
+                             además dice provider, sede y que al paciente le va a
+                             llegar el correo. */
+                          hideSummary
+                        />
                       </>
                     )}
                   </div>
@@ -2293,25 +2175,9 @@ function formatElapsed(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Returns Monday of the week containing `now` (in Denver timezone), at noon UTC.
- *  Noon UTC = 6 AM MDT = same calendar day in Denver → toDenverDate() is stable.
- *  Weekend (Sat/Sun) → advances to NEXT Monday. */
-function getMondayOf(now: Date): Date {
-  // Step 1: find today's calendar date in Denver
-  const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
-    .split('-').map(Number) as [number, number, number];
-  // Step 2: build a noon-UTC Date for that day (noon UTC is always the same Denver date)
-  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  const dow = noonUtc.getUTCDay(); // 0=Sun 1=Mon … 6=Sat
-  // Step 3: offset to Monday; weekend → next Monday
-  const diff = dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow;
-  return new Date(Date.UTC(y, m - 1, d + diff, 12, 0, 0));
-}
-
-/** Add n calendar days to a Date that is stored at noon UTC. */
-function addDays(d: Date, n: number): Date {
-  return new Date(d.getTime() + n * 86_400_000);
-}
+/* `getMondayOf` y `addDays` vivían acá para mover la tira de la semana a mano.
+   Se fueron con el selector: la tira ahora arranca en HOY —no en lunes— y esa
+   cuenta la hace `anclaDesde` dentro del componente compartido. */
 
 function toDenverDate(d: Date): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });

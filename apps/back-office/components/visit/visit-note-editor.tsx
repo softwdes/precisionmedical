@@ -22,9 +22,10 @@ import {
 } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock, Scissors, LogOut, BellRing,
+  Stethoscope, Unlock, Scissors, LogOut, BellRing, History,
 } from 'lucide-react';
 import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
+import { safeHtml } from '@/lib/safe-html';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { MedicalHistoryButton } from '@/components/patients/medical-history-button';
 import { resolveMergeFields, type SnippetMergeData } from '@/lib/snippet-merge';
@@ -46,10 +47,29 @@ export interface NoteDx {
   diagnosisId?: string | null;
 }
 
+export interface NoteAddendum {
+  id: string;
+  numero: number;
+  texto: string;
+  signedAt: string;
+  signedByName: string | null;
+}
+
 export interface VisitNoteData {
   status: string;                 // DRAFT | SIGNED | VOIDED
   signedAt: string | null;
   signedByName: string | null;
+  /**
+   * Reabierta para corregir dentro de su ventana de 48 h. Mientras no sea null
+   * la nota se edita, aunque `status` siga en SIGNED — ver `lib/visit-note-reopen`.
+   */
+  reopenedAt?: string | null;
+  reopenedByName?: string | null;
+  /**
+   * Bloques agregados al pie DESPUÉS de firmar. No modifican el cuerpo: son la
+   * corrección de cuando la ventana de reapertura ya venció.
+   */
+  addenda?: NoteAddendum[];
   templateId: string | null;
   chiefComplaint: string | null;
   hpi: string | null;
@@ -81,6 +101,13 @@ interface Props {
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
+  /**
+   * El que mira puede reabrir esta nota (firmó él, o es super admin, y la
+   * ventana no venció). Lo decide el SERVIDOR con `evaluarReapertura` y llega
+   * resuelto: si la pantalla lo dedujera por su cuenta, dibujaría el botón con
+   * una regla y el servidor aplicaría otra.
+   */
+  puedeReabrir?: boolean;
   /**
    * false para el asistente en Day Admission: puede escribir el borrador (flujo
    * de escriba) pero NO firmar — la firma es del médico y el servidor también
@@ -216,7 +243,7 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(function VisitNoteEditor({
-  appointmentId, patientId, note, templates, userId, canSign = true, onSaved, onSaveExit, onDirtyChange, turno,
+  appointmentId, patientId, note, templates, userId, puedeReabrir = false, canSign = true, onSaved, onSaveExit, onDirtyChange, turno,
   onPuedeEscribirChange, mergeData = null,
 }: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -261,7 +288,21 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     void fetch(`/api/admin/snippets/${s.id}/use`, { method: 'POST' }).catch(() => {});
   };
 
-  const isSigned = note?.status === 'SIGNED';
+  /**
+   * `isSigned` significa CERRADA, no "tiene firma".
+   *
+   * Todo este archivo la usa para decidir solo-lectura, y una nota REABIERTA
+   * tiene firma pero se está editando. Redefinirla acá deja correctas de una vez
+   * las ~15 lecturas de abajo, en vez de salpicar `&& !reabierta` por todas.
+   */
+  const reabierta = !!note?.reopenedAt;
+  const isSigned = note?.status === 'SIGNED' && !reabierta;
+  const [reabriendo, setReabriendo] = React.useState(false);
+  const [errorReabrir, setErrorReabrir] = React.useState<string | null>(null);
+  /** El addendum que se está escribiendo. `null` = no hay diálogo abierto. */
+  const [addendum, setAddendum] = React.useState<string | null>(null);
+  const [guardandoAdd, setGuardandoAdd] = React.useState(false);
+  const addenda = note?.addenda ?? [];
 
   const [content, setContent] = React.useState<Record<SectionField, string>>(() => ({
     chiefComplaint: note?.chiefComplaint ?? '',
@@ -361,6 +402,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
    * No se late en una nota firmada: es inmutable, no hay nada que bloquear.
    */
   const candado = useCandadoNota(appointmentId, !isSigned);
+
   const bloqueadaPorOtro = candado.mio === false;
 
   const soloLectura = isSigned || sinTurno || bloqueadaPorOtro;
@@ -552,6 +594,29 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     const id = setTimeout(() => { void save(); }, AUTOSAVE_MS);
     return () => clearTimeout(id);
   }, [dirty, isSigned, sinTurno, bloqueadaPorOtro, conflicto, save, content, dx, templateId]);
+
+  /**
+   * EL GUARDADO TARDÍO DEL DESALOJADO.
+   *
+   * Cuando un provider entra y le saca la nota, lo que esta persona tenía sin
+   * guardar quedaba en su pantalla sin ningún lugar donde caer: el autoguardado
+   * se apaga (`bloqueadaPorOtro`) y si cerraba la pestaña, se perdía.
+   *
+   * Acá se intenta UNA vez, apenas se detecta el desalojo. El servidor lo acepta
+   * dentro de su gracia (`GRACIA_DESALOJO_MS`), y si el provider ya guardó algo
+   * el control de versión lo convierte en el cartel de conflicto — que muestra
+   * los dos textos y deja elegir. Ninguno de los dos pierde nada.
+   *
+   * `useRef` y no estado: esto tiene que correr una sola vez por desalojo, y un
+   * reintento en cada render sería un martilleo de PUT contra una nota ajena.
+   */
+  const flushDesalojo = React.useRef(false);
+  React.useEffect(() => {
+    if (!candado.desalojadoPor) { flushDesalojo.current = false; return; }
+    if (flushDesalojo.current || !dirty) return;
+    flushDesalojo.current = true;
+    void save();
+  }, [candado.desalojadoPor, dirty, save]);
 
   // Salidas: cambio de tab (desmontaje) y pestaña que se oculta. Las dos perdían
   // el texto porque el temporizador del autoguardado se cancelaba sin guardar.
@@ -772,6 +837,60 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     await salirDeVerdad();
   };
 
+  /**
+   * Reabrir NO toca lo firmado: la copia de esa firma ya vive en
+   * `visit_note_versions`. Lo que se corrija se firma de nuevo y escribe la
+   * versión siguiente.
+   */
+  const handleReabrir = async (): Promise<void> => {
+    setReabriendo(true);
+    setErrorReabrir(null);
+    try {
+      const res = await fetch(`/api/admin/visit-notes/${appointmentId}/reopen`, { method: 'POST' });
+      if (!res.ok) {
+        const d = await res.json() as { motivo?: string };
+        // El servidor dice POR QUÉ no se puede; repetirlo es lo que evita el
+        // "no me deja y no sé por qué".
+        setErrorReabrir(
+          d.motivo === 'ventana-vencida' ? t('noteReopenExpired')
+          : d.motivo === 'no-es-suya'    ? t('noteReopenNotYours')
+          : t('noteReopenError'),
+        );
+        return;
+      }
+      router.refresh();
+    } catch {
+      setErrorReabrir(t('noteReopenError'));
+    } finally {
+      setReabriendo(false);
+    }
+  };
+
+  /**
+   * El addendum se escribe y se firma en el mismo acto — no hay borrador.
+   * Por eso el botón dice "Firmar addendum" y no "Guardar": lo que hace es
+   * atestiguar, y el texto queda inmutable apenas entra.
+   */
+  const handleAddendum = async (): Promise<void> => {
+    const texto = (addendum ?? '').trim();
+    if (texto.replace(/<[^>]*>/g, '').trim().length === 0) return;
+    setGuardandoAdd(true);
+    try {
+      const res = await fetch(`/api/admin/visit-notes/${appointmentId}/addenda`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto }),
+      });
+      if (!res.ok) { setError(t('noteAddendumError')); return; }
+      setAddendum(null);
+      router.refresh();
+    } catch {
+      setError(t('noteAddendumError'));
+    } finally {
+      setGuardandoAdd(false);
+    }
+  };
+
   const handleSign = async (): Promise<void> => {
     setSigning(true);
     // Guardar antes de firmar para no perder lo último escrito
@@ -841,6 +960,20 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           {/* Va PRIMERO y fuera del `isSigned`: consultar la ficha del paciente
               no depende de si la nota está abierta o ya firmada. */}
           {patientId && <MedicalHistoryButton patientId={patientId} className={CELDA_MOVIL} />}
+          {/* Reabrir vive con la nota cerrada, al lado de Imprimir: es lo único
+              que se puede hacer con ella. Se muestra solo a quien de verdad
+              puede — un botón que siempre da 403 es peor que no tenerlo. */}
+          {isSigned && puedeReabrir && (
+            <Button
+              type="button"
+              variant="ghost"
+              loading={reabriendo}
+              className={`h-9 gap-1.5 ${CELDA_MOVIL}`}
+              onClick={() => void handleReabrir()}
+            >
+              <Unlock className="w-3.5 h-3.5" /> {t('noteReopen')}
+            </Button>
+          )}
           {isSigned && (
             // `type="button"` explícito: antes esto era un `<a>` y no podía
             // enviar nada. El primitivo `Button` no fija `type`, y este editor se
@@ -959,6 +1092,29 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         entre clínica y provider no se pide de vuelta. Un botón inerte sería
         peor que ninguno.
       */}
+      {/* Corrigiendo una nota ya firmada. Va en violeta y no en ámbar: no es un
+          aviso de que algo salió mal, es el estado en el que está trabajando, y
+          tiene que verse todo el tiempo para que nadie firme creyendo que es la
+          primera vez. */}
+      {reabierta && (
+        <div className="rounded-md border border-violet/30 bg-violet/10 px-3 py-2.5 text-[11.5px] text-violet-text flex items-start gap-2">
+          <History className="w-4 h-4 shrink-0 mt-px" />
+          <div className="min-w-0">
+            <div className="font-semibold">{t('noteReopenedTitle')}</div>
+            <div className="text-text-2 mt-0.5">
+              {t('noteReopenedBody', {
+                name: note?.signedByName ?? '—',
+                date: note?.signedAt ? new Date(note.signedAt).toLocaleString() : '—',
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {errorReabrir && (
+        <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11.5px] text-rose">
+          {errorReabrir}
+        </div>
+      )}
       {candado.desalojadoPor && !isSigned && (
         <div className="rounded-lg border border-violet/40 bg-violet/10 px-4 py-3 flex items-start gap-3">
           <div className="w-8 h-8 rounded-full bg-violet/20 flex items-center justify-center shrink-0">
@@ -1275,6 +1431,83 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           </div>
         </div>
       </div>
+
+      {/* ── Addenda ──────────────────────────────────────────────────────────
+          Van DESPUÉS de los diagnósticos, al pie, porque es su lugar en el
+          documento: lo que se agregó después de firmar. Se muestran siempre que
+          existan —también con la nota abierta— para que nadie escriba dos veces
+          lo que ya quedó dicho. */}
+      {(addenda.length > 0 || isSigned) && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+              {t('sec_ADDENDA')}
+            </span>
+            {isSigned && addendum === null && (
+              <button
+                type="button"
+                onClick={() => setAddendum('')}
+                className="text-[11px] font-semibold text-violet-text hover:underline flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> {t('noteAddendumAdd')}
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-lg bg-bg-2/30 p-4 space-y-3">
+            {addenda.length === 0 && addendum === null && (
+              <div className="text-[11px] text-text-muted">{t('noteAddendumNone')}</div>
+            )}
+
+            {addenda.map((ad) => (
+              <div key={ad.id} className="rounded-md bg-bg-2/40 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-violet-text">
+                  {t('noteAddendumNumber', { n: ad.numero })}
+                </div>
+                <div className="text-[10.5px] text-text-muted mt-0.5">
+                  {t('noteAddendumSignedBy', {
+                    name: ad.signedByName ?? '—',
+                    date: new Date(ad.signedAt).toLocaleString(),
+                  })}
+                </div>
+                <div
+                  className="rte-content text-[13px] text-text-1 mt-1.5"
+                  dangerouslySetInnerHTML={{ __html: safeHtml(ad.texto) }}
+                />
+              </div>
+            ))}
+
+            {addendum !== null && (
+              <div className="space-y-2">
+                {/* El aviso va ARRIBA del editor, no en el botón: se lee antes
+                    de escribir, que es cuando todavía se puede cambiar de idea. */}
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                  {t('noteAddendumWarning')}
+                </div>
+                <RichTextEditor
+                  value={addendum}
+                  onChange={setAddendum}
+                  placeholder={t('noteAddendumPlaceholder')}
+                  minHeight={120}
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    loading={guardandoAdd}
+                    onClick={() => void handleAddendum()}
+                    className="h-9 gap-1.5"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" /> {t('noteAddendumSign')}
+                  </Button>
+                  <Button type="button" variant="ghost" className="h-9" onClick={() => setAddendum(null)}>
+                    {t('noteAddendumCancel')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modales */}
       {tplTarget !== undefined && (

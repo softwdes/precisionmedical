@@ -142,13 +142,14 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 }
 
 export function ConsultationClient({
-  appointment: a, note, templates, userId, patientContext, llegadaPropia = false,
+  appointment: a, note, templates, userId, puedeReabrir = false, patientContext, llegadaPropia = false,
   casosDelPaciente = 1,
 }: {
   appointment: ConsultationAppointment;
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
+  puedeReabrir?: boolean;
   patientContext: PatientContext;
   /**
    * La llegada la marcó el propio provider (no el mostrador). Habilita el
@@ -700,7 +701,15 @@ export function ConsultationClient({
                   misma que el botón de la barra. Va acá y NO en Day Admission —
                   que el asistente vea lo mismo no decide que edite la ficha
                   clínica, y eso lo tiene que decidir Erick. */}
-              <PatientContextPanel patient={patientContext} editable />
+              <PatientContextPanel
+                patient={patientContext}
+                editable
+                /* El seguro NO es historial médico: vive en el caso. Se abre el
+                   mismo modal de expediente que ya usa "Ver caso", en su tab. */
+                onVerSeguro={a.caseId
+                  ? () => router.push(conCasoAbierto(pathname, searchParams, a.caseId!, 'caso'), { scroll: false })
+                  : undefined}
+              />
               <MensajesDelCasoCard
                 datos={mensajes}
                 currentUserId={userId}
@@ -725,6 +734,7 @@ export function ConsultationClient({
                 note={note}
                 templates={templates}
                 userId={userId}
+                puedeReabrir={puedeReabrir}
                 mergeData={mergeDataFromPatient(patientContext)}
                 onSaveExit={() => router.push(destinoAlSalir)}
               />

@@ -12,7 +12,8 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
-import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionProvider, getSessionRole } from '@/lib/get-session-provider';
+import { evaluarReapertura } from '@/lib/visit-note-reopen';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContextConRecetas, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { llegadaMarcadaPorElProvider } from '@/lib/appointment-scope';
@@ -78,7 +79,12 @@ export default async function DoctorConsultationPage({
       clinic: { select: { id: true, name: true } },
       triageRecord: true,
       visitNote: {
-        include: { diagnoses: { orderBy: { sortOrder: 'asc' } } },
+        include: {
+          diagnoses: { orderBy: { sortOrder: 'asc' } },
+          // Los addenda viajan con la nota: son parte del documento, no un
+          // detalle que se pida aparte cuando alguien se acuerda.
+          addenda: { orderBy: { numero: 'asc' } },
+        },
       },
     },
     }),
@@ -136,12 +142,36 @@ export default async function DoctorConsultationPage({
   // que alguien agregue.
   const patientContext = await buildPatientContextConRecetas(a.patient, a.case);
 
+  /**
+   * ¿Este usuario puede reabrir esta nota, AHORA?
+   *
+   * Se decide en el SERVIDOR y viaja resuelto. Si la pantalla lo dedujera por su
+   * cuenta necesitaría el rol y la hora del server, y dibujaría el botón con una
+   * regla mientras el server aplica otra: el provider lo toca y se come un 403.
+   */
   const n = a.visitNote;
+  const puedeReabrir = n
+    ? evaluarReapertura(
+        { status: n.status, signedAt: n.signedAt, signedById: n.signedById, reopenedAt: n.reopenedAt },
+        provider.userId,
+        await getSessionRole(),
+        new Date(),
+      ).puede
+    : false;
   const note = n
     ? {
         status: n.status,
         signedAt: n.signedAt?.toISOString() ?? null,
         signedByName: n.signedByName,
+        reopenedAt: n.reopenedAt?.toISOString() ?? null,
+        reopenedByName: n.reopenedByName,
+        addenda: n.addenda.map((ad) => ({
+          id: ad.id,
+          numero: ad.numero,
+          texto: ad.texto,
+          signedAt: ad.signedAt.toISOString(),
+          signedByName: ad.signedByName,
+        })),
         templateId: n.templateId,
         chiefComplaint: n.chiefComplaint,
         hpi: n.hpi,
@@ -265,6 +295,7 @@ export default async function DoctorConsultationPage({
       note={note}
       templates={templates}
       userId={provider.userId}
+      puedeReabrir={puedeReabrir}
       patientContext={patientContext}
       llegadaPropia={llegadaPropia}
       casosDelPaciente={casosDelPaciente}

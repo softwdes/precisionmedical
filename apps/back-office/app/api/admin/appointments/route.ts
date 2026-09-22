@@ -168,8 +168,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const visitCountsByCaseAndAppt: Record<string, number> = {};
 
     if (patientIds.length > 0) {
+      /*
+       * La cuenta va por ACCIDENTE. Dos casos del mismo paciente son el mismo
+       * accidente cuando comparten `accidentDate`; si a un caso le falta la
+       * fecha, se cuenta solo, porque no hay con qué afirmar que es el mismo.
+       *
+       * Se usa `cases.accidentDate` y NO el `lossDate` de la fila de seguro: el
+       * lossDate y el número de claim SE COPIAN al abrir un caso nuevo para el
+       * mismo paciente, así que comparar por ahí da "iguales" siempre. Esa
+       * confusión hizo que el 2026-09-17 se fusionaran 10 pares de casos que
+       * eran accidentes distintos.
+       */
+      const casos = await db.case.findMany({
+        where:  { patientId: { in: patientIds } },
+        select: { id: true, patientId: true, accidentDate: true },
+      });
+      const claveDelCaso = new Map<string, string>();
+      for (const c of casos) {
+        claveDelCaso.set(
+          c.id,
+          c.accidentDate
+            ? `${c.patientId}|${c.accidentDate.toISOString().slice(0, 10)}`
+            : `caso:${c.id}`,
+        );
+      }
+      /** El accidente al que pertenece una cita. Sin caso, cuenta sola. */
+      const claveDe = (a: { caseId: string | null; patientId: string }) =>
+        a.caseId ? (claveDelCaso.get(a.caseId) ?? `caso:${a.caseId}`) : `sincaso:${a.patientId}`;
+
       const priorCounts = await db.appointment.groupBy({
-        by: ['patientId'],
+        by: ['caseId'],
         where: {
           patientId:    { in: patientIds },
           status:       { not: 'CANCELLED' },
@@ -177,16 +205,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         },
         _count: { id: true },
       });
-      const priorByPatient: Record<string, number> = {};
-      for (const r of priorCounts) priorByPatient[r.patientId] = r._count.id;
+      const priorPorAccidente: Record<string, number> = {};
+      for (const r of priorCounts) {
+        if (!r.caseId) continue;
+        const k = claveDelCaso.get(r.caseId) ?? `caso:${r.caseId}`;
+        priorPorAccidente[k] = (priorPorAccidente[k] ?? 0) + r._count.id;
+      }
 
       // A lo que ya tenía antes del período se le suman las de ESTE período que
       // van delante suyo: `appointments` viene ordenado por fecha, así que las
       // anteriores son las de índice menor.
       for (let i = 0; i < appointments.length; i++) {
         const appt = appointments[i];
-        const enElPeriodo = appointments.slice(0, i).filter(a => a.patientId === appt.patientId).length;
-        visitCountsByCaseAndAppt[appt.id] = (priorByPatient[appt.patientId] ?? 0) + enElPeriodo;
+        const k = claveDe(appt);
+        const enElPeriodo = appointments.slice(0, i).filter(a => claveDe(a) === k).length;
+        visitCountsByCaseAndAppt[appt.id] = (priorPorAccidente[k] ?? 0) + enElPeriodo;
       }
     }
 

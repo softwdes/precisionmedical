@@ -6147,6 +6147,15 @@
     "caseTypeMVA": "MVA (Motor vehicle accident)",
     "caseTypeGM": "GM (General medicine)",
     "pickCaseTypeToContinue": "Choose the case type to continue.",
+    "relationLabel": "Relationship",
+    "relationPlaceholder": "Select the relationship",
+    "relSpouse": "Spouse",
+    "relParent": "Parent",
+    "relChild": "Child",
+    "relSibling": "Sibling",
+    "relLegalGuardian": "Legal guardian",
+    "relOther": "Other",
+    "removePerson": "Remove",
     "consents": {
       "hipaa": {
         "title": "MEDICAL INFORMATION DISCLOSURE",

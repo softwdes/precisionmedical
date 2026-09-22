@@ -46,14 +46,22 @@ interface ResponsiblePerson {
   relation: string;
 }
 
-const RELATION_OPTIONS = [
-  'Cónyuge',
-  'Padre/Madre',
-  'Hijo/Hija',
-  'Hermano/a',
-  'Persona responsable legal',
-  'Otro',
-];
+/**
+ * Las relaciones de las personas autorizadas.
+ *
+ * Son las MISMAS seis del formulario que llena el paciente
+ * (`apps/forms` → `authPersonRelations`), a propósito: el mostrador y el
+ * paciente tienen que ver la misma lista o el mismo vínculo entra escrito de
+ * dos formas.
+ *
+ * Estaban en duro y en español, así que salían en español con la app en inglés
+ * (Erick, 22-sep-2026). El valor que se guarda es la etiqueta elegida, igual
+ * que en el formulario del paciente —que ya guarda en el idioma de cada uno—,
+ * así que traducirlas no parte ningún dato: lo alinea.
+ */
+const RELATION_KEYS = [
+  'relSpouse', 'relParent', 'relChild', 'relSibling', 'relLegalGuardian', 'relOther',
+] as const;
 
 interface ConsentState {
   hipaa:                 boolean;
@@ -638,15 +646,18 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Relación</label>
+                          <label className="text-[10px] text-text-muted block mb-1">{t('relationLabel')}</label>
                           <select
                             value={p.relation}
                             onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))}
                             className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none"
                           >
-                            <option value="" disabled>Seleccione la relación</option>
-                            {RELATION_OPTIONS.map(r => (
-                              <option key={r} value={r}>{r}</option>
+                            <option value="" disabled>{t('relationPlaceholder')}</option>
+                            {/* El VALUE es la etiqueta traducida, no la clave: es lo que
+                                se guarda, y es lo mismo que guarda el formulario del
+                                paciente. Ver el comentario de RELATION_KEYS. */}
+                            {RELATION_KEYS.map(k => (
+                              <option key={k} value={t(k)}>{t(k)}</option>
                             ))}
                           </select>
                         </div>
@@ -655,7 +666,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                         type="button"
                         onClick={() => setResponsible(prev => prev.filter((_, j) => j !== i))}
                         className="mt-5 p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
-                        title="Eliminar"
+                        title={t('removePerson')}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>

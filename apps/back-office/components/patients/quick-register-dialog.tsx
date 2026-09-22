@@ -174,10 +174,14 @@ function ReferredBySelect({ value, onChange, placeholder, otherLabel, firmsLabel
 interface MemberOption { id: string; label: string; subtitle: string; }
 
 function AttorneySelect({
-  firmId, value, onChange, placeholder, selectPlaceholder,
+  firmId, value, onChange, placeholder, selectPlaceholder, otherLabel,
 }: {
   firmId: string; value: string; onChange: (v: string) => void;
   placeholder: string; selectPlaceholder: string;
+  /** "No está en la lista — escribirlo". Venía en duro como "Otro…" y salía en
+      español con la app en inglés (Erick, 22-sep-2026). El select hermano —el
+      de referidores— ya lo recibía traducido; a este se le había escapado. */
+  otherLabel: string;
 }) {
   const [members, setMembers] = useState<MemberOption[]>([]);
 
@@ -206,7 +210,7 @@ function AttorneySelect({
       {members.map(m => (
         <option key={m.id} value={m.label}>{m.label}{m.subtitle ? ` — ${m.subtitle}` : ''}</option>
       ))}
-      <option value="__otro__">Otro…</option>
+      <option value="__otro__">{otherLabel}</option>
     </select>
   );
 }
@@ -1199,6 +1203,7 @@ export function QuickRegisterDialog({
                         onChange={setAttorney}
                         placeholder={t('attorneyPlaceholder')}
                         selectPlaceholder={t('selectAttorney')}
+                        otherLabel={t('otherTyped')}
                       />
                     </Field>
                     <Field label={t('chiropractor')}>

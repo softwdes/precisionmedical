@@ -23,6 +23,7 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
+import { NoteCharges, type PlannedService } from '@/components/visit/note-charges';
 import { mergeDataFromPatient } from '@/lib/snippet-merge';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { TriageVitalsForm } from '@/components/visit/triage-vitals-form';
@@ -205,6 +206,13 @@ export function ConsultationClient({
       setMarcando(false);
     }
   };
+
+  /**
+   * Los CPT que ya tiene la visita. Salen del MISMO lugar que el tab de
+   * Servicios (`plannedServiceCodes` de la cita), no de una copia: son dos
+   * ventanas a la misma lista y tienen que decir lo mismo.
+   */
+  const cargosDeLaVisita = (a.servicesPanel.plannedServiceCodes ?? []) as PlannedService[];
 
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
@@ -735,6 +743,26 @@ export function ConsultationClient({
                 templates={templates}
                 userId={userId}
                 puedeReabrir={puedeReabrir}
+                /* Los cargos al pie de la nota, bajo los diagnósticos (Devin). Se arma
+                   ACÁ y no dentro del editor porque necesita cobertura, caso y saber
+                   llegar al tab de Servicios — cosas que el editor no tiene por qué
+                   conocer. Y NO se congela al firmar: la plata corre en otro reloj. */
+                sinCargos={cargosDeLaVisita.length === 0}
+                /* Los ACTIVOS, no todos: conciliar es revisar lo que el paciente
+                   está tomando hoy, no su historia de medicación. */
+                medicamentosActivos={patientContext.history.medications.filter((m) => m.status === 'IN_USE')}
+                bloqueCargos={
+                  <NoteCharges
+                    appointmentId={a.id}
+                    caseId={a.caseId ?? null}
+                    coverage={a.coverage}
+                    initial={cargosDeLaVisita}
+                    onVerServicios={() => setTab('services')}
+                    /* El Resumen del paso 4 lee los CPT del payload del SERVER: sin
+                       esto, se agrega un cargo acá y la salida sigue diciendo que faltan. */
+                    onChanged={() => router.refresh()}
+                  />
+                }
                 mergeData={mergeDataFromPatient(patientContext)}
                 onSaveExit={() => router.push(destinoAlSalir)}
               />

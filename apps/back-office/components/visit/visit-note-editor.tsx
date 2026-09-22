@@ -22,7 +22,7 @@ import {
 } from '@precision/ui';
 import {
   Eraser, FileStack, Plus, X, Loader2, Check, ShieldCheck, Lock, Printer, AlertTriangle,
-  Stethoscope, Unlock, Scissors, LogOut, BellRing, History,
+  Stethoscope, Unlock, Scissors, LogOut, BellRing, History, Pill,
 } from 'lucide-react';
 import { RichTextEditor, TagPill, type RichTextEditorHandle } from '@/components/ui-phoenix';
 import { safeHtml } from '@/lib/safe-html';
@@ -108,6 +108,29 @@ interface Props {
    * una regla y el servidor aplicaría otra.
    */
   puedeReabrir?: boolean;
+  /**
+   * El bloque de CPT/cargos, al pie y bajo los diagnósticos (pedido de Devin).
+   *
+   * Llega como ranura y no construido acá a propósito: los cargos necesitan
+   * cobertura, caso y navegación a Servicios, y este archivo ya tiene 1.400
+   * líneas. El editor decide DÓNDE va; quién lo monta decide QUÉ es — y por eso
+   * Day Admission puede pasar el suyo o ninguno.
+   */
+  bloqueCargos?: React.ReactNode;
+  /**
+   * Los medicamentos ACTIVOS del paciente, para la conciliación.
+   *
+   * Devin, 2026-09-21: la lista se muestra ANTES de atestiguar. Un clic que
+   * afirma "se revisó la medicación" sin mostrar nada no afirma nada.
+   */
+  medicamentosActivos?: Array<{ name: string; dose?: string | null; instructions?: string | null }>;
+  /**
+   * La visita no tiene ni un cargo. Solo sirve para AVISAR al firmar — Devin,
+   * 2026-09-21: *"do an alert not a block for the CPT coding"*. Nunca impide
+   * firmar: trabarlo obliga a inventar un código para poder salir de la
+   * pantalla, que es peor que un código faltante.
+   */
+  sinCargos?: boolean;
   /**
    * false para el asistente en Day Admission: puede escribir el borrador (flujo
    * de escriba) pero NO firmar — la firma es del médico y el servidor también
@@ -243,7 +266,8 @@ function parseDx(content: string): NoteDx[] {
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(function VisitNoteEditor({
-  appointmentId, patientId, note, templates, userId, puedeReabrir = false, canSign = true, onSaved, onSaveExit, onDirtyChange, turno,
+  appointmentId, patientId, note, templates, userId, puedeReabrir = false,
+  bloqueCargos, sinCargos = false, medicamentosActivos = [], canSign = true, onSaved, onSaveExit, onDirtyChange, turno,
   onPuedeEscribirChange, mergeData = null,
 }: Props, refExterno): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -301,6 +325,9 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   const [errorReabrir, setErrorReabrir] = React.useState<string | null>(null);
   /** El addendum que se está escribiendo. `null` = no hay diálogo abierto. */
   const [addendum, setAddendum] = React.useState<string | null>(null);
+  /** El diálogo de conciliación de medicamentos. */
+  const [medRecAbierto, setMedRecAbierto] = React.useState(false);
+  const [medRecGuardando, setMedRecGuardando] = React.useState(false);
   const [guardandoAdd, setGuardandoAdd] = React.useState(false);
   const addenda = note?.addenda ?? [];
 
@@ -891,6 +918,37 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     }
   };
 
+  /**
+   * Conciliación de medicamentos: deja la constancia y escribe la línea.
+   *
+   * El nombre y la fecha los pone el SERVIDOR y viajan en la respuesta. Si los
+   * armara la pantalla, la línea diría la hora del reloj de la iPad y el nombre
+   * que el cliente cree tener — dos cosas que en una atestiguación clínica no se
+   * adivinan.
+   */
+  const handleMedRec = async (): Promise<void> => {
+    setMedRecGuardando(true);
+    try {
+      const res = await fetch(`/api/admin/visit-notes/${appointmentId}/med-rec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicamentos: medicamentosActivos.length }),
+      });
+      if (!res.ok) { setError(t('medRecError')); return; }
+      const d = await res.json() as { nombre: string; fecha: string };
+      const linea = t('medRecLine', {
+        date: new Date(d.fecha).toLocaleDateString(),
+        name: d.nombre,
+      });
+      editores.current.hpi?.insertHtmlAtCursor(`<p>${linea}</p>`);
+      setMedRecAbierto(false);
+    } catch {
+      setError(t('medRecError'));
+    } finally {
+      setMedRecGuardando(false);
+    }
+  };
+
   const handleSign = async (): Promise<void> => {
     setSigning(true);
     // Guardar antes de firmar para no perder lo último escrito
@@ -1300,6 +1358,18 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               <div className="flex items-center gap-3">
                 {/* Abre la lista de snippets DENTRO del editor de esta sección —
                     el gesto de Medusa. Violeta lleno cuando está abierta. */}
+                {/* Solo en HPI: es donde Devin pidió que caiga la línea, y
+                    repetirlo en las seis secciones sería ofrecer seis botones
+                    que hacen lo mismo. */}
+                {field === 'hpi' && (
+                  <button
+                    type="button"
+                    onClick={() => setMedRecAbierto(true)}
+                    className="text-[11px] font-semibold text-text-muted hover:text-text-1 hover:underline flex items-center gap-1"
+                  >
+                    <Pill className="w-3 h-3" /> {t('medRecBtn')}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleSnippets(field)}
@@ -1431,6 +1501,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           </div>
         </div>
       </div>
+
+      {bloqueCargos}
 
       {/* ── Addenda ──────────────────────────────────────────────────────────
           Van DESPUÉS de los diagnósticos, al pie, porque es su lugar en el
@@ -1597,11 +1669,64 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         </DialogContent>
       </Dialog>
 
+      {/* Conciliación: la lista primero, la firma después. */}
+      {medRecAbierto && (
+        <Dialog open onOpenChange={(v) => { if (!v) setMedRecAbierto(false); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-[15px]">{t('medRecTitle')}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-[12.5px] text-text-2">{t('medRecBody')}</p>
+              {medicamentosActivos.length === 0 ? (
+                <div className="rounded-md bg-bg-2/40 px-3 py-2.5 text-center text-[11.5px] text-text-muted">
+                  {t('medRecEmpty')}
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-[45vh] overflow-y-auto">
+                  {medicamentosActivos.map((m, i) => (
+                    <div key={i} className="rounded-md bg-bg-2/40 px-3 py-2">
+                      <div className="text-[12.5px] text-text-1 font-medium">{m.name}</div>
+                      {(m.dose || m.instructions) && (
+                        <div className="text-[10.5px] text-text-muted mt-0.5">
+                          {[m.dose, m.instructions].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Se dice qué va a pasar ANTES de apretar, no después. */}
+              <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                {t('medRecWarning')}
+              </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setMedRecAbierto(false)}>
+                {t('noteAddendumCancel')}
+              </Button>
+              <Button
+                loading={medRecGuardando}
+                className="w-full sm:w-auto gap-1.5"
+                onClick={() => void handleMedRec()}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" /> {t('medRecConfirm')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {confirmSign && (
         <ConfirmDialog
           open
           title={t('noteSignTitle')}
-          description={t('noteSignConfirm')}
+          /* El aviso de CPT viaja en la descripción del mismo diálogo, no en un
+             pop-up aparte: el provider ya está decidiendo firmar, y una segunda
+             ventana encima se cierra sin leerse. */
+          description={sinCargos
+            ? `${t('noteSignConfirm')} ${t('noteSignNoCharges')}`
+            : t('noteSignConfirm')}
           confirmLabel={t('noteFinish')}
           onConfirm={() => void handleSign()}
           // Arrepentirse de la confirmación también cancela el "y salir": si no,

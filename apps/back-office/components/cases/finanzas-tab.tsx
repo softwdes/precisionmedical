@@ -445,6 +445,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const PAYMENT_TYPES  = React.useMemo(() => tiposDePago(t), [t]);
   const METHOD_LABELS  = React.useMemo(() => metodos(t), [t]);
   const [insurances, setInsurances] = useState<CaseInsurance[]>([]);
+  /**
+   * De quién es la cuenta que se está cobrando.
+   *
+   * El encabezado decía solo "Pago del caso". Desde Finanzas se cobra a varios
+   * pacientes seguidos sin abrir la ficha de ninguno, así que no había forma de
+   * confirmar a quién le estás cobrando sin acordarte en qué fila hiciste clic
+   * (Erick, 2026-09-22). Abierto desde la ficha del paciente es redundante, pero
+   * repetir el nombre no cuesta nada y equivocarse de cuenta, sí.
+   */
+  const [caso, setCaso] = useState<{ caseCode: string | null; paciente: string | null } | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
@@ -558,6 +568,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
       setKpis({ ...EMPTY_KPIS, ...(data.kpis ?? {}) });
       setPayments(data.payments ?? []);
       setInsurances(freshInsurances);
+      setCaso(data.caso ?? null);
 
       // Open pay modal with fresh data if flagged
       if (openAfterLoad.current) {
@@ -1279,6 +1290,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                 <CreditCard className="w-4 h-4 text-amber" />
                 {filterAppointmentId ? t('payModalTitleVisit') : t('payModalTitle')}
               </DialogTitle>
+              {/* Quién es. Va ARRIBA del subtítulo porque es el dato que evita
+                  el error caro: cobrarle al paciente equivocado. */}
+              {(caso?.paciente || caso?.caseCode) && (
+                <p className="text-[13px] mt-1 flex items-center gap-2 flex-wrap">
+                  {caso.paciente && (
+                    <span className="font-semibold text-text-1">{caso.paciente}</span>
+                  )}
+                  {caso.caseCode && (
+                    <span className="font-mono text-[11px] text-cyan">{caso.caseCode}</span>
+                  )}
+                </p>
+              )}
               <p className="text-text-muted text-xs mt-0.5">
                 {filterAppointmentId ? t('payModalSubtitleVisit') : t('payModalSubtitle')}
               </p>

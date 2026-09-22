@@ -19,6 +19,14 @@ export async function GET(
     select: {
       id: true,
       deletedAt: true,
+      /**
+       * Para el encabezado del modal de cobro. Quien cobra desde Finanzas pasa
+       * de un paciente a otro sin abrir la ficha de ninguno: el modal decía solo
+       * "Pago del caso" y no había forma de saber de quién era la cuenta que se
+       * tenía adelante (Erick, 2026-09-22, mirándolo).
+       */
+      caseCode: true,
+      patient: { select: { firstName: true, lastName: true } },
       primaryInsurance:   { select: { id: true, name: true } },
       secondaryInsurance: { select: { id: true, name: true } },
     },
@@ -195,6 +203,11 @@ export async function GET(
     .sort((a, z) => new Date(z.paidAt).getTime() - new Date(a.paidAt).getTime());
 
   return NextResponse.json({
+    /** Quién es el dueño de esta cuenta — lo muestra el encabezado del cobro. */
+    caso: {
+      caseCode: caseRecord.caseCode,
+      paciente: `${caseRecord.patient?.firstName ?? ''} ${caseRecord.patient?.lastName ?? ''}`.trim() || null,
+    },
     billings: serialized,
     kpis: {
       totalCost, totalPaid, totalBalance, patientBalance, insuranceBalance,

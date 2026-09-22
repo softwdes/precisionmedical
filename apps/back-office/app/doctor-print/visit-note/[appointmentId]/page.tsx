@@ -145,7 +145,15 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
       },
       triageRecord: true,
       plannedServiceCodes: true,
-      visitNote: { include: { diagnoses: { orderBy: { sortOrder: 'asc' } } } },
+      visitNote: {
+        include: {
+          diagnoses: { orderBy: { sortOrder: 'asc' } },
+          // Los addenda son PARTE del documento: lo que se agregó después de
+          // firmar. Una nota impresa sin ellos es una nota incompleta, y es la
+          // copia que va al bufete y al seguro.
+          addenda: { orderBy: { numero: 'asc' } },
+        },
+      },
     },
   });
 
@@ -461,6 +469,31 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
                     <div>{dx.icd10Label ?? dx.snomedLabel ?? '—'}</div>
                     {dx.snomedCode && <div className="dxs">SNOMED {dx.snomedCode} — {dx.snomedLabel ?? ''}</div>}
                   </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* ── Addenda ──────────────────────────────────────────────────────
+              Al pie y con su propio título: se lee como lo que es, un agregado
+              posterior con su fecha y su firma, y NO se mezcla con el cuerpo.
+              Esa separación visual es parte de lo que hace válida la enmienda:
+              quien lee tiene que poder distinguir qué se firmó cuándo. */}
+          {note.addenda.length > 0 && (
+            <>
+              <div className="stitle">{t('prAddenda')}</div>
+              {note.addenda.map((ad) => (
+                <div key={ad.id} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    {t('prAddendumNumber', { n: ad.numero })}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#555', marginBottom: 3 }}>
+                    {t('prAddendumSignedBy', {
+                      name: ad.signedByName ?? '—',
+                      date: fmtDateTime(ad.signedAt, locale),
+                    })}
+                  </div>
+                  <div dangerouslySetInnerHTML={{ __html: safeHtml(ad.texto) }} />
                 </div>
               ))}
             </>

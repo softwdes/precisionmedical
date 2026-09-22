@@ -83,6 +83,32 @@ const VISITA_MVA_ANTERIOR = Prisma.sql`
       AND c2."deletedAt" IS NULL
       AND a2."scheduledFor" < fa."scheduledFor"
       AND a2."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
+      /*
+       * Y tiene que ser el MISMO ACCIDENTE.
+       *
+       * Sin esto, a un paciente que ya venia en tratamiento por un choque
+       * viejo, un choque NUEVO le salia marcado como seguimiento y desaparecia
+       * de la cola. Lo reporto la clinica dos veces: con Gattlin Rogers el
+       * 2026-09-18 y con Karlee Sanchez el 22 — "that day was her new MVA".
+       * Las dos veces tenian razon: un accidente nuevo ES una admision nueva,
+       * aunque a la persona ya la conozcan.
+       *
+       * Se compara cases.accidentDate y NO el lossDate de la fila de
+       * seguro, aunque esa sea la que usan las columnas de la grilla. El
+       * lossDate y el numero de claim SE COPIAN al abrir un caso nuevo para el
+       * mismo paciente, asi que comparar por ahi da "iguales" siempre. Esa
+       * confusion exacta hizo que el 2026-09-17 fusionara 10 pares de casos que
+       * eran accidentes distintos. Acá se compara el campo que una persona
+       * ESCRIBE, no el que el sistema arrastra.
+       *
+       * Si a CUALQUIERA de los dos le falta la fecha, no hay con que afirmar
+       * que es el mismo accidente y la fila se queda en la cola. El error de
+       * mostrar una fila de mas se archiva de un clic; el de esconder un MVA
+       * nuevo no se ve hasta que el paciente se pierde.
+       */
+      AND c2."accidentDate" IS NOT NULL
+      AND c."accidentDate"  IS NOT NULL
+      AND c2."accidentDate"::date = c."accidentDate"::date
     ORDER BY a2."scheduledFor" ASC
     LIMIT 1
   ) prev ON TRUE`;
@@ -316,6 +342,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     SELECT
       c."id"            AS case_id,
       c."caseCode"      AS case_code,
+      c."caseType"::text AS case_type,
       c."accidentDate"  AS case_accident_date,
       p."id"            AS patient_id,
       p."firstName"     AS patient_first,
@@ -460,6 +487,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // Algunos casos migrados del v2 guardaron el código cifrado; nunca se
       // devuelve el `e:…` crudo.
       caseCode: isCipher(r.case_code as string) ? dec(r.case_code as string) : r.case_code,
+      /*
+       * Hoy siempre vale 'MVA' porque la vista filtra por eso. Viaja igual
+       * porque la celda de Tipo lo necesita para mostrar el valor actual, y
+       * porque el dia que la vista deje de estar clavada a MVA el dato ya esta.
+       */
+      caseType: r.case_type,
       patient: {
         id:        r.patient_id,
         firstName: r.patient_first,

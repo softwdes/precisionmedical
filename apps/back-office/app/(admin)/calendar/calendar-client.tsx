@@ -2005,9 +2005,20 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             const altoFila = filaVacia || isCont ? 'min-h-[24px]' : 'min-h-[44px]';
             return (
               <div key={slot} className={`grid grid-cols-[64px_1fr] ${sigueAbajo ? '' : 'border-b border-row-sep'} last:border-b-0 ${altoFila}`}>
+                {/* La columna de horas: 16px en la hora en punto y 13px en los
+                    cuartos, con `leading-none` para que el renglón siga midiendo
+                    24px y el día no se estire. Estaba a 14 y 11,5, y quedó
+                    chica al lado del nombre del paciente cuando éste subió a
+                    14px — la clínica pidió la hora también (Erick, 21-sep-2026:
+                    *"the appointments are in a bigger font, can we make the
+                    times bigger too?"*).
+
+                    El cuarto de hora sube además de `text-3` a `text-2`: al 45%
+                    de opacidad el 8:15 se perdía, y el problema de origen era
+                    tamaño Y contraste, como en el renglón de contexto. */}
                 <div className="border-r border-row-sep flex items-center justify-end pr-2">
-                  <span className={`font-mono tabular-nums ${
-                    slot.endsWith(':00') ? 'text-sm text-text-1 font-bold' : 'text-[11.5px] text-text-3 font-semibold'
+                  <span className={`font-mono tabular-nums leading-none ${
+                    slot.endsWith(':00') ? 'text-base text-text-1 font-bold' : 'text-[13px] text-text-2 font-semibold'
                   }`}>{slotLabel(slot)}</span>
                 </div>
                 <div
@@ -2144,7 +2155,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             <Video className="w-4 h-4 shrink-0 text-cyan" aria-label={t('legendOnline')} />
                           )}
                           {s.badge && <span className="text-[15px] leading-none shrink-0">{s.badge}</span>}
-                          <span className="text-[11.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.9 }}>{timeRange}</span>
+                          {/* La hora de la tarjeta acompaña a la columna: 13px.
+                              No llega a 14 para que no compita con el nombre,
+                              que es lo primero que se busca en la fila. */}
+                          <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.9 }}>{timeRange}</span>
                         </div>
                         {/* El renglón de contexto. Con "Motivo" prendido dice el
                             motivo de la visita y NADA más: media línea de motivo

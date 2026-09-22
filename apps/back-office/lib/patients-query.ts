@@ -46,12 +46,45 @@ import { db, type Prisma } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec, isCipher } from './decrypt';
 import { separarFecha, clausulasDeFecha } from './fecha-buscada';
 import { idsPorTelefono, soloDigitos, MIN_DIGITOS_TELEFONO } from './telefono-buscado';
+// Los valores y sus guardas viven aparte: los comparte el client component que
+// pinta los titulos ordenables de la tabla, y este archivo importa `db`.
+import type { OrdenPacientes, TipoDeCaso } from './patients-orden';
+
+export type { OrdenPacientes, TipoDeCaso } from './patients-orden';
 
 export interface FiltroPacientes {
   q?: string;
   inactiveOnly: boolean;
   /** Portal médico: recorte a los pacientes de este provider. */
   providerId?: string | null;
+  /**
+   * Solo los pacientes con al menos un caso de este tipo. `undefined` = todos.
+   *
+   * Filtra por el CASO y no por el paciente porque el tipo vive en el caso: una
+   * persona puede tener un MVA y un GM a la vez, y con este filtro aparece en
+   * las dos listas. Es lo correcto — no hay "pacientes MVA", hay pacientes con
+   * un caso MVA.
+   */
+  caseType?: TipoDeCaso;
+}
+
+/**
+ * El `orderBy` de Prisma para cada orden. Vive acá por el mismo motivo que el
+ * filtro: lo piden el render del servidor y la API, y si divergen la lista
+ * "salta" al montar el cliente.
+ *
+ * El desempate por `id` no es un adorno: sin él, dos pacientes con el mismo
+ * apellido —o creados en el mismo milisegundo, que pasa en las migraciones—
+ * pueden salir en distinto orden en cada página y repetirse o desaparecer al
+ * paginar.
+ */
+export function ordenPacientes(orden: OrdenPacientes): Prisma.PatientOrderByWithRelationInput[] {
+  switch (orden) {
+    case 'antiguo':    return [{ createdAt: 'asc' },  { id: 'asc' }];
+    case 'nombre':     return [{ lastName: 'asc' },  { firstName: 'asc' },  { id: 'asc' }];
+    case 'nombreDesc': return [{ lastName: 'desc' }, { firstName: 'desc' }, { id: 'asc' }];
+    default:           return [{ createdAt: 'desc' }, { id: 'asc' }];
+  }
 }
 
 /**
@@ -122,7 +155,7 @@ async function idsPorTelefonoCifrado(
  * sin término numérico no consulta nada de más.
  */
 export async function wherePacientes(
-  { q, inactiveOnly, providerId }: FiltroPacientes,
+  { q, inactiveOnly, providerId, caseType }: FiltroPacientes,
 ): Promise<Prisma.PatientWhereInput> {
   const statusFilter: Prisma.PatientWhereInput = inactiveOnly
     ? { status: 'INACTIVE' }
@@ -130,8 +163,14 @@ export async function wherePacientes(
 
   const providerScope = alcanceDelProvider(providerId);
 
+  /* El tipo de caso entra como un filtro más del AND: se combina con el término
+     y con el recorte del provider en vez de competir con ellos. */
+  const porTipo: Prisma.PatientWhereInput[] = caseType
+    ? [{ cases: { some: { caseType, deletedAt: null } } }]
+    : [];
+
   const termino = (q ?? '').trim();
-  if (!termino) return { AND: [statusFilter, providerScope] };
+  if (!termino) return { AND: [statusFilter, providerScope, ...porTipo] };
 
   /**
    * La fecha de nacimiento se saca del término ANTES de buscar el nombre.
@@ -152,7 +191,7 @@ export async function wherePacientes(
 
   // Sólo la fecha: no queda texto que buscar, y ese es todo el filtro.
   if (porFecha.length && !resto) {
-    return { AND: [statusFilter, providerScope, ...porFecha] };
+    return { AND: [statusFilter, providerScope, ...porTipo, ...porFecha] };
   }
 
   const partes = resto.split(/\s+/).filter(Boolean);
@@ -182,6 +221,7 @@ export async function wherePacientes(
     AND: [
       statusFilter,
       providerScope,
+      ...porTipo,
       ...porFecha,
       {
         OR: [
@@ -199,14 +239,22 @@ export async function wherePacientes(
   };
 }
 
-/** El alcance sin término — para los contadores de las pestañas. */
+/**
+ * El alcance sin término — para los contadores de las pestañas.
+ *
+ * El tipo de caso SÍ entra acá: con el filtro MVA puesto, la pestaña
+ * "Archivados" tiene que decir cuántos MVA archivados hay, no cuántos
+ * archivados hay en total. Si no, el número de la pestaña contradice a la
+ * lista que se ve al hacerle clic.
+ */
 export function alcanceBase(
-  { inactiveOnly, providerId }: Omit<FiltroPacientes, 'q'>,
+  { inactiveOnly, providerId, caseType }: Omit<FiltroPacientes, 'q'>,
 ): Prisma.PatientWhereInput {
   return {
     AND: [
       inactiveOnly ? { status: 'INACTIVE' } : { NOT: { status: 'INACTIVE' } },
       alcanceDelProvider(providerId),
+      ...(caseType ? [{ cases: { some: { caseType, deletedAt: null } } }] : []),
     ],
   };
 }

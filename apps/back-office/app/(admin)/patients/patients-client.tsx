@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, ArrowUp, ArrowDown, ArrowUpDown, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel, FotoGrandeDialog, type FotoGrande } from '@/components/ui-phoenix';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
@@ -36,6 +36,7 @@ import { PriceListDialog } from '@/components/catalog/price-list-dialog';
 import { MembresiasDialog } from '@/components/membresias/membresias-dialog';
 import { progresoIntake, type MissingKey } from '@/lib/intake-progreso';
 import { PATIENTS_PAGE_SIZE, PATIENTS_PAGE_SIZES } from '@/lib/patients-page';
+import { leerOrden, leerTipoDeCaso, ORDEN_POR_DEFECTO, type OrdenPacientes, type TipoDeCaso } from '@/lib/patients-orden';
 import QRCode from 'qrcode';
 
 function fmtPhone(raw: string): string {
@@ -1684,6 +1685,48 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
   );
 }
 
+/**
+ * Título de columna que ordena la lista.
+ *
+ * Es un `<a>` y no un botón con `onClick`: el orden vive en la URL, así que el
+ * título ES un enlace a esta misma lista ordenada de otra forma. Eso lo hace
+ * abrible en otra pestaña, compartible por chat y —lo que importa acá— hace
+ * que el navegador lo anuncie como enlace y no como un texto decorativo.
+ *
+ * La flecha se pinta SIEMPRE en la columna activa y sólo al pasar el mouse en
+ * las demás: sin eso no hay forma de descubrir que el título se puede clickear,
+ * que es exactamente lo que estaba pasando antes de que existiera.
+ */
+function ThOrden({
+  label, href, dir, className = '',
+}: {
+  label: string;
+  href: string;
+  /** `'asc'`/`'desc'` si ESTA columna es la que ordena; `null` si no. */
+  dir: 'asc' | 'desc' | null;
+  className?: string;
+}) {
+  const Flecha = dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ArrowUpDown;
+  return (
+    <th
+      aria-sort={dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none'}
+      className={`px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold ${className}`}
+    >
+      <a
+        href={href}
+        className={`group/th inline-flex items-center gap-1 transition-colors ${
+          dir ? 'text-brand-text' : 'text-text-muted hover:text-text-1'
+        }`}
+      >
+        {label}
+        <Flecha className={`w-3 h-3 shrink-0 transition-opacity ${
+          dir ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-60'
+        }`} />
+      </a>
+    </th>
+  );
+}
+
 
 export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, currentUserId, isAdmin = false, scopeProviderId, soloMisPacientes = false, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
@@ -1912,6 +1955,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         // el portal pide la lista completa, igual que el mostrador.
         if (soloMisPacientes && scopeProviderId) params.set('providerId', scopeProviderId);
         params.set('size', String(pageSize));
+        // El orden y el filtro de tipo viajan también acá: sin esto, teclear
+        // con la lista ordenada por nombre devolvía los resultados por fecha,
+        // y el filtro MVA se soltaba solo al buscar.
+        if (ordenUrl !== ORDEN_POR_DEFECTO) params.set('orden', ordenUrl);
+        if (tipoUrl) params.set('tipo', tipoUrl);
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
         startTransition(() => {
@@ -1938,6 +1986,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         if (inactiveOnly) url.set('showInactive', '1');
         if (soloMisPacientes) url.set('mine', '1');
         if (pageSize !== PATIENTS_PAGE_SIZE) url.set('size', String(pageSize));
+        if (ordenUrl !== ORDEN_POR_DEFECTO) url.set('orden', ordenUrl);
+        if (tipoUrl) url.set('tipo', tipoUrl);
         const qs = url.toString();
         history.replaceState(null, '', `${basePath}${qs ? `?${qs}` : ''}`);
       } finally {
@@ -2173,6 +2223,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const pageUrl = Math.max(0, parseInt(searchParamsHook.get('page') ?? '0', 10) || 0);
 
   /**
+   * Orden y filtro por tipo de caso, también de la URL y por el mismo motivo:
+   * son lo que el servidor ya usó para armar ESTA página. Se leen con los
+   * helpers —no con un cast— así una URL escrita a mano cae al default en vez
+   * de pintar una flecha en una columna que no ordenó nada.
+   */
+  const ordenUrl = leerOrden(searchParamsHook.get('orden'));
+  const tipoUrl  = leerTipoDeCaso(searchParamsHook.get('tipo'));
+
+  /**
    * URL de la lista con estos parámetros. Una sola función para la paginación,
    * el selector de filas y las pestañas: cada una armaba la suya y perdía lo
    * que la otra acababa de poner.
@@ -2182,16 +2241,43 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
    * elegir 15 filas y pasar de página volvía a 10, porque justo ese valor se
    * omitía de la URL.
    */
-  function listaUrl({ page: p = pageUrl, size = pageSize, inactive = inactiveOnly, q: term = qUrl, mine = soloMisPacientes } = {}) {
+  function listaUrl({
+    page: p = pageUrl, size = pageSize, inactive = inactiveOnly, q: term = qUrl,
+    mine = soloMisPacientes, orden = ordenUrl, tipo = tipoUrl ?? null,
+  }: {
+    page?: number; size?: number; inactive?: boolean; q?: string;
+    mine?: boolean; orden?: OrdenPacientes;
+    /** `null` = sin filtro. NO `undefined`: eso dispara el default y conserva el filtro puesto. */
+    tipo?: TipoDeCaso | null;
+  } = {}) {
     const params = new URLSearchParams();
     if (term) params.set('q', term);
     if (p > 0) params.set('page', String(p));
     if (inactive) params.set('showInactive', '1');
     if (mine) params.set('mine', '1');
     if (size !== PATIENTS_PAGE_SIZE) params.set('size', String(size));
+    // El default no viaja: la URL de la lista "normal" queda limpia.
+    if (orden !== ORDEN_POR_DEFECTO) params.set('orden', orden);
+    if (tipo) params.set('tipo', tipo);
     const qs = params.toString();
     return `${basePath}${qs ? `?${qs}` : ''}`;
   }
+
+  /**
+   * Clickear un título: si esa columna ya ordena, invierte; si no, la toma con
+   * su sentido natural (nombre de la A a la Z, fecha de la más nueva a la más
+   * vieja). Siempre vuelve a la primera página — la fila que buscabas ya no
+   * está en la página 4 después de reordenar.
+   */
+  const ordenUrlPara = (asc: OrdenPacientes, desc: OrdenPacientes, natural: OrdenPacientes) =>
+    listaUrl({ page: 0, orden: ordenUrl === asc ? desc : ordenUrl === desc ? asc : natural });
+
+  /** El sentido con el que ESTA columna está ordenando, o `null` si no lo está. */
+  const dirDe = (asc: OrdenPacientes, desc: OrdenPacientes): 'asc' | 'desc' | null =>
+    ordenUrl === asc ? 'asc' : ordenUrl === desc ? 'desc' : null;
+
+  /** Filtro MVA / GM — vuelve a la primera página y conserva el resto. */
+  const tipoUrlPara = (tipo: TipoDeCaso | null) => listaUrl({ page: 0, tipo });
 
   /** Cambiar de página o de tamaño: el tamaño nuevo manda y se vuelve al inicio. */
   const buildPageUrl = (p: number, size = pageSize) =>
@@ -2387,7 +2473,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       </div>
 
       {/* Tabs: Activos / Archivados */}
-      <div className="flex items-center gap-1 border-b border-border mb-2">
+      <div className="flex items-center gap-1 border-b border-border mb-2 flex-wrap">
         <a
           href={tabUrl(false)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -2420,43 +2506,100 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             {inactiveOnly ? localTotal : inactiveTotal}
           </span>
         </a>
-
         {/*
-          FILTRO DEL PORTAL · toda la clínica / mis pacientes.
-
-          El provider ve toda la clínica igual que el mostrador; esto es una
-          COMODIDAD para volver a su gente, no un permiso (Erick, 2026-09-16:
-          "el provider ve todo sin restricción, la única diferencia es que
-          podrá filtrar sus pacientes").
-
-          Por eso el default es "Todos" y no "Mis pacientes": lo contrario
-          escondería la mitad de la clínica detrás de un control que hay que
-          descubrir, que es justo lo que se pidió cambiar.
-
-          Va a la derecha de las pestañas y no entre ellas: son ejes distintos
-          —activo/archivado es el ESTADO del paciente, esto es DE QUIÉN es— y
-          mezclarlos en una sola fila de pestañas sugeriría que se excluyen.
+          Los filtros de la derecha. Comparten fila con las pestañas y se
+          separan de ellas con `ml-auto`: son ejes distintos —la pestaña es el
+          ESTADO del paciente, esto es DE QUIÉN es y DE QUÉ TIPO— y mezclarlos
+          entre las pestañas sugeriría que se excluyen entre sí.
         */}
-        {doctorMode && (
-          <div className="ml-auto flex items-center gap-1 pb-1.5">
+        <div className="ml-auto flex items-center gap-1.5 pb-1.5 flex-wrap">
+          {/*
+            FILTRO DEL PORTAL · toda la clínica / mis pacientes.
+
+            El provider ve toda la clínica igual que el mostrador; esto es una
+            COMODIDAD para volver a su gente, no un permiso (Erick, 2026-09-16:
+            "el provider ve todo sin restricción, la única diferencia es que
+            podrá filtrar sus pacientes").
+
+            Por eso el default es "Todos" y no "Mis pacientes": lo contrario
+            escondería la mitad de la clínica detrás de un control que hay que
+            descubrir, que es justo lo que se pidió cambiar.
+          */}
+          {doctorMode && ([
+            { mine: false, label: t('filterAllPatients') },
+            { mine: true,  label: t('filterMyPatients')  },
+          ]).map(op => (
+            <a
+              key={String(op.mine)}
+              href={misUrl(op.mine)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                soloMisPacientes === op.mine
+                  ? 'bg-violet/15 text-violet-text'
+                  : 'bg-bg-2 text-text-muted hover:text-text-1'
+              }`}
+            >
+              {op.label}
+            </a>
+          ))}
+
+          {/*
+            TIPO DE CASO · todos / MVA / GM.
+
+            Va acá y no en un título de la tabla porque es un filtro, no un
+            orden: recorta el padrón, igual que Activos/Archivados, y tiene que
+            poder verse y tocarse en el teléfono. La columna "Casos" existe pero
+            está `hidden` abajo de md, así que colgarlo de ese título lo habría
+            dejado inalcanzable justo donde más se usa la lista.
+
+            El tipo vive en el CASO, no en el paciente: quien tiene un MVA y un
+            GM aparece en las dos listas, que es lo correcto.
+          */}
+          <div className="flex items-center gap-1 rounded-md bg-bg-2 p-0.5" role="group" aria-label={t('filtroTipoLabel')}>
             {([
-              { mine: false, label: t('filterAllPatients') },
-              { mine: true,  label: t('filterMyPatients')  },
+              { tipo: null,               label: t('filtroTipoTodos') },
+              { tipo: 'MVA' as const,     label: CASE_TYPE_LABEL.MVA! },
+              { tipo: 'GENERAL' as const, label: CASE_TYPE_LABEL.GENERAL! },
             ]).map(op => (
               <a
-                key={String(op.mine)}
-                href={misUrl(op.mine)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                  soloMisPacientes === op.mine
-                    ? 'bg-violet/15 text-violet-text'
-                    : 'bg-bg-2 text-text-muted hover:text-text-1'
+                key={op.tipo ?? 'todos'}
+                href={tipoUrlPara(op.tipo)}
+                aria-current={(tipoUrl ?? null) === op.tipo ? 'true' : undefined}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
+                  (tipoUrl ?? null) === op.tipo
+                    ? 'bg-brand/15 text-brand-text'
+                    : 'text-text-muted hover:text-text-1'
                 }`}
               >
                 {op.label}
               </a>
             ))}
           </div>
-        )}
+
+          {/*
+            El mismo orden que dan los títulos de la tabla, para las pantallas
+            donde esos títulos no están.
+
+            "Creado" es `hidden xl:table-cell`, así que abajo de xl el único
+            título clickeable es Paciente y no habría forma de pedir "los más
+            recientes" — que es justo lo que se pidió. De xl para arriba los dos
+            títulos se ven y este control sobra, así que desaparece en vez de
+            decir lo mismo dos veces.
+          */}
+          <label className="xl:hidden flex items-center gap-1 text-text-muted">
+            <ArrowUpDown className="w-3 h-3 shrink-0" />
+            <span className="sr-only">{t('ordenLabel')}</span>
+            <select
+              value={ordenUrl}
+              onChange={e => router.push(listaUrl({ page: 0, orden: leerOrden(e.target.value) }))}
+              className="py-1 pl-1.5 pr-5 text-[11px] font-semibold bg-bg-2 border border-border rounded-md text-text-2 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
+            >
+              <option value="reciente">{t('ordenReciente')}</option>
+              <option value="antiguo">{t('ordenAntiguo')}</option>
+              <option value="nombre">{t('ordenNombre')}</option>
+              <option value="nombreDesc">{t('ordenNombreDesc')}</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="relative rounded-lg border border-border">
@@ -2485,13 +2628,23 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   220 + 100 de Acciones dan 320 contra un contenedor de 310, así
                   que Acciones —sticky y opaca— se comía los últimos 10px del
                   nombre. En auto, table-fixed le da lo que sobra. */}
-              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted sm:w-[220px]">{t('colPatient')}</th>
+              <ThOrden
+                label={t('colPatient')}
+                href={ordenUrlPara('nombre', 'nombreDesc', 'nombre')}
+                dir={dirDe('nombre', 'nombreDesc')}
+                className="sticky left-0 z-10 bg-bg-2 text-left sm:w-[220px]"
+              />
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[220px]">{t('colContact')}</th>
               <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell w-[100px]">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[100px]">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[220px]">{t('colAdmission')}</th>
               <th className="text-center px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[100px]">{t('colForm')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell w-[100px]">{t('colCreated')}</th>
+              <ThOrden
+                label={t('colCreated')}
+                href={ordenUrlPara('antiguo', 'reciente', 'reciente')}
+                dir={dirDe('antiguo', 'reciente')}
+                className="text-left hidden xl:table-cell w-[100px]"
+              />
               <th className="sticky right-0 z-10 bg-bg-2 w-[100px] px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>

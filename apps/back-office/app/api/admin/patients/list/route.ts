@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/patients/list?q=&page=&inactive=1
+ * GET /api/admin/patients/list?q=&page=&inactive=1&orden=&tipo=
  *
  * Versión API del server component de pacientes.
  * Permite búsqueda client-side sin navegación completa de página.
@@ -14,7 +14,8 @@ import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { alcanceDePacientes } from '@/lib/patient-access';
 import { tamanoDePagina } from '@/lib/patients-page';
-import { wherePacientes } from '@/lib/patients-query';
+import { wherePacientes, ordenPacientes } from '@/lib/patients-query';
+import { leerOrden, leerTipoDeCaso } from '@/lib/patients-orden';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -26,6 +27,11 @@ export async function GET(req: NextRequest) {
   // mismos que usan las dos paginas y el cliente — ver `lib/patients-page.ts`.
   const PAGE_SIZE = tamanoDePagina(searchParams.get('size'));
   const inactiveOnly = searchParams.get('inactive') === '1';
+  /* Orden y tipo de caso. Se leen con los helpers y no con un cast: esto viene
+     de la URL, que la escribe cualquiera, y un valor inventado tiene que caer
+     al default en vez de viajar a Prisma. */
+  const orden    = leerOrden(searchParams.get('orden'));
+  const caseType = leerTipoDeCaso(searchParams.get('tipo'));
 
   // Portal médico. El param es solo la SEÑAL de que se quiere el modo recortado;
   // el id sale de la sesión.
@@ -37,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   // El filtro es el MISMO que usa el render del servidor — ver
   // `lib/patients-query.ts`. Estaba escrito dos veces y ya había divergido.
-  const where = await wherePacientes({ q, inactiveOnly, providerId });
+  const where = await wherePacientes({ q, inactiveOnly, providerId, caseType });
 
   const [patients, total] = await Promise.all([
     db.patient.findMany({
@@ -60,7 +66,7 @@ export async function GET(req: NextRequest) {
         medicalHistory: true,
         createdAt: true, updatedAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: ordenPacientes(orden),
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
     }),

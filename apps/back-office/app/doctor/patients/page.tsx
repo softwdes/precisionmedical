@@ -24,6 +24,7 @@ import { PatientsData, PatientsTableSkeleton } from '@/app/(admin)/patients/pati
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { tamanoDePagina } from '@/lib/patients-page';
+import { leerOrden, leerTipoDeCaso } from '@/lib/patients-orden';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('phoenix.nav');
@@ -33,12 +34,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function DoctorPatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string; case?: string; tab?: string; mine?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string; case?: string; tab?: string; mine?: string; orden?: string; tipo?: string }>;
 }) {
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
-  const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab, mine } = await searchParams;
+  const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab, mine, orden, tipo } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
   const PAGE_SIZE = tamanoDePagina(sizeParam);
@@ -54,6 +55,8 @@ export default async function DoctorPatientsPage({
           scopeProviderId={provider.id}
           soloMisPacientes={mine === '1'}
           basePath="/doctor/patients"
+          orden={leerOrden(orden)}
+          caseType={leerTipoDeCaso(tipo)}
         />
       </Suspense>
 

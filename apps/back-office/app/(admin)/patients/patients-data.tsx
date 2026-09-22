@@ -26,7 +26,8 @@ import { createAdminClient } from '@precision-medical/auth/admin';
 import { Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
-import { wherePacientes, alcanceBase } from '@/lib/patients-query';
+import { wherePacientes, alcanceBase, ordenPacientes } from '@/lib/patients-query';
+import type { OrdenPacientes, TipoDeCaso } from '@/lib/patients-orden';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
 
 /** Skeleton del Suspense boundary — compartido por /patients y /doctor/patients */
@@ -79,6 +80,8 @@ export async function PatientsData({
   scopeProviderId,
   soloMisPacientes = false,
   basePath,
+  orden,
+  caseType,
 }: {
   q: string | undefined;
   page: number;
@@ -89,6 +92,10 @@ export async function PatientsData({
   /** El filtro "mis pacientes". Lo único que recorta la lista. */
   soloMisPacientes?: boolean;
   basePath?: string;
+  /** Orden de la lista. Lo elige el usuario clickeando un título de la tabla. */
+  orden: OrdenPacientes;
+  /** Filtro por tipo de caso (MVA / GM). `undefined` = todos. */
+  caseType?: TipoDeCaso;
 }) {
   /** El id con el que se recorta: solo cuando se pidió el filtro. */
   const filtroProviderId = soloMisPacientes ? scopeProviderId : undefined;
@@ -113,7 +120,7 @@ export async function PatientsData({
 
   // Mismo filtro que la API que refresca esta lista al teclear — vive en
   // `lib/patients-query.ts` para que no puedan volver a divergir.
-  const where = await wherePacientes({ q, inactiveOnly, providerId: filtroProviderId });
+  const where = await wherePacientes({ q, inactiveOnly, providerId: filtroProviderId, caseType });
 
   const [patients, total, inactiveTotal, activeTotal, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
@@ -136,13 +143,13 @@ export async function PatientsData({
         medicalHistory: true,
         createdAt: true, updatedAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: ordenPacientes(orden),
       skip:  page * PAGE_SIZE,
       take:  PAGE_SIZE,
     }),
     db.patient.count({ where }),
-    db.patient.count({ where: alcanceBase({ inactiveOnly: true,  providerId: filtroProviderId }) }),
-    db.patient.count({ where: alcanceBase({ inactiveOnly: false, providerId: filtroProviderId }) }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: true,  providerId: filtroProviderId, caseType }) }),
+    db.patient.count({ where: alcanceBase({ inactiveOnly: false, providerId: filtroProviderId, caseType }) }),
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },

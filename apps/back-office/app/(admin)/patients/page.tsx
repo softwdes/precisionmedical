@@ -10,6 +10,7 @@ import { getTranslations } from 'next-intl/server';
 import { PatientsData, PatientsTableSkeleton } from './patients-data';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { tamanoDePagina } from '@/lib/patients-page';
+import { leerOrden, leerTipoDeCaso } from '@/lib/patients-orden';
 
 // ---------------------------------------------------------------------------
 // Page — shell renderiza de inmediato, datos hacen streaming
@@ -17,10 +18,10 @@ import { tamanoDePagina } from '@/lib/patients-page';
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string; case?: string; tab?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string; case?: string; tab?: string; orden?: string; tipo?: string }>;
 }) {
   const t = await getTranslations('phoenix.patients');
-  const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab } = await searchParams;
+  const { q, page: pageParam, showInactive, size: sizeParam, case: caseId, tab, orden, tipo } = await searchParams;
   const page   = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
   const PAGE_SIZE = tamanoDePagina(sizeParam);
@@ -29,7 +30,14 @@ export default async function PatientsPage({
     <div className="p-4 sm:p-6">
       {/* Tabla hace streaming cuando Prisma completa */}
       <Suspense fallback={<PatientsTableSkeleton />}>
-        <PatientsData q={q} page={page} inactiveOnly={inactiveOnly} PAGE_SIZE={PAGE_SIZE} />
+        <PatientsData
+          q={q}
+          page={page}
+          inactiveOnly={inactiveOnly}
+          PAGE_SIZE={PAGE_SIZE}
+          orden={leerOrden(orden)}
+          caseType={leerTipoDeCaso(tipo)}
+        />
       </Suspense>
 
       {/* El caso abierto viaja en `?case=`: recargar reproduce la lista con su

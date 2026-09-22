@@ -24,7 +24,7 @@ import {
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff, FileText, AlignJustify } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -221,6 +221,35 @@ function getFirstDayOfMonth(d: Date): Date {
  * no tiene que volver a prenderlo en cada recarga, y quien no lo usa nunca lo ve.
  */
 const PREF_MOTIVO = 'pm.calendario.mostrarMotivo';
+/**
+ * ¿La referencia de colores queda abierta?
+ *
+ * Arranca CERRADA. Las doce muestras de color son material de referencia: se
+ * aprenden una vez y después nadie las mira, pero ocupaban 68px fijos abajo de
+ * la agenda, todos los días (Erick, 22-sep-2026, midiendo por qué no entra el
+ * día en pantalla). Los CONTADORES no se esconden: esos sí cambian cada día.
+ */
+const PREF_LEYENDA = 'pm.calendario.leyendaAbierta';
+/**
+ * ¿La vista de día va en modo compacto?
+ *
+ * Compacto = UNA línea por cita y filas todas iguales, como el sistema viejo del
+ * que viene la clínica. El nombre del paciente NO se achica: sigue en 14px. Lo
+ * que se va es el segundo renglón —provider, caso, motivo—, que es lo que hace
+ * que la tarjeta mida 52px en vez de 24.
+ *
+ * Por qué hace falta: con la tarjeta de dos líneas la columna más alta mide
+ * ~750px y en pantalla entran ~617, así que el día no se ve de una. Medido sobre
+ * 82 días reales, la peor columna tiene 7 filas con cita de 20 (p90: 10), así
+ * que con filas parejas de 24px la columna mide 480px SIEMPRE, no dependa de
+ * cuán cargado esté el día.
+ *
+ * Y el motivo de fondo: la clínica estaba mirando producción al 80% de zoom para
+ * que le entrara el día. A ese zoom los 14px que acababan de pedir se ven como
+ * 11 — el tamaño del que se habían quejado. Que el día entre al 100% es lo que
+ * hace que la letra grande exista de verdad (Erick, 22-sep-2026).
+ */
+const PREF_COMPACTO = 'pm.calendario.compacto';
 
 function denverMonthOf(d: Date): number {
   return parseInt(denverDateStr(d).slice(5, 7), 10) - 1;
@@ -573,6 +602,29 @@ function LegendStats({
    * atiende leía ese número. Ahora el total son las citas VIVAS y las otras dos
    * van al lado, con su color.
    */
+  /**
+   * La referencia de colores se pliega; los contadores NO.
+   *
+   * Son dos cosas distintas pegadas en el mismo pie. Las doce muestras explican
+   * qué significa cada color: se aprenden una vez. Los contadores —cuántas
+   * citas, cuántas primeras, cuántas sin confirmar— son el dato del día y se
+   * miran siempre. Plegar las primeras devuelve ~45px de agenda sin esconder
+   * nada que alguien esté leyendo.
+   *
+   * Se lee en un efecto y no en el `useState` inicial: el servidor no tiene
+   * `localStorage`, y sembrar el estado desde ahí rompe la hidratación. Mismo
+   * patrón que la pastilla "Motivo".
+   */
+  const [refAbierta, setRefAbierta] = useState(false);
+  useEffect(() => {
+    try { setRefAbierta(localStorage.getItem(PREF_LEYENDA) === '1'); } catch { /* ventana privada */ }
+  }, []);
+  const alternarRef = () => setRefAbierta(v => {
+    const siguiente = !v;
+    try { localStorage.setItem(PREF_LEYENDA, siguiente ? '1' : '0'); } catch { /* ventana privada */ }
+    return siguiente;
+  });
+
   const canceladas = appointments.filter(a => a.status === 'CANCELLED' && !a.cancelledSameDay).length;
   // Aparte del anterior: es el que cobra penalidad y quema el horario. Juntarlos
   // en un solo número volvería a mezclar lo que la leyenda distingue.
@@ -610,7 +662,17 @@ function LegendStats({
 
   return (
     <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <button
+          type="button"
+          onClick={alternarRef}
+          aria-expanded={refAbierta}
+          className="flex items-center gap-1 text-[12px] font-medium text-text-muted hover:text-text-2 transition-colors shrink-0"
+        >
+          <ChevronDown className={`w-3 h-3 transition-transform ${refAbierta ? '' : '-rotate-90'}`} />
+          {t('legendToggle')}
+        </button>
+        {refAbierta && (<>
         {([
           // Los valores salen de `lib/appointment-colors` — los comparte con la
           // grilla de tracking MVA, que pinta la franja de cada fila con el
@@ -673,6 +735,7 @@ function LegendStats({
           <span className="text-[11px] leading-none shrink-0">🆕</span>
           <span className="text-[12px] text-text-2 font-medium">{t('legendFirstVisitAny')}</span>
         </div>
+        </>)}
       </div>
       <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0 flex-wrap justify-end">
         <span><span className="text-text-1 font-bold">{vivas}</span> {t('statAppointments')}</span>
@@ -817,6 +880,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   useEffect(() => {
     try { setMostrarMotivo(localStorage.getItem(PREF_MOTIVO) === '1'); } catch { /* ventana privada */ }
   }, []);
+
+  /** Ver `PREF_COMPACTO`. Mismo patrón: se lee en efecto, no en el useState. */
+  const [compacto, setCompacto] = useState(false);
+  useEffect(() => {
+    try { setCompacto(localStorage.getItem(PREF_COMPACTO) === '1'); } catch { /* ventana privada */ }
+  }, []);
+  const alternarCompacto = () => setCompacto(v => {
+    const siguiente = !v;
+    try { localStorage.setItem(PREF_COMPACTO, siguiente ? '1' : '0'); } catch { /* ventana privada */ }
+    return siguiente;
+  });
   const alternarMotivo = () => setMostrarMotivo(v => {
     const siguiente = !v;
     try { localStorage.setItem(PREF_MOTIVO, siguiente ? '1' : '0'); } catch { /* ventana privada */ }
@@ -1596,8 +1670,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               type="button"
               onClick={alternarMotivo}
               aria-pressed={mostrarMotivo}
-              title={t('reasonToggleHint')}
-              className={`flex items-center gap-1.5 px-2.5 h-7 rounded text-[11px] font-medium border transition-all ${
+              /* En compacto no hay segundo renglón donde escribir el motivo. El
+                 botón se MUESTRA y se bloquea diciendo por qué (regla de la
+                 casa): esconderlo deja a alguien buscando un control que ayer
+                 estaba. */
+              disabled={compacto}
+              title={compacto ? t('reasonToggleHintCompact') : t('reasonToggleHint')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded text-[11px] font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                 mostrarMotivo
                   ? 'border-cyan bg-cyan/15 text-cyan'
                   : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border hover:text-text-1'
@@ -1605,6 +1684,26 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             >
               <FileText className="w-3 h-3 shrink-0" />
               {t('reasonToggle')}
+            </button>
+          )}
+
+          {/* Compacto — el día entero en pantalla, como el sistema del que viene
+              la clínica. Va pegado a "Motivo" porque los dos cambian QUÉ dice la
+              tarjeta y ninguno esconde citas. */}
+          {calView === 'day' && (
+            <button
+              type="button"
+              onClick={alternarCompacto}
+              aria-pressed={compacto}
+              title={t('compactToggleHint')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded text-[11px] font-medium border transition-all ${
+                compacto
+                  ? 'border-cyan bg-cyan/15 text-cyan'
+                  : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border hover:text-text-1'
+              }`}
+            >
+              <AlignJustify className="w-3 h-3 shrink-0" />
+              {t('compactToggle')}
             </button>
           )}
         </div>
@@ -1972,12 +2071,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         {/* ══════════════════════════ DAY VIEW ═══════════════════════════════ */}
         {calView === 'day' && (() => {
           const dayKey   = denverDateStr(weekStart);
-          const todayStr = denverDateStr(new Date());
-          const isToday  = dayKey === todayStr;
-          const dayNum   = parseInt(dayKey.slice(8), 10);
-          // Weekday index from Denver date to avoid local-tz mismatch
-          const [dy, dm, dd] = dayKey.split('-').map(Number) as [number,number,number];
-          const dowIdx = (new Date(Date.UTC(dy, dm - 1, dd, 12)).getUTCDay() + 6) % 7; // 0=Mon…6=Sun
+          /* El día y el número grande vivían acá, en una tarjeta aparte. Se
+             fueron: la barra de arriba ya dice "22 Sep 2026" y el subtítulo
+             "Tue · day view", así que era la tercera vez que se leía la misma
+             fecha — y costaba 122px de agenda. */
 
           const dayAppts = visibleAppointments.filter(
             a => denverDateStr(new Date(a.scheduledFor)) === dayKey,
@@ -2067,8 +2164,15 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             const sigueAbajo = [...cellAppts, ...contAppts].some(a =>
               slotToMin(slotOf15(a.scheduledFor)) + Math.max(DAY_SLOT_MIN, a.durationMinutes) > minSlot + DAY_SLOT_MIN,
             );
-            /** La continuación no lleva texto, así que no necesita alto de tarjeta. */
-            const altoFila = filaVacia || isCont ? 'min-h-[24px]' : 'min-h-[44px]';
+            /**
+             * La continuación no lleva texto, así que no necesita alto de tarjeta.
+             *
+             * En COMPACTO todas las filas miden lo mismo: la tarjeta es de una
+             * línea y ya entra en 24px. Que sean parejas es justamente lo que
+             * hace que la columna mida siempre igual —480px— y el día se pueda
+             * ver de un vistazo sin importar cuántas citas tenga.
+             */
+            const altoFila = compacto || filaVacia || isCont ? 'min-h-[24px]' : 'min-h-[44px]';
             return (
               <div key={slot} className={`grid grid-cols-[64px_1fr] ${sigueAbajo ? '' : 'border-b border-row-sep'} last:border-b-0 ${altoFila}`}>
                 {/* La columna de horas: 16px en la hora en punto y 13px en los
@@ -2187,7 +2291,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
                         /* Con más de una fila la tarjeta cierra arriba y a los
                            lados, pero NO abajo: ahí sigue el bloque. */
-                        className={`flex-1 min-w-0 text-left px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${ocupaVariasFilas ? 'rounded-t' : 'rounded'} ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
+                        className={`flex-1 min-w-0 text-left px-2 ${compacto ? 'py-0' : 'py-1'} transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${ocupaVariasFilas ? 'rounded-t' : 'rounded'} ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                         style={{
                           background: s.bg,
                           borderTop: `1px solid ${s.border}`,
@@ -2240,6 +2344,12 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             fondo tintado este renglón perdía por los dos lados
                             —tamaño y contraste— que es de lo que se quejó la
                             clínica. */}
+                        {/* El segundo renglón es lo ÚNICO que se va en compacto:
+                            el nombre sigue a 14px. Es lo que baja la tarjeta de
+                            52px a 24 — y lo que hace que el día entre entero.
+                            Quien necesita el detalle abre la cita, que es donde
+                            de verdad se lee el caso. */}
+                        {!compacto && (
                         <div
                           className="text-[12.5px] leading-tight truncate mt-0.5"
                           style={{ color: s.text, opacity: mostrarMotivo && !motivo ? 0.45 : 0.85 }}
@@ -2249,6 +2359,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             ? (motivo || '—')
                             : `${drName}${appt.case?.caseCode ? ` · #${appt.case.caseCode.replace('PMC-','')}` : ''}${visitLabel ? ` · ${visitLabel}` : ''}`}
                         </div>
+                        )}
                       </button>
                     );
                   })}
@@ -2269,29 +2380,25 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
           return (
             <>
-              {/* Cabecera del día */}
-              <div className={`rounded-xl border border-white/[0.07] overflow-hidden mb-3 max-w-[280px] ${isToday ? 'bg-cyan/[0.06]' : 'bg-bg-1'}`}>
-                <div className="py-2.5 text-center">
-                  <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted'}`}>
-                    {WEEKDAYS_ALL[dowIdx]}
-                  </div>
-                  <div className={`text-[26px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
-                    {dayNum}
-                  </div>
+              {/* Quién es cada color, en UNA línea pegada a las columnas.
+                  Un punto sin su referencia no distingue nada: obliga a abrir una
+                  cita para averiguar de quién era. Pero no necesitaba una caja
+                  propia con el número del día adentro — así pasó de 122px a 26,
+                  y la referencia queda justo encima de los puntos que explica
+                  (Erick, 22-sep-2026: *"debería ser una línea de leyenda arriba"*).
+
+                  Sigue apareciendo solo con dos o más providers: con uno solo no
+                  hay nada que distinguir. */}
+              {distinguirPorColor && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 px-0.5">
+                  {providersDelDia.map(p => (
+                    <span key={p.id} className="flex items-center gap-1.5 text-[11px] text-text-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colorDeProvider.get(p.id) ?? 'transparent' }} />
+                      {drShort(p)}
+                    </span>
+                  ))}
                 </div>
-                {/* Quién es cada color. Un punto sin su referencia no distingue:
-                    obliga a abrir una cita para averiguar de quién era. */}
-                {distinguirPorColor && (
-                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-2.5 pb-2.5">
-                    {providersDelDia.map(p => (
-                      <span key={p.id} className="flex items-center gap-1.5 text-[11px] text-text-2">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colorDeProvider.get(p.id) ?? 'transparent' }} />
-                        {drShort(p)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Dos columnas en desktop · una sola en mobile/tablet (Regla #4) */}
               <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-3">

@@ -302,6 +302,22 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
        * que lo que el staff verificó contra la tarjeta.
        */
       segurosDeclarados: segurosMedicosDeclarados(caseRecord.consentsData),
+      /**
+       * El array `insurances` TAL CUAL está en el JSON, sin filtrar ni reordenar.
+       *
+       * Es lo que necesita el editor de seguros para guardar: `SegurosDialog`
+       * reescribe el array entero, así que si recibiera la versión de arriba
+       * —que saca los de AUTO y sube la principal al frente— guardar sin tocar
+       * nada reordenaría las pólizas y cambiaría en silencio cuál es la
+       * principal.
+       *
+       * Se manda solo esta clave del `consentsData` y no el objeto completo: ahí
+       * adentro también viven las firmas en base64, que pesan y que esta
+       * pantalla no usa.
+       */
+      insurancesCrudas: Array.isArray((caseRecord.consentsData as { insurances?: unknown } | null)?.insurances)
+        ? ((caseRecord.consentsData as { insurances: unknown[] }).insurances as Record<string, unknown>[])
+        : [],
       specialty: caseRecord.specialty,
       notes: caseRecord.notes,
       appointments: caseRecord.appointments,

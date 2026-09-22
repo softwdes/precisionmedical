@@ -3788,7 +3788,7 @@
       "insuranceNoName": "Aseguradora sin nombre",
       "holderLabel": "Titular:",
       "groupLabel": "Grupo:",
-      "insuranceDeclaredHint": "Es lo que el paciente escribió en su formulario. Nadie lo verificó contra la tarjeta — confirmalo y enlazá la aseguradora con el lápiz de arriba.",
+      "insuranceDeclaredHint": "Es lo que el paciente escribió en su formulario. Nadie lo verificó contra la tarjeta — confirmalo y enlazá la aseguradora con el botón de abajo.",
       "timelineCaseCreated": "Caso creado",
       "sourceLabelLawFirm": "Bufete de abogados",
       "sourceLabelPatient": "Referido por paciente",
@@ -3818,7 +3818,10 @@
       "sectionInternalNotes": "Notas internas",
       "noteSaved": "Nota guardada",
       "notesEmpty": "Sin notas todavía.",
-      "notePrivate": "Privada"
+      "notePrivate": "Privada",
+      "policyDeclaredLabel": "Póliza declarada:",
+      "linkInsurerToCatalog": "Enlazar la aseguradora al catálogo",
+      "changeLinkedInsurer": "Cambiar la aseguradora enlazada"
     },
     "patients": {
       "patientStatus": {

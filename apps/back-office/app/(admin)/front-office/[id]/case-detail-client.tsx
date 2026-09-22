@@ -65,6 +65,7 @@ import { VISIT_PARAM, conTab, conVisitaFiltrada, escribirUrl, paramsDelNavegador
  */
 import { useCaseClinical } from '@/components/cases/case-clinical-data';
 import { telefonoDe } from '@/lib/telefono-paciente';
+import { SegurosDialog } from '@/components/patients/seguros-dialog';
 
 const CaseLabsTab = dynamic(() =>
   import('@/components/cases/case-clinical-tabs').then((m) => m.CaseLabsTab));
@@ -168,6 +169,11 @@ interface CaseInfo {
   /**
    * Lo que el paciente escribió en su formulario, sin enlazar al catálogo.
    * Opcional porque no todas las superficies que arman este objeto lo mandan.
+   *
+   * Son TODOS los campos del paso 6 del intake, no solo los cuatro de la
+   * portada: el formulario le pide al paciente el titular, su fecha de
+   * nacimiento, el parentesco, la vigencia, el copago y el deducible, y hasta
+   * ahora no había una sola pantalla donde leerlos (Erick, 22-sep-2026).
    */
   segurosDeclarados?: Array<{
     id?: string;
@@ -175,7 +181,20 @@ interface CaseInfo {
     policyId?: string;
     groupNum?: string;
     holderName?: string;
+    holderDOB?: string;
+    holderRelation?: string;
+    effectiveDate?: string;
+    copay?: string;
+    deductible?: string;
   }>;
+  /**
+   * El mismo array pero CRUDO, como está en `consentsData.insurances`.
+   *
+   * Lo consume el editor de seguros, que reescribe el array entero: con la
+   * versión filtrada de arriba, abrir y guardar sin tocar nada borraría el
+   * seguro de auto del JSON y reordenaría las pólizas. Ver `case-detail-data`.
+   */
+  insurancesCrudas?: Record<string, unknown>[];
   secondaryInsurance: {
     id: string;
     name: string;
@@ -324,6 +343,13 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
 
   // Insurance edit modal
   const [insOpen, setInsOpen]           = useState(false);
+  /**
+   * El editor COMPLETO de la póliza (titular, fecha de nacimiento, parentesco,
+   * grupo, vigencia, copago, deducible). Es el mismo diálogo que la lista de
+   * pacientes: lo que estaba en `insOpen` es otra cosa —enlazar la aseguradora
+   * al catálogo— y con esos dos campos no se podía cargar nada más.
+   */
+  const [segurosOpen, setSegurosOpen]   = useState(false);
   const [insQuery, setInsQuery]         = useState('');
   const [insResults, setInsResults]     = useState<Array<{ id: string; name: string; shortCode: string; color: string }>>([]);
   const [insSelected, setInsSelected]   = useState<{ id: string; name: string } | null>(
@@ -875,120 +901,25 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
               </div>
             </InfoCard>
 
-            {/* Seguros */}
-            <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={isReadOnly ? undefined : () => { setInsQuery(''); setInsOpen(true); }}>
-              {caseInfo.primaryInsurance ? (
-                <div className="space-y-3">
-                  <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
-                    <div className="flex items-center gap-3">
-                      <EntityAvatar code={caseInfo.primaryInsurance.shortCode} color={caseInfo.primaryInsurance.color} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-text-1 font-semibold truncate flex items-center gap-1 text-sm">
-                          {caseInfo.primaryInsurance.name}
-                          {caseInfo.primaryInsurance.responseSpeed === 'SLOW' && (
-                            <AlertTriangle className="w-3 h-3 text-amber" />
-                          )}
-                        </div>
-                        <div className="text-text-muted text-[11px]">
-                          Primary{etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t)}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-2 space-y-1 text-xs">
-                      {caseInfo.primaryPolicyNumber && (
-                        <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
-                      )}
-                      {/**
-                        * El teléfono de reclamos y el pre-auth son datos de
-                        * FACTURACIÓN: sirven para perseguir el pago y para saber
-                        * si hay que pedir autorización antes de atender. El
-                        * bufete no hace ninguna de las dos cosas, así que en su
-                        * portal solo agregan ruido a una ficha que además puede
-                        * ser de un seguro de salud que no tiene que ver con su
-                        * caso. (Decisión de Erick, 2026-09-02.)
-                        *
-                        * Acá también estaba `HCFA: <canal>`, que se retiró para
-                        * TODOS: es el canal por el que Brunella manda el
-                        * CMS-1500, y ya vive donde se usa — el catálogo de
-                        * aseguradoras (`/admin/insurances`) y el módulo de
-                        * facturación. En la ficha del caso no lo lee nadie.
-                        */}
-                      {!isAttorney && caseInfo.primaryInsurance.claimsPhone && (
-                        <div><span className="text-text-muted">{t('claimsLabel')}</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
-                      )}
-                      {!isAttorney && caseInfo.primaryInsurance.preauthRequired && (
-                        <div className="text-amber">⚠ {t('preauthRequired')}</div>
-                      )}
-                    </div>
-                    <div className="mt-2">
-                      {caseInfo.pipVerifiedAt ? (
-                        <TagPill label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt, t)}`} colorClass="bg-emerald/10 text-emerald border-emerald/30" />
-                      ) : (
-                        <TagPill label={`⏳ ${t('pipNotVerified')}`} colorClass="bg-amber/10 text-amber border-amber/30" />
-                      )}
-                    </div>
-                  </div>
-                  {caseInfo.secondaryInsurance && (
-                    <div className="rounded-md border border-violet/30 bg-violet/5 p-3">
-                      <div className="flex items-center gap-3">
-                        <EntityAvatar code={caseInfo.secondaryInsurance.shortCode} color={caseInfo.secondaryInsurance.color} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-text-1 font-semibold truncate text-sm">{caseInfo.secondaryInsurance.name}</div>
-                          <div className="text-text-muted text-[11px]">
-                            Secondary{etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t)}` : ''}
-                          </div>
-                        </div>
-                      </div>
-                      {caseInfo.secondaryPolicyNumber && (
-                        <div className="mt-2 text-xs"><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : caseInfo.segurosDeclarados && caseInfo.segurosDeclarados.length > 0 ? (
-                /**
-                 * Lo que el paciente DECLARÓ, cuando no hay ninguna aseguradora
-                 * enlazada al catálogo.
-                 *
-                 * Acá decía "sin seguro principal" y punto, aunque el paciente
-                 * hubiera cargado el suyo en el formulario: el dato estaba en el
-                 * caso, salía impreso en el intake, y la pantalla lo escondía
-                 * (Erick, 21-sep-2026, sobre Alexander Lutz).
-                 *
-                 * Va en ÁMBAR y rotulado "declarado": no es lo que el staff
-                 * verificó contra la tarjeta, y pintarlo igual que el verificado
-                 * sería peor que no mostrarlo — alguien lo daría por confirmado.
-                 */
-                <div className="space-y-2">
-                  {caseInfo.segurosDeclarados.map((s, i) => (
-                    <div key={s.id ?? i} className="rounded-md border border-amber/30 bg-amber/5 p-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-text-1 font-semibold text-sm">{s.carrier || t('insuranceNoName')}</span>
-                        <span className="text-[9px] uppercase tracking-wider font-semibold text-amber border border-amber/30 rounded px-1.5 py-px">
-                          {t('insuranceDeclared')}
-                        </span>
-                      </div>
-                      <div className="mt-2 space-y-1 text-xs">
-                        {s.policyId && (
-                          <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{s.policyId}</code></div>
-                        )}
-                        {s.holderName && (
-                          <div><span className="text-text-muted">{t('holderLabel')}</span> <span className="text-text-1">{s.holderName}</span></div>
-                        )}
-                        {s.groupNum && (
-                          <div><span className="text-text-muted">{t('groupLabel')}</span> <code className="text-text-1 font-mono">{s.groupNum}</code></div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {/* Qué hacer con esto: el staff lo verifica y lo enlaza al
-                      catálogo con el lápiz de arriba. Sin esta línea, el ámbar
-                      es un cartel sin salida. */}
-                  <p className="text-[11px] text-text-muted">{t('insuranceDeclaredHint')}</p>
-                </div>
-              ) : (
-                <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>
-              )}
+            {/*
+              Seguros.
+
+              El lápiz abre el editor COMPLETO de la póliza, que es lo que el
+              mostrador necesita con el paciente enfrente. Enlazar la aseguradora
+              al catálogo —que es otra cosa: es el acto de verificar contra la
+              tarjeta y define con qué se factura— vive en su propio botón,
+              adentro de la tarjeta.
+            */}
+            <InfoCard
+              title={t('sectionInsurance')}
+              icon={Shield}
+              onEdit={isReadOnly ? undefined : () => setSegurosOpen(true)}
+            >
+              <SegurosDelCaso
+                caseInfo={caseInfo}
+                isAttorney={isAttorney}
+                onEnlazar={isReadOnly ? undefined : () => { setInsQuery(''); setInsOpen(true); }}
+              />
             </InfoCard>
 
             {/* Timeline + Notas */}
@@ -1185,6 +1116,22 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           specialty: caseInfo.specialty,
         }}
       />
+
+      {/* ── Diálogo: los seguros del paciente, con TODOS los campos ──────────
+          El mismo que la lista de pacientes — ver `components/patients/seguros-dialog`.
+          Escribe `consentsData.insurances`, que es donde el intake deja lo que
+          cargó el paciente: acá se corrige y se completa lo que falta. */}
+      {segurosOpen && (
+        <SegurosDialog
+          caso={{
+            id: caseInfo.id,
+            caseCode: caseInfo.caseCode,
+            consentsData: { insurances: caseInfo.insurancesCrudas ?? [] },
+          }}
+          titular={`${caseInfo.patient.firstName} ${caseInfo.patient.lastName}`.trim()}
+          onClose={() => { setSegurosOpen(false); router.refresh(); }}
+        />
+      )}
 
       {/* ── Modal: Editar Seguro ─────────────────────────────────────────────── */}
       {insOpen && (
@@ -1462,6 +1409,275 @@ function etiquetaTipoSeguro(tipo: string, t: (k: string) => string): string | nu
   }
 }
 
+
+
+/**
+ * El bloque de seguros de la portada del caso.
+ *
+ * Hay DOS fuentes, que no valen lo mismo y que hasta ahora competían:
+ *
+ *  · `primaryInsurance` / `primaryPolicyNumber` — la aseguradora ENLAZADA al
+ *    catálogo. La eligió el staff con la tarjeta en la mano y es la que se usa
+ *    para facturar.
+ *  · `segurosDeclarados` — lo que el paciente cargó en el paso 6 del intake:
+ *    titular, su fecha de nacimiento, parentesco, grupo, vigencia, copago y
+ *    deducible.
+ *
+ * Estaban escritas como `if/else`, así que con aseguradora enlazada lo
+ * declarado NO se dibujaba. Y como enlazarla es lo primero que hace el
+ * mostrador, el efecto real era que esos seis campos no se veían NUNCA.
+ *
+ * Ahora la enlazada sigue mandando —arriba, con su sello de verificada— y el
+ * detalle de la póliza que le corresponde se muestra adentro de esa misma
+ * tarjeta. Las declaradas que no coinciden con ninguna enlazada van abajo,
+ * rotuladas como declaradas: mezclar las dos sin decir cuál es cuál es peor
+ * que no mostrar nada, porque alguien daría por verificado lo que no lo está.
+ */
+function SegurosDelCaso({ caseInfo, isAttorney, onEnlazar }: {
+  caseInfo: CaseInfo;
+  isAttorney: boolean;
+  /** Abre el diálogo que enlaza la aseguradora al catálogo. Sin esto, no se ofrece. */
+  onEnlazar?: () => void;
+}) {
+  const t = useTranslations('phoenix.caseDetail');
+
+  const declarados = caseInfo.segurosDeclarados ?? [];
+  const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
+
+  /** La póliza declarada que corresponde a una aseguradora enlazada, si la hay. */
+  const polizaDe = (nombre?: string | null) => {
+    const n = norm(nombre);
+    return n ? declarados.find(d => norm(d.carrier) === n) : undefined;
+  };
+  const polizaPrimaria   = polizaDe(caseInfo.primaryInsurance?.name);
+  const polizaSecundaria = polizaDe(caseInfo.secondaryInsurance?.name);
+
+  /*
+    Las que no quedaron emparejadas con ninguna enlazada. Se descartan por
+    IDENTIDAD del objeto y no por nombre: si el paciente cargó dos pólizas de
+    la misma aseguradora, la segunda tiene que seguir apareciendo.
+  */
+  const sueltas = declarados.filter(d => d !== polizaPrimaria && d !== polizaSecundaria);
+
+  if (!caseInfo.primaryInsurance && declarados.length === 0) {
+    return <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {caseInfo.primaryInsurance && (
+        <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
+          <div className="flex items-center gap-3">
+            <EntityAvatar code={caseInfo.primaryInsurance.shortCode} color={caseInfo.primaryInsurance.color} />
+            <div className="min-w-0 flex-1">
+              <div className="text-text-1 font-semibold truncate flex items-center gap-1 text-sm">
+                {caseInfo.primaryInsurance.name}
+                {caseInfo.primaryInsurance.responseSpeed === 'SLOW' && (
+                  <AlertTriangle className="w-3 h-3 text-amber" />
+                )}
+              </div>
+              <div className="text-text-muted text-[11px]">
+                Primary{etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.primaryInsurance.type, t)}` : ''}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1 text-xs">
+            {caseInfo.primaryPolicyNumber && (
+              <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
+            )}
+            {/**
+              * El teléfono de reclamos y el pre-auth son datos de FACTURACIÓN:
+              * sirven para perseguir el pago y para saber si hay que pedir
+              * autorización antes de atender. El bufete no hace ninguna de las
+              * dos cosas, así que en su portal solo agregan ruido a una ficha
+              * que además puede ser de un seguro de salud que no tiene que ver
+              * con su caso. (Decisión de Erick, 2026-09-02.)
+              *
+              * Acá también estaba `HCFA: <canal>`, que se retiró para TODOS: es
+              * el canal por el que Brunella manda el CMS-1500, y ya vive donde
+              * se usa — el catálogo de aseguradoras (`/admin/insurances`) y el
+              * módulo de facturación. En la ficha del caso no lo lee nadie.
+              */}
+            {!isAttorney && caseInfo.primaryInsurance.claimsPhone && (
+              <div><span className="text-text-muted">{t('claimsLabel')}</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
+            )}
+            {!isAttorney && caseInfo.primaryInsurance.preauthRequired && (
+              <div className="text-amber">⚠ {t('preauthRequired')}</div>
+            )}
+          </div>
+          {/* El resto de la póliza, tal como la cargó el intake. El número no se
+              repite: el de la tarjeta enlazada ya está dos renglones arriba. */}
+          {polizaPrimaria && <DetallePoliza poliza={polizaPrimaria} polizaVerificada={caseInfo.primaryPolicyNumber} isAttorney={isAttorney} />}
+          <div className="mt-2">
+            {caseInfo.pipVerifiedAt ? (
+              <TagPill label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt, t)}`} colorClass="bg-emerald/10 text-emerald border-emerald/30" />
+            ) : (
+              <TagPill label={`⏳ ${t('pipNotVerified')}`} colorClass="bg-amber/10 text-amber border-amber/30" />
+            )}
+          </div>
+        </div>
+      )}
+
+      {caseInfo.secondaryInsurance && (
+        <div className="rounded-md border border-violet/30 bg-violet/5 p-3">
+          <div className="flex items-center gap-3">
+            <EntityAvatar code={caseInfo.secondaryInsurance.shortCode} color={caseInfo.secondaryInsurance.color} />
+            <div className="min-w-0 flex-1">
+              <div className="text-text-1 font-semibold truncate text-sm">{caseInfo.secondaryInsurance.name}</div>
+              <div className="text-text-muted text-[11px]">
+                Secondary{etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t) ? ` · ${etiquetaTipoSeguro(caseInfo.secondaryInsurance.type, t)}` : ''}
+              </div>
+            </div>
+          </div>
+          {caseInfo.secondaryPolicyNumber && (
+            <div className="mt-2 text-xs"><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
+          )}
+          {polizaSecundaria && <DetallePoliza poliza={polizaSecundaria} polizaVerificada={caseInfo.secondaryPolicyNumber} isAttorney={isAttorney} />}
+        </div>
+      )}
+
+      {/*
+        Lo que el paciente declaró y todavía nadie enlazó al catálogo.
+
+        Va rotulado en ámbar a propósito: no es lo mismo que el staff verificó
+        contra la tarjeta, y pintarlo igual que lo verificado sería peor que no
+        mostrarlo — alguien lo daría por confirmado.
+      */}
+      {sueltas.map((s, i) => (
+        <div key={s.id ?? `declarado-${i}`} className="rounded-md border border-amber/30 bg-amber/5 p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-text-1 font-semibold text-sm">{s.carrier || t('insuranceNoName')}</span>
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-amber border border-amber/30 rounded px-1.5 py-px">
+              {t('insuranceDeclared')}
+            </span>
+          </div>
+          <DetallePoliza poliza={s} conPoliza isAttorney={isAttorney} />
+        </div>
+      ))}
+
+      {/* Qué hacer con esto: el staff lo verifica y lo enlaza al catálogo con el
+          botón de abajo. Sin esta línea, el ámbar es un cartel sin salida. */}
+      {sueltas.length > 0 && (
+        <p className="text-[11px] text-text-muted">{t('insuranceDeclaredHint')}</p>
+      )}
+
+      {/*
+        Enlazar la aseguradora al CATÁLOGO.
+
+        Es un acto distinto de cargar la póliza, y por eso tiene su propio
+        botón en vez de compartir el lápiz: cargar los datos es transcribir lo
+        que dice la tarjeta, y esto es decir "esta es la aseguradora del
+        catálogo con la que se factura". Lo segundo lo hace el mostrador una
+        vez; lo primero se corrige todo el tiempo.
+      */}
+      {onEnlazar && (
+        <button
+          type="button"
+          onClick={onEnlazar}
+          className="text-[11px] font-semibold text-brand-text hover:underline"
+        >
+          {caseInfo.primaryInsurance ? t('changeLinkedInsurer') : t('linkInsurerToCatalog')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Una póliza tal como la dejó el intake (o el diálogo de seguros del staff). */
+type PolizaDeclarada = NonNullable<CaseInfo['segurosDeclarados']>[number];
+
+/**
+ * El detalle completo de una póliza: titular, su fecha de nacimiento,
+ * parentesco, grupo, vigencia, copago y deducible.
+ *
+ * Existía escrito una sola vez y adentro del bloque "declarado", que era el
+ * `else` del que tiene aseguradora enlazada al catálogo. O sea: apenas alguien
+ * enlazaba la aseguradora —que es lo que hace el mostrador apenas ve la
+ * tarjeta— todos estos campos DESAPARECÍAN de la pantalla. El formulario se los
+ * pide al paciente y después no había una sola vista donde leerlos
+ * (Erick, 22-sep-2026: "no tiene sentido pedirle que complete todos esos campos
+ * si no podemos verlos después").
+ *
+ * Los renglones vacíos no se dibujan: una ficha con ocho "—" no dice nada y
+ * empuja hacia abajo lo que sí está cargado.
+ *
+ * Las dos fechas van con `fechaCalendario`, que formatea en UTC. Son fechas del
+ * CALENDARIO, no instantes: con la zona de la clínica, un titular nacido el 1
+ * de enero sale mostrado el 31 de diciembre — ver `lib/fechas.ts`.
+ */
+function DetallePoliza({ poliza, conPoliza = false, polizaVerificada, isAttorney = false }: {
+  poliza: PolizaDeclarada;
+  /**
+   * El número que el staff cargó en el caso, cuando este detalle va ADENTRO de
+   * una tarjeta enlazada.
+   *
+   * Sirve para una sola cosa: si el que declaró el paciente NO es el mismo, se
+   * muestran los dos. Medido en GM-1523 el 22-sep: el caso dice `STM9TV3CK16`
+   * y el paciente había escrito `8TM9-TV3-CK16` — un 8 transcripto como S. Uno
+   * de los dos está mal y con el declarado escondido nadie podía notarlo. Si
+   * coinciden (ignorando guiones y mayúsculas) no se repite el renglón.
+   */
+  polizaVerificada?: string | null;
+  /** Mostrar el número de póliza con la etiqueta normal (tarjeta sin enlazar). */
+  conPoliza?: boolean;
+  /**
+   * Tres campos se le esconden al BUFETE, por lo mismo que ya se le esconden el
+   * teléfono de reclamos y el pre-auth (decisión de Erick, 2026-09-02):
+   *
+   *  · copago y deducible son datos de FACTURACIÓN — el bufete no factura;
+   *  · la fecha de nacimiento del TITULAR es de un tercero, que muy seguido no
+   *    es su cliente (padre, cónyuge, empleador).
+   *
+   * Lo que sí ve es lo que ya veía: aseguradora, póliza, titular, parentesco,
+   * grupo y vigencia.
+   */
+  isAttorney?: boolean;
+}) {
+  const t  = useTranslations('phoenix.caseDetail');
+  // Las etiquetas de los campos del intake salen de `phoenix.patients`, que es
+  // donde ya viven para el diálogo de seguros: el mismo campo tiene que leerse
+  // igual en las dos pantallas.
+  const tp = useTranslations('phoenix.patients');
+
+  const monto = (v?: string) => {
+    const n = parseFloat((v ?? '').trim());
+    return Number.isFinite(n) ? `$${n.toFixed(2)}` : null;
+  };
+  const fecha = (v?: string) => (v?.trim() ? fechaCalendario(v) : null);
+
+  /** Solo lo alfanumérico y en minúsculas: `8TM9-TV3-CK16` vs `8tm9tv3ck16`. */
+  const soloAlfaNum = (v?: string | null) => (v ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const declarada = poliza.policyId?.trim() || '';
+  const difiere = !!declarada && soloAlfaNum(declarada) !== soloAlfaNum(polizaVerificada);
+
+  const filas: Array<[string, string | null | undefined, boolean]> = [
+    [t('policyLabel'),               conPoliza ? declarada : null,       true],
+    [t('policyDeclaredLabel'),       !conPoliza && difiere ? declarada : null, true],
+    [t('holderLabel'),               poliza.holderName,                  false],
+    [`${tp('segurosHolderDOB')}:`,   isAttorney ? null : fecha(poliza.holderDOB), false],
+    [`${tp('segurosHolderRelation')}:`, poliza.holderRelation,           false],
+    [t('groupLabel'),                poliza.groupNum,                    true],
+    [`${tp('segurosEffectiveDate')}:`, fecha(poliza.effectiveDate),      false],
+    [`${tp('segurosCopay')}:`,       isAttorney ? null : monto(poliza.copay),      false],
+    [`${tp('segurosDeductible')}:`,  isAttorney ? null : monto(poliza.deductible), false],
+  ];
+
+  const visibles = filas.filter(([, v]) => !!v?.toString().trim());
+  if (visibles.length === 0) return null;
+
+  return (
+    <div className="mt-2 space-y-1 text-xs">
+      {visibles.map(([etiqueta, valor, mono]) => (
+        <div key={etiqueta}>
+          <span className="text-text-muted">{etiqueta}</span>{' '}
+          {mono
+            ? <code className="text-text-1 font-mono">{valor}</code>
+            : <span className="text-text-1">{valor}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
 /**
  * La cita ya agendada de un caso, si tiene alguna.
  *

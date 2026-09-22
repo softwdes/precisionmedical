@@ -3788,7 +3788,7 @@
       "insuranceNoName": "Insurer not stated",
       "holderLabel": "Policyholder:",
       "groupLabel": "Group:",
-      "insuranceDeclaredHint": "What the patient wrote on their form. Nobody has checked it against the card — verify it and link the insurer with the pencil above.",
+      "insuranceDeclaredHint": "What the patient wrote on their form. Nobody has checked it against the card — verify it and link the insurer with the button below.",
       "timelineCaseCreated": "Case created",
       "sourceLabelLawFirm": "Law firm referral",
       "sourceLabelPatient": "Patient referral",
@@ -3818,7 +3818,10 @@
       "sectionInternalNotes": "Internal notes",
       "noteSaved": "Note saved",
       "notesEmpty": "No notes yet.",
-      "notePrivate": "Private"
+      "notePrivate": "Private",
+      "policyDeclaredLabel": "Policy as declared:",
+      "linkInsurerToCatalog": "Link insurer to catalog",
+      "changeLinkedInsurer": "Change linked insurer"
     },
     "patients": {
       "patientStatus": {

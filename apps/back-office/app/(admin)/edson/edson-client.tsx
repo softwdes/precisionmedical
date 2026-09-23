@@ -808,8 +808,22 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
 
               {groups.map(group => (
                 <Fragment key={group.key}>
-                  <DataTable.GroupRow colSpan={archived ? 15 : 14}>
-                    <div className="flex items-center gap-2 text-[7.5px] uppercase tracking-wider font-semibold text-text-3 whitespace-nowrap">
+                  {/*
+                    * `strong`: banda pintada y línea de 2px. Edson volvió a
+                    * pedir la línea del día ("can you add this top line
+                    * across?") sobre una captura POSTERIOR a haberla agregado,
+                    * y tenía razón — ver la nota de `GroupRow`: en una tabla
+                    * con cuadrícula, un separador del mismo tono y grosor que
+                    * la cuadrícula no separa nada.
+                    */}
+                  <DataTable.GroupRow colSpan={archived ? 15 : 14} strong>
+                    {/*
+                      * `text-text-2` y no `text-text-3`: la banda pasó a ser
+                      * un encabezado de verdad y era el texto más apagado de
+                      * la pantalla. El TAMAÑO no se toca — 7.5px es el valor
+                      * peleado con Edson y sube solo si él lo pide.
+                      */}
+                    <div className="flex items-center gap-2 text-[7.5px] uppercase tracking-wider font-semibold text-text-2 whitespace-nowrap">
                       <span>{fmtDayHeader(group.rows[0].appointment.scheduledFor)}</span>
                       <span className="text-text-muted">
                         — {t('apptCount', { count: group.rows.length })}

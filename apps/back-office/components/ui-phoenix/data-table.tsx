@@ -149,7 +149,22 @@ function Scroll({ children, maxHeight, headHeight = '34px' }: {
  * El z queda ENTRE el encabezado (20/30) y las celdas del cuerpo (10): pasa por
  * encima de las filas al scrollear, pero se mete debajo del encabezado.
  */
-function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: number }) {
+function GroupRow({ children, colSpan, strong }: {
+  children: React.ReactNode;
+  colSpan: number;
+  /**
+   * Separador REFORZADO: banda pintada y línea de 2px en `--group-sep`.
+   *
+   * Es la versión para la vista de tracking, que es la única con `gridLines`.
+   * Ahí el separador por defecto no alcanzaba: en una tabla que YA está toda
+   * cruzada por líneas, una más del mismo tono no se lee como un corte.
+   *
+   * No se hizo default porque en las otras 21 tablas —sin cuadrícula, sobre
+   * fondo liso— la línea sola sí separa, y pintar la banda les metería un
+   * bloque de color que hoy no tienen.
+   */
+  strong?: boolean;
+}) {
   return (
     <tr>
       {/*
@@ -158,10 +173,31 @@ function GroupRow({ children, colSpan }: { children: React.ReactNode; colSpan: n
         * Sin ella los días se leían pegados, porque el texto del separador vive
         * en un `sticky` angosto del lado izquierdo y a la derecha no quedaba
         * nada que marcara el corte. Lo pidió Edson.
+        *
+        * Con `strong`, además, la banda se PINTA. Es lo que de verdad resuelve
+        * el "across": el fondo era `bg-bg-1`, el mismo de las filas en los dos
+        * temas (#FFFFFF en claro, #0F1524 en oscuro), así que a la derecha del
+        * texto la franja era indistinguible de una fila vacía y todo el peso
+        * de separar caía sobre 1px translúcido. `bg-bg-2` se mueve en el
+        * sentido correcto en cada tema —aclara en oscuro, oscurece en claro— y
+        * se ve a lo ancho de las 14 columnas.
+        *
+        * Además arregla la banda cuando queda PEGADA bajo el encabezado: hasta
+        * ahora flotaba del mismo color que las filas que le pasaban por debajo.
         */}
       <td
         colSpan={colSpan}
-        className="sticky top-[var(--dt-head-h)] z-[15] bg-bg-1 px-4 py-1.5 border-t border-border-strong"
+        className={[
+          'sticky top-[var(--dt-head-h)] z-[15] px-4 py-1.5',
+          /*
+           * `!border-t-group-sep` y no `border-group-sep`: `gridLines` pinta
+           * `[&_td]:border-border-strong`, que es una regla de descendencia y
+           * le gana en especificidad a una clase puesta en el propio `<td>`.
+           * Sin el `!`, la línea salía con el color de la cuadrícula y el
+           * token nuevo no se veía por ningún lado.
+           */
+          strong ? 'bg-bg-2 border-t-2 !border-t-group-sep' : 'bg-bg-1 border-t border-border-strong',
+        ].join(' ')}
       >
         <div className="sticky left-4 w-fit">{children}</div>
       </td>

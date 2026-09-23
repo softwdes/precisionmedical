@@ -45,6 +45,7 @@ const config: Omit<Config, 'content'> = {
         border: alfa('--border'),
         'border-strong': alfa('--border-strong'),
         'row-sep': alfa('--row-sep'),
+        'group-sep': alfa('--group-sep'),
         'text-1': alfa('--text-1'),
         'text-2': alfa('--text-2'),
         'text-3': alfa('--text-3'),

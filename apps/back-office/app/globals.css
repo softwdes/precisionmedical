@@ -59,6 +59,9 @@
   --border: rgb(255 255 255 / 0.06);
   --border-strong: rgb(255 255 255 / 0.10);
   --row-sep: rgba(255, 255, 255, 0.04);
+  /* Corte entre DÍAS en la tabla de tracking. El porqué está escrito una sola
+     vez, en el bloque claro. */
+  --group-sep: rgb(255 255 255 / 0.28);
 
   --text-1: #F5F7FB;
   --text-2: #A8B2CC;
@@ -147,6 +150,24 @@
   --border: rgb(15 23 42 / 0.10);
   --border-strong: rgb(15 23 42 / 0.18);
   --row-sep: rgba(15, 23, 42, 0.07);
+  /* ─── Corte entre DÍAS en la tabla de tracking ─────────────────────────────
+   *
+   * Token propio y no `--border-strong` porque el problema era justamente el
+   * EMPATE: la banda del día ya traía `border-t border-border-strong`, o sea
+   * el mismo 1px y el mismo tono que la línea entre filas. Se veía (apenas),
+   * pero no decía "acá cambia el día" — decía "otra fila". Por eso Edson
+   * volvió a pedir la línea sobre una captura POSTERIOR a haberla agregado.
+   *
+   * 0.45 en claro y 0.28 en oscuro: más del doble que `--border-strong` en su
+   * tema (0.18 y 0.10). Suena mucho para una línea; no lo es a 7.5px de letra,
+   * que es el tamaño de esta tabla, y Edson ya venía reclamando que las líneas
+   * se noten — viene de una hoja de cálculo, donde la cuadrícula se lee de
+   * lejos.
+   *
+   * Es SOLO para el corte de día. Si aparece en otra tabla vuelven a haber dos
+   * líneas compitiendo y esto deja de significar nada.
+   */
+  --group-sep: rgb(15 23 42 / 0.45);
 
   --text-1: #0F172A;
   --text-2: #475569;

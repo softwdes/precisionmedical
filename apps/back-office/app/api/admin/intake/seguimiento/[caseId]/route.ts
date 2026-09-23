@@ -163,12 +163,13 @@ export async function GET(
   if (noteIds.length > 0) {
     const rows = await db.$queryRaw<CptRow[]>`
       SELECT
-        vn.case_id,
-        SUM(COALESCE(vsc.fee_override, vsc.fee_catalog) * vsc.units)::float AS total
+        a."caseId" AS case_id,
+        SUM(COALESCE(vsc."feeOverride", vsc."feeCatalog") * vsc."units")::float AS total
       FROM visit_service_codes vsc
-      JOIN visit_notes vn ON vn.id = vsc.visit_note_id
-      WHERE vsc.visit_note_id = ANY(${noteIds}::text[])
-      GROUP BY vn.case_id
+      JOIN visit_notes vn ON vn."id" = vsc."visitNoteId"
+      JOIN appointments a ON a."id" = vn."appointmentId"
+      WHERE vsc."visitNoteId" = ANY(${noteIds}::text[])
+      GROUP BY a."caseId"
     `;
     totalBilled = rows[0] ? Number(rows[0].total ?? 0) : 0;
   }

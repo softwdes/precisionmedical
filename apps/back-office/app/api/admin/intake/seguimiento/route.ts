@@ -148,7 +148,26 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // CPT totals via $queryRaw (tabla snake_case, ver schema comment)
+  /*
+   * El total de CPT sale de SQL crudo, y acá hay que tener cuidado con dos cosas
+   * que ya rompieron esta consulta una vez.
+   *
+   * 1. LAS COLUMNAS SON camelCase Y VAN ENTRE COMILLAS. La tabla se llama
+   *    `visit_service_codes` en snake_case, pero sus COLUMNAS no: el schema se
+   *    aplicó con `db push` y quedaron como las escribe Prisma. Postgres pliega
+   *    a minúscula todo identificador sin comillas, así que `vsc.fee_override`
+   *    se convierte en `fee_override` y NUNCA puede encontrar `feeOverride`.
+   *    Este comentario decía antes "tabla snake_case" a secas, y esa media
+   *    verdad es la que hizo escribir la consulta mal.
+   *
+   * 2. `visit_notes` NO TIENE `caseId`. Solo `appointmentId`. El caso se llega
+   *    saltando a `appointments`, que es el join de abajo. La versión anterior
+   *    agrupaba por `vn.case_id`, una columna que no existe de ninguna forma.
+   *
+   * ⚠️ `tsc` NO VE NADA DE ESTO. Esta ruta compilaba perfecto y fallaba en
+   *    cuanto un caso tuviera una nota de visita. Lo único que encuentra estos
+   *    errores es correr la consulta contra la base real.
+   */
   const noteIds = cases.flatMap(c =>
     c.appointments.map(a => a.visitNote?.id).filter(Boolean),
   ) as string[];
@@ -158,13 +177,14 @@ export async function GET(req: NextRequest) {
   if (noteIds.length > 0) {
     const rows = await db.$queryRaw<CptRow[]>`
       SELECT
-        vn.case_id,
-        SUM(COALESCE(vsc.fee_override, vsc.fee_catalog) * vsc.units)::float AS total,
+        a."caseId" AS case_id,
+        SUM(COALESCE(vsc."feeOverride", vsc."feeCatalog") * vsc."units")::float AS total,
         COUNT(*)::bigint AS count
       FROM visit_service_codes vsc
-      JOIN visit_notes vn ON vn.id = vsc.visit_note_id
-      WHERE vsc.visit_note_id = ANY(${noteIds}::text[])
-      GROUP BY vn.case_id
+      JOIN visit_notes vn ON vn."id" = vsc."visitNoteId"
+      JOIN appointments a ON a."id" = vn."appointmentId"
+      WHERE vsc."visitNoteId" = ANY(${noteIds}::text[])
+      GROUP BY a."caseId"
     `;
     for (const r of rows) {
       cptTotals.set(r.case_id, Number(r.total ?? 0));

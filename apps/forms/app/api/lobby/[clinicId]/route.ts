@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 
 /**
  * B.37 — Lobby HIPAA Display API
@@ -104,6 +104,7 @@ export async function GET(
 
   const appts = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       clinicId,
       scheduledFor: { gte: start, lte: end },
       status:       { in: ['PENDING', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] },

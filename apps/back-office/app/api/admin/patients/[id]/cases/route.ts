@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec, isCipher } from '@/lib/decrypt';
 import { checkPatientAccess } from '@/lib/patient-access';
 
@@ -37,7 +37,7 @@ export async function GET(
   // Fetch appointments per case separately to get first/last
   const caseIds = rawCases.map(c => c.id);
   const appts = await db.appointment.findMany({
-    where: { caseId: { in: caseIds } },
+    where: { ...VIGENTES, caseId: { in: caseIds } },
     orderBy: { scheduledFor: 'asc' },
     select: { caseId: true, scheduledFor: true },
   });

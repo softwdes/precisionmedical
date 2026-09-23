@@ -15,6 +15,7 @@ import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
 import { puedeEscribirLaCita } from '@/lib/appointment-scope';
+import { porQueNoSePuedeEliminar } from '@/lib/citas-vigentes';
 
 export async function GET(
   _req: NextRequest,
@@ -410,4 +411,105 @@ export async function PATCH(
     : null;
 
   return NextResponse.json({ ok: true, appointment: updated, avisoReprogramacion, avisoCancelacion });
+}
+
+/**
+ * DELETE /api/admin/appointments/:id — eliminar (lógico) una cita mal cargada
+ *
+ * ── Qué es esto y qué NO es ─────────────────────────────────────────────────
+ *
+ * NO es cancelar. Cancelar significa *el paciente no viene*: es un hecho
+ * clínico y de facturación, puede llevar penalidad y cuenta en las
+ * estadísticas. Esto es para la cita que **nunca debió existir** — una prueba,
+ * un duplicado, el paciente equivocado (Erick, 2026-09-23: *"han estado
+ * haciendo pruebas y a veces se equivocan y deben eliminarla"*).
+ *
+ * Hasta hoy la única salida era cancelarla, y eso ensuciaba justo el número con
+ * el que la clínica cobra las penalidades.
+ *
+ * ── No borra la fila ────────────────────────────────────────────────────────
+ *
+ * Marca `deletedAt` y la cita desaparece de todas las pantallas menos de la
+ * papelera ("Citas eliminadas" en el calendario), desde donde se puede
+ * restaurar. Su horario vuelve a estar libre en el acto. Erick: *"no hay
+ * problema que lo eliminen todos, igual no se perderá y se podrá ver"*.
+ *
+ * ── Quién puede ─────────────────────────────────────────────────────────────
+ *
+ * Cualquiera que pueda escribir la cita — decisión de Erick, y se sostiene
+ * porque es reversible y queda registrado con nombre y motivo. El único
+ * recorte es el de siempre: un provider no toca la cita de otro
+ * (`puedeEscribirLaCita`).
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await params;
+
+  if (!(await puedeEscribirLaCita(id))) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  }
+
+  const existing = await db.appointment.findUnique({
+    where:  { id },
+    select: { id: true, status: true, scheduledFor: true, deletedAt: true, patientId: true, clinicId: true, providerId: true },
+  });
+  if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  if (existing.deletedAt) {
+    return NextResponse.json({ error: 'ALREADY_DELETED' }, { status: 409 });
+  }
+
+  /**
+   * La cita con RASTRO no se elimina: se cancela.
+   *
+   * Sin esta traba, eliminar sería el atajo cómodo para deshacer un no-show y
+   * la clínica perdería el historial con el que cobra. El motivo viaja al
+   * cliente para que el cartel diga QUÉ hay que hacer en su lugar, no un
+   * "no se puede" pelado.
+   */
+  const motivo = await porQueNoSePuedeEliminar(id);
+  if (motivo) {
+    return NextResponse.json({ error: 'HAS_HISTORY', reason: motivo }, { status: 409 });
+  }
+
+  const body   = await req.json().catch(() => ({}));
+  const razon  = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 200) : '';
+  const actor  = await resolveActor(req.headers);
+
+  const borrada = await db.appointment.update({
+    where: { id },
+    data: {
+      deletedAt:     new Date(),
+      deletedById:   actor.actorUserId,
+      deletedByName: actor.actorName,
+      deleteReason:  razon || null,
+    },
+    select: { id: true, deletedAt: true, deleteReason: true },
+  });
+
+  await writeAuditLog(db, {
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
+    action:      'DELETE_APPOINTMENT',
+    entityType:  'appointments',
+    entityId:    id,
+    ipAddress:   actor.ipAddress,
+    userAgent:   actor.userAgent,
+    // El `before` guarda dónde estaba: es lo que permite entender la papelera
+    // sin abrir la cita, y lo que queda si algún día se purga de verdad.
+    before:      existing as unknown as Prisma.JsonValue,
+    after:       borrada  as unknown as Prisma.JsonValue,
+    metadata:    { reason: razon || null },
+  });
+
+  /**
+   * Al paciente NO se le avisa, a propósito.
+   *
+   * Una cita eliminada es una que nunca debió existir: avisarle de la
+   * cancelación de algo que —para él— no pasó es peor que el silencio. La que
+   * sí avisa es la cancelación, que es el camino para "el paciente no viene".
+   */
+  return NextResponse.json({ ok: true, appointment: borrada });
 }

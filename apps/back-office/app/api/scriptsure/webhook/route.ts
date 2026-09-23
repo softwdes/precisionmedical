@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { mapRawRx, persistPrescription, marcarRechazoNcpdp, asStr, pick } from '@/lib/scriptsure-prescriptions';
 
 /**
@@ -143,6 +143,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // prescriptor que viene en el payload.
   const appointment = await db.appointment.findFirst({
     where: {
+      ...VIGENTES,
       patientId: patient.id,
       ...(mapped.doctorId ? { provider: { scriptsureUserId: mapped.doctorId } } : {}),
     },

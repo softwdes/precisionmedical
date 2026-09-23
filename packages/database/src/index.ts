@@ -67,4 +67,10 @@ export type { SlotFoto, FotoParaArchivar, ResultadoArchivo, FotosResueltas } fro
 // 6 lo guardaba en `consentsData.insurances` y nada lo promovía al campo que
 // leen la portada y el PDF. Gana el staff: solo completa lo que está vacío.
 export { promoverSeguroDeclarado, segurosMedicosDeclarados } from './seguro-declarado';
+
+/**
+ * El filtro de citas no eliminadas. Lo usan las CUATRO apps que listan citas,
+ * por eso vive en el paquete y no en `apps/back-office/lib`.
+ */
+export { VIGENTES, ELIMINADAS } from './citas-vigentes';
 export type { SeguroDeclarado, ResultadoPromocion } from './seguro-declarado';

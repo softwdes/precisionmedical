@@ -1,4 +1,4 @@
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { FrontOfficeClient } from './front-office-client';
@@ -75,6 +75,7 @@ export default async function FrontOfficePage({
     // Citas del día (scheduled/in-progress · no canceladas)
     db.appointment.count({
       where: {
+        ...VIGENTES,
         scheduledFor: { gte: todayStart, lte: todayEnd },
         status: { notIn: ['CANCELLED'] },
       },
@@ -82,6 +83,7 @@ export default async function FrontOfficePage({
     // No-shows de ayer
     db.appointment.count({
       where: {
+        ...VIGENTES,
         scheduledFor: { gte: yesterdayStart, lte: yesterdayEnd },
         status: 'NO_SHOW',
       },

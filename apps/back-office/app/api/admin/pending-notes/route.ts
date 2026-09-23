@@ -22,7 +22,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, Prisma } from '@precision-medical/database';
+import { db, Prisma, VIGENTES } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const [rows, total] = await Promise.all([
     db.appointment.findMany({
-      where,
+      where: { ...VIGENTES, ...where },
       orderBy: { scheduledFor: 'asc' }, // la más vieja primero
       take: LIMIT,
       select: {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         visitNote: { select: { status: true } },
       },
     }),
-    db.appointment.count({ where }),
+    db.appointment.count({ where: { ...VIGENTES, ...where } }),
   ]);
 
   const notes: PendingNoteRow[] = rows.map((a) => ({

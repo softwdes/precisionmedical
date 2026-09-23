@@ -17,7 +17,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderO } from '@/lib/provider-name';
 import { resolveActor } from '@/lib/actor';
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const where = whereNotas(filtros);
 
   const rows = await db.appointment.findMany({
-    where,
+    where: { ...VIGENTES, ...where },
     orderBy: { scheduledFor: 'asc' },
     take: MAX_FILAS,
     select: {

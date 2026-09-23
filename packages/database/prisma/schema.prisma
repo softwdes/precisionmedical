@@ -1260,6 +1260,33 @@ model Appointment {
   createdByUserId String?
   createdByName   String?
 
+  /// ── BORRADO LÓGICO ───────────────────────────────────────────────────────
+  ///
+  /// Eliminar una cita NO borra la fila: la marca. Es para la cita cargada por
+  /// ERROR —una prueba, un duplicado, el paciente equivocado—, que hasta ahora
+  /// solo se podía sacar de la vista cancelándola. Y cancelar miente: significa
+  /// que el paciente no viene, lleva penalidad y alimenta las estadísticas
+  /// (Erick, 2026-09-23).
+  ///
+  /// Una cita con RASTRO no se elimina, se cancela: con cargos, con nota de
+  /// visita, con check-in, con firma de asistencia, o ya atendida / no-show /
+  /// cancelada el mismo día. Sin esa traba, eliminar sería el atajo cómodo para
+  /// deshacer un no-show y la clínica perdería el historial con el que cobra.
+  /// La regla vive en `lib/citas-vigentes.ts`.
+  ///
+  /// ⚠️ TODA consulta que LISTE citas tiene que filtrar `deletedAt: null`. Son
+  /// ~45 lecturas en 36 archivos de CUATRO apps —back-office, el portal del
+  /// abogado, forms y clinical— y olvidarse de una no falla: muestra de más.
+  /// Se filtran con `VIGENTES` de `lib/citas-vigentes.ts` para que se vean
+  /// todas de un grep. El chequeo de cruce también las excluye: una cita
+  /// eliminada no puede seguir ocupando su horario.
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedByName String?
+  /// Por qué se eliminó. Sin esto la papelera es una lista de filas que en un
+  /// mes nadie sabe interpretar.
+  deleteReason  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1269,6 +1296,9 @@ model Appointment {
   @@index([scheduledFor])
   @@index([status])
   @@index([providerId, scheduledFor])
+  /// El calendario pide un rango de fechas Y no-eliminadas en la misma
+  /// consulta: es la lectura más caliente del sistema.
+  @@index([scheduledFor, deletedAt])
   /// La grilla de Edson saca la PRIMERA cita del caso con un LATERAL
   /// (WHERE caseId = ? ORDER BY scheduledFor LIMIT 1). Sin el compuesto,
   /// Postgres filtra y despues ordena.

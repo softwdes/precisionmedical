@@ -35,7 +35,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { cargarCitaParaAvisar, enviarRecordatorio24h } from '@/lib/recordatorio-cita';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const pendientes = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       scheduledFor:      { gte: desde, lt: hasta },
       status:            { in: [...VIVAS] },
       recordatorio24hAt: null,

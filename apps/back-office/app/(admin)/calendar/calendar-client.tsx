@@ -24,11 +24,12 @@ import {
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff, FileText, AlignJustify } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X, Video, CalendarOff, FileText, AlignJustify, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { TimeBlockDialog, type TimeBlock } from '@/components/calendar/time-block-dialog';
+import { DeletedAppointmentsDialog } from '@/components/calendar/deleted-appointments-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
@@ -907,6 +908,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
    */
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  /** La papelera de citas. Ver `deleted-appointments-dialog`. */
+  const [papeleraOpen, setPapeleraOpen] = useState(false);
   const [blockPrefill, setBlockPrefill] = useState<{ date: string; time: string } | null>(null);
   const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1780,6 +1783,20 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           >
             <CalendarOff className="w-3.5 h-3.5" />
             {t('blockNewButton')}
+          </button>
+
+          {/* La papelera. Va con los otros dos del grupo —nueva cita, aviso de
+              agenda— porque son la misma familia: cosas que se le hacen a la
+              agenda. Neutra: acá se entra a auditar o a deshacer, no es una
+              acción del día. */}
+          <button
+            type="button"
+            onClick={() => setPapeleraOpen(true)}
+            title={t('deletedHint')}
+            className="flex items-center gap-1.5 h-7 px-3 rounded border border-border text-text-2 text-xs font-medium hover:bg-white/5 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {t('deletedButton')}
           </button>
         </div>
 
@@ -2708,6 +2725,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       )}
 
       {/* ─── Aviso en la agenda ("Lunch", "el doctor no esta") ─ */}
+      {/* La papelera: auditar quién borró qué, y devolver la que se borró por
+          error. Ver `deleted-appointments-dialog`. */}
+      <DeletedAppointmentsDialog
+        open={papeleraOpen}
+        onOpenChange={setPapeleraOpen}
+        onRestored={() => setRefreshKey(k => k + 1)}
+      />
+
       <TimeBlockDialog
         open={blockDialogOpen}
         editing={editingBlock}

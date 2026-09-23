@@ -22,8 +22,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
   db, writeAuditLog, Prisma, nextCaseCode, nextPatientCode,
-  casePrefixFor, resolveGuardian, GuardianIsSelfError,
-} from '@precision-medical/database';
+  casePrefixFor, resolveGuardian, GuardianIsSelfError, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 import { checkPatientStaff } from '@/lib/patient-access';
@@ -538,6 +537,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const conflict = await db.appointment.findFirst({
       where: {
+        ...VIGENTES,
         providerId: parsed.appointment.providerId,
         status:     { not: 'CANCELLED' },
         scheduledFor: { gte: bufferStart, lt: apptEnd },

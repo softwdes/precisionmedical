@@ -9,7 +9,7 @@
 
 import Link  from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import {
   ClipboardList, UserCheck, CheckCircle2,
   Clock, AlertTriangle, ChevronRight, PenLine, FlaskConical,
@@ -277,6 +277,7 @@ export default async function DoctorMiDiaPage() {
 
   const appointments = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       scheduledFor: { gte: today, lte: eod },
       status: { not: 'CANCELLED' },
     },

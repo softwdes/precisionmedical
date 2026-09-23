@@ -8,7 +8,7 @@
 
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
@@ -52,6 +52,7 @@ export default async function DoctorMyDayPage({
   const [appts, pendingNotesTotal, doneRows] = await Promise.all([
     db.appointment.findMany({
       where: {
+        ...VIGENTES,
         providerId: provider.id,
         scheduledFor: { gte: start, lt: end },
         /**
@@ -111,6 +112,7 @@ export default async function DoctorMyDayPage({
     // la base: 38 de 53 pendientes eran de este tipo).
     db.appointment.count({
       where: {
+        ...VIGENTES,
         providerId: provider.id,
         status: { notIn: ['CANCELLED', 'NO_SHOW'] },
         AND: [

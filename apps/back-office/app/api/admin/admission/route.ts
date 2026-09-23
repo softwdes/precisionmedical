@@ -11,7 +11,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
 import { claveDia } from '@/lib/fechas';
@@ -176,7 +176,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     };
 
     const appts = await db.appointment.findMany({
-      where,
+      where: { ...VIGENTES, ...where },
       include: APPT_INCLUDE,
       orderBy: { scheduledFor: 'asc' },
     });

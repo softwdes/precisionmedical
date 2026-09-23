@@ -1,4 +1,4 @@
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { claveDia, ZONA_CLINICA } from '@/lib/fechas';
 
 /**
@@ -66,7 +66,7 @@ export interface CitasDeHoy {
 export async function pacientesDeHoy(): Promise<string[]> {
   const { desde, hasta } = rangoDeHoy();
   const citas = await db.appointment.findMany({
-    where: { scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
+    where: { ...VIGENTES, scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
     select: { patientId: true },
     distinct: ['patientId'],
   });
@@ -78,7 +78,7 @@ export async function citasDeHoy(): Promise<CitasDeHoy> {
 
   const porEstado = await db.appointment.groupBy({
     by: ['status'],
-    where: { scheduledFor: { gte: desde, lt: hasta } },
+    where: { ...VIGENTES, scheduledFor: { gte: desde, lt: hasta } },
     _count: true,
   });
 

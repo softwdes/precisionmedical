@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Activity, FileSignature, CalendarDays, Timer, DollarSign, HeartPulse } from 'lucide-react';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { PageHeader, KpiCard, TagPill } from '@/components/ui-phoenix';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
@@ -90,7 +90,7 @@ export default async function AttorneyVigiaPage({ searchParams }: {
       where: { ...scope, signatureExempt: false, lienSignatures: { none: { signerType: 'ATTORNEY' } } },
     }),
     db.appointment.count({
-      where: { case: scope, scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
+      where: { ...VIGENTES, case: scope, scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
     }),
     // Sale de la misma consulta que usa la herramienta `metricas_del_bufete`:
     // el número del tablero y el que dice Vigía tienen que ser el mismo, o el

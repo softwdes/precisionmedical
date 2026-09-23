@@ -13,7 +13,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { canAuditNotes } from '@/lib/notes-audit-access';
 import { getSessionRole, PORTAL_ONLY_ROLES, getOwnSessionProvider } from '@/lib/get-session-provider';
@@ -66,7 +66,7 @@ export async function GET(
   const filtros = { ...filtrosDesdeParams((k) => sp.get(k) ?? undefined), providerId };
 
   const rows = await db.appointment.findMany({
-    where: whereNotas(filtros),
+    where: { ...VIGENTES, ...whereNotas(filtros) },
     orderBy: { scheduledFor: 'desc' },
     take: LIMIT,
     select: {

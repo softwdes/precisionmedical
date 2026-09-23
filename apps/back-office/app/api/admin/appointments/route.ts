@@ -16,7 +16,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, Prisma, writeAuditLog } from '@precision-medical/database';
+import { db, Prisma, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   try {
     const appointments: ApptRow[] = await db.appointment.findMany({
-      where,
+      where: { ...VIGENTES, ...where },
       include: APPT_INCLUDE,
       orderBy: { scheduledFor: 'asc' },
     });
@@ -199,6 +199,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const priorCounts = await db.appointment.groupBy({
         by: ['caseId'],
         where: {
+          ...VIGENTES,
           patientId:    { in: patientIds },
           status:       { not: 'CANCELLED' },
           scheduledFor: { lt: fromDate },

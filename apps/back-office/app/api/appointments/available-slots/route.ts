@@ -23,7 +23,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { isWeekendInDenver , blocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const TIMEZONE = 'America/Denver';
@@ -166,6 +166,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // ─── Citas existentes del provider en el rango ─────────────────────────
   const existingAppointments = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       providerId: query.providerId,
       status:     { not: 'CANCELLED' },
       scheduledFor: {

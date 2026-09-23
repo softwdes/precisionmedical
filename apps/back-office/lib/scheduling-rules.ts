@@ -7,7 +7,7 @@
  * un sábado/domingo se guardaba sin ningún chequeo.
  */
 
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 
 /**
  * La expansión de los bloqueos vive en `lib/bloqueos-recurrentes.ts`, que NO
@@ -130,6 +130,7 @@ export async function findOverlappingAppointments(opts: {
 
   const candidates = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       providerId,
       status:       { not: 'CANCELLED' },

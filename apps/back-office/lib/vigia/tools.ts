@@ -1,4 +1,4 @@
-import { db, type Prisma } from '@precision-medical/database';
+import { db, type Prisma, VIGENTES } from '@precision-medical/database';
 import type { SessionLawyer } from '@/lib/get-session-lawyer';
 import {
   lawyerCaseFilter, ACTIVE_STATUSES, CLOSED_STATUSES,
@@ -100,7 +100,7 @@ export async function metricasDelBufete(lawyer: SessionLawyer): Promise<ToolResu
       where: { ...scope, signatureExempt: false, lienSignatures: { none: { signerType: 'ATTORNEY' } } },
     }),
     db.appointment.count({
-      where: { case: scope, scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
+      where: { ...VIGENTES, case: scope, scheduledFor: { gte: desde, lt: hasta }, status: { not: 'CANCELLED' } },
     }),
     db.appointmentBilling.aggregate({
       _sum: { balanceDue: true },
@@ -194,11 +194,11 @@ export async function resumenDeCaso(lawyer: SessionLawyer, args: { caso: string 
     }),
     db.appointment.groupBy({
       by: ['status'],
-      where: { caseId: target.id },
+      where: { ...VIGENTES, caseId: target.id },
       _count: true,
     }),
     db.appointment.findFirst({
-      where: { caseId: target.id, status: { not: 'CANCELLED' } },
+      where: { ...VIGENTES, caseId: target.id, status: { not: 'CANCELLED' } },
       orderBy: { scheduledFor: 'desc' },
       select: { scheduledFor: true, type: true, status: true },
     }),

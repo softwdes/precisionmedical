@@ -183,6 +183,7 @@
       "telemedicine": "Telemedicine (video visit)"
     },
     "nav": {
+      "versionVerNovedades": "See what this version brings",
       "collections": "Finances",
       "clinicalNotes": "Clinical notes",
       "catalogs": "Catalogs",
@@ -225,8 +226,7 @@
       "attorneyAppointments": "Appointments",
       "attorneyReferrals": "Refer a client",
       "messages": "Messages",
-      "firmRequests": "Firm requests",
-      "versionVerNovedades": "See what this version brings"
+      "firmRequests": "Firm requests"
     },
     "pageTitles": {
       "collections": "Finances",
@@ -3047,6 +3047,9 @@
       "chargePendingHint": "Click to charge in the case finances"
     },
     "dashboard": {
+      "novedadEtiqueta": "New version",
+      "novedadCerrar": "Got it",
+      "novedadCambios": "{count, plural, one {# change} other {# changes}}",
       "title": "Reception Dashboard",
       "subtitle": "Daily panel view",
       "goToQueue": "Go to queue",
@@ -3221,10 +3224,7 @@
       "actionIntakeCompletedDev": "Intake completed (dev)",
       "actionAppointmentConfirmed": "Appointment confirmed",
       "actionAppointmentScheduled": "Appointment scheduled",
-      "actionNoteAdded": "Note added",
-      "novedadEtiqueta": "New version",
-      "novedadCerrar": "Got it",
-      "novedadCambios": "{count, plural, one {# change} other {# changes}}"
+      "actionNoteAdded": "Note added"
     },
     "calendar": {
       "weekdays": {
@@ -3569,6 +3569,35 @@
       "dragRescheduling": "Rescheduling appointment…",
       "dragError": "Error rescheduling",
       "durationConflictSuggestion": "If you need {duration} min, the closest available time is {time}.",
+      "actionDeleteAppointment": "Delete appointment",
+      "deleteConfirmTitle": "Delete this appointment",
+      "deleteConfirmHint": "For an appointment entered by mistake. The patient is not notified and it does not count as a cancellation. You can bring it back from “Deleted appointments”.",
+      "deleteConfirm": "Delete",
+      "deleteInProgress": "Deleting…",
+      "deleteError": "The appointment could not be deleted",
+      "deleteReasonTest": "Test",
+      "deleteReasonDuplicate": "Duplicate",
+      "deleteReasonWrongPatient": "Wrong patient",
+      "deleteReasonPlaceholder": "Why is it being deleted?",
+      "deleteBlocked_CARGOS": "This appointment has charges on it: it is cancelled, not deleted. Remove the charges from Services first if it really has to go.",
+      "deleteBlocked_NOTA": "This appointment has a visit note: it is cancelled, not deleted.",
+      "deleteBlocked_LLEGO": "The patient already checked in: that really happened, so the appointment is not deleted.",
+      "deleteBlocked_FIRMO": "The patient already signed their confirmation: the appointment is not deleted.",
+      "deleteBlocked_ESTADO": "This appointment already has an outcome (attended, no-show or in consultation): it is corrected from Admission, not deleted.",
+      "deleteBlocked_PENALIDAD": "This is a same-day cancellation and there is a penalty at stake: it is not deleted.",
+      "deletedButton": "Deleted appointments",
+      "deletedTitle": "Deleted appointments",
+      "deletedHint": "Who deleted them, when and why. They can be brought back.",
+      "deletedSearchPlaceholder": "Search by patient or by who deleted it…",
+      "deletedWhen": "Deleted",
+      "deletedBy": "By",
+      "deletedWhy": "Reason",
+      "deletedRestore": "Restore",
+      "deletedEmptyTitle": "No deleted appointments",
+      "deletedEmptyHint": "Anything deleted from an appointment's detail shows up here.",
+      "deletedLoading": "Loading…",
+      "deletedLoadError": "The trash could not be loaded",
+      "deletedRestoreError": "The appointment could not be restored",
       "legendToggle": "Color reference",
       "compactToggle": "Compact",
       "compactToggleHint": "One line per appointment: the whole day fits on screen",

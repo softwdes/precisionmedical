@@ -23,7 +23,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { fechaCalendario, edad } from '@/lib/fechas';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import { getSectionLabelOverrides, sectionLabelFrom } from '@/lib/section-labels';
@@ -120,7 +120,7 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
   if (!esStaff && !propio) notFound();
 
   const a = await db.appointment.findFirst({
-    where: propio ? { id: appointmentId, providerId: propio.id } : { id: appointmentId },
+    where: { ...VIGENTES, ...(propio ? { id: appointmentId, providerId: propio.id } : { id: appointmentId }) },
     select: {
       id: true,
       scheduledFor: true,

@@ -12,7 +12,7 @@
 
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { CheckCircle2, Clock, UserCheck, AlertCircle } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +57,7 @@ export default async function ClinicalHomePage() {
 
   const appointments = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       scheduledFor: { gte: today, lte: eod },
       status: { not: 'CANCELLED' },
     },

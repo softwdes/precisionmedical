@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { conDetalleDeReceta } from '@/lib/medication-details';
 
@@ -38,7 +38,7 @@ export async function GET(
   };
 
   const appts = await db.appointment.findMany({
-    where: { caseId: id, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+    where: { ...VIGENTES, caseId: id, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
     orderBy: { scheduledFor: 'desc' },
     select: {
       id: true,

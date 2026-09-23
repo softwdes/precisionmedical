@@ -23,7 +23,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { requireMessagingActor, ADMIN_ROLES } from '@/lib/messaging';
 
@@ -94,6 +94,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (thread.patient) {
     nextAppointment = await db.appointment.findFirst({
       where: {
+        ...VIGENTES,
         patientId: thread.patient.id,
         scheduledFor: { gte: new Date() },
         status: { in: ['SCHEDULED', 'CONFIRMED'] },

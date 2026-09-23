@@ -8,7 +8,7 @@
  * Rangos rodantes terminando hoy (Denver): week=7d · month=30d · year=365d.
  */
 
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 
 export type MetricsRange = 'week' | 'month' | 'year';
 
@@ -63,7 +63,7 @@ export async function getProviderMetrics(providerId: string, range: MetricsRange
 
   const [appts, notes, labsOrdered, rxIssued] = await Promise.all([
     db.appointment.findMany({
-      where: { providerId, scheduledFor: { gte: from, lt: to } },
+      where: { ...VIGENTES, providerId, scheduledFor: { gte: from, lt: to } },
       select: { scheduledFor: true, status: true, durationMinutes: true, patientId: true },
     }),
     db.visitNote.findMany({

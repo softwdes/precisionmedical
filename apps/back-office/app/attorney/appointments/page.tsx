@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { getSessionLawyer } from '@/lib/get-session-lawyer';
 import { lawyerCaseFilter, canSeeMenu } from '@/lib/attorney-portal';
@@ -70,6 +70,7 @@ export default async function AttorneyAppointmentsPage({ searchParams }: {
   const [rows, clinicRows] = await Promise.all([
     db.appointment.findMany({
       where: {
+        ...VIGENTES,
         case: lawyerCaseFilter(lawyer),
         scheduledFor: { gte: desde, lt: hasta },
         ...(clinicId ? { clinicId } : {}),

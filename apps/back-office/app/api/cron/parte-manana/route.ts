@@ -40,7 +40,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { enviarAviso } from '@/lib/push';
 import { colaIntake } from '@/lib/cola-intake';
 import { colaDeAtencion, diasDeLaFila } from '@/lib/vigia/queue';
@@ -138,6 +138,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       if (!ficha.userId) continue; // `Provider.userId` es opcional en el schema
       const citas = await db.appointment.findMany({
         where: {
+          ...VIGENTES,
           providerId: ficha.id,
           scheduledFor: { gte: start, lt: end },
           // Mismo filtro que Mi Día: una cancelada no es un paciente que viene.

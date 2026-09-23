@@ -183,6 +183,7 @@
       "telemedicine": "Telemedicina (videollamada)"
     },
     "nav": {
+      "versionVerNovedades": "Ver qué trae esta versión",
       "collections": "Finanzas",
       "clinicalNotes": "Notas clínicas",
       "catalogs": "Catálogos",
@@ -225,8 +226,7 @@
       "attorneyAppointments": "Citas",
       "attorneyReferrals": "Referir un cliente",
       "messages": "Mensajes",
-      "firmRequests": "Pedidos de bufetes",
-      "versionVerNovedades": "Ver qué trae esta versión"
+      "firmRequests": "Pedidos de bufetes"
     },
     "pageTitles": {
       "collections": "Finanzas",
@@ -3047,6 +3047,9 @@
       "chargePendingHint": "Clic para cobrar en Finanzas del caso"
     },
     "dashboard": {
+      "novedadEtiqueta": "Nueva versión",
+      "novedadCerrar": "Entendido",
+      "novedadCambios": "{count, plural, one {# cambio} other {# cambios}}",
       "title": "Dashboard de Recepción",
       "subtitle": "Vista panel del día",
       "goToQueue": "Ir al queue",
@@ -3221,10 +3224,7 @@
       "actionIntakeCompletedDev": "Intake completado (dev)",
       "actionAppointmentConfirmed": "Cita confirmada",
       "actionAppointmentScheduled": "Cita agendada",
-      "actionNoteAdded": "Nota agregada",
-      "novedadEtiqueta": "Nueva versión",
-      "novedadCerrar": "Entendido",
-      "novedadCambios": "{count, plural, one {# cambio} other {# cambios}}"
+      "actionNoteAdded": "Nota agregada"
     },
     "calendar": {
       "weekdays": {
@@ -3569,6 +3569,35 @@
       "dragRescheduling": "Reprogramando cita…",
       "dragError": "Error al reprogramar",
       "durationConflictSuggestion": "Si necesitás {duration} min, el horario más cercano disponible es {time}.",
+      "actionDeleteAppointment": "Eliminar cita",
+      "deleteConfirmTitle": "Eliminar esta cita",
+      "deleteConfirmHint": "Es para una cita cargada por error. No avisa al paciente y no cuenta como cancelacion. Se puede devolver desde “Citas eliminadas”.",
+      "deleteConfirm": "Eliminar",
+      "deleteInProgress": "Eliminando…",
+      "deleteError": "No se pudo eliminar la cita",
+      "deleteReasonTest": "Prueba",
+      "deleteReasonDuplicate": "Duplicada",
+      "deleteReasonWrongPatient": "Paciente equivocado",
+      "deleteReasonPlaceholder": "¿Por que se elimina?",
+      "deleteBlocked_CARGOS": "Esta cita tiene cargos registrados: no se elimina, se cancela. Quita los cargos primero desde Servicios si de verdad hay que borrarla.",
+      "deleteBlocked_NOTA": "Esta cita tiene una nota de visita: no se elimina, se cancela.",
+      "deleteBlocked_LLEGO": "El paciente ya hizo check-in: eso paso de verdad, asi que la cita no se elimina.",
+      "deleteBlocked_FIRMO": "El paciente ya firmo su confirmacion: la cita no se elimina.",
+      "deleteBlocked_ESTADO": "Esta cita ya tiene un desenlace (atendida, no vino o en consulta): no se elimina, se corrige desde Admision.",
+      "deleteBlocked_PENALIDAD": "Es una cancelacion del mismo dia y hay penalidad en juego: no se elimina.",
+      "deletedButton": "Citas eliminadas",
+      "deletedTitle": "Citas eliminadas",
+      "deletedHint": "Quien las elimino, cuando y por que. Se pueden devolver.",
+      "deletedSearchPlaceholder": "Buscar por paciente o por quien la elimino…",
+      "deletedWhen": "Eliminada",
+      "deletedBy": "Por",
+      "deletedWhy": "Motivo",
+      "deletedRestore": "Restaurar",
+      "deletedEmptyTitle": "No hay citas eliminadas",
+      "deletedEmptyHint": "Lo que se elimine desde el detalle de una cita aparece aca.",
+      "deletedLoading": "Cargando…",
+      "deletedLoadError": "No se pudo cargar la papelera",
+      "deletedRestoreError": "No se pudo restaurar la cita",
       "legendToggle": "Referencia de colores",
       "compactToggle": "Compacto",
       "compactToggleHint": "Una linea por cita: el dia entero entra en pantalla",

@@ -12,7 +12,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkPatientAccess } from '@/lib/patient-access';
 
@@ -45,6 +45,7 @@ export async function POST(
   // de restaurar por claridad; da igual el orden porque no se tocan.
   const porReagendar = await db.appointment.count({
     where: {
+      ...VIGENTES,
       patientId:    id,
       scheduledFor: { gt: new Date() },
       status:       'CANCELLED',

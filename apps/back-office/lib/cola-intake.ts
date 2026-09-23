@@ -1,4 +1,4 @@
-import { db, isMinor } from '@precision-medical/database';
+import { db, isMinor, VIGENTES } from '@precision-medical/database';
 import { decryptField } from '@/lib/decrypt';
 import { claveDia } from '@/lib/fechas';
 import { progresoIntake, intakeFirmado, type MissingKey } from '@/lib/intake-progreso';
@@ -201,6 +201,7 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
 
   const citas = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       scheduledFor: { gte: desde, lt: hasta },
       status: { notIn: ESTADOS_MUERTOS as unknown as never[] },
       case: { deletedAt: null },

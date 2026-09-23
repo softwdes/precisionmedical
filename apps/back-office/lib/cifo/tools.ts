@@ -1,4 +1,4 @@
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { claveDia, ZONA_CLINICA } from '@/lib/fechas';
 import { citasDeHoy, rangoDeHoy } from '@/lib/citas-de-hoy';
 import { colaIntake, DIAS_VENTANA } from '@/lib/cola-intake';
@@ -333,12 +333,12 @@ export async function resumenDeCaso(args: { caso: string }): Promise<ResultadoHe
   const [citas, proxima, ultima, saldo] = await Promise.all([
     db.appointment.groupBy({ by: ['status'], where: { caseId: kase.id }, _count: true }),
     db.appointment.findFirst({
-      where: { caseId: kase.id, scheduledFor: { gte: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+      where: { ...VIGENTES, ...VIGENTES, caseId: kase.id, scheduledFor: { gte: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
       orderBy: { scheduledFor: 'asc' },
       select: { scheduledFor: true, type: true },
     }),
     db.appointment.findFirst({
-      where: { caseId: kase.id, scheduledFor: { lt: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+      where: { ...VIGENTES, caseId: kase.id, scheduledFor: { lt: new Date() }, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
       orderBy: { scheduledFor: 'desc' },
       select: { scheduledFor: true, status: true },
     }),

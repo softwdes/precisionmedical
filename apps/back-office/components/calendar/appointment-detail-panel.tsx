@@ -268,6 +268,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   // ── Detail tab ────────────────────────────────────────────────────────────
   const [confirming,    setConfirming]    = useState(false);
+  /**
+   * Eliminar la cita cargada por ERROR.
+   *
+   * No es cancelar: cancelar dice *el paciente no viene* y eso cuenta en las
+   * estadísticas y puede cobrar penalidad. Esto es para la prueba, el duplicado
+   * o el paciente equivocado (Erick, 2026-09-23). El servidor la esconde sin
+   * borrarla y se puede devolver desde "Citas eliminadas" en el calendario.
+   */
+  const [eliminarOpen,  setEliminarOpen]  = useState(false);
+  const [eliminando,    setEliminando]    = useState(false);
+  const [eliminarError, setEliminarError] = useState<string | null>(null);
+  const [motivoBorrado, setMotivoBorrado] = useState('');
+
   const [cancelOpen,    setCancelOpen]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   /**
@@ -816,6 +829,37 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     } catch (e) {
       setCancelError(e instanceof Error ? e.message : t('errorCancelAppointment'));
     } finally { setCancelling(false); }
+  };
+
+  /**
+   * Eliminar (lógico).
+   *
+   * El servidor puede negarse —si la cita dejó rastro: cargos, nota, check-in,
+   * firma o un desenlace ya sellado— y ahí responde `HAS_HISTORY` con el
+   * motivo. Ese caso NO es un error del sistema: es "esto se cancela, no se
+   * elimina", y el cartel lo dice con esas palabras en vez de un HTTP pelado.
+   */
+  const handleEliminar = async () => {
+    setEliminarError(null); setEliminando(true);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: motivoBorrado }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (d.error === 'HAS_HISTORY') {
+          throw new Error(t(`deleteBlocked_${d.reason}` as 'deleteBlocked_CARGOS'));
+        }
+        throw new Error(d.message ?? `HTTP ${res.status}`);
+      }
+      router.refresh();
+      onRefresh();
+      onClose();
+    } catch (e) {
+      setEliminarError(e instanceof Error ? e.message : t('deleteError'));
+    } finally { setEliminando(false); }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1372,7 +1416,54 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           {/* ─── Footer ──────────────────────────────────────────── */}
           {activeTab === 'detail' && (
             <div className="shrink-0 px-5 py-4 border-t border-border flex flex-col gap-2">
-              {cancelOpen ? (
+              {eliminarOpen ? (
+                /* Mismo patrón que Cancelar: la confirmación reemplaza el pie en
+                   vez de abrir otro diálogo encima. Acá además hay que PEDIR el
+                   motivo — sin él, la papelera es una lista de filas que en un
+                   mes nadie sabe interpretar. */
+                <div className="rounded-lg border border-rose/30 bg-rose/5 p-3 space-y-2">
+                  <p className="text-rose text-xs font-semibold">{t('deleteConfirmTitle')}</p>
+                  <p className="text-text-muted text-[11px]">{t('deleteConfirmHint')}</p>
+                  {eliminarError && (
+                    <p className="text-rose text-[11px] flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />{eliminarError}
+                    </p>
+                  )}
+                  {/* Tres motivos de un toque, que cubren lo que de verdad pasa,
+                      y texto libre para el resto. */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['deleteReasonTest', 'deleteReasonDuplicate', 'deleteReasonWrongPatient'] as const).map(k => (
+                      <button key={k} type="button" onClick={() => setMotivoBorrado(t(k))}
+                        className={`px-2 py-1 rounded text-[11px] border transition-colors ${
+                          motivoBorrado === t(k)
+                            ? 'border-rose/50 bg-rose/15 text-rose'
+                            : 'border-border text-text-2 hover:bg-white/5'
+                        }`}>
+                        {t(k)}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={motivoBorrado}
+                    onChange={(e) => setMotivoBorrado(e.target.value)}
+                    placeholder={t('deleteReasonPlaceholder')}
+                    maxLength={200}
+                    className="w-full h-9 px-2.5 rounded-md border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-rose transition-colors"
+                  />
+                  <div className="flex flex-col gap-2">
+                    <button type="button" onClick={() => { void handleEliminar(); }} disabled={eliminando || !motivoBorrado.trim()}
+                      className="w-full px-3 py-2 min-h-11 sm:min-h-0 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                      {eliminando ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      {eliminando ? t('deleteInProgress') : t('deleteConfirm')}
+                    </button>
+                    <button type="button" onClick={() => { setEliminarOpen(false); setEliminarError(null); }} disabled={eliminando}
+                      className="w-full px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
+                      {t('actionBack')}
+                    </button>
+                  </div>
+                </div>
+              ) : cancelOpen ? (
                 <div className="rounded-lg border border-rose/30 bg-rose/5 p-3 space-y-2">
                   <p className="text-rose text-xs font-semibold">{t('cancelConfirmTitle')}</p>
                   <p className="text-text-muted text-[11px]">{t('cancelConfirmWarning')}</p>
@@ -1495,6 +1586,20 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     </button>
                   )}
                 </div>
+
+                {/* Eliminar va acá abajo y como enlace, no como sexto botón de
+                    la fila: es una corrección de carga, no una acción del día.
+                    Compitiendo con Cancelar en el mismo renglón, alguien iba a
+                    usarla para "deshacer" un no-show — y ahí se pierde el
+                    historial con el que la clínica cobra. */}
+                <button
+                  type="button"
+                  onClick={() => { setEliminarOpen(true); setEliminarError(null); }}
+                  className="mt-3 self-start inline-flex items-center gap-1.5 text-[11px] text-text-muted hover:text-rose transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  {t('actionDeleteAppointment')}
+                </button>
                 </>
               )}
             </div>

@@ -9,8 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
   db, writeAuditLog,
-  resolveGuardian, GuardianIsSelfError, type GuardianResolution,
-} from '@precision-medical/database';
+  resolveGuardian, GuardianIsSelfError, type GuardianResolution, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkPatientAccess } from '@/lib/patient-access';
 import { quienUsaEsteContacto } from '@/lib/contactos-compartidos';
@@ -394,6 +393,7 @@ export async function DELETE(
    */
   const citasALiberar = await db.appointment.findMany({
     where: {
+      ...VIGENTES,
       patientId:    id,
       scheduledFor: { gt: now },
       checkedInAt:  null,

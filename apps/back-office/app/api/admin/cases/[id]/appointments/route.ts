@@ -14,7 +14,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
   if (!caseRow) return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
 
   const rows = await db.appointment.findMany({
-    where: { caseId: id },
+    where: { ...VIGENTES, caseId: id },
     orderBy: { scheduledFor: 'asc' },
     select: {
       id: true,

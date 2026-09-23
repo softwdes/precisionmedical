@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider, getSessionRole } from '@/lib/get-session-provider';
 import { evaluarReapertura } from '@/lib/visit-note-reopen';
@@ -43,7 +43,7 @@ export default async function DoctorConsultationPage({
   // base cuesta ~150 ms.
   const [a, tplRows, doneRows, llegadaPropia] = await Promise.all([
     db.appointment.findFirst({
-    where: { id: appointmentId, providerId: provider.id },
+    where: { ...VIGENTES, id: appointmentId, providerId: provider.id },
     select: {
       id: true,
       scheduledFor: true,

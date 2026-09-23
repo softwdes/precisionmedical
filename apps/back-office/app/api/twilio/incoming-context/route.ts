@@ -13,7 +13,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
 import { findPatientsByPhone } from '@/lib/patient-phone-lookup';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       select:  { id: true, caseCode: true, caseType: true, status: true },
     }),
     db.appointment.findFirst({
-      where:   { patientId: p.id, scheduledFor: { gte: new Date() } },
+      where:   { ...VIGENTES, patientId: p.id, scheduledFor: { gte: new Date() } },
       orderBy: { scheduledFor: 'asc' },
       select:  {
         id: true, scheduledFor: true,

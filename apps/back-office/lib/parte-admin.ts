@@ -27,7 +27,7 @@
  * pueda pedirlos sin repetir una consulta.
  */
 
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { claveDia, rangoDelDia, DIA_MS, ZONA_CLINICA } from './fechas';
 
@@ -140,6 +140,7 @@ export async function armarParteAdmin(ahora = new Date()): Promise<ParteAdmin> {
   const [citas, noShows, hallazgos, corridas, salarios, freelancers] = await Promise.all([
     db.appointment.findMany({
       where: {
+        ...VIGENTES,
         scheduledFor: { gte: rangoCitas.start, lt: rangoCitas.end },
         status: { notIn: ESTADOS_MUERTOS as unknown as never[] },
       },
@@ -147,6 +148,7 @@ export async function armarParteAdmin(ahora = new Date()): Promise<ParteAdmin> {
     }),
     db.appointment.count({
       where: {
+        ...VIGENTES,
         scheduledFor: { gte: ayer.start, lt: ayer.end },
         status: 'NO_SHOW',
       },

@@ -25,7 +25,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, VIGENTES } from '@precision-medical/database';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
 /**
@@ -86,6 +86,7 @@ export async function GET(
   // Buscar por caseCode EXACTO, o por ID directo de appointment
   const appt = await db.appointment.findFirst({
     where: {
+      ...VIGENTES,
       OR: [
         ...(caseCode ? [{ case: { caseCode } }] : []),
         ...(apptId   ? [{ id: apptId }]         : []),

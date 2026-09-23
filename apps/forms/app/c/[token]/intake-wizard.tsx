@@ -232,7 +232,7 @@ const STRINGS = {
     langOptionEs: 'Español',
     langOptionEn: 'English',
     // Información clínica (Step 2)
-    clinicalSection: 'Información clínica del paciente',
+    clinicalSection: 'Datos demográficos del paciente',
     clinicalSub: 'Estos datos nos ayudan a brindarle un servicio más personalizado.',
     // Sección propia del paso 2. Antes reusaba `clinicalSection`, y ahí estaba el
     // problema de fondo: se titulaba "Información clínica del paciente" pero
@@ -625,7 +625,7 @@ const STRINGS = {
     langOptionEs: 'Español',
     langOptionEn: 'English',
     // Clinical info (Step 2)
-    clinicalSection: 'Clinical patient information',
+    clinicalSection: 'Patient demographics',
     clinicalSub: 'This data helps us provide a more personalized service.',
     // Ver el comentario de `contactSection` en el diccionario ES.
     contactSection: 'Contact preferences',
@@ -1809,6 +1809,15 @@ export function IntakeWizard({
   const [addressCityError, setAddressCityError]     = useState('');
   const [addressZipError, setAddressZipError]       = useState('');
   const [sexError, setSexError]                     = useState('');
+  /**
+   * Raza, etnia y estado civil pasaron a obligatorios el 22-sep (pedido de
+   * recepción). Vale el mismo argumento que ya justificaba el sexo: las tres
+   * tienen "Prefiero no decir" entre las opciones, así que exigirlas no obliga
+   * a nadie a declarar algo que no quiere — solo a responder.
+   */
+  const [raceError, setRaceError]                   = useState('');
+  const [ethnicityError, setEthnicityError]         = useState('');
+  const [maritalError, setMaritalError]             = useState('');
   const [emergencyNameError, setEmergencyNameError] = useState('');
   const [emergencyPhoneError, setEmergencyPhoneError] = useState('');
 
@@ -2357,6 +2366,13 @@ export function IntakeWizard({
       // Sexo. Tiene "Prefiero no decir" entre las opciones, así que exigirlo no
       // fuerza a nadie a declarar algo que no quiere — solo a responder.
       if (!personal.sex.trim()) { setSexError(req(lang === 'es' ? 'Sexo' : 'Sex')); valid = false; } else { setSexError(''); }
+
+      // Raza, etnia y estado civil — mismo criterio, obligatorias desde el
+      // 22-sep. Las tres ofrecen "Prefiero no decir": se exige una respuesta,
+      // no una declaración.
+      if (!personal.race.trim())          { setRaceError(req(lang === 'es' ? 'Raza' : 'Race')); valid = false; }                     else { setRaceError(''); }
+      if (!personal.ethnicity.trim())     { setEthnicityError(req(lang === 'es' ? 'Etnia' : 'Ethnicity')); valid = false; }          else { setEthnicityError(''); }
+      if (!personal.maritalStatus.trim()) { setMaritalError(req(lang === 'es' ? 'Estado civil' : 'Marital status')); valid = false; } else { setMaritalError(''); }
 
       // Contacto de emergencia: nombre y teléfono. El PARENTESCO queda opcional
       // (decisión de Erick 2026-09-07) — el segundo contacto también.
@@ -3196,9 +3212,9 @@ export function IntakeWizard({
 
                 {/* Raza + Etnicidad */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.raceLabel}>
+                  <Field label={t.raceLabel} req error={raceError}>
                     <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.race ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.race} onChange={e => setPersonal(p => ({ ...p, race: e.target.value }))}>
+                      value={personal.race} onChange={e => { setPersonal(p => ({ ...p, race: e.target.value })); setRaceError(''); }}>
                       <option value="">—</option>
                       <option value="WHITE">{lang === 'es' ? 'Blanco / Caucásico' : 'White / Caucasian'}</option>
                       <option value="AFRICAN_AMERICAN">{lang === 'es' ? 'Negro / Afroamericano' : 'Black / African American'}</option>
@@ -3210,9 +3226,9 @@ export function IntakeWizard({
                       <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
                     </select>
                   </Field>
-                  <Field label={t.ethnicityLabel}>
+                  <Field label={t.ethnicityLabel} req error={ethnicityError}>
                     <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.ethnicity ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.ethnicity} onChange={e => setPersonal(p => ({ ...p, ethnicity: e.target.value }))}>
+                      value={personal.ethnicity} onChange={e => { setPersonal(p => ({ ...p, ethnicity: e.target.value })); setEthnicityError(''); }}>
                       <option value="">—</option>
                       <option value="HISPANIC_LATINO">{lang === 'es' ? 'Hispano / Latino' : 'Hispanic / Latino'}</option>
                       <option value="NOT_HISPANIC_LATINO">{lang === 'es' ? 'No hispano / Latino' : 'Not Hispanic / Latino'}</option>
@@ -3236,16 +3252,37 @@ export function IntakeWizard({
                       <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
                     </select>
                   </Field>
-                  <Field label={t.maritalStatusLabel}>
+                  <Field label={t.maritalStatusLabel} req error={maritalError}>
                     <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.maritalStatus ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.maritalStatus} onChange={e => setPersonal(p => ({ ...p, maritalStatus: e.target.value }))}>
+                      value={personal.maritalStatus} onChange={e => { setPersonal(p => ({ ...p, maritalStatus: e.target.value })); setMaritalError(''); }}>
                       <option value="">—</option>
                       <option value="SINGLE">{lang === 'es' ? 'Soltero/a' : 'Single'}</option>
                       <option value="MARRIED">{lang === 'es' ? 'Casado/a' : 'Married'}</option>
                       <option value="DIVORCED">{lang === 'es' ? 'Divorciado/a' : 'Divorced'}</option>
                       <option value="WIDOWED">{lang === 'es' ? 'Viudo/a' : 'Widowed'}</option>
                       <option value="SEPARATED">{lang === 'es' ? 'Separado/a' : 'Separated'}</option>
-                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                      {/*
+                        La etiqueta cambió a "Prefiero no decir" (pedido literal
+                        de recepción, 22-sep-2026); el VALOR guardado sigue
+                        siendo `OTHER`.
+
+                        ⚠️ Dos consecuencias que hay que saber antes de tocar
+                        esto de nuevo:
+
+                         · Los 47 pacientes que ya tenían `OTHER` —medido el
+                           22-sep— pasan a leerse como "Prefiero no decir". Se
+                           le planteó a Erick y confirmó el cambio igual.
+                         · En el back-office este valor se sigue mostrando como
+                           "Other": la etiqueta se cambió acá, del lado del
+                           paciente, no en el catálogo del staff.
+
+                        La alternativa limpia era agregar `PREFER_NOT_TO_SAY` al
+                        enum `MaritalStatus` —como ya lo tienen raza y etnia—
+                        pero eso es un valor nuevo en Postgres y exige correr un
+                        `.sql` ANTES de desplegar. Se descartó por pedido
+                        explícito de cambiar la opción, no de agregar una.
+                      */}
+                      <option value="OTHER">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
                     </select>
                   </Field>
                 </div>

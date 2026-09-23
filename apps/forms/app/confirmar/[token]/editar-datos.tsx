@@ -203,7 +203,14 @@ const CIVIL: Opcion[] = [
   { value: 'DIVORCED',  es: 'Divorciado/a',  en: 'Divorced' },
   { value: 'WIDOWED',   es: 'Viudo/a',       en: 'Widowed' },
   { value: 'SEPARATED', es: 'Separado/a',    en: 'Separated' },
-  { value: 'OTHER',     es: 'Otro',          en: 'Other' },
+  /**
+   * Misma etiqueta que en el formulario de admisión — ver el comentario largo
+   * de `intake-wizard.tsx`. Es la MISMA pregunta al MISMO paciente en dos
+   * pantallas: si acá dijera "Otro" y allá "Prefiero no decir", el que corrige
+   * sus datos antes de firmar vería cambiar su propia respuesta sin tocarla.
+   * El valor guardado sigue siendo `OTHER` en los dos lados.
+   */
+  { value: 'OTHER',     es: 'Prefiero no decir', en: 'Prefer not to say' },
 ];
 
 const RAZA: Opcion[] = [

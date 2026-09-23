@@ -95,8 +95,12 @@ const CATALOGO_DE_LA_FUENTE: Record<string, 'FIRMA' | ReferidorElegido['type']> 
  */
 function ReferredBySelect({ value, onChange, placeholder, otherLabel, firmsLabel, partnersLabel, fuente }: {
   value: string;
-  /** El segundo argumento viene solo cuando lo elegido es un referidor del catálogo. */
-  onChange: (v: string, partner?: ReferidorElegido) => void;
+  /**
+   * El segundo argumento viene solo cuando lo elegido es un referidor del
+   * catálogo; el TERCERO, solo cuando es un bufete. Son excluyentes: la lista
+   * mezcla los dos catálogos y quien recibe necesita saber de cuál salió.
+   */
+  onChange: (v: string, partner?: ReferidorElegido, firm?: { id: string; label: string }) => void;
   placeholder: string; otherLabel: string;
   firmsLabel: string; partnersLabel: string;
   /**
@@ -152,7 +156,11 @@ function ReferredBySelect({ value, onChange, placeholder, otherLabel, firmsLabel
       value={value}
       onChange={e => {
         const v = e.target.value;
-        onChange(v, partners.find(p => `${PREFIJO_REFERIDOR}${p.id}` === v));
+        onChange(
+          v,
+          partners.find(p => `${PREFIJO_REFERIDOR}${p.id}` === v),
+          firms.find(f => f.id === v),
+        );
       }}
     >
       <option value="">{placeholder}</option>
@@ -185,12 +193,40 @@ function AttorneySelect({
 }) {
   const [members, setMembers] = useState<MemberOption[]>([]);
 
+  /**
+   * Los abogados del bufete, y el preseleccionado cuando hay UNO SOLO.
+   *
+   * Erick pidió que el abogado se llene solo, igual que el quiropráctico
+   * (22-sep-2026). Pero el desplegable de "¿Quién lo refirió?" ofrece BUFETES,
+   * no personas, y de un bufete no se deduce cuál de sus abogados lleva el
+   * caso. Adivinarlo sería escribir un dato que nadie dijo, en un campo que
+   * después viaja al lien.
+   *
+   * Donde sí se deduce es cuando el bufete tiene un solo abogado cargado —el
+   * estudio de una persona, que acá son la mayoría—: ahí no hay nada que
+   * elegir. Se completa solo en ese caso, y solo si el campo está vacío: lo
+   * que escribió recepción no se pisa nunca.
+   *
+   * Se usa `label` y no el id porque es lo que guarda este diálogo: el nombre
+   * del abogado es texto en `consents.attorney`.
+   */
   useEffect(() => {
     if (!firmId) { setMembers([]); return; }
+    let cancelado = false;
     fetch(`/api/admin/lawyers/autocomplete?firmId=${firmId}`)
       .then(r => r.json())
-      .then(j => setMembers(j.results ?? []))
+      .then(j => {
+        if (cancelado) return;
+        const lista: MemberOption[] = j.results ?? [];
+        setMembers(lista);
+        if (lista.length === 1 && !value.trim()) onChange(lista[0]!.label);
+      })
       .catch(() => {});
+    return () => { cancelado = true; };
+    /* `value` y `onChange` quedan afuera a propósito: con ellos adentro, el
+       efecto se volvería a disparar en cuanto complete el campo y volvería a
+       pedir la lista. Lo único que tiene que reaccionar acá es el bufete. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmId]);
 
   if (!firmId) {
@@ -523,6 +559,13 @@ export function QuickRegisterDialog({
    * Solo se pisa lo que puso el auto-llenado.
    */
   const autoChiro = useRef<string | null>(null);
+  /**
+   * Lo mismo para el BUFETE: el id que puso el auto-llenado desde "¿Quién lo
+   * refirió?", para poder soltarlo si cambian de referidor y NO pisar el que
+   * eligió recepción a mano (Erick, 22-sep-2026: "hicimos esto con los
+   * quiroprácticos, ¿podemos lo mismo con los abogados?").
+   */
+  const autoFirm = useRef<string | null>(null);
   const [description,  setDescription]  = useState('');
 
   // UI state
@@ -1062,7 +1105,7 @@ export function QuickRegisterDialog({
                   <Field label={t('referredBy')}>
                     <ReferredBySelect
                       value={referredBy}
-                      onChange={(v, partner) => {
+                      onChange={(v, partner, firm) => {
                         setReferredBy(v);
                         setReferidorTipo(partner?.type ?? null);
                         if (v !== '__otro__') setReferredByFreeText('');
@@ -1077,6 +1120,28 @@ export function QuickRegisterDialog({
                         } else if (chiroPartner && chiroPartner.id === autoChiro.current) {
                           setChiroPartner(null);
                           autoChiro.current = null;
+                        }
+                        /* Y lo mismo con el BUFETE, que es el caso simétrico: si
+                           quien lo refirió es el bufete, ya no hay que volver a
+                           buscarlo en el campo de abajo. Misma regla de siempre —
+                           solo se pisa lo vacío o lo que puso este automatismo,
+                           nunca lo que eligió una persona.
+
+                           El ABOGADO no se toca acá: la lista es de bufetes, no
+                           de personas, y de un bufete no se deduce cuál de sus
+                           abogados lleva el caso. Lo resuelve `AttorneySelect`,
+                           que sí conoce a los miembros. */
+                        if (firm) {
+                          if (!lawFirmId || lawFirmId === autoFirm.current) {
+                            setLawFirmId(firm.id);
+                            setLawFirm(firm.label);
+                            autoFirm.current = firm.id;
+                          }
+                        } else if (lawFirmId && lawFirmId === autoFirm.current) {
+                          setLawFirmId('');
+                          setLawFirm('');
+                          setAttorney('');
+                          autoFirm.current = null;
                         }
                       }}
                       placeholder={t('selectOption')}

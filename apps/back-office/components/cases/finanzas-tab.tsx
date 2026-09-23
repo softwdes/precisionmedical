@@ -10,7 +10,7 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
-  Trash2, CreditCard, FileText, X, ChevronUp, Shield,
+  Trash2, CreditCard, FileText, X, ChevronUp, Shield, ShieldAlert,
 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogTitle } from '@precision/ui';
 import { EmptyState, FloatingPanel } from '@/components/ui-phoenix';
@@ -454,7 +454,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
    * (Erick, 2026-09-22). Abierto desde la ficha del paciente es redundante, pero
    * repetir el nombre no cuesta nada y equivocarse de cuenta, sí.
    */
-  const [caso, setCaso] = useState<{ caseCode: string | null; paciente: string | null } | null>(null);
+  const [caso, setCaso] = useState<{
+    caseCode: string | null; paciente: string | null;
+    seguro: string | null; polizaFin: string | null;
+  } | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
@@ -1299,6 +1302,27 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                   )}
                   {caso.caseCode && (
                     <span className="font-mono text-[11px] text-cyan">{caso.caseCode}</span>
+                  )}
+                  {/* Quién paga, acá y no en otra pantalla.
+                      Cuando NO hay, se DICE. Un espacio vacío deja al que cobra
+                      sin saber si el sistema no lo sabe o si él no encontró
+                      dónde mirar — que es exactamente lo que pasó. */}
+                  {caso.seguro ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-cyan/10 text-cyan border border-cyan/25">
+                      <Shield className="w-3 h-3" />
+                      {caso.seguro}
+                      {caso.polizaFin && (
+                        <span className="font-mono font-normal opacity-80">···{caso.polizaFin}</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span
+                      title={t('payNoInsuranceHint')}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber/10 text-amber border border-amber/25 cursor-default"
+                    >
+                      <ShieldAlert className="w-3 h-3" />
+                      {t('payNoInsurance')}
+                    </span>
                   )}
                 </p>
               )}

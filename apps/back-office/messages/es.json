@@ -5274,6 +5274,8 @@
         "payColVisit": "Visita",
         "payBilledToInsurance": "Al seguro",
         "payBilledToInsuranceHint": "El saldo de esta visita se le factura al seguro. Cobrale al paciente solo lo que le toca — copago, deducible o coaseguro — y no el total.",
+        "payNoInsurance": "Sin seguro cargado",
+        "payNoInsuranceHint": "Este caso no tiene aseguradora cargada. Puede ser que pague de su bolsillo o que falte cargarla — el sistema no lo sabe.",
         "payColPending": "Pendiente",
         "payColTakes": "Se aplica",
         "payColPay": "Pagar",

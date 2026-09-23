@@ -85,6 +85,9 @@ export interface FilaCobranza {
    * $164,81 del mostrador. El que cobra casi nunca llama al paciente.
    */
   bufetes: string | null;
+  /** La aseguradora del caso. Se muestra cuando no hay bufete — en medicina
+   *  general el bufete siempre está vacío y esa columna no decía nada. */
+  seguros: string | null;
 }
 
 export interface ResumenCobranzas {
@@ -110,11 +113,18 @@ const AGREGADO = Prisma.sql`
       COUNT(DISTINCT cs.id) FILTER (WHERE ab."balanceDue" > 0)   AS casos_con_deuda,
       MIN(cs.id) FILTER (WHERE ab."balanceDue" > 0)              AS unico_case_id,
       STRING_AGG(DISTINCT lw."firmName", ' · ')
-        FILTER (WHERE ab."balanceDue" > 0 AND lw."firmName" IS NOT NULL) AS bufetes
+        FILTER (WHERE ab."balanceDue" > 0 AND lw."firmName" IS NOT NULL) AS bufetes,
+      -- Quien paga cuando NO hay bufete, que es el caso de medicina general: la
+      -- columna "quien paga" mostraba solo el estudio juridico y en un caso GM
+      -- sale siempre vacia. 577 de los 1.096 casos generales con cita este ano
+      -- tienen aseguradora cargada (medido 2026-09-22).
+      STRING_AGG(DISTINCT ic.name, ' · ')
+        FILTER (WHERE ab."balanceDue" > 0 AND ic.name IS NOT NULL) AS seguros
     FROM appointment_billing ab
     JOIN appointments ap ON ap.id = ab."appointmentId"
     JOIN cases cs ON cs.id = COALESCE(ab."caseId", ap."caseId")
     LEFT JOIN lawyers lw ON lw.id = cs."lawFirmId"
+    LEFT JOIN insurance_carriers ic ON ic.id = cs."primaryInsuranceId"
     WHERE cs."deletedAt" IS NULL
     GROUP BY cs."patientId"
   )
@@ -165,7 +175,8 @@ export async function paginaDeCobranzas({
         COALESCE(pl.deuda, 0)::float8        AS deuda,
         COALESCE(pl.casos_con_deuda, 0)::int AS casos_con_deuda,
         pl.unico_case_id,
-        pl.bufetes
+        pl.bufetes,
+        pl.seguros
       FROM patients pa
       LEFT JOIN plata pl ON pl.pid = pa.id
       WHERE ${donde}
@@ -193,6 +204,7 @@ export async function paginaDeCobranzas({
       casosConDeuda: Number(f.casos_con_deuda ?? 0),
       unicoCaseId:   (f.unico_case_id as string | null) ?? null,
       bufetes:       (f.bufetes as string | null) ?? null,
+      seguros:       (f.seguros as string | null) ?? null,
     })),
     total: Number(cuenta[0]?.n ?? 0),
   };

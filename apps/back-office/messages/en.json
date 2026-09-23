@@ -5274,6 +5274,8 @@
         "payColVisit": "Visit",
         "payBilledToInsurance": "Insurance",
         "payBilledToInsuranceHint": "This visit's balance is billed to insurance. Collect only the patient's share — copay, deductible or coinsurance — not the full amount.",
+        "payNoInsurance": "No insurance on file",
+        "payNoInsuranceHint": "This case has no insurer on file. The patient may be self-pay, or it may just be missing — the system can't tell.",
         "payColPending": "Pending",
         "payColTakes": "Applied",
         "payColPay": "Pay",

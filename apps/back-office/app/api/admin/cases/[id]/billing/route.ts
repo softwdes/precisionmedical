@@ -27,6 +27,8 @@ export async function GET(
        */
       caseCode: true,
       patient: { select: { firstName: true, lastName: true } },
+      /** Para decir QUIÉN paga arriba del cobro, al lado del nombre. */
+      primaryPolicyNumber: true,
       primaryInsurance:   { select: { id: true, name: true } },
       secondaryInsurance: { select: { id: true, name: true } },
     },
@@ -207,6 +209,30 @@ export async function GET(
     caso: {
       caseCode: caseRecord.caseCode,
       paciente: `${caseRecord.patient?.firstName ?? ''} ${caseRecord.patient?.lastName ?? ''}`.trim() || null,
+      /**
+       * La aseguradora del caso, para el encabezado del cobro.
+       *
+       * `null` cuando no hay ninguna cargada, y el encabezado lo DICE en vez de
+       * dejar el lugar en blanco: un hueco deja al que cobra sin saber si el
+       * sistema no lo sabe o si él no encontró dónde mirar. Darrell, 2026-09-22:
+       * *"I can't find where the details for the patient is to even find out
+       * what insurance he has."*
+       *
+       * Sale de `primaryInsuranceId`, el carrier normalizado — el único que
+       * está poblado de verdad: 577 de los 1.096 casos de medicina general con
+       * cita este año lo tienen (medido 2026-09-22), contra 18 que traen algo
+       * del intake y 0 con `coverageCarrierName`. "Self Pay" y "Direct Care
+       * Membership" están cargados COMO aseguradora, así que el campo también
+       * responde por los que pagan de su bolsillo.
+       *
+       * Los últimos 4 de la póliza y no la póliza entera: alcanza para cotejar
+       * contra la tarjeta y no desparrama el número por una pantalla que se
+       * mira con el paciente enfrente.
+       */
+      seguro: caseRecord.primaryInsurance?.name ?? null,
+      polizaFin: caseRecord.primaryPolicyNumber?.trim()
+        ? caseRecord.primaryPolicyNumber.trim().slice(-4)
+        : null,
     },
     billings: serialized,
     kpis: {

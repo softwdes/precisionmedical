@@ -60,6 +60,9 @@ interface Fila {
   casosConDeuda: number;
   unicoCaseId: string | null;
   bufetes: string | null;
+  /** La aseguradora. En un caso de medicina general no hay bufete, así que sin
+   *  esto la columna "quién paga" salía vacía justo donde más se la necesita. */
+  seguros: string | null;
   /** Selfie del paciente, firmada. Solo el 17,3% tiene; el resto son iniciales. */
   photoUrl: string | null;
 }
@@ -576,9 +579,18 @@ function FilaPaciente({
         </DataTable.Td>
 
         {/* Quién paga. Importa más que el nombre: casi toda la deuda es de
-            terceros, así que esta columna dice a quién hay que llamar. */}
+            terceros, así que esta columna dice a quién hay que llamar.
+            El bufete primero —es a quien se persigue— y si no hay, la
+            aseguradora: en medicina general el bufete SIEMPRE está vacío y la
+            columna no decía nada justo en la mitad de la cola. */}
         <DataTable.Td className="hidden lg:table-cell">
-          <span className="text-[12.5px] text-text-2">{f.bufetes || t('noFirm')}</span>
+          {f.bufetes ? (
+            <span className="text-[12.5px] text-text-2">{f.bufetes}</span>
+          ) : f.seguros ? (
+            <span className="text-[12.5px] text-cyan">{f.seguros}</span>
+          ) : (
+            <span className="text-[12.5px] text-text-muted">{t('noFirm')}</span>
+          )}
         </DataTable.Td>
 
         <DataTable.Td align="right"><span className="font-mono text-xs tabular-nums text-text-2">{fmt$(f.total)}</span></DataTable.Td>

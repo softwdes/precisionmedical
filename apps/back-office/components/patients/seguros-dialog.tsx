@@ -81,10 +81,21 @@ export function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
   function validate(): boolean {
     const e: Partial<Record<keyof InsuranceEntry, string>> = {};
     if (!entry.carrier.trim()) e.carrier = t('segurosErrRequired');
-    if (!entry.policyId.trim()) {
-      e.policyId = t('segurosErrRequired');
-    } else if (!/^[a-zA-Z0-9\-]{4,30}$/.test(entry.policyId.trim())) {
-      e.policyId = t('segurosErrPolicyFormat');
+    /**
+     * La póliza se exige SOLO en el seguro médico.
+     *
+     * El de AUTO ya no la pide (Erick, 22-sep-2026): el campo se sacó de esa
+     * pestaña porque lo que identifica un siniestro es el **nº de reclamo**, no
+     * la póliza del asegurado —que además muchas veces es del tercero que
+     * chocó, y recepción no la tiene—. Dejar la validación como estaba
+     * bloquearía el guardado de todo seguro de auto por un campo invisible.
+     */
+    if (tab === 'MEDICAL') {
+      if (!entry.policyId.trim()) {
+        e.policyId = t('segurosErrRequired');
+      } else if (!/^[a-zA-Z0-9\-]{4,30}$/.test(entry.policyId.trim())) {
+        e.policyId = t('segurosErrPolicyFormat');
+      }
     }
     if (tab === 'MEDICAL') {
       if (!entry.holderRelation.trim()) e.holderRelation = t('segurosErrRequired');
@@ -230,16 +241,18 @@ export function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
             </>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Una sola columna: acá iba "ID / Póliza #" al lado, y se sacó
+                  (Erick, 22-sep-2026). Lo que identifica un siniestro de auto es
+                  el nº de RECLAMO, que está abajo; la póliza es del asegurado y
+                  muchas veces es la del tercero que chocó, así que recepción la
+                  dejaba vacía o inventaba algo. El dato NO se borró de la base:
+                  `case_auto_insurances.policyId` sigue existiendo y lo que ya
+                  estaba cargado se conserva al editar. */}
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className={insLabel}>{t('segurosCarrier')} <span className="text-rose">*</span></label>
                   <input className={`${insInput} ${errors.carrier ? 'border-rose' : ''}`} value={entry.carrier} onChange={e => set('carrier', e.target.value)} />
                   {errors.carrier && <p className="text-[11px] text-rose mt-1">{errors.carrier}</p>}
-                </div>
-                <div>
-                  <label className={insLabel}>{t('segurosPolicyId')} <span className="text-rose">*</span></label>
-                  <input className={`${insInput} ${errors.policyId ? 'border-rose' : ''}`} value={entry.policyId} onChange={e => set('policyId', e.target.value)} />
-                  {errors.policyId && <p className="text-[11px] text-rose mt-1">{errors.policyId}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

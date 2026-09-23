@@ -345,6 +345,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   /**
+   * El MOTIVO es obligatorio al crear.
+   *
+   * La pantalla ya lo valida; esto es el respaldo. Sin él, un `fetch` a mano o
+   * una pantalla futura vuelven a dejar citas sin motivo — y el motivo es lo que
+   * el provider lee meses después para elegir de qué visita anterior traer
+   * texto. Devin, 2026-09-23: *"we could simply incorporate it on our end and
+   * make it required"*.
+   *
+   * Solo al CREAR: el PATCH vive en `[id]/route.ts` y ahí NO se exige, porque el
+   * 60% de las citas que ya existen no tiene motivo y pedirlo para corregir una
+   * hora bloquearía editar la mayor parte del historial.
+   */
+  if (!parsed.notes?.trim()) {
+    return NextResponse.json({ error: 'REASON_REQUIRED' }, { status: 400 });
+  }
+
+  /**
    * Dos preguntas distintas sobre la misma fecha, y por eso dos variables:
    *
    *  · ¿se RECHAZA? — con la gracia de una hora de lib/scheduling-rules, que

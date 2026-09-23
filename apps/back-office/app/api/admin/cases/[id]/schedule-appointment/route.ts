@@ -49,6 +49,17 @@ export async function POST(
     );
   }
 
+  /**
+   * El MOTIVO es obligatorio, igual que en `/api/admin/appointments`.
+   *
+   * Es el mismo acto —crear una cita— por otra puerta, así que tiene que pedir
+   * lo mismo: si una puerta lo exige y la otra no, la gente aprende cuál usar
+   * para saltearlo. Ver el docblock de la otra ruta.
+   */
+  if (!parsed.notes?.trim()) {
+    return NextResponse.json({ error: 'REASON_REQUIRED' }, { status: 400 });
+  }
+
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
     select: {

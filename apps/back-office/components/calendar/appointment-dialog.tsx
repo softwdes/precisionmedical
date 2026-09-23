@@ -1009,14 +1009,33 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const selectedClinic   = clinics.find((c) => c.id === clinicId);
   const selectedProvider = allProviders.find((p) => p.id === providerId);
 
+  /**
+   * El MOTIVO es obligatorio al crear — no al editar.
+   *
+   * Devin, 2026-09-23, sobre elegir de qué visita traer texto: *"none of the
+   * visits in this particular chart have a 'reason for visit' listed… this is
+   * something we could simply incorporate on our end and make it required"*.
+   * Sin motivo, elegir entre diecisiete fechas es adivinar.
+   *
+   * Los datos respaldan obligarlo: de 3.358 motivos escritos solo 21 son ruido
+   * de una o dos letras (0,6%). Cuando lo llenan, escriben cosas reales — "MVA
+   * FU 3 WEEKS", "LAB REVIEW". No es un campo que la gente sabotee.
+   *
+   * **Al EDITAR no se exige.** El 60% de las citas que ya existen no tiene
+   * motivo, y pedirlo para corregir una hora bloquearía editar la mayoría del
+   * historial. Obligatorio arregla lo que viene; lo viejo se queda como está.
+   */
+  const motivoOk = isEditMode || notes.trim().length > 0;
+
   const canSubmit = useMemo(() => {
     const hasCase = isEditMode ? true : (props.mode === 'case' ? !!props.caseInfo?.id : !!caseId);
     const slotOk = isEditMode ? !!scheduledForIso : (!!scheduledForIso && (visitaPasada ? retroOk : isFuture));
-    return hasCase && !!clinicId && !!providerId && slotOk && !saving;
+    return hasCase && !!clinicId && !!providerId && slotOk && motivoOk && !saving;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, visitaPasada, retroOk, saving]);
+  }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, visitaPasada, retroOk, motivoOk, saving]);
 
   // Refs for scrolling to missing fields
+  const motivoRef  = useRef<HTMLDivElement>(null);
   const caseRef    = useRef<HTMLDivElement>(null);
   const clinicRef  = useRef<HTMLDivElement>(null);
   const doctorRef  = useRef<HTMLDivElement>(null);
@@ -1050,6 +1069,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       if (!providerId) {
         setError(t('validationSelectDoctor'));
         doctorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      // Último de la cadena: es el único que se resuelve escribiendo, así que
+      // primero se resuelven los que se eligen de una lista.
+      if (!motivoOk) {
+        setError(t('validationReason'));
+        motivoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (visitaPasada ? !retroOk : (!scheduledForIso || !isFuture)) {
@@ -2031,20 +2057,30 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── Notas ── */}
-          <div>
+          {/* ── Motivo de la visita ──
+              Se llamaba "Notas", y ese nombre es media explicación de por qué
+              venía vacío: "notas" se lee como comentario opcional. Es el campo
+              que el provider va a leer meses después para elegir de qué visita
+              traer texto — y el que la vista de día del calendario ya muestra. */}
+          <div ref={motivoRef}>
             <Label htmlFor="appt-notes">
               <FileText className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              {t('fieldNotes')}
+              {t('fieldReason')}
+              {!isEditMode && <span className="text-rose ml-0.5">*</span>}
             </Label>
             <textarea
               id="appt-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder={t('notesPlaceholder')}
+              className={`w-full bg-bg-2 border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px] ${
+                motivoOk ? 'border-border' : 'border-amber/50'
+              }`}
+              placeholder={t('reasonPlaceholder')}
               maxLength={2000}
             />
+            {!isEditMode && (
+              <p className="text-[11px] text-text-muted mt-1">{t('reasonHint')}</p>
+            )}
           </div>
 
           {/* ── Resumen ── */}

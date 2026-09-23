@@ -87,6 +87,12 @@ const SPECIALTY_COLORS: Record<string, string> = {
 export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: ScheduleAppointmentDialogProps) {
   const router = useRouter();
   const tac   = useTranslations('phoenix.avisoCita');
+  /**
+   * Este diálogo tiene sus textos en español en duro (deuda documentada). Se
+   * traen las claves del diálogo de cita en vez de escribir otras: es EL MISMO
+   * campo, y dos redacciones distintas para lo mismo es cómo se desincronizan.
+   */
+  const t     = useTranslations('phoenix.calendar');
   const toast = useToast();
 
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -155,7 +161,9 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   const isFuture = scheduledForIso ? new Date(scheduledForIso).getTime() > Date.now() : false;
 
-  const canSubmit = clinicId && providerId && scheduledForIso && isFuture && !saving;
+  /** El motivo es obligatorio al crear — ver el docblock de appointment-dialog. */
+  const motivoOk = notes.trim().length > 0;
+  const canSubmit = clinicId && providerId && scheduledForIso && isFuture && motivoOk && !saving;
 
   if (!caseInfo) return null;
 
@@ -380,20 +388,23 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
             </select>
           </div>
 
-          {/* Notas */}
+          {/* Motivo de la visita — obligatorio, igual que en el diálogo de cita */}
           <div>
             <Label htmlFor="notes">
               <FileText className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Notas para el doctor (opcional)
+              {t('fieldReason')}<span className="text-rose ml-0.5">*</span>
             </Label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Ej: paciente reporta dolor lumbar severo · primera evaluación..."
+              className={`w-full bg-bg-2 border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px] ${
+                motivoOk ? 'border-border' : 'border-amber/50'
+              }`}
+              placeholder={t('reasonPlaceholder')}
               maxLength={2000}
             />
+            <p className="text-[11px] text-text-muted mt-1">{t('reasonHint')}</p>
           </div>
 
           {/* Summary */}

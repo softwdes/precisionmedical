@@ -848,6 +848,42 @@ export function ArchivosDialog({
                           >
                             <Download className="w-3.5 h-3.5 text-white" />
                           </a>
+                          {/**
+                            * La MISMA imagen, envuelta en un PDF de una página.
+                            *
+                            * Pedido de la clínica (Erick, 22-sep-2026): el v2
+                            * dejaba bajar estos documentos como PDF y acá solo
+                            * salían como imagen. Es un PDF por imagen, sin
+                            * encabezado y sin juntar frente y dorso — se pidió
+                            * así de explícito.
+                            *
+                            * Solo cuando el archivo ES una imagen: si ya está
+                            * guardado como PDF, se baja con la flecha de al lado
+                            * y este botón no tiene sentido.
+                            *
+                            * SIN TEXTO, solo el ícono, por lo mismo que la
+                            * flecha de arriba: la barra ya tenía tres acciones y
+                            * ocupaba 266 px dentro de una tarjeta de 268 en un
+                            * teléfono de 375. Una cuarta con palabra la
+                            * desbordaba. El nombre viaja en `title` y en
+                            * `aria-label`.
+                            *
+                            * El `tipo` es lo ÚNICO que se manda: la ruta resuelve
+                            * la URL ella misma contra el caso del paciente. Una
+                            * ruta que baje cualquier URL que le pasen, corriendo
+                            * con la sesión de un admin, es un SSRF.
+                            */}
+                          {!/\.pdf(\?|$)/i.test(url) && (
+                            <a
+                              href={`/api/admin/patients/${patientId}/photo-pdf?tipo=${key}`}
+                              onClick={(e) => e.stopPropagation()}
+                              title={t('photoDownloadPdf')}
+                              aria-label={t('photoDownloadPdf')}
+                              className="pointer-events-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 hover:bg-white/30 rounded p-1.5"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-white" />
+                            </a>
+                          )}
                           {!soloLectura && (
                             <>
                             <button

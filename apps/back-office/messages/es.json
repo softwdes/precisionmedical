@@ -4041,6 +4041,7 @@
       "archivosTitle": "Archivos",
       "archivosNoCases": "Este paciente no tiene casos registrados. Las fotos se guardarán cuando se cree el primer caso.",
       "photoView": "Ver",
+      "photoDownloadPdf": "Descargar como PDF",
       "photoReplace": "Reemplazar",
       "photoDelete": "Eliminar",
       "photoDeleteConfirm": "¿Eliminar esta foto? Va a la papelera: podés recuperarla desde el mismo recuadro.",

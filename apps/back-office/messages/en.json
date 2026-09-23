@@ -4041,6 +4041,7 @@
       "archivosTitle": "Files",
       "archivosNoCases": "This patient has no cases yet. Photos will be saved once the first case is created.",
       "photoView": "View",
+      "photoDownloadPdf": "Download as PDF",
       "photoReplace": "Replace",
       "photoDelete": "Delete",
       "photoDeleteConfirm": "Delete this photo? It goes to the trash: you can restore it from the same slot.",

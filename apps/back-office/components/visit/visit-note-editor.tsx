@@ -33,6 +33,7 @@ import type { SnippetSection } from '@/lib/snippet-sections';
 import { useSectionLabels } from '@/lib/use-section-labels';
 import { useCandadoNota } from '@/lib/use-candado-nota';
 import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
+import { PriorVisitsDialog, type TraidoDeVisita } from './prior-visits-dialog';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 import { VisitNotePrintDialog } from './visit-note-print-dialog';
 import { SnippetPanel, type SnippetItem } from './snippet-panel';
@@ -327,6 +328,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   const [addendum, setAddendum] = React.useState<string | null>(null);
   /** El diálogo de conciliación de medicamentos. */
   const [medRecAbierto, setMedRecAbierto] = React.useState(false);
+  /** El diálogo de "Visitas anteriores". */
+  const [visitasAbierto, setVisitasAbierto] = React.useState(false);
   const [medRecGuardando, setMedRecGuardando] = React.useState(false);
   const [guardandoAdd, setGuardandoAdd] = React.useState(false);
   const addenda = note?.addenda ?? [];
@@ -949,6 +952,54 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     }
   };
 
+  /**
+   * Traer texto de una visita anterior.
+   *
+   * **AGREGA al final de cada sección, nunca reemplaza.** Es la misma regla que
+   * los snippets, y la que hace que traer algo no pueda costarle a nadie lo que
+   * ya había escrito. Los diagnósticos se suman a los que ya estén, sin repetir
+   * códigos.
+   *
+   * La constancia sale aparte y en paralelo: el TEXTO viaja al servidor por el
+   * guardado normal de la nota, con su control de versión. Si esta ruta también
+   * escribiera contenido habría dos caminos para lo mismo.
+   */
+  const traerDeVisita = (traido: TraidoDeVisita): void => {
+    for (const { field, html } of traido.secciones) {
+      const actual = content[field] ?? '';
+      setSection(field, actual.trim() ? `${actual}${html}` : html);
+    }
+
+    if (traido.diagnosticos.length > 0) {
+      setDx((list) => {
+        const codigos = new Set(list.map((d) => d.icd10Code));
+        const nuevos = traido.diagnosticos.filter((d) => !codigos.has(d.icd10Code));
+        return nuevos.length === 0 ? list : [...list, ...nuevos.map((d) => ({
+          icd10Code: d.icd10Code, icd10Label: d.icd10Label,
+          snomedCode: d.snomedCode, snomedLabel: d.snomedLabel,
+          diagnosisId: null,
+        }))];
+      });
+      dxTocado.current = true;
+      setDirty(true);
+    }
+
+    // Queda registrado de qué visita salió, con sus secciones y su autor. Es lo
+    // que convierte un traído en una reutilización deliberada y no en una nota
+    // clonada sin rastro. No bloquea: si falla, el texto ya está en pantalla.
+    void fetch(`/api/admin/visit-notes/${appointmentId}/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        desdeAppointmentId: traido.desde.appointmentId,
+        secciones: traido.secciones.map((x) => x.field),
+        diagnosticos: traido.diagnosticos.length,
+      }),
+    }).catch(() => {});
+
+    setVisitasAbierto(false);
+  };
+
   const handleSign = async (): Promise<void> => {
     setSigning(true);
     // Guardar antes de firmar para no perder lo último escrito
@@ -1018,6 +1069,19 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           {/* Va PRIMERO y fuera del `isSigned`: consultar la ficha del paciente
               no depende de si la nota está abierta o ya firmada. */}
           {patientId && <MedicalHistoryButton patientId={patientId} className={CELDA_MOVIL} />}
+          {/* Va pegado a "Historial médico": las dos son "traer contexto de
+              antes", y el provider las busca en el mismo lugar. Solo con la nota
+              abierta — sobre una firmada no hay dónde poner el texto. */}
+          {patientId && !soloLectura && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setVisitasAbierto(true)}
+              className={`h-9 gap-1.5 ${CELDA_MOVIL}`}
+            >
+              <History className="w-3.5 h-3.5" /> {t('pvButton')}
+            </Button>
+          )}
           {/* Reabrir vive con la nota cerrada, al lado de Imprimir: es lo único
               que se puede hacer con ella. Se muestra solo a quien de verdad
               puede — un botón que siempre da 403 es peor que no tenerlo. */}
@@ -1670,6 +1734,16 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       </Dialog>
 
       {/* Conciliación: la lista primero, la firma después. */}
+      {visitasAbierto && patientId && (
+        <PriorVisitsDialog
+          appointmentId={appointmentId}
+          patientId={patientId}
+          caseId={null}
+          onClose={() => setVisitasAbierto(false)}
+          onTraer={traerDeVisita}
+        />
+      )}
+
       {medRecAbierto && (
         <Dialog open onOpenChange={(v) => { if (!v) setMedRecAbierto(false); }}>
           <DialogContent className="max-w-lg">

@@ -173,8 +173,22 @@ const STRINGS = {
   es: {
     langToggle: 'EN',
     // Step 1
-    greeting: (n: string) => `Hola, ${n} 👋`,
-    greetingSub: 'Te acompaño en tu registro inicial. Solo toma 5 minutos.',
+    /**
+     * La bienvenida es la del v2 (pedido de recepción, 22-sep-2026), con dos
+     * cosas que NO se copiaron de ahí y son a propósito:
+     *
+     *  · **Sigue diciendo el nombre del paciente.** El v2 saluda al producto
+     *    ("Welcome to LienMaster!"); acá se saluda a la persona, que es a quien
+     *    le mandamos el enlace.
+     *  · **La marca sigue siendo la de la clínica.** "LienMaster" es el nombre
+     *    del sistema: el paciente recibe un link de Precision Medical y no tiene
+     *    por qué aterrizar en un producto que nunca escuchó nombrar.
+     *
+     * "Te damos la bienvenida" y no "Bienvenido": el formulario lo llena
+     * cualquiera y el masculino deja afuera a la mitad.
+     */
+    greeting: (n: string) => `¡Te damos la bienvenida, ${n}!`,
+    greetingSub: 'Estamos aquí para cuidar tu salud. Completa este formulario paso a paso para registrarte en la clínica. La información que nos brindes nos ayudará a darte la mejor atención médica posible.',
     caseNumberLabel: 'Número de caso',
     accidentLabel: 'Accidente',
     apptLabel: 'Tu próxima cita',
@@ -573,8 +587,9 @@ const STRINGS = {
   en: {
     langToggle: 'ES',
     // Step 1
-    greeting: (n: string) => `Hello, ${n} 👋`,
-    greetingSub: 'Let me guide you through your initial registration. It only takes 5 minutes.',
+    /** Ver el comentario de la versión en español. El párrafo es el del v2, textual. */
+    greeting: (n: string) => `Welcome, ${n}!`,
+    greetingSub: 'We are here to take care of your health. Complete this form step by step to register at our clinic. The information you provide will help us provide you with the best medical care possible.',
     caseNumberLabel: 'Case number',
     accidentLabel: 'Accident',
     apptLabel: 'Your next appointment',
@@ -2859,9 +2874,19 @@ export function IntakeWizard({
         )}
 
         {/* ══════ STEP 1 · Landing (B.5) ══════════════════════════════════════ */}
+        {/*
+          Los márgenes de esta portada están ajustados para que "Comenzar" entre
+          SIN SCROLL en la pantalla más chica que usan los pacientes (375×667,
+          el iPhone SE). Con el texto de bienvenida del v2 —cuatro líneas más
+          largo que el anterior— el botón se iba 24px abajo del pliegue: el
+          paciente veía el borde superior y nada más, en la única pantalla cuyo
+          trabajo es que toque ese botón.
+
+          Si alguien vuelve a alargar el saludo, hay que medir esto de nuevo.
+        */}
         {langChosen && caseTypeChosen && step === 1 && (
-          <div style={{ paddingTop: 40 }}>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ paddingTop: 20 }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 20,
                 padding: '6px 14px', borderRadius: 20,
@@ -2929,7 +2954,7 @@ export function IntakeWizard({
                 Lo que hacía bien —decir cuántos pasos son— ahora lo dice el
                 contador, que sí sabe cuántos son para este paciente. */}
             <SifoHint hint={t.sifoHint1} />
-            <button type="button" style={{ ...S.btnPrimary, marginTop: 20 }}
+            <button type="button" style={{ ...S.btnPrimary, marginTop: 14 }}
               onClick={() => { setStep(2); window.scrollTo(0, 0); }}>
               {t.startBtn}
             </button>

@@ -3598,6 +3598,8 @@
       "deletedLoading": "Loading…",
       "deletedLoadError": "The trash could not be loaded",
       "deletedRestoreError": "The appointment could not be restored",
+      "confirmAlreadyArrived": "The patient already checked in, so the appointment does not go back to “confirmed”. The visit continues in the provider portal's consultation.",
+      "arrivedNextStepHint": "The patient is already in the clinic. The visit continues from My Day in the provider portal: that is where the consultation opens and the note is created.",
       "legendToggle": "Color reference",
       "compactToggle": "Compact",
       "compactToggleHint": "One line per appointment: the whole day fits on screen",

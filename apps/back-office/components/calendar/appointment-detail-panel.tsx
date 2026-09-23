@@ -608,6 +608,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         const d = await res.json().catch(() => ({}));
         throw new Error(d.message ?? `HTTP ${res.status}`);
       }
+      /**
+       * El servidor puede decir "no hice nada" con un 200.
+       *
+       * Cuando el paciente ya llegó, `/confirm` devuelve `alreadyArrived` y NO
+       * toca el estado, a propósito. Mirando solo `res.ok` esto se leía como
+       * éxito: el panel se cerraba, nada había cambiado, y al volver a abrirlo
+       * el botón seguía ahí. Se podía apretar para siempre.
+       */
+      const datos = await res.json().catch(() => ({}));
+      if (datos?.alreadyArrived) {
+        setAccionError(t('confirmAlreadyArrived'));
+        return;
+      }
       onRefresh(); onClose();
     } catch (e) {
       setAccionError(e instanceof Error ? e.message : t('errorConfirm'));
@@ -750,6 +763,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
    * Si además tiene cargos, el servidor lo rechaza. Acá no se adivina eso: el
    * botón se muestra igual y el motivo lo da quien lo sabe.
    */
+  /**
+   * El paciente YA está en la clínica.
+   *
+   * Desde acá, "Marcar confirmada" no significa nada: confirmar es el paso de
+   * ANTES de que llegue. El servidor lo sabe y se niega —un confirm tardío
+   * devolvía IN_PROGRESS → CONFIRMED y el paciente desaparecía de la sala del
+   * doctor (bug real del 28-jul-2026)—, pero contesta `ok` y el botón seguía
+   * ahí, apretable y sin efecto: un provider quedó atrapado apretándolo
+   * (Erick, 23-sep-2026, *"it won't mark as confirmed"*). Un botón que se puede
+   * apretar y no hace nada es peor que uno que no está.
+   */
+  const yaLlego = appt.status === 'CHECKED_IN' || appt.status === 'IN_PROGRESS';
+
   const puedeReabrir = appt.status === 'CANCELLED' || appt.status === 'NO_SHOW';
 
   /** El paciente ya firmo la confirmacion de esta cita. */
@@ -1578,7 +1604,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       {t('actionCheckIn')}
                     </button>
                   )}
-                  {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (
+                  {/* `yaLlego` se suma a los dos de siempre: el paciente en la
+                      sala no se "confirma". Ver el comentario de `yaLlego`. */}
+                  {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && !yaLlego && (
                     <button type="button" onClick={handleConfirm} disabled={confirming || estaResuelta}
                       className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald/15">
                       {confirming ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -1586,6 +1614,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     </button>
                   )}
                 </div>
+
+                {/* Con el paciente adentro, el pie se queda sin acción evidente
+                    y ahí es donde alguien se traba. La visita NO sigue en el
+                    calendario: la nota nace en la consulta del portal del
+                    provider, y este renglón es lo único que lo dice. */}
+                {yaLlego && !appt.noteStatus && (
+                  <p className="mt-2 text-[11px] text-text-muted">
+                    {t('arrivedNextStepHint')}
+                  </p>
+                )}
 
                 {/* Eliminar va acá abajo y como enlace, no como sexto botón de
                     la fila: es una corrección de carga, no una acción del día.

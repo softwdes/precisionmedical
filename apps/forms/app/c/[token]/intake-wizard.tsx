@@ -301,7 +301,21 @@ const STRINGS = {
     // Ya NO son todos opcionales: sexo y el contacto de emergencia se exigen
     // desde el 2026-09-07. Un subtítulo que promete lo contrario hace que el
     // paciente lea el bloqueo como un error del formulario.
-    additionalSub: 'Casi todos son opcionales. Los marcados con * los necesitamos.',
+    /**
+     * Recepción pidió (22-sep) que dijera "todos los campos son opcionales,
+     * pero cuanta más información des, mejor te podemos atender".
+     *
+     * La segunda mitad se tomó tal cual; la primera NO, porque sería falsa: en
+     * este paso hay SEIS campos obligatorios —sexo, raza, etnia, estado civil y
+     * el nombre y teléfono del contacto de emergencia—. Con "todos son
+     * opcionales" el paciente los deja vacíos, toca Continuar y se lleva tres
+     * errores rojos, que es de donde salen los formularios abandonados.
+     *
+     * El pedido venía de una captura de las 01:27 PM, o sea de ANTES de que
+     * raza/etnia/estado civil pasaran a obligatorios: nadie vio las dos cosas
+     * juntas. Erick eligió conservar los obligatorios y ajustar la frase.
+     */
+    additionalSub: 'Casi todos son opcionales: mientras más nos cuentes, mejor te podemos atender. Los marcados con * los necesitamos.',
     demographicSection: 'Información demográfica',
     demographicSub: 'Esta información es opcional y se usa solo con fines estadísticos de salud.',
     raceLabel: 'Raza',
@@ -680,7 +694,8 @@ const STRINGS = {
     sifoHint2: 'Make sure your info matches your ID. We use it in your medical documents.',
     // Step 3 — Additional information
     additionalTitle: 'Additional information',
-    additionalSub: 'Most of these are optional. The ones marked * we do need.',
+    /** Ver el comentario de la versión en español. */
+    additionalSub: 'Most of these are optional — the more information you share, the better care we can give you. The ones marked * we do need.',
     demographicSection: 'Demographic information',
     demographicSub: 'This information is optional and used only for health statistics.',
     raceLabel: 'Race',

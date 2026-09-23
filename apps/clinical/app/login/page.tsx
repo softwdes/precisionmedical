@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@precision-medical/auth/client';
+import { VERSION } from '@precision/version';
 
 /**
  * Clinical · Login
@@ -158,7 +159,7 @@ function LoginForm() {
           textAlign:     'center',
           marginBottom:  '28px',
         }}>
-          {t('subtitle')}
+          {t('subtitle')} · v{VERSION}
         </p>
 
         {reason === 'session_expired' && (

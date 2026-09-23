@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { VERSION } from '@precision/version';
+import { InsigniaVersion } from '@precision/release/insignia';
 import {
   Settings,
   Briefcase,
@@ -319,6 +321,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             </svg>
           </Link>
         )}
+        {/* La pastilla va FUERA del <Link>, no adentro del bloque de marca: un
+            <button> dentro de un <a> es HTML invalido y el clic navegaria al
+            inicio en vez de abrir la cortina. Con el `justify-between` del
+            contenedor queda a la derecha de la barra, alineada con el logo. */}
+        {!compact && (
+          <InsigniaVersion version={VERSION} titulo={t('versionVerNovedades')} className="ml-2" />
+        )}
+
         {/*
           * El boton de colapsar ya NO vive acá: se movio a la barra superior.
           * Dentro de una barra de 60px peleaba con el logo y no se veia — el

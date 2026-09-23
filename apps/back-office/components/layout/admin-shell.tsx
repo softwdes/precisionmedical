@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Sidebar } from './sidebar';
+import { CortinaVersionBO } from './cortina-version-bo';
 import { Topbar } from './topbar';
 import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
@@ -86,6 +87,9 @@ export function AdminShell({
       <NavigationProgressProvider>
         <ToastProvider>
         <div className="min-h-screen bg-bg-0">
+          {/* Fuera del contenido: tapa la pantalla entera. */}
+          <CortinaVersionBO />
+
           <Sidebar
             mobileOpen={mobileOpen}
             onMobileClose={() => setMobileOpen(false)}

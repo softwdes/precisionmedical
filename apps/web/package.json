@@ -11,6 +11,7 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@precision/version": "workspace:*",
     "@precision-medical/agente": "workspace:*",
     "@precision-medical/api": "workspace:*",
     "@precision-medical/auth": "workspace:*",

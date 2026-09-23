@@ -7,6 +7,7 @@ import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-re
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
 import { useSessionGuard, clearSessionGuard } from '@/lib/useSessionGuard';
+import { VERSION } from '@precision/version';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -993,7 +994,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           {/* Text */}
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>PM Time Clock</p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Precision Medical</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Precision Medical · v{VERSION}</p>
           </div>
 
           {/* 3 pulsing dots */}

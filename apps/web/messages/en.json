@@ -416,6 +416,10 @@
     "sentryDesc": "Error monitoring"
   },
   "cifo": {
+    "versionEtiqueta": "New version",
+    "versionCambios": "{count, plural, one {# change} other {# changes}}",
+    "versionCerrar": "Got it",
+    "versionVerNovedades": "See what this version brings",
     "label": "CIFO",
     "placeholder": "Ask about cash boxes, payments or visits…",
     "ask": "Ask",

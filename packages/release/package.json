@@ -9,9 +9,13 @@
     "./modules": "./src/modules.ts",
     "./commit": "./src/commit.ts",
     "./types": "./src/types.ts",
-    "./notes": "./src/use-release-notes.ts"
+    "./notes": "./src/use-release-notes.ts",
+    "./novedad": "./src/use-novedad.ts",
+    "./cortina": "./src/cortina-version.tsx",
+    "./insignia": "./src/insignia-version.tsx"
   },
   "dependencies": {
+    "@precision/version": "workspace:*",
     "lucide-react": "^0.452.0"
   },
   "devDependencies": {

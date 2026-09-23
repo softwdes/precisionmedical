@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
+import { VERSION } from '@precision/version';
+import { InsigniaVersion } from '@precision/release/insignia';
 import {
   LayoutDashboard,
   Users,
@@ -109,7 +111,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
             {/* El nombre de la EMPRESA arriba y el portal debajo — el mismo
                 orden que las otras tres apps, para que se lean como familia. */}
             <p className="text-small font-extrabold tracking-tight text-text-1 truncate">Precision Medical</p>
-            <p className="text-tiny text-text-3 uppercase tracking-wider truncate">Super Admin</p>
+            {/* La versión al lado y no en un renglón propio: el bloque ya tiene
+                dos líneas contra el logo y una tercera lo aprieta. */}
+            <div className="flex items-center gap-1.5">
+              <p className="text-tiny text-text-3 uppercase tracking-wider truncate">Super Admin</p>
+              <InsigniaVersion version={VERSION} titulo={t('cifo.versionVerNovedades')} />
+            </div>
           </div>
           <button
             onClick={onClose}

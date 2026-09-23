@@ -15,6 +15,11 @@ const config: Config = {
     // `z-[90]` desapareció y el saludo quedó DETRÁS de la tarjeta de la cola.
     // Cualquier componente nuevo en un paquete compartido necesita su glob acá.
     '../../packages/agente/src/**/*.{js,ts,jsx,tsx}',
+    // Y lo mismo para `release`, que desde 2026-09-23 tiene la cortina de
+    // version (`cortina-version.tsx`). Se cayo en la MISMA trampa el dia que
+    // se escribio: sin este glob la cortina salia con el fondo transparente y
+    // el numero en 14px — el tamano por defecto— en vez de ocupar la pantalla.
+    '../../packages/release/src/**/*.{js,ts,jsx,tsx}',
   ],
 };
 

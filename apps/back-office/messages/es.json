@@ -225,7 +225,8 @@
       "attorneyAppointments": "Citas",
       "attorneyReferrals": "Referir un cliente",
       "messages": "Mensajes",
-      "firmRequests": "Pedidos de bufetes"
+      "firmRequests": "Pedidos de bufetes",
+      "versionVerNovedades": "Ver qué trae esta versión"
     },
     "pageTitles": {
       "collections": "Finanzas",
@@ -3220,7 +3221,10 @@
       "actionIntakeCompletedDev": "Intake completado (dev)",
       "actionAppointmentConfirmed": "Cita confirmada",
       "actionAppointmentScheduled": "Cita agendada",
-      "actionNoteAdded": "Nota agregada"
+      "actionNoteAdded": "Nota agregada",
+      "novedadEtiqueta": "Nueva versión",
+      "novedadCerrar": "Entendido",
+      "novedadCambios": "{count, plural, one {# cambio} other {# cambios}}"
     },
     "calendar": {
       "weekdays": {

@@ -1,0 +1,13 @@
+{
+  "name": "@precision/version",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@precision-medical/tsconfig": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

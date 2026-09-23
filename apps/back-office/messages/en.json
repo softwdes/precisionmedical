@@ -225,7 +225,8 @@
       "attorneyAppointments": "Appointments",
       "attorneyReferrals": "Refer a client",
       "messages": "Messages",
-      "firmRequests": "Firm requests"
+      "firmRequests": "Firm requests",
+      "versionVerNovedades": "See what this version brings"
     },
     "pageTitles": {
       "collections": "Finances",
@@ -3220,7 +3221,10 @@
       "actionIntakeCompletedDev": "Intake completed (dev)",
       "actionAppointmentConfirmed": "Appointment confirmed",
       "actionAppointmentScheduled": "Appointment scheduled",
-      "actionNoteAdded": "Note added"
+      "actionNoteAdded": "Note added",
+      "novedadEtiqueta": "New version",
+      "novedadCerrar": "Got it",
+      "novedadCambios": "{count, plural, one {# change} other {# changes}}"
     },
     "calendar": {
       "weekdays": {

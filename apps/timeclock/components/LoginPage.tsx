@@ -7,6 +7,7 @@ import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } 
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
+import { VERSION } from '@precision/version';
 
 // ─── Red neuronal animada — mismo efecto que Master/Super Admin ───────────────
 interface NNode { x: number; y: number; vx: number; vy: number; r: number }
@@ -312,7 +313,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
               Time Clock
             </p>
             <p style={{ color:'#4A5474', fontSize:12, textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>
-              Precision Medical · Utah, USA
+              Precision Medical · Utah, USA · v{VERSION}
             </p>
           </div>
 

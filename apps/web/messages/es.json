@@ -416,6 +416,10 @@
     "sentryDesc": "Monitoreo de errores"
   },
   "cifo": {
+    "versionEtiqueta": "Nueva versión",
+    "versionCambios": "{count, plural, one {# cambio} other {# cambios}}",
+    "versionCerrar": "Entendido",
+    "versionVerNovedades": "Ver qué trae esta versión",
     "label": "CIFO",
     "placeholder": "Preguntale sobre las cajas, los pagos o las visitas…",
     "ask": "Preguntar",

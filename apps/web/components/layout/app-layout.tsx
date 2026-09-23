@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
+import { CortinaVersionAdmin } from './cortina-version-admin';
 import { Topbar } from './topbar';
 import { BottomNav } from './bottom-nav';
 import { RoleProvider } from '@/contexts/role-context';
@@ -41,6 +42,9 @@ export function AppLayout({
   return (
     <RoleProvider role={role} grants={grants}>
       <div className="flex min-h-screen bg-bg-0">
+        {/* La cortina de version: fuera del main, porque tapa la pantalla entera. */}
+        <CortinaVersionAdmin />
+
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

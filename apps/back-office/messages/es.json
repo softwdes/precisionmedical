@@ -4095,7 +4095,7 @@
       "archivosIntakeName": "Formulario de admisión",
       "archivosBadgeSistema": "Sistema",
       "archivosSiempreAlDia": "Siempre al día",
-      "archivosCuenta": "{intakes} admisión · {archivos} archivos",
+      "archivosCuenta": "{intakes, plural, one {# admisión} other {# admisiones}} · {archivos, plural, one {# archivo} other {# archivos}}",
       "archivosDownloadError": "No se pudo abrir el archivo.",
       "archivosEmptyDirDesc": "No hay archivos o carpetas en este directorio",
       "btnUploadFiles": "Subir archivos",

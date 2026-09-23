@@ -4095,7 +4095,7 @@
       "archivosIntakeName": "Patient Intake Form",
       "archivosBadgeSistema": "System",
       "archivosSiempreAlDia": "Always current",
-      "archivosCuenta": "{intakes} intake · {archivos} files",
+      "archivosCuenta": "{intakes, plural, one {# intake} other {# intakes}} · {archivos, plural, one {# file} other {# files}}",
       "archivosDownloadError": "Could not open the file.",
       "archivosEmptyDirDesc": "No files or folders in this directory",
       "btnUploadFiles": "Upload files",

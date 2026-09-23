@@ -21,6 +21,15 @@ import { montoYaPagado, respuestaYaPagado } from '@/lib/charge-payments';
 const PatchSchema = z.object({
   status: z.enum(['CHARGED', 'VOIDED']).optional(),
   quantity: z.number().int().min(1).max(50).optional(),
+  /**
+   * Corregir el precio de ESTE cargo, sin tocar el catálogo.
+   *
+   * Faltaba: una vez cargado, el monto no se podía cambiar por ningún lado y la
+   * única salida era borrarlo y volver a cargarlo (Darrell, 2026-09-22). El
+   * precio del catálogo es otra cosa y vive en el catálogo, con su rastro de
+   * verificación.
+   */
+  unitPrice: z.number().min(0).max(999999).optional(),
   voidReason: z.string().max(300).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
 });
@@ -33,7 +42,8 @@ export async function PATCH(
 
   const charge = await db.appointmentService.findUnique({
     where: { id },
-    select: { id: true, appointmentId: true, name: true, status: true },
+    select: { id: true, appointmentId: true, name: true, status: true,
+              quantity: true, unitPrice: true },
   });
   if (!charge) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
@@ -58,11 +68,27 @@ export async function PATCH(
     if (pagado > 0) return respuestaYaPagado(pagado);
   }
 
+  /**
+   * Tampoco se baja el monto por DEBAJO de lo ya cobrado.
+   *
+   * Sin esto el saldo se va a cero y queda un pago de más que nadie registró:
+   * la plata entró, el cargo dice que vale menos, y la diferencia no aparece en
+   * ningún lado. Si hay que cobrar menos habiendo cobrado, primero se anula el
+   * pago — el mismo camino que para quitar el cargo.
+   */
+  if (!voiding && (body.unitPrice !== undefined || body.quantity !== undefined)) {
+    const nuevoTotal = (body.unitPrice ?? Number(charge.unitPrice))
+                     * (body.quantity ?? charge.quantity);
+    const pagado = await montoYaPagado({ cashServiceId: id });
+    if (pagado > nuevoTotal) return respuestaYaPagado(pagado);
+  }
+
   const updated = await db.appointmentService.update({
     where: { id },
     data: {
       ...(body.status ? { status: body.status } : {}),
       ...(body.quantity ? { quantity: body.quantity } : {}),
+      ...(body.unitPrice !== undefined ? { unitPrice: body.unitPrice } : {}),
       ...(body.voidReason !== undefined ? { voidReason: body.voidReason } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       ...(voiding ? { voidedAt: new Date() } : {}),

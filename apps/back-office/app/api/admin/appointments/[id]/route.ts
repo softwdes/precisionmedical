@@ -202,6 +202,19 @@ export async function PATCH(
       const quedan = new Set(parsed.plannedServiceCodes.map((s) => s.code));
       const quitado = [...pagados.entries()].find(([code]) => !quedan.has(code));
       if (quitado) return respuestaYaPagado(quitado[1]);
+
+      /**
+       * Y tampoco se le baja el monto por debajo de lo cobrado.
+       *
+       * Desde que el monto se puede corregir (2026-09-22) quitar el cargo dejó
+       * de ser la única forma de hacer desaparecer esa plata: bajarlo a $20
+       * cuando se cobraron $166 deja el saldo en cero por `max(0, …)` de
+       * sync-billing y los $146 de más no figuran en ningún lado. Mismo
+       * remedio que para quitarlo: primero se anula el pago.
+       */
+      const rebajado = parsed.plannedServiceCodes.find(
+        (s) => (pagados.get(s.code) ?? 0) > (s.fee ?? 0));
+      if (rebajado) return respuestaYaPagado(pagados.get(rebajado.code)!);
     }
   }
 

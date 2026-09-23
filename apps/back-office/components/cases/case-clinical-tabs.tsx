@@ -29,7 +29,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import {
   Pill, FlaskConical, Scan, HeartPulse, FileText, Printer, Loader2, Upload,
   AlertTriangle, MapPin, RotateCcw, Building2, Home,
-  Bandage, Briefcase, Plus, Trash2, ArrowRight, Ban, X,
+  Bandage, Briefcase, Plus, Trash2, Pencil, ArrowRight, Ban, X,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
@@ -744,8 +744,20 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
   const [saving, setSaving] = React.useState(false);
   const [confirmCpt, setConfirmCpt] = React.useState<{ apptId: string; id: string } | null>(null);
   const [confirmCash, setConfirmCash] = React.useState<string | null>(null);
-  /** Por qué NO se pudo quitar un cargo. Hoy el único motivo es que ya se cobró. */
+  /** Por qué NO se pudo quitar ni corregir un cargo. Hoy el único motivo es que ya se cobró. */
   const [avisoCargo, setAvisoCargo] = React.useState<string | null>(null);
+  /**
+   * El cargo al que se le está corrigiendo el monto.
+   *
+   * Hasta hoy no se podía: una vez cargado, la única salida era borrarlo y
+   * volver a cargarlo — y el tacho es un ícono gris de 12px al final de la fila,
+   * que Darrell encontró una vez y no volvió a encontrar (2026-09-22).
+   *
+   * El monto corregido vale SOLO para este cargo. El precio del catálogo no se
+   * toca: eso es el tarifario y vive en el catálogo, con su verificación.
+   */
+  const [editando, setEditando] = React.useState<
+    { tipo: 'CPT' | 'CASH'; apptId: string; id: string; value: string } | null>(null);
 
   /**
    * El rechazo de la API, dicho en el mostrador. Sin esto el clic en el tacho
@@ -837,6 +849,72 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
     }
   };
 
+  /**
+   * Guardar el monto corregido.
+   *
+   * El CPT se reescribe dentro de `plannedServiceCodes` —es donde vive— y el de
+   * efectivo va por su propio PATCH. Los dos rebotan con 409 si el cargo tiene
+   * cobrado MÁS de lo que se está dejando: bajar el monto por debajo de lo pagado
+   * haría desaparecer esa diferencia sin dejar rastro. El aviso lo explica con el
+   * monto adentro, igual que al intentar quitarlo.
+   */
+  const guardarMonto = async (): Promise<void> => {
+    if (!editando) return;
+    const monto = Number.parseFloat(editando.value);
+    if (!Number.isFinite(monto) || monto < 0) return;
+
+    if (editando.tipo === 'CPT') {
+      const v = visits.find((x) => x.appointmentId === editando.apptId);
+      if (!v) return;
+      await patchCpt(editando.apptId,
+        v.services.map((x) => x.id === editando.id ? { ...x, fee: monto } : x));
+      setEditando(null);
+      return;
+    }
+
+    setSaving(true);
+    setAvisoCargo(null);
+    try {
+      const res = await fetch(`/api/admin/cash-services/item/${editando.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitPrice: monto }),
+      });
+      if (res.ok) { setEditando(null); await reload(); }
+      else setAvisoCargo(await explicarRechazo(res));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** La casilla que reemplaza al monto mientras se lo corrige. */
+  const cajaDeMonto = (): React.ReactElement => (
+    <span className="inline-flex items-center gap-1 shrink-0">
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        autoFocus
+        value={editando?.value ?? ''}
+        onChange={(e) => setEditando((p) => p && { ...p, value: e.target.value })}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void guardarMonto();
+          if (e.key === 'Escape') setEditando(null);
+        }}
+        aria-label={tc('editPrice')}
+        className="w-[86px] text-right tabular-nums bg-bg-2 border border-amber/40 rounded px-1.5 py-0.5 text-[11px] font-semibold text-text-1 outline-none focus:border-amber"
+      />
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void guardarMonto()}
+        className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber/20 text-amber border border-amber/40 hover:bg-amber/30 disabled:opacity-40 transition-colors"
+      >
+        {tc('confirmAmount')}
+      </button>
+    </span>
+  );
+
   if (loading) return <LoadingRow />;
   if (error) return <LoadErrorRow />;
 
@@ -885,12 +963,24 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
                     <div key={s.id} className="flex items-center gap-2 text-[12.5px] group">
                       <span className="font-mono text-[11px] text-cyan shrink-0 w-[70px]">{s.code}</span>
                       <span className="text-text-2 flex-1 min-w-0">{s.description}</span>
-                      {s.fee !== undefined && <span className="text-text-2 shrink-0 tabular-nums">{money(Number(s.fee))}</span>}
-                      <RemoveChargeButton
-                        label={`${tc('badgeInsurance')} ${s.code}`}
-                        disabled={saving}
-                        onClick={() => setConfirmCpt({ apptId: v.appointmentId, id: s.id })}
-                      />
+                      {editando?.tipo === 'CPT' && editando.id === s.id ? cajaDeMonto() : (
+                        <>
+                          {s.fee !== undefined && <span className="text-text-2 shrink-0 tabular-nums">{money(Number(s.fee))}</span>}
+                          <EditAmountButton
+                            label={`${tc('badgeInsurance')} ${s.code}`}
+                            disabled={saving}
+                            onClick={() => setEditando({
+                              tipo: 'CPT', apptId: v.appointmentId, id: s.id,
+                              value: Number(s.fee ?? 0).toFixed(2),
+                            })}
+                          />
+                          <RemoveChargeButton
+                            label={`${tc('badgeInsurance')} ${s.code}`}
+                            disabled={saving}
+                            onClick={() => setConfirmCpt({ apptId: v.appointmentId, id: s.id })}
+                          />
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -914,12 +1004,33 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
                             <span className="text-text-muted"> · {horaCobro(c.chargedAt)}</span>
                           )}
                         </span>
-                        <span className="text-text-2 shrink-0 tabular-nums">{money(c.unitPrice * c.quantity)}</span>
-                        <RemoveChargeButton
-                          label={`${tc('badgeCash')} ${c.code}${repetidos.has(c.code) ? ` · ${horaCobro(c.chargedAt)}` : ''}`}
-                          disabled={saving}
-                          onClick={() => setConfirmCash(c.id)}
-                        />
+                        {editando?.tipo === 'CASH' && editando.id === c.id ? (
+                          <>
+                            {cajaDeMonto()}
+                            {/* Lo que se corrige es el precio UNITARIO; sin esto
+                                la caja abre en 30 sobre una fila que dice 60. */}
+                            {c.quantity > 1 && (
+                              <span className="text-[11px] text-text-muted shrink-0">×{c.quantity}</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-text-2 shrink-0 tabular-nums">{money(c.unitPrice * c.quantity)}</span>
+                            <EditAmountButton
+                              label={`${tc('badgeCash')} ${c.code}`}
+                              disabled={saving}
+                              onClick={() => setEditando({
+                                tipo: 'CASH', apptId: v.appointmentId, id: c.id,
+                                value: Number(c.unitPrice).toFixed(2),
+                              })}
+                            />
+                            <RemoveChargeButton
+                              label={`${tc('badgeCash')} ${c.code}${repetidos.has(c.code) ? ` · ${horaCobro(c.chargedAt)}` : ''}`}
+                              disabled={saving}
+                              onClick={() => setConfirmCash(c.id)}
+                            />
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -982,8 +1093,38 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
   );
 }
 
-/** Quitar un cargo de la lista de la visita. Discreto hasta que el mouse pasa
- *  por la fila — la lista se lee mucho más de lo que se edita. */
+/**
+ * Corregir el monto de un cargo YA cargado.
+ *
+ * Antes no existía: había que borrarlo y volver a cargarlo, y el tacho es lo
+ * único que había en la fila. Darrell, 2026-09-22: *"I still can't edit an
+ * amount after I charge it."*
+ */
+function EditAmountButton({ label, disabled, onClick }: {
+  label: string; disabled: boolean; onClick: () => void;
+}): React.ReactElement {
+  const tc = useTranslations('phoenix.charges');
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`${tc('editPrice')} — ${label}`}
+      title={tc('editPrice')}
+      className="p-1 rounded shrink-0 text-text-muted hover:text-text-1 hover:bg-white/5 transition-colors disabled:opacity-40"
+    >
+      <Pencil className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+/**
+ * Quitar un cargo de la lista de la visita.
+ *
+ * El ícono era de 12px y gris: es la única acción destructiva de la fila y se
+ * perdía de vista — "I thought I just saw a place where I could delete a charge.
+ * Now I cannot find it" (Darrell, 2026-09-22). Sigue discreto, pero se ve.
+ */
 function RemoveChargeButton({ label, disabled, onClick }: {
   label: string; disabled: boolean; onClick: () => void;
 }): React.ReactElement {
@@ -993,9 +1134,9 @@ function RemoveChargeButton({ label, disabled, onClick }: {
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="p-1 rounded shrink-0 text-text-muted group-hover:text-text-muted hover:!text-rose hover:bg-rose/10 transition-colors disabled:opacity-40"
+      className="p-1 rounded shrink-0 text-text-muted hover:!text-rose hover:bg-rose/10 transition-colors disabled:opacity-40"
     >
-      <Trash2 className="w-3 h-3" />
+      <Trash2 className="w-3.5 h-3.5" />
     </button>
   );
 }

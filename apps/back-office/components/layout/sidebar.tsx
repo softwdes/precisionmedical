@@ -295,22 +295,44 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
     >
       {/* Brand */}
       <div className={cn('relative flex items-center border-b border-border', compact ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
+        {/*
+          El enlace al inicio está PARTIDO en dos —el logo y el nombre— en vez
+          de envolver el bloque entero.
+
+          Es por la pastilla de versión: un <button> dentro de un <a> es HTML
+          inválido y el clic navegaría al inicio en vez de abrir la cortina. La
+          primera versión la puso afuera del enlace y quedó colgada en el
+          extremo derecho de la barra, a la altura del nombre — Erick: *"algo
+          quedó feo, el v3.10 está al lado del nombre"*. Su lugar es pegada al
+          portal, igual que en el Admin.
+
+          El renglón del portal deja de ser clickeable. Es una pérdida chica: el
+          logo y el nombre, que es donde todo el mundo apunta, siguen llevando
+          al inicio.
+        */}
         {!compact && (
-          <Link href={homeHref} onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: logoGradient, boxShadow: logoShadow }}>
-              <svg suppressHydrationWarning width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect suppressHydrationWarning x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
-                <rect suppressHydrationWarning x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
-                <path suppressHydrationWarning d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke={isDoctor ? '#7C3AED' : '#1E40AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              </svg>
-            </div>
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href={homeHref} onClick={onMobileClose} className="shrink-0 hover:opacity-80 transition-opacity">
+              <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: logoGradient, boxShadow: logoShadow }}>
+                <svg suppressHydrationWarning width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect suppressHydrationWarning x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <rect suppressHydrationWarning x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <path suppressHydrationWarning d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke={isDoctor ? '#7C3AED' : '#1E40AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
+              </div>
+            </Link>
             <div className="flex flex-col min-w-0">
-              <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
-              <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet-text font-semibold' : 'text-text-muted')}>
-                {isDoctor ? t('doctorPortal') : isAttorney ? t('attorneyPortal') : t('clinicPortal')}
-              </span>
+              <Link href={homeHref} onClick={onMobileClose} className="min-w-0 hover:opacity-80 transition-opacity">
+                <span className="block text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
+              </Link>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet-text font-semibold' : 'text-text-muted')}>
+                  {isDoctor ? t('doctorPortal') : isAttorney ? t('attorneyPortal') : t('clinicPortal')}
+                </span>
+                <InsigniaVersion version={VERSION} titulo={t('versionVerNovedades')} />
+              </div>
             </div>
-          </Link>
+          </div>
         )}
         {compact && (
           <Link suppressHydrationWarning href={homeHref} onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded-[10px] hover:opacity-80 transition-opacity" style={{ background: logoGradient, boxShadow: logoShadow }}>
@@ -321,14 +343,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
             </svg>
           </Link>
         )}
-        {/* La pastilla va FUERA del <Link>, no adentro del bloque de marca: un
-            <button> dentro de un <a> es HTML invalido y el clic navegaria al
-            inicio en vez de abrir la cortina. Con el `justify-between` del
-            contenedor queda a la derecha de la barra, alineada con el logo. */}
-        {!compact && (
-          <InsigniaVersion version={VERSION} titulo={t('versionVerNovedades')} className="ml-2" />
-        )}
-
         {/*
           * El boton de colapsar ya NO vive acá: se movio a la barra superior.
           * Dentro de una barra de 60px peleaba con el logo y no se veia — el

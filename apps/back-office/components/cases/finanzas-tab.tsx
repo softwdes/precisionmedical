@@ -1036,6 +1036,117 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
+  /**
+   * EL HISTORIAL DE PAGOS, escrito UNA vez y dibujado en DOS lugares: el cuerpo
+   * del tab y el modal de cobro.
+   *
+   * No es simetría por gusto. `/cobranzas` monta este tab ESCONDIDO y solo le
+   * abre el modal, así que todo lo que viva fuera del modal ahí no existe — y
+   * esa es la vista que usa Darrell (la del caso casi no se usa, Erick
+   * 2026-09-23). Sin esto, desde Finanzas no había forma de ver un pago hecho
+   * ni de revertirlo: el botón estaba 26 líneas ANTES de que empezara el modal.
+   *
+   * Una constante y no un componente aparte: vive en este scope y usa una
+   * docena de cosas de acá (el historial, los totales de la vista, el revert,
+   * los rótulos). Sacarlo afuera sería pasar doce props para no ganar nada.
+   */
+  const bloqueHistorial = (
+  /**
+   * HISTORIAL DE PAGOS — una fila por pago, no por servicio.
+   *
+   * Antes esto era "Detalle por servicio": repetía lo que ya vive en
+   * Servicios, Férulas y Labs, y el historial quedaba ESCONDIDO adentro de
+   * cada fila. Para saber "cuándo pagó y cuánto" había que expandir doce
+   * servicios y sumar a mano. Lo que se DEBE vive en el modal de cobro,
+   * agrupado por visita: el tab es el registro, el modal es la acción.
+   */
+  <div className="rounded-lg bg-bg-1 overflow-hidden">
+    <div className="px-4 py-2 bg-bg-2/60 flex items-center gap-2 flex-wrap">
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+        {t('historyTitle')}
+      </span>
+      <span className="text-[10px] text-text-muted">
+        {t('historyCount', { count: historial.length })}
+      </span>
+      <span className="ml-auto text-[11px] text-text-muted">
+        {t('historyTotal')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPagado)}</b>
+      </span>
+      {vistaPerdonado > 0 && (
+        <span className="text-[11px] text-text-muted">
+          {t('historyDiscountTotal')} <b className="text-amber text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPerdonado)}</b>
+        </span>
+      )}
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-row-sep bg-bg-2/40 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+            <th className="text-left px-3 py-2.5">{t('colPaidAt')}</th>
+            <th className="text-right px-3 py-2.5">{t('colAmount')}</th>
+            <th className="text-left px-3 py-2.5">{t('colMethod')}</th>
+            <th className="text-left px-3 py-2.5 hidden md:table-cell">{t('colType')}</th>
+            <th className="text-left px-3 py-2.5">{t('colAppliedTo')}</th>
+            <th className="w-12 px-3 py-2.5" />
+          </tr>
+        </thead>
+        <tbody>
+          {historial.map(p => (
+            <tr key={p.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
+              <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs text-text-1">
+                {fmtDate(p.paidAt)}
+              </td>
+              <td className="px-3 py-2.5 text-right whitespace-nowrap font-mono text-xs font-semibold text-emerald">
+                {fmt$(p.amount)}
+                {/* Lo perdonado va DEBAJO del monto y no en una columna
+                    propia: la tabla ya tiene seis y en el teléfono no
+                    entra otra. Acá además queda pegado a la cifra que
+                    explica — por qué el saldo bajó más que lo cobrado. */}
+                {p.discount > 0 && (
+                  <div className="text-[10px] font-normal text-amber mt-0.5">
+                    {t('historyDiscountRow', { amount: fmt$(p.discount) })}
+                  </div>
+                )}
+              </td>
+              <td className="px-3 py-2.5 whitespace-nowrap text-xs text-text-2">
+                {METHOD_LABELS[p.method] ?? p.method}
+              </td>
+              <td className="px-3 py-2.5 text-xs text-text-muted hidden md:table-cell">
+                {rotuloDeTipo(PAYMENT_TYPES, p.paymentType) ?? '—'}
+              </td>
+              {/* A qué se aplicó: el servicio Y la visita. Un monto suelto
+                  con su fecha de cobro no dice qué se estaba pagando. */}
+              <td className="px-3 py-2.5 text-xs min-w-[200px]">
+                <div className="text-text-2 truncate">
+                  {p.serviceDescription ?? p.serviceCode ?? '—'}
+                </div>
+                <div className="text-[10px] text-text-muted flex items-center gap-2 flex-wrap">
+                  <span>{t('historyVisitOf')} {fmtDate(p.appointmentDate)}</span>
+                  <SedeDeLaVisita nombre={p.clinicName} color={p.clinicColor} />
+                </div>
+                {p.notes && <div className="text-[10px] italic text-text-muted mt-0.5">{p.notes}</div>}
+              </td>
+              <td className="px-3 py-2.5">
+                {/* "Revertir" y no un tacho: el pago NO se borra — queda
+                    anulado y el saldo vuelve entero. Con texto, porque un
+                    ícono solo obliga a adivinar qué hace, y acá lo que se
+                    adivina es plata. */}
+                {!readOnly && (
+                  <RevertirPagoButton
+                    onClick={() => setRevirtiendo({
+                      caseId, billingId: p.billingId, payId: p.id,
+                      monto: p.amount, descuento: p.discount ?? 0,
+                    })}
+                  />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  );
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1214,100 +1325,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
           />
         )
       ) : (
-        /**
-         * HISTORIAL DE PAGOS — una fila por pago, no por servicio.
-         *
-         * Antes esto era "Detalle por servicio": repetía lo que ya vive en
-         * Servicios, Férulas y Labs, y el historial quedaba ESCONDIDO adentro de
-         * cada fila. Para saber "cuándo pagó y cuánto" había que expandir doce
-         * servicios y sumar a mano. Lo que se DEBE vive en el modal de cobro,
-         * agrupado por visita: el tab es el registro, el modal es la acción.
-         */
-        <div className="rounded-lg bg-bg-1 overflow-hidden">
-          <div className="px-4 py-2 bg-bg-2/60 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-              {t('historyTitle')}
-            </span>
-            <span className="text-[10px] text-text-muted">
-              {t('historyCount', { count: historial.length })}
-            </span>
-            <span className="ml-auto text-[11px] text-text-muted">
-              {t('historyTotal')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPagado)}</b>
-            </span>
-            {vistaPerdonado > 0 && (
-              <span className="text-[11px] text-text-muted">
-                {t('historyDiscountTotal')} <b className="text-amber text-[12.5px] ml-0.5 tabular-nums">{fmt$(vistaPerdonado)}</b>
-              </span>
-            )}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-row-sep bg-bg-2/40 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                  <th className="text-left px-3 py-2.5">{t('colPaidAt')}</th>
-                  <th className="text-right px-3 py-2.5">{t('colAmount')}</th>
-                  <th className="text-left px-3 py-2.5">{t('colMethod')}</th>
-                  <th className="text-left px-3 py-2.5 hidden md:table-cell">{t('colType')}</th>
-                  <th className="text-left px-3 py-2.5">{t('colAppliedTo')}</th>
-                  <th className="w-12 px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {historial.map(p => (
-                  <tr key={p.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
-                    <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs text-text-1">
-                      {fmtDate(p.paidAt)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap font-mono text-xs font-semibold text-emerald">
-                      {fmt$(p.amount)}
-                      {/* Lo perdonado va DEBAJO del monto y no en una columna
-                          propia: la tabla ya tiene seis y en el teléfono no
-                          entra otra. Acá además queda pegado a la cifra que
-                          explica — por qué el saldo bajó más que lo cobrado. */}
-                      {p.discount > 0 && (
-                        <div className="text-[10px] font-normal text-amber mt-0.5">
-                          {t('historyDiscountRow', { amount: fmt$(p.discount) })}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-text-2">
-                      {METHOD_LABELS[p.method] ?? p.method}
-                    </td>
-                    <td className="px-3 py-2.5 text-xs text-text-muted hidden md:table-cell">
-                      {rotuloDeTipo(PAYMENT_TYPES, p.paymentType) ?? '—'}
-                    </td>
-                    {/* A qué se aplicó: el servicio Y la visita. Un monto suelto
-                        con su fecha de cobro no dice qué se estaba pagando. */}
-                    <td className="px-3 py-2.5 text-xs min-w-[200px]">
-                      <div className="text-text-2 truncate">
-                        {p.serviceDescription ?? p.serviceCode ?? '—'}
-                      </div>
-                      <div className="text-[10px] text-text-muted flex items-center gap-2 flex-wrap">
-                        <span>{t('historyVisitOf')} {fmtDate(p.appointmentDate)}</span>
-                        <SedeDeLaVisita nombre={p.clinicName} color={p.clinicColor} />
-                      </div>
-                      {p.notes && <div className="text-[10px] italic text-text-muted mt-0.5">{p.notes}</div>}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {/* "Revertir" y no un tacho: el pago NO se borra — queda
-                          anulado y el saldo vuelve entero. Con texto, porque un
-                          ícono solo obliga a adivinar qué hace, y acá lo que se
-                          adivina es plata. */}
-                      {!readOnly && (
-                        <RevertirPagoButton
-                          onClick={() => setRevirtiendo({
-                            caseId, billingId: p.billingId, payId: p.id,
-                            monto: p.amount, descuento: p.discount ?? 0,
-                          })}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        /* Sin llaves: acá adentro del ternario ya estamos en expresión, y
+           `{x}` sería un objeto literal. En el modal sí van, porque ahí el
+           contexto es JSX. */
+        bloqueHistorial
       )}
 
 
@@ -1631,6 +1652,20 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                 </>
               );
             })()}
+
+            {/* Lo YA cobrado, con su botón de revertir, adentro del modal.
+                Sin esto el ciclo quedaba partido: cobrás acá, y para deshacer un
+                cobro mal hecho había que cerrar, volver a la lista, abrir la
+                flecha del paciente y buscarlo. Tres pasos y ninguno obvio —
+                Erick lo reportó mirando la pantalla (2026-09-23).
+
+                Va DESPUÉS de las visitas y DENTRO de la zona scrolleable: lo que
+                se debe es la acción y va primero; lo que ya se pagó es el
+                respaldo y se consulta. El footer de cobrar queda siempre a la
+                vista. */}
+            {historial.length > 0 && (
+              <div className="px-5 pb-4">{bloqueHistorial}</div>
+            )}
 
             </div>{/* /zona scrolleable */}
 

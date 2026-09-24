@@ -14,6 +14,12 @@
       "port": 3000
     },
     {
+      "name": "attorney",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@precision-medical/attorney", "dev"],
+      "port": 3005
+    },
+    {
       "name": "forms",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@precision-medical/forms", "dev"],

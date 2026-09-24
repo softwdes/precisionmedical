@@ -8,25 +8,26 @@
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import type { Metadata } from 'next';
+import { PrintButton } from '@/components/print-button';
 
 type Props = { params: Promise<{ caseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { caseId } = await params;
   const c = await db.case.findUnique({ where: { id: caseId }, select: { caseCode: true } });
-  return { title: `Lien Médico · ${c?.caseCode ?? caseId}` };
+  return { title: `Medical Lien · ${c?.caseCode ?? caseId}` };
 }
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
+  return new Date(d).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
 
 function fmtDateTime(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
+  return new Date(d).toLocaleString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
@@ -88,6 +89,7 @@ export default async function LienPrintPage({ params }: Props) {
         .sig-meta { font-size: 10px; color: #777; margin-top: 2px; }
         .pending-box { text-align: center; color: #aaa; font-size: 12px; padding: 16px; background: #f8fafc; border-radius: 4px; border: 1px dashed #ddd; }
         .footer { margin-top: 32px; border-top: 1px solid #ddd; padding-top: 12px; font-size: 10px; color: #888; text-align: center; line-height: 1.6; }
+        .lien-print-btn { background: #0f172a; color: #fff; padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; }
         @media print {
           .no-print { display: none !important; }
           .page { padding: 20px 32px; }
@@ -95,48 +97,46 @@ export default async function LienPrintPage({ params }: Props) {
       `}</style>
 
       <div className="no-print" style={{ background: '#f1f5f9', padding: '12px 48px', borderBottom: '1px solid #e2e8f0' }}>
-        <button
-          onClick={() => window.print()}
-          style={{ background: '#0f172a', color: '#fff', padding: '8px 20px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '14px' }}
-        >
-          Imprimir / Guardar PDF
-        </button>
+        <PrintButton
+          label="Print / Save as PDF"
+          className="lien-print-btn"
+        />
       </div>
 
       <div className="page">
         {/* Header */}
         <div className="header">
           <div className="clinic-name">Precision Medical Care</div>
-          <div className="doc-title">ACUERDO DE GRAVAMEN MÉDICO</div>
-          <div className="doc-sub">Medical Lien Agreement · Caso {caseData.caseCode}</div>
-          <div className="doc-sub">Generado: {fmtDateTime(new Date())}</div>
+          <div className="doc-title">MEDICAL LIEN AGREEMENT</div>
+          <div className="doc-sub">Case {caseData.caseCode}</div>
+          <div className="doc-sub">Generated: {fmtDateTime(new Date())}</div>
         </div>
 
         {/* Parties */}
         <div className="section">
-          <div className="section-title">Partes del acuerdo</div>
+          <div className="section-title">Parties to the agreement</div>
           <table>
             <tbody>
               <tr>
-                <td className="label">Paciente</td>
+                <td className="label">Patient</td>
                 <td className="value">{patientName}</td>
               </tr>
               <tr>
-                <td className="label">Código paciente</td>
+                <td className="label">Patient code</td>
                 <td className="value" style={{ fontFamily: 'monospace' }}>{caseData.patient.patientCode}</td>
               </tr>
               {caseData.patient.phone && (
                 <tr>
-                  <td className="label">Teléfono</td>
+                  <td className="label">Phone</td>
                   <td className="value" style={{ fontFamily: 'monospace' }}>{caseData.patient.phone}</td>
                 </tr>
               )}
               <tr>
-                <td className="label">Bufete legal</td>
+                <td className="label">Law firm</td>
                 <td className="value">{caseData.lawFirm?.firmName ?? '—'}</td>
               </tr>
               <tr>
-                <td className="label">Abogado</td>
+                <td className="label">Attorney</td>
                 <td className="value">
                   {attorneyName}
                   {caseData.attorney?.barNumber && (
@@ -148,7 +148,7 @@ export default async function LienPrintPage({ params }: Props) {
               </tr>
               {caseData.accidentDate && (
                 <tr>
-                  <td className="label">Fecha de accidente</td>
+                  <td className="label">Date of accident</td>
                   <td className="value">{fmtDate(caseData.accidentDate)}</td>
                 </tr>
               )}
@@ -158,45 +158,45 @@ export default async function LienPrintPage({ params }: Props) {
 
         {/* Agreement text */}
         <div className="section">
-          <div className="section-title">Términos del acuerdo</div>
+          <div className="section-title">Terms of the agreement</div>
           <div className="agreement-text">
             <p>
-              Yo, <strong>{patientName}</strong>, el paciente abajo firmante, autorizo a <strong>Precision Medical Care</strong>
-              a proporcionar los servicios médicos necesarios para el tratamiento de las lesiones sufridas en el
-              accidente del {fmtDate(caseData.accidentDate)}, y acepto los términos de este gravamen médico (Medical Lien).
+              I, <strong>{patientName}</strong>, the undersigned patient, authorize <strong>Precision Medical Care</strong>
+              to provide the medical services necessary to treat the injuries sustained in the
+              accident of {fmtDate(caseData.accidentDate)}, and I accept the terms of this Medical Lien.
             </p>
             <p>
-              Asigno irrevocablemente a Precision Medical Care el derecho a cobrar directamente del producto de
-              cualquier acuerdo, sentencia o recuperación obtenida como resultado del accidente, el monto total de los
-              servicios médicos prestados, hasta el monto total facturado.
+              I irrevocably assign to Precision Medical Care the right to be paid directly, out of the proceeds
+              of any settlement, judgment or recovery obtained as a result of the accident, the full amount of
+              the medical services rendered, up to the total amount billed.
             </p>
             <p>
-              Autorizo al bufete <strong>{caseData.lawFirm?.firmName ?? '[Bufete]'}</strong> a retener del producto
-              de cualquier recuperación el monto adeudado a Precision Medical Care y a pagar dicho monto directamente
-              a la clínica.
+              I authorize the firm <strong>{caseData.lawFirm?.firmName ?? '[Law firm]'}</strong> to withhold from the
+              proceeds of any recovery the amount owed to Precision Medical Care and to pay that amount directly
+              to the clinic.
             </p>
             <p>
-              Esta asignación es vinculante sobre mí, mis herederos, cesionarios y representantes personales.
-              Al firmar este documento reconozco haber leído, comprendido y aceptado todos los términos aquí descritos.
+              This assignment is binding upon me, my heirs, assigns and personal representatives.
+              By signing this document I acknowledge that I have read, understood and accepted all of the terms described herein.
             </p>
           </div>
         </div>
 
         {/* Signatures */}
         <div className="section">
-          <div className="section-title">Firmas digitales</div>
+          <div className="section-title">Digital signatures</div>
           <div className="sig-grid">
             {/* Patient signature */}
             <div className="sig-card">
-              <div className="sig-label">Paciente</div>
+              <div className="sig-label">Patient</div>
               {patientSig ? (
                 <>
                   <div className="sig-img">
                     {patientSig.signatureSvg ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={patientSig.signatureSvg} alt="Firma del paciente" />
+                      <img src={patientSig.signatureSvg} alt="Patient signature" />
                     ) : (
-                      <span style={{ color: '#aaa', fontSize: '12px' }}>Firma registrada digitalmente</span>
+                      <span style={{ color: '#aaa', fontSize: '12px' }}>Signature recorded digitally</span>
                     )}
                   </div>
                   <div className="sig-name">{patientSig.signerName}</div>
@@ -206,21 +206,21 @@ export default async function LienPrintPage({ params }: Props) {
                   <div className="sig-meta">{fmtDateTime(patientSig.signedAt)}</div>
                 </>
               ) : (
-                <div className="pending-box">Pendiente de firma</div>
+                <div className="pending-box">Awaiting signature</div>
               )}
             </div>
 
             {/* Attorney signature */}
             <div className="sig-card">
-              <div className="sig-label">Abogado</div>
+              <div className="sig-label">Attorney</div>
               {attorneySig ? (
                 <>
                   <div className="sig-img">
                     {attorneySig.signatureSvg ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={attorneySig.signatureSvg} alt="Firma del abogado" />
+                      <img src={attorneySig.signatureSvg} alt="Attorney signature" />
                     ) : (
-                      <span style={{ color: '#aaa', fontSize: '12px' }}>Firma registrada digitalmente</span>
+                      <span style={{ color: '#aaa', fontSize: '12px' }}>Signature recorded digitally</span>
                     )}
                   </div>
                   <div className="sig-name">{attorneySig.signerName}</div>
@@ -230,7 +230,7 @@ export default async function LienPrintPage({ params }: Props) {
                   <div className="sig-meta">{fmtDateTime(attorneySig.signedAt)}</div>
                 </>
               ) : (
-                <div className="pending-box">Pendiente de firma</div>
+                <div className="pending-box">Awaiting signature</div>
               )}
             </div>
           </div>
@@ -239,15 +239,15 @@ export default async function LienPrintPage({ params }: Props) {
         {/* ESIGN notice */}
         <div className="section" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '12px 16px' }}>
           <p style={{ fontSize: '11px', color: '#555', lineHeight: '1.7' }}>
-            Las firmas digitales en este documento son legalmente válidas conforme a la Ley ESIGN
-            (15 U.S.C. § 7001) y la Ley Uniforme de Transacciones Electrónicas (UETA). Las firmas fueron
-            capturadas mediante panel táctil y almacenadas con hash SHA-256 para garantizar su integridad.
-            Este documento fue generado automáticamente por el sistema de Precision Medical Care.
+            The digital signatures on this document are legally valid under the ESIGN Act
+            (15 U.S.C. § 7001) and the Uniform Electronic Transactions Act (UETA). The signatures were
+            captured on a touch panel and stored with a SHA-256 hash to guarantee their integrity.
+            This document was generated automatically by the Precision Medical Care system.
           </p>
         </div>
 
         <div className="footer">
-          Precision Medical Care · Medical Lien Agreement · Caso {caseData.caseCode} · {fmtDateTime(new Date())} · HIPAA compliant
+          Precision Medical Care · Medical Lien Agreement · Case {caseData.caseCode} · {fmtDateTime(new Date())} · HIPAA compliant
         </div>
       </div>
     </>

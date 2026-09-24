@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { FileText, FlaskConical, Scale, Calendar } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 
 /* ------------------------------------------------------------------ */
 /* Types                                                                  */
@@ -41,9 +42,9 @@ interface Props {
 /* ------------------------------------------------------------------ */
 /* Helpers                                                               */
 /* ------------------------------------------------------------------ */
-function fmtDate(iso: string | null | undefined): string {
+function fmtDate(iso: string | null | undefined, locale: string): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
+  return new Date(iso).toLocaleDateString(`${locale}-US`, {
     month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
@@ -60,15 +61,17 @@ const URGENCY_COLOR: Record<string, string> = {
 /* Component                                                             */
 /* ------------------------------------------------------------------ */
 export default function CaseDetailClient({ caseId, caseCode, appointments, allLabs }: Props) {
+  const t      = useTranslations('attorney.case');
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<'notas' | 'labs' | 'hcfa' | 'citas'>('notas');
 
   const signedAppts = appointments.filter(a => a.visitNote?.status === 'SIGNED');
 
   const tabs = [
-    { key: 'notas', label: '📝 Notas Doctor', count: signedAppts.length },
-    { key: 'labs',  label: '🧪 Labs & Imaging', count: allLabs.length },
-    { key: 'hcfa',  label: '📄 HCFA',           count: signedAppts.length > 0 ? 1 : 0 },
-    { key: 'citas', label: '📅 Citas',           count: appointments.length },
+    { key: 'notas', label: t('tabNotes'),        count: signedAppts.length },
+    { key: 'labs',  label: t('tabLabs'),         count: allLabs.length },
+    { key: 'hcfa',  label: t('tabHcfa'),         count: signedAppts.length > 0 ? 1 : 0 },
+    { key: 'citas', label: t('tabAppointments'), count: appointments.length },
   ] as const;
 
   return (
@@ -129,7 +132,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
         {activeTab === 'notas' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {signedAppts.length === 0 ? (
-              <EmptyState icon={<FileText size={24} />} message="Sin notas firmadas disponibles para este caso" />
+              <EmptyState icon={<FileText size={24} />} message={t('emptyNotes')} />
             ) : (
               signedAppts.map(a => {
                 const note = a.visitNote!;
@@ -149,7 +152,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                     }}>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#c4b5fd' }}>
-                          {fmtDate(a.scheduledFor)}
+                          {fmtDate(a.scheduledFor, locale)}
                         </span>
                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
                           {a.type.replace(/_/g, ' ')}
@@ -161,7 +164,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 9, color: '#34d399', fontWeight: 700 }}>✓ FIRMADA</span>
+                        <span style={{ fontSize: 9, color: '#34d399', fontWeight: 700 }}>{t('noteSignedBadge')}</span>
                         {/* La clínica la corrigió después de firmarla: lo que el
                             bufete tenga descargado puede estar viejo. En ámbar y
                             pegado a "FIRMADA" — si estuviera abajo con el resto
@@ -173,7 +176,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                             border: '1px solid rgba(245,158,11,0.35)',
                             borderRadius: 999, padding: '1px 6px',
                           }}>
-                            CORREGIDA · DESCARGAR DE NUEVO
+                            {t('noteCorrected')}
                           </span>
                         )}
                         {note.signedByName && (
@@ -183,7 +186,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                         )}
                         {note.signedAt && (
                           <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>
-                            {fmtDate(note.signedAt)}
+                            {fmtDate(note.signedAt, locale)}
                           </span>
                         )}
                       </div>
@@ -229,7 +232,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
         {activeTab === 'labs' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allLabs.length === 0 ? (
-              <EmptyState icon={<FlaskConical size={24} />} message="Sin estudios de laboratorio o imágenes en este caso" />
+              <EmptyState icon={<FlaskConical size={24} />} message={t('emptyLabs')} />
             ) : (
               <div style={{
                 display: 'grid',
@@ -263,7 +266,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                       </span>
                     </div>
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
-                      {lab.orderType.replace(/_/g, ' ')} · {fmtDate(lab.orderedAt)}
+                      {lab.orderType.replace(/_/g, ' ')} · {fmtDate(lab.orderedAt, locale)}
                     </div>
                   </div>
                 ))}
@@ -276,7 +279,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
         {activeTab === 'hcfa' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {signedAppts.length === 0 ? (
-              <EmptyState icon={<Scale size={24} />} message="HCFA disponible una vez que el médico firme las notas" />
+              <EmptyState icon={<Scale size={24} />} message={t('emptyHcfa')} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* Phase notice */}
@@ -287,9 +290,9 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                 }}>
                   <span style={{ fontSize: 16 }}>📋</span>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>Generación de HCFA — Phase 2</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>{t('hcfaPhaseTitle')}</div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-                      El formulario CMS-1500 / HCFA se generará automáticamente en Phase 2 a partir de los CPT codes y diagnósticos firmados.
+                      {t('hcfaPhaseBody')}
                     </div>
                   </div>
                 </div>
@@ -301,7 +304,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                   background: 'rgba(255,255,255,0.02)',
                 }}>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 10 }}>
-                    Vista previa de diagnósticos confirmados
+                    {t('dxPreview')}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {signedAppts.flatMap(a => a.visitNote!.diagnoses)
@@ -341,7 +344,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
         {activeTab === 'citas' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {appointments.length === 0 ? (
-              <EmptyState icon={<Calendar size={24} />} message="Sin citas registradas en este caso" />
+              <EmptyState icon={<Calendar size={24} />} message={t('emptyAppointments')} />
             ) : (
               appointments.map(a => {
                 const isPast   = new Date(a.scheduledFor) < new Date();
@@ -365,7 +368,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                       color: isPast ? 'rgba(255,255,255,0.50)' : '#67e8f9',
                       minWidth: 100, flexShrink: 0,
                     }}>
-                      {fmtDate(a.scheduledFor)}
+                      {fmtDate(a.scheduledFor, locale)}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>
@@ -379,7 +382,7 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
                       </div>
                       {hasSoap && (
                         <div style={{ fontSize: 10, color: isSigned ? '#34d399' : 'rgba(255,255,255,0.40)', marginTop: 2 }}>
-                          {isSigned ? '✓ Nota firmada' : '○ Nota pendiente'}
+                          {isSigned ? t('noteSigned') : t('notePending')}
                           {a.visitNote?.signedByName ? ` · ${a.visitNote.signedByName}` : ''}
                         </div>
                       )}

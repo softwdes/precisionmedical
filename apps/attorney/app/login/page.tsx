@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@precision-medical/auth/client';
+import { useTranslations } from 'next-intl';
 
 /**
  * Attorney Portal · Login
@@ -10,6 +11,7 @@ import { createClient } from '@precision-medical/auth/client';
  * Acceso: SUPER_ADMIN · LAWYER
  */
 export default function LoginPage() {
+  const t            = useTranslations('attorney.login');
   const router       = useRouter();
   const searchParams = useSearchParams();
   /**
@@ -23,7 +25,7 @@ export default function LoginPage() {
 
   const [email,       setEmail]       = useState('');
   const [password,    setPassword]    = useState('');
-  const [error,       setError]       = useState(callbackErr ? 'Authentication error. Please try again.' : '');
+  const [error,       setError]       = useState(callbackErr ? t('errCallback') : '');
   const [loading,     setLoading]     = useState(false);
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
   const [mfaStep,     setMfaStep]     = useState(false);
@@ -31,8 +33,9 @@ export default function LoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState('');
 
   function formatLockRemaining(until: Date): string {
-    const min = Math.ceil((until.getTime() - Date.now()) / 60_000);
-    return min <= 1 ? 'less than a minute' : `${min} minutes`;
+    // El plural lo resuelve ICU: `=0` y `one` caen los dos en "menos de un
+    // minuto", que es el `min <= 1` que hacía esta función a mano.
+    return t('lockRemaining', { min: Math.ceil((until.getTime() - Date.now()) / 60_000) });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,7 +60,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, success: !authError }),
       });
 
-      if (authError) { setError('Incorrect email or password.'); return; }
+      if (authError) { setError(t('errCredentials')); return; }
 
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
@@ -70,7 +73,7 @@ export default function LoginPage() {
       router.replace(redirectTo);
       router.refresh();
     } catch {
-      setError('Connection error. Please check your network.');
+      setError(t('errNetwork'));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -84,16 +87,16 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-      if (!challenge) { setError('Could not start the MFA challenge.'); return; }
+      if (!challenge) { setError(t('errMfaStart')); return; }
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.replace(/\s/g, ''),
       });
-      if (verifyError) { setError('Invalid code. Please try again.'); return; }
+      if (verifyError) { setError(t('errMfaInvalid')); return; }
       navigating = true;
       router.replace(redirectTo);
       router.refresh();
     } catch {
-      setError('Connection error.');
+      setError(t('errNetworkShort'));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -147,19 +150,22 @@ export default function LoginPage() {
           textAlign:     'center',
           marginBottom:  '28px',
         }}>
-          Portal de Abogados
+          {t('subtitle')}
         </p>
 
         {lockedUntil && (
           <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',color:'#fca5a5',fontSize:12 }}>
-            ⚠️ Cuenta bloqueada. Intentá en <strong style={{marginLeft:4}}>{formatLockRemaining(lockedUntil)}</strong>.
+            ⚠️ {t.rich('locked', {
+              tiempo: formatLockRemaining(lockedUntil),
+              b: (chunks) => <strong style={{ marginLeft: 4 }}>{chunks}</strong>,
+            })}
           </div>
         )}
 
         {mfaStep ? (
           <form onSubmit={handleMfa} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <p style={{ color:'rgba(255,255,255,0.45)', fontSize:13, textAlign:'center', margin:0 }}>
-              Ingresá el código de tu app autenticadora.
+              {t('mfaPrompt')}
             </p>
             <input
               type="text" inputMode="numeric" pattern="[0-9 ]{6,7}" maxLength={7}
@@ -169,24 +175,24 @@ export default function LoginPage() {
             />
             {error && <div style={{background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:8,padding:'9px 12px',color:'#fca5a5',fontSize:12}}>{error}</div>}
             <button type="submit" disabled={loading} style={{width:'100%',padding:12,borderRadius:10,background:loading?'rgba(99,102,241,0.50)':'#6366f1',color:'#fff',fontSize:13,fontWeight:800,border:'none',cursor:loading?'not-allowed':'pointer'}}>
-              {loading ? 'Verificando…' : 'Verificar →'}
+              {loading ? t('verifying') : t('verify')}
             </button>
             <button type="button" onClick={() => { setMfaStep(false); setMfaCode(''); }} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'rgba(255,255,255,0.35)',textAlign:'center'}}>
-              ← Volver
+              {t('back')}
             </button>
           </form>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={{ display:'block',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.08em',color:'rgba(255,255,255,0.40)',marginBottom:'6px',fontWeight:700 }}>
-                Correo electrónico
+                {t('email')}
               </label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="abogado@bufete.com" required autoFocus
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} required autoFocus
                 style={{ width:'100%',padding:'11px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.10)',background:'#0d1117',color:'#f1f5f9',fontSize:14,outline:'none',boxSizing:'border-box' }} />
             </div>
             <div>
               <label style={{ display:'block',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.08em',color:'rgba(255,255,255,0.40)',marginBottom:'6px',fontWeight:700 }}>
-                Contraseña
+                {t('password')}
               </label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
                 style={{ width:'100%',padding:'11px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.10)',background:'#0d1117',color:'#f1f5f9',fontSize:14,outline:'none',boxSizing:'border-box' }} />
@@ -194,7 +200,7 @@ export default function LoginPage() {
             {error && <div style={{background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:8,padding:'9px 12px',color:'#fca5a5',fontSize:12}}>{error}</div>}
             <button type="submit" disabled={loading || !!lockedUntil}
               style={{ width:'100%',padding:12,borderRadius:10,background:(loading||!!lockedUntil)?'rgba(99,102,241,0.50)':'#6366f1',color:'#fff',fontSize:13,fontWeight:800,border:'none',cursor:(loading||!!lockedUntil)?'not-allowed':'pointer',letterSpacing:'0.02em',marginTop:4 }}>
-              {loading ? 'Ingresando…' : 'Ingresar →'}
+              {loading ? t('signingIn') : t('signIn')}
             </button>
           </form>
         )}
@@ -215,7 +221,7 @@ export default function LoginPage() {
             marginRight:   '5px',
             verticalAlign: 'middle',
           }} />
-          Solo abogados y bufetes registrados
+          {t('footer')}
         </div>
       </div>
     </div>

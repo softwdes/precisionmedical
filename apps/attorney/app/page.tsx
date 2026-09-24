@@ -3,19 +3,25 @@
  * Rose accent · acceso por magic link (Phase 1A: mock)
  */
 import Link from 'next/link';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { FileText, Clock, DollarSign, CheckCircle2, Scale, ChevronRight, AlertCircle, LogOut } from 'lucide-react';
 
-function calcAge(dob: Date | null): string {
-  if (!dob) return '';
-  return `${Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000))} a.`;
+function calcAge(dob: Date): number {
+  return Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000));
 }
-function fmtDate(d: Date | null | undefined): string {
+// El idioma entra por parámetro: 'es-US' estaba en duro y le daba fechas en
+// castellano a un portal que default a inglés.
+function fmtDate(d: Date | null | undefined, locale: string): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
+  return new Date(d).toLocaleDateString(`${locale}-US`, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 export default async function AttorneyDashboard() {
+  const t      = await getTranslations('attorney.home');
+  const tc     = await getTranslations('attorney.common');
+  const locale = await getLocale();
+
   // Phase 1A: primer bufete activo = mock session
   const attorney = await db.lawyer.findFirst({
     where: { status: 'ACTIVE', deletedAt: null },
@@ -71,19 +77,19 @@ export default async function AttorneyDashboard() {
             <Scale size={16} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>LienMaster · Portal Legal</div>
+            <div style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>{t('portalName')}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '0.10em' }}>
-              {attorney?.firmName ?? 'Bufete'} · B.22
+              {attorney?.firmName ?? t('firmFallback')} · B.22
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#34d399' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-            En tiempo real
+            {t('live')}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
-            {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
+            {now.toLocaleDateString(`${locale}-US`, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
           </div>
           {/*
             Unica salida del portal. Va por servidor (`GET /api/auth/logout`)
@@ -93,7 +99,7 @@ export default async function AttorneyDashboard() {
           */}
           <a
             href="/api/auth/logout"
-            title="Cerrar sesion"
+            title={tc('logout')}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
               borderRadius: 7, background: 'rgba(255,255,255,0.05)',
@@ -101,7 +107,7 @@ export default async function AttorneyDashboard() {
               color: 'rgba(255,255,255,0.60)', textDecoration: 'none', fontSize: 11,
             }}
           >
-            <LogOut size={13} /> Salir
+            <LogOut size={13} /> {tc('exit')}
           </a>
         </div>
       </header>
@@ -111,20 +117,20 @@ export default async function AttorneyDashboard() {
         {/* Welcome */}
         <div>
           <div style={{ fontWeight: 900, fontSize: 22, color: '#fff' }}>
-            Bienvenido{attorney?.firstName ? `, ${attorney.firstName}` : ''}
+            {attorney?.firstName ? t('welcomeNamed', { nombre: attorney.firstName }) : t('welcome')}
           </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
-            {attorney?.firmName ?? 'Su bufete'}{attorney?.email ? ` · ${attorney.email}` : ''}
+            {attorney?.firmName ?? t('yourFirmFallback')}{attorney?.email ? ` · ${attorney.email}` : ''}
           </div>
         </div>
 
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           {[
-            { label: 'Listos para firmar', value: lienReady.length,   icon: FileText,     color: '#fb7185', bg: 'rgba(244,63,94,0.10)',   border: 'rgba(244,63,94,0.25)' },
-            { label: 'En tratamiento',     value: inTreatment.length, icon: Clock,        color: '#67e8f9', bg: 'rgba(6,182,212,0.08)',   border: 'rgba(6,182,212,0.20)' },
-            { label: 'Por liquidar',       value: toSettle.length,    icon: DollarSign,   color: '#fbbf24', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
-            { label: 'Cerrados este mes',  value: closedMonth.length, icon: CheckCircle2, color: '#a78bfa', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.20)' },
+            { label: t('kpiReadyToSign'),     value: lienReady.length,   icon: FileText,     color: '#fb7185', bg: 'rgba(244,63,94,0.10)',   border: 'rgba(244,63,94,0.25)' },
+            { label: t('kpiInTreatment'),     value: inTreatment.length, icon: Clock,        color: '#67e8f9', bg: 'rgba(6,182,212,0.08)',   border: 'rgba(6,182,212,0.20)' },
+            { label: t('kpiToSettle'),        value: toSettle.length,    icon: DollarSign,   color: '#fbbf24', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
+            { label: t('kpiClosedThisMonth'), value: closedMonth.length, icon: CheckCircle2, color: '#a78bfa', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.20)' },
           ].map(k => (
             <div key={k.label} style={{
               padding: '16px', borderRadius: 12,
@@ -150,7 +156,7 @@ export default async function AttorneyDashboard() {
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fb7185', boxShadow: '0 0 8px #fb7185', display: 'inline-block' }} />
-              Liens listos para firmar ({lienReady.length})
+              {t('readyToSignHeading', { total: lienReady.length })}
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {lienReady.map(c => {
@@ -178,21 +184,21 @@ export default async function AttorneyDashboard() {
                         {c.patient.lastName.toUpperCase()}, {c.patient.firstName}
                         {c.patient.dateOfBirth && (
                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', fontWeight: 400, marginLeft: 8 }}>
-                            {calcAge(c.patient.dateOfBirth)}
+                            {t('age', { edad: calcAge(c.patient.dateOfBirth) })}
                           </span>
                         )}
                       </div>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', marginBottom: 6 }}>
-                        {c.caseCode} · DOL: {fmtDate(c.accidentDate)} · {appts.length} visita{appts.length !== 1 ? 's' : ''}
-                        {lastAppt && <> · Última: {fmtDate(lastAppt.scheduledFor)}</>}
+                        {c.caseCode} · DOL: {fmtDate(c.accidentDate, locale)} · {t('visits', { total: appts.length })}
+                        {lastAppt && <> · {t('lastVisit', { fecha: fmtDate(lastAppt.scheduledFor, locale) })}</>}
                       </div>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 10, color: '#34d399' }}>✓ Paciente activo</span>
+                        <span style={{ fontSize: 10, color: '#34d399' }}>{t('patientActive')}</span>
                         <span style={{ fontSize: 10, color: signedCount > 0 ? '#34d399' : 'rgba(255,255,255,0.35)' }}>
-                          {signedCount > 0 ? `✓ ${signedCount} nota${signedCount !== 1 ? 's' : ''} firmada${signedCount !== 1 ? 's' : ''}` : '○ Sin notas firmadas'}
+                          {signedCount > 0 ? t('signedNotes', { total: signedCount }) : t('noSignedNotes')}
                         </span>
                         <span style={{ fontSize: 10, color: signedCount > 0 ? '#34d399' : 'rgba(255,255,255,0.35)' }}>
-                          {signedCount > 0 ? '✓ HCFA disponible' : '○ HCFA pendiente'}
+                          {signedCount > 0 ? t('hcfaAvailable') : t('hcfaPending')}
                         </span>
                       </div>
                     </div>
@@ -203,7 +209,7 @@ export default async function AttorneyDashboard() {
                         color: 'rgba(255,255,255,0.70)', textDecoration: 'none',
                         display: 'flex', alignItems: 'center', gap: 5,
                       }}>
-                        Ver caso
+                        {tc('viewCase')}
                       </Link>
                       <Link href={`/cases/${c.id}/sign`} style={{
                         padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700,
@@ -212,7 +218,7 @@ export default async function AttorneyDashboard() {
                         display: 'flex', alignItems: 'center', gap: 6,
                         boxShadow: '0 4px 14px rgba(244,63,94,0.35)',
                       }}>
-                        ✍️ Firmar mi parte
+                        {t('signMyPart')}
                       </Link>
                     </div>
                   </div>
@@ -228,7 +234,7 @@ export default async function AttorneyDashboard() {
             fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
             color: 'rgba(255,255,255,0.45)', marginBottom: 12,
           }}>
-            Clientes · {cases.length} caso{cases.length !== 1 ? 's' : ''}
+            {t('clientsHeading', { total: cases.length })}
           </h2>
           {cases.length === 0 ? (
             <div style={{
@@ -237,7 +243,7 @@ export default async function AttorneyDashboard() {
               color: 'rgba(255,255,255,0.30)', fontSize: 13,
             }}>
               <AlertCircle size={28} style={{ marginBottom: 10, opacity: 0.4 }} />
-              <div>Sin casos asignados a este bufete</div>
+              <div>{t('noCases')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -272,10 +278,10 @@ export default async function AttorneyDashboard() {
                         {c.patient.lastName.toUpperCase()}, {c.patient.firstName}
                       </div>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>
-                        {c.caseCode} · {appts.length} visita{appts.length !== 1 ? 's' : ''}
+                        {c.caseCode} · {t('visits', { total: appts.length })}
                         {nextAppt && (
                           <span style={{ color: '#67e8f9' }}>
-                            {' '}· Próxima: {fmtDate(nextAppt.scheduledFor)}
+                            {' '}· {t('nextVisit', { fecha: fmtDate(nextAppt.scheduledFor, locale) })}
                             {nextAppt.provider && ` (${nextAppt.provider.lastName})`}
                           </span>
                         )}
@@ -295,7 +301,7 @@ export default async function AttorneyDashboard() {
                       color: '#fb7185', textDecoration: 'none',
                       display: 'flex', alignItems: 'center', gap: 4,
                     }}>
-                      Ver caso <ChevronRight size={12} />
+                      {tc('viewCase')} <ChevronRight size={12} />
                     </Link>
                   </div>
                 );

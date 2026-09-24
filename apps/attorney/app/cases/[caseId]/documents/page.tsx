@@ -10,26 +10,26 @@
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import type { Metadata } from 'next';
-import { PrintButton } from './print-button';
+import { PrintButton } from '@/components/print-button';
 
 type Props = { params: Promise<{ caseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { caseId } = await params;
   const c = await db.case.findUnique({ where: { id: caseId }, select: { caseCode: true } });
-  return { title: `Paquete Documentos · ${c?.caseCode ?? caseId}` };
+  return { title: `Document Package · ${c?.caseCode ?? caseId}` };
 }
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
+  return new Date(d).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
   });
 }
 
 function fmtDateTime(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
+  return new Date(d).toLocaleString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
@@ -171,7 +171,7 @@ export default async function DocumentPackagePage({ params }: Props) {
     : '—';
   const patientSig  = caseData.lienSignatures.find(s => s.signerType === 'PATIENT');
   const attorneySig = caseData.lienSignatures.find(s => s.signerType === 'ATTORNEY');
-  const lienStatus  = patientSig && attorneySig ? 'Firmado' : patientSig ? 'Pendiente abogado' : 'Pendiente firma';
+  const lienStatus  = patientSig && attorneySig ? 'Signed' : patientSig ? 'Awaiting attorney' : 'Awaiting signature';
 
   const signedNotes  = caseData.appointments.filter(a => a.visitNote?.signedAt);
   const pendingNotes = caseData.appointments.filter(a => a.visitNote && !a.visitNote.signedAt);
@@ -181,8 +181,8 @@ export default async function DocumentPackagePage({ params }: Props) {
       <style>{styles}</style>
 
       <div className="no-print">
-        <PrintButton />
-        <span className="print-hint">Ctrl+P → Destino: Guardar como PDF → Márgenes: Mínimos</span>
+        <PrintButton label="🖨 Print / Save as PDF" />
+        <span className="print-hint">Ctrl+P → Destination: Save as PDF → Margins: Minimum</span>
       </div>
 
       <div className="page">
@@ -190,82 +190,82 @@ export default async function DocumentPackagePage({ params }: Props) {
         <div className="cover">
           <div className="cover-logo">Precision Medical Care</div>
           <div className="cover-tagline">Medical Records & Legal Document Package</div>
-          <div className="cover-title">PAQUETE DE DOCUMENTOS DEL CASO</div>
+          <div className="cover-title">CASE DOCUMENT PACKAGE</div>
           <div className="cover-case-code">{caseData.caseCode}</div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
             <div className="cover-meta">
               <div className="cover-row">
-                <strong>Paciente:</strong> {patientName}
+                <strong>Patient:</strong> {patientName}
                 {' '}<span style={{ fontFamily: 'monospace', color: '#888', fontSize: 12 }}>({caseData.patient.patientCode})</span>
               </div>
-              <div className="cover-row"><strong>Bufete:</strong> {caseData.lawFirm?.firmName ?? '—'}</div>
-              <div className="cover-row"><strong>Abogado:</strong> {attorneyName}{caseData.attorney?.barNumber ? ` · Bar #${caseData.attorney.barNumber}` : ''}</div>
+              <div className="cover-row"><strong>Law firm:</strong> {caseData.lawFirm?.firmName ?? '—'}</div>
+              <div className="cover-row"><strong>Attorney:</strong> {attorneyName}{caseData.attorney?.barNumber ? ` · Bar #${caseData.attorney.barNumber}` : ''}</div>
               {caseData.accidentDate && (
-                <div className="cover-row"><strong>Fecha de accidente:</strong> {fmtDate(caseData.accidentDate)}</div>
+                <div className="cover-row"><strong>Date of accident:</strong> {fmtDate(caseData.accidentDate)}</div>
               )}
               {caseData.primaryInsurance && (
-                <div className="cover-row"><strong>Seguro:</strong> {caseData.primaryInsurance.name}</div>
+                <div className="cover-row"><strong>Insurance:</strong> {caseData.primaryInsurance.name}</div>
               )}
-              <div className="cover-row"><strong>Estado del caso:</strong> {caseData.status}</div>
+              <div className="cover-row"><strong>Case status:</strong> {caseData.status}</div>
             </div>
           </div>
 
           {/* Table of contents */}
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
             <div className="toc">
-              <div className="toc-title">Contenido del paquete</div>
+              <div className="toc-title">Package contents</div>
               <div className="toc-item">
-                <span>1. Acuerdo de Gravamen Médico (Lien)</span>
+                <span>1. Medical Lien Agreement</span>
                 <span className={patientSig && attorneySig ? 'badge-ok' : 'badge-pending'}>
                   {lienStatus}
                 </span>
               </div>
               {signedNotes.map((a, i) => (
                 <div key={a.id} className="toc-item">
-                  <span>{i + 2}. Nota clínica · {fmtDate(a.scheduledFor)} · {a.type ?? 'Visita'}</span>
-                  <span className="badge-ok">Firmada</span>
+                  <span>{i + 2}. Clinical note · {fmtDate(a.scheduledFor)} · {a.type ?? 'Visit'}</span>
+                  <span className="badge-ok">Signed</span>
                 </div>
               ))}
               {pendingNotes.map((a, i) => (
                 <div key={a.id} className="toc-item">
-                  <span>{signedNotes.length + i + 2}. Nota clínica · {fmtDate(a.scheduledFor)}</span>
-                  <span className="badge-pending">Sin firma</span>
+                  <span>{signedNotes.length + i + 2}. Clinical note · {fmtDate(a.scheduledFor)}</span>
+                  <span className="badge-pending">Unsigned</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="cover-generated">
-            Generado: {fmtDateTime(new Date())} · Sistema: Precision Medical Care · HIPAA Compliant
+            Generated: {fmtDateTime(new Date())} · System: Precision Medical Care · HIPAA Compliant
           </div>
         </div>
 
         {/* ── SECCIÓN 1: LIEN ── */}
         <div className="section-break">
           <div className="doc-header">
-            <div className="doc-title">SECCIÓN 1 — Acuerdo de Gravamen Médico</div>
-            <div className="doc-subtitle">Medical Lien Agreement · {caseData.caseCode}</div>
+            <div className="doc-title">SECTION 1 — Medical Lien Agreement</div>
+            <div className="doc-subtitle">Case {caseData.caseCode}</div>
           </div>
 
           <div className="section">
-            <div className="section-title">Partes del acuerdo</div>
+            <div className="section-title">Parties to the agreement</div>
             <table className="info-table">
               <tbody>
                 <tr>
-                  <td className="label">Paciente</td>
+                  <td className="label">Patient</td>
                   <td className="value">{patientName}</td>
                 </tr>
                 <tr>
-                  <td className="label">Código paciente</td>
+                  <td className="label">Patient code</td>
                   <td className="value" style={{ fontFamily: 'monospace' }}>{caseData.patient.patientCode}</td>
                 </tr>
                 <tr>
-                  <td className="label">Bufete legal</td>
+                  <td className="label">Law firm</td>
                   <td className="value">{caseData.lawFirm?.firmName ?? '—'}</td>
                 </tr>
                 <tr>
-                  <td className="label">Abogado</td>
+                  <td className="label">Attorney</td>
                   <td className="value">
                     {attorneyName}
                     {caseData.attorney?.barNumber && (
@@ -277,7 +277,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                 </tr>
                 {caseData.accidentDate && (
                   <tr>
-                    <td className="label">Fecha de accidente</td>
+                    <td className="label">Date of accident</td>
                     <td className="value">{fmtDate(caseData.accidentDate)}</td>
                   </tr>
                 )}
@@ -286,43 +286,43 @@ export default async function DocumentPackagePage({ params }: Props) {
           </div>
 
           <div className="section">
-            <div className="section-title">Términos del acuerdo</div>
+            <div className="section-title">Terms of the agreement</div>
             <div className="agreement-text">
               <p>
-                Yo, <strong>{patientName}</strong>, el paciente abajo firmante, autorizo a <strong>Precision Medical Care</strong>
-                a proporcionar los servicios médicos necesarios para el tratamiento de las lesiones sufridas en el
-                accidente del {fmtDate(caseData.accidentDate)}, y acepto los términos de este gravamen médico (Medical Lien).
+                I, <strong>{patientName}</strong>, the undersigned patient, authorize <strong>Precision Medical Care</strong>
+                to provide the medical services necessary to treat the injuries sustained in the
+                accident of {fmtDate(caseData.accidentDate)}, and I accept the terms of this Medical Lien.
               </p>
               <p>
-                Asigno irrevocablemente a Precision Medical Care el derecho a cobrar directamente del producto de
-                cualquier acuerdo, sentencia o recuperación obtenida como resultado del accidente, el monto total de los
-                servicios médicos prestados, hasta el monto total facturado.
+                I irrevocably assign to Precision Medical Care the right to be paid directly, out of the proceeds
+                of any settlement, judgment or recovery obtained as a result of the accident, the full amount of
+                the medical services rendered, up to the total amount billed.
               </p>
               <p>
-                Autorizo al bufete <strong>{caseData.lawFirm?.firmName ?? '[Bufete]'}</strong> a retener del producto
-                de cualquier recuperación el monto adeudado a Precision Medical Care y a pagar dicho monto directamente
-                a la clínica.
+                I authorize the firm <strong>{caseData.lawFirm?.firmName ?? '[Law firm]'}</strong> to withhold from the
+                proceeds of any recovery the amount owed to Precision Medical Care and to pay that amount directly
+                to the clinic.
               </p>
               <p>
-                Esta asignación es vinculante sobre mí, mis herederos, cesionarios y representantes personales.
-                Al firmar este documento reconozco haber leído, comprendido y aceptado todos los términos aquí descritos.
+                This assignment is binding upon me, my heirs, assigns and personal representatives.
+                By signing this document I acknowledge that I have read, understood and accepted all of the terms described herein.
               </p>
             </div>
           </div>
 
           <div className="section">
-            <div className="section-title">Firmas digitales</div>
+            <div className="section-title">Digital signatures</div>
             <div className="sig-grid">
               <div className="sig-card">
-                <div className="sig-label">Paciente</div>
+                <div className="sig-label">Patient</div>
                 {patientSig ? (
                   <>
                     <div className="sig-img">
                       {patientSig.signatureSvg ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={patientSig.signatureSvg} alt="Firma del paciente" />
+                        <img src={patientSig.signatureSvg} alt="Patient signature" />
                       ) : (
-                        <span style={{ color: '#aaa', fontSize: 12 }}>Firma registrada digitalmente</span>
+                        <span style={{ color: '#aaa', fontSize: 12 }}>Signature recorded digitally</span>
                       )}
                     </div>
                     <div className="sig-name">{patientSig.signerName}</div>
@@ -330,19 +330,19 @@ export default async function DocumentPackagePage({ params }: Props) {
                     <div className="sig-meta">{fmtDateTime(patientSig.signedAt)}</div>
                   </>
                 ) : (
-                  <div className="pending-box">Pendiente de firma</div>
+                  <div className="pending-box">Awaiting signature</div>
                 )}
               </div>
               <div className="sig-card">
-                <div className="sig-label">Abogado</div>
+                <div className="sig-label">Attorney</div>
                 {attorneySig ? (
                   <>
                     <div className="sig-img">
                       {attorneySig.signatureSvg ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={attorneySig.signatureSvg} alt="Firma del abogado" />
+                        <img src={attorneySig.signatureSvg} alt="Attorney signature" />
                       ) : (
-                        <span style={{ color: '#aaa', fontSize: 12 }}>Firma registrada digitalmente</span>
+                        <span style={{ color: '#aaa', fontSize: 12 }}>Signature recorded digitally</span>
                       )}
                     </div>
                     <div className="sig-name">{attorneySig.signerName}</div>
@@ -350,7 +350,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                     <div className="sig-meta">{fmtDateTime(attorneySig.signedAt)}</div>
                   </>
                 ) : (
-                  <div className="pending-box">Pendiente de firma</div>
+                  <div className="pending-box">Awaiting signature</div>
                 )}
               </div>
             </div>
@@ -358,8 +358,8 @@ export default async function DocumentPackagePage({ params }: Props) {
 
           <div className="esign-notice">
             <p>
-              Las firmas digitales son legalmente válidas conforme a la Ley ESIGN (15 U.S.C. § 7001) y UETA.
-              Las firmas fueron capturadas mediante panel táctil con hash SHA-256 para garantizar su integridad.
+              The digital signatures are legally valid under the ESIGN Act (15 U.S.C. § 7001) and UETA.
+              The signatures were captured on a touch panel with a SHA-256 hash to guarantee their integrity.
             </p>
           </div>
         </div>
@@ -368,16 +368,16 @@ export default async function DocumentPackagePage({ params }: Props) {
         {caseData.appointments.length > 0 && (
           <div className="section-break">
             <div className="doc-header">
-              <div className="doc-title">SECCIÓN 2 — Notas Clínicas</div>
+              <div className="doc-title">SECTION 2 — Clinical Notes</div>
               <div className="doc-subtitle">
-                {signedNotes.length} nota{signedNotes.length !== 1 ? 's' : ''} firmada{signedNotes.length !== 1 ? 's' : ''}
-                {pendingNotes.length > 0 ? ` · ${pendingNotes.length} pendiente${pendingNotes.length !== 1 ? 's' : ''}` : ''}
+                {signedNotes.length} signed note{signedNotes.length !== 1 ? 's' : ''}
+                {pendingNotes.length > 0 ? ` · ${pendingNotes.length} pending` : ''}
               </div>
             </div>
 
             {pendingNotes.length > 0 && (
               <div className="unsigned-note">
-                ⚠ {pendingNotes.length} nota{pendingNotes.length !== 1 ? 's' : ''} sin firma médica — no incluida{pendingNotes.length !== 1 ? 's' : ''} como documentación oficial
+                ⚠ {pendingNotes.length} note{pendingNotes.length !== 1 ? 's' : ''} without a provider signature — not included as official documentation
               </div>
             )}
 
@@ -390,17 +390,17 @@ export default async function DocumentPackagePage({ params }: Props) {
                   <div className="note-header">
                     <div>
                       <div className="note-date">
-                        Visita #{idx + 1} · {fmtDate(appt.scheduledFor)}
+                        Visit #{idx + 1} · {fmtDate(appt.scheduledFor)}
                       </div>
-                      <div className="note-type">Consulta médica</div>
+                      <div className="note-type">Office visit</div>
                     </div>
                     {note.signedAt ? (
                       <div className="note-signed">
-                        ✓ Firmada · {note.signedByName ?? 'Provider'} · {fmtDate(note.signedAt)}
+                        ✓ Signed · {note.signedByName ?? 'Provider'} · {fmtDate(note.signedAt)}
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 10 }}>
-                        Sin firma — borrador
+                        Unsigned — draft
                       </div>
                     )}
                   </div>
@@ -408,7 +408,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* Chief Complaint */}
                   {note.chiefComplaint && (
                     <div className="note-field">
-                      <div className="note-field-label">Motivo de consulta (CC)</div>
+                      <div className="note-field-label">Chief complaint (CC)</div>
                       <div className="note-field-value">{note.chiefComplaint}</div>
                     </div>
                   )}
@@ -416,7 +416,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* HPI */}
                   {note.hpi && (
                     <div className="note-field">
-                      <div className="note-field-label">Historia de enfermedad actual (HPI)</div>
+                      <div className="note-field-label">History of present illness (HPI)</div>
                       <div className="note-field-value">{note.hpi}</div>
                     </div>
                   )}
@@ -424,7 +424,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* Physical Exam */}
                   {note.physicalExam && (
                     <div className="note-field">
-                      <div className="note-field-label">Examen físico</div>
+                      <div className="note-field-label">Physical examination</div>
                       <div className="note-field-value">{note.physicalExam}</div>
                     </div>
                   )}
@@ -432,7 +432,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* Assessment */}
                   {note.assessment && (
                     <div className="note-field">
-                      <div className="note-field-label">Evaluación (Assessment)</div>
+                      <div className="note-field-label">Assessment</div>
                       <div className="note-field-value">{note.assessment}</div>
                     </div>
                   )}
@@ -440,7 +440,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* Plan */}
                   {note.plan && (
                     <div className="note-field">
-                      <div className="note-field-label">Plan de tratamiento</div>
+                      <div className="note-field-label">Treatment plan</div>
                       <div className="note-field-value">{note.plan}</div>
                     </div>
                   )}
@@ -448,7 +448,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* Diagnoses */}
                   {note.diagnoses.length > 0 && (
                     <div className="note-field">
-                      <div className="note-field-label">Diagnósticos (ICD-10)</div>
+                      <div className="note-field-label">Diagnoses (ICD-10)</div>
                       <div style={{ marginTop: 6 }}>
                         {note.diagnoses.map((dx) => (
                           <span key={dx.icd10Code} className="dx-chip">
@@ -462,7 +462,7 @@ export default async function DocumentPackagePage({ params }: Props) {
                   {/* CPT codes */}
                   {note.serviceCodes && note.serviceCodes.length > 0 && (
                     <div className="note-field">
-                      <div className="note-field-label">Procedimientos (CPT)</div>
+                      <div className="note-field-label">Procedures (CPT)</div>
                       <div style={{ marginTop: 6 }}>
                         {note.serviceCodes.map((cpt, ci) => (
                           <div key={ci} className="cpt-row">
@@ -484,10 +484,10 @@ export default async function DocumentPackagePage({ params }: Props) {
 
         {/* Footer */}
         <div className="doc-footer">
-          <strong>Precision Medical Care</strong> · Paquete de Documentos · Caso {caseData.caseCode}<br />
-          Generado: {fmtDateTime(new Date())} · Confidencial — Solo para uso legal autorizado<br />
-          Este documento puede contener información protegida de salud (PHI) según la ley HIPAA.
-          Su divulgación no autorizada está prohibida por ley federal.
+          <strong>Precision Medical Care</strong> · Document Package · Case {caseData.caseCode}<br />
+          Generated: {fmtDateTime(new Date())} · Confidential — For authorized legal use only<br />
+          This document may contain protected health information (PHI) under HIPAA.
+          Unauthorized disclosure is prohibited by federal law.
         </div>
       </div>
     </>

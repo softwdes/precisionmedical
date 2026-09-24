@@ -7,19 +7,19 @@ import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import { ArrowLeft, Calendar, FileText, FlaskConical, Scale, Download, ShieldCheck } from 'lucide-react';
 import CaseDetailClient from './case-detail-client';
+import { getTranslations, getLocale } from 'next-intl/server';
 
 type Props = { params: Promise<{ caseId: string }> };
 
-function fmtDate(d: Date | null | undefined): string {
+function fmtDate(d: Date | null | undefined, locale: string): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
-}
-function fmtDateTime(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(d).toLocaleDateString(`${locale}-US`, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' });
 }
 
 export default async function CaseDetailPage({ params }: Props) {
+  const t      = await getTranslations('attorney.case');
+  const tc     = await getTranslations('attorney.common');
+  const locale = await getLocale();
   const { caseId } = await params;
 
   const c = await db.case.findUnique({
@@ -134,7 +134,7 @@ export default async function CaseDetailPage({ params }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#34d399' }}>
             <ShieldCheck size={12} />
-            <span>⏱ Acceso auditado HIPAA</span>
+            <span>{t('hipaaAudited')}</span>
           </div>
           <span style={{
             fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em',
@@ -157,13 +157,13 @@ export default async function CaseDetailPage({ params }: Props) {
         }}>
           {/* Patient */}
           <div style={{ flex: '1 1 200px' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 4 }}>Paciente</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 4 }}>{tc('patient')}</div>
             <div style={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>
               {c.patient.lastName.toUpperCase()}, {c.patient.firstName}
             </div>
             {c.patient.dateOfBirth && (
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-                DOB: {fmtDate(c.patient.dateOfBirth)}
+                DOB: {fmtDate(c.patient.dateOfBirth, locale)}
               </div>
             )}
           </div>
@@ -171,26 +171,26 @@ export default async function CaseDetailPage({ params }: Props) {
           {/* Mini KPIs */}
           {[
             {
-              label: 'Próxima cita',
-              value: nextAppt ? fmtDate(nextAppt.scheduledFor) : 'No agendada',
+              label: t('kpiNextAppt'),
+              value: nextAppt ? fmtDate(nextAppt.scheduledFor, locale) : t('notScheduled'),
               sub:   nextAppt?.provider ? `${nextAppt.provider.lastName} · ${nextAppt.clinic?.name ?? ''}` : '',
               color: '#67e8f9',
             },
             {
-              label: 'Visitas',
-              value: `${appts.length} total · ${signedAppts.length} firmadas`,
-              sub:   appts[0] ? `Última: ${fmtDate(appts[0].scheduledFor)}` : '',
+              label: t('kpiVisits'),
+              value: t('visitsValue', { total: appts.length, firmadas: signedAppts.length }),
+              sub:   appts[0] ? t('lastVisit', { fecha: fmtDate(appts[0].scheduledFor, locale) }) : '',
               color: '#a78bfa',
             },
             {
-              label: 'Seguro',
-              value: c.primaryInsurance?.name ?? 'Sin seguro',
-              sub:   c.secondaryInsurance ? `Secundario: ${c.secondaryInsurance.name}` : '',
+              label: t('kpiInsurance'),
+              value: c.primaryInsurance?.name ?? t('noInsurance'),
+              sub:   c.secondaryInsurance ? t('secondary', { nombre: c.secondaryInsurance.name }) : '',
               color: '#fbbf24',
             },
             {
               label: 'DOL',
-              value: fmtDate(c.accidentDate),
+              value: fmtDate(c.accidentDate, locale),
               sub:   c.accidentType?.replace(/_/g, ' ') ?? '',
               color: '#fb7185',
             },
@@ -211,13 +211,13 @@ export default async function CaseDetailPage({ params }: Props) {
           borderRadius: 10,
         }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', alignSelf: 'center' }}>
-            Estado del Lien:
+            {t('lienStatus')}
           </div>
           {[
-            { label: 'Paciente firmó', ok: patientSigned },
-            { label: 'Doctor firmó nota', ok: signedAppts.length > 0 },
-            { label: 'HCFA generado', ok: signedAppts.length > 0 },
-            { label: 'Abogado firmó', ok: attorneySigned },
+            { label: t('stepPatientSigned'),  ok: patientSigned },
+            { label: t('stepProviderSigned'), ok: signedAppts.length > 0 },
+            { label: t('stepHcfaGenerated'),  ok: signedAppts.length > 0 },
+            { label: t('stepAttorneySigned'), ok: attorneySigned },
           ].map(s => (
             <span key={s.label} style={{
               fontSize: 11, fontWeight: 600,
@@ -234,7 +234,7 @@ export default async function CaseDetailPage({ params }: Props) {
               display: 'flex', alignItems: 'center', gap: 5,
               boxShadow: '0 3px 10px rgba(244,63,94,0.30)',
             }}>
-              ✍️ Firmar mi parte →
+              {t('signMyPart')}
             </Link>
           )}
         </div>
@@ -283,7 +283,7 @@ export default async function CaseDetailPage({ params }: Props) {
             color: 'rgba(255,255,255,0.60)', cursor: 'pointer', textDecoration: 'none',
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <Download size={13} /> Descargar paquete
+            <Download size={13} /> {t('downloadPackage')}
           </Link>
           {!attorneySigned && (
             <Link href={`/cases/${caseId}/sign`} style={{
@@ -293,7 +293,7 @@ export default async function CaseDetailPage({ params }: Props) {
               display: 'flex', alignItems: 'center', gap: 6,
               boxShadow: '0 4px 14px rgba(244,63,94,0.35)',
             }}>
-              ✍️ Firmar mi parte del Lien →
+              {t('signMyLienPart')}
             </Link>
           )}
         </div>

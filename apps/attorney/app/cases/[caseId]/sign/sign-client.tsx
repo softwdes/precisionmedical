@@ -7,6 +7,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ShieldCheck, RefreshCw, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface Point { x: number; y: number }
 
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export default function SignLienClient({ initialSignerName, alreadySigned: initAlreadySigned, patientSigned }: Props) {
+  const t      = useTranslations('attorney.sign');
+  const tc     = useTranslations('attorney.common');
   const params = useParams<{ caseId: string }>();
   const router = useRouter();
   const caseId = params.caseId;
@@ -113,7 +116,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
       setDone(true);
       setTimeout(() => router.push(`/cases/${caseId}`), 2200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      setError(err instanceof Error ? err.message : t('errSave'));
     } finally {
       setSaving(false);
     }
@@ -137,9 +140,9 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
           <Check size={34} color="#34d399" />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>Lien ya firmado</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{t('alreadyTitle')}</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
-            Tu firma ya está registrada en este caso
+            {t('alreadyBody')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -148,14 +151,14 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
             color: 'rgba(255,255,255,0.70)', textDecoration: 'none',
           }}>
-            ← Volver al caso
+            {t('backToCaseArrow')}
           </Link>
           <a href={`/cases/${caseId}/sign/print`} target="_blank" rel="noreferrer" style={{
             padding: '11px 24px', borderRadius: 9, fontSize: 13, fontWeight: 700,
             background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.30)',
             color: '#f43f5e', textDecoration: 'none',
           }}>
-            🖨 Imprimir lien
+            {t('printLien')}
           </a>
         </div>
       </div>
@@ -180,9 +183,9 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
           <Check size={34} color="#f43f5e" />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>Lien firmado</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{t('doneTitle')}</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
-            Firma guardada y auditada · Redirigiendo…
+            {t('doneBody')}
           </div>
         </div>
         <a href={`/cases/${caseId}/sign/print`} target="_blank" rel="noreferrer" style={{
@@ -190,7 +193,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
           background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.30)',
           color: '#f43f5e', textDecoration: 'none',
         }}>
-          🖨 Imprimir lien
+          {t('printLien')}
         </a>
       </div>
     );
@@ -214,14 +217,14 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
             color: 'rgba(255,255,255,0.60)', textDecoration: 'none', fontSize: 12,
           }}>
-            <ArrowLeft size={13} /> Volver al caso
+            <ArrowLeft size={13} /> {t('backToCase')}
           </Link>
           <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.10)' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Firma del Lien Médico</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{t('title')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#34d399' }}>
           <ShieldCheck size={12} />
-          <span>⏱ Auditada · HIPAA</span>
+          <span>{t('audited')}</span>
         </div>
       </header>
 
@@ -230,10 +233,10 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
         {/* Title */}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 4 }}>
-            Acuerdo de Gravamen Médico
+            {t('agreementTitle')}
           </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)' }}>
-            Medical Lien Agreement · Todas las firmas son legalmente vinculantes y se guardan en log de auditoría inmutable
+            {t('agreementSubtitle')}
           </div>
         </div>
 
@@ -246,7 +249,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             border: `1px solid ${patientSigned ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)'}`,
           }}>
             <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Paciente
+              {tc('patient')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
               <span style={{
@@ -257,11 +260,11 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
                 color: patientSigned ? '#000' : 'rgba(255,255,255,0.40)',
               }}>{patientSigned ? '✓' : '○'}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: patientSigned ? '#34d399' : 'rgba(255,255,255,0.40)' }}>
-                {patientSigned ? 'Firma recibida' : 'Pendiente'}
+                {patientSigned ? t('sigReceived') : t('pending')}
               </span>
             </div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
-              {patientSigned ? 'Firmado electrónicamente' : 'El paciente aún no ha firmado'}
+              {patientSigned ? t('signedElectronically') : t('patientNotSigned')}
             </div>
           </div>
 
@@ -271,7 +274,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.25)',
           }}>
             <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Abogado / Bufete
+              {t('cardAttorney')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
               <span style={{
@@ -279,9 +282,9 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
                 border: '1px solid rgba(244,63,94,0.50)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#f43f5e', flexShrink: 0,
               }}>○</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#fb7185' }}>Pendiente tu firma</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#fb7185' }}>{t('yourSignaturePending')}</span>
             </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>Firma digital a continuación →</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{t('signBelow')}</div>
           </div>
         </div>
 
@@ -292,15 +295,15 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(255,255,255,0.40)', fontWeight: 700 }}>
-            Datos del firmante
+            {t('signerData')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.50)', fontWeight: 600 }}>Nombre completo *</label>
+              <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.50)', fontWeight: 600 }}>{t('fullName')}</label>
               <input
                 value={signerName}
                 onChange={e => setSignerName(e.target.value)}
-                placeholder="Ej. María González Abogado"
+                placeholder={t('fullNamePlaceholder')}
                 style={{
                   background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none',
@@ -308,11 +311,11 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.50)', fontWeight: 600 }}>Email (opcional)</label>
+              <label style={{ fontSize: 10, color: 'rgba(255,255,255,0.50)', fontWeight: 600 }}>{t('emailOptional')}</label>
               <input
                 value={signerEmail}
                 onChange={e => setSignerEmail(e.target.value)}
-                placeholder="abogado@bufete.com"
+                placeholder={t('emailPlaceholder')}
                 style={{
                   background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none',
@@ -333,7 +336,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', fontWeight: 600 }}>
-              ✍️ Firma aquí · dibuja con mouse o dedo
+              {t('drawHere')}
             </div>
             {hasSig && (
               <button onClick={clearCanvas} style={{
@@ -342,7 +345,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
                 borderRadius: 6, padding: '4px 10px', color: 'rgba(255,255,255,0.55)',
                 fontSize: 10, cursor: 'pointer', fontWeight: 600,
               }}>
-                <RefreshCw size={10} /> Limpiar
+                <RefreshCw size={10} /> {t('clear')}
               </button>
             )}
           </div>
@@ -362,7 +365,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
           <div style={{ padding: '6px 16px 8px', borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
             <div style={{ borderTop: '1px solid rgba(244,63,94,0.20)', width: '40%' }} />
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 4 }}>
-              Línea de firma · Abogado o representante autorizado del bufete
+              {t('signatureLine')}
             </div>
           </div>
         </div>
@@ -382,7 +385,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             style={{ width: 14, height: 14, marginTop: 1, accentColor: '#f43f5e', flexShrink: 0 }}
           />
           <span style={{ fontSize: 11, color: agreed ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
-            Confirmo que estoy autorizado para firmar este Acuerdo de Gravamen Médico en nombre del bufete y entiendo que mi firma digital es legalmente vinculante bajo la Ley ESIGN y UETA. Esta acción quedará registrada en el log de auditoría con mi nombre, email, dirección IP y timestamp UTC.
+            {t('attestation')}
           </span>
         </label>
 
@@ -404,7 +407,7 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
             color: 'rgba(255,255,255,0.60)', textDecoration: 'none',
           }}>
-            Cancelar
+            {tc('cancel')}
           </Link>
           <button
             onClick={handleSubmit}
@@ -423,16 +426,18 @@ export default function SignLienClient({ initialSignerName, alreadySigned: initA
             }}
           >
             {saving ? (
-              <><span style={{ animation: 'spin 1s linear infinite' }}>⏳</span> Guardando…</>
+              <><span style={{ animation: 'spin 1s linear infinite' }}>⏳</span> {tc('saving')}</>
             ) : (
-              <><Check size={14} /> Confirmar firma del Lien</>
+              <><Check size={14} /> {t('confirmSign')}</>
             )}
           </button>
         </div>
 
         {/* Audit notice */}
         <div style={{ textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.25)', paddingTop: 4 }}>
-          🔒 Esta firma se almacenará en la tabla <code style={{ fontFamily: 'monospace', fontSize: 9 }}>lien_signatures</code> con registro de IP, user-agent y timestamp UTC · append-only · HIPAA Phase 1A
+          {t.rich('auditNotice', {
+            c: (chunks) => <code style={{ fontFamily: 'monospace', fontSize: 9 }}>{chunks}</code>,
+          })}
         </div>
       </div>
     </div>

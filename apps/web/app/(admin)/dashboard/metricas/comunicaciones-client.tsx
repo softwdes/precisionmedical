@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@precision/ui';
 import {
   Phone, PhoneOutgoing, PhoneMissed,
@@ -46,22 +45,21 @@ function fmtDuration(sec: number | null) {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function fmtDate(iso: string, locale: string) {
+function fmtDate(iso: string) {
   // Append 'Z' if no timezone info — DB stores UTC without suffix
   const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
-  return new Date(utc).toLocaleString(locale, {
+  return new Date(utc).toLocaleString('es-US', {
     month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
 
-/** Solo el color: la etiqueta de cada resultado vive en `metrics.call*`. */
 const OUTCOME_CONFIG = {
-  ANSWERED:    { i18n: 'callAnswered',   color: 'text-emerald bg-emerald/10 border-emerald/20' },
-  NO_ANSWER:   { i18n: 'callNoAnswer',   color: 'text-amber bg-amber/10 border-amber/20' },
-  BUSY:        { i18n: 'callBusy',       color: 'text-amber bg-amber/10 border-amber/20' },
-  FAILED:      { i18n: 'callFailed',     color: 'text-rose bg-rose/10 border-rose/20' },
-  IN_PROGRESS: { i18n: 'callInProgress', color: 'text-cyan bg-cyan/10 border-cyan/20' },
+  ANSWERED:    { label: 'Contestó',    color: 'text-emerald bg-emerald/10 border-emerald/20' },
+  NO_ANSWER:   { label: 'Sin respuesta', color: 'text-amber bg-amber/10 border-amber/20' },
+  BUSY:        { label: 'Ocupado',     color: 'text-amber bg-amber/10 border-amber/20' },
+  FAILED:      { label: 'Falló',       color: 'text-rose bg-rose/10 border-rose/20' },
+  IN_PROGRESS: { label: 'En curso',   color: 'text-cyan bg-cyan/10 border-cyan/20' },
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -88,9 +86,6 @@ function KpiCard({ icon: Icon, label, value, sub, color }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ComunicacionesClient({ calls, kpis }: Props) {
-  const t      = useTranslations('metrics');
-  const locale = useLocale();
-
   const [search,      setSearch]      = useState('');
   const [filterOut,   setFilterOut]   = useState<string>('ALL');
   const [filterAgent, setFilterAgent] = useState<string>('ALL');
@@ -127,11 +122,11 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
           tarjeta era un cero permanente. "Sin respuesta" SÍ queda — una
           saliente que no contestan es un resultado real y frecuente. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <KpiCard icon={Phone}         label={t('totalCalls')} value={kpis.totalCalls}  color="bg-brand/10 text-brand-text" />
-        <KpiCard icon={PhoneOutgoing} label={t('outbound')}      value={kpis.outbound}    color="bg-violet/10 text-violet-text" />
-        <KpiCard icon={Phone}         label={t('answered')}    value={kpis.answered}    sub={kpis.totalCalls > 0 ? `${Math.round(kpis.answered / kpis.totalCalls * 100)}%` : '—'} color="bg-emerald/10 text-emerald" />
-        <KpiCard icon={PhoneMissed}   label={t('callNoAnswer')}  value={kpis.noAnswer}    color="bg-amber/10 text-amber" />
-        <KpiCard icon={Clock}         label={t('avgDuration')} value={avgFmt}            color="bg-rose/10 text-rose" />
+        <KpiCard icon={Phone}         label="Total llamadas" value={kpis.totalCalls}  color="bg-brand/10 text-brand-text" />
+        <KpiCard icon={PhoneOutgoing} label="Salientes"      value={kpis.outbound}    color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={Phone}         label="Contestadas"    value={kpis.answered}    sub={kpis.totalCalls > 0 ? `${Math.round(kpis.answered / kpis.totalCalls * 100)}%` : '—'} color="bg-emerald/10 text-emerald" />
+        <KpiCard icon={PhoneMissed}   label="Sin respuesta"  value={kpis.noAnswer}    color="bg-amber/10 text-amber" />
+        <KpiCard icon={Clock}         label="Duración prom." value={avgFmt}            color="bg-rose/10 text-rose" />
       </div>
 
       {/* Filters */}
@@ -141,7 +136,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder={t('searchCalls')}
+            placeholder="Buscar paciente, agente, número…"
             className="w-full pl-9 pr-3 py-1.5 text-sm bg-surface border border-border rounded-lg text-text-1 placeholder:text-text-3 focus:outline-none focus:border-brand/50"
           />
         </div>
@@ -154,11 +149,11 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
           onChange={e => setFilterOut(e.target.value)}
           className="text-sm bg-surface border border-border rounded-lg px-3 py-1.5 text-text-1 focus:outline-none focus:border-brand/50"
         >
-          <option value="ALL">{t('allOutcomes')}</option>
-          <option value="ANSWERED">{t('callAnswered')}</option>
-          <option value="NO_ANSWER">{t('callNoAnswer')}</option>
-          <option value="BUSY">{t('callBusy')}</option>
-          <option value="FAILED">{t('callFailed')}</option>
+          <option value="ALL">Todos los resultados</option>
+          <option value="ANSWERED">Contestó</option>
+          <option value="NO_ANSWER">Sin respuesta</option>
+          <option value="BUSY">Ocupado</option>
+          <option value="FAILED">Falló</option>
         </select>
 
         {agents.length > 0 && (
@@ -167,7 +162,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
             onChange={e => setFilterAgent(e.target.value)}
             className="text-sm bg-surface border border-border rounded-lg px-3 py-1.5 text-text-1 focus:outline-none focus:border-brand/50"
           >
-            <option value="ALL">{t('allAgents')}</option>
+            <option value="ALL">Todos los agentes</option>
             {agents.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         )}
@@ -180,8 +175,8 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
             <Phone className="w-8 h-8 text-text-3 mx-auto mb-3" />
             <p className="text-sm text-text-3">
               {calls.length === 0
-                ? t('noCallsYet')
-                : t('noCallsMatch')}
+                ? 'No hay llamadas registradas aún. Aparecerán aquí automáticamente cuando el equipo empiece a usar el sistema de llamadas.'
+                : 'No hay llamadas que coincidan con los filtros.'}
             </p>
           </div>
         ) : (
@@ -191,12 +186,12 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                 <tr className="border-b border-border bg-surface-2">
                   {/* Sin columna "Dirección": todas las llamadas son salientes
                       desde que Twilio desvía las entrantes a otro número. */}
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colPatientNumber')}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colAgent')}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colOutcome')}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colDuration')}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colCase')}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('colDate')}</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Paciente / Número</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Agente</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Resultado</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Duración</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Caso</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3">Fecha</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -222,7 +217,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded border', outcome.color)}>
-                          {t(outcome.i18n)}
+                          {outcome.label}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -240,7 +235,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-1 text-[11px] text-text-3">
                           <Calendar className="w-3 h-3" />
-                          {fmtDate(row.createdAt, locale)}
+                          {fmtDate(row.createdAt)}
                         </span>
                       </td>
                     </tr>

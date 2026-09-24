@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations, useLocale } from 'next-intl';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Button, Badge, Input, Label, Select, SelectContent, SelectItem,
@@ -75,19 +74,16 @@ type EmpOption = { id: string; firstName: string; lastName: string; employeeCode
 
 const FLAGS: Record<string, string> = { US: '🇺🇸', BO: '🇧🇴', PE: '🇵🇪' };
 
-/** El tipo de `t`: estas funciones viven fuera de un componente y lo reciben. */
-type Traducir = (k: string, p?: Record<string, string | number>) => string;
-
 const PERIOD_OPTIONS = [
-  { key: 'this_week',  i18n: 'periodThisWeek' },
-  { key: 'last_week',  i18n: 'periodLastWeek' },
-  { key: 'q1_current', i18n: 'periodQ1Current' },
-  { key: 'q2_current', i18n: 'periodQ2Current' },
-  { key: 'q1_last',    i18n: 'periodQ1Last' },
-  { key: 'q2_last',    i18n: 'periodQ2Last' },
-  { key: 'this_month', i18n: 'periodThisMonth' },
-  { key: 'last_month', i18n: 'periodLastMonth' },
-  { key: 'custom',     i18n: 'periodCustom' },
+  { key: 'this_week',  label: 'Esta semana' },
+  { key: 'last_week',  label: 'Semana pasada' },
+  { key: 'q1_current', label: 'Quincena actual (1–15)' },
+  { key: 'q2_current', label: 'Quincena actual (16–fin)' },
+  { key: 'q1_last',    label: 'Quincena pasada (1–15)' },
+  { key: 'q2_last',    label: 'Quincena pasada (16–fin)' },
+  { key: 'this_month', label: 'Este mes' },
+  { key: 'last_month', label: 'Mes pasado' },
+  { key: 'custom',     label: 'Rango personalizado' },
 ];
 
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
@@ -144,30 +140,30 @@ function getPeriodDates(key: string): { from: string; to: string } {
 
 function fmtHours(h: number): string { return `${h.toFixed(2)}h`; }
 
-function fmtTime(iso: string | null, locale: string): string {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false }); }
-  catch { return iso; }
+function fmtTime(t: string | null): string {
+  if (!t) return '—';
+  try { return new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+  catch { return t; }
 }
 
-function fmtDateDisplay(d: string, locale: string): string {
+function fmtDateDisplay(d: string): string {
   try {
-    return new Date(d + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', weekday: 'short' });
+    return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', weekday: 'short' });
   } catch { return d; }
 }
 
-function fmtDateShort(d: string, locale: string): string {
-  try { return new Date(d + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short' }); }
+function fmtDateShort(d: string): string {
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }); }
   catch { return d; }
 }
 
-function fmtDateFull(d: string, locale: string): string {
-  try { return new Date(d + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtDateFull(d: string): string {
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
   catch { return d; }
 }
 
-function fmtWeekLabel(start: string, end: string, locale: string): string {
-  return `${fmtDateShort(start, locale)} – ${fmtDateShort(end, locale)}`;
+function fmtWeekLabel(start: string, end: string): string {
+  return `${fmtDateShort(start)} – ${fmtDateShort(end)}`;
 }
 
 // Mark which days contribute to overtime within a week
@@ -187,7 +183,7 @@ function markOvertimeDays(days: DayRecord[]): Set<string> {
 
 // ─── Excel Export (SpreadsheetML — no external dependency) ───────────────────
 
-function exportExcel(data: ReportData, t: Traducir, locale: string): void {
+function exportExcel(data: ReportData): void {
   const esc = (s: string | number | null | undefined) =>
     String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -210,7 +206,7 @@ function exportExcel(data: ReportData, t: Traducir, locale: string): void {
       ${cell(e.full_name)}
       ${cell(e.employee_code)}
       ${cell(FLAGS[e.countryId] ?? '' + ' ' + (e.country?.name ?? e.countryId))}
-      ${cell(e.employment_type === 'exempt' ? t('salaried') : t('hourly'))}
+      ${cell(e.employment_type === 'exempt' ? 'Asalariado' : 'Por hora')}
       ${cell(e.totalDaysWorked, 'Number')}
       ${cell(e.totalRegular, 'Number')}
       ${cell(e.employment_type === 'exempt' ? 'N/A' : String(e.totalOvertime))}
@@ -238,11 +234,11 @@ function exportExcel(data: ReportData, t: Traducir, locale: string): void {
       ${cell(e.employee_code)}
       ${cell(r.date)}
       ${cell(r.clinic_name ?? '—')}
-      ${cell(fmtTime(r.check_in, locale))}
-      ${cell(fmtTime(r.check_out, locale))}
+      ${cell(fmtTime(r.check_in))}
+      ${cell(fmtTime(r.check_out))}
       ${cell(r.hours_worked ?? 0, 'Number')}
       ${cell(r.break_minutes, 'Number')}
-      ${cell(r.status === 'on_time' ? t('onTime') : r.status === 'late' ? t('late', { min: r.late_minutes }) : t('absent'))}
+      ${cell(r.status === 'on_time' ? 'A tiempo' : r.status === 'late' ? `Tardanza ${r.late_minutes}m` : 'Ausente')}
       ${cell(r.late_minutes, 'Number')}
     </Row>`)
   ).join('');
@@ -263,24 +259,24 @@ function exportExcel(data: ReportData, t: Traducir, locale: string): void {
       <Interior ss:Color="#FFF1F2" ss:Pattern="Solid"/>
     </Style>
   </Styles>
-  <Worksheet ss:Name="${t('sheetSummary')}">
+  <Worksheet ss:Name="Resumen">
     <Table>
       <Row>
-        ${hdCell(t('employee'))}${hdCell(t('xlsCode'))}${hdCell(t('country'))}
-        ${hdCell(t('type'))}${hdCell(t('xlsDaysWorked'))}
-        ${hdCell(t('xlsRegularHours'))}${hdCell(t('xlsOvertimeHours'))}
-        ${hdCell(t('xlsTotalHours'))}${hdCell(t('xlsBreaks'))}
+        ${hdCell('Empleado')}${hdCell('Código')}${hdCell('País')}
+        ${hdCell('Tipo')}${hdCell('Días trabajados')}
+        ${hdCell('Horas regulares')}${hdCell('Horas extras')}
+        ${hdCell('Total horas')}${hdCell('Breaks (h)')}
       </Row>
       ${summaryRows}
       ${summaryTotalRow}
     </Table>
   </Worksheet>
-  <Worksheet ss:Name="${t('sheetDaily')}">
+  <Worksheet ss:Name="Detalle diario">
     <Table>
       <Row>
-        ${hdCell(t('employee'))}${hdCell(t('xlsCode'))}${hdCell(t('colDate'))}
-        ${hdCell(t('colClinic'))}${hdCell(t('colClockIn'))}${hdCell(t('colClockOut'))}
-        ${hdCell(t('colHours'))}${hdCell(t('xlsBreakMin'))}${hdCell(t('colStatus'))}${hdCell(t('xlsLateMin'))}
+        ${hdCell('Empleado')}${hdCell('Código')}${hdCell('Fecha')}
+        ${hdCell('Clínica')}${hdCell('Entrada')}${hdCell('Salida')}
+        ${hdCell('Horas')}${hdCell('Break (min)')}${hdCell('Estado')}${hdCell('Tardanza (min)')}
       </Row>
       ${detailRows}
     </Table>
@@ -300,8 +296,8 @@ function exportExcel(data: ReportData, t: Traducir, locale: string): void {
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 
-function exportPDF(data: ReportData, t: Traducir, locale: string): void {
-  const today = new Date().toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' });
+function exportPDF(data: ReportData): void {
+  const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const rows = data.employees.map((e) => {
     const bg = e.totalOvertime > 0 ? 'background:rgba(244,63,94,0.06);' : '';
@@ -313,7 +309,7 @@ function exportPDF(data: ReportData, t: Traducir, locale: string): void {
     const weekDetail = e.weekBlocks.map((w) => {
       const ot = w.overtimeHours > 0 ? `<span style="color:#F43F5E"> +${fmtHours(w.overtimeHours)} OT</span>` : '';
       return `<tr style="font-size:8px;color:#666">
-        <td style="padding:2px 8px 2px 28px">${fmtWeekLabel(w.weekStart, w.weekEnd, locale)}</td>
+        <td style="padding:2px 8px 2px 28px">${fmtWeekLabel(w.weekStart, w.weekEnd)}</td>
         <td></td><td></td>
         <td style="text-align:right">${fmtHours(w.regularHours)}${ot}</td>
         <td></td><td></td><td></td>
@@ -321,7 +317,7 @@ function exportPDF(data: ReportData, t: Traducir, locale: string): void {
     }).join('');
     return `<tr style="${bg}border-bottom:1px solid #eee">
       <td style="padding:5px 8px">${e.full_name}<br><span style="font-size:8px;color:#888">${e.employee_code} · ${FLAGS[e.countryId] ?? ''}</span></td>
-      <td style="padding:5px 8px;font-size:9px">${e.employment_type === 'exempt' ? t('salaried') : t('hourly')}</td>
+      <td style="padding:5px 8px;font-size:9px">${e.employment_type === 'exempt' ? 'Asalariado' : 'Por hora'}</td>
       <td style="padding:5px 8px;text-align:right;color:#10B981;font-weight:600">${fmtHours(e.totalRegular)}</td>
       <td style="padding:5px 8px;text-align:right">${extraCell}</td>
       <td style="padding:5px 8px;text-align:right;font-weight:500">${fmtHours(e.totalHours)}</td>
@@ -332,7 +328,7 @@ function exportPDF(data: ReportData, t: Traducir, locale: string): void {
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<title>${t('pdfTitle')}</title>
+<title>Reporte de Horas</title>
 <style>
   @page { margin: 18mm 14mm; size: A4 landscape; }
   body { font-family: Arial, sans-serif; font-size: 10px; color: #111; margin: 0; }
@@ -350,47 +346,47 @@ function exportPDF(data: ReportData, t: Traducir, locale: string): void {
 <div class="page-header">
   <div><strong style="font-size:12px">PM · Precision Medical</strong></div>
   <div style="text-align:right">
-    <div><strong>${t('pdfHeading')}</strong></div>
-    <div>${t('pdfRange', { desde: fmtDateFull(data.period.from, locale), hasta: fmtDateFull(data.period.to, locale) })}</div>
-    <div style="color:#888">${t('pdfGenerated', { fecha: today })}</div>
+    <div><strong>Reporte de Horas — Nómina</strong></div>
+    <div>Del ${fmtDateFull(data.period.from)} al ${fmtDateFull(data.period.to)}</div>
+    <div style="color:#888">Generado el ${today}</div>
   </div>
 </div>
 <div class="kpi-row">
   <div class="kpi-card" style="border-left:3px solid #10B981">
-    <div class="lbl">${t('kpiRegular')}</div>
+    <div class="lbl">Horas regulares</div>
     <div class="val" style="color:#10B981">${fmtHours(data.summary.totalRegularHours)}</div>
-    <div style="font-size:8px;color:#888">${t('kpiEmployees', { total: data.summary.totalEmployees })}</div>
+    <div style="font-size:8px;color:#888">${data.summary.totalEmployees} empleados</div>
   </div>
   <div class="kpi-card" style="border-left:3px solid #F43F5E">
-    <div class="lbl">${t('kpiOvertime')}</div>
+    <div class="lbl">Horas extras</div>
     <div class="val" style="color:#F43F5E">${fmtHours(data.summary.totalOvertimeHours)}</div>
-    <div style="font-size:8px;color:#888">${t('kpiWithOvertime', { total: data.summary.employeesWithOvertime })}</div>
+    <div style="font-size:8px;color:#888">${data.summary.employeesWithOvertime} con overtime</div>
   </div>
   <div class="kpi-card" style="border-left:3px solid #6366F1">
-    <div class="lbl">${t('kpiTotal')}</div>
+    <div class="lbl">Total horas</div>
     <div class="val" style="color:#6366F1">${fmtHours(data.summary.totalHours)}</div>
-    <div style="font-size:8px;color:#888">${t('ofPeriod')}</div>
+    <div style="font-size:8px;color:#888">del período</div>
   </div>
   <div class="kpi-card" style="border-left:3px solid #F59E0B">
-    <div class="lbl">${t('kpiBreaks')}</div>
+    <div class="lbl">Breaks no pagados</div>
     <div class="val" style="color:#F59E0B">${fmtHours(data.summary.totalBreakHours)}</div>
-    <div style="font-size:8px;color:#888">${t('discounted')}</div>
+    <div style="font-size:8px;color:#888">descontados</div>
   </div>
 </div>
 <table>
   <thead><tr>
-    <th>${t('employee')}</th><th>${t('type')}</th>
-    <th style="text-align:right">${t('colRegular')}</th>
-    <th style="text-align:right">${t('colOvertime')}</th>
-    <th style="text-align:right">${t('colTotal')}</th>
-    <th style="text-align:right">${t('colBreaks')}</th>
-    <th style="text-align:right">${t('colDays')}</th>
+    <th>Empleado</th><th>Tipo</th>
+    <th style="text-align:right">Regulares</th>
+    <th style="text-align:right">Extras</th>
+    <th style="text-align:right">Total</th>
+    <th style="text-align:right">Breaks</th>
+    <th style="text-align:right">Días</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
 <div class="note">
-  ${t('pdfNote')}<br>
-  ${t('pdfNote2')}
+  * Horas extras calculadas sobre 40h/semana según FLSA (empleados Non-exempt, EEUU Utah).<br>
+  Bolivia y Perú: horas sobre 40h/semana para referencia contable — la tarifa local la aplica contabilidad externamente.
 </div>
 </body></html>`;
 
@@ -413,7 +409,6 @@ function EmpCombobox({
   value: string;
   onChange: (id: string) => void;
 }) {
-  const t = useTranslations('hoursReport');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -479,7 +474,7 @@ function EmpCombobox({
             </span>
           </span>
         ) : (
-          <span className="text-text-muted truncate">{t('allEmployees')}</span>
+          <span className="text-text-muted truncate">Todos los empleados</span>
         )}
         <ChevronDown className={cn('h-3.5 w-3.5 text-text-muted shrink-0 transition-transform duration-150', open && 'rotate-180')} />
       </button>
@@ -497,7 +492,7 @@ function EmpCombobox({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('searchEmployee')}
+                placeholder="Buscar por nombre o código..."
                 className="w-full rounded-md border border-border bg-bg-0 pl-8 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
               />
             </div>
@@ -516,7 +511,7 @@ function EmpCombobox({
                   !value ? 'text-brand-text font-medium' : 'text-text-2',
                 )}
               >
-                <span>{t('allEmployees')}</span>
+                <span>Todos los empleados</span>
                 {!value && <Check className="h-3 w-3 text-brand-text" />}
               </button>
             )}
@@ -525,8 +520,8 @@ function EmpCombobox({
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-center text-xs text-text-muted">
                 {search
-                  ? t('noResultsFor', { texto: search })
-                  : t('noEmployeesAvailable')}
+                  ? <>Sin resultados para &ldquo;{search}&rdquo;</>
+                  : 'No hay empleados disponibles'}
               </p>
             ) : (
               filtered.map((e) => (
@@ -593,8 +588,6 @@ function RowSkeleton() {
 // ─── Week Breakdown (expanded row left panel) ─────────────────────────────────
 
 function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean }) {
-  const t = useTranslations('hoursReport');
-  const locale = useLocale();
   const pctGreen = Math.min(100, (week.regularHours / 40) * 100);
   const pctRed = isExempt ? 0 : (week.overtimeHours / 40) * 100;
   const hasOT = week.overtimeHours > 0 && !isExempt;
@@ -602,7 +595,7 @@ function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-text-2 font-medium">{fmtWeekLabel(week.weekStart, week.weekEnd, locale)}</span>
+        <span className="text-xs text-text-2 font-medium">{fmtWeekLabel(week.weekStart, week.weekEnd)}</span>
         <span className={cn('text-xs font-semibold font-mono', hasOT ? 'text-rose-text' : 'text-text-1')}>
           {fmtHours(week.totalHours)}
         </span>
@@ -625,12 +618,12 @@ function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean 
       </div>
 
       <div className="flex items-center justify-between text-[11px] text-text-3">
-        <span>{t('regularOf40', { horas: fmtHours(week.regularHours) })}</span>
+        <span>{fmtHours(week.regularHours)} regulares / 40h</span>
         {hasOT && (
-          <span className="text-rose-text font-medium">{t('overtimePlus', { horas: fmtHours(week.overtimeHours) })}</span>
+          <span className="text-rose-text font-medium">+{fmtHours(week.overtimeHours)} extras</span>
         )}
         {isExempt && (
-          <span className="italic">{t('salariedNoOvertime')}</span>
+          <span className="italic">Asalariado — sin overtime</span>
         )}
       </div>
     </div>
@@ -640,8 +633,6 @@ function WeekBreakdown({ week, isExempt }: { week: WeekBlock; isExempt: boolean 
 // ─── Daily Detail (expanded row right panel) ──────────────────────────────────
 
 function DailyDetail({ days, weekBlocks }: { days: DayRecord[]; weekBlocks: WeekBlock[] }) {
-  const t = useTranslations('hoursReport');
-  const locale = useLocale();
   // Build a set of dates that contribute to overtime
   const overtimeDates = new Set<string>();
   for (const week of weekBlocks) {
@@ -651,7 +642,7 @@ function DailyDetail({ days, weekBlocks }: { days: DayRecord[]; weekBlocks: Week
   }
 
   if (days.length === 0) {
-    return <p className="text-xs text-text-3 italic py-2">{t('noRecordsPeriod')}</p>;
+    return <p className="text-xs text-text-3 italic py-2">Sin registros en este período</p>;
   }
 
   return (
@@ -659,29 +650,29 @@ function DailyDetail({ days, weekBlocks }: { days: DayRecord[]; weekBlocks: Week
       <table className="w-full text-[11px]">
         <thead>
           <tr className="text-[10px] text-text-muted uppercase tracking-wider border-b border-border">
-            <th className="text-left pb-1.5 pr-3">{t('colDate')}</th>
-            <th className="text-left pb-1.5 pr-3">{t('colClinic')}</th>
-            <th className="text-right pb-1.5 pr-3">{t('colClockIn')}</th>
-            <th className="text-right pb-1.5 pr-3">{t('colClockOut')}</th>
-            <th className="text-right pb-1.5 pr-3">{t('colHours')}</th>
-            <th className="text-left pb-1.5">{t('colStatus')}</th>
+            <th className="text-left pb-1.5 pr-3">Fecha</th>
+            <th className="text-left pb-1.5 pr-3">Clínica</th>
+            <th className="text-right pb-1.5 pr-3">Entrada</th>
+            <th className="text-right pb-1.5 pr-3">Salida</th>
+            <th className="text-right pb-1.5 pr-3">Horas</th>
+            <th className="text-left pb-1.5">Estado</th>
           </tr>
         </thead>
         <tbody>
           {days.map((day) => {
             const isOT = overtimeDates.has(day.date);
             const statusBadge = day.status === 'on_time'
-              ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-text">{t('onTime')}</span>
+              ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-text">A tiempo</span>
               : day.status === 'late'
-                ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-amber-500/10 text-amber-text">{t('late', { min: day.late_minutes })}</span>
-                : <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-rose-500/10 text-rose-text">{t('absent')}</span>;
+                ? <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-amber-500/10 text-amber-text">Tardanza {day.late_minutes}m</span>
+                : <span className="inline-block rounded px-1.5 py-0.5 text-[10px] bg-rose-500/10 text-rose-text">Ausente</span>;
 
             return (
               <tr key={day.id} className="border-b border-border/40 last:border-0">
-                <td className="py-1.5 pr-3 text-text-2 whitespace-nowrap">{fmtDateDisplay(day.date, locale)}</td>
+                <td className="py-1.5 pr-3 text-text-2 whitespace-nowrap">{fmtDateDisplay(day.date)}</td>
                 <td className="py-1.5 pr-3 text-text-3 max-w-[120px] truncate">{day.clinic_name ?? '—'}</td>
-                <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_in, locale)}</td>
-                <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_out, locale)}</td>
+                <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_in)}</td>
+                <td className="py-1.5 pr-3 text-right font-mono text-text-2">{fmtTime(day.check_out)}</td>
                 <td className={cn('py-1.5 pr-3 text-right font-mono font-medium', isOT ? 'text-rose-text' : 'text-emerald-text')}>
                   {day.hours_worked != null ? fmtHours(day.hours_worked) : '—'}
                 </td>
@@ -706,7 +697,6 @@ function EmployeeRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const t = useTranslations('hoursReport');
   const hasOT = emp.totalOvertime > 0 && emp.employment_type !== 'exempt';
   const isExempt = emp.employment_type === 'exempt';
 
@@ -741,8 +731,8 @@ function EmployeeRow({
         {/* Tipo */}
         <td className="px-4 py-3 w-[110px]">
           {isExempt
-            ? <Badge variant="info" className="text-[10px]">{t('salaried')}</Badge>
-            : <Badge variant="warning" className="text-[10px]">{t('hourly')}</Badge>
+            ? <Badge variant="info" className="text-[10px]">Asalariado</Badge>
+            : <Badge variant="warning" className="text-[10px]">Por hora</Badge>
           }
         </td>
 
@@ -791,20 +781,20 @@ function EmployeeRow({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: week breakdown */}
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">{t('weekBreakdown')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">Breakdown por semana</p>
                 <div className="space-y-4">
                   {emp.weekBlocks.map((w, i) => (
                     <WeekBreakdown key={i} week={w} isExempt={isExempt} />
                   ))}
                   {emp.weekBlocks.length === 0 && (
-                    <p className="text-xs text-text-3 italic">{t('noWeeks')}</p>
+                    <p className="text-xs text-text-3 italic">Sin semanas con registros</p>
                   )}
                 </div>
               </div>
 
               {/* Right: daily detail */}
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">{t('dailyDetail')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">Detalle diario</p>
                 <DailyDetail days={emp.dailyRecords} weekBlocks={emp.weekBlocks} />
               </div>
             </div>
@@ -826,7 +816,6 @@ function EmployeeMobileCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const t = useTranslations('hoursReport');
   const hasOT = emp.totalOvertime > 0 && emp.employment_type !== 'exempt';
   const isExempt = emp.employment_type === 'exempt';
   const pctGreen = Math.min(100, (emp.totalRegular / Math.max(emp.totalHours, 40)) * 100);
@@ -856,8 +845,8 @@ function EmployeeMobileCard({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isExempt
-            ? <Badge variant="info" className="text-[10px]">{t('salaried')}</Badge>
-            : <Badge variant="warning" className="text-[10px]">{t('hourly')}</Badge>
+            ? <Badge variant="info" className="text-[10px]">Asalariado</Badge>
+            : <Badge variant="warning" className="text-[10px]">Por hora</Badge>
           }
           <ChevronDown className={cn('h-4 w-4 text-text-muted transition-transform', expanded && 'rotate-180')} />
         </div>
@@ -866,17 +855,17 @@ function EmployeeMobileCard({
       {/* KPI mini-row */}
       <div className="grid grid-cols-3 gap-2">
         <div className="text-center">
-          <p className="text-[10px] text-text-muted uppercase tracking-wider">{t('labelRegular')}</p>
+          <p className="text-[10px] text-text-muted uppercase tracking-wider">Regular</p>
           <p className="text-sm font-semibold font-mono text-emerald-text">{fmtHours(emp.totalRegular)}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-text-muted uppercase tracking-wider">{t('colOvertime')}</p>
+          <p className="text-[10px] text-text-muted uppercase tracking-wider">Extras</p>
           <p className={cn('text-sm font-semibold font-mono', hasOT ? 'text-rose-text' : 'text-text-muted')}>
             {isExempt ? <span className="italic text-xs">N/A</span> : hasOT ? fmtHours(emp.totalOvertime) : '—'}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-text-muted uppercase tracking-wider">{t('colTotal')}</p>
+          <p className="text-[10px] text-text-muted uppercase tracking-wider">Total</p>
           <p className="text-sm font-semibold font-mono text-text-1">{fmtHours(emp.totalHours)}</p>
         </div>
       </div>
@@ -891,7 +880,7 @@ function EmployeeMobileCard({
             )}
           </div>
           <div className="flex justify-between text-[10px] text-text-muted">
-            <span>{t('regularShort', { horas: fmtHours(emp.totalRegular) })}</span>
+            <span>{fmtHours(emp.totalRegular)} regulares</span>
             {hasOT && <span className="text-rose-text">+{fmtHours(emp.totalOvertime)} extras</span>}
           </div>
         </div>
@@ -901,7 +890,7 @@ function EmployeeMobileCard({
       {expanded && (
         <div className="border-t border-border pt-3 space-y-4">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">{t('weekBreakdown')}</p>
+            <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Breakdown por semana</p>
             <div className="space-y-3">
               {emp.weekBlocks.map((w, i) => (
                 <WeekBreakdown key={i} week={w} isExempt={isExempt} />
@@ -909,7 +898,7 @@ function EmployeeMobileCard({
             </div>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">{t('dailyDetail')}</p>
+            <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Detalle diario</p>
             <DailyDetail days={emp.dailyRecords} weekBlocks={emp.weekBlocks} />
           </div>
         </div>
@@ -925,10 +914,6 @@ export function ReporteHorasClient({
 }: {
   initialEmployees: EmpOption[];
 }) {
-  const t      = useTranslations('hoursReport');
-  const tc     = useTranslations('common');
-  const locale = useLocale();
-
   const [period, setPeriod] = useState('this_week');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -964,7 +949,7 @@ export function ReporteHorasClient({
 
   const generate = useCallback(async () => {
     const { from, to } = getDateRange();
-    if (!from || !to) { setError(t('errRange')); return; }
+    if (!from || !to) { setError('Selecciona un rango de fechas válido'); return; }
     setIsLoading(true);
     setError(null);
     setReportData(null);
@@ -977,19 +962,18 @@ export function ReporteHorasClient({
       if (empFilter) params.set('employee_id', empFilter);
 
       const res = await fetch(`/api/reports/hours?${params.toString()}`);
-      if (!res.ok) { const body = await res.json() as { error?: string }; throw new Error(body.error ?? t('errGenerate')); }
+      if (!res.ok) { const body = await res.json() as { error?: string }; throw new Error(body.error ?? 'Error al generar el reporte'); }
       const data = await res.json() as ReportData;
       setReportData(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errUnexpected'));
+      setError(e instanceof Error ? e.message : 'Error inesperado');
     } finally {
       setIsLoading(false);
     }
   }, [getDateRange, countryFilter, empTypeFilter, empFilter]);
 
   const { from: displayFrom, to: displayTo } = getDateRange();
-  const periodOption = PERIOD_OPTIONS.find((p) => p.key === period);
-  const periodLabel = periodOption ? t(periodOption.i18n) : '';
+  const periodLabel = PERIOD_OPTIONS.find((p) => p.key === period)?.label ?? '';
   const hasData = !!reportData;
   const employees = reportData?.employees ?? [];
   const summary = reportData?.summary;
@@ -1000,12 +984,12 @@ export function ReporteHorasClient({
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-text-1">{t('title')}</h1>
+          <h1 className="text-xl font-bold text-text-1">Reporte de horas</h1>
           {hasData && (
             <p className="text-small text-text-3 mt-0.5">
-              {periodOption?.key !== 'custom' ? periodLabel : `${displayFrom} → ${displayTo}`}
+              {periodLabel !== 'Rango personalizado' ? periodLabel : `${displayFrom} → ${displayTo}`}
               {' · '}
-              <span className="font-medium text-text-2">{t('kpiEmployees', { total: summary?.totalEmployees ?? 0 })}</span>
+              <span className="font-medium text-text-2">{summary?.totalEmployees ?? 0} empleados</span>
             </p>
           )}
         </div>
@@ -1034,7 +1018,7 @@ export function ReporteHorasClient({
           )}
           <Button onClick={() => void generate()} loading={isLoading} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" />
-            {t('generate')}
+            Generar reporte
           </Button>
         </div>
       </div>
@@ -1043,14 +1027,14 @@ export function ReporteHorasClient({
       <div className="flex flex-wrap gap-2 items-end">
         {/* Period */}
         <div className="flex flex-col gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('period')}</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-text-muted">Período</Label>
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {PERIOD_OPTIONS.map((o) => (
-                <SelectItem key={o.key} value={o.key}>{t(o.i18n)}</SelectItem>
+                <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1060,11 +1044,11 @@ export function ReporteHorasClient({
         {period === 'custom' && (
           <>
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('from')}</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-text-muted">Desde</Label>
               <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-38" />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('to')}</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-text-muted">Hasta</Label>
               <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-38" />
             </div>
           </>
@@ -1072,14 +1056,14 @@ export function ReporteHorasClient({
 
         {/* Country */}
         <div className="flex flex-col gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('country')}</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-text-muted">País</Label>
           <Select value={countryFilter} onValueChange={(v) => setCountryFilter(v === 'ALL' ? '' : v)}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder={t('all')} />
+              <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">{t('allCountries')}</SelectItem>
-              <SelectItem value="US">🇺🇸 USA</SelectItem>
+              <SelectItem value="ALL">Todos los países</SelectItem>
+              <SelectItem value="US">🇺🇸 EEUU</SelectItem>
               <SelectItem value="BO">🇧🇴 Bolivia</SelectItem>
               <SelectItem value="PE">🇵🇪 Perú</SelectItem>
             </SelectContent>
@@ -1088,22 +1072,22 @@ export function ReporteHorasClient({
 
         {/* Employment type */}
         <div className="flex flex-col gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('type')}</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-text-muted">Tipo</Label>
           <Select value={empTypeFilter} onValueChange={(v) => setEmpTypeFilter(v === 'ALL' ? '' : v)}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder={t('all')} />
+              <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">{t('all')}</SelectItem>
-              <SelectItem value="non_exempt">{t('typeHourly')}</SelectItem>
-              <SelectItem value="exempt">{t('typeSalaried')}</SelectItem>
+              <SelectItem value="ALL">Todos</SelectItem>
+              <SelectItem value="non_exempt">Por hora (Non-exempt)</SelectItem>
+              <SelectItem value="exempt">Asalariado (Exempt)</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {/* Employee combobox — searchable */}
         <div className="flex flex-col gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-text-muted">{t('employee')}</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-text-muted">Empleado</Label>
           <EmpCombobox
             options={initialEmployees}
             value={empFilter}
@@ -1139,12 +1123,12 @@ export function ReporteHorasClient({
             <BarChart3 className="h-8 w-8 text-text-muted" />
           </div>
           <div>
-            <p className="text-sm font-medium text-text-2">{t('emptyTitle')}</p>
-            <p className="text-xs text-text-muted mt-1">{t('emptyHint')}</p>
+            <p className="text-sm font-medium text-text-2">Selecciona un período y genera el reporte</p>
+            <p className="text-xs text-text-muted mt-1">Los datos se calcularán desde attendance_records</p>
           </div>
           <Button onClick={() => void generate()} className="mt-1">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            {t('generate')}
+            Generar reporte
           </Button>
         </div>
       )}
@@ -1158,9 +1142,9 @@ export function ReporteHorasClient({
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
               <AlertTriangle className="h-4 w-4 text-amber-text shrink-0 mt-0.5" />
               <p className="text-sm text-amber-text">
-                <span className="font-semibold">{t('incomplete', { total: reportData!.incompleteCount ?? 0 })}</span>
-                {t('incompleteRest')}
-                <span className="text-amber-text">{t('incompleteLink')}</span>
+                <span className="font-semibold">{reportData!.incompleteCount} registros incompletos</span>
+                {' '}no incluidos (sin hora de salida).{' '}
+                <span className="text-amber-text">Ve a Asistencia para corregirlos.</span>
               </p>
             </div>
           )}
@@ -1174,9 +1158,9 @@ export function ReporteHorasClient({
               <AlertTriangle className="h-4 w-4 text-rose-text shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-rose-text">
-                  {t('overtimeAlert', { total: summary!.employeesWithOvertime })}
+                  {summary!.employeesWithOvertime} empleado{summary!.employeesWithOvertime !== 1 ? 's' : ''} {summary!.employeesWithOvertime !== 1 ? 'tienen' : 'tiene'} horas extras este período
                 </p>
-                <p className="text-xs text-rose-text/80 mt-0.5">{t('overtimeAlertHint')}</p>
+                <p className="text-xs text-rose-text/80 mt-0.5">Revisa el detalle antes de procesar la nómina</p>
               </div>
             </div>
           )}
@@ -1186,41 +1170,41 @@ export function ReporteHorasClient({
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#10B981' }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <Clock className="h-3.5 w-3.5 text-emerald-text" />
-                <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('kpiRegular')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted">Horas regulares</p>
               </div>
               <p className="text-2xl font-bold font-mono text-emerald-text">{fmtHours(summary!.totalRegularHours)}</p>
-              <p className="text-xs text-text-muted mt-0.5">{t('kpiEmployees', { total: summary!.totalEmployees })}</p>
+              <p className="text-xs text-text-muted mt-0.5">{summary!.totalEmployees} empleados</p>
             </div>
 
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#F43F5E' }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <TrendingUp className="h-3.5 w-3.5 text-rose-text" />
-                <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('kpiOvertime')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted">Horas extras</p>
               </div>
               <p className={cn('text-2xl font-bold font-mono', summary!.totalOvertimeHours > 0 ? 'text-rose-text' : 'text-text-muted')}>
                 {fmtHours(summary!.totalOvertimeHours)}
               </p>
               <p className={cn('text-xs mt-0.5', summary!.employeesWithOvertime > 0 ? 'text-rose-text' : 'text-text-muted')}>
-                {summary!.employeesWithOvertime > 0 ? t('kpiWithOvertime', { total: summary!.employeesWithOvertime }) : t('kpiNoOvertime')}
+                {summary!.employeesWithOvertime > 0 ? `${summary!.employeesWithOvertime} con overtime` : 'sin overtime'}
               </p>
             </div>
 
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#6366F1' }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
-                <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('kpiTotal')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted">Total horas</p>
               </div>
               <p className="text-2xl font-bold font-mono text-indigo-600">{fmtHours(summary!.totalHours)}</p>
-              <p className="text-xs text-text-muted mt-0.5">{t('ofPeriod')}</p>
+              <p className="text-xs text-text-muted mt-0.5">del período</p>
             </div>
 
             <div className="rounded-xl border border-border bg-surface p-4 border-l-4" style={{ borderLeftColor: '#F59E0B' }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <Coffee className="h-3.5 w-3.5 text-amber-text" />
-                <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('kpiBreaks')}</p>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted">Breaks no pagados</p>
               </div>
               <p className="text-2xl font-bold font-mono text-amber-text">{fmtHours(summary!.totalBreakHours)}</p>
-              <p className="text-xs text-text-muted mt-0.5">{t('discounted')}</p>
+              <p className="text-xs text-text-muted mt-0.5">descontados</p>
             </div>
           </div>
 
@@ -1229,9 +1213,9 @@ export function ReporteHorasClient({
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
               <CalendarOff className="h-10 w-10 text-text-muted" />
               <div>
-                <p className="text-sm font-medium text-text-2">{t('noRecordsRange')}</p>
+                <p className="text-sm font-medium text-text-2">Sin registros para este período</p>
                 <p className="text-xs text-text-muted mt-1">
-                  {t('noPunchesBetween', { desde: displayFrom, hasta: displayTo })}
+                  No hay fichajes registrados entre {displayFrom} y {displayTo}
                 </p>
               </div>
             </div>
@@ -1239,13 +1223,13 @@ export function ReporteHorasClient({
             <>
               {/* Table controls */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-text-muted">{t('withRecords', { total: employees.filter(e => e.totalDaysWorked > 0).length })}</p>
+                <p className="text-xs text-text-muted">{employees.filter(e => e.totalDaysWorked > 0).length} empleados con registros</p>
                 <div className="flex items-center gap-1.5">
                   <Button variant="outline" size="sm" onClick={expandAll} className="h-7 text-xs gap-1">
-                    <ChevronDown className="h-3 w-3" /> {t('expandAll')}
+                    <ChevronDown className="h-3 w-3" /> Expandir todo
                   </Button>
                   <Button variant="outline" size="sm" onClick={collapseAll} className="h-7 text-xs gap-1">
-                    <ChevronUp className="h-3 w-3" /> {t('collapseAll')}
+                    <ChevronUp className="h-3 w-3" /> Colapsar todo
                   </Button>
                 </div>
               </div>
@@ -1255,13 +1239,13 @@ export function ReporteHorasClient({
                 <table className="w-full">
                   <thead className="border-b border-border bg-bg-0">
                     <tr>
-                      <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted">{t('employee')}</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted w-[110px]">{t('type')}</th>
-                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">{t('colRegular')}</th>
-                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">{t('colOvertime')}</th>
-                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">{t('colTotal')}</th>
-                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[70px]">{t('colBreaks')}</th>
-                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[60px]">{t('colDays')}</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted">Empleado</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted w-[110px]">Tipo</th>
+                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">Regulares</th>
+                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">Extras</th>
+                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[90px]">Total</th>
+                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[70px]">Breaks</th>
+                      <th className="px-4 py-2.5 text-right text-[10px] uppercase tracking-wider text-text-muted w-[60px]">Días</th>
                       <th className="w-[36px]" />
                     </tr>
                   </thead>
@@ -1308,7 +1292,7 @@ export function ReporteHorasClient({
                   : <Download className="h-4.5 w-4.5 text-emerald-text" />
                 }
               </div>
-              {t('exportTitle', { formato: confirmExport === 'pdf' ? 'PDF' : 'Excel' })}
+              Descargar {confirmExport === 'pdf' ? 'PDF' : 'Excel'}
             </DialogTitle>
           </DialogHeader>
 
@@ -1317,39 +1301,39 @@ export function ReporteHorasClient({
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">
                 <ShieldCheck className="h-3 w-3 text-brand-text" />
-                {t('confidential')}
+                Documento confidencial
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">
-                {t('kpiEmployees', { total: summary?.totalEmployees ?? 0 })} · {fmtHours(summary?.totalHours ?? 0)}
+                {summary?.totalEmployees ?? 0} empleados · {fmtHours(summary?.totalHours ?? 0)}
               </span>
             </div>
 
             <p className="text-sm text-text-2 leading-relaxed">
-              {t('exportIntro')}{' '}
+              Estás por exportar el reporte de horas del período{' '}
               <span className="font-semibold text-text-1">
-                {fmtDateShort(displayFrom, locale)} – {fmtDateShort(displayTo, locale)}
+                {fmtDateShort(displayFrom)} – {fmtDateShort(displayTo)}
               </span>
-              {' '}{t('exportAs')}{' '}
+              {' '}como{' '}
               <span className="font-semibold text-text-1">
-                {confirmExport === 'pdf' ? t('exportPdfLabel') : t('exportExcelLabel')}
+                {confirmExport === 'pdf' ? 'PDF para impresión' : 'archivo Excel (.xls)'}
               </span>.
             </p>
 
             {confirmExport === 'pdf' && (
               <p className="text-xs text-text-muted bg-border/30 rounded-lg px-3 py-2">
-                {t('exportPdfHint')}
+                Se abrirá el diálogo de impresión del navegador. Elige "Guardar como PDF" para descargarlo.
               </p>
             )}
             {confirmExport === 'excel' && (
               <p className="text-xs text-text-muted bg-border/30 rounded-lg px-3 py-2">
-                {t('exportExcelHint')}
+                El archivo incluye 2 hojas: <strong>Resumen</strong> por empleado y <strong>Detalle diario</strong> de cada fichaje.
               </p>
             )}
           </div>
 
           <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={() => setConfirmExport(null)}>
-              {tc('cancel')}
+              Cancelar
             </Button>
             <Button
               className={cn(
@@ -1360,14 +1344,14 @@ export function ReporteHorasClient({
               )}
               onClick={() => {
                 if (!reportData) return;
-                if (confirmExport === 'pdf') exportPDF(reportData, t, locale);
-                else exportExcel(reportData, t, locale);
+                if (confirmExport === 'pdf') exportPDF(reportData);
+                else exportExcel(reportData);
                 setConfirmExport(null);
               }}
             >
               {confirmExport === 'pdf'
-                ? <><FileText className="h-3.5 w-3.5" /> {t('openPdf')}</>
-                : <><Download className="h-3.5 w-3.5" /> {t('downloadExcel')}</>
+                ? <><FileText className="h-3.5 w-3.5" /> Abrir PDF</>
+                : <><Download className="h-3.5 w-3.5" /> Descargar Excel</>
               }
             </Button>
           </DialogFooter>

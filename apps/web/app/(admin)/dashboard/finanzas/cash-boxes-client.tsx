@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -48,25 +47,22 @@ interface StatusBadgeProps {
 }
 
 function StatusBadge({ isActive, balance, threshold }: StatusBadgeProps): React.ReactElement {
-  const t = useTranslations('finance');
   if (!isActive) {
-    return <Badge variant="secondary">{t('boxInactive')}</Badge>;
+    return <Badge variant="secondary">Inactiva</Badge>;
   }
   if (balance <= 0) {
     // Balance 0 on an active box: critical, but our caller decides if
     // it's "never opened" or "fully spent" via transactions count.
     // Here we just show the visual — alert logic lives elsewhere.
-    return <Badge className="bg-rose-500/15 text-rose-text border-rose-500/30">{t('boxNoBalance')}</Badge>;
+    return <Badge className="bg-rose-500/15 text-rose-text border-rose-500/30">Sin saldo</Badge>;
   }
   if (balance <= threshold) {
-    return <Badge className="bg-amber-500/15 text-amber-text border-amber-500/30">{t('boxLowBalance')}</Badge>;
+    return <Badge className="bg-amber-500/15 text-amber-text border-amber-500/30">Saldo bajo</Badge>;
   }
-  return <Badge className="bg-emerald-500/15 text-emerald-text border-emerald-500/30">{t('boxActive')}</Badge>;
+  return <Badge className="bg-emerald-500/15 text-emerald-text border-emerald-500/30">Activa</Badge>;
 }
 
 export function CashBoxesClient(): React.ReactElement {
-  const t  = useTranslations('finance');
-  const tc = useTranslations('common');
   const role = useRole();
   const canManage = role === 'super_admin';
   const [showInactive, setShowInactive] = useState(false);
@@ -80,7 +76,7 @@ export function CashBoxesClient(): React.ReactElement {
 
   const toggleActive = trpc.pettyCash.toggleBoxActive.useMutation({
     onSuccess: () => {
-      toast.success(confirmToggle?.is_active ? t('boxDeactivated') : t('boxActivated'));
+      toast.success(confirmToggle?.is_active ? 'Caja desactivada' : 'Caja activada');
       setConfirmToggle(null);
       void refetch();
     },
@@ -89,7 +85,7 @@ export function CashBoxesClient(): React.ReactElement {
 
   const deleteBox = trpc.pettyCash.deleteBox.useMutation({
     onSuccess: () => {
-      toast.success(t('boxDeleted'));
+      toast.success('Caja eliminada');
       setConfirmDelete(null);
       void refetch();
     },
@@ -101,9 +97,9 @@ export function CashBoxesClient(): React.ReactElement {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-text-1">{t('boxesTitle')}</h2>
+          <h2 className="text-base font-semibold text-text-1">Cajas chicas</h2>
           <p className="text-small text-text-3">
-            {t('boxesSubtitle', { total: boxes.length })}
+            {boxes.length} caja{boxes.length === 1 ? '' : 's'} · gestiona, edita y configura los umbrales mínimos
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -114,12 +110,12 @@ export function CashBoxesClient(): React.ReactElement {
               onChange={(e) => setShowInactive(e.target.checked)}
               className="rounded border-border"
             />
-            {t('showInactive')}
+            Mostrar inactivas
           </label>
           {canManage && (
             <Button onClick={() => setCreating(true)}>
               <Plus className="h-4 w-4" />
-              {t('newBoxBtn')}
+              Nueva caja
             </Button>
           )}
         </div>
@@ -130,25 +126,25 @@ export function CashBoxesClient(): React.ReactElement {
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-text mt-0.5" />
           <p className="text-xs text-amber-text">
-            {t('readOnlyNotice')}
+            Solo Super Admin puede crear, editar o desactivar cajas chicas. Tu rol tiene acceso de lectura.
           </p>
         </div>
       )}
 
       {/* List */}
       {isLoading ? (
-        <div className="text-center py-12 text-text-3">{tc('loading')}</div>
+        <div className="text-center py-12 text-text-3">Cargando...</div>
       ) : boxes.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface px-6 py-16 text-center">
           <Wallet className="h-8 w-8 mx-auto text-text-muted mb-3" />
-          <p className="text-small font-medium text-text-1">{t('noBoxes')}</p>
+          <p className="text-small font-medium text-text-1">No hay cajas chicas registradas</p>
           <p className="text-tiny text-text-3 mt-1">
-            {t('createFirstBox')}
+            Crea la primera caja para empezar a registrar transacciones.
           </p>
           {canManage && (
             <Button onClick={() => setCreating(true)} className="mt-4">
               <Plus className="h-4 w-4" />
-              {t('newBoxBtn')}
+              Nueva caja
             </Button>
           )}
         </div>
@@ -186,12 +182,12 @@ export function CashBoxesClient(): React.ReactElement {
 
                 {/* Balance */}
                 <div className="mb-3">
-                  <p className="text-tiny text-text-muted uppercase tracking-wide">{t('balance')}</p>
+                  <p className="text-tiny text-text-muted uppercase tracking-wide">Saldo</p>
                   <p className={cn('text-xl font-bold font-mono', balance <= threshold && box.is_active ? 'text-amber-text' : 'text-text-1')}>
                     {fmtMoney(balance, box.currency)}
                   </p>
                   <p className="text-tiny text-text-3 mt-0.5">
-                    {t('minThreshold', { monto: fmtMoney(threshold, box.currency) })}
+                    Umbral mínimo: {fmtMoney(threshold, box.currency)}
                   </p>
                 </div>
 
@@ -212,7 +208,7 @@ export function CashBoxesClient(): React.ReactElement {
                   <button
                     onClick={() => setQrTarget(box)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-brand-text hover:bg-brand/10 transition-colors"
-                    title={t('viewQr')}
+                    title="Ver / subir QR de depósito"
                   >
                     <QrCode className="h-3 w-3" />
                     QR
@@ -222,23 +218,23 @@ export function CashBoxesClient(): React.ReactElement {
                       <button
                         onClick={() => setEditing(box)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
-                        title={t('editBox')}
+                        title="Editar caja"
                       >
                         <Pencil className="h-3 w-3" />
-                        {t('edit')}
+                        Editar
                       </button>
                       <button
                         onClick={() => setConfirmToggle(box)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
-                        title={box.is_active ? t('deactivateBox') : t('activateBox')}
+                        title={box.is_active ? 'Desactivar caja' : 'Activar caja'}
                       >
                         {box.is_active ? <PowerOff className="h-3 w-3" /> : <Power className="h-3 w-3" />}
-                        {box.is_active ? t('deactivate') : t('activate')}
+                        {box.is_active ? 'Desactivar' : 'Activar'}
                       </button>
                       <button
                         onClick={() => setConfirmDelete(box)}
                         className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-tiny text-text-muted hover:text-rose-text hover:bg-rose-500/10 transition-colors"
-                        title={t('deleteOnlyIfEmpty')}
+                        title="Eliminar (solo si no tiene transacciones)"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -284,22 +280,22 @@ export function CashBoxesClient(): React.ReactElement {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {confirmToggle?.is_active ? <PowerOff className="h-4 w-4 text-amber-text" /> : <Power className="h-4 w-4 text-emerald-text" />}
-              {confirmToggle?.is_active ? t('deactivateBox') : t('activateBox')}
+              {confirmToggle?.is_active ? 'Desactivar caja' : 'Activar caja'}
             </DialogTitle>
             <DialogDescription>
               {confirmToggle?.is_active
-                ? t('deactivateWarn')
-                : t('activateWarn')}
+                ? 'La caja desaparecerá de los selects de nueva transacción y dejará de generar alertas de saldo bajo. Las transacciones históricas se mantienen visibles.'
+                : 'La caja volverá a estar disponible para transacciones nuevas y alertas.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmToggle(null)}>{tc('cancel')}</Button>
+            <Button variant="ghost" onClick={() => setConfirmToggle(null)}>Cancelar</Button>
             <Button
               variant={confirmToggle?.is_active ? 'destructive' : 'default'}
               loading={toggleActive.isPending}
               onClick={() => confirmToggle && toggleActive.mutate({ id: confirmToggle.id, isActive: !confirmToggle.is_active })}
             >
-              {confirmToggle?.is_active ? t('deactivate') : t('activate')}
+              {confirmToggle?.is_active ? 'Desactivar' : 'Activar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -311,20 +307,21 @@ export function CashBoxesClient(): React.ReactElement {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose-text">
               <Trash2 className="h-4 w-4" />
-              {t('deleteBox')}
+              Eliminar caja
             </DialogTitle>
             <DialogDescription>
-              {t('deleteBoxWarn')}
+              Esta acción es permanente. Solo se puede eliminar si la caja no tiene
+              ninguna transacción registrada. Si tiene historial, usa "Desactivar" en su lugar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>{tc('cancel')}</Button>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancelar</Button>
             <Button
               variant="destructive"
               loading={deleteBox.isPending}
               onClick={() => confirmDelete && deleteBox.mutate({ id: confirmDelete.id })}
             >
-              {tc('delete')}
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -343,9 +340,6 @@ interface FormDialogProps {
 }
 
 function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): React.ReactElement {
-  const t  = useTranslations('finance');
-  const tc = useTranslations('common');
-
   const isEdit = mode === 'edit';
   const [form, setForm] = useState({
     name: box?.name ?? '',
@@ -356,11 +350,11 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const createMutation = trpc.pettyCash.createBox.useMutation({
-    onSuccess: () => { toast.success(t('boxCreated')); onSaved(); },
+    onSuccess: () => { toast.success('Caja creada'); onSaved(); },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.pettyCash.updateBox.useMutation({
-    onSuccess: () => { toast.success(t('boxUpdated')); onSaved(); },
+    onSuccess: () => { toast.success('Caja actualizada'); onSaved(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -372,9 +366,9 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (!form.name.trim() || form.name.trim().length < 2) errs.name = t('errName');
-    if (Number(form.lowBalanceThreshold) <= 0) errs.lowBalanceThreshold = t('errPositive');
-    if (!isEdit && Number(form.openingBalance) < 0) errs.openingBalance = t('errNonNegative');
+    if (!form.name.trim() || form.name.trim().length < 2) errs.name = 'Nombre mínimo 2 caracteres';
+    if (Number(form.lowBalanceThreshold) <= 0) errs.lowBalanceThreshold = 'Debe ser mayor a 0';
+    if (!isEdit && Number(form.openingBalance) < 0) errs.openingBalance = 'No puede ser negativo';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     if (isEdit && box) {
@@ -397,19 +391,21 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? t('editBox') : t('newBox')}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar caja' : 'Nueva caja chica'}</DialogTitle>
           <DialogDescription>
-            {isEdit ? t('editBoxHint') : t('createBoxHint')}
+            {isEdit
+              ? 'Podés cambiar el nombre y el umbral mínimo. La moneda y el saldo no se editan directo (el saldo se ajusta vía depósitos o gastos).'
+              : 'Crea una nueva caja. El saldo inicial registra una transacción de apertura automática.'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>{t('nameReq')}</Label>
+            <Label>Nombre *</Label>
             <Input
               value={form.name}
               onChange={(e) => f('name', e.target.value)}
-              placeholder={t('namePlaceholder')}
+              placeholder="Ej: Caja Chica Bolivia"
               error={!!errors.name}
             />
             {errors.name && <p className="text-tiny text-rose">{errors.name}</p>}
@@ -418,7 +414,7 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
           {!isEdit && (
             <>
               <div className="space-y-1.5">
-                <Label>{t('currencyReq')}</Label>
+                <Label>Moneda *</Label>
                 <Select value={form.currency} onValueChange={(v) => f('currency', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -428,12 +424,12 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
                   </SelectContent>
                 </Select>
                 <p className="text-tiny text-text-muted">
-                  {t('currencyLocked')}
+                  ⚠️ No se puede cambiar después de crear la caja.
                 </p>
               </div>
 
               <div className="space-y-1.5">
-                <Label>{t('initialBalance')}</Label>
+                <Label>Saldo inicial</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -445,14 +441,14 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
                 />
                 {errors.openingBalance && <p className="text-tiny text-rose">{errors.openingBalance}</p>}
                 <p className="text-tiny text-text-muted">
-                  {t('openingHint')}
+                  Si es {'>'} 0, se registra una transacción de apertura.
                 </p>
               </div>
             </>
           )}
 
           <div className="space-y-1.5">
-            <Label>{t('minThresholdReq')}</Label>
+            <Label>Umbral de saldo mínimo *</Label>
             <Input
               type="number"
               step="0.01"
@@ -464,14 +460,14 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
             />
             {errors.lowBalanceThreshold && <p className="text-tiny text-rose">{errors.lowBalanceThreshold}</p>}
             <p className="text-tiny text-text-muted">
-              {t('thresholdHint')}
+              Cuando el saldo baje de este valor, aparecerá alerta.
             </p>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>{tc('cancel')}</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
             <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
-              {isEdit ? tc('save') : t('createBox')}
+              {isEdit ? 'Guardar cambios' : 'Crear caja'}
             </Button>
           </DialogFooter>
         </form>
@@ -490,9 +486,6 @@ function QrDepositDialog({
   onClose: () => void;
   onUploaded: () => void;
 }) {
-  const t  = useTranslations('finance');
-  const tc = useTranslations('common');
-
   const [uploading, setUploading]   = useState(false);
   const [dragging,  setDragging]    = useState(false);
   const [localUrl,  setLocalUrl]    = useState<string | null>(box.qrDepositUrl ?? null);
@@ -506,10 +499,10 @@ function QrDepositDialog({
       const json = await res.json().catch(() => ({})) as { qrDepositUrl?: string };
       if (!res.ok) throw new Error('upload failed');
       setLocalUrl(json.qrDepositUrl ?? null);
-      toast.success(t('qrUpdated'));
+      toast.success('QR actualizado');
       onUploaded();
     } catch {
-      toast.error(t('errQrUpload'));
+      toast.error('Error al subir el QR');
     } finally {
       setUploading(false);
     }
@@ -534,10 +527,10 @@ function QrDepositDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-4 w-4 text-brand-text" />
-            {t('qrTitle', { caja: box.name })}
+            QR de depósito — {box.name}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-3">
-            {t('qrHint')}
+            Muestra este QR para recibir depósitos en esta caja chica.
           </DialogDescription>
         </DialogHeader>
 
@@ -545,7 +538,7 @@ function QrDepositDialog({
           {localUrl ? (
             <>
               <div className="w-full rounded-xl border border-border overflow-hidden bg-white p-3">
-                <img src={localUrl} alt={t('qrDeposit')} className="w-full max-h-64 object-contain" />
+                <img src={localUrl} alt="QR depósito" className="w-full max-h-64 object-contain" />
               </div>
               {canManage && (
                 <label
@@ -565,7 +558,7 @@ function QrDepositDialog({
                     : <Upload className="h-3.5 w-3.5 text-brand-text" />
                   }
                   <span className="text-xs font-medium text-brand-text">
-                    {uploading ? t('uploading') : t('replaceQr')}
+                    {uploading ? 'Subiendo...' : 'Reemplazar QR'}
                   </span>
                   <input type="file" accept="image/*" className="hidden" onChange={handleInput} disabled={uploading} />
                 </label>
@@ -591,23 +584,23 @@ function QrDepositDialog({
                 }
                 <div className="text-center">
                   <p className="text-sm font-medium text-brand-text">
-                    {uploading ? t('uploading') : t('uploadQr')}
+                    {uploading ? 'Subiendo...' : 'Subir QR de depósito'}
                   </p>
-                  <p className="text-xs text-text-3 mt-0.5">{t('dragOrClick')}</p>
+                  <p className="text-xs text-text-3 mt-0.5">Arrastra o haz clic para elegir</p>
                 </div>
                 <input type="file" accept="image/*" className="hidden" onChange={handleInput} disabled={uploading} />
               </label>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-3">
                 <QrCode className="h-8 w-8 opacity-30" />
-                <p className="text-xs">{t('noQr')}</p>
+                <p className="text-xs">No hay QR configurado para esta caja.</p>
               </div>
             )
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{tc('close')}</Button>
+          <Button variant="outline" onClick={onClose}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

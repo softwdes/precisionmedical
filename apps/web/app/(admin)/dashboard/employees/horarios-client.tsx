@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations, useLocale } from 'next-intl';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
 import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil, Trash2 } from 'lucide-react';
@@ -82,40 +81,16 @@ function useClinicOptions(): ClinicOption[] {
   }, [clinics]);
 }
 
+const DAY_ABBR  = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const DAY_NUMS  = [1,2,3,4,5,6,7];
+const DAY_SHORT = ['L','M','X','J','V','S','D'];
 
-/**
- * Los nombres de los días salen de `Intl`, no de un array en castellano.
- * Se usa una semana real que arranca en lunes (2024-01-01 fue lunes) y se pide
- * el formato corto o de una letra. Así no hay nada que traducir a mano y
- * cualquier idioma que se agregue funciona solo.
- */
-function dayNames(locale: string, ancho: 'short' | 'narrow'): string[] {
-  return Array.from({ length: 7 }, (_, i) =>
-    new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: ancho }),
-  );
-}
-
-/** Solo el color: la etiqueta de cada tipo vive en el diccionario. */
-const EXC_COLOR: Record<string, string> = {
-  vacation: '#F43F5E',
-  absence:  '#F43F5E',
-  holiday:  '#8B5CF6',
-  special:  '#8B5CF6',
-  partial:  '#F97316',
-};
-
-/** La etiqueta de un tipo de excepción: la piden tres componentes. */
-function excLabelOf(tipo: string, t: (k: string) => string): string {
-  return tipo === 'special' ? t('excSpecialLong') : t(EXC_KEY[tipo] ?? 'exception');
-}
-
-const EXC_KEY: Record<string, string> = {
-  vacation: 'excVacation',
-  absence:  'excAbsence',
-  holiday:  'excHoliday',
-  special:  'excSpecial',
-  partial:  'excPartial',
+const EXC_CONFIG: Record<string, { label: string; color: string }> = {
+  vacation: { label: 'Vacación',   color: '#F43F5E' },
+  absence:  { label: 'Ausencia',   color: '#F43F5E' },
+  holiday:  { label: 'Feriado',    color: '#8B5CF6' },
+  special:  { label: 'Especial',   color: '#8B5CF6' },
+  partial:  { label: 'Por horas',  color: '#F97316' },
 };
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -137,11 +112,11 @@ function getWeekDates(monday: Date): Date[] {
   });
 }
 
-function getWeekLabel(monday: Date, locale: string): string {
+function getWeekLabel(monday: Date): string {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-  return `${monday.toLocaleDateString(locale, opts)} – ${sunday.toLocaleDateString(locale, opts)}`;
+  return `${monday.toLocaleDateString('es', opts)} – ${sunday.toLocaleDateString('es', opts)}`;
 }
 
 function toISODate(d: Date): string {
@@ -221,18 +196,18 @@ function getMonthCalendarDays(monthStart: Date): (Date | null)[] {
   return days;
 }
 
-function formatDayLabel(d: Date, locale: string): string {
-  const s = d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+function formatDayLabel(d: Date): string {
+  const s = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function formatMonthLabel(d: Date, locale: string): string {
-  const s = d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+function formatMonthLabel(d: Date): string {
+  const s = d.toLocaleDateString('es', { month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function formatDayShort(d: Date, locale: string): string {
-  return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' });
+function formatDayShort(d: Date): string {
+  return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -310,9 +285,6 @@ function AssignModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const t      = useTranslations('schedules');
-  const tc     = useTranslations('common');
-  const locale = useLocale();
   const isEdit = !!initialData;
   const today = toISODate(new Date());
   const [empId, setEmpId]           = useState(initialData?.employeeId ?? preEmployeeId ?? '');
@@ -350,12 +322,12 @@ function AssignModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employee_id: empId, schedule_type: schedType, start_time: startTime, end_time: endTime, days_of_week: days, clinic_name: clinic, valid_from: validFrom, valid_until: validUntil || undefined }),
       });
-      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? t('errGeneric')); }
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
-      const subtitle = `${emp ? emp.firstName + ' ' + emp.lastName : ''} · ${schedType === 'full_time' ? t('fullTime') : t('partTime')} · ${clinic}`;
-      toast.success(isEdit ? t('savedUpdated') : t('savedAssigned'), { description: subtitle });
+      const subtitle = `${emp ? emp.firstName + ' ' + emp.lastName : ''} · ${schedType === 'full_time' ? 'Full time' : 'Part time'} · ${clinic}`;
+      toast.success(isEdit ? 'Horario actualizado' : 'Horario asignado', { description: subtitle });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errSave'));
+      setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -365,14 +337,14 @@ function AssignModal({
     <div className="space-y-4">
       {/* Empleado */}
       <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('employeeReq')}</label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Empleado *</label>
         {isEdit ? (
           <p className="flex items-center text-[13px] font-semibold text-text-1 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2 min-h-[44px]">
             {initialData.employeeName}
           </p>
         ) : (
           <select value={empId} onChange={e => setEmpId(e.target.value)} className={SEL_CLS} style={SEL_STYLE}>
-            <option value="" style={OPT_STYLE}>{t('pickEmployee')}</option>
+            <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
             {employees.filter(e => e.status === 'ACTIVE').map(e => (
               <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
             ))}
@@ -383,14 +355,14 @@ function AssignModal({
       {/* Tipo + Clínica */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('typeReq')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Tipo *</label>
           <select value={schedType} onChange={e => handleTypeChange(e.target.value as 'full_time' | 'part_time')} className={SEL_CLS} style={SEL_STYLE}>
-            <option value="full_time" style={OPT_STYLE}>{t('fullTime')}</option>
-            <option value="part_time" style={OPT_STYLE}>{t('partTime')}</option>
+            <option value="full_time" style={OPT_STYLE}>Full time</option>
+            <option value="part_time" style={OPT_STYLE}>Part time</option>
           </select>
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('clinicReq')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Clínica *</label>
           <select value={clinic} onChange={e => setClinic(e.target.value)} className={SEL_CLS} style={SEL_STYLE}>
             {clinicOptions.map(c => <option key={c.name} value={c.name} style={OPT_STYLE}>{c.label}</option>)}
           </select>
@@ -399,7 +371,7 @@ function AssignModal({
 
       {/* Días */}
       <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('workDaysReq')}</label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Días de trabajo *</label>
         <div className="grid grid-cols-7 gap-1.5">
           {DAY_NUMS.map((d, i) => {
             const active = days.includes(d);
@@ -408,7 +380,7 @@ function AssignModal({
                 className={cn('aspect-square rounded-[6px] text-[12px] font-semibold transition-all min-h-[44px] border',
                   active ? 'text-white border-transparent' : 'bg-white/[0.03] border-white/[0.08] text-text-muted opacity-50 hover:opacity-80')}
                 style={active ? { background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' } : {}}>
-                {dayNames(locale, 'narrow')[i]}
+                {DAY_SHORT[i]}
               </button>
             );
           })}
@@ -418,12 +390,12 @@ function AssignModal({
       {/* Horario */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('timeInReq')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Hora entrada *</label>
           <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
             className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('timeOutReq')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Hora salida *</label>
           <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
             className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
         </div>
@@ -432,14 +404,14 @@ function AssignModal({
       {/* Vigencia */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('validFromReq')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Vigente desde *</label>
           <input type="date" value={validFrom} onChange={e => setValidFrom(e.target.value)}
             className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">{t('validUntil')}</label>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Vigente hasta</label>
           <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)}
-            placeholder={t('noEndDate')}
+            placeholder="Sin fecha de fin"
             className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
         </div>
       </div>
@@ -449,12 +421,12 @@ function AssignModal({
       <div className="grid grid-cols-2 gap-3 pt-1">
         <button type="button" onClick={onClose}
           className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] transition-colors min-h-[44px]">
-          {tc('cancel')}
+          Cancelar
         </button>
         <button type="button" onClick={handleSave} disabled={!canSave || saving}
           className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white transition-all disabled:opacity-40 min-h-[44px]"
           style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-          {saving ? tc('saving') : isEdit ? tc('save') : t('saveSchedule')}
+          {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar horario'}
         </button>
       </div>
     </div>
@@ -466,7 +438,7 @@ function AssignModal({
       <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-md rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-bold text-text-1">{isEdit ? t('dialogEdit') : t('dialogAssign')}</h2>
+            <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar horario' : 'Asignar horario'}</h2>
             <button onClick={onClose} className="text-text-3 hover:text-text-1 transition-colors"><X className="h-4 w-4" /></button>
           </div>
           {formContent}
@@ -480,7 +452,7 @@ function AssignModal({
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
           <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mt-2 mb-4" />
           <div className="px-5 pb-2">
-            <h2 className="text-[15px] font-bold text-text-1 mb-5">{isEdit ? t('dialogEdit') : t('dialogAssign')}</h2>
+            <h2 className="text-[15px] font-bold text-text-1 mb-5">{isEdit ? 'Editar horario' : 'Asignar horario'}</h2>
             {formContent}
           </div>
         </div>
@@ -514,8 +486,6 @@ function ExceptionModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const t   = useTranslations('schedules');
-  const tc  = useTranslations('common');
   const isEdit = !!initialException;
   const [empId, setEmpId]           = useState(preEmployeeId ?? '');
   const [date, setDate]             = useState(preDate ?? toISODate(new Date()));
@@ -568,7 +538,7 @@ function ExceptionModal({
     }
   };
 
-  const excLabel = (tipo: string): string => excLabelOf(tipo, t);
+  const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial', partial: 'Por horas' };
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -599,15 +569,15 @@ function ExceptionModal({
           body: JSON.stringify(body),
         });
       }
-      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? t('errGeneric')); }
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
       const emp = employees.find(e => e.id === empId);
       const empName = emp ? `${emp.firstName} ${emp.lastName}` : (preEmployeeName ?? '');
       const timeLabel = isPartial ? ` ${startTime}–${endTime}` : '';
-      const subtitle = [empName, excLabel(excType) + timeLabel, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
-      toast.success(isEdit ? t('excSavedUpdated') : t('excSavedNew'), { description: subtitle });
+      const subtitle = [empName, (excLabels[excType] ?? excType) + timeLabel, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
+      toast.success(isEdit ? 'Excepción actualizada' : 'Excepción registrada', { description: subtitle });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errSave'));
+      setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally { setSaving(false); }
   };
 
@@ -616,11 +586,11 @@ function ExceptionModal({
     setDeleting(true); setError('');
     try {
       const res = await fetch(`/api/schedules/exceptions/${initialException.id}`, { method: 'DELETE' });
-      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? t('errGeneric')); }
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
-      toast.success(t('excDeleted'), { description: preEmployeeName ?? '' });
+      toast.success('Excepción eliminada', { description: preEmployeeName ?? '' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errDelete'));
+      setError(e instanceof Error ? e.message : 'Error al eliminar');
     } finally { setDeleting(false); }
   };
 
@@ -631,10 +601,10 @@ function ExceptionModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-xl rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-bold text-text-1">{isEdit ? t('excDialogEdit') : t('excDialogNew')}</h2>
+          <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar excepción' : 'Registrar excepción'}</h2>
           <div className="flex items-center gap-2">
             {isEdit && !confirmDel && (
-              <button onClick={() => setConfirmDel(true)} title={t('excDelete')}
+              <button onClick={() => setConfirmDel(true)} title="Eliminar excepción"
                 className="text-rose/60 hover:text-rose transition-colors p-1 rounded-[6px] hover:bg-rose/10">
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -644,10 +614,10 @@ function ExceptionModal({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">{t('employeeReq')}</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Empleado *</label>
             {fromHeader ? (
               <select value={empId} onChange={e => setEmpId(e.target.value)} className={SEL_CLS} style={SEL_STYLE}>
-                <option value="" style={OPT_STYLE}>{t('pickEmployee')}</option>
+                <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
                 {employees.filter(e => e.status === 'ACTIVE').map(e => (
                   <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
                 ))}
@@ -660,14 +630,14 @@ function ExceptionModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3">
-                {rangeType === 'single' ? t('dateReq') : t('dateStartReq')}
+                {rangeType === 'single' ? 'Fecha *' : 'Fecha inicio *'}
               </label>
               <div className="flex rounded-[7px] border border-white/[0.08] bg-white/[0.03] p-[2px] gap-0.5">
-                {(['single','range'] as const).map(ty => (
-                  <button key={ty} type="button" onClick={() => handleRangeToggle(ty)}
+                {(['single','range'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => handleRangeToggle(t)}
                     className={cn('rounded-[5px] px-2.5 py-1 text-[11px] font-semibold transition-all',
-                      rangeType === ty ? 'bg-brand/10 text-brand-text' : 'text-text-3 hover:text-text-2')}>
-                    {ty === 'single' ? t('rangeSingle') : t('rangeMulti')}
+                      rangeType === t ? 'bg-brand/10 text-brand-text' : 'text-text-3 hover:text-text-2')}>
+                    {t === 'single' ? 'Un día' : 'Varios días'}
                   </button>
                 ))}
               </div>
@@ -680,12 +650,12 @@ function ExceptionModal({
             )}
             {rangeType === 'range' && (
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">{t('dateEndReq')}</label>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Fecha fin *</label>
                 <input type="date" value={dateEnd} min={date} onChange={e => setDateEnd(e.target.value)}
                   className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
                 {dateEnd && dateEnd >= date && (
                   <p className="text-[11px] text-text-muted mt-1">
-                    {t('dayCount', { total: Math.round((new Date(dateEnd).getTime() - new Date(date).getTime()) / 86400000) + 1 })}
+                    {Math.round((new Date(dateEnd).getTime() - new Date(date).getTime()) / 86400000) + 1} día(s)
                   </p>
                 )}
               </div>
@@ -693,16 +663,16 @@ function ExceptionModal({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t('type')}</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-2">Tipo</label>
             <div className="grid grid-cols-2 gap-2">
-              {EXC_TYPES.map(ty => (
-                <button key={ty} type="button"
-                  onClick={() => { setExcType(ty); if (ty !== 'partial') { setStartTime(''); setEndTime(''); } }}
+              {EXC_TYPES.map(t => (
+                <button key={t} type="button"
+                  onClick={() => { setExcType(t); if (t !== 'partial') { setStartTime(''); setEndTime(''); } }}
                   className={cn('rounded-[8px] border py-2 text-[12px] font-semibold transition-all min-h-[44px]',
-                    excType === ty
-                      ? ty === 'partial' ? 'border-orange-400/40 bg-orange-400/10 text-orange-400' : 'border-brand/40 bg-brand/10 text-brand-text'
+                    excType === t
+                      ? t === 'partial' ? 'border-orange-400/40 bg-orange-400/10 text-orange-400' : 'border-brand/40 bg-brand/10 text-brand-text'
                       : 'border-border bg-white/[0.03] text-text-3 hover:text-text-2')}>
-                  {excLabel(ty)}
+                  {EXC_CONFIG[t]?.label}
                 </button>
               ))}
             </div>
@@ -711,12 +681,12 @@ function ExceptionModal({
           {isPartial && (
             <div className="rounded-[10px] border border-orange-400/20 bg-orange-400/[0.05] p-3 space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400/80">
-                {t('absentRange')}
+                Rango de horas ausente
                 {slotStart && slotEnd && <span className="ml-1 normal-case font-normal text-text-muted">({formatTime(slotStart)}–{formatTime(slotEnd)})</span>}
               </p>
               {/* ── De · Hasta en una sola fila ── */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold text-text-3 shrink-0">{t('from')}</span>
+                <span className="text-[11px] font-semibold text-text-3 shrink-0">De</span>
                 <select
                   value={startHour}
                   onChange={e => {
@@ -751,7 +721,7 @@ function ExceptionModal({
 
                 <span className="text-[11px] text-text-muted mx-1">→</span>
 
-                <span className="text-[11px] font-semibold text-text-3 shrink-0">{t('until')}</span>
+                <span className="text-[11px] font-semibold text-text-3 shrink-0">Hasta</span>
                 <select
                   value={endHour}
                   disabled={!startTime}
@@ -781,15 +751,15 @@ function ExceptionModal({
               </div>
               {startTime && endTime && (
                 <p className="text-[11px] text-orange-400/70">
-                  {t('absentBetween', { desde: formatTime(startTime), hasta: formatTime(endTime) })}
-                  {slotStart && slotEnd && ` · ${t('activeHours', { horas: formatPartialWorkHours(slotStart, slotEnd, startTime, endTime) })}`}
+                  Ausente {formatTime(startTime)}–{formatTime(endTime)}
+                  {slotStart && slotEnd && ` · Activo: ${formatPartialWorkHours(slotStart, slotEnd, startTime, endTime)}`}
                 </p>
               )}
             </div>
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">{t('reasonOptional')}</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Motivo (opcional)</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
               className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 resize-none" />
           </div>
@@ -798,26 +768,26 @@ function ExceptionModal({
 
           {confirmDel ? (
             <div className="rounded-[10px] border border-rose/30 bg-rose/[0.06] p-3 space-y-3">
-              <p className="text-[12px] text-text-2 text-center">{t('confirmDelete')}</p>
+              <p className="text-[12px] text-text-2 text-center">¿Eliminar esta excepción? Esta acción no se puede deshacer.</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setConfirmDel(false)}
                   className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">
-                  {tc('cancel')}
+                  Cancelar
                 </button>
                 <button type="button" onClick={handleDelete} disabled={deleting}
                   className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white bg-rose/80 hover:bg-rose disabled:opacity-40 min-h-[44px] transition-colors">
-                  {deleting ? t('deleting') : t('confirmDeleteYes')}
+                  {deleting ? 'Eliminando…' : 'Sí, eliminar'}
                 </button>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <button type="button" onClick={onClose}
-                className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">{tc('cancel')}</button>
+                className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">Cancelar</button>
               <button type="button" onClick={handleSave} disabled={!canSave || saving}
                 className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white disabled:opacity-40 min-h-[44px]"
                 style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-                {saving ? tc('saving') : isEdit ? tc('save') : t('saveException')}
+                {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar excepción'}
               </button>
             </div>
           )}
@@ -830,14 +800,13 @@ function ExceptionModal({
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
 function ScheduleLegend() {
-  const t = useTranslations('schedules');
   return (
     <div className="flex flex-wrap items-center gap-4 mt-3 px-1">
       {[
-        { label: t('fullTime'),              color: '#10B981', rgb: '16,185,129' },
-        { label: t('partTime'),              color: '#F59E0B', rgb: '245,158,11' },
-        { label: t('legendVacationAbsence'), color: '#F43F5E', rgb: '244,63,94' },
-        { label: t('excSpecialLong'),        color: '#8B5CF6', rgb: '139,92,246' },
+        { label: 'Full time',           color: '#10B981', rgb: '16,185,129' },
+        { label: 'Part time',           color: '#F59E0B', rgb: '245,158,11' },
+        { label: 'Vacación / Ausencia', color: '#F43F5E', rgb: '244,63,94' },
+        { label: 'Turno especial',      color: '#8B5CF6', rgb: '139,92,246' },
       ].map(({ label, color, rgb }) => (
         <div key={label} className="flex items-center gap-1.5">
           <span className="h-[10px] w-[10px] rounded-[3px]"
@@ -852,9 +821,6 @@ function ScheduleLegend() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSummary[] }) {
-  const t      = useTranslations('schedules');
-  const locale = useLocale();
-
   // ── Existing state ──────────────────────────────────────────────────────────
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMondayOfWeek(new Date()));
   const [clinicFilter, setClinicFilter]          = useState('');
@@ -868,9 +834,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string; schedStartTime?: string; schedEndTime?: string } | null>(null);
   const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime: string | null; excEndTime: string | null; schedStartTime?: string; schedEndTime?: string } | null>(null);
   // ── New view state ──────────────────────────────────────────────────────────
-  // El valor es un identificador, no el texto de pantalla: antes guardaba
-  // 'Semana' | 'Día' | 'Mes' y traducir la etiqueta habría roto los `===`.
-  const [view, setView]                 = useState<'week' | 'day' | 'month'>('week');
+  const [view, setView]                 = useState<'Semana' | 'Día' | 'Mes'>('Semana');
 
   // Día
   const [currentDay, setCurrentDay]     = useState(() => new Date());
@@ -886,7 +850,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   const weekDates = getWeekDates(currentWeekStart);
-  const weekLabel = getWeekLabel(currentWeekStart, locale);
+  const weekLabel = getWeekLabel(currentWeekStart);
   const todayStr  = toISODate(new Date());
   const clinicOptions = useClinicOptions();
 
@@ -897,10 +861,10 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       const qs = new URLSearchParams({ week_start: toISODate(currentWeekStart) });
       if (clinicFilter) qs.set('clinic_name', clinicFilter);
       const res = await fetch(`/api/schedules?${qs}`);
-      if (!res.ok) throw new Error(t('errLoad'));
+      if (!res.ok) throw new Error('Error al cargar horarios');
       setSchedules(await res.json() as ScheduleEntry[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errGeneric'));
+      setError(e instanceof Error ? e.message : 'Error');
     } finally { setLoading(false); }
   }, [currentWeekStart, clinicFilter]);
 
@@ -912,7 +876,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       const qs = new URLSearchParams({ week_start: toISODate(weekStart) });
       if (clinicFilter) qs.set('clinic_name', clinicFilter);
       const res = await fetch(`/api/schedules?${qs}`);
-      if (!res.ok) throw new Error(t('errLoad'));
+      if (!res.ok) throw new Error('Error al cargar horarios');
       setDaySchedules(await res.json() as ScheduleEntry[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
@@ -939,8 +903,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => { void fetchSchedules(); }, [fetchSchedules]);
-  useEffect(() => { if (view === 'day') void fetchDaySchedules(); }, [view, fetchDaySchedules]);
-  useEffect(() => { if (view === 'month') void fetchMonthSchedules(); }, [view, fetchMonthSchedules]);
+  useEffect(() => { if (view === 'Día') void fetchDaySchedules(); }, [view, fetchDaySchedules]);
+  useEffect(() => { if (view === 'Mes') void fetchMonthSchedules(); }, [view, fetchMonthSchedules]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   const prevWeek  = () => { const d = new Date(currentWeekStart); d.setDate(d.getDate() - 7); setCurrentWeekStart(d); };
@@ -955,8 +919,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
   const onSaved = () => {
     setShowAssign(false); setEditTarget(null); setExcModal(null); setShowExc(false); setEditExcModal(null);
-    if (view === 'day')  void fetchDaySchedules();
-    else if (view === 'month') void fetchMonthSchedules();
+    if (view === 'Día')  void fetchDaySchedules();
+    else if (view === 'Mes') void fetchMonthSchedules();
     else void fetchSchedules();
   };
 
@@ -965,8 +929,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
     const dateStr = toISODate(date);
     const dayNum  = date.getDay() === 0 ? 7 : date.getDay();
     const exc = entry.exceptions.find(e => e.date === dateStr);
-    const cfg = exc ? EXC_COLOR[exc.exception_type] : null;
-    if (exc && cfg) return { type: 'exception' as const, label: excLabelOf(exc.exception_type, t), color: cfg, excId: exc.id, excType: exc.exception_type as 'vacation' | 'absence' | 'holiday' | 'special' | 'partial', excReason: exc.reason, excStartTime: exc.start_time, excEndTime: exc.end_time };
+    const cfg = exc ? EXC_CONFIG[exc.exception_type] : null;
+    if (exc && cfg) return { type: 'exception' as const, label: cfg.label, color: cfg.color, excId: exc.id, excType: exc.exception_type as 'vacation' | 'absence' | 'holiday' | 'special' | 'partial', excReason: exc.reason, excStartTime: exc.start_time, excEndTime: exc.end_time };
     if (entry.schedule?.days_of_week.includes(dayNum)) {
       return {
         type: 'work' as const,
@@ -981,13 +945,13 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
   // ── Subtitle helper ───────────────────────────────────────────────────────────
   const subtitle =
-    view === 'week' ? t('subtitleWeek', { rango: weekLabel, total: employeesWithSchedule }) :
-    view === 'day'  ? formatDayLabel(currentDay, locale) :
-    t('subtitleMonth', { mes: formatMonthLabel(currentMonth, locale), total: initialEmployees.length });
+    view === 'Semana' ? `Semana ${weekLabel} · ${employeesWithSchedule} empleados` :
+    view === 'Día'    ? formatDayLabel(currentDay) :
+    `${formatMonthLabel(currentMonth)} · ${initialEmployees.length} empleados`;
 
   // ── Navigation pill helper ────────────────────────────────────────────────────
   const navPill = (
-    view === 'week' ? (
+    view === 'Semana' ? (
       <div className="flex items-center gap-1 rounded-[8px] border border-white/[0.08] bg-white/[0.03] px-2 py-1">
         <button onClick={prevWeek} className="flex h-7 w-7 items-center justify-center rounded text-text-3 hover:text-text-1 transition-colors">
           <ChevronLeft className="h-4 w-4" />
@@ -997,12 +961,12 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
-    ) : view === 'day' ? (
+    ) : view === 'Día' ? (
       <div className="flex items-center gap-1 rounded-[8px] border border-white/[0.08] bg-white/[0.03] px-2 py-1">
         <button onClick={prevDay} className="flex h-7 w-7 items-center justify-center rounded text-text-3 hover:text-text-1 transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="px-1 text-[12px] font-[500] text-text-2 whitespace-nowrap">{formatDayShort(currentDay, locale)}</span>
+        <span className="px-1 text-[12px] font-[500] text-text-2 whitespace-nowrap">{formatDayShort(currentDay)}</span>
         <button onClick={nextDay} className="flex h-7 w-7 items-center justify-center rounded text-text-3 hover:text-text-1 transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -1012,7 +976,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
         <button onClick={prevMonth} className="flex h-7 w-7 items-center justify-center rounded text-text-3 hover:text-text-1 transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="px-1 text-[12px] font-[500] text-text-2 whitespace-nowrap">{formatMonthLabel(currentMonth, locale)}</span>
+        <span className="px-1 text-[12px] font-[500] text-text-2 whitespace-nowrap">{formatMonthLabel(currentMonth)}</span>
         <button onClick={nextMonth} className="flex h-7 w-7 items-center justify-center rounded text-text-3 hover:text-text-1 transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -1027,7 +991,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-[15px] font-[500] text-text-1">{t('title')}</h2>
+          <h2 className="text-[15px] font-[500] text-text-1">Horarios de trabajo</h2>
           <p className="text-[12px] text-text-3 mt-0.5">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1037,7 +1001,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
           {/* View switcher */}
           <div className="flex rounded-[8px] border border-white/[0.08] bg-white/[0.03] p-[3px] gap-0.5">
-            {(['week', 'day', 'month'] as const).map(v => (
+            {(['Semana', 'Día', 'Mes'] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -1045,7 +1009,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                   'rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-all',
                   v === view ? 'bg-brand/10 text-brand-text' : 'text-text-3 hover:text-text-2',
                 )}>
-                {v === 'week' ? t('viewWeek') : v === 'day' ? t('viewDay') : t('viewMonth')}
+                {v}
               </button>
             ))}
           </div>
@@ -1056,7 +1020,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
             onChange={e => setClinicFilter(e.target.value)}
             className="rounded-[8px] border border-white/[0.08] px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-brand/40 min-h-[44px] sm:min-h-0"
             style={SEL_STYLE}>
-            <option value="" style={OPT_STYLE}>{t('allClinics')}</option>
+            <option value="" style={OPT_STYLE}>Todas las clínicas</option>
             {clinicOptions.map(c => <option key={c.name} value={c.name} style={OPT_STYLE}>{c.label}</option>)}
           </select>
 
@@ -1066,7 +1030,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
             className="flex items-center gap-1.5 rounded-[9px] px-3 py-2 text-[12.5px] font-semibold text-white transition-all hover:-translate-y-px min-h-[44px] sm:min-h-0"
             style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
             <Plus className="h-3.5 w-3.5" />
-            {t('assign')}
+            Asignar horario
           </button>
 
           {/* Exception button */}
@@ -1086,8 +1050,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           <span className="text-[13px] text-rose flex-1">{error}</span>
           <button
             onClick={() => {
-              if (view === 'day') void fetchDaySchedules();
-              else if (view === 'month') void fetchMonthSchedules();
+              if (view === 'Día') void fetchDaySchedules();
+              else if (view === 'Mes') void fetchMonthSchedules();
               else void fetchSchedules();
             }}
             className="text-[12px] font-semibold text-rose hover:text-rose/80 underline">
@@ -1099,7 +1063,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {/* ════════════════════════════════════════════════════
           VISTA SEMANA
       ════════════════════════════════════════════════════ */}
-      {view === 'week' && (
+      {view === 'Semana' && (
         <>
           {/* Desktop grid (≥ 768px) */}
           <div className="hidden md:block">
@@ -1107,13 +1071,13 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
               <div style={{ minWidth: 620 }}>
                 {/* Header row */}
                 <div className="grid border-b border-white/[0.07] bg-white/[0.02]" style={{ gridTemplateColumns: '136px repeat(7,1fr)' }}>
-                  <div className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('colEmployee')}</div>
+                  <div className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Empleado</div>
                   {weekDates.map((d, i) => {
                     const isToday   = toISODate(d) === todayStr;
                     const isWeekend = i >= 5;
                     return (
                       <div key={i} className={cn('border-l border-white/[0.07] px-1.5 py-2 text-center', isWeekend && 'opacity-40')}>
-                        <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted">{dayNames(locale, 'short')[i]}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted">{DAY_ABBR[i]}</div>
                         <div className={cn('text-[13px] font-[500] mt-0.5', isToday ? 'text-brand-text' : 'text-text-2')}>{d.getDate()}</div>
                       </div>
                     );
@@ -1127,12 +1091,12 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                     ? (
                       <div className="py-16 flex flex-col items-center gap-3">
                         <Calendar className="h-8 w-8 text-text-muted" />
-                        <p className="text-[14px] font-semibold text-text-2">{t('emptyTitle')}</p>
-                        <p className="text-[12px] text-text-3">{t('emptyHintWeek')}</p>
+                        <p className="text-[14px] font-semibold text-text-2">Sin horarios asignados</p>
+                        <p className="text-[12px] text-text-3">Asigna el primer horario para comenzar a visualizar la semana</p>
                         <button onClick={() => openAssign()}
                           className="mt-1 flex items-center gap-1.5 rounded-[9px] px-4 py-2 text-[13px] font-semibold text-white"
                           style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-                          <Plus className="h-3.5 w-3.5" />{t('assign')}
+                          <Plus className="h-3.5 w-3.5" />Asignar horario
                         </button>
                       </div>
                     )
@@ -1150,11 +1114,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                             <p className="text-[11px] font-[500] text-text-1 truncate leading-tight">{entry.employee.name}</p>
                             <p className="text-[9px] mt-0.5"
                               style={{ color: entry.schedule?.schedule_type === 'full_time' ? '#10B981' : entry.schedule ? '#F59E0B' : '#6B7592' }}>
-                              {entry.schedule?.schedule_type === 'full_time' ? t('fullTime') : entry.schedule?.schedule_type === 'part_time' ? t('partTime') : t('noSchedule')}
+                              {entry.schedule?.schedule_type === 'full_time' ? 'Full time' : entry.schedule?.schedule_type === 'part_time' ? 'Part time' : 'Sin horario'}
                             </p>
                           </div>
                           {entry.schedule && (
-                            <button onClick={() => openEdit(entry)} title={t('editSchedule')}
+                            <button onClick={() => openEdit(entry)} title="Editar horario"
                               className="shrink-0 opacity-0 group-hover:opacity-100 flex h-[18px] w-[18px] items-center justify-center rounded transition-all hover:bg-white/[0.10]"
                               style={{ color: '#818CF8' }}>
                               <Pencil size={9} />
@@ -1211,7 +1175,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           }
                           return (
                             <div key={di} className="border-l border-white/[0.05] p-[3px] flex items-center">
-                              <button onClick={() => openAssign(entry.employee.id)} title={t('noScheduleAssigned')}
+                              <button onClick={() => openAssign(entry.employee.id)} title="Sin horario asignado"
                                 className="w-full h-full min-h-[32px] rounded-[5px] border border-dashed border-white/10 hover:border-brand/30 hover:bg-brand/[0.04] transition-colors" />
                             </div>
                           );
@@ -1232,18 +1196,18 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                 ? (
                   <div className="flex flex-col items-center gap-3 py-16">
                     <Calendar className="h-8 w-8 text-text-muted" />
-                    <p className="text-[14px] font-semibold text-text-2">{t('emptyTitle')}</p>
-                    <p className="text-[12px] text-text-3 text-center">{t('emptyHint')}</p>
+                    <p className="text-[14px] font-semibold text-text-2">Sin horarios asignados</p>
+                    <p className="text-[12px] text-text-3 text-center">Asigna el primer horario para comenzar</p>
                     <button onClick={() => openAssign()}
                       className="mt-1 flex items-center gap-1.5 rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white w-full justify-center"
                       style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-                      <Plus className="h-3.5 w-3.5" />{t('assign')}
+                      <Plus className="h-3.5 w-3.5" />Asignar horario
                     </button>
                   </div>
                 )
                 : schedules.map((entry) => {
                   const excBadge = entry.exceptions.length > 0
-                    ? entry.exceptions.map(e => excLabelOf(e.exception_type, t)).join(', ')
+                    ? entry.exceptions.map(e => EXC_CONFIG[e.exception_type]?.label ?? e.exception_type).join(', ')
                     : null;
                   return (
                     <div key={entry.employee.id}
@@ -1260,11 +1224,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           <p className="text-[12px] font-[500] text-text-1 truncate">{entry.employee.name}</p>
                           <p className="text-[10px] font-mono"
                             style={{ color: entry.schedule?.schedule_type === 'full_time' ? '#10B981' : entry.schedule ? '#F59E0B' : '#6B7592' }}>
-                            {entry.schedule ? `${formatTime(entry.schedule.start_time)}–${formatTime(entry.schedule.end_time)}` : t('noSchedule')}
+                            {entry.schedule ? `${formatTime(entry.schedule.start_time)}–${formatTime(entry.schedule.end_time)}` : 'Sin horario'}
                           </p>
                         </div>
                         {entry.schedule && (
-                          <button onClick={() => openEdit(entry)} title={t('editSchedule')}
+                          <button onClick={() => openEdit(entry)} title="Editar horario"
                             className="shrink-0 flex h-7 w-7 items-center justify-center rounded-[6px] border border-white/[0.08] bg-white/[0.03] transition-colors hover:bg-brand/[0.08] hover:border-brand/25"
                             style={{ color: '#818CF8' }}>
                             <Pencil size={12} />
@@ -1300,7 +1264,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {/* ════════════════════════════════════════════════════
           VISTA DÍA
       ════════════════════════════════════════════════════ */}
-      {view === 'day' && (
+      {view === 'Día' && (
         <>
           {/* Desktop */}
           <div className="hidden md:block">
@@ -1308,9 +1272,9 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
               {/* Header row */}
               <div className="grid border-b border-white/[0.07] bg-white/[0.02]"
                 style={{ gridTemplateColumns: '180px 1fr 130px' }}>
-                <div className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('colEmployee')}</div>
-                <div className="border-l border-white/[0.07] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('colSchedule')}</div>
-                <div className="border-l border-white/[0.07] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">{t('colStatus')}</div>
+                <div className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Empleado</div>
+                <div className="border-l border-white/[0.07] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Horario</div>
+                <div className="border-l border-white/[0.07] px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Estado</div>
               </div>
 
               {loadingDay
@@ -1319,11 +1283,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                   ? (
                     <div className="py-16 flex flex-col items-center gap-3">
                       <Calendar className="h-8 w-8 text-text-muted" />
-                      <p className="text-[14px] font-semibold text-text-2">{t('emptyTitle')}</p>
+                      <p className="text-[14px] font-semibold text-text-2">Sin horarios asignados</p>
                       <button onClick={() => openAssign()}
                         className="mt-1 flex items-center gap-1.5 rounded-[9px] px-4 py-2 text-[13px] font-semibold text-white"
                         style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-                        <Plus className="h-3.5 w-3.5" />{t('assign')}
+                        <Plus className="h-3.5 w-3.5" />Asignar horario
                       </button>
                     </div>
                   )
@@ -1370,23 +1334,23 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           {cell.type === 'work' && (
                             <button
                               onClick={() => setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time })}
-                              title={t('excDialogNew')}
+                              title="Registrar excepción"
                               className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-brand-text transition-colors">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald shrink-0" />
-                              {t('active')}
+                              Activo
                             </button>
                           )}
                           {cell.type === 'exception' && (
                             <button
                               onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null, schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time })}
-                              title={t('excDialogEdit')}
+                              title="Editar excepción"
                               className="flex items-center gap-1.5 text-[11px] hover:opacity-70 transition-opacity">
                               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: cell.color }} />
-                              <span style={{ color: cell.color }}>{t('exception')}</span>
+                              <span style={{ color: cell.color }}>Excepción</span>
                             </button>
                           )}
                           {cell.type === 'off' && (
-                            <span className="text-[11px] text-text-muted opacity-40">{t('free')}</span>
+                            <span className="text-[11px] text-text-muted opacity-40">Libre</span>
                           )}
                         </div>
                       </div>
@@ -1405,11 +1369,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                 ? (
                   <div className="flex flex-col items-center gap-3 py-16">
                     <Calendar className="h-8 w-8 text-text-muted" />
-                    <p className="text-[14px] font-semibold text-text-2">{t('emptyTitle')}</p>
+                    <p className="text-[14px] font-semibold text-text-2">Sin horarios asignados</p>
                     <button onClick={() => openAssign()}
                       className="mt-1 flex items-center gap-1.5 rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white w-full justify-center"
                       style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-                      <Plus className="h-3.5 w-3.5" />{t('assign')}
+                      <Plus className="h-3.5 w-3.5" />Asignar horario
                     </button>
                   </div>
                 )
@@ -1426,7 +1390,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                         <p className="text-[13px] font-[500] text-text-1 truncate">{entry.employee.name}</p>
                         <p className="text-[11px] font-mono mt-0.5"
                           style={{ color: cell.type === 'work' ? cell.color : cell.type === 'exception' ? cell.color : '#6B7592' }}>
-                          {cell.type === 'work' ? cell.label : cell.type === 'exception' ? cell.label : t('free')}
+                          {cell.type === 'work' ? cell.label : cell.type === 'exception' ? cell.label : 'Libre'}
                         </p>
                       </div>
                       {cell.type === 'work' && (
@@ -1447,11 +1411,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {/* ════════════════════════════════════════════════════
           VISTA MES
       ════════════════════════════════════════════════════ */}
-      {view === 'month' && (
+      {view === 'Mes' && (
         <div>
           {/* Day headers */}
           <div className="grid grid-cols-7 gap-1 mb-1">
-            {dayNames(locale, 'short').map((d, i) => (
+            {DAY_ABBR.map((d, i) => (
               <div key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-text-muted py-1.5">
                 {d}
               </div>
@@ -1481,8 +1445,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                 return (
                   <button
                     key={i}
-                    onClick={() => { setCurrentDay(day); setView('day'); }}
-                    title={formatDayShort(day, locale)}
+                    onClick={() => { setCurrentDay(day); setView('Día'); }}
+                    title={`Ver ${formatDayShort(day)}`}
                     className={cn(
                       'relative flex flex-col items-start justify-start rounded-[8px] p-1.5 border transition-all hover:border-brand/30 hover:bg-brand/[0.05] text-left',
                       isToday
@@ -1517,14 +1481,14 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
             <div className="flex flex-wrap items-center gap-4 mt-3 px-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold" style={{ color: '#10B981' }}>●4</span>
-                <span className="text-[11px] text-text-muted">{t('legendWorking')}</span>
+                <span className="text-[11px] text-text-muted">Empleados trabajando</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold" style={{ color: '#F43F5E' }}>!1</span>
-                <span className="text-[11px] text-text-muted">{t('legendException')}</span>
+                <span className="text-[11px] text-text-muted">Con excepción</span>
               </div>
               <div className="flex items-center gap-1.5 ml-auto">
-                <span className="text-[11px] text-text-muted italic">{t('legendClickDay')}</span>
+                <span className="text-[11px] text-text-muted italic">Clic en un día → ver detalle</span>
               </div>
             </div>
           )}
@@ -1561,7 +1525,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {showExc && (
         <ExceptionModal
           employees={initialEmployees}
-          allSchedules={view === 'day' ? daySchedules : schedules}
+          allSchedules={view === 'Día' ? daySchedules : schedules}
           onClose={() => setShowExc(false)}
           onSaved={onSaved}
         />

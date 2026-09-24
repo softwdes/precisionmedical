@@ -36,6 +36,8 @@ import type { ReleaseModuleGroup } from './types';
 /** La versión que la persona ya vio, y cuándo la vio. */
 const CLAVE_VERSION = 'cifo:version-vista';
 const CLAVE_DESDE = 'cifo:version-vista-at';
+/** La misma que usa `CortinaVersion`: ya se mostró en esta sesión. */
+const CLAVE_SESION = 'cifo:cortina-mostrada';
 
 /**
  * El pedido de "mostrame otra vez lo de la versión", desde la insignia del
@@ -119,8 +121,23 @@ export function useNovedadDeVersion(version: string, audiencia: string): Novedad
     const aPedido = (): void => { void traer(); };
     window.addEventListener(EVENTO_NOVEDAD, aPedido);
 
-    // El caso normal: no se pide nada si la versión ya se vio.
-    if (sinVer) void traer();
+    /**
+     * Automático: solo si la versión no se vio Y la cortina no se mostró ya en
+     * esta sesión del navegador.
+     *
+     * Las dos condiciones hacen falta y miden cosas distintas. "No la vio" vive
+     * en `localStorage` y solo se apaga cuando la persona **descarta** la
+     * cortina; si se cerró sola, sigue sin verla. Pero sin la marca de sesión,
+     * eso significaría taparle la pantalla en CADA navegación hasta que la
+     * descarte, que es exactamente cómo se hace odiar un aviso.
+     *
+     * Con las dos: se muestra una vez por sesión, y si nunca la descartó vuelve
+     * mañana. El punto de la insignia, mientras tanto, sigue latiendo — ahí es
+     * donde queda la deuda pendiente, sin robarle la pantalla a nadie.
+     */
+    let yaEnEstaSesion = false;
+    try { yaEnEstaSesion = window.sessionStorage.getItem(CLAVE_SESION) === '1'; } catch { /* da igual */ }
+    if (sinVer && !yaEnEstaSesion) void traer();
 
     return () => { cancelado = true; window.removeEventListener(EVENTO_NOVEDAD, aPedido); };
 

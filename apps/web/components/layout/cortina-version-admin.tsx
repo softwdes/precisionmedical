@@ -36,7 +36,7 @@ export function CortinaVersionAdmin(): React.ReactElement {
         cerrar: t('versionCerrar'),
         nonce: novedad.nonce,
       }}
-      onMostrada={() => marcarVersionVista(VERSION)}
+      onDescartada={() => marcarVersionVista(VERSION)}
     />
   );
 }

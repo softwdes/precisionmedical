@@ -30,6 +30,13 @@ import * as React from 'react';
  * lindo no le da derecho a retener a nadie.
  */
 
+/**
+ * Que ya se mostró en esta sesión del navegador. Vive en `sessionStorage` y no
+ * en `localStorage` a propósito: no es "la vio" —eso lo decide el descarte— sino
+ * "ya le tapé la pantalla una vez hoy".
+ */
+const CLAVE_SESION = 'cifo:cortina-mostrada';
+
 /** Cuánto queda en pantalla si nadie la toca. */
 const MS_EN_PANTALLA = 6_000;
 
@@ -59,17 +66,41 @@ export interface DatosCortina {
 
 export function CortinaVersion({
   datos,
-  onMostrada,
+  onDescartada,
 }: {
   datos: DatosCortina | null;
-  /** Se llama UNA vez por pedido, cuando la cortina ya está en pantalla. */
-  onMostrada?: () => void;
+  /**
+   * Se llama cuando la persona la cierra A PROPÓSITO — el botón, el fondo o
+   * Escape. **No** cuando se cierra sola.
+   *
+   * ── Por qué la diferencia importa ───────────────────────────────────────
+   *
+   * Antes esto se llamaba `onMostrada` y se disparaba al ABRIR. El efecto era
+   * que la insignia dejaba de latir un segundo después de cargar la página:
+   * el punto ámbar aparecía, llegaba el changelog, la cortina se abría, y el
+   * punto se apagaba sin que nadie lo hubiera mirado.
+   *
+   * Erick lo notó al revés —*"falta el punto ámbar parpadeante"*— y tenía
+   * razón en lo de fondo: un aviso que se marca como visto por mostrarse no
+   * distingue entre quien lo leyó y quien no estaba frente a la pantalla.
+   *
+   * Ahora "visto" significa que la persona hizo algo. Si la cortina se cerró
+   * sola a los seis segundos, el punto sigue latiendo y la próxima sesión
+   * vuelve a mostrarla — que es lo correcto: nadie la vio.
+   */
+  onDescartada?: () => void;
 }): React.ReactElement | null {
   const [abierta, setAbierta] = React.useState(false);
   const nonce = datos?.nonce ?? null;
 
-  const alMostrar = React.useRef(onMostrada);
-  alMostrar.current = onMostrada;
+  const alDescartar = React.useRef(onDescartada);
+  alDescartar.current = onDescartada;
+
+  /** Cierra. `aProposito` distingue el clic de la persona del reloj. */
+  const cerrar = React.useCallback((aProposito: boolean) => {
+    setAbierta(false);
+    if (aProposito) alDescartar.current?.();
+  }, []);
 
   /**
    * ⚠️ La dependencia es `nonce`, un número — no el objeto `datos`.
@@ -82,22 +113,25 @@ export function CortinaVersion({
   React.useEffect(() => {
     if (nonce === null) return;
     setAbierta(true);
-    alMostrar.current?.();
+    // Que ya se mostró en ESTA sesión del navegador. Sin esto, una cortina que
+    // se cerró sola volvería a taparle la pantalla en cada navegación hasta que
+    // la persona la descarte — y eso la convierte en un castigo.
+    try { window.sessionStorage.setItem(CLAVE_SESION, '1'); } catch { /* da igual */ }
   }, [nonce]);
 
   React.useEffect(() => {
     if (!abierta) return;
-    const salir = (e: KeyboardEvent): void => { if (e.key === 'Escape') setAbierta(false); };
+    const salir = (e: KeyboardEvent): void => { if (e.key === 'Escape') cerrar(true); };
     window.addEventListener('keydown', salir);
-    const id = window.setTimeout(() => setAbierta(false), MS_EN_PANTALLA);
+    const id = window.setTimeout(() => cerrar(false), MS_EN_PANTALLA);
     return () => { window.removeEventListener('keydown', salir); window.clearTimeout(id); };
-  }, [abierta]);
+  }, [abierta, cerrar]);
 
   if (!abierta || datos === null) return null;
 
   return (
     <div
-      onClick={() => setAbierta(false)}
+      onClick={() => cerrar(true)}
       role="dialog"
       aria-modal="true"
       aria-label={datos.etiqueta}
@@ -191,7 +225,7 @@ export function CortinaVersion({
 
       <button
         type="button"
-        onClick={() => setAbierta(false)}
+        onClick={() => cerrar(true)}
         className="pm-cortina-anim relative mt-10 rounded-md border border-border bg-bg-1/80 px-4 py-2 text-sm text-text-2 opacity-0 transition-colors hover:text-text-1"
         style={{ animation: 'pm-cortina-sube 400ms 1600ms ease-out forwards' }}
       >

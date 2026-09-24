@@ -51,7 +51,7 @@ export function CortinaVersionBO(): React.ReactElement {
         cerrar: t('novedadCerrar'),
         nonce: novedad.nonce,
       }}
-      onMostrada={() => marcarVersionVista(VERSION)}
+      onDescartada={() => marcarVersionVista(VERSION)}
     />
   );
 }

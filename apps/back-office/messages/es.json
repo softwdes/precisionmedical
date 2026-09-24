@@ -6542,6 +6542,19 @@
       "srvTARGET_DELETED": "El referidor que queda no puede ser uno borrado.",
       "srvINVALID_CODE_PREFIX": "Los códigos propios tienen que empezar con «{prefijo}».",
       "srvMEMBER_NOT_IN_FIRM": "Solo podés asignar miembros de tu propio bufete."
+    },
+    "push": {
+      "msgNuevo": "Nuevo mensaje",
+      "msgUrgente": "Mensaje urgente",
+      "msgDe": "de {remitente}",
+      "msgSinLeer": "Tenés un mensaje sin leer",
+      "diaPacientes": "{count, plural, one {Hoy tenés 1 paciente} other {Hoy tenés # pacientes}}",
+      "diaPrimeroA": "El primero a las {hora}",
+      "diaCitas": "{count, plural, one {Hoy hay 1 cita} other {Hoy hay # citas}}",
+      "diaSinFirmar": "{count, plural, one {1 llega sin admisión firmada} other {# llegan sin admisión firmada}}",
+      "diaTodasFirmadas": "Todas con su admisión firmada",
+      "casosAtencion": "{count, plural, one {1 caso necesita atención} other {# casos necesitan atención}}",
+      "casoMasAtrasado": "{count, plural, one {El más atrasado, 1 día} other {El más atrasado, # días}}"
     }
   },
   "caseWizard": {

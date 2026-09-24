@@ -138,6 +138,23 @@ export function Topbar({
     if (next === currentLocale || switchingLocale) return;
     setPendingLocale(next);
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
+    /**
+     * La cookie pinta la pantalla; la fila guarda la preferencia.
+     *
+     * Hacen falta las dos: el aviso al celular se arma en un cron, sin request
+     * y sin cookie, y el idioma lo saca de `users.preferredLocale`. Mientras
+     * esto no se guardaba, esa columna se quedaba en su default y el aviso
+     * salía en castellano para todo el mundo.
+     *
+     * Va sin `await` y traga el error a propósito: que no se pueda guardar la
+     * preferencia no es motivo para no cambiar el idioma de la pantalla, que es
+     * lo que la persona pidió.
+     */
+    void fetch('/api/me/locale', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale: next }),
+    }).catch(() => { /* la cookie ya cambió: la pantalla responde igual */ });
     startTransition(() => { router.refresh(); });
   };
 

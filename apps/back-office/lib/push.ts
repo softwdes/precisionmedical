@@ -33,7 +33,9 @@
  */
 
 import webpush from 'web-push';
+import { createTranslator } from 'next-intl';
 import { db } from '@precision-medical/database';
+import { messages } from '@/i18n/messages';
 
 /** El aviso tal como lo lee el Service Worker (ver `worker/index.js`). */
 export interface AvisoPush {
@@ -89,6 +91,32 @@ export interface AvisoPush {
    * despertar el teléfono para eso es gastar batería sin motivo.
    */
   inmediato?: boolean;
+}
+
+/** Los dos idiomas que habla el sistema. */
+export type IdiomaAviso = 'es' | 'en';
+
+/**
+ * Lo que recibe quien arma un aviso.
+ *
+ * `locale` va aparte de `t` porque hace falta para formatear horas y fechas:
+ * un `Intl.DateTimeFormat('es-US')` en duro le manda "3:00 p. m." a alguien
+ * que lee inglés.
+ */
+export interface ContextoAviso {
+  t: (clave: string, valores?: Record<string, string | number>) => string;
+  locale: IdiomaAviso;
+}
+
+/** Arma el aviso para UN idioma. */
+export type ArmarAviso = (ctx: ContextoAviso) => AvisoPush;
+
+/** El texto de `phoenix.push`, resuelto sin request. */
+function traductorDe(locale: IdiomaAviso): ContextoAviso {
+  // `createTranslator` es la versión pura de `useTranslations`: no toca
+  // cookies ni headers, así que sirve dentro de un cron.
+  const t = createTranslator({ locale, messages: messages[locale], namespace: 'phoenix.push' });
+  return { t: (clave, valores) => t(clave as never, valores as never), locale };
 }
 
 let listo: boolean | null = null;
@@ -200,7 +228,7 @@ function destinoPara(aviso: AvisoPush, origin: string): string {
  * @param userIds `users.id` de Phoenix. Se ignora silenciosamente a quien no
  *   tenga ninguna suscripción — la mayoría, hasta que la gente acepte.
  */
-export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<void> {
+export async function enviarAviso(userIds: string[], aviso: AvisoPush | ArmarAviso): Promise<void> {
   const destinatarios = [...new Set(userIds)].filter(Boolean);
   if (destinatarios.length === 0) return;
 
@@ -209,14 +237,41 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
   // donde la tabla todavía no exista.
   if (!configurar()) return;
 
+  /**
+   * El idioma viaja con la SUSCRIPCIÓN, no con el aviso.
+   *
+   * `preferredLocale` es del proyecto Phoenix, que es donde viven las
+   * suscripciones — el Admin tiene su propia copia y acá no sirve (misma
+   * historia que `crew`, ver `schema.prisma`). El LEFT JOIN y el COALESCE son
+   * por las suscripciones cuyo `userId` ya no tiene fila: antes igual recibían
+   * el aviso y no se las va a dejar afuera por esto.
+   */
   const subs = await db.$queryRaw<
-    Array<{ id: string; endpoint: string; p256dh: string; auth: string; origin: string }>
+    Array<{ id: string; endpoint: string; p256dh: string; auth: string; origin: string; locale: string }>
   >`
-    SELECT "id", "endpoint", "p256dh", "auth", "origin"
-      FROM "push_subscriptions"
-     WHERE "userId" = ANY(${destinatarios}::text[])
+    SELECT s."id", s."endpoint", s."p256dh", s."auth", s."origin",
+           COALESCE(u."preferredLocale"::text, 'es') AS "locale"
+      FROM "push_subscriptions" s
+      LEFT JOIN "users" u ON u."id" = s."userId"
+     WHERE s."userId" = ANY(${destinatarios}::text[])
   `;
   if (subs.length === 0) return;
+
+  /**
+   * Un texto por idioma, no uno por suscripción: diez personas que leen
+   * castellano son una sola pasada por el formateador.
+   */
+  const porIdioma = new Map<IdiomaAviso, AvisoPush>();
+  const avisoPara = (loc: string): AvisoPush => {
+    if (typeof aviso !== 'function') return aviso;
+    const idioma: IdiomaAviso = loc === 'en' ? 'en' : 'es';
+    let armado = porIdioma.get(idioma);
+    if (!armado) {
+      armado = aviso(traductorDe(idioma));
+      porIdioma.set(idioma, armado);
+    }
+    return armado;
+  };
 
   const muertas: string[] = [];
   const vivas: string[] = [];
@@ -224,14 +279,15 @@ export async function enviarAviso(userIds: string[], aviso: AvisoPush): Promise<
   await Promise.all(
     subs.map(async (s) => {
       try {
+        const suyo = avisoPara(s.locale);
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          JSON.stringify({ ...aviso, url: destinoPara(aviso, s.origin) }),
+          JSON.stringify({ ...suyo, url: destinoPara(suyo, s.origin) }),
           // 4 h de TTL: un aviso de mensaje que llega al otro día no sirve, y
           // dejarlo colgado en el push service solo genera ruido tardío.
           {
             TTL: 4 * 60 * 60,
-            urgency: aviso.inmediato || aviso.urgente ? 'high' : 'normal',
+            urgency: suyo.inmediato || suyo.urgente ? 'high' : 'normal',
           },
         );
         vivas.push(s.id);
@@ -277,9 +333,9 @@ export async function avisarMensajeNuevo(
   threadId: string,
   urgente = false,
 ): Promise<void> {
-  await enviarAviso(userIds, {
-    titulo: urgente ? 'Mensaje urgente' : 'Nuevo mensaje',
-    cuerpo: remitente ? `de ${remitente}` : 'Tenés un mensaje sin leer',
+  await enviarAviso(userIds, ({ t }) => ({
+    titulo: t(urgente ? 'msgUrgente' : 'msgNuevo'),
+    cuerpo: remitente ? t('msgDe', { remitente }) : t('msgSinLeer'),
     // El SW le pone el prefijo del portal según su origen — ver `worker/index.js`.
     url: `/messages?thread=${threadId}`,
     // La bandeja no existe en el Admin: para una suscripción de ese dominio
@@ -292,5 +348,5 @@ export async function avisarMensajeNuevo(
     // Un mensaje interno llega en el acto, urgente o no: alguien del otro lado
     // está esperando una respuesta. Ver la nota de `inmediato` en `AvisoPush`.
     inmediato: true,
-  });
+  }));
 }

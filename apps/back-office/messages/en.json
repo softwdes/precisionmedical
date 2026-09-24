@@ -6542,6 +6542,19 @@
       "srvTARGET_DELETED": "The referrer that remains cannot be a deleted one.",
       "srvINVALID_CODE_PREFIX": "Custom codes must start with “{prefijo}”.",
       "srvMEMBER_NOT_IN_FIRM": "You can only assign members of your own firm."
+    },
+    "push": {
+      "msgNuevo": "New message",
+      "msgUrgente": "Urgent message",
+      "msgDe": "from {remitente}",
+      "msgSinLeer": "You have an unread message",
+      "diaPacientes": "{count, plural, one {You have 1 patient today} other {You have # patients today}}",
+      "diaPrimeroA": "First one at {hora}",
+      "diaCitas": "{count, plural, one {1 appointment today} other {# appointments today}}",
+      "diaSinFirmar": "{count, plural, one {1 arrives without a signed intake} other {# arrive without a signed intake}}",
+      "diaTodasFirmadas": "All with their intake signed",
+      "casosAtencion": "{count, plural, one {1 case needs attention} other {# cases need attention}}",
+      "casoMasAtrasado": "{count, plural, one {The oldest, 1 day} other {The oldest, # days}}"
     }
   },
   "caseWizard": {

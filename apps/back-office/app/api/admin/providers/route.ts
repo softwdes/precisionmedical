@@ -90,6 +90,33 @@ const ProviderInputSchema = z.object({
        propia tarea — ver pending-tasks. */
     .refine((v) => v === '' || npiValido(v), { message: 'NPI inválido' })
     .nullable().optional(),
+  /**
+   * El id de prescriptor que le da ScriptSure. Es lo que dice "esta receta se
+   * emite a nombre de este medico".
+   *
+   * Hasta hoy se leia en cuatro lugares (el widget de receta, el de refill, el
+   * sync y el webhook) y **no se escribia en ninguno**: no habia campo en
+   * pantalla ni endpoint que lo cargara. El unico que existe —el de Devin,
+   * 10845— se puso a mano en la base. Con ocho providers por dar de alta eso
+   * dejaba de ser sostenible.
+   *
+   * Es SOLO digitos porque del otro lado se hace `Number(...)`: una letra que se
+   * cuele aca se convierte en `NaN` y ScriptSure rechaza la sesion sin decir por
+   * que. Vacio = todavia no esta habilitado para recetar, que es un estado
+   * legitimo y la pantalla lo dice.
+   *
+   * El mensaje de zod se omite A PROPOSITO. Los mensajes de zod viajan al
+   * cliente dentro de `details` por `flatten()`, y esta pantalla lee
+   * `message ?? error` — nunca `details`. O sea: nadie lo ve nunca. Escribirlo
+   * en castellano solo sumaba texto en duro al guard de i18n sin darle una
+   * frase a nadie. Lo que la persona SI ve es el aviso traducido del propio
+   * campo (`scriptsureSoloNumeros`); esto de acá es el cierre del servidor, que
+   * tiene que RECHAZAR, no explicar.
+   */
+  scriptsureUserId: z.string().trim()
+    .regex(/^[0-9]*$/)
+    .max(20)
+    .nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'TERMINATED']).default('ACTIVE'),
   employeeId: z.string().nullable().optional(),
 });
@@ -115,6 +142,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       specialty: parsed.specialty,
       licenseNumber: parsed.licenseNumber ?? null,
       npi: parsed.npi ? parsed.npi.trim() : null,
+      scriptsureUserId: parsed.scriptsureUserId ? parsed.scriptsureUserId.trim() : null,
       status: parsed.status,
     },
   });
@@ -160,6 +188,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       specialty: parsed.specialty,
       licenseNumber: parsed.licenseNumber ?? null,
       npi: parsed.npi ? parsed.npi.trim() : null,
+      scriptsureUserId: parsed.scriptsureUserId ? parsed.scriptsureUserId.trim() : null,
       status: parsed.status,
       employeeId: parsed.employeeId !== undefined ? parsed.employeeId : undefined,
     },

@@ -37,6 +37,8 @@ interface Provider {
   specialty: string;
   licenseNumber: string | null;
   npi: string | null;
+  /** Id de prescriptor de ScriptSure. Sin esto no puede recetar. */
+  scriptsureUserId: string | null;
   status: string;
   appointmentCount: number;
   employeeId: string | null;
@@ -84,6 +86,7 @@ const EMPTY_FORM = {
   specialty: 'GENERAL' as string,
   licenseNumber: '',
   npi: '',
+  scriptsureUserId: '',
   status: 'ACTIVE' as string,
   employeeId: '' as string,
 };
@@ -114,6 +117,9 @@ export function ProvidersClient({ providers, stats }: Props) {
   /** Vacío es válido: el NPI no es obligatorio para dar de alta al provider, lo
       es para EMITIR una orden de laboratorio, y eso se avisa allá. */
   const npiMal = form.npi.trim() !== '' && !npiValido(form.npi);
+  /* Solo dígitos: del otro lado se hace `Number(...)` y una letra lo vuelve
+     `NaN`, con lo que ScriptSure rechaza la sesión sin decir por qué. */
+  const scriptsureMal = form.scriptsureUserId.trim() !== '' && !/^[0-9]+$/.test(form.scriptsureUserId.trim());
 
   const filtered = providers.filter((p) => {
     if (search) {
@@ -140,6 +146,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       specialty:     p.specialty,
       licenseNumber: p.licenseNumber ?? '',
       npi:           p.npi ?? '',
+      scriptsureUserId: p.scriptsureUserId ?? '',
       status:        p.status,
       employeeId:    p.employeeId ?? '',
     });
@@ -151,6 +158,7 @@ export function ProvidersClient({ providers, stats }: Props) {
     // El servidor lo rechaza igual; esto es para que el motivo se vea en el
     // campo y no como un error genérico al final del formulario.
     if (npiMal) { setError('Revisá el NPI: no pasa el dígito verificador.'); return; }
+    if (scriptsureMal) { setError(t('scriptsureSoloNumeros')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -293,6 +301,31 @@ export function ProvidersClient({ providers, stats }: Props) {
             </p>
           )}
         </div>
+      </div>
+
+      {/* ── Recetas electrónicas ────────────────────────────────────────────
+          El id lo asigna ScriptSure cuando da de alta al prescriptor, y hay que
+          traerlo a mano: ScriptSure no nos avisa. Se explica en la pantalla
+          porque quien completa esta ficha no tiene por qué saber de dónde sale
+          ese número — y sin él el provider abre la receta y se encuentra con un
+          cartel, sin pista de qué falta. */}
+      <div className="space-y-1.5">
+        <Label htmlFor="scriptsureUserId">{t('fieldScriptsure')}</Label>
+        <Input
+          id="scriptsureUserId"
+          value={form.scriptsureUserId}
+          onChange={set('scriptsureUserId')}
+          inputMode="numeric"
+          maxLength={20}
+          placeholder={t('phScriptsure')}
+          aria-invalid={scriptsureMal || undefined}
+          className={scriptsureMal ? '!border-rose focus:!border-rose' : undefined}
+        />
+        {scriptsureMal ? (
+          <p className="text-[11px] text-rose">{t('scriptsureSoloNumeros')}</p>
+        ) : (
+          <p className="text-[11px] text-text-muted">{t('scriptsureHint')}</p>
+        )}
       </div>
 
       {/* Vínculo con empleado HR */}
@@ -438,13 +471,31 @@ export function ProvidersClient({ providers, stats }: Props) {
         <TableFooter left={`${filtered.length} de ${providers.length} doctores`} />
       </DataTable.Card>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog
+
+          El alto se acota y el cuerpo scrollea SOLO. Sin esto el diálogo crece
+          con sus campos y el pie se va abajo del borde de la pantalla: medido el
+          2026-09-24 con la pantalla a 738px de alto, "Guardar cambios" quedaba
+          en y=828 — o sea, imposible de apretar y sin forma de llegar, porque
+          nada scrolleaba. Un formulario que no se puede guardar no es un
+          formulario.
+
+          La primitiva `DialogContent` no trae ni `max-h` ni scroll, y no se toca
+          desde acá: su propio comentario avisa que 68 consumidores dependen de
+          su padding. Se resuelve en este diálogo — `max-h-[92vh]` + columna
+          flex, el cuerpo con `overflow-y-auto` y el pie afuera del scroll, que
+          es lo que pide la Regla #4.
+
+          El `-mx-6 px-6` devuelve el padding que el scroll se come, para que
+          el anillo de foco de los inputs no quede cortado contra el borde. */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[92vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{t('editTitle')}</DialogTitle>
           </DialogHeader>
-          <FormFields providerId={editing?.id} />
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
+            <FormFields providerId={editing?.id} />
+          </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>{tc('cancel')}</Button>
             <Button className="w-full sm:w-auto" onClick={() => handleSave()} disabled={saving}>

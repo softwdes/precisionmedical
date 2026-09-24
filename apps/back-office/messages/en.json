@@ -6007,7 +6007,11 @@
       "noLink": "No link",
       "searchPlaceholder": "Search by name or email…",
       "filterActive": "Active",
-      "filterInactive": "Inactive"
+      "filterInactive": "Inactive",
+      "fieldScriptsure": "Prescriber ID (ScriptSure)",
+      "phScriptsure": "e.g. 10845",
+      "scriptsureHint": "ScriptSure assigns it when the prescriber is set up. Without this number the provider cannot send prescriptions.",
+      "scriptsureSoloNumeros": "The ScriptSure ID is digits only."
     },
     "charges": {
       "chargesOnVisit": "{count} charges on this visit",

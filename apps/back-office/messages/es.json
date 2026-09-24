@@ -6007,7 +6007,11 @@
       "noLink": "Sin vínculo",
       "searchPlaceholder": "Buscar por nombre o email…",
       "filterActive": "Activos",
-      "filterInactive": "Inactivos"
+      "filterInactive": "Inactivos",
+      "fieldScriptsure": "Id de prescriptor (ScriptSure)",
+      "phScriptsure": "Ej. 10845",
+      "scriptsureHint": "Lo asigna ScriptSure al dar de alta al prescriptor. Sin este número el provider no puede emitir recetas.",
+      "scriptsureSoloNumeros": "El id de ScriptSure es solo números."
     },
     "charges": {
       "chargesOnVisit": "{count} cargos en esta visita",

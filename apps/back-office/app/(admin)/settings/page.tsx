@@ -213,6 +213,7 @@ export default async function SettingsPage() {
         specialty: p.specialty,
         licenseNumber: p.licenseNumber,
         npi: p.npi,
+        scriptsureUserId: p.scriptsureUserId,
         status: p.status,
         appointmentCount: p._count.appointments,
         employeeId: p.employeeId ?? null,

@@ -4157,6 +4157,23 @@ model BillingPayment {
   notes  String?   @db.Text
   paidAt DateTime?
 
+  /// Por qué se REVIRTIÓ este pago. Obligatorio en el diálogo de reversión.
+  ///
+  /// No confundir con `notes`, que es la nota del COBRO: la escribe quien cobra
+  /// y explica el pago. Ésta explica lo contrario, y pisar una con la otra
+  /// perdería la primera justo en el caso donde más se la quiere leer.
+  ///
+  /// El motivo también va al audit log (`CANCEL_BILLING_PAYMENT`), que es el
+  /// registro legal. Acá vive para que se lea SIN navegar el audit log: si
+  /// alguien pregunta por qué se revirtió un cobro, la respuesta tiene que
+  /// estar colgada del pago.
+  voidReason   String?   @db.Text
+  /// Cuándo. Distinto de `updatedAt`, que se mueve por cualquier cambio.
+  voidedAt     DateTime?
+  /// Denormalizado, como `coverageVerifiedByName`: se lee sin JOIN y sobrevive
+  /// aunque la ficha del usuario cambie después.
+  voidedByName String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

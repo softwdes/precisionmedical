@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 /**
  * FinanzasTab — Resumen financiero del caso.
@@ -7,13 +8,13 @@ import { localeApp } from '@/lib/fechas';
  */
 
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
-  Trash2, CreditCard, FileText, X, ChevronUp, Shield, ShieldAlert,
+  Trash2, CreditCard, FileText, X, ChevronUp, Shield, ShieldAlert, Undo2,
 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogTitle } from '@precision/ui';
+import { RevertirPagoDialog, RevertirPagoButton, type PagoARevertir } from './revertir-pago-dialog';
 import { EmptyState, FloatingPanel } from '@/components/ui-phoenix';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 
@@ -43,6 +44,9 @@ interface BillingRecord {
   appointmentId: string | null;
   appointmentDate: string | null;
   appointmentStatus: string | null;
+  /** La sede de la visita y su color de Settings. `null` en un cargo sin cita. */
+  clinicName: string | null;
+  clinicColor: string | null;
   serviceCode: string | null;
   serviceDescription: string | null;
   totalCost: number;
@@ -81,6 +85,8 @@ interface PaymentRow {
   paidAt: string;
   appointmentId: string | null;
   appointmentDate: string | null;
+  clinicName: string | null;
+  clinicColor: string | null;
   serviceCode: string | null;
   serviceDescription: string | null;
 }
@@ -320,6 +326,35 @@ function SelectUp({
   );
 }
 
+/**
+ * La sede de la visita, con su color.
+ *
+ * Son SIETE clínicas y el equipo se orienta por el color que tienen puesto en
+ * Settings — Darrell trabaja así (Erick, 2026-09-23). Antes el cobro no decía
+ * la sede en ningún lado: dos visitas del mismo paciente en la misma semana se
+ * veían idénticas aunque una fuera de West Valley y la otra de Provo.
+ *
+ * El color va por `style` y no por clase: es un hex que se elige en Settings y
+ * Tailwind no emite clases que no estén escritas en el código.
+ *
+ * El NOMBRE acompaña siempre al punto. Un color solo obliga a recordar siete
+ * equivalencias, y quien no las tenga memorizadas —o no distinga los dos
+ * azules de la lista— se queda sin el dato.
+ */
+function SedeDeLaVisita({ nombre, color }: { nombre: string | null; color: string | null }) {
+  if (!nombre) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted whitespace-nowrap">
+      <span
+        className="w-2 h-2 rounded-full shrink-0 ring-1 ring-inset ring-black/20"
+        style={{ backgroundColor: color ?? '#6366F1' }}
+        aria-hidden="true"
+      />
+      {nombre}
+    </span>
+  );
+}
+
 // ─── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, color, hint }: {
@@ -474,6 +509,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const [payInsuranceId, setPayInsuranceId] = useState<string>('');
   const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
+  /**
+   * El pago que se está revirtiendo, con el motivo que se está escribiendo.
+   *
+   * Antes esto era un `confirm()` del navegador sobre un tacho de 12px. Dos
+   * problemas: el tacho dice "borrar" y lo que pasa es "revertir" —el pago no se
+   * borra, queda CANCELLED y el saldo vuelve entero—, y no se registraba POR QUÉ.
+   *
+   * Darrell está aprendiendo a cobrar en v3 y equivocarse es parte del
+   * aprendizaje (Erick, 2026-09-23). Revertir tiene que ser obvio y dejar dicho
+   * qué pasó, no esconderse detrás de un ícono que da miedo.
+   */
+  const [revirtiendo, setRevirtiendo] = useState<PagoARevertir | null>(null);
   /** Visita con el detalle desplegado en el modal de cobro */
   const [detalleVisita, setDetalleVisita] = useState<string | null>(null);
 
@@ -782,20 +829,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
     }
   }
 
-  async function deletePayment(billingId: string, payId: string) {
-    if (!confirm(t('payConfirmCancel'))) return;
-    setDeletingPay(payId);
-    try {
-      const res = await fetch(`/api/admin/cases/${caseId}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      load();
-      onChanged?.();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : t('alertErrorCancel'));
-    } finally {
-      setDeletingPay(null);
-    }
-  }
+  // El revert vive en `RevertirPagoDialog`, compartido con la lista de Finanzas.
 
   /**
    * Los KPIs y el historial se derivan acá, no se toman de la API.
@@ -1248,21 +1282,24 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                       <div className="text-text-2 truncate">
                         {p.serviceDescription ?? p.serviceCode ?? '—'}
                       </div>
-                      <div className="text-[10px] text-text-muted">
-                        {t('historyVisitOf')} {fmtDate(p.appointmentDate)}
+                      <div className="text-[10px] text-text-muted flex items-center gap-2 flex-wrap">
+                        <span>{t('historyVisitOf')} {fmtDate(p.appointmentDate)}</span>
+                        <SedeDeLaVisita nombre={p.clinicName} color={p.clinicColor} />
                       </div>
                       {p.notes && <div className="text-[10px] italic text-text-muted mt-0.5">{p.notes}</div>}
                     </td>
                     <td className="px-3 py-2.5">
+                      {/* "Revertir" y no un tacho: el pago NO se borra — queda
+                          anulado y el saldo vuelve entero. Con texto, porque un
+                          ícono solo obliga a adivinar qué hace, y acá lo que se
+                          adivina es plata. */}
                       {!readOnly && (
-                        <button
-                          onClick={() => deletePayment(p.billingId, p.id)}
-                          disabled={deletingPay === p.id}
-                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
-                          title={tc('cancelPayment')}
-                        >
-                          {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                        </button>
+                        <RevertirPagoButton
+                          onClick={() => setRevirtiendo({
+                            caseId, billingId: p.billingId, payId: p.id,
+                            monto: p.amount, descuento: p.discount ?? 0,
+                          })}
+                        />
                       )}
                     </td>
                   </tr>
@@ -1435,6 +1472,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                             <span className="text-[11px] text-text-muted">
                               {t('payVisitLines', { count: v.lineas.length })}
                             </span>
+                            {/* En qué sede fue. Las líneas de una visita son
+                                todas de la misma cita, así que alcanza la
+                                primera. */}
+                            <SedeDeLaVisita
+                              nombre={v.lineas[0]?.clinicName ?? null}
+                              color={v.lineas[0]?.clinicColor ?? null}
+                            />
                             {/* Lo que antes "protegía" el mostrador escondiendo la
                                 línea. Esconderla dejaba el copago sin dónde entrar;
                                 rotularla avisa igual y no bloquea nada. */}
@@ -1966,6 +2010,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
 
         </DialogContent>
       </Dialog>
+
+      {/* Revertir un pago — el MISMO diálogo que usa la lista de Finanzas. */}
+      <RevertirPagoDialog
+        pago={revirtiendo}
+        onClose={() => setRevirtiendo(null)}
+        onDone={() => { load(); onChanged?.(); }}
+      />
     </div>
   );
 });

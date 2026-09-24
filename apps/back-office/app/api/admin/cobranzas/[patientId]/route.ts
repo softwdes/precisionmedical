@@ -89,7 +89,14 @@ export async function GET(
     select: {
       id: true, caseId: true, totalCost: true, amountPaid: true, balanceDue: true,
       serviceCode: true, serviceDescription: true,
-      appointment: { select: { id: true, caseId: true, scheduledFor: true } },
+      appointment: {
+        select: {
+          id: true, caseId: true, scheduledFor: true,
+          /** La sede y su color, igual que en el tab del caso: el equipo se
+           *  orienta por el color de Settings y son 7 clínicas. */
+          clinic: { select: { name: true, color: true } },
+        },
+      },
       payments: {
         where: { status: { not: 'CANCELLED' } },
         select: {
@@ -166,6 +173,8 @@ export async function GET(
       serviceCode: b.serviceCode,
       serviceDescription: b.serviceDescription,
       appointmentDate: b.appointment?.scheduledFor ?? null,
+      clinicName: b.appointment?.clinic?.name ?? null,
+      clinicColor: b.appointment?.clinic?.color ?? null,
     }));
   }).sort((a, z) => new Date(z.paidAt).getTime() - new Date(a.paidAt).getTime());
 

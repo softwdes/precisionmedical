@@ -51,7 +51,19 @@ export async function GET(
     },
     include: {
       appointment: {
-        select: { id: true, scheduledFor: true, status: true },
+        select: {
+          id: true, scheduledFor: true, status: true,
+          /**
+           * En qué clínica fue la visita, con su color.
+           *
+           * Son SIETE sedes y el equipo se orienta por el color que tienen
+           * puesto en Settings — Darrell trabaja así (Erick, 2026-09-23). El
+           * cobro no mostraba la clínica en ningún lado: dos visitas del mismo
+           * paciente en la misma semana se veían idénticas aunque fueran de
+           * West Valley y de Provo.
+           */
+          clinic: { select: { name: true, color: true } },
+        },
       },
       payments: {
         where: { status: { not: 'CANCELLED' } },
@@ -75,6 +87,9 @@ export async function GET(
     id: b.id,
     appointmentId: b.appointmentId,
     appointmentDate: b.appointment?.scheduledFor ?? null,
+    /** La sede de la visita y su color. `null` en un cargo sin cita. */
+    clinicName: b.appointment?.clinic?.name ?? null,
+    clinicColor: b.appointment?.clinic?.color ?? null,
     appointmentStatus: b.appointment?.status ?? null,
     serviceCode: (b as Record<string, unknown>).serviceCode as string | null ?? null,
     serviceDescription: (b as Record<string, unknown>).serviceDescription as string | null ?? null,
@@ -199,6 +214,8 @@ export async function GET(
       paidAt: p.paidAt ?? p.createdAt,
       appointmentId: b.appointmentId,
       appointmentDate: b.appointmentDate,
+      clinicName: b.clinicName,
+      clinicColor: b.clinicColor,
       serviceCode: b.serviceCode,
       serviceDescription: b.serviceDescription,
     })))

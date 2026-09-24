@@ -154,16 +154,42 @@ export function FloatingPanel({
        * a 300px del borde se volteaba hacia arriba y se salía de la ventana —
        * el título y las primeras líneas quedaban cortados sin forma de verlos.
        */
-      const espacioAbajo = window.innerHeight - r.bottom - 8;
-      const espacioArriba = r.top - 8;
+      /**
+       * ⚠️ El límite NO siempre es la ventana.
+       *
+       * Este componente asumía que un diálogo nunca recorta —por eso el panel se
+       * monta adentro y puede sobresalir de sus bordes—, pero el modal de cobro
+       * SÍ recorta: su `DialogContent` lleva `overflow-hidden` para sostener las
+       * esquinas y el área scrolleable. Resultado: el panel se colocaba bien
+       * contra la ventana y el diálogo lo cortaba en su borde.
+       *
+       * Se veía como un desplegable con UNA opción de siete —las otras seis
+       * dibujadas fuera de la caja— al elegir el tipo de pago del seguro, que es
+       * el selector más abajo del modal (Erick, 2026-09-23, con la captura).
+       * Nada en el DOM decía que faltaran: estaban, invisibles.
+       *
+       * Así que el borde contra el que hay que medir es el del ancestro que
+       * recorta, cuando lo hay. Con eso el panel se voltea hacia arriba o se
+       * acota solo, que es lo que el cálculo ya sabía hacer — le faltaba el
+       * límite correcto.
+       */
+      const recorta = enDialogo && getComputedStyle(host).overflow !== 'visible';
+      const topeAbajo    = recorta ? hostRect!.bottom : window.innerHeight;
+      const topeArriba   = recorta ? hostRect!.top : 0;
+      const topeDerecha  = recorta ? hostRect!.right : window.innerWidth;
+      const topeIzquierda = recorta ? hostRect!.left : 0;
+
+      const espacioAbajo = topeAbajo - r.bottom - 8;
+      const espacioArriba = r.top - topeArriba - 8;
       const cabeAbajo = espacioAbajo >= maxHeight || (espacioArriba < maxHeight && espacioAbajo >= espacioArriba);
       const altoEfectivo = Math.min(maxHeight, Math.max(96, cabeAbajo ? espacioAbajo : espacioArriba));
       setAlto(altoEfectivo);
-      // Alineado por el borde que pidan, y sin salirse de la ventana por
-      // ninguno de los dos lados: un menú a la derecha de la última columna
-      // llega al borde, y en mobile el ancho propio puede ser mayor que el hueco.
+      // Alineado por el borde que pidan, y sin salirse por ninguno de los dos
+      // lados: un menú a la derecha de la última columna llega al borde, y en
+      // mobile el ancho propio puede ser mayor que el hueco. Mismo criterio que
+      // arriba — el tope es el de quien recorta, si alguien recorta.
       const crudo = align === 'end' ? r.right - w : r.left;
-      const izq = Math.max(8, Math.min(crudo, window.innerWidth - w - 8));
+      const izq = Math.max(topeIzquierda + 8, Math.min(crudo, topeDerecha - w - 8));
       setStyle({
         position: enDialogo ? 'absolute' : 'fixed',
         left: izq - base.left,

@@ -40,6 +40,9 @@ import {
   FotoGrandeDialog, type FotoGrande,
 } from '@/components/ui-phoenix';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
+import {
+  RevertirPagoDialog, RevertirPagoButton, type PagoARevertir,
+} from '@/components/cases/revertir-pago-dialog';
 import { CargosDialog } from './cargos-dialog';
 import { localeApp } from '@/lib/fechas';
 
@@ -87,6 +90,9 @@ interface PagoDetalle {
   notes: string | null; paidAt: string;
   serviceCode: string | null; serviceDescription: string | null;
   appointmentDate: string | null;
+  /** La sede de la visita y su color de Settings — el mismo dato que el tab
+   *  del caso, para que las dos vistas de Finanzas digan lo mismo. */
+  clinicName: string | null; clinicColor: string | null;
 }
 
 interface Detalle { casos: CasoDetalle[]; pagos: PagoDetalle[] }
@@ -123,6 +129,14 @@ export function CobranzasClient() {
   /** Fila desplegada y su detalle, cacheado por paciente. */
   const [abierta, setAbierta]     = useState<string | null>(null);
   const [detalles, setDetalles]   = useState<Record<string, Detalle>>({});
+  /**
+   * El pago que se está revirtiendo. Mismo diálogo que el tab del caso.
+   *
+   * Acá hace más falta que allá: Darrell cobra desde esta lista, pasando de un
+   * paciente a otro sin abrir la ficha de ninguno (Erick, 2026-09-23). Si se
+   * equivoca, deshacerlo tiene que estar donde está mirando.
+   */
+  const [revirtiendo, setRevirtiendo] = useState<PagoARevertir | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState<string | null>(null);
 
   /**
@@ -403,6 +417,7 @@ export function CobranzasClient() {
                       onFoto={() => abrirFoto(f)}
                       onCobrar={() => cobrar(f)}
                       onCobrarCaso={(caseId) => setCobrando({ caseId, patientId: f.patientId })}
+                      onRevertir={setRevirtiendo}
                       onCargosCaso={(caseId, caseCode) => setCargosDe({
                         caseId, caseCode,
                         paciente: `${f.firstName} ${f.lastName}`.trim(),
@@ -447,6 +462,19 @@ export function CobranzasClient() {
       </DataTable.Card>
 
       <FotoGrandeDialog foto={fotoGrande} onClose={() => setFotoGrande(null)} cerrarLabel={tc('close')} />
+
+      {/* Revertir un pago — el MISMO diálogo que el tab del caso. Al volver se
+          recargan las DOS cosas: la fila desplegada y los totales de arriba,
+          que ya no cuadran con lo que se acaba de deshacer. */}
+      <RevertirPagoDialog
+        pago={revirtiendo}
+        onClose={() => setRevirtiendo(null)}
+        onDone={() => {
+          const pid = abierta;
+          void cargar();
+          if (pid) void traerDetalle(pid, true);
+        }}
+      />
 
       {cargosDe && (
         <CargosDialog
@@ -511,7 +539,8 @@ export function CobranzasClient() {
 type Traducir = ReturnType<typeof useTranslations>;
 
 function FilaPaciente({
-  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCargosCaso, t, tc,
+  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCargosCaso,
+  onRevertir, t, tc,
 }: {
   f: Fila;
   abierta: boolean;
@@ -522,6 +551,8 @@ function FilaPaciente({
   onCobrar: () => void;
   onCargosCaso: (caseId: string, caseCode: string) => void;
   onCobrarCaso: (caseId: string) => void;
+  /** Deshacer un cobro desde el desplegable, sin entrar al caso. */
+  onRevertir: (pago: PagoARevertir) => void;
   t: Traducir;
   tc: Traducir;
 }) {
@@ -710,6 +741,7 @@ function FilaPaciente({
                             <th className="text-left py-1.5 pr-3 w-[80px]">{t('pColMethod')}</th>
                             <th className="text-left py-1.5 pr-3 w-[120px]">{t('pColType')}</th>
                             <th className="text-left py-1.5">{t('pColAppliedTo')}</th>
+                            <th className="text-right py-1.5 w-[96px]" aria-hidden="true" />
                           </tr>
                         </thead>
                         <tbody>
@@ -741,11 +773,39 @@ function FilaPaciente({
                                   {p.serviceCode && <span className="font-mono text-cyan mr-1.5">{p.serviceCode}</span>}
                                   {p.serviceDescription ?? '—'}
                                 </span>
-                                <span className="block text-[10px] text-text-muted truncate">
-                                  {p.caseCode && <span className="font-mono mr-1.5">{p.caseCode}</span>}
-                                  {t('pVisitOf')} {fmtFecha(p.appointmentDate)}
+                                <span className="flex items-center gap-2 flex-wrap text-[10px] text-text-muted">
+                                  <span className="truncate">
+                                    {p.caseCode && <span className="font-mono mr-1.5">{p.caseCode}</span>}
+                                    {t('pVisitOf')} {fmtFecha(p.appointmentDate)}
+                                  </span>
+                                  {/* En qué sede fue. Mismo punto de color que
+                                      el tab del caso: las dos vistas de Finanzas
+                                      tienen que decir lo mismo. */}
+                                  {p.clinicName && (
+                                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                      <span
+                                        className="w-2 h-2 rounded-full shrink-0 ring-1 ring-inset ring-black/20"
+                                        style={{ backgroundColor: p.clinicColor ?? '#6366F1' }}
+                                        aria-hidden="true"
+                                      />
+                                      {p.clinicName}
+                                    </span>
+                                  )}
                                 </span>
                                 {p.notes && <span className="block text-[10px] italic text-text-muted truncate">{p.notes}</span>}
+                              </td>
+                              {/* Deshacer el cobro sin salir de la lista. Sin
+                                  `caseId` no hay a qué ruta pegarle: los pagos
+                                  migrados del v2 pueden no tenerlo. */}
+                              <td className="py-1.5 text-right">
+                                {p.caseId && (
+                                  <RevertirPagoButton
+                                    onClick={() => onRevertir({
+                                      caseId: p.caseId!, billingId: p.billingId, payId: p.id,
+                                      monto: p.amount, descuento: p.discount ?? 0,
+                                    })}
+                                  />
+                                )}
                               </td>
                             </tr>
                           ))}

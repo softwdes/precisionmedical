@@ -100,6 +100,25 @@ interface Props {
    * cita: mostrar el contador arregla los síntomas, pero bloquear evita el error.
    */
   bloquearRepetidos?: boolean;
+  /**
+   * Texto con el que arranca el buscador.
+   *
+   * Existe para el flujo de PENALIDAD: al sellar un no-show o una cancelación
+   * del mismo día se abría el catálogo entero y había que saber que existe un
+   * código, escribirlo y elegir entre los resultados. Medido el 2026-09-23: en
+   * cuatro días sueltos había 9 desenlaces cobrables y NINGUNO tenía su cargo —
+   * el más viejo del 27 de agosto. La penalidad no se dejaba de cobrar por
+   * olvido, se dejaba porque cada vez había que buscarla.
+   *
+   * ⚠️ Lo que se pasa acá es TEXTO QUE TIENE QUE COINCIDIR CON EL NOMBRE DEL
+   * ÍTEM EN LA BASE ("No Show", "Cancel Same Day"), no una etiqueta de
+   * pantalla. Por eso NO va por i18n: traducirlo lo rompería, porque el
+   * catálogo está en inglés.
+   *
+   * No preselecciona ni agrega nada: deja el resultado a la vista y la persona
+   * confirma con un clic. Un cargo es plata y alguien tiene que decir que sí.
+   */
+  busquedaInicial?: string;
   onClose: () => void;
   onAdd: (item: BillableItem) => Promise<void>;
 }
@@ -127,12 +146,12 @@ const EMPTY: Payload = {
 };
 
 export function ChargePickerDialog({
-  coverage, added, bloquearRepetidos = false, onClose, onAdd,
+  coverage, added, bloquearRepetidos = false, busquedaInicial, onClose, onAdd,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.charges');
   const pathname = usePathname();
 
-  const [q, setQ] = React.useState('');
+  const [q, setQ] = React.useState(busquedaInicial ?? '');
   // Arranca en el circuito que le corresponde al paciente; el otro está a un clic.
   const [view, setView] = React.useState<View>(coverage.type === 'SELF_PAY' ? 'CASH' : 'INSURANCE');
   const [favoritesOnly, setFavoritesOnly] = React.useState(false);

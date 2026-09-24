@@ -33,6 +33,7 @@ import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { busquedaDePenalidad } from '@/lib/penalidad';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -172,7 +173,7 @@ function KpiCard({
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
 function ApptCard({
-  appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onSignQr,
+  appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onPenalidad, onSignQr,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
@@ -190,6 +191,22 @@ function ApptCard({
    * cobrado no se puede quitar. Duplicar esas acciones sería saltearse la regla.
    */
   onCobrar?: (appt: AdmissionAppt) => void;
+  /**
+   * Asentar la penalidad que falta. Solo se pasa en la sección de los
+   * desenlaces cobrables SIN cargo.
+   *
+   * Hasta el 2026-09-23 esa fila era un CALLEJÓN SIN SALIDA: se marcaba en rojo
+   * "falta la penalidad" y no había nada que hacer. El picker se abría en un
+   * solo momento —justo después de sellar el desenlace— y si esa persona lo
+   * cerraba, no quedaba ninguna forma de volver. Ni siquiera el clic de la fila:
+   * `puedeCobrar` exige `hasCharge`, o sea que la fila solo era clickeable
+   * DESPUÉS de tener el cargo que justamente le faltaba.
+   *
+   * Eso explica lo medido ese día mejor que cualquier otra cosa: 9 desenlaces
+   * cobrables en cuatro días sueltos y NINGUNO con su cargo, el más viejo de un
+   * mes atrás.
+   */
+  onPenalidad?: (appt: AdmissionAppt) => void;
   /**
    * Mostrar el QR para que el paciente firme la confirmación de su cita.
    *
@@ -336,10 +353,26 @@ function ApptCard({
             {/* Lo que falta no es la plata, es el cargo: la penalidad nunca se
                 asentó. Una vez asentada, la deuda sigue el camino normal del caso. */}
             {sinPenalidad && (
-              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose">
-                <AlertTriangle className="w-2.5 h-2.5" />
-                {t('missingPenalty')}
-              </span>
+              onPenalidad ? (
+                /* La misma pastilla, pero que HACE algo. Se mantiene el aspecto
+                   —rojo, pequeña, con el triángulo— porque sigue siendo el aviso;
+                   lo que cambia es que ahora abre el picker con la penalidad ya
+                   buscada, en vez de dejar la fila sin salida. */
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onPenalidad(appt); }}
+                  title={t('missingPenalty')}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose hover:bg-rose/20 focus:outline-none focus:ring-1 focus:ring-rose"
+                >
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {t('missingPenalty')}
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {t('missingPenalty')}
+                </span>
+              )
             )}
             {/* Firma de la confirmación. Se muestran los DOS lados —firmado y sin
                 firmar— igual que "Verification pending" / "Ready to collect": en
@@ -565,7 +598,42 @@ export function AdmissionClient() {
    * Cita a la que hay que ponerle la penalidad. Se abre APENAS se sella el
    * desenlace cobrable: el cargo y el estado van juntos o el cargo se olvida.
    */
-  const [cargoTarget, setCargoTarget] = useState<AdmissionAppt | null>(null);
+  /**
+   * Lo MÍNIMO que el picker necesita para asentar una penalidad.
+   *
+   * Se acotó de `AdmissionAppt` a esto porque ahora el picker se abre desde dos
+   * lados: una fila del día —que sí es una `AdmissionAppt` entera— y una fila
+   * del atraso de días anteriores, que viaja liviana y no trae foto, ni QR, ni
+   * check-in. Pedir la forma completa obligaría a inflar la segunda con campos
+   * que nadie usa.
+   */
+  type CitaParaCargo = {
+    id: string;
+    status: string;
+    cancelledSameDay?: boolean | null;
+    case?: { id: string; caseType: string } | null;
+  };
+  const [cargoTarget, setCargoTarget] = useState<CitaParaCargo | null>(null);
+
+  /**
+   * Las penalidades sin asentar de días ANTERIORES.
+   *
+   * No salen de la cola del día: esta pantalla es de un día y eso es justo lo
+   * que volvía inútil a la sección "Sin penalidad". Medido el 2026-09-23: 9
+   * desenlaces cobrables sin cargo en cuatro días sueltos, el más viejo de un
+   * mes atrás, y ninguno se cobró nunca. Nadie iba a encontrarlos caminando
+   * día por día.
+   */
+  type PenalidadPendiente = {
+    id: string; scheduledFor: string; dia: string;
+    status: string; cancelledSameDay: boolean;
+    patient: { id: string; firstName: string; lastName: string };
+    clinic: { id: string; name: string } | null;
+    case: { id: string; caseCode: string; caseType: string } | null;
+  };
+  const [pendientes, setPendientes] = useState<PenalidadPendiente[]>([]);
+  const [masViejas, setMasViejas]   = useState(0);
+  const DIAS_ATRAS = 30;
   const [cargosActuales, setCargosActuales] = useState<PlannedService[]>([]);
 
   /** Los cargos de EFECTIVO ya puestos en esta cita. Sin esto el picker no
@@ -685,6 +753,37 @@ export function AdmissionClient() {
    * no se puede quitar, la API responde `ALREADY_PAID` y dice cuánto se pagó—.
    * Repetir esas acciones acá sería duplicar la regla o saltearla.
    */
+  /**
+   * Abre el picker para asentar la penalidad que falta, desde la fila.
+   *
+   * Es lo mismo que hace `confirmDesenlace` apenas se sella el desenlace — leer
+   * lo que la cita ya tiene cargado para no escribir un duplicado encima, y
+   * abrir. La diferencia es CUÁNDO: antes solo existía en ese instante, y quien
+   * cerraba el modal se quedaba sin camino.
+   */
+  /**
+   * El atraso, desde el servidor. Se pide una vez al entrar y se vuelve a pedir
+   * cada vez que se asienta una penalidad — que es lo único que lo achica.
+   */
+  const cargarPendientes = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/admission/penalidades-pendientes?dias=${DIAS_ATRAS}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const d = await res.json();
+      setPendientes(d.items ?? []);
+      setMasViejas(d.masViejas ?? 0);
+    } catch { /* el atraso es un extra: si falla, la cola del día sigue entera */ }
+  }, []);
+
+  useEffect(() => { void cargarPendientes(); }, [cargarPendientes]);
+
+  const asentarPenalidad = useCallback(async (appt: CitaParaCargo) => {
+    setCargosActuales(await leerCargos(appt.id));
+    setCargosEfectivo([]);
+    setCargoError(null);
+    setCargoTarget(appt);
+  }, []);
+
   const cobrarDesenlace = useCallback((appt: AdmissionAppt) => {
     if (!appt.case) return;
     router.push(conCasoAbierto(pathname, searchParams, appt.case.id, 'finanzas', appt.id), { scroll: false });
@@ -712,6 +811,8 @@ export function AdmissionClient() {
     // modal: nadie lo veía, y el segundo clic era la consecuencia.
     if (r.ok) toast.success(t('penaltyAdded', { nombre: item.name }));
     if (r.ok) await load(selectedDate, true);
+    // El atraso solo se achica cuando alguien cobra: este es ese momento.
+    if (r.ok) await cargarPendientes();
   }
 
   async function handleCheckIn(apptId: string) {
@@ -1135,12 +1236,90 @@ export function AdmissionClient() {
                       appt={a}
                       onCheckIn={handleCheckIn}
                       checkingIn={checkingIn === a.id}
-                    onCobrar={cobrarDesenlace}
+                      onCobrar={cobrarDesenlace}
+                      /* Solo acá: es la sección de los que DEBEN la penalidad. */
+                      onPenalidad={asentarPenalidad}
                     />
                   ))}
                 </div>
               </section>
             )}
+
+            {/* ── 4b. El ATRASO: penalidades sin asentar de días anteriores ──
+                 Esta sección NO es del día que se está mirando: es trabajo que
+                 quedó debiendo y que ninguna pantalla mostraba junta. Se excluye
+                 el día visible para no listar dos veces lo mismo, porque esas
+                 filas ya están arriba en "Sin penalidad". ── */}
+            {(() => {
+              const atraso = pendientes.filter(p => p.dia !== selectedDate);
+              if (atraso.length === 0) return null;
+              const porDia = new Map<string, PenalidadPendiente[]>();
+              for (const p of atraso) {
+                const l = porDia.get(p.dia) ?? [];
+                l.push(p);
+                porDia.set(p.dia, l);
+              }
+              return (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-amber" />
+                    <h2 className="text-[10px] uppercase tracking-wider font-semibold text-amber">
+                      {t('penaltyBacklogTitle', { count: atraso.length, dias: DIAS_ATRAS })}
+                    </h2>
+                  </div>
+                  <div className="space-y-3">
+                    {[...porDia.entries()].map(([dia, filas]) => (
+                      <div key={dia} className="rounded-md bg-bg-2/40 p-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDate(dia)}
+                          /* El título del día lleva a ese día: desde acá se ve el
+                             pendiente, y con un clic se ve el contexto entero. */
+                          className="text-[10px] uppercase tracking-wider font-semibold text-text-muted hover:text-text-1 mb-2 block"
+                        >
+                          {fechaLargaDeClave(dia, localeApp())} · {filas.length}
+                        </button>
+                        <div className="space-y-1.5">
+                          {filas.map(p => (
+                            <div key={p.id} className="flex items-center gap-2 flex-wrap text-[11px]">
+                              <span className="font-mono text-text-muted shrink-0">
+                                {new Date(p.scheduledFor).toLocaleTimeString(localeApp(), {
+                                  hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+                                })}
+                              </span>
+                              <span className="text-text-1 font-medium truncate">
+                                {p.patient.lastName}, {p.patient.firstName}
+                              </span>
+                              {p.clinic && <span className="text-text-muted">{p.clinic.name}</span>}
+                              <StatusPill
+                                label={p.status === 'NO_SHOW' ? t('statusNoShow') : t('statusCancelledSameDay')}
+                                state={p.status === 'NO_SHOW' ? 'danger' : 'warning'}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void asentarPenalidad(p)}
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose hover:bg-rose/20 focus:outline-none focus:ring-1 focus:ring-rose"
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                {t('missingPenalty')}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Lo que queda fuera de la ventana se CUENTA y se dice. Nada
+                      desaparece en silencio: esa lección salió cara con una fila
+                      que se fue de la pantalla de Edson y nadie supo por qué. */}
+                  {masViejas > 0 && (
+                    <p className="text-[10px] text-text-muted mt-2">
+                      {t('penaltyBacklogOlder', { count: masViejas, dias: DIAS_ATRAS })}
+                    </p>
+                  )}
+                </section>
+              );
+            })()}
 
             {/* ── 5. Completados — fondo, opacidad reducida ── */}
             {filteredDone.length > 0 && (
@@ -1228,6 +1407,9 @@ export function AdmissionClient() {
                veces. No se listan los cargos de efectivo: a un no-show todavía no
                se le cobró nada, así que no hay ninguno. */
             added={mapaDeCargos(cargosActuales, cargosEfectivo)}
+            /* El buscador arranca con la penalidad de ESTE desenlace: se abria
+               el catalogo entero y por eso 9 de 9 quedaron sin cobrar. */
+            busquedaInicial={busquedaDePenalidad(cargoTarget)}
           bloquearRepetidos
             onClose={() => { setCargoTarget(null); setCargoError(null); }}
             onAdd={onAgregarCargo}

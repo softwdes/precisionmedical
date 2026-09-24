@@ -3045,7 +3045,9 @@
       "outsideClinics": "+{count} en otro centro",
       "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",
       "chargePending": "Falta cobrar",
-      "chargePendingHint": "Clic para cobrar en Finanzas del caso"
+      "chargePendingHint": "Clic para cobrar en Finanzas del caso",
+      "penaltyBacklogTitle": "Penalidades sin asentar de días anteriores · {count}",
+      "penaltyBacklogOlder": "Hay {count} más de antes de estos {dias} días. Para verlas, elegí la fecha en el calendario."
     },
     "dashboard": {
       "novedadEtiqueta": "Nueva versión",

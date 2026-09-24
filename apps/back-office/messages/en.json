@@ -3045,7 +3045,9 @@
       "outsideClinics": "+{count} at another facility",
       "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",
       "chargePending": "Payment pending",
-      "chargePendingHint": "Click to charge in the case finances"
+      "chargePendingHint": "Click to charge in the case finances",
+      "penaltyBacklogTitle": "Penalties not charged from earlier days · {count}",
+      "penaltyBacklogOlder": "There are {count} more from before these {dias} days. To see them, pick the date on the calendar."
     },
     "dashboard": {
       "novedadEtiqueta": "New version",

@@ -25,6 +25,7 @@ import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
 import { ReporteLabsDialog } from '@/components/visit/reporte-labs-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { busquedaDePenalidad } from '@/lib/penalidad';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import { useLiveSync } from '@/lib/use-live-sync';
 import { LiveStatus } from '@/components/ui-phoenix/live-status';
@@ -974,6 +975,9 @@ export function MyDayClient({
       {cargoTarget && (
         <ChargePickerDialog
           coverage={cargoTarget.coverage}
+          /* Mismo criterio que en Day Admission: el provider tambien sella
+             desenlaces desde aca y le pasaba lo mismo. */
+          busquedaInicial={busquedaDePenalidad(cargoTarget)}
           /* El picker indexa por `item.key`, que para el circuito de seguro es
              `s<refId>`. Con la clave mal armada el ítem ya cargado no se marcaría
              y se agregaría dos veces. No se listan los de efectivo: a un no-show

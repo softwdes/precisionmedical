@@ -213,14 +213,55 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         priorPorAccidente[k] = (priorPorAccidente[k] ?? 0) + r._count.id;
       }
 
-      // A lo que ya tenía antes del período se le suman las de ESTE período que
-      // van delante suyo: `appointments` viene ordenado por fecha, así que las
-      // anteriores son las de índice menor.
-      for (let i = 0; i < appointments.length; i++) {
-        const appt = appointments[i];
+      /**
+       * ⚠️ Las del período se cuentan sobre TODAS las del paciente, no sobre
+       * `appointments`.
+       *
+       * `appointments` ya viene filtrado por clínica y por proveedor —esos dos
+       * filtros viajan al servidor—, así que contar ahí hacía que **el número
+       * de visita dependiera del filtro que el usuario tuviera puesto**.
+       *
+       * Medido el 2026-09-24 en la semana del 21: con el filtro de proveedor en
+       * "Clanton", la cita de Gabriela Oropeza (MVA-3392, martes 17:00) pasaba
+       * de visita #1 a visita #0 y se colaba en "MVA · 1ª visita". Su cita de
+       * las 16:00 existía, pero era de otro provider y el filtro la escondía.
+       *
+       * Es la falla que reportó Edson —"el filtro no muestra la cantidad que se
+       * ve"— y la que más pesa, porque un conteo que cambia según cómo mires no
+       * se puede usar para nada, y menos para algo que él usa como registro.
+       *
+       * Tampoco cuentan las CANCELADAS, igual que en el tramo anterior al
+       * período: el paciente no vino. Antes sí contaban acá, porque el
+       * calendario las pide a propósito para pintarlas tachadas — o sea que una
+       * cancelada del lunes le sumaba una visita a la del miércoles.
+       */
+      const enRango = await db.appointment.findMany({
+        where: {
+          ...VIGENTES,
+          patientId:    { in: patientIds },
+          status:       { not: 'CANCELLED' },
+          scheduledFor: { gte: fromDate, lte: toDate },
+        },
+        select: { id: true, caseId: true, patientId: true, scheduledFor: true },
+        orderBy: [{ scheduledFor: 'asc' }, { id: 'asc' }],
+      });
+
+      /** Cuántas del mismo accidente van ANTES que ésta, dentro del período. */
+      const delanteEnRango = new Map<string, number>();
+      const vistas: Record<string, number> = {};
+      for (const a of enRango) {
+        const k = claveDe(a);
+        delanteEnRango.set(a.id, vistas[k] ?? 0);
+        vistas[k] = (vistas[k] ?? 0) + 1;
+      }
+
+      for (const appt of appointments) {
         const k = claveDe(appt);
-        const enElPeriodo = appointments.slice(0, i).filter(a => claveDe(a) === k).length;
-        visitCountsByCaseAndAppt[appt.id] = (priorPorAccidente[k] ?? 0) + enElPeriodo;
+        // Una cita cancelada no está en `enRango`: se le da el conteo que le
+        // tocaría por su lugar en el tiempo, sin ocupar lugar para las demás.
+        const delante = delanteEnRango.get(appt.id)
+          ?? enRango.filter(a => claveDe(a) === k && a.scheduledFor < appt.scheduledFor).length;
+        visitCountsByCaseAndAppt[appt.id] = (priorPorAccidente[k] ?? 0) + delante;
       }
     }
 

@@ -432,8 +432,24 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           caseType:    caseType === 'MVA' ? 'MVA' : 'GENERAL',
-          accidentDate: accidentDate || null,
-          accidentNotes: description || null,
+          /**
+           * Los datos del accidente SOLO viajan si el caso es MVA.
+           *
+           * Antes iban siempre. Como el campo únicamente se dibuja para MVA,
+           * pasar un caso a General escondía la fecha de la pantalla pero la
+           * seguía guardando: el caso quedaba siendo un choque para la base y
+           * un caso general para el filtro, y nadie podía verlo ni borrarlo
+           * desde acá. Así nacieron GM-3407 y GM-3408 (Erick, 2026-09-24:
+           * *"cuando un caso lo crearon por error en MVA y lo cambian a GM
+           * deberían quitar esa fecha"*).
+           *
+           * No es un borrado a ciegas: el aviso ámbar del paso 1 muestra la
+           * fecha que hay y ofrece las dos salidas —pasar el caso a MVA, que la
+           * conserva, o quitarla— antes de llegar acá. Quien guarda como
+           * General ya la vio.
+           */
+          accidentDate:  caseType === 'MVA' ? (accidentDate || null) : null,
+          accidentNotes: caseType === 'MVA' ? (description   || null) : null,
           lawFirmId:   lawFirmId ?? null,
           lawFirmLabel: lawFirm || null,
           chiropractor: chiropractor || null,
@@ -545,6 +561,48 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     botón bloqueado sin motivo es peor que uno que no está. */}
                 {!caseType && (
                   <p className="text-[11px] text-amber">{t('pickCaseTypeToContinue')}</p>
+                )}
+
+                {/*
+                  GENERAL con fecha de accidente: la contradicción que nadie ve.
+                  ─────────────────────────────────────────────────────────────
+                  El campo de la fecha SOLO se dibuja para MVA, así que al pasar
+                  un caso a General la fecha desaparece de la pantalla — pero no
+                  del estado, y el guardado la manda igual. El caso queda siendo
+                  un choque para la base y un caso general para el filtro.
+
+                  Así nacieron Quinn Johnson y Taylor Catmull (GM-3407 y GM-3408,
+                  los dos con accidente del 2026-08-02, creados con cuatro
+                  minutos de diferencia): Edson los buscó en "MVA · 1ª visita" y
+                  no estaban. Hay 23 casos así en producción — medido el
+                  2026-09-24.
+
+                  No se bloquea: un resbalón o un accidente laboral son General
+                  y tienen fecha de accidente con todo derecho. Se pregunta, y
+                  se ofrecen las dos salidas en un clic.
+                */}
+                {caseType === 'GENERAL' && accidentDate && (
+                  <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2">
+                    <p className="text-[11px] text-amber">
+                      {t('generalConAccidente', { fecha: accidentDate })}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCaseType('MVA')}
+                        className="rounded border border-amber/40 bg-amber/15 px-2 py-1 text-[11px] font-semibold text-amber hover:bg-amber/25"
+                      >
+                        {t('cambiarAMva')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAccidentDate('')}
+                        className="rounded border border-border bg-bg-2 px-2 py-1 text-[11px] text-text-2 hover:text-text-1"
+                      >
+                        {t('quitarFechaAccidente')}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 

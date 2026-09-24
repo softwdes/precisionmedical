@@ -835,8 +835,27 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
    * El número completo sigue estando en el panel de detalle de la cita, que es
    * donde se va a buscar el historial y donde sí hay lugar.
    */
-  const rotuloVisita = (visitNumber: number): string =>
-    visitNumber === 0 ? t('visitFirst') : '';
+  /**
+   * La etiqueta de primera visita DICE DE QUÉ TIPO es.
+   *
+   * Antes las dos decían "1ra cita" y solo cambiaba el color. Eso hizo que
+   * contar a ojo y contar con el filtro dieran distinto, y el reclamo llegó
+   * como un bug del filtro: en la semana del 21-sep hay 29 tarjetas marcadas
+   * como primera visita y el filtro "MVA · 1ª" devuelve 15 — **13 de las que
+   * "faltan" son primeras visitas de GM**, que es exactamente lo que el filtro
+   * debe dejar afuera.
+   *
+   * Medido el 2026-09-24 con los datos de producción. Nombrar el tipo en la
+   * etiqueta no arregla ningún cálculo; arregla que el número que uno cuenta
+   * mirando sea el mismo que devuelve el filtro.
+   */
+  const rotuloVisita = (visitNumber: number, caseType?: string | null): string => {
+    if (visitNumber !== 0) return '';
+    if (caseType === 'MVA') return t('visitFirstMva');
+    if (caseType === 'GENERAL') return t('visitFirstGm');
+    // Sin caso o con un tipo que no conocemos: la etiqueta genérica de siempre.
+    return t('visitFirst');
+  };
 
   const [weekStart, setWeekStart]       = useState<Date>(() => getMondayOf(new Date()));
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
@@ -1926,7 +1945,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               {dayAppts.map(appt => {
                 const s = getEventStyle(appt);
                 const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
-                const visitLabel = rotuloVisita(appt.visitNumber);
+                const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
                 const drName = appt.provider ? drShort(appt.provider) : '';
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
@@ -2028,7 +2047,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           ))}
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
-                            const visitLabel = rotuloVisita(appt.visitNumber);
+                            const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
                             const drName = appt.provider ? drShort(appt.provider) : '';
                             const isDragging = draggingId === appt.id;
                             return (
@@ -2280,7 +2299,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
                   {cellAppts.map(appt => {
                     const s = getEventStyle(appt);
-                    const visitLabel = rotuloVisita(appt.visitNumber);
+                    const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
                     const drName = appt.provider ? drShort(appt.provider) : '';
                     /**
                      * El rango (`8:00–8:15`) SOLO cuando la cita ocupa más de una

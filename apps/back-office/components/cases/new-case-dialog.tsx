@@ -336,6 +336,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setChiropractor('');
     setInsurance(null);
     setPolicyNumber('');
+    // La fecha y la descripción del accidente faltaban en esta lista, aunque el
+    // comentario de arriba prometiera que se limpia todo. Su campo solo se
+    // dibuja para MVA, así que al pasar a General el valor quedaba escondido y
+    // vivo: un caso General con fecha de accidente no sale en el filtro de MVA
+    // ni en el seguimiento, y nadie puede ver por qué. Hay 23 así en producción
+    // (medido el 2026-09-24).
+    setAccidentDate('');
+    setAccidentLocation('');
+    setAccidentNotes('');
   };
 
   // ─── Section 3: Schedule appointment ──────────────────────────────────

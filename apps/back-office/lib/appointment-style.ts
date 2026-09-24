@@ -66,6 +66,33 @@ export type EventStyle = {
 export const ONLINE_EDGE = 'rgba(6,182,212,0.95)';
 
 /**
+ * Los sellos de la tarjeta.
+ *
+ * ── El problema que resuelven ───────────────────────────────────────────────
+ *
+ * Las dos primeras visitas —MVA y GM— usaban el MISMO `🆕` y solo cambiaba el
+ * color del aro: rosa contra verde. Erick lo señaló el 2026-09-24. El ícono no
+ * agregaba nada que el color no dijera ya, y quien no distingue rosa de verde
+ * se quedaba sin ninguna señal.
+ *
+ * ── Por qué el `🆕` se queda en MVA y no en GM ──────────────────────────────
+ *
+ * Criterio de Erick, y es el correcto: **Edson ya tiene ese sello aprendido**.
+ * La primera visita de MVA es su trabajo diario; cambiarle el símbolo días
+ * antes del lanzamiento es costo sin beneficio. El que se mueve es el otro.
+ *
+ * Así que la primera visita de GM pasa al estetoscopio, y el coche —que no
+ * estaba en uso— marca la MVA de seguimiento, que hasta ahora no tenía ningún
+ * sello y se distinguía solo por el color del relleno.
+ */
+/** Primera visita de MVA. El de siempre: Edson lo lee sin pensar. */
+export const BADGE_MVA_1RA = '🆕';
+/** MVA de seguimiento. Antes no tenía sello: el tipo salía solo del color. */
+export const BADGE_MVA = '🚗';
+/** Primera visita de GM. El que se movió, para dejar de chocar con el `🆕`. */
+export const BADGE_GM_1RA = '🩺';
+
+/**
  * El estilo de la tarjeta + el canto de modalidad.
  *
  * "En línea" es ORTOGONAL a los dos ejes de color de `baseEventStyle` (estado y
@@ -208,10 +235,10 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
     if (!isFirst) return base;
 
     if (isMVA) {
-      return { ...base, border: 'rgba(236,72,153,0.65)', glow: '0 0 10px rgba(244,63,94,0.35)', badge: '🆕' };
+      return { ...base, border: 'rgba(236,72,153,0.65)', glow: '0 0 10px rgba(244,63,94,0.35)', badge: BADGE_MVA_1RA };
     }
     if (isGM) {
-      return { ...base, border: 'rgba(16,185,129,0.65)', glow: '0 0 10px rgba(16,185,129,0.30)', badge: '🆕' };
+      return { ...base, border: 'rgba(16,185,129,0.65)', glow: '0 0 10px rgba(16,185,129,0.30)', badge: BADGE_GM_1RA };
     }
     // Primera visita de un tipo que no es ni MVA ni GM: el 🆕 igual se gana —
     // que sea la primera vez del paciente no depende de la categoría.
@@ -224,11 +251,13 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       border: 'rgba(236,72,153,0.55)',
       text: 'var(--cal-text-mva-first)',
       glow: '0 0 10px rgba(244,63,94,0.35)',
-      badge: '🆕',
+      badge: BADGE_MVA_1RA,
     };
   }
   if (isMVA) {
-    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: 'var(--cal-text-mva)' };
+    // El coche: hasta acá la MVA de seguimiento no tenía sello y su tipo salía
+    // únicamente del color del relleno (Erick, 2026-09-24).
+    return { bg: 'rgba(244,63,94,0.15)', border: 'rgba(244,63,94,0.40)', text: 'var(--cal-text-mva)', badge: BADGE_MVA };
   }
   if (isGM && isFirst) {
     return {
@@ -236,7 +265,7 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       border: 'rgba(16,185,129,0.55)',
       text: 'var(--cal-text-gp)',
       glow: '0 0 10px rgba(16,185,129,0.30)',
-      badge: '🆕',
+      badge: BADGE_GM_1RA,
     };
   }
   if (isGM) {

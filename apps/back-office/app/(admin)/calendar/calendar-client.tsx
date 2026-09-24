@@ -1,6 +1,7 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
+import { BADGE_MVA_1RA, BADGE_MVA, BADGE_GM_1RA } from '@/lib/appointment-style';
 import {
   APPT_COLORS, MVA_FIRST_GLOW, CANCELLED_SAMEDAY_FILL, CANCELLED_SAMEDAY_RING,
 } from '@/lib/appointment-colors';
@@ -679,10 +680,10 @@ function LegendStats({
           // Los valores salen de `lib/appointment-colors` — los comparte con la
           // grilla de tracking MVA, que pinta la franja de cada fila con el
           // mismo criterio. Antes estaban inline y solo aca.
-          { color: APPT_COLORS.mvaFollowUp, label: t('legendMvaFollowUp') },
-          { color: APPT_COLORS.mvaFirst,    label: t('legendMvaFirst'), glow: true },
+          { color: APPT_COLORS.mvaFollowUp, label: t('legendMvaFollowUp'), badge: BADGE_MVA },
+          { color: APPT_COLORS.mvaFirst,    label: t('legendMvaFirst'), glow: true, badge: BADGE_MVA_1RA },
           { color: APPT_COLORS.gpFollowUp,  label: t('legendGpFollowUp') },
-          { color: APPT_COLORS.gpFirst,     label: t('legendGpFirst'), glow: true },
+          { color: APPT_COLORS.gpFirst,     label: t('legendGpFirst'), glow: true, badge: BADGE_GM_1RA },
           { color: APPT_COLORS.unconfirmed, label: t('legendUnconfirmed') },
           { color: APPT_COLORS.attended,    label: t('legendAttended') },
           // Las que no ocurrieron van con la etiqueta TACHADA, igual que la
@@ -703,7 +704,7 @@ function LegendStats({
           // —el mismo de la tarjeta— en vez de un color plano, que lo haria
           // parecer una categoria mas de la lista.
           { color: 'repeating-linear-gradient(135deg, var(--bg-3) 0 4px, transparent 4px 8px)', label: t('legendBlock') },
-        ] as { color: string; label: string; glow?: boolean; strike?: boolean; ring?: string }[]).map(item => (
+        ] as { color: string; label: string; glow?: boolean; strike?: boolean; ring?: string; badge?: string }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-4 h-2 rounded-sm shrink-0"
               style={{
@@ -711,6 +712,9 @@ function LegendStats({
                 boxShadow: item.glow ? MVA_FIRST_GLOW : undefined,
                 ...(item.ring ? { border: `1px solid ${item.ring}` } : {}),
               }} />
+            {/* El sello va junto a su color: es acá donde se aprende que el
+                coche es MVA y el estetoscopio medicina general. */}
+            {item.badge && <span className="text-[11px] leading-none shrink-0">{item.badge}</span>}
             <span className="text-[12px] text-text-2 font-medium" style={{ textDecoration: item.strike ? 'line-through' : undefined }}>{item.label}</span>
           </div>
         ))}
@@ -734,7 +738,7 @@ function LegendStats({
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-2 rounded-sm shrink-0"
             style={{ background: APPT_COLORS.unconfirmed, boxShadow: MVA_FIRST_GLOW }} />
-          <span className="text-[11px] leading-none shrink-0">🆕</span>
+          <span className="text-[11px] leading-none shrink-0">{BADGE_MVA_1RA}{BADGE_GM_1RA}</span>
           <span className="text-[12px] text-text-2 font-medium">{t('legendFirstVisitAny')}</span>
         </div>
         </>)}

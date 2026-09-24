@@ -98,6 +98,7 @@ function ChecklistItem({ done, label, meta }: { done: boolean; label: string; me
 function LogContactModal({
   caseId, onClose, onDone,
 }: { caseId: string; onClose: () => void; onDone: () => void }) {
+  const tm = useTranslations('phoenix.misc');
   const t = useTranslations('phoenix.intake');
   const [type,        setType]        = useState<'call' | 'email'>('call');
   const [contactName, setContactName] = useState('');
@@ -165,7 +166,7 @@ function LogContactModal({
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Confirmó representación del caso · respondió por email..."
+              placeholder={tm('attorneyConfirmedHint')}
               rows={3}
               className="w-full rounded-md border border-border bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none"
             />

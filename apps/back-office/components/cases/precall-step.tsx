@@ -98,6 +98,7 @@ export function PreCallStep({
    */
   onQuickRegister?: () => void;
 }) {
+  const tpc = useTranslations('phoenix.precall');
   const t = useTranslations('phoenix.frontOffice.precall');
   // El sello del paciente dado de baja vive en el namespace del calendario, que
   // es donde se definió al bloquearlo en Nueva cita.
@@ -465,7 +466,7 @@ export function PreCallStep({
             type="text"
             value={quickFirstName}
             onChange={(e) => setQuickFirstName(e.target.value)}
-            placeholder="María"
+            placeholder={tpc('phFirstName')}
             className="w-full rounded-md border border-border bg-bg-2 px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/20 transition-colors"
           />
         </div>
@@ -477,7 +478,7 @@ export function PreCallStep({
             type="text"
             value={quickLastName}
             onChange={(e) => setQuickLastName(e.target.value)}
-            placeholder="García"
+            placeholder={tpc('phLastName')}
             className="w-full rounded-md border border-border bg-bg-2 px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/20 transition-colors"
           />
         </div>

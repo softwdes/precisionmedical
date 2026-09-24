@@ -193,7 +193,7 @@ export function DiagnosesClient({ stats, userId = '' }: Props) {
             <DataTable.Head>
               <DataTable.Th align="center" width="40px">⭐</DataTable.Th>
               <DataTable.Th>ICD-10 (billing)</DataTable.Th>
-              <DataTable.Th>SNOMED CT (clínico)</DataTable.Th>
+              <DataTable.Th>{t('snomedCol')}</DataTable.Th>
               <DataTable.Th align="center">Cat.</DataTable.Th>
               <DataTable.Th>Body system</DataTable.Th>
               <DataTable.Th align="center">PI</DataTable.Th>
@@ -491,7 +491,7 @@ function ViewDialog({ diagnosis, onClose, onEdit }: { diagnosis: Diagnosis | nul
           </div>
           {diagnosis.snomedCode && (
             <div className="bg-emerald/5 border border-emerald/20 rounded-md p-3">
-              <div className="text-emerald text-xs font-semibold uppercase tracking-wider mb-1.5">SNOMED CT (clínico)</div>
+              <div className="text-emerald text-xs font-semibold uppercase tracking-wider mb-1.5">{t('snomedCol')}</div>
               <code className="text-emerald font-mono font-bold text-base">{diagnosis.snomedCode}</code>
               <div className="text-text-2 text-sm mt-1">{diagnosis.snomedDescription}</div>
             </div>

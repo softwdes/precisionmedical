@@ -62,6 +62,7 @@ function InAppCamera({
   onCancel:         () => void;
   onPermissionError: () => void;
 }) {
+  const tCam = useTranslations('phoenix.camera');
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -105,8 +106,8 @@ function InAppCamera({
       <p className="text-2xl">📷</p>
       <p className="text-[12px] text-text-muted leading-relaxed">{error}</p>
       <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-[12px] text-text-muted hover:bg-bg-2 transition-colors">Cancelar</button>
-        <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand-text font-semibold hover:bg-brand/20 transition-colors">Usar archivo</button>
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-[12px] text-text-muted hover:bg-bg-2 transition-colors">{tCam('cancel')}</button>
+        <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand-text font-semibold hover:bg-brand/20 transition-colors">{tCam('useFile')}</button>
       </div>
     </div>
   );
@@ -116,8 +117,8 @@ function InAppCamera({
     <div className="rounded-xl overflow-hidden border border-brand/30 bg-black">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-black/70">
-        <button onClick={onCancel} className="text-[12px] text-text-muted hover:text-text-2 transition-colors">← Cancelar</button>
-        <span className="text-[10px] font-bold tracking-widest text-brand-text">{isOval ? 'SELFIE' : 'DOCUMENTO'}</span>
+        <button onClick={onCancel} className="text-[12px] text-text-muted hover:text-text-2 transition-colors">{tCam('backCancel')}</button>
+        <span className="text-[10px] font-bold tracking-widest text-brand-text">{isOval ? tCam('selfie') : tCam('document')}</span>
         <div className="w-10" />
       </div>
       {/* Video */}
@@ -126,7 +127,7 @@ function InAppCamera({
           <div className="mx-auto relative" style={{ width: '100%', maxWidth: 200, aspectRatio: '3/4', borderRadius: '50%', overflow: 'hidden', border: '2.5px solid rgba(99,102,241,0.65)' }}>
             <video ref={videoRef} autoPlay playsInline muted onCanPlay={() => setReady(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
-            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">Iniciando cámara…</div>}
+            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">{tCam('startingCamera')}</div>}
           </div>
         ) : (
           <div className="relative w-full rounded-lg overflow-hidden bg-[#111]" style={{ aspectRatio: '4/3' }}>
@@ -140,15 +141,15 @@ function InAppCamera({
                 ))}
               </div>
             </div>
-            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">Iniciando cámara…</div>}
+            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">{tCam('startingCamera')}</div>}
           </div>
         )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
       {/* Shutter */}
       <div className="flex flex-col items-center gap-3 py-5 bg-black/80">
-        <p className="text-[11px] text-text-muted">{isOval ? 'Centra tu rostro en el óvalo' : 'Alinea el documento dentro del marco'}</p>
-        <button onClick={handleCapture} disabled={!ready} aria-label="Capturar"
+        <p className="text-[11px] text-text-muted">{isOval ? tCam('centerFace') : tCam('alignDoc')}</p>
+        <button onClick={handleCapture} disabled={!ready} aria-label={tCam('capture')}
           className="w-16 h-16 rounded-full border-[3px] border-white/70 flex items-center justify-center disabled:opacity-40 hover:scale-105 transition-transform">
           <div className={`w-12 h-12 rounded-full transition-colors ${ready ? 'bg-white' : 'bg-white/30'}`} />
         </button>
@@ -488,6 +489,7 @@ export function ArchivosDialog({
   soloLectura = false, onClose,
 }: ArchivosDialogProps) {
   const t      = useTranslations('phoenix.patients');
+  const tCam   = useTranslations('phoenix.camera');
   /** "Descargar" ya existe en común — el mismo texto que el resto del sistema. */
   const tc     = useTranslations('phoenix.common');
   const router = useRouter();
@@ -602,12 +604,12 @@ export function ArchivosDialog({
       } else {
         setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
         const detail = (json as { error?: string }).error ?? '';
-        setErrors(p => ({ ...p, [photoKey]: detail === 'NO_CASE_FOUND' ? 'Paciente sin caso activo.' : 'Error al subir. Intenta de nuevo.' }));
+        setErrors(p => ({ ...p, [photoKey]: detail === 'NO_CASE_FOUND' ? tCam('errNoCase') : tCam('errUpload') }));
         URL.revokeObjectURL(blobUrl);
       }
     } catch {
       setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
-      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+      setErrors(p => ({ ...p, [photoKey]: tCam('errConnection') }));
       URL.revokeObjectURL(blobUrl);
     } finally {
       setUploading(p => ({ ...p, [photoKey]: false }));
@@ -641,7 +643,7 @@ export function ArchivosDialog({
         setErrors(p => ({ ...p, [photoKey]: 'Error al eliminar.' }));
       }
     } catch {
-      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+      setErrors(p => ({ ...p, [photoKey]: tCam('errConnection') }));
     } finally {
       setDeleting(p => ({ ...p, [photoKey]: false }));
     }
@@ -662,7 +664,7 @@ export function ArchivosDialog({
         setErrors(p => ({ ...p, [photoKey]: t('photoRestoreError') }));
       }
     } catch {
-      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+      setErrors(p => ({ ...p, [photoKey]: tCam('errConnection') }));
     } finally {
       setDeleting(p => ({ ...p, [photoKey]: false }));
     }

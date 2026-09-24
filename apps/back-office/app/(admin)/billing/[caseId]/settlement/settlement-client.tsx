@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useTranslations } from 'next-intl';
 
 /**
  * B.28 — Settlement Workflow (Brunella)
@@ -126,6 +127,7 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
   payor:    string;
   onBack:   () => void;
 }) {
+  const t = useTranslations('phoenix.settlement');
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-8 text-center">
       <div
@@ -152,10 +154,10 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
         ))}
       </div>
       <div className="flex flex-col items-center gap-2 text-[12px] text-text-muted">
-        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Ledger actualizado — balance $0</div>
-        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Caso marcado como SETTLED</div>
-        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Nota de settlement registrada</div>
-        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Audit log guardado</div>
+        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> {t('ledgerUpdated')}</div>
+        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> {t('caseSettled')}</div>
+        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> {t('noteRecorded')}</div>
+        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> {t('auditSaved')}</div>
       </div>
       <div className="flex items-center gap-3 flex-wrap justify-center">
         <button
@@ -181,6 +183,7 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function SettlementClient() {
+  const t = useTranslations('phoenix.settlement');
   const params = useParams<{ caseId: string }>();
   const router = useRouter();
   const caseId = params.caseId;
@@ -286,7 +289,7 @@ export function SettlementClient() {
   if (error || !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <EmptyState.Rich icon={AlertCircle} title="Error" subtitle={error ?? 'Caso no encontrado'} />
+        <EmptyState.Rich icon={AlertCircle} title={t('errTitle')} subtitle={error ?? t('errNotFound')} />
       </div>
     );
   }
@@ -309,7 +312,7 @@ export function SettlementClient() {
             <CheckCircle2 className="w-8 h-8 text-emerald" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-text-1 mb-1">Caso ya settlado</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-1">{t('alreadySettled')}</h2>
             <p className="text-text-muted text-[13px]">{s.caseCode} · {s.patientName}</p>
           </div>
           <div className="rounded-xl border border-emerald/25 bg-emerald/5 p-4 w-full max-w-md text-left">
@@ -366,8 +369,8 @@ export function SettlementClient() {
 
       <div className="p-5">
         <PageHeader
-          title="🎯 Settlement recibido"
-          subtitle={`${s.firmName ?? 'Bufete'} envió el cheque del settlement. Aplicar al lien y cerrar el caso.`}
+          title={t('pageTitle')}
+          subtitle={t('pageSubtitle', { bufete: s.firmName ?? t('firmFallback') })}
         />
 
         <form onSubmit={handleSubmit}>
@@ -421,7 +424,7 @@ export function SettlementClient() {
                 </div>
 
                 {s.lienBreakdown.length === 0 ? (
-                  <div className="text-[12px] text-text-muted">Sin detalle de CPT disponible</div>
+                  <div className="text-[12px] text-text-muted">{t('noCptDetail')}</div>
                 ) : (
                   <table className="w-full text-[11.5px]">
                     <thead>
@@ -645,7 +648,7 @@ export function SettlementClient() {
                 {s.firmPhone && (
                   <a href={`tel:${s.firmPhone}`}
                     className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors">
-                    📞 {s.firmName ?? 'Bufete'}
+                    📞 {s.firmName ?? t('firmFallback')}
                   </a>
                 )}
                 {s.firmEmail && (

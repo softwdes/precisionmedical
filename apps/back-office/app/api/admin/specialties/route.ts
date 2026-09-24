@@ -15,13 +15,19 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 
 const SpecialtyInputSchema = z.object({
+  /*
+   * Sin `message` en los regex a proposito: los mensajes de zod viajan en
+   * `details` por `flatten()` y esta pantalla lee `message ?? error` (via
+   * `serverError()`, cuyo `ServerErrorBody` no tiene `details`). O sea que
+   * esas frases no las leia nadie. La validacion se queda; el texto se fue.
+   */
   id: z.string().optional(),
   name: z.string().min(2).max(100),
   description: z.string().max(500).nullable().optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color debe ser hex (#RRGGBB)'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   workflowType: z.enum(['MVA', 'GM', 'SELFPAY', 'NURSING_HOME']),
   caseType: z.enum(['MVA', 'GENERAL', 'NURSING_HOME']),
-  cptSuggested: z.array(z.string().regex(/^[A-Z0-9]+$/i, 'CPT inválido')).default([]),
+  cptSuggested: z.array(z.string().regex(/^[A-Z0-9]+$/i)).default([]),
   isActive: z.boolean().default(true),
 });
 

@@ -1,5 +1,98 @@
 {
   "phoenix": {
+    "misc": {
+      "openWaitingRoomTv": "Abrir sala de espera en TV",
+      "loadingMedicalHistory": "Cargando historial médico...",
+      "paymentDetailsPlaceholder": "Agregá detalles del pago, número de cheque, referencia, etc...",
+      "sending": "Enviando...",
+      "loginEmailPlaceholder": "usuario@precisionmedicalcare.com",
+      "expandMenu": "Expandir menú",
+      "firms": "Bufetes",
+      "errLoadData": "Error al cargar datos",
+      "cptNoteExample": "No se puede facturar junto con 97140. Requiere modifier -25 si se factura con E&M.",
+      "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email..."
+    },
+    "precall": {
+      "phFirstName": "María",
+      "phLastName": "García"
+    },
+    "pwa": {
+      "installClinic": "Instalar Clínica App"
+    },
+    "documents": {
+      "errLoad": "Error al cargar documentos"
+    },
+    "roles": {
+      "patient": "Paciente",
+      "attorney": "Abogado"
+    },
+    "security": {
+      "mfaTitle": "Autenticación de dos factores (TOTP)",
+      "mfaOk": "MFA configurado correctamente. Tu cuenta está protegida.",
+      "confirmRemoveMfa": "¿Eliminar la autenticación de dos factores? Tu cuenta va a quedar menos protegida."
+    },
+    "settlement": {
+      "ledgerUpdated": "Ledger actualizado — balance $0",
+      "caseSettled": "Caso marcado como SETTLED",
+      "noteRecorded": "Nota de settlement registrada",
+      "auditSaved": "Audit log guardado",
+      "errTitle": "Error",
+      "errNotFound": "Caso no encontrado",
+      "alreadySettled": "Caso ya settlado",
+      "pageTitle": "🎯 Settlement recibido",
+      "pageSubtitle": "{bufete} envió el cheque del settlement. Aplicar al lien y cerrar el caso.",
+      "firmFallback": "Bufete",
+      "noCptDetail": "Sin detalle de CPT disponible"
+    },
+    "camera": {
+      "cancel": "Cancelar",
+      "useFile": "Usar archivo",
+      "backCancel": "← Cancelar",
+      "startingCamera": "Iniciando cámara…",
+      "centerFace": "Centrá tu rostro en el óvalo",
+      "alignDoc": "Alineá el documento dentro del marco",
+      "selfie": "SELFIE",
+      "document": "DOCUMENTO",
+      "capture": "Capturar",
+      "errNoCase": "Paciente sin caso activo.",
+      "errUpload": "Error al subir. Intentá de nuevo.",
+      "errConnection": "Error de conexión."
+    },
+    "seguimiento": {
+      "errLoad": "Error al cargar datos",
+      "errNotFound": "Caso no encontrado",
+      "errNotFoundDot": "Caso no encontrado.",
+      "errSaveNote": "Error al guardar nota",
+      "firmContact": "Contacto bufete",
+      "noComms": "Aún no hay comunicaciones registradas con el bufete.",
+      "noTimeline": "No hay eventos en el timeline todavía."
+    },
+    "hcfa": {
+      "noDiagnoses": "— Sin diagnósticos registrados —",
+      "noServices": "— Sin servicios registrados —",
+      "noFax": "— sin fax registrado",
+      "noEmail": "— sin email registrado",
+      "errLoad": "Error al cargar datos",
+      "errNotFound": "Caso no encontrado",
+      "errNotFoundDot": "Caso no encontrado."
+    },
+    "releasesAdmin": {
+      "title": "Notas de release",
+      "errAdminOnly": "Sólo un admin puede curar notas de release.",
+      "errLoadList": "No se pudo cargar la lista.",
+      "errAlreadyVisible": "Esa nota ya se mostró: cambiarle el texto ahora le movería el piso a quien la leyó.",
+      "errSaveFailed": "No se pudo guardar.",
+      "errMissingEnglish": "Faltan {total, plural, one {# traducción} other {# traducciones}} al inglés.",
+      "errNothingToPublish": "Este release no tiene ninguna entrada visible para publicar.",
+      "errPublishFailed": "No se pudo publicar.",
+      "emptyTitle": "Todavía no hay releases",
+      "emptySubtitle": "El script del build crea uno en cada deploy. El primero de cada app es sólo la línea base, sin notas.",
+      "needsReview": "para revisar",
+      "placeholderEs": "Texto en español",
+      "placeholderEn": "English — obligatorio para publicar",
+      "titleNothingReady": "Ninguna entrada está lista: aprobá alguna con Guardar",
+      "titlePublishAnyway": "Se publica igual: quien tenga la app en inglés verá esas líneas en español"
+    },
     "settlementPrint": {
       "printButton": "Imprimir / Guardar PDF",
       "paymentData": "Datos del pago",
@@ -25,6 +118,10 @@
       "closeSearch": "Cerrar el buscador"
     },
     "scheduleAppt": {
+      "patientCaseLine": "Paciente <b>{paciente}</b> · caso <c>{caso}</c>.",
+      "apptType": "Tipo de cita",
+      "pickClinic": "Seleccionar clínica...",
+      "pickDoctor": "Seleccionar provider...",
       "okTitle": "Cita agendada",
       "okDetails": "Detalles",
       "okPatient": "Paciente:",
@@ -2035,6 +2132,12 @@
       "pushBlockedBody": "Este navegador tiene los avisos bloqueados para el sitio, y eso solo se cambia desde sus ajustes: tocá el candado en la barra de direcciones, entrá a los permisos del sitio y permití las notificaciones. Después volvé a activarlo desde acá."
     },
     "common": {
+      "errorSave": "Error al guardar",
+      "statusActive": "Activo",
+      "statusInactive": "Inactivo",
+      "from": "Desde",
+      "to": "Hasta",
+      "user": "Usuario",
       "phonePlaceholder": "(___) ___-____",
       "phoneInvalid": "No es un número válido de EE.UU. o Canadá · 10 dígitos, y el código de área no puede empezar en 0 ni 1",
       "phoneRequired": "El teléfono es obligatorio",
@@ -2117,6 +2220,8 @@
       "edBlank": "Campo en blanco"
     },
     "specialties": {
+      "fieldColorLabel": "Color · identificador en calendario y dashboard",
+      "createSpecialty": "Crear especialidad",
       "labelDescription": "Descripción",
       "phDescription": "Descripción opcional de la línea de servicio…",
       "fieldColorHint": "Color · lo identifica en el calendario y en el panel",
@@ -2550,6 +2655,7 @@
       "errorDelete": "Error al eliminar"
     },
     "diagnoses": {
+      "snomedCol": "SNOMED CT (clínico)",
       "title": "Diagnósticos",
       "subtitle": "ICD-10 + SNOMED CT dual coding · {piRelevant} PI-relevant · {favorites} ⭐ favoritos · {mockup}",
       "newButton": "Nuevo diagnóstico",
@@ -2608,6 +2714,7 @@
       "actionView": "Ver"
     },
     "frontOffice": {
+      "defaultUserName": "Recepción",
       "workspace": "Front Office · Escritorio",
       "title": "Recepción primaria",
       "subtitle": "Atendé la llamada · Capturá la derivación en 90 segundos",
@@ -2732,6 +2839,11 @@
         "pasteHint": "Escribí, o pegá el número con Ctrl+V"
       },
       "newCase": {
+        "cancelCall": "Cancelar llamada",
+        "noAnswer": "Sin respuesta",
+        "viewOnlySpecialty": "Ver solo especialidad",
+        "viewAllDoctors": "Ver todos los providers",
+        "deliveryHint": "Elegí cómo el paciente recibe el enlace al formulario. Podés activar uno o ambos canales.",
         "dialogTitle": "Nueva llamada · Crear caso",
         "dialogDescription": "El temporizador inicia cuando realmente estás hablando con el paciente",
         "titleCall": "Llamada · {name}",
@@ -2921,6 +3033,9 @@
       }
     },
     "billing": {
+      "colType": "Tipo",
+      "newInternalNote": "Escribir nueva nota interna...",
+      "saveNote": "Guardar nota",
       "rowRevised": "Nota corregida — revisar el cobro",
       "pageTitle": "Bandeja de Brunella",
       "pageSubtitle": "Billing & Finance · Notas firmadas listas para HCFA",
@@ -3017,6 +3132,7 @@
       "caseCount": "{count} caso{count, plural, one {} other {s}}"
     },
     "intake": {
+      "loadError": "Error al cargar datos",
       "pageTitle": "Bandeja de Edson",
       "pageSubtitle": "Verificación pre-visita · Law Firm + PIP",
       "refresh": "Actualizar",
@@ -4679,6 +4795,7 @@
       "apptRowsPerPage": "Filas por página",
       "apptPageOf": "Página {page} de {total}",
       "mh": {
+        "historyTitle": "Historial médico · {code}",
         "personalInfo": "Información personal",
         "contactInfo": "Información de contacto",
         "emergencyAdditional": "Emergencia y adicional",
@@ -5383,6 +5500,7 @@
       "avisarAMano": "Avisale por teléfono."
     },
     "portalEnvio": {
+      "errSend": "No se pudo enviar el portal",
       "canalEmail": "el correo",
       "canalSms": "el SMS",
       "tituloFallo": "El formulario no se envió.",
@@ -6574,6 +6692,12 @@
     }
   },
   "caseWizard": {
+    "editTitle": "Formulario de caso médico",
+    "editSubtitle": "Complete toda la información requerida para el nuevo caso médico.",
+    "responsibleName": "Nombre completo",
+    "responsibleNamePlaceholder": "Nombre del responsable",
+    "saving": "Guardando...",
+    "saveChanges": "Guardar cambios",
     "title": "Nuevo caso médico",
     "subtitle": "Complete toda la información requerida para el nuevo caso médico.",
     "step1Title": "Información básica",

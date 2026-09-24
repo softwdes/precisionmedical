@@ -368,7 +368,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
 
         <div className="flex items-center gap-2 flex-wrap flex-1">
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Desde</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{tc('from')}</label>
             <input
               type="date" value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setYearFilter(''); }}
@@ -376,7 +376,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty, hidePayments = 
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Hasta</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{tc('to')}</label>
             <input
               type="date" value={dateTo}
               onChange={e => { setDateTo(e.target.value); setYearFilter(''); }}

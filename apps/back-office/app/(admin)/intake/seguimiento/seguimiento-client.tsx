@@ -261,6 +261,7 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function SeguimientoClient() {
+  const tm = useTranslations('phoenix.misc');
   const t = useTranslations('phoenix.intake');
   const router = useRouter();
 
@@ -277,7 +278,7 @@ export function SeguimientoClient() {
     setError(null);
     try {
       const res = await window.fetch(`/api/admin/intake/seguimiento?tab=${tabKey}`);
-      if (!res.ok) throw new Error('Error al cargar datos');
+      if (!res.ok) throw new Error(tm('errLoadData'));
       const json = await res.json() as {
         ok: boolean; items: FollowupCase[]; kpis: Kpis; counts: Counts; total: number;
       };

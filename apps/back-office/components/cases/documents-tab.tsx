@@ -653,6 +653,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
    */
   patientId?: string;
 }) {
+  const tdoc = useTranslations('phoenix.documents');
   const serverError = useServerError();
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
@@ -763,7 +764,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
       // que el `?? null` deja la fila apagada ahí sin ninguna rama extra.
       setLien(data.lien ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar documentos');
+      setError(e instanceof Error ? e.message : tdoc('errLoad'));
     } finally {
       setLoading(false);
     }
@@ -1472,7 +1473,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                 </th>
                 <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colName')}</th>
                 <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell whitespace-nowrap">{t('colSize')}</th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell whitespace-nowrap">Última modificación</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell whitespace-nowrap">{tc('lastModified')}</th>
                 <th className="w-16 px-3 py-2.5" />
               </tr>
             </thead>

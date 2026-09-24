@@ -244,6 +244,7 @@ type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FO
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
+  const tc = useTranslations('phoenix.common');
   const serverError = useServerError();
   const { open, onOpenChange, onSuccess, initialDate, initialTime, initialClinicId, editAppointment, isReschedule } = props;
   const isEditMode = !!editAppointment;
@@ -1672,7 +1673,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 disabled={loadingRes}
               >
-                <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
+                <option value="">{loadingRes ? tc('loading') : t('selectClinicPlaceholder')}</option>
                 {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
 
@@ -1710,7 +1711,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 disabled={loadingRes || savingSpecialty}
               >
-                <option value="">{loadingRes ? 'Cargando...' : t('selectSpecialtyPlaceholder')}</option>
+                <option value="">{loadingRes ? tc('loading') : t('selectSpecialtyPlaceholder')}</option>
                 {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               {caseSpecialty && apptSpecialtyId && apptSpecialtyId !== caseSpecialty.id && (

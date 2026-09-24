@@ -120,7 +120,7 @@ export function DeletedThreadsClient(): React.ReactElement {
                     <td className="px-3 !py-1.5 text-[12.5px] text-text-1">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate max-w-[22rem]">{f.subject}</span>
-                        {f.priority === 'URGENT' && <StatusPill state="danger" label={t('urgent')} />}
+                        {f.priority === 'URGENT' && <StatusPill state="danger" label={t('priorityURGENT')} />}
                       </div>
                       <div className="flex items-center gap-2 text-[10.5px] text-text-muted mt-0.5">
                         <span className="inline-flex items-center gap-1">

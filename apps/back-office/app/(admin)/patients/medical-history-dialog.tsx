@@ -1743,6 +1743,7 @@ function AllergiesEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const tc = useTranslations('phoenix.common');
   const t = useTranslations('phoenix.patients');
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -1787,7 +1788,7 @@ function AllergiesEditDialog({
           </button>
           <button onClick={handleSave} disabled={isPending}
             className="w-full sm:w-auto px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
-            {isPending ? 'Guardando…' : 'Guardar'}
+            {isPending ? tc('saving') : 'Guardar'}
           </button>
         </div>
       </DialogContent>

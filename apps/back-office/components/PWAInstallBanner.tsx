@@ -1,10 +1,13 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Download, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 
 export function PWAInstallBanner(): React.ReactElement | null {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.pwa');
   const { event, installed, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
 
   if (platform === 'ios' || platform === 'unknown') return null;
@@ -20,7 +23,7 @@ export function PWAInstallBanner(): React.ReactElement | null {
   return (
     <div
       role="region"
-      aria-label="Instalar Clínica App"
+      aria-label={t('installClinic')}
       style={{
         position: 'fixed',
         bottom: '80px',
@@ -88,7 +91,7 @@ export function PWAInstallBanner(): React.ReactElement | null {
 
           <button
             onClick={dismiss}
-            aria-label="Cerrar"
+            aria-label={tc('close')}
             style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}
           >
             <X size={14} />

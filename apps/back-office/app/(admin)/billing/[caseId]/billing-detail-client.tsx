@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useTranslations } from 'next-intl';
 
 /**
  * B.25 Pantalla 2 — Detalle de caso · Brunella
@@ -124,6 +125,8 @@ function NoteCard({ note }: { note: InternalNote }) {
 
 // ─── NoteComposer ─────────────────────────────────────────────────────────────
 function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.billing');
   const [content, setContent] = useState('');
   const [tag,     setTag]     = useState<string>('general');
   const [saving,  setSaving]  = useState(false);
@@ -151,7 +154,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
       <textarea
         value={content}
         onChange={e => setContent(e.target.value)}
-        placeholder="Escribir nueva nota interna..."
+        placeholder={t('newInternalNote')}
         rows={3}
         className="w-full rounded-md border border-border bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none mb-3"
       />
@@ -181,7 +184,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 disabled:opacity-50 transition-all"
         >
           <Plus className="w-3 h-3" />
-          {saving ? 'Guardando...' : 'Guardar nota'}
+          {saving ? tc('saving') : t('saveNote')}
         </button>
       </div>
     </div>
@@ -190,6 +193,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function BillingDetailClient({ caseId }: { caseId: string }) {
+  const tc = useTranslations('phoenix.common');
   const router = useRouter();
   const [detail,     setDetail]     = useState<CaseDetail | null>(null);
   const [loading,    setLoading]    = useState(true);
@@ -221,7 +225,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
   if (loading || !detail) {
     return (
       <div className="flex flex-col">
-        <PageHeader title="Cargando..." subtitle="Billing · Brunella" />
+        <PageHeader title={tc('loading')} subtitle="Billing · Brunella" />
         <div className="px-6 pb-6 space-y-4">
           {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-lg bg-bg-2/40 animate-pulse" />)}
         </div>

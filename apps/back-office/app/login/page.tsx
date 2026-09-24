@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@precision-medical/auth/client';
@@ -60,6 +61,7 @@ function NeuralBackground(): React.ReactElement {
 // ─── Login Page ────────────────────────────────────────────────────────────────
 
 export default function LoginPage(): React.ReactElement {
+  const tm = useTranslations('phoenix.misc');
   const router       = useRouter();
   const searchParams = useSearchParams();
   /**
@@ -403,7 +405,7 @@ export default function LoginPage(): React.ReactElement {
                 <form onSubmit={handleSubmit}>
                   <div className="pm-field" style={{display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>
                     <Mail size={17} color="#4A5474" style={{flexShrink:0}} />
-                    <input className="pm-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="usuario@precisionmedicalcare.com" required autoComplete="email" />
+                    <input className="pm-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder={tm('loginEmailPlaceholder')} required autoComplete="email" />
                   </div>
                   <div style={{height:1,background:'rgba(255,255,255,0.025)',margin:'2px 0'}} />
                   <div className="pm-field" style={{position:'relative',display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>

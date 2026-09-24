@@ -1,5 +1,98 @@
 {
   "phoenix": {
+    "misc": {
+      "openWaitingRoomTv": "Open the waiting room on the TV",
+      "loadingMedicalHistory": "Loading the medical history…",
+      "paymentDetailsPlaceholder": "Add payment details, check number, reference, etc.…",
+      "sending": "Sending…",
+      "loginEmailPlaceholder": "user@precisionmedicalcare.com",
+      "expandMenu": "Expand the menu",
+      "firms": "Law firms",
+      "errLoadData": "The data could not be loaded",
+      "cptNoteExample": "Cannot be billed together with 97140. Requires modifier -25 if billed with E&M.",
+      "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…"
+    },
+    "precall": {
+      "phFirstName": "Maria",
+      "phLastName": "Garcia"
+    },
+    "pwa": {
+      "installClinic": "Install the Clinic App"
+    },
+    "documents": {
+      "errLoad": "The documents could not be loaded"
+    },
+    "roles": {
+      "patient": "Patient",
+      "attorney": "Attorney"
+    },
+    "security": {
+      "mfaTitle": "Two-factor authentication (TOTP)",
+      "mfaOk": "MFA is set up. Your account is protected.",
+      "confirmRemoveMfa": "Remove two-factor authentication? Your account will be less protected."
+    },
+    "settlement": {
+      "ledgerUpdated": "Ledger updated — balance $0",
+      "caseSettled": "Case marked as SETTLED",
+      "noteRecorded": "Settlement note recorded",
+      "auditSaved": "Audit log saved",
+      "errTitle": "Error",
+      "errNotFound": "Case not found",
+      "alreadySettled": "Case already settled",
+      "pageTitle": "🎯 Settlement received",
+      "pageSubtitle": "{bufete} sent the settlement check. Apply it to the lien and close the case.",
+      "firmFallback": "Law firm",
+      "noCptDetail": "No CPT detail available"
+    },
+    "camera": {
+      "cancel": "Cancel",
+      "useFile": "Use a file",
+      "backCancel": "← Cancel",
+      "startingCamera": "Starting the camera…",
+      "centerFace": "Center your face in the oval",
+      "alignDoc": "Line the document up inside the frame",
+      "selfie": "SELFIE",
+      "document": "DOCUMENT",
+      "capture": "Capture",
+      "errNoCase": "This patient has no active case.",
+      "errUpload": "Upload failed. Try again.",
+      "errConnection": "Connection error."
+    },
+    "seguimiento": {
+      "errLoad": "The data could not be loaded",
+      "errNotFound": "Case not found",
+      "errNotFoundDot": "Case not found.",
+      "errSaveNote": "The note could not be saved",
+      "firmContact": "Law firm contact",
+      "noComms": "No communications with the law firm yet.",
+      "noTimeline": "No events in the timeline yet."
+    },
+    "hcfa": {
+      "noDiagnoses": "— No diagnoses on file —",
+      "noServices": "— No services on file —",
+      "noFax": "— no fax on file",
+      "noEmail": "— no email on file",
+      "errLoad": "The data could not be loaded",
+      "errNotFound": "Case not found",
+      "errNotFoundDot": "Case not found."
+    },
+    "releasesAdmin": {
+      "title": "Release notes",
+      "errAdminOnly": "Only an admin can curate release notes.",
+      "errLoadList": "The list could not be loaded.",
+      "errAlreadyVisible": "That note was already shown: changing its text now would move the ground under whoever read it.",
+      "errSaveFailed": "It could not be saved.",
+      "errMissingEnglish": "{total, plural, one {# translation is} other {# translations are}} missing in English.",
+      "errNothingToPublish": "This release has no visible entry to publish.",
+      "errPublishFailed": "It could not be published.",
+      "emptyTitle": "No releases yet",
+      "emptySubtitle": "The build script creates one on every deploy. The first one for each app is just the baseline, with no notes.",
+      "needsReview": "to review",
+      "placeholderEs": "Text in Spanish",
+      "placeholderEn": "English — required to publish",
+      "titleNothingReady": "No entry is ready: approve one with Save",
+      "titlePublishAnyway": "It publishes anyway: anyone with the app in English will see those lines in Spanish"
+    },
     "settlementPrint": {
       "printButton": "Print / Save PDF",
       "paymentData": "Payment details",
@@ -25,6 +118,10 @@
       "closeSearch": "Close search"
     },
     "scheduleAppt": {
+      "patientCaseLine": "Patient <b>{paciente}</b> · case <c>{caso}</c>.",
+      "apptType": "Appointment type",
+      "pickClinic": "Pick a clinic…",
+      "pickDoctor": "Pick a provider…",
       "okTitle": "Appointment scheduled",
       "okDetails": "Details",
       "okPatient": "Patient:",
@@ -2035,6 +2132,12 @@
       "pushBlockedBody": "This browser blocks alerts for the site, and only its settings can change that: tap the lock in the address bar, open the site permissions, and allow notifications. Then turn it on again from here."
     },
     "common": {
+      "errorSave": "The changes could not be saved",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "from": "From",
+      "to": "To",
+      "user": "User",
       "phonePlaceholder": "(___) ___-____",
       "phoneInvalid": "Not a valid US or Canada number · 10 digits, area code cannot start with 0 or 1",
       "phoneRequired": "Phone is required",
@@ -2117,6 +2220,8 @@
       "edBlank": "Blank field"
     },
     "specialties": {
+      "fieldColorLabel": "Color · identifier in the calendar and dashboard",
+      "createSpecialty": "Create specialty",
       "labelDescription": "Description",
       "phDescription": "Optional description of the service line…",
       "fieldColorHint": "Colour · identifies it on the calendar and the dashboard",
@@ -2550,6 +2655,7 @@
       "errorDelete": "Error deleting"
     },
     "diagnoses": {
+      "snomedCol": "SNOMED CT (clinical)",
       "title": "Diagnoses",
       "subtitle": "ICD-10 + SNOMED CT dual coding · {piRelevant} PI-relevant · {favorites} ⭐ favorites · {mockup}",
       "newButton": "New diagnosis",
@@ -2608,6 +2714,7 @@
       "actionView": "View"
     },
     "frontOffice": {
+      "defaultUserName": "Front desk",
       "workspace": "Front Office · Workspace",
       "title": "Primary Reception",
       "subtitle": "Answer the call · Capture the referral in 90 seconds",
@@ -2732,6 +2839,11 @@
         "pasteHint": "Type it, or paste with Ctrl+V"
       },
       "newCase": {
+        "cancelCall": "Cancel call",
+        "noAnswer": "No answer",
+        "viewOnlySpecialty": "Only this specialty",
+        "viewAllDoctors": "All providers",
+        "deliveryHint": "Pick how the patient gets the link to the form. You can turn on one or both channels.",
         "dialogTitle": "New call · Create case",
         "dialogDescription": "The timer starts when you are actually speaking with the patient",
         "titleCall": "Call · {name}",
@@ -2921,6 +3033,9 @@
       }
     },
     "billing": {
+      "colType": "Type",
+      "newInternalNote": "Write a new internal note…",
+      "saveNote": "Save note",
       "rowRevised": "Note revised — check billing",
       "pageTitle": "Brunella's Inbox",
       "pageSubtitle": "Billing & Finance · Signed notes ready for HCFA",
@@ -3017,6 +3132,7 @@
       "caseCount": "{count} case{count, plural, one {} other {s}}"
     },
     "intake": {
+      "loadError": "The data could not be loaded",
       "pageTitle": "Edson's Queue",
       "pageSubtitle": "Pre-visit verification · Law Firm + PIP",
       "refresh": "Refresh",
@@ -4679,6 +4795,7 @@
       "apptRowsPerPage": "Rows per page",
       "apptPageOf": "Page {page} of {total}",
       "mh": {
+        "historyTitle": "Medical history · {code}",
         "personalInfo": "Personal information",
         "contactInfo": "Contact information",
         "emergencyAdditional": "Emergency & additional",
@@ -5383,6 +5500,7 @@
       "avisarAMano": "Call them instead."
     },
     "portalEnvio": {
+      "errSend": "The portal link could not be sent",
       "canalEmail": "the email",
       "canalSms": "the SMS",
       "tituloFallo": "The form was not sent.",
@@ -6574,6 +6692,12 @@
     }
   },
   "caseWizard": {
+    "editTitle": "Medical case form",
+    "editSubtitle": "Fill in all the information required for the new medical case.",
+    "responsibleName": "Full name",
+    "responsibleNamePlaceholder": "Name of the responsible person",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
     "title": "New Medical Case",
     "subtitle": "Complete all required information for the new medical case.",
     "step1Title": "Basic Information",

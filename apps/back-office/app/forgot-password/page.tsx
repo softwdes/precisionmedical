@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { createClient } from '@precision-medical/auth/client';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
@@ -11,6 +12,7 @@ import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
  * El link redirige a /reset-password donde el usuario setea la nueva.
  */
 export default function ForgotPasswordPage(): React.ReactElement {
+  const tm = useTranslations('phoenix.misc');
   const [email,   setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
   const [sent,    setSent]    = useState(false);
@@ -93,7 +95,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
 
               {/* Submit */}
               <button type="submit" disabled={loading} style={{width:'100%',background:'linear-gradient(135deg,#F59E0B 0%,#D97706 100%)',borderRadius:10,padding:'12px 16px',color:'#0a0a0a',fontWeight:700,fontSize:14,border:'none',cursor:loading?'not-allowed':'pointer',opacity:loading?0.8:1,fontFamily:'inherit',marginBottom:16}}>
-                {loading ? 'Enviando...' : 'Enviar link de acceso →'}
+                {loading ? tm('sending') : 'Enviar link de acceso →'}
               </button>
 
               {/* Back */}

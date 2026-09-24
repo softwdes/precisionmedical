@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useTranslations } from 'next-intl';
 
 /**
  * B.26 — HCFA / CMS-1500 Generación
@@ -84,6 +85,7 @@ interface HcfaData {
 // ─── CMS-1500 Preview ─────────────────────────────────────────────────────────
 
 function CmsPreview({ d }: { d: HcfaData }) {
+  const t = useTranslations('phoenix.hcfa');
   return (
     <div style={{ background: 'white', color: '#1a2236', borderRadius: 6, padding: '14px 16px', fontSize: 9.5, lineHeight: 1.55, fontFamily: 'ui-monospace, monospace' }}>
       {/* Header */}
@@ -127,7 +129,7 @@ function CmsPreview({ d }: { d: HcfaData }) {
           21. DIAGNOSIS OR NATURE OF ILLNESS OR INJURY (ICD-10)
         </div>
         {d.diagnoses.length === 0 ? (
-          <span style={{ color: '#888', fontSize: 9 }}>— Sin diagnósticos registrados —</span>
+          <span style={{ color: '#888', fontSize: 9 }}>{t('noDiagnoses')}</span>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px 8px' }}>
             {d.diagnoses.map(diag => (
@@ -155,7 +157,7 @@ function CmsPreview({ d }: { d: HcfaData }) {
             <span style={{ textAlign: 'right' }}>CHARGES</span>
           </div>
           {d.serviceLines.length === 0 ? (
-            <span style={{ color: '#888', fontSize: 9 }}>— Sin servicios registrados —</span>
+            <span style={{ color: '#888', fontSize: 9 }}>{t('noServices')}</span>
           ) : (
             d.serviceLines.map((line, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 30px 55px', gap: 4, fontSize: 9, paddingBottom: 2, borderBottom: i < d.serviceLines.length - 1 ? '1px solid #f0f0f0' : 'none', paddingTop: 2 }}>
@@ -251,6 +253,7 @@ function ValidationItem({ label, ok }: { label: string; ok: boolean }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function HcfaClient() {
+  const t = useTranslations('phoenix.hcfa');
   const router = useRouter();
   const params = useParams<{ caseId: string }>();
   const caseId = params.caseId;
@@ -270,9 +273,9 @@ export function HcfaClient() {
     setError(null);
     try {
       const res = await window.fetch(`/api/admin/billing/${caseId}/hcfa-data`);
-      if (!res.ok) throw new Error('Error al cargar datos');
+      if (!res.ok) throw new Error(t('errLoad'));
       const json = await res.json() as { ok: boolean; hcfaData: HcfaData };
-      if (!json.ok) throw new Error('Caso no encontrado');
+      if (!json.ok) throw new Error(t('errNotFound'));
       setData(json.hcfaData);
       setGenerated(json.hcfaData.alreadyGenerated);
     } catch (err) {
@@ -325,7 +328,7 @@ export function HcfaClient() {
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
         <div className="rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-[13px] text-rose">
-          {error ?? 'Caso no encontrado.'}
+          {error ?? t('errNotFoundDot')}
         </div>
       </div>
     );
@@ -444,7 +447,7 @@ export function HcfaClient() {
                           <span className="text-text-muted font-normal ml-1.5">({d.insurerFax})</span>
                         )}
                         {!d.insurerFax && (
-                          <span className="text-text-muted font-normal ml-1.5">— sin fax registrado</span>
+                          <span className="text-text-muted font-normal ml-1.5">{t('noFax')}</span>
                         )}
                       </span>
                     </label>
@@ -463,7 +466,7 @@ export function HcfaClient() {
                           <span className="text-text-muted font-normal ml-1.5">({d.insurerEmail})</span>
                         )}
                         {!d.insurerEmail && (
-                          <span className="text-text-muted font-normal ml-1.5">— sin email registrado</span>
+                          <span className="text-text-muted font-normal ml-1.5">{t('noEmail')}</span>
                         )}
                       </span>
                     </label>

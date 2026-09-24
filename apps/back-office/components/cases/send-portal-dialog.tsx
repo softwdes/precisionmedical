@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
@@ -276,6 +277,7 @@ function ChannelTab({
 // ─── Main dialog ───────────────────────────────────────────────────────────────
 
 export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDialogProps) {
+  const t = useTranslations('phoenix.portalEnvio');
   const serverError = useServerError();
   const router = useRouter();
 
@@ -381,7 +383,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
       const data = await res.json() as { sent: SendResult };
       setResult(data.sent);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al enviar portal');
+      setError(e instanceof Error ? e.message : t('errSend'));
     } finally {
       setSending(false);
     }

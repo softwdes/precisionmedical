@@ -34,6 +34,7 @@ const EMPTY_RESULTS: SearchResults = {
 };
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }): React.ReactElement | null {
+  const tm = useTranslations('phoenix.misc');
   const t = useTranslations('phoenix.palette');
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -131,7 +132,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               </div>
               <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs text-text-2">
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Stethoscope</kbd>
-                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Bufetes</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">{tm('firms')}</kbd>
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">GEICO</kbd>
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">99213</kbd>
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">cervicalgia</kbd>

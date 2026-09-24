@@ -6,12 +6,14 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@precision-medical/auth/client';
 import { QrCode, CheckCircle2, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 
 type Step = 'idle' | 'enrolling' | 'verifying' | 'done';
 
 export default function SecuritySettingsPage() {
+  const t = useTranslations('phoenix.security');
   const supabase = createClient();
 
   const [enrolled,    setEnrolled]    = useState(false);
@@ -91,7 +93,7 @@ export default function SecuritySettingsPage() {
 
   // ── Remove factor ────────────────────────────────────────────────────────────
   async function removeFactor() {
-    if (!confirm('¿Eliminar la autenticación de dos factores? Tu cuenta quedará menos protegida.')) return;
+    if (!confirm(t('confirmRemoveMfa'))) return;
     setError('');
     setLoading(true);
     try {
@@ -127,7 +129,7 @@ export default function SecuritySettingsPage() {
         <div className="flex items-center gap-3 mb-4">
           <QrCode className="w-5 h-5 text-brand-text" />
           <div>
-            <p className="text-sm font-semibold text-text-1">Autenticación de dos factores (TOTP)</p>
+            <p className="text-sm font-semibold text-text-1">{t('mfaTitle')}</p>
             <p className="text-[11px] text-text-muted mt-0.5">
               Protege tu cuenta con Google Authenticator, Authy, o cualquier app TOTP compatible.
             </p>
@@ -152,7 +154,7 @@ export default function SecuritySettingsPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-emerald text-sm">
               <CheckCircle2 className="w-4 h-4" />
-              <span>MFA configurado correctamente. Tu cuenta está protegida.</span>
+              <span>{t('mfaOk')}</span>
             </div>
             <button
               onClick={removeFactor}

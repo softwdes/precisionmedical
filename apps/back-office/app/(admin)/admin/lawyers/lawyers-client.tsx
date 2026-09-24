@@ -281,7 +281,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       <DataTable.Td align="center" className="!py-1">
                         <StatusPill
                           state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
-                          label={f.status === 'ACTIVE' ? tc('active') : (f.status === 'INACTIVE' ? tc('statusInactive') : f.status)}
+                          label={f.status === 'ACTIVE' ? tc('active') : (f.status === 'INACTIVE' ? tc('inactive') : f.status)}
                         />
                       </DataTable.Td>
 

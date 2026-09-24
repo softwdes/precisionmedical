@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useTranslations } from 'next-intl';
 
 /**
  * B.24 — Detalle de seguimiento del caso (Edson)
@@ -236,6 +237,7 @@ function ActionForm({
   onCancel:   () => void;
   loading:    boolean;
 }) {
+  const tc = useTranslations('phoenix.common');
   const [content, setContent] = useState('');
   const [amount,  setAmount]  = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -316,7 +318,7 @@ function ActionForm({
           className="flex items-center gap-1.5 rounded-lg bg-amber/15 border border-amber/40 px-4 py-1.5 text-[12px] font-semibold text-amber hover:bg-amber/25 transition-all disabled:opacity-50"
         >
           <Send className="w-3 h-3" />
-          {loading ? 'Guardando…' : 'Guardar'}
+          {loading ? tc('saving') : tc('save')}
         </button>
       </div>
     </form>
@@ -326,6 +328,8 @@ function ActionForm({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function SeguimientoDetailClient() {
+  const t  = useTranslations('phoenix.seguimiento');
+  const tc = useTranslations('phoenix.common');
   const router    = useRouter();
   const params    = useParams<{ caseId: string }>();
   const caseId    = params.caseId;
@@ -348,9 +352,9 @@ export function SeguimientoDetailClient() {
     setError(null);
     try {
       const res = await window.fetch(`/api/admin/intake/seguimiento/${caseId}`);
-      if (!res.ok) throw new Error('Error al cargar datos');
+      if (!res.ok) throw new Error(t('errLoad'));
       const json = await res.json() as DetailData;
-      if (!json.ok) throw new Error('Caso no encontrado');
+      if (!json.ok) throw new Error(t('errNotFound'));
       setData(json);
     } catch (err) {
       setError('No se pudo cargar el caso. Intentá de nuevo.');
@@ -371,7 +375,7 @@ export function SeguimientoDetailClient() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ type: activeAction, content, amount }),
       });
-      if (!res.ok) throw new Error('Error al guardar nota');
+      if (!res.ok) throw new Error(t('errSaveNote'));
       setActiveAction(null);
       await load(); // reload timeline
     } catch (err) {
@@ -405,7 +409,7 @@ export function SeguimientoDetailClient() {
           <ArrowLeft className="w-4 h-4" /> Volver a Seguimiento
         </button>
         <div className="rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-[13px] text-rose">
-          {error ?? 'Caso no encontrado.'}
+          {error ?? t('errNotFoundDot')}
         </div>
       </div>
     );
@@ -521,7 +525,7 @@ export function SeguimientoDetailClient() {
         {/* ── Attorney Contact ─────────────────────────────────────────────── */}
         {(c.attorney?.phone || c.firmPhone || c.attorney?.email || c.firmEmail) && (
           <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-wrap items-center gap-4 text-[12px]">
-            <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">Contacto bufete</span>
+            <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('firmContact')}</span>
             {(c.attorney?.phone || c.firmPhone) && (
               <a
                 href={`tel:${c.attorney?.phone ?? c.firmPhone}`}
@@ -582,8 +586,8 @@ export function SeguimientoDetailClient() {
             {visibleTimeline.length === 0 ? (
               <div className="py-12 text-center text-[13px] text-text-muted">
                 {tab === 'comms'
-                  ? 'Aún no hay comunicaciones registradas con el bufete.'
-                  : 'No hay eventos en el timeline todavía.'}
+                  ? t('noComms')
+                  : t('noTimeline')}
               </div>
             ) : (
               visibleTimeline.map(e => <TimelineEvent key={e.id} e={e} />)

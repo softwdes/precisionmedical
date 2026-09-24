@@ -470,6 +470,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
    */
   onAddCharge?: () => void;
 }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false, onChanged, onAddCharge }, ref) {
+  const tm = useTranslations('phoenix.misc');
   const serverError = useServerError();
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
@@ -2023,7 +2024,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                         value={noteDraft}
                         onChange={e => setNoteDraft(e.target.value)}
                         rows={4}
-                        placeholder="Agrega detalles del pago, número de cheque, referencia, etc..."
+                        placeholder={tm('paymentDetailsPlaceholder')}
                         className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
                       />
                     </div>

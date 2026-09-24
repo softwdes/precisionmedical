@@ -513,10 +513,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
             <FileText className="w-4 h-4 text-brand-text" />
-            {isEdit ? 'Formulario de caso médico' : t('title')}
+            {isEdit ? t('editTitle') : t('title')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
-            {isEdit ? 'Complete toda la información requerida para el nuevo caso médico.' : t('subtitle')}
+            {isEdit ? t('editSubtitle') : t('subtitle')}
           </DialogDescription>
           <div className="pt-3">
             <StepIndicator current={step} />
@@ -696,11 +696,11 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     <div key={p.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-bg-2/30 p-2.5">
                       <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Nombre completo</label>
+                          <label className="text-[10px] text-text-muted block mb-1">{t('responsibleName')}</label>
                           <input
                             type="text"
                             value={p.name}
-                            placeholder="Nombre del responsable"
+                            placeholder={t('responsibleNamePlaceholder')}
                             onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                             className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted outline-none focus:border-brand transition-colors"
                           />
@@ -1020,8 +1020,8 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                 className="w-full sm:w-auto"
               >
                 {saving
-                  ? (isEdit ? 'Guardando...' : t('creating'))
-                  : (isEdit ? 'Guardar cambios' : t('createCase'))}
+                  ? (isEdit ? t('saving') : t('creating'))
+                  : (isEdit ? t('saveChanges') : t('createCase'))}
               </Button>
             </>
           )}

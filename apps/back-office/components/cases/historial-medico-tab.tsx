@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { MedicalHistoryContent } from '@/app/(admin)/patients/medical-history-dialog';
 import type { PatientRow } from '@/app/(admin)/patients/patients-client';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function HistorialMedicoTab({ patientId }: Props) {
+  const tm = useTranslations('phoenix.misc');
   const [patient, setPatient] = useState<PatientRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +34,7 @@ export function HistorialMedicoTab({ patientId }: Props) {
     return (
       <div className="flex items-center justify-center py-20 gap-2 text-text-muted">
         <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="text-sm">Cargando historial médico...</span>
+        <span className="text-sm">{tm('loadingMedicalHistory')}</span>
       </div>
     );
   }

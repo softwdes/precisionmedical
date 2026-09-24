@@ -1006,7 +1006,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               className="flex items-center gap-2 rounded-full px-5 py-3 bg-rose/15 border border-rose/30 text-rose hover:bg-rose/25 transition-colors shadow-[0_4px_16px_rgba(244,63,94,.2)] text-sm font-semibold"
             >
               <PhoneOff className="w-4 h-4 flex-shrink-0" />
-              <span>Cancelar llamada</span>
+              <span>{t('cancelCall')}</span>
             </button>
           </div>
         </DialogContent>
@@ -1022,7 +1022,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-sm p-0 overflow-hidden">
-          <DialogTitle className="sr-only">Sin respuesta</DialogTitle>
+          <DialogTitle className="sr-only">{t('noAnswer')}</DialogTitle>
           <div className="flex flex-col items-center px-6 py-8 gap-4">
             {/* Avatar */}
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">
@@ -1752,7 +1752,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       {!hasFilteredProviders && providers.length > 0 && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
                           className="text-[10px] text-brand-text hover:underline">
-                          {showAllProviders ? 'Ver solo especialidad' : 'Ver todos los doctores'}
+                          {showAllProviders ? t('viewOnlySpecialty') : t('viewAllDoctors')}
                         </button>
                       )}
                     </div>
@@ -1844,7 +1844,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <>
               {/* Delivery options */}
               <InfoCard title={t('sectionFormDelivery')} icon={Send} tone="emerald">
-                <p className="text-text-2 text-xs mb-3">Elige cómo el paciente recibe el enlace al formulario. Puedes activar uno o ambos canales.</p>
+                <p className="text-text-2 text-xs mb-3">{t('deliveryHint')}</p>
 
                 {/* Remote channels */}
                 <div className="space-y-2">

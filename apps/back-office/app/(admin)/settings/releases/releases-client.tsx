@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   AlertTriangle, Check, EyeOff, Loader2, PackageCheck, Rocket, Undo2, Wrench,
 } from 'lucide-react';
@@ -59,6 +60,7 @@ interface EntryPatch {
 const MODULE_KEYS = Object.keys(MODULE_LABELS);
 
 export function ReleasesClient(): React.ReactElement {
+  const t = useTranslations('phoenix.releasesAdmin');
   const [releases, setReleases] = useState<Release[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,8 +71,8 @@ export function ReleasesClient(): React.ReactElement {
       if (!res.ok) {
         setError(
           res.status === 403
-            ? 'Sólo un admin puede curar notas de release.'
-            : 'No se pudo cargar la lista.',
+            ? t('errAdminOnly')
+            : t('errLoadList'),
         );
         return;
       }
@@ -98,8 +100,8 @@ export function ReleasesClient(): React.ReactElement {
         const body = (await res.json()) as { error?: string };
         setError(
           body.error === 'ALREADY_VISIBLE'
-            ? 'Esa nota ya se mostró: cambiarle el texto ahora le movería el piso a quien la leyó.'
-            : 'No se pudo guardar.',
+            ? t('errAlreadyVisible')
+            : t('errSaveFailed'),
         );
         return;
       }
@@ -123,10 +125,10 @@ export function ReleasesClient(): React.ReactElement {
         const body = (await res.json()) as { error?: string; missing?: unknown[] };
         setError(
           body.error === 'MISSING_ENGLISH'
-            ? 'Faltan ' + String(body.missing?.length ?? 0) + ' traducciones al inglés.'
+            ? t('errMissingEnglish', { total: body.missing?.length ?? 0 })
             : body.error === 'NOTHING_TO_PUBLISH'
-              ? 'Este release no tiene ninguna entrada visible para publicar.'
-              : 'No se pudo publicar.',
+              ? t('errNothingToPublish')
+              : t('errPublishFailed'),
         );
         return;
       }
@@ -158,8 +160,8 @@ export function ReleasesClient(): React.ReactElement {
       {releases !== null && releases.length === 0 && (
         <EmptyState.Rich
           icon={PackageCheck}
-          title="Todavía no hay releases"
-          subtitle="El script del build crea uno en cada deploy. El primero de cada app es sólo la línea base, sin notas."
+          title={t('emptyTitle')}
+          subtitle={t('emptySubtitle')}
         />
       )}
 
@@ -199,9 +201,9 @@ export function ReleasesClient(): React.ReactElement {
                   disabled={busy === release.id || (!published && blocked)}
                   title={
                     !published && shown.length === 0
-                      ? 'Ninguna entrada está lista: aprobá alguna con Guardar'
+                      ? t('titleNothingReady')
                       : !published && release.missingEnglish > 0
-                        ? 'Se publica igual: quien tenga la app en inglés verá esas líneas en español'
+                        ? t('titlePublishAnyway')
                         : undefined
                   }
                   className={
@@ -266,6 +268,7 @@ function EntryRow({
   readOnly: boolean;
   onSave: (patch: EntryPatch) => void;
 }): React.ReactElement {
+  const t = useTranslations('phoenix.releasesAdmin');
   const [textEs, setTextEs] = useState(entry.textEs);
   const [textEn, setTextEn] = useState(entry.textEn ?? '');
   const [module, setModule] = useState(entry.module);
@@ -325,21 +328,21 @@ function EntryRow({
             oculta
           </span>
         )}
-        {entry.needsReview && !entry.hidden && <span className="text-amber">para revisar</span>}
+        {entry.needsReview && !entry.hidden && <span className="text-amber">{t('needsReview')}</span>}
       </div>
 
       <input
         value={textEs}
         onChange={(event) => setTextEs(event.target.value)}
         disabled={readOnly}
-        placeholder="Texto en español"
+        placeholder={t('placeholderEs')}
         className="w-full rounded-md bg-bg-1 px-2 py-1.5 text-[12px] text-text-1 outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
       />
       <input
         value={textEn}
         onChange={(event) => setTextEn(event.target.value)}
         disabled={readOnly}
-        placeholder="English — obligatorio para publicar"
+        placeholder={t('placeholderEn')}
         className={
           'w-full rounded-md bg-bg-1 px-2 py-1.5 text-[12px] text-text-1 outline-none focus:ring-1 focus:ring-brand disabled:opacity-60 ' +
           (missingEnglish ? 'ring-1 ring-rose/40' : '')

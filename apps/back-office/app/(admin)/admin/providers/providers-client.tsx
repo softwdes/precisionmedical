@@ -174,7 +174,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message ?? data.error ?? 'Error al guardar');
+        throw new Error(data.message ?? data.error ?? t('errorSave'));
       }
       setEditing(null);
       refresh();

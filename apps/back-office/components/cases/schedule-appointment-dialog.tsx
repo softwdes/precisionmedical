@@ -95,6 +95,8 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
    * campo, y dos redacciones distintas para lo mismo es cómo se desincronizan.
    */
   const t     = useTranslations('phoenix.calendar');
+  const tsa   = useTranslations('phoenix.scheduleAppt');
+  const tcm   = useTranslations('phoenix.common');
   const tc    = useTranslations('phoenix.common');
   const ts    = useTranslations('phoenix.scheduleAppt');
   const toast = useToast();
@@ -256,7 +258,12 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
             Agendar primera cita
           </DialogTitle>
           <DialogDescription>
-            Paciente <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> · caso <code className="text-text-1 font-mono">{caseInfo.caseCode}</code>.
+            {tsa.rich('patientCaseLine', {
+              paciente: `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}`,
+              caso: caseInfo.caseCode,
+              b: (chunks) => <strong className="text-text-1">{chunks}</strong>,
+              c: (chunks) => <code className="text-text-1 font-mono">{chunks}</code>,
+            })}
             Al agendar, el status pasa a <code className="text-brand-text">ACTIVE</code> y el caso entra al flujo clínico.
           </DialogDescription>
         </DialogHeader>
@@ -275,7 +282,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingResources}
             >
-              <option value="">{loadingResources ? 'Cargando...' : 'Seleccionar clínica...'}</option>
+              <option value="">{loadingResources ? tcm('loading') : tsa('pickClinic')}</option>
               {clinics.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -298,7 +305,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingResources}
             >
-              <option value="">{loadingResources ? 'Cargando...' : 'Seleccionar doctor...'}</option>
+              <option value="">{loadingResources ? tcm('loading') : tsa('pickDoctor')}</option>
               {providers.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName} — {SPECIALTY_LABELS[p.specialty] ?? p.specialty}
@@ -379,7 +386,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
           {/* Tipo */}
           <div>
-            <Label htmlFor="type">Tipo de cita</Label>
+            <Label htmlFor="type">{tsa('apptType')}</Label>
             <select
               id="type"
               value={type}

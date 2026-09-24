@@ -73,6 +73,7 @@ export function Topbar({
   portal = 'clinic',
   cifo = null,
 }: TopbarProps): React.ReactElement {
+  const tm = useTranslations('phoenix.misc');
   const router        = useRouter();
   const currentLocale = useLocale();
   const t             = useTranslations('phoenix.topbar');
@@ -203,7 +204,7 @@ export function Topbar({
           <button
             type="button"
             onClick={onToggleSidebar}
-            title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+            title={sidebarCollapsed ? tm('expandMenu') : 'Colapsar menú'}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="hidden md:flex w-8 h-8 shrink-0 rounded-md hover:bg-white/5 items-center justify-center text-text-2 hover:text-text-1 transition-colors"
           >

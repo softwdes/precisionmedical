@@ -84,11 +84,14 @@ const ProviderInputSchema = z.object({
    * que vuelva a entrar un `9906372145`.
    */
   npi: z.string().trim()
-    /* El texto queda acá: esto es un mensaje de ZOD, que viaja por
-       `flatten()` en `details` y no por el `error` de la respuesta, así que
-       `lib/server-error.ts` no lo ve. Traducir las validaciones de zod es su
-       propia tarea — ver pending-tasks. */
-    .refine((v) => v === '' || npiValido(v), { message: 'NPI inválido' })
+    /* Sin `message`, igual que el de abajo. El razonamiento estaba a medias:
+       es cierto que los mensajes de zod viajan por `flatten()` en `details` y
+       que `lib/server-error.ts` no los ve, pero de ahí NO se sigue que haya
+       que traducirlos — se sigue que hay que BORRARLOS. `ServerErrorBody`
+       tiene `error`, `params`, `detail` y `message`, y ninguna pantalla lee
+       `details`: esa frase no le llegaba a nadie. La que la persona sí ve es
+       el aviso del propio campo, que ya está traducido. */
+    .refine((v) => v === '' || npiValido(v))
     .nullable().optional(),
   /**
    * El id de prescriptor que le da ScriptSure. Es lo que dice "esta receta se

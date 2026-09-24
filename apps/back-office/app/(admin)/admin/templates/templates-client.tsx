@@ -199,7 +199,7 @@ export function TemplatesClient({ templates, stats }: Props) {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message ?? data.error ?? 'Error al guardar');
+        throw new Error(data.message ?? data.error ?? tc('errorSave'));
       }
       setCreateOpen(false);
       setEditing(null);

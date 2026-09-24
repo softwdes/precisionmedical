@@ -564,6 +564,7 @@ function ApptCard({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function AdmissionClient() {
+  const tm = useTranslations('phoenix.misc');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -956,7 +957,7 @@ export function AdmissionClient() {
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-muted text-xs hover:border-cyan/40 hover:text-cyan transition-all whitespace-nowrap"
-              title="Abrir sala de espera en TV"
+              title={tm('openWaitingRoomTv')}
             >
               <Tv2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t('lobbyTv')}</span>

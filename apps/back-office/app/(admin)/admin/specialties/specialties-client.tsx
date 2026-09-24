@@ -273,6 +273,7 @@ function SpecialtyDialog({
   onSaved: () => void;
 }) {
   const t = useTranslations('phoenix.specialties');
+  const tc = useTranslations('phoenix.common');
   const serverError = useServerError();
   const [name, setName]                 = useState(editing?.name ?? '');
   const [description, setDescription]   = useState(editing?.description ?? '');
@@ -356,7 +357,7 @@ function SpecialtyDialog({
           </div>
 
           <div>
-            <Label htmlFor="description">Descripción</Label>
+            <Label htmlFor="description">{t('labelDescription')}</Label>
             <textarea
               id="description"
               value={description ?? ''}
@@ -367,7 +368,7 @@ function SpecialtyDialog({
           </div>
 
           <div>
-            <Label>Color · identificador en calendario y dashboard</Label>
+            <Label>{t('fieldColorLabel')}</Label>
             <div className="flex gap-2 mt-2">
               {COLOR_PALETTE.map((c) => (
                 <button
@@ -442,9 +443,9 @@ function SpecialtyDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear especialidad'}
+            {saving ? tc('saving') : editing ? tc('save') : t('createSpecialty')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -475,7 +476,7 @@ function ViewDialog({
             />
             {specialty.name}
           </DialogTitle>
-          <DialogDescription>{specialty.description ?? 'Sin descripción'}</DialogDescription>
+          <DialogDescription>{specialty.description ?? t('noDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-4 text-sm">

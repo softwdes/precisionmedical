@@ -324,6 +324,7 @@ function ServiceDialog({
   editing: Service | null;
   onSaved: () => void;
 }) {
+  const tm = useTranslations('phoenix.misc');
   const t = useTranslations('phoenix.services');
   const tc = useTranslations('phoenix.common');
   const serverError = useServerError();
@@ -482,7 +483,7 @@ function ServiceDialog({
               value={bundlingNotes ?? ''}
               onChange={(e) => setBundlingNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
-              placeholder="No se puede facturar junto con 97140. Requiere modifier -25 si se factura con E&M."
+              placeholder={tm('cptNoteExample')}
             />
           </div>
 

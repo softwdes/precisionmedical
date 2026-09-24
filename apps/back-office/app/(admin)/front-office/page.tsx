@@ -1,4 +1,5 @@
 import { db, VIGENTES } from '@precision-medical/database';
+import { getTranslations } from 'next-intl/server';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { FrontOfficeClient } from './front-office-client';
@@ -15,8 +16,9 @@ export default async function FrontOfficePage({
 }) {
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
+  const t = await getTranslations('phoenix.frontOffice');
   // Nombre del usuario para el saludo personalizado
-  let userName = 'Recepción';
+  let userName = t('defaultUserName');
   try {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();

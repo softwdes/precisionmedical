@@ -2073,10 +2073,11 @@ function formatRelative(d: Date | string, t: Traductor): string {
 
 // ─── LienSignatureRow ──────────────────────────────────────────────────────────
 
-const SIGNER_LABELS: Record<string, string> = {
-  PATIENT:  'Paciente',
-  ATTORNEY: 'Abogado',
-  DOCTOR:   'Provider',
+/** El nombre de cada firmante vive en `phoenix.roles`; "Provider" es igual
+ *  en los dos idiomas y por eso no tiene clave. */
+const SIGNER_KEYS: Record<string, string> = {
+  PATIENT:  'patient',
+  ATTORNEY: 'attorney',
 };
 
 const SIGNER_COLORS: Record<string, string> = {
@@ -2091,9 +2092,12 @@ function LienSignatureRow({
   sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date; previousCount: number };
 }) {
   const t = useTranslations('phoenix.caseDetail');
+  const tRoles = useTranslations('phoenix.roles');
   const [expanded, setExpanded] = useState(false);
   const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
-  const label = SIGNER_LABELS[sig.signerType] ?? sig.signerType;
+  const roleKey = SIGNER_KEYS[sig.signerType];
+  // 'Provider' se escribe igual en los dos idiomas, asi que no pasa por el diccionario.
+  const label = roleKey ? tRoles(roleKey) : sig.signerType === 'DOCTOR' ? 'Provider' : sig.signerType;
 
   const imgSrc = sig.signatureSvg
     ? (sig.signatureSvg.startsWith('data:') ? sig.signatureSvg : `data:image/png;base64,${sig.signatureSvg}`)

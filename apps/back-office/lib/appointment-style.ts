@@ -45,7 +45,7 @@ export interface StyleableAppointment {
   isOnline?: boolean;
   /** Cancelación tardía: consumió el horario y admite penalidad. */
   cancelledSameDay?: boolean;
-  case?: { accidentType?: string | null } | null;
+  case?: { accidentType?: string | null; caseType?: string | null } | null;
 }
 
 export type EventStyle = {
@@ -191,8 +191,30 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       text: 'var(--cal-text-attended)',
     };
   }
-  const isMVA = appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO';
-  const isGM  = appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE';
+  /**
+   * ⚠️ El tipo sale del CASO, que es la misma fuente que usa el filtro.
+   *
+   * Antes era `appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO'`
+   * — el tipo de la CITA y una bandera vieja del caso— mientras que el filtro
+   * "MVA · 1ª visita" y la etiqueta de texto leen `case.caseType`. Dos fuentes
+   * para la misma pregunta, y cuando no coinciden la tarjeta se contradice sola.
+   *
+   * Erick lo vio el 2026-09-24 en Alexander Lutz (GM-3402): tarjeta **rosa de
+   * MVA con el sello `🆕`** y la etiqueta diciendo **"GM 1st"**. El caso es
+   * GENERAL y su cita es FAMILY_PRACTICE, pero le quedó `accidentType = 'AUTO'`
+   * de cuando era MVA — el mismo resto que la fecha del accidente.
+   *
+   * Lo peor no era el ícono: una tarjeta pintada de MVA que el filtro de MVA
+   * **no devuelve** es exactamente el reclamo de Edson. Medido: 9 citas así.
+   *
+   * `accidentType` deja de decidir el color justamente porque sobrevive a la
+   * reclasificación. Y se mantiene el tipo de la CITA como respaldo para las
+   * que no tienen caso, donde no hay `caseType` que mirar.
+   */
+  const tipoDeCaso = appt.case?.caseType;
+  const isMVA = tipoDeCaso === 'MVA' || (!tipoDeCaso && appt.type === 'AUTO_ACCIDENT');
+  const isGM  = tipoDeCaso === 'GENERAL'
+    || (!tipoDeCaso && (appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE'));
 
   /**
    * ── Agendada / sin confirmar ───────────────────────────────────────────────

@@ -14,11 +14,23 @@ import {
   Plus,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useTranslations, useLocale } from 'next-intl';
 
 const AttendanceMap = dynamic(
   () => import('@/components/attendance/AttendanceMap').then(m => ({ default: m.AttendanceMap })),
-  { ssr: false, loading: () => <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>Cargando mapa...</div> },
+  { ssr: false, loading: () => <MapLoading /> },
 );
+
+/** El `loading` de `dynamic()` se evalúa fuera del componente, así que el
+ *  texto no puede venir de adentro: necesita su propio hook. */
+function MapLoading() {
+  const t = useTranslations('attendance');
+  return (
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+      {t('loadingMap')}
+    </div>
+  );
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -99,13 +111,13 @@ interface CorrectionTarget {
 
 function initials(f: string, l: string) { return `${f[0] ?? ''}${l[0] ?? ''}`.toUpperCase(); }
 
-function fmtTime(iso: string | null): string {
+function fmtTime(iso: string | null, locale: string): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function fmtDate(dateStr: string): string {
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+function fmtDate(dateStr: string, locale: string): string {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function fmtHours(h: number | null | undefined): string {
@@ -142,15 +154,23 @@ function rowState(row: TodayRow): 'working' | 'break' | 'done' | 'absent' {
   return 'absent';
 }
 
-/** Devuelve color e tooltip según el location_status del registro */
-function locationStatusMeta(status: string | null | undefined): { color: string; title: string } {
+/**
+ * Color y tooltip según el `location_status` del registro.
+ *
+ * Recibe `t` en vez de llamar al hook: es una función de módulo y la llaman
+ * ocho lugares distintos del JSX, todos ya dentro del componente.
+ */
+function locationStatusMeta(
+  status: string | null | undefined,
+  t: (k: string) => string,
+): { color: string; title: string } {
   switch (status) {
-    case 'verified':      return { color: '#10B981', title: 'Verificado — dentro del radio de la clínica' };
-    case 'out_of_range':  return { color: '#F59E0B', title: 'Fuera de rango — ubicación lejos de la clínica' };
-    case 'low_accuracy':  return { color: '#60A5FA', title: 'Baja precisión — GPS inexacto (PC / WiFi débil)' };
-    case 'no_permission': return { color: '#F43F5E', title: 'Sin permiso — ubicación no autorizada' };
-    case 'remote':        return { color: '#A78BFA', title: 'Remoto — clínica internacional (Bolivia / Perú)' };
-    default:              return { color: '#818CF8', title: 'Ubicación registrada' };
+    case 'verified':      return { color: '#10B981', title: t('gpsVerified') };
+    case 'out_of_range':  return { color: '#F59E0B', title: t('gpsOutOfRange') };
+    case 'low_accuracy':  return { color: '#60A5FA', title: t('gpsLowAccuracy') };
+    case 'no_permission': return { color: '#F43F5E', title: t('gpsNoPermission') };
+    case 'remote':        return { color: '#A78BFA', title: t('gpsRemote') };
+    default:              return { color: '#818CF8', title: t('gpsRecorded') };
   }
 }
 
@@ -211,6 +231,10 @@ function TableSkeleton() {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AsistenciaClient() {
+  const t      = useTranslations('attendance');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
+
   const [view, setView] = useState<'hoy' | 'historial'>('hoy');
 
   // ── Hoy state ──────────────────────────────────────────────────────────────
@@ -342,9 +366,9 @@ export function AsistenciaClient() {
         // 401 = sesion expirada; 5xx = bug servidor. Cualquiera de los
         // dos merece feedback visible — antes esto se tragaba en silencio.
         if (res.status === 401) {
-          setFetchError('Sesión expirada. Recarga la página para continuar.');
+          setFetchError(t('errSession'));
         } else {
-          setFetchError(`No se pudieron cargar las marcadas (error ${res.status}). Reintentando...`);
+          setFetchError(t('errLoad', { code: res.status }));
         }
         return;
       }
@@ -356,7 +380,7 @@ export function AsistenciaClient() {
       setFetchError(null);
     } catch (err) {
       // Network error (sin internet, DNS, etc.).
-      setFetchError('Sin conexión. Reintentando automáticamente...');
+      setFetchError(t('errOffline'));
       void err;
     } finally {
       setLoadingToday(false);
@@ -540,11 +564,11 @@ export function AsistenciaClient() {
 
     if (corrMode === 'create') {
       // Validación cliente: empleado, fecha, clínica, entrada+salida y motivo.
-      if (!corrEmployeeId) { setCorrError('Selecciona un empleado.'); return; }
-      if (!corrDate)       { setCorrError('Selecciona una fecha.'); return; }
-      if (!corrClinic)     { setCorrError('Selecciona una clínica.'); return; }
-      if (!corrCheckIn || !corrCheckOut) { setCorrError('La entrada y la salida son obligatorias.'); return; }
-      if (!corrNotes.trim()) { setCorrError('El motivo es obligatorio para un registro manual.'); return; }
+      if (!corrEmployeeId) { setCorrError(t('errPickEmployee')); return; }
+      if (!corrDate)       { setCorrError(t('errPickDate')); return; }
+      if (!corrClinic)     { setCorrError(t('errPickClinic')); return; }
+      if (!corrCheckIn || !corrCheckOut) { setCorrError(t('errTimesRequired')); return; }
+      if (!corrNotes.trim()) { setCorrError(t('errReasonRequired')); return; }
 
       setSaving(true);
       try {
@@ -564,7 +588,7 @@ export function AsistenciaClient() {
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({})) as { error?: string };
-          setCorrError(j.error ?? 'Error al crear el registro.');
+          setCorrError(j.error ?? t('errCreate'));
           return;
         }
         setCorrection(null);
@@ -592,7 +616,7 @@ export function AsistenciaClient() {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) { setCorrError('Error al guardar.'); return; }
+      if (!res.ok) { setCorrError(t('errSave')); return; }
       setCorrection(null);
       void fetchMissed();
       if (view === 'hoy') void fetchToday(true);
@@ -665,16 +689,16 @@ export function AsistenciaClient() {
 
   // ── Export CSV ─────────────────────────────────────────────────────────────
   function exportCSV() {
-    const headers = ['Fecha','Empleado','Código','Clínica','Entrada','Salida','Horas','Estado'];
+    const headers = [t('date'), t('employee'), t('code'), t('clinic'), t('clockIn'), t('clockOut'), t('totalHours'), t('status')];
     const rows = historyRows.map(r => [
-      fmtDate(r.date),
+      fmtDate(r.date, locale),
       `${r.firstName} ${r.lastName}`,
       r.employeeCode,
       r.clinic_name,
-      fmtTime(r.check_in),
-      fmtTime(r.check_out),
+      fmtTime(r.check_in, locale),
+      fmtTime(r.check_out, locale),
       fmtHours(r.hours_worked),
-      r.status === 'on_time' ? 'A tiempo' : r.status === 'late' ? `Tardanza ${r.late_minutes}min` : 'Ausente',
+      r.status === 'on_time' ? t('onTime') : r.status === 'late' ? t('lateWithMinutes', { min: r.late_minutes }) : t('isAbsent'),
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -688,33 +712,33 @@ export function AsistenciaClient() {
   function exportPDF() {
     const rows = historyRows.map(r => `
       <tr>
-        <td>${fmtDate(r.date)}</td>
+        <td>${fmtDate(r.date, locale)}</td>
         <td>${r.firstName} ${r.lastName}<br/><span style="font-size:10px;color:#888">${r.employeeCode}</span></td>
         <td>${r.clinic_name}</td>
-        <td>${fmtTime(r.check_in)}</td>
-        <td>${fmtTime(r.check_out)}</td>
+        <td>${fmtTime(r.check_in, locale)}</td>
+        <td>${fmtTime(r.check_out, locale)}</td>
         <td>${fmtHours(r.hours_worked)}</td>
         <td style="color:${r.status==='late'?'#dc2626':r.status==='absent'?'#9ca3af':'#16a34a'}">
-          ${r.status==='on_time'?'A tiempo':r.status==='late'?`Tardanza ${r.late_minutes}m`:'Ausente'}
+          ${r.status==='on_time'?t('onTime'):r.status==='late'?t('lateWithMinutes',{min:r.late_minutes}):t('isAbsent')}
         </td>
       </tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<title>Reporte de Asistencia</title>
+<title>${t('reportTitle')}</title>
 <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}
 h1{margin:0;font-size:18px}.sub{color:#666;font-size:11px;margin:4px 0 20px}
 table{width:100%;border-collapse:collapse;font-size:11px}
 th{text-align:left;border-bottom:2px solid #e5e7eb;padding:6px 5px;font-size:10px;text-transform:uppercase;color:#666}
 td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</style></head><body>
-<h1>Reporte de Asistencia — Precision Medical</h1>
-<p class="sub">${filterDateFrom ?? ''} al ${filterDateTo ?? ''} · Generado ${new Date().toLocaleDateString('es-ES')}</p>
-<table><thead><tr><th>Fecha</th><th>Empleado</th><th>Clínica</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th></tr></thead>
+<h1>${t('reportHeading')}</h1>
+<p class="sub">${t('reportRange', { desde: filterDateFrom ?? '', hasta: filterDateTo ?? '', fecha: new Date().toLocaleDateString(locale) })}</p>
+<table><thead><tr><th>${t('date')}</th><th>${t('employee')}</th><th>${t('clinic')}</th><th>${t('clockIn')}</th><th>${t('clockOut')}</th><th>${t('totalHours')}</th><th>${t('status')}</th></tr></thead>
 <tbody>${rows}</tbody></table></body></html>`;
     const win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   }
 
   // ── Today header date ──────────────────────────────────────────────────────
-  const todayHeader = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayHeader = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   const totalActive = todayRows.filter(r => rowState(r) !== 'absent').length;
 
   // Synthesizes a TodayRow that points at one specific shift, so the existing
@@ -751,8 +775,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
         <div>
           <h2 className="text-[15px] font-medium text-text-1 capitalize">
             {view === 'hoy'
-              ? <>{todayHeader} · <span className="text-text-muted">{totalActive} empleados</span></>
-              : 'Registros de asistencia'
+              ? <>{todayHeader} · <span className="text-text-muted">{t('headerEmployees', { total: totalActive })}</span></>
+              : t('recordsTitle')
             }
           </h2>
         </div>
@@ -764,10 +788,10 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 className="inline-block w-2 h-2 rounded-full bg-emerald-500"
                 style={{ boxShadow: '0 0 5px rgba(16,185,129,0.6)', animation: refreshing ? 'pulse 1s infinite' : 'pulse 2s infinite' }}
               />
-              <span className="text-[11px] text-text-muted">En vivo</span>
+              <span className="text-[11px] text-text-muted">{t('live')}</span>
               {lastUpdated && (
                 <span className="text-[10px] text-text-muted">
-                  · hace {Math.floor((Date.now() - lastUpdated.getTime()) / 60000)}m
+                  · {t('updatedAgo', { min: Math.floor((Date.now() - lastUpdated.getTime()) / 60000) })}
                 </span>
               )}
             </div>
@@ -799,7 +823,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                   view === v ? 'bg-indigo-500/15 text-indigo-400' : 'text-text-muted hover:text-text-2'
                 )}
               >
-                {v === 'hoy' ? 'Hoy' : 'Historial'}
+                {v === 'hoy' ? t('viewToday') : t('viewHistory')}
               </button>
             ))}
           </div>
@@ -809,7 +833,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             <button
               onClick={() => void fetchToday(true)}
               className="p-1.5 rounded-lg text-text-muted hover:text-text-2 hover:bg-surface transition-colors"
-              title="Actualizar"
+              title={t('refresh')}
             >
               <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
             </button>
@@ -856,12 +880,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} className="shrink-0" style={{ color: '#F59E0B' }} />
                 <span className="text-[12px] font-semibold" style={{ color: '#F59E0B' }}>
-                  {missedRows.length === 1 ? '1 empleado olvidó marcar su salida' : `${missedRows.length} empleados olvidaron marcar su salida`}
+                  {t('missedCheckout', { total: missedRows.length })}
                 </span>
                 <button
                   onClick={() => void fetchMissed()}
                   className="ml-auto p-0.5 rounded hover:bg-amber-500/10 transition-colors"
-                  title="Actualizar"
+                  title={t('refresh')}
                 >
                   <RefreshCw size={12} style={{ color: '#F59E0B' }} />
                 </button>
@@ -871,7 +895,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                   <div key={r.id} className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                     <span className="font-medium" style={{ color: 'var(--color-text-2)' }}>{r.firstName} {r.lastName}</span>
                     <span>·</span>
-                    <span>{new Date(r.date + 'T12:00:00').toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                    <span>{new Date(r.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
                     {r.clinic_name && <><span>·</span><span>{r.clinic_name}</span></>}
                     <button
                       className="ml-auto text-[10px] px-2 py-0.5 rounded font-medium transition-colors hover:bg-amber-500/15"
@@ -902,11 +926,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           {loadingToday ? <KpiSkeleton /> : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
-                { icon: UserCheck,   label: 'Presentes',   value: kpis.presentes,  color: '#10B981', dim: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.20)' },
-                { icon: Coffee,      label: 'En break',     value: kpis.enBreak,    color: '#F59E0B', dim: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
-                { icon: Clock,       label: 'Tardanzas',    value: kpis.tardanzas,  color: '#F43F5E', dim: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.20)' },
-                { icon: UserX,       label: 'Sin fichar',   value: kpis.sinFichar,  color: 'var(--color-text-muted)', dim: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.07)' },
-                { icon: MapPinOff,   label: 'Sin GPS',      value: kpis.sinGPS,     color: '#EF4444', dim: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.28)' },
+                { icon: UserCheck,   label: t('kpiPresent'),       value: kpis.presentes,  color: '#10B981', dim: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.20)' },
+                { icon: Coffee,      label: t('kpiOnBreak'),       value: kpis.enBreak,    color: '#F59E0B', dim: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
+                { icon: Clock,       label: t('kpiLate'),          value: kpis.tardanzas,  color: '#F43F5E', dim: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.20)' },
+                { icon: UserX,       label: t('kpiNotClockedIn'),  value: kpis.sinFichar,  color: 'var(--color-text-muted)', dim: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.07)' },
+                { icon: MapPinOff,   label: t('kpiNoGps'),         value: kpis.sinGPS,     color: '#EF4444', dim: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.28)' },
               ].map(({ icon: Icon, label, value, color, dim, border }) => (
                 <div key={label} className="rounded-xl p-4 flex flex-col gap-1.5" style={{ background: dim, border: `1px solid ${border}` }}>
                   <div className="flex items-center justify-between">
@@ -924,13 +948,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 5px rgba(16,185,129,0.7)' }} />
-                <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Trabajando ahora</span>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">{t('workingNow')}</span>
               </div>
-              <span className="text-[11px] text-text-muted">{workingNow.length} activos</span>
+              <span className="text-[11px] text-text-muted">{t('activeCount', { total: workingNow.length })}</span>
             </div>
 
             {loadingToday ? <PillSkeleton /> : workingNow.length === 0 ? (
-              <p className="text-[12px] text-text-muted text-center py-4">Nadie fichado en este momento</p>
+              <p className="text-[12px] text-text-muted text-center py-4">{t('nobodyClockedIn')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {workingNow.map(r => {
@@ -962,7 +986,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                         </p>
                       </div>
                       {onBreak && (
-                        <span className="text-[9px] font-semibold rounded px-1 py-0.5" style={{ background: 'rgba(245,158,11,0.18)', color: '#F59E0B' }}>Break</span>
+                        <span className="text-[9px] font-semibold rounded px-1 py-0.5" style={{ background: 'rgba(245,158,11,0.18)', color: '#F59E0B' }}>{t('onBreak')}</span>
                       )}
                     </div>
                   );
@@ -979,12 +1003,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b border-border bg-surface/60">
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted pl-4">Empleado</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">Clínica</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">Entrada</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">Salida</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">Horas</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">Estado</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted pl-4">{t('employee')}</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">{t('clinic')}</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">{t('clockIn')}</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">{t('clockOut')}</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">{t('totalHours')}</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider text-text-muted">{t('status')}</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -992,7 +1016,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                     {todayRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-text-muted text-sm">
-                          Sin empleados activos hoy
+                          {t('noEmployeesToday')}
                         </TableCell>
                       </TableRow>
                     ) : todayRows.map(r => {
@@ -1038,17 +1062,17 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                         className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
                                         style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8', border: '0.5px solid rgba(99,102,241,0.28)' }}
                                       >
-                                        {shiftCount} turnos
+                                        {t('shifts', { total: shiftCount })}
                                       </span>
                                     )}
                                     {rowMissingGPS(r) && (
                                       <span
                                         className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
                                         style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
-                                        title="Marcó sin compartir ubicación GPS"
+                                        title={t('noGpsTitle')}
                                       >
                                         <MapPinOff size={9} />
-                                        SIN GPS
+                                        {t('noGpsBadge')}
                                       </span>
                                     )}
                                     {r.is_manual && <ManualTag />}
@@ -1058,8 +1082,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               </div>
                             </TableCell>
                             <TableCell className="text-[13px] text-text-2">{r.clinic_name ?? '—'}</TableCell>
-                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_in)}</TableCell>
-                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_out)}</TableCell>
+                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_in, locale)}</TableCell>
+                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_out, locale)}</TableCell>
                             <TableCell className="text-[13px] font-mono" style={{ color: state === 'working' ? '#10B981' : 'var(--color-text-2)' }}>
                               {state === 'working' && r.check_in
                                 ? elapsed(r.check_in, r.break_minutes)
@@ -1083,20 +1107,20 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   <button
                                     onClick={() => openCreate({ employeeId: r.employee_id, date: todayStr() })}
                                     className="px-1.5 py-1 rounded text-[10px] font-medium transition-colors flex items-center gap-1"
-                                    title="Registrar marcación manual (olvidó fichar)"
+                                    title={t('addManualTitle')}
                                     style={{ background: 'rgba(99,102,241,0.10)', border: '1px solid rgba(99,102,241,0.28)', color: '#A5B4FC' }}
                                   >
                                     <Plus size={11} />
-                                    Registrar
+                                    {t('addManual')}
                                   </button>
                                 )}
                                 {r.record_id && (
                                   (r.check_in_lat ?? r.check_out_lat) ? (
-                                    <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
+                                    <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status, t).title} style={{ color: locationStatusMeta(r.location_status, t).color }}>
                                       <MapPin size={13} />
                                     </button>
                                   ) : (
-                                    <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                    <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status, t).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
                                       <MapPin size={13} />
                                     </span>
                                   )
@@ -1108,7 +1132,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   <button
                                     onClick={() => void openDayMap(r.employee_id, `${r.firstName} ${r.lastName}`, todayStr())}
                                     className="ml-1 px-1.5 py-1 rounded text-[10px] font-medium transition-colors flex items-center gap-1"
-                                    title="Ver todos los turnos del dia en el mapa"
+                                    title={t('dayMapTitle')}
                                     style={{
                                       background: 'rgba(99,102,241,0.10)',
                                       border: '1px solid rgba(99,102,241,0.28)',
@@ -1139,13 +1163,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                       className="text-[10px] font-medium px-1.5 py-0.5 rounded text-text-muted"
                                       style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid var(--border)' }}
                                     >
-                                      Turno {idx + 1}
+                                      {t('shiftN', { n: idx + 1 })}
                                     </span>
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-[12px] text-text-2">{shift.clinic_name ?? '—'}</TableCell>
-                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_in)}</TableCell>
-                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_out)}</TableCell>
+                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_in, locale)}</TableCell>
+                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_out, locale)}</TableCell>
                                 <TableCell className="text-[12px] font-mono" style={{ color: shiftState === 'working' ? '#10B981' : 'var(--color-text-2)' }}>
                                   {shiftState === 'working' && shift.check_in
                                     ? elapsed(shift.check_in, shift.break_minutes ?? 0)
@@ -1161,11 +1185,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                       <Pencil size={13} />
                                     </button>
                                     {(shift.check_in_lat ?? shift.check_out_lat) ? (
-                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(shift.location_status).title} style={{ color: locationStatusMeta(shift.location_status).color }}>
+                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(shift.location_status, t).title} style={{ color: locationStatusMeta(shift.location_status, t).color }}>
                                         <MapPin size={13} />
                                       </button>
                                     ) : (
-                                      <span className="p-1 rounded cursor-default" title={locationStatusMeta(shift.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                      <span className="p-1 rounded cursor-default" title={locationStatusMeta(shift.location_status, t).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
                                         <MapPin size={13} />
                                       </span>
                                     )}
@@ -1184,7 +1208,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Mobile cards */}
               <div className="md:hidden space-y-2">
                 {todayRows.length === 0 ? (
-                  <p className="text-center py-12 text-sm text-text-muted">Sin empleados activos hoy</p>
+                  <p className="text-center py-12 text-sm text-text-muted">{t('noEmployeesToday')}</p>
                 ) : todayRows.map(r => {
                   const state = rowState(r);
                   const leftColor = state === 'working' ? '#10B981' : state === 'break' ? '#F59E0B' : 'transparent';
@@ -1223,7 +1247,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
                                 >
                                   <MapPinOff size={9} />
-                                  SIN GPS
+                                  {t('noGpsBadge')}
                                 </span>
                               )}
                             </p>
@@ -1246,12 +1270,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                         </div>
                       </div>
                       <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                        <span className="text-text-muted">Clínica <span className="text-text-2">{r.clinic_name ?? '—'}</span></span>
-                        <span className="text-text-muted">Horas <span className="font-mono text-text-2" style={{ color: state === 'working' ? '#10B981' : undefined }}>
+                        <span className="text-text-muted">{t('clinic')} <span className="text-text-2">{r.clinic_name ?? '—'}</span></span>
+                        <span className="text-text-muted">{t('totalHours')} <span className="font-mono text-text-2" style={{ color: state === 'working' ? '#10B981' : undefined }}>
                           {state === 'working' && r.check_in ? elapsed(r.check_in, r.break_minutes) : fmtHours(r.hours_worked)}
                         </span></span>
-                        <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(r.check_in)}</span></span>
-                        <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(r.check_out)}</span></span>
+                        <span className="text-text-muted">{t('clockIn')} <span className="font-mono text-text-2">{fmtTime(r.check_in, locale)}</span></span>
+                        <span className="text-text-muted">{t('clockOut')} <span className="font-mono text-text-2">{fmtTime(r.check_out, locale)}</span></span>
                       </div>
 
                       {/* Boton "Dia completo" — solo en multi-turno, mobile */}
@@ -1266,7 +1290,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                           }}
                         >
                           <MapPin size={12} />
-                          Ver día completo en mapa
+                          {t('dayMapMobile')}
                         </button>
                       )}
 
@@ -1280,7 +1304,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               <div key={shift.id} className="rounded-lg bg-surface/50 border border-border/60 p-2.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-text-muted" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                                    Turno {idx + 1}
+                                    {t('shiftN', { n: idx + 1 })}
                                   </span>
                                   <div className="flex items-center gap-1">
                                     <TodayBadge row={shiftRow} />
@@ -1288,19 +1312,19 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                       <Pencil size={11} />
                                     </button>
                                     {(shift.check_in_lat ?? shift.check_out_lat) ? (
-                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded" style={{ color: locationStatusMeta(shift.location_status).color }}>
+                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded" style={{ color: locationStatusMeta(shift.location_status, t).color }}>
                                         <MapPin size={11} />
                                       </button>
                                     ) : null}
                                   </div>
                                 </div>
                                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                                  <span className="text-text-muted">Clínica <span className="text-text-2">{shift.clinic_name ?? '—'}</span></span>
-                                  <span className="text-text-muted">Horas <span className="font-mono text-text-2" style={{ color: shiftState === 'working' ? '#10B981' : undefined }}>
+                                  <span className="text-text-muted">{t('clinic')} <span className="text-text-2">{shift.clinic_name ?? '—'}</span></span>
+                                  <span className="text-text-muted">{t('totalHours')} <span className="font-mono text-text-2" style={{ color: shiftState === 'working' ? '#10B981' : undefined }}>
                                     {shiftState === 'working' && shift.check_in ? elapsed(shift.check_in, shift.break_minutes ?? 0) : fmtHours(shift.hours_worked)}
                                   </span></span>
-                                  <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(shift.check_in)}</span></span>
-                                  <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(shift.check_out)}</span></span>
+                                  <span className="text-text-muted">{t('clockIn')} <span className="font-mono text-text-2">{fmtTime(shift.check_in, locale)}</span></span>
+                                  <span className="text-text-muted">{t('clockOut')} <span className="font-mono text-text-2">{fmtTime(shift.check_out, locale)}</span></span>
                                 </div>
                               </div>
                             );
@@ -1322,9 +1346,9 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           {/* Filters */}
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2 sm:items-center">
             <Select value={filterEmployee || ALL} onValueChange={v => { setFilterEmployee(v === ALL ? '' : v); setHistoryPage(1); }}>
-              <SelectTrigger className="h-8 text-xs w-full sm:w-[190px]"><SelectValue placeholder="Todos los empleados" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[190px]"><SelectValue placeholder={t('allEmployees')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todos los empleados</SelectItem>
+                <SelectItem value={ALL}>{t('allEmployees')}</SelectItem>
                 {allEmployees.map(e => (
                   <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>
                 ))}
@@ -1345,19 +1369,19 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             />
 
             <Select value={filterStatus || ALL} onValueChange={v => { setFilterStatus(v === ALL ? '' : v); setHistoryPage(1); }}>
-              <SelectTrigger className="h-8 text-xs w-full sm:w-[140px]"><SelectValue placeholder="Todos los estados" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[140px]"><SelectValue placeholder={t('allStatuses')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todos los estados</SelectItem>
-                <SelectItem value="on_time">A tiempo</SelectItem>
-                <SelectItem value="late">Tardanza</SelectItem>
-                <SelectItem value="absent">Ausente</SelectItem>
+                <SelectItem value={ALL}>{t('allStatuses')}</SelectItem>
+                <SelectItem value="on_time">{t('onTime')}</SelectItem>
+                <SelectItem value="late">{t('isLate')}</SelectItem>
+                <SelectItem value="absent">{t('isAbsent')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={filterClinic || ALL} onValueChange={v => { setFilterClinic(v === ALL ? '' : v); setHistoryPage(1); }}>
-              <SelectTrigger className="h-8 text-xs w-full sm:w-[160px]"><SelectValue placeholder="Todas las clínicas" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[160px]"><SelectValue placeholder={t('allClinics')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todas las clínicas</SelectItem>
+                <SelectItem value={ALL}>{t('allClinics')}</SelectItem>
                 {CLINICS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -1367,24 +1391,24 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 tambien marcadas con check_in pero sin lat (defensa
                 contra inconsistencias). */}
             <Select value={filterGps || ALL} onValueChange={v => { setFilterGps(v === ALL ? '' : v); setHistoryPage(1); }}>
-              <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]"><SelectValue placeholder="GPS: Todos" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]"><SelectValue placeholder={t('gpsAll')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>GPS: Todos</SelectItem>
-                <SelectItem value="missing">Solo sin GPS</SelectItem>
-                <SelectItem value="present">Solo con GPS</SelectItem>
+                <SelectItem value={ALL}>{t('gpsAll')}</SelectItem>
+                <SelectItem value="missing">{t('gpsOnlyMissing')}</SelectItem>
+                <SelectItem value="present">{t('gpsOnlyPresent')}</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button size="sm" onClick={() => void fetchHistory()} className="h-8 text-xs px-3">Aplicar</Button>
+            <Button size="sm" onClick={() => void fetchHistory()} className="h-8 text-xs px-3">{t('apply')}</Button>
             <button
               onClick={() => { setFilterEmployee(''); setFilterDateFrom(daysAgo(7)); setFilterDateTo(todayStr()); setFilterStatus(''); setFilterClinic(''); setFilterGps(''); setHistoryPage(1); }}
               className="text-xs text-text-muted hover:text-text-2 transition-colors px-1"
             >
-              Limpiar
+              {t('clearFilters')}
             </button>
 
             <span className="col-span-2 sm:ml-auto text-[11px] text-text-muted">
-              {historyTotal} registro{historyTotal !== 1 ? 's' : ''}
+              {t('recordCount', { total: historyTotal })}
             </span>
           </div>
 
@@ -1395,7 +1419,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b border-border bg-surface/60">
-                      {['Fecha','Empleado','Clínica','Entrada','Salida','Horas','Estado',''].map(h => (
+                      {[t('date'), t('employee'), t('clinic'), t('clockIn'), t('clockOut'), t('totalHours'), t('status'), ''].map(h => (
                         <TableHead key={h} className="text-[11px] uppercase tracking-wider text-text-muted pl-4">{h}</TableHead>
                       ))}
                     </TableRow>
@@ -1404,7 +1428,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                     {historyRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-12 text-text-muted text-sm">
-                          Sin registros para los filtros seleccionados
+                          {t('noRecordsFilters')}
                         </TableCell>
                       </TableRow>
                     ) : historyRows.map(r => {
@@ -1413,7 +1437,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                       const histMissingGPS = r.check_in != null && (r.location_status === 'no_permission' || r.check_in_lat == null);
                       return (
                       <TableRow key={r.id} className="border-b border-border hover:bg-surface/40 transition-colors">
-                        <TableCell className="text-[12px] text-text-2 pl-4">{fmtDate(r.date)}</TableCell>
+                        <TableCell className="text-[12px] text-text-2 pl-4">{fmtDate(r.date, locale)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
@@ -1426,10 +1450,10 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   <span
                                     className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
                                     style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
-                                    title="Marcó sin compartir ubicación GPS"
+                                    title={t('noGpsTitle')}
                                   >
                                     <MapPinOff size={9} />
-                                    SIN GPS
+                                    {t('noGpsBadge')}
                                   </span>
                                 )}
                                 {r.is_manual && <ManualTag />}
@@ -1439,8 +1463,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                           </div>
                         </TableCell>
                         <TableCell className="text-[12px] text-text-2">{r.clinic_name}</TableCell>
-                        <TableCell className="text-[12px] font-mono text-text-2">{fmtTime(r.check_in)}</TableCell>
-                        <TableCell className="text-[12px] font-mono text-text-2">{fmtTime(r.check_out)}</TableCell>
+                        <TableCell className="text-[12px] font-mono text-text-2">{fmtTime(r.check_in, locale)}</TableCell>
+                        <TableCell className="text-[12px] font-mono text-text-2">{fmtTime(r.check_out, locale)}</TableCell>
                         <TableCell className="text-[12px] font-mono text-text-2">{fmtHours(r.hours_worked)}</TableCell>
                         <TableCell><HistoryBadge row={r} /></TableCell>
                         <TableCell>
@@ -1449,11 +1473,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               <Pencil size={13} />
                             </button>
                             {(r.check_in_lat ?? r.check_out_lat) ? (
-                              <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
+                              <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status, t).title} style={{ color: locationStatusMeta(r.location_status, t).color }}>
                                 <MapPin size={13} />
                               </button>
                             ) : (
-                              <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                              <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status, t).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
                                 <MapPin size={13} />
                               </span>
                             )}
@@ -1469,7 +1493,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Mobile history cards */}
               <div className="md:hidden space-y-2">
                 {historyRows.length === 0 ? (
-                  <p className="text-center py-12 text-sm text-text-muted">Sin registros para los filtros seleccionados</p>
+                  <p className="text-center py-12 text-sm text-text-muted">{t('noRecordsFilters')}</p>
                 ) : historyRows.map(r => {
                   const histMissingGPS = r.check_in != null && (r.location_status === 'no_permission' || r.check_in_lat == null);
                   return (
@@ -1484,12 +1508,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
                             >
                               <MapPinOff size={9} />
-                              SIN GPS
+                              {t('noGpsBadge')}
                             </span>
                           )}
                           {r.is_manual && <ManualTag />}
                         </p>
-                        <p className="text-[10px] text-text-muted">{fmtDate(r.date)} · {r.clinic_name}</p>
+                        <p className="text-[10px] text-text-muted">{fmtDate(r.date, locale)} · {r.clinic_name}</p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <HistoryBadge row={r} />
@@ -1497,9 +1521,9 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-x-3 text-[11px]">
-                      <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(r.check_in)}</span></span>
-                      <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(r.check_out)}</span></span>
-                      <span className="text-text-muted">Horas <span className="font-mono text-text-2">{fmtHours(r.hours_worked)}</span></span>
+                      <span className="text-text-muted">{t('clockIn')} <span className="font-mono text-text-2">{fmtTime(r.check_in, locale)}</span></span>
+                      <span className="text-text-muted">{t('clockOut')} <span className="font-mono text-text-2">{fmtTime(r.check_out, locale)}</span></span>
+                      <span className="text-text-muted">{t('totalHours')} <span className="font-mono text-text-2">{fmtHours(r.hours_worked)}</span></span>
                     </div>
                   </div>
                   );
@@ -1509,13 +1533,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Pagination */}
               {historyTotalPages > 1 && (
                 <div className="flex items-center justify-between text-[12px] text-text-muted pt-1">
-                  <span>Mostrando {(historyPage - 1) * 20 + 1}–{Math.min(historyPage * 20, historyTotal)} de {historyTotal}</span>
+                  <span>{t('showing', { desde: (historyPage - 1) * 20 + 1, hasta: Math.min(historyPage * 20, historyTotal), total: historyTotal })}</span>
                   <div className="flex gap-1">
                     <Button variant="outline" size="sm" disabled={historyPage <= 1} onClick={() => setHistoryPage(p => p - 1)} className="h-7 px-2 text-xs gap-1">
-                      <ChevronLeft className="h-3 w-3" /> Anterior
+                      <ChevronLeft className="h-3 w-3" /> {tc('previous')}
                     </Button>
                     <Button variant="outline" size="sm" disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(p => p + 1)} className="h-7 px-2 text-xs gap-1">
-                      Siguiente <ChevronRight className="h-3 w-3" />
+                      {tc('next')} <ChevronRight className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
@@ -1531,11 +1555,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           <DialogHeader>
             <DialogTitle className="text-[15px] flex items-center gap-2">
               <MapPin size={15} className="text-indigo-400" />
-              Ubicación del registro
+              {t('mapTitle')}
             </DialogTitle>
             {mapTarget && (
               <p className="text-[12px] text-text-muted mt-1">
-                {mapTarget.employeeName} · {fmtDate(mapTarget.date)}
+                {mapTarget.employeeName} · {fmtDate(mapTarget.date, locale)}
               </p>
             )}
           </DialogHeader>
@@ -1546,13 +1570,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               <div style={{ height: 480, borderRadius: 10, overflow: 'hidden' }}>
                 {loadingWaypoints ? (
                   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 10 }}>
-                    Cargando...
+                    {tc('loading')}
                   </div>
                 ) : !mapTarget.checkIn && !mapTarget.checkOut && mapWaypoints.length === 0 ? (
                   <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
                     <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin datos de ubicación para este registro</p>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.6 }}>El empleado puede tener la ubicación desactivada</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{t('noLocationRecord')}</p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.6 }}>{t('locationDisabledHint')}</p>
                   </div>
                 ) : (
                   <AttendanceMap
@@ -1569,19 +1593,19 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 {mapTarget.checkIn && (
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
-                    <span>Entrada {mapTarget.checkIn ? `(${mapTarget.checkIn.lat.toFixed(4)}, ${mapTarget.checkIn.lng.toFixed(4)})` : ''}</span>
+                    <span>{t('clockIn')} {mapTarget.checkIn ? `(${mapTarget.checkIn.lat.toFixed(4)}, ${mapTarget.checkIn.lng.toFixed(4)})` : ''}</span>
                   </div>
                 )}
                 {mapTarget.checkOut && (
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-rose-500 shrink-0" />
-                    <span>Salida {mapTarget.checkOut ? `(${mapTarget.checkOut.lat.toFixed(4)}, ${mapTarget.checkOut.lng.toFixed(4)})` : ''}</span>
+                    <span>{t('clockOut')} {mapTarget.checkOut ? `(${mapTarget.checkOut.lat.toFixed(4)}, ${mapTarget.checkOut.lng.toFixed(4)})` : ''}</span>
                   </div>
                 )}
                 {mapWaypoints.length > 0 && (
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" />
-                    <span>{mapWaypoints.length} punto{mapWaypoints.length !== 1 ? 's' : ''} de ruta</span>
+                    <span>{t('routePoints', { total: mapWaypoints.length })}</span>
                   </div>
                 )}
               </div>
@@ -1589,7 +1613,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           )}
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setMapTarget(null)}>Cerrar</Button>
+            <Button variant="outline" size="sm" onClick={() => setMapTarget(null)}>{tc('close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1604,10 +1628,10 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             </DialogTitle>
             {dayMapTarget && (
               <p className="text-[12px] text-text-muted mt-1">
-                {dayMapTarget.employeeName} · {fmtDate(dayMapTarget.date)}
+                {dayMapTarget.employeeName} · {fmtDate(dayMapTarget.date, locale)}
                 {dayMapTarget.shifts.length > 0 && (
                   <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: 'rgba(99,102,241,0.15)', color: '#A5B4FC', border: '0.5px solid rgba(99,102,241,0.28)' }}>
-                    {dayMapTarget.shifts.length} turnos
+                    {t('shifts', { total: dayMapTarget.shifts.length })}
                   </span>
                 )}
               </p>
@@ -1619,17 +1643,17 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               <div style={{ height: 480, borderRadius: 10, overflow: 'hidden' }}>
                 {loadingDayMap ? (
                   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 10 }}>
-                    Cargando turnos del día...
+                    {t('loadingShifts')}
                   </div>
                 ) : dayMapTarget.shifts.length === 0 ? (
                   <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
                     <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin datos de ubicación para los turnos de hoy</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{t('noLocationDay')}</p>
                   </div>
                 ) : dayMapTarget.shifts.every(s => !s.checkIn && !s.checkOut && s.waypoints.length === 0) ? (
                   <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
                     <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Ningún turno tiene coordenadas registradas</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{t('noCoords')}</p>
                   </div>
                 ) : (
                   <AttendanceMap
@@ -1643,25 +1667,25 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-text-muted px-1">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-emerald-500 shrink-0 flex items-center justify-center text-[8px] font-bold text-white">1</div>
-                  <span>Entrada (numerada por turno)</span>
+                  <span>{t('legendCheckInNumbered')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-rose-500 shrink-0 flex items-center justify-center text-[8px] font-bold text-white">1</div>
-                  <span>Salida</span>
+                  <span>{t('clockOut')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" />
-                  <span>Punto de ruta</span>
+                  <span>{t('legendRoutePoint')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-4 h-[2px] bg-indigo-500" />
-                  <span>Trabajando</span>
+                  <span>{t('legendWorking')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-4 h-[2px] bg-gray-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #6B7280 0 3px, transparent 3px 6px)', background: 'transparent' }} />
                   <span style={{ background: 'transparent', position: 'relative' }}>
                     <span style={{ display: 'inline-block', width: 16, height: 2, marginRight: 6, verticalAlign: 'middle', borderTop: '2px dashed #6B7280' }} />
-                    Off-shift
+                    {t('legendOffShift')}
                   </span>
                 </div>
               </div>
@@ -1669,7 +1693,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           )}
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDayMapTarget(null)}>Cerrar</Button>
+            <Button variant="outline" size="sm" onClick={() => setDayMapTarget(null)}>{tc('close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1679,16 +1703,16 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[15px]">
-              {corrMode === 'create' ? 'Registro manual' : 'Corregir registro'}
+              {corrMode === 'create' ? t('manualRecord') : t('fixRecord')}
             </DialogTitle>
             {correction && corrMode === 'edit' && (
               <p className="text-[12px] text-text-muted mt-1">
-                {correction.firstName} {correction.lastName} · {fmtDate(correction.date)}
+                {correction.firstName} {correction.lastName} · {fmtDate(correction.date, locale)}
               </p>
             )}
             {corrMode === 'create' && (
               <p className="text-[12px] text-text-muted mt-1">
-                Marcación retroactiva — el empleado olvidó fichar.
+                {t('retroHint')}
               </p>
             )}
           </DialogHeader>
@@ -1699,9 +1723,9 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {corrMode === 'create' && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-2">Empleado</label>
+                    <label className="text-[12px] font-medium text-text-2">{t('employee')}</label>
                     <Select value={corrEmployeeId} onValueChange={setCorrEmployeeId}>
-                      <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder={t('selectPlaceholder')} /></SelectTrigger>
                       <SelectContent>
                         {allEmployees.map(e => (
                           <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>
@@ -1710,7 +1734,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-2">Fecha</label>
+                    <label className="text-[12px] font-medium text-text-2">{t('date')}</label>
                     <input
                       type="date"
                       value={corrDate}
@@ -1724,9 +1748,9 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
               {/* Clinic */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-text-2">Clínica</label>
+                <label className="text-[12px] font-medium text-text-2">{t('clinic')}</label>
                 <Select value={corrClinic} onValueChange={setCorrClinic}>
-                  <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Seleccionar clínica" /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder={t('selectClinic')} /></SelectTrigger>
                   <SelectContent>
                     {CLINICS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
@@ -1736,7 +1760,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[12px] font-medium text-text-2">Hora entrada</label>
+                  <label className="text-[12px] font-medium text-text-2">{t('timeIn')}</label>
                   <input
                     type="time"
                     value={corrCheckIn}
@@ -1746,7 +1770,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[12px] font-medium text-text-2">Hora salida</label>
+                  <label className="text-[12px] font-medium text-text-2">{t('timeOut')}</label>
                   <input
                     type="time"
                     value={corrCheckOut}
@@ -1759,7 +1783,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
               {/* Status */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-text-2">Estado</label>
+                <label className="text-[12px] font-medium text-text-2">{t('status')}</label>
                 <div className="flex rounded-lg border border-border bg-surface overflow-hidden">
                   {(['on_time','late','absent'] as const).map(s => (
                     <button
@@ -1774,13 +1798,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                           : 'text-text-muted hover:text-text-2'
                       )}
                     >
-                      {s === 'on_time' ? 'A tiempo' : s === 'late' ? 'Tardanza' : 'Ausente'}
+                      {s === 'on_time' ? t('onTime') : s === 'late' ? t('isLate') : t('isAbsent')}
                     </button>
                   ))}
                 </div>
                 {corrStatus === 'late' && (
                   <div className="flex items-center gap-2 mt-2">
-                    <label className="text-[12px] text-text-muted shrink-0">Minutos de tardanza</label>
+                    <label className="text-[12px] text-text-muted shrink-0">{t('lateMinutesLabel')}</label>
                     <input
                       type="number"
                       min="0"
@@ -1796,13 +1820,13 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               {/* Notes */}
               <div className="space-y-1.5">
                 <label className="text-[12px] font-medium text-text-2">
-                  Motivo {corrMode === 'create' && <span className="text-rose-text">*</span>}
+                  {t('reason')} {corrMode === 'create' && <span className="text-rose-text">*</span>}
                 </label>
                 <textarea
                   value={corrNotes}
                   onChange={e => setCorrNotes(e.target.value)}
                   rows={2}
-                  placeholder={corrMode === 'create' ? 'Motivo del registro manual (obligatorio)...' : 'Motivo de la corrección...'}
+                  placeholder={corrMode === 'create' ? t('reasonPlaceholderCreate') : t('reasonPlaceholderEdit')}
                   className="w-full rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-text-1 resize-none"
                 />
               </div>
@@ -1820,19 +1844,19 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 <AlertTriangle size={13} className="text-amber-text mt-0.5 shrink-0" />
                 <p className="text-[11px] text-text-muted italic">
                   {corrMode === 'create'
-                    ? 'Se guardará como registro MANUAL (sin GPS), con tu usuario y fecha. Requiere entrada y salida.'
-                    : 'Los cambios quedan registrados con tu usuario y fecha de modificación.'}
+                    ? t('warnCreate')
+                    : t('warnEdit')}
                 </p>
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCorrection(null)}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => setCorrection(null)}>{tc('cancel')}</Button>
             <Button size="sm" onClick={() => void saveCorrection()} disabled={saving}>
               {saving
-                ? 'Guardando...'
-                : corrMode === 'create' ? 'Crear registro' : 'Guardar corrección'}
+                ? tc('saving')
+                : corrMode === 'create' ? t('createRecordBtn') : t('saveFix')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1847,11 +1871,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
  *  Sirve para auditoría: en Reporte de Horas/salarios estos no son
  *  fichajes reales con ubicación. */
 function ManualTag() {
+  const t = useTranslations('attendance');
   return (
     <span
       className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
       style={{ background: 'rgba(245,158,11,0.12)', color: '#FCD34D', border: '0.5px solid rgba(245,158,11,0.40)' }}
-      title="Registro creado manualmente por el admin (sin GPS)"
+      title={t('manualTagTitle')}
     >
       MANUAL
     </span>
@@ -1859,20 +1884,22 @@ function ManualTag() {
 }
 
 function TodayBadge({ row }: { row: TodayRow }) {
+  const t = useTranslations('attendance');
   const state = rowState(row);
-  if (state === 'done')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">Completado</Badge>;
-  if (state === 'break')   return <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-text border-amber-500/20">Break</Badge>;
+  if (state === 'done')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">{t('done')}</Badge>;
+  if (state === 'break')   return <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-text border-amber-500/20">{t('onBreak')}</Badge>;
   if (state === 'working') {
-    if (row.status === 'late') return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
-    return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">Presente</Badge>;
+    if (row.status === 'late') return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">{t('lateWithMinutes', { min: row.late_minutes })}</Badge>;
+    return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">{t('present')}</Badge>;
   }
-  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Sin fichar</Badge>;
+  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{t('kpiNotClockedIn')}</Badge>;
 }
 
 function HistoryBadge({ row }: { row: HistoryRow }) {
-  if (row.status === 'late')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">Tardanza {row.late_minutes}m</Badge>;
-  if (row.status === 'absent')  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Ausente</Badge>;
-  if (row.check_out)            return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">Completado</Badge>;
-  if (row.check_in)             return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">Presente</Badge>;
-  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Sin fichar</Badge>;
+  const t = useTranslations('attendance');
+  if (row.status === 'late')    return <Badge className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-text border-rose-500/20">{t('lateWithMinutes', { min: row.late_minutes })}</Badge>;
+  if (row.status === 'absent')  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{t('isAbsent')}</Badge>;
+  if (row.check_out)            return <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 border-indigo-500/20">{t('done')}</Badge>;
+  if (row.check_in)             return <Badge className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-text border-emerald-500/20">{t('present')}</Badge>;
+  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{t('kpiNotClockedIn')}</Badge>;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
@@ -23,6 +24,7 @@ type Props = {
 };
 
 function SuccessModalInner({ title, subtitle, name, card1, card2, onClose, autoCloseMs = 4000 }: Props): React.ReactElement {
+  const t = useTranslations();
   const [exiting, setExiting] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -105,7 +107,7 @@ function SuccessModalInner({ title, subtitle, name, card1, card2, onClose, autoC
           <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)', margin: 0 }}>{title}</p>
           <button
             onClick={dismiss}
-            aria-label="Cerrar"
+            aria-label={t('common.close')}
             style={{ background: 'transparent', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center' }}
           >
             <X size={16} />

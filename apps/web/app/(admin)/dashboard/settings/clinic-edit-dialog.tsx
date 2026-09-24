@@ -134,7 +134,7 @@ export function ClinicEditDialog({
   async function geocodeAddress(): Promise<void> {
     const query = form.address.trim();
     if (!query) {
-      toast.error('Ingresa una dirección primero');
+      toast.error(t('errAddressFirst'));
       return;
     }
     setGeocoding(true);
@@ -159,7 +159,7 @@ export function ClinicEditDialog({
       }>;
 
       if (results.length === 0) {
-        toast.error('No se encontró la dirección. Verifica el texto o ajusta haciendo clic en el mapa.');
+        toast.error(t('errAddressNotFound'));
         return;
       }
 
@@ -171,9 +171,9 @@ export function ClinicEditDialog({
       const map = mapInstanceRef.current;
       if (map) map.setView([lat, lng], 17);
 
-      toast.success(`Encontrado: ${first.display_name}`);
+      toast.success(t('geocodeFound', { lugar: first.display_name }));
     } catch {
-      toast.error('Error al buscar la dirección');
+      toast.error(t('errGeocode'));
     } finally {
       setGeocoding(false);
     }
@@ -388,7 +388,7 @@ export function ClinicEditDialog({
 
           {/* Map */}
           <div className="space-y-1.5">
-            <Label>Ubicación en el mapa <span className="text-text-muted font-normal">(clic para fijar)</span></Label>
+            <Label>{t('mapLocation')} <span className="text-text-muted font-normal">{t('mapClickHint')}</span></Label>
             <div
               ref={mapRef}
               style={{ height: 280, width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}
@@ -452,7 +452,7 @@ export function ClinicEditDialog({
           {/* Address + phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Dirección <span className="text-text-muted font-normal">(opcional)</span></Label>
+              <Label>{t('address')} <span className="text-text-muted font-normal">{t('optional')}</span></Label>
               <div className="flex gap-2">
                 <Input
                   value={form.address}
@@ -462,7 +462,7 @@ export function ClinicEditDialog({
                     // geocoding instead of submitting the (non-form) dialog.
                     if (e.key === 'Enter') { e.preventDefault(); void geocodeAddress(); }
                   }}
-                  placeholder="Calle, ciudad, código postal"
+                  placeholder={t('addressPlaceholder')}
                   className="flex-1"
                 />
                 <Button
@@ -471,25 +471,25 @@ export function ClinicEditDialog({
                   size="sm"
                   onClick={() => void geocodeAddress()}
                   disabled={!form.address.trim() || geocoding}
-                  title="Localizar dirección en el mapa"
+                  title={t('locateOnMap')}
                 >
                   {geocoding
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <Search className="h-3.5 w-3.5" />
                   }
-                  Buscar
+                  {t('search')}
                 </Button>
               </div>
               <p className="text-tiny text-text-muted">
-                Escribe la dirección y haz clic en Buscar para fijar las coordenadas automáticamente.
+                {t('addressHint')}
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Teléfono <span className="text-text-muted font-normal">(opcional)</span></Label>
+              <Label>{t('phone')} <span className="text-text-muted font-normal">{t('optional')}</span></Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
-                placeholder="+1 (801) ..."
+                placeholder={t('phonePlaceholder')}
               />
             </div>
           </div>
@@ -497,9 +497,9 @@ export function ClinicEditDialog({
           {/* Active toggle */}
           <div className="flex items-center justify-between rounded-lg border border-border bg-surface/50 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-text-1">Clínica activa</p>
+              <p className="text-sm font-medium text-text-1">{t('activeClinic')}</p>
               <p className="text-tiny text-text-muted">
-                Las inactivas no aparecen en el Time Clock ni se asignan a empleados nuevos.
+                {t('activeClinicHint')}
               </p>
             </div>
             <button
@@ -550,7 +550,7 @@ export function ClinicEditDialog({
                 aria-checked={form.strict_geofencing}
                 onClick={() => setForm(f => ({ ...f, strict_geofencing: !f.strict_geofencing }))}
                 disabled={form.lat === null || form.lng === null}
-                title={(form.lat === null || form.lng === null) ? 'Define las coordenadas primero' : ''}
+                title={(form.lat === null || form.lng === null) ? t('defineCoordsFirst') : ''}
                 style={{
                   width: 38,
                   height: 22,

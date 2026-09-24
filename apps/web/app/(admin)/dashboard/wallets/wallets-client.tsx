@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Input, Label,
@@ -57,13 +57,12 @@ function getFlag(currency: string): string {
   return map[currency] ?? '🌍';
 }
 
-function getCountryLabel(currency: string): string {
+function getCountryLabel(currency: string, t: (k: string) => string): string {
   const map: Record<string, string> = {
-    USD: 'Estados Unidos · USD',
-    BOB: 'Bolivia · BOB',
-    PEN: 'Perú · PEN',
+    USD: 'countryUS', BOB: 'countryBO', PEN: 'countryPE',
   };
-  return map[currency] ?? '—';
+  const clave = map[currency];
+  return clave ? t(clave) : '—';
 }
 
 function formatBalance(balance: number, currency: string): string {
@@ -83,6 +82,10 @@ function getCurrencyPrefix(currency: string): string {
 }
 
 export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[] }): React.ReactElement {
+  const t      = useTranslations('wallets');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
+
   const [showCreate, setShowCreate] = useState(false);
   const [reconcileTarget, setReconcileTarget] = useState<WalletItem | null>(null);
   const [breakdownTarget, setBreakdownTarget] = useState<WalletItem | null>(null);
@@ -102,11 +105,11 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-1">Wallets</h1>
-          <p className="text-small text-text-3">Carteras por moneda y país · Precision Medical</p>
+          <p className="text-small text-text-3">{t('subtitleFull')}</p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="shrink-0 gap-1.5">
           <Plus className="h-4 w-4" />
-          + Nueva wallet
+          + {t('addNew')}
         </Button>
       </div>
 
@@ -187,6 +190,10 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }): React.ReactElement {
+  const t      = useTranslations('wallets');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
+
   return (
     <div
       className="rounded-xl flex flex-col items-center justify-center py-16 text-center gap-4"
@@ -194,9 +201,9 @@ function EmptyState({ onAdd }: { onAdd: () => void }): React.ReactElement {
     >
       <Wallet className="h-12 w-12 text-text-3" />
       <div>
-        <p className="text-[14px] font-semibold text-text-2 mb-1.5">Sin wallets configuradas</p>
+        <p className="text-[14px] font-semibold text-text-2 mb-1.5">{t('noWalletsConfigured')}</p>
         <p className="text-[13px] text-text-3 max-w-xs mx-auto leading-relaxed">
-          Crea tu primera cartera para comenzar a registrar operaciones financieras
+          {t('noWalletsHint')}
         </p>
       </div>
       <Button onClick={onAdd} className="gap-1.5">
@@ -208,6 +215,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }): React.ReactElement {
 }
 
 function WalletCard({ wallet, breakdown, onReconcile, onBreakdown }: { wallet: WalletItem; breakdown?: WalletBreakdown; onReconcile: () => void; onBreakdown: () => void }): React.ReactElement {
+  const t      = useTranslations('wallets');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
+
   // Entradas = entradas FX. Salidas = todas las salidas (FX + salarios pagados
   // + financiamiento a caja chica), para que base + entradas − salidas = saldo.
   const entradas = breakdown?.fxIn ?? 0;
@@ -259,7 +270,7 @@ function WalletCard({ wallet, breakdown, onReconcile, onBreakdown }: { wallet: W
             {wallet.name}
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            {getCountryLabel(wallet.currency)}
+            {getCountryLabel(wallet.currency, t)}
           </p>
         </div>
         <div
@@ -343,14 +354,14 @@ function WalletCard({ wallet, breakdown, onReconcile, onBreakdown }: { wallet: W
           <Clock style={{ width: 11, height: 11, color: 'var(--text-3)', flexShrink: 0 }} />
           <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
             {lastMovement
-              ? `Último: ${new Date(lastMovement).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}`
-              : 'Sin movimientos'}
+              ? t('lastMovement', { fecha: new Date(lastMovement).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) })
+              : t('noMovements')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
             onClick={onBreakdown}
-            title="¿De dónde sale este saldo?"
+            title={t('whereFrom')}
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               background: 'transparent',
@@ -422,6 +433,9 @@ function CreateWalletDialog({
   onClose: () => void;
   onCreated: () => void;
 }): React.ReactElement {
+  const t  = useTranslations('wallets');
+  const tc = useTranslations('common');
+
   const [form, setForm] = useState({
     name: '',
     currency: 'USD' as 'USD' | 'BOB' | 'PEN',
@@ -464,18 +478,18 @@ function CreateWalletDialog({
         ].join(' ')}
       >
         <DialogHeader>
-          <DialogTitle>Nueva wallet</DialogTitle>
-          <p className="text-small text-text-3">Agrega una cartera para una moneda y país</p>
+          <DialogTitle>{t('addNew')}</DialogTitle>
+          <p className="text-small text-text-3">{t('newWalletHint')}</p>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Field 1: name */}
           <div className="space-y-1.5">
-            <Label>Nombre *</Label>
+            <Label>{t('nameReq')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              placeholder="Ej: Nómina Bolivia, Caja Operaciones..."
+              placeholder={t('namePlaceholder')}
             />
             <p className="text-[11px] text-text-3">
               Un nombre descriptivo para identificar esta cartera fácilmente
@@ -496,7 +510,7 @@ function CreateWalletDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>País *</Label>
+              <Label>{t('countryReq')}</Label>
               <Select value={form.countryId} onValueChange={(v) => setField('countryId', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -532,7 +546,7 @@ function CreateWalletDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose}>{tc('cancel')}</Button>
           <Button
             loading={create.isPending}
             disabled={!form.name || !form.currency || !form.countryId}
@@ -623,6 +637,10 @@ function BreakdownDialog({
   breakdown?: WalletBreakdown;
   onClose: () => void;
 }): React.ReactElement {
+  const t      = useTranslations('wallets');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
+
   const cur = wallet.currency;
   const b: WalletBreakdown = breakdown ?? {
     base: Number(wallet.balance), fxIn: 0, fxOut: 0, salariesPaid: 0,
@@ -631,22 +649,22 @@ function BreakdownDialog({
   };
 
   const baseLabel = b.reconciledAt
-    ? `Base reconciliada · ${new Date(b.reconciledAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}`
-    : 'Saldo inicial';
+    ? t('baseReconciled', { fecha: new Date(b.reconciledAt).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) })
+    : t('initialBalance');
 
   // Solo mostramos líneas con valor para no saturar.
   const rows: Array<{ label: string; amount: number; sign: '+' | '−'; color: string }> = [];
-  if (b.fxIn !== 0)        rows.push({ label: 'Entradas FX', amount: b.fxIn, sign: '+', color: '#10B981' });
-  if (b.fxOut !== 0)       rows.push({ label: 'Salidas FX', amount: b.fxOut, sign: '−', color: '#F43F5E' });
-  if (b.salariesPaid !== 0) rows.push({ label: 'Salarios pagados', amount: b.salariesPaid, sign: '−', color: '#F43F5E' });
-  if (b.pettyCashOut !== 0) rows.push({ label: 'Financiamiento a Caja Chica', amount: b.pettyCashOut, sign: '−', color: '#F43F5E' });
+  if (b.fxIn !== 0)         rows.push({ label: t('rowFxIn'),        amount: b.fxIn,         sign: '+', color: '#10B981' });
+  if (b.fxOut !== 0)        rows.push({ label: t('rowFxOut'),       amount: b.fxOut,        sign: '−', color: '#F43F5E' });
+  if (b.salariesPaid !== 0) rows.push({ label: t('rowSalariesPaid'), amount: b.salariesPaid, sign: '−', color: '#F43F5E' });
+  if (b.pettyCashOut !== 0) rows.push({ label: t('rowPettyCash'),    amount: b.pettyCashOut, sign: '−', color: '#F43F5E' });
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{getFlag(cur)} {wallet.name}</DialogTitle>
-          <p className="text-small text-text-3">¿De dónde sale este saldo?</p>
+          <p className="text-small text-text-3">{t('whereFrom')}</p>
         </DialogHeader>
 
         <div className="space-y-1 text-sm">
@@ -659,7 +677,7 @@ function BreakdownDialog({
           {/* Movimientos desde la base */}
           {rows.length === 0 ? (
             <p className="py-3 text-[12px] text-text-3 text-center">
-              Sin movimientos desde {b.reconciledAt ? 'la reconciliación' : 'la apertura'}.
+              {t('noMovementsSince', { desde: b.reconciledAt ? t('sinceReconciliation') : t('sinceOpening') })}
             </p>
           ) : rows.map((r, i) => (
             <div key={i} className="flex items-center justify-between py-2 border-b border-border/50">
@@ -672,7 +690,7 @@ function BreakdownDialog({
 
           {/* Total */}
           <div className="flex items-center justify-between pt-3">
-            <span className="font-semibold text-text-1">Saldo actual</span>
+            <span className="font-semibold text-text-1">{t('currentBalance')}</span>
             <span className="font-mono font-bold text-base" style={{ color: b.balance < 0 ? '#F43F5E' : 'var(--text-1)' }}>
               {formatBalance(b.balance, cur)}
             </span>
@@ -682,14 +700,14 @@ function BreakdownDialog({
           {b.salariesPending > 0 && (
             <div className="mt-3 rounded-lg px-3 py-2 text-[12px]"
               style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#F59E0B' }}>
-              Comprometido (salarios pendientes, aún no descontados):{' '}
+              {t('committed')}{' '}
               <span className="font-mono font-semibold">{formatBalance(b.salariesPending, cur)}</span>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cerrar</Button>
+          <Button variant="ghost" onClick={onClose}>{tc('close')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

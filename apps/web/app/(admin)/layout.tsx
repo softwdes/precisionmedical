@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
 import { AppLayout } from '@/components/layout/app-layout';
 import { BootAnimation } from '@/components/layout/boot-animation';
@@ -6,21 +7,17 @@ import { SessionGuard } from '@/components/layout/session-guard';
 import { dbRoleToRole } from '@/lib/permissions';
 import type { Role } from '@/lib/permissions';
 
-const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin',
-  CONTADOR: 'Contador',
-  EMPLOYEE: 'Empleado',
-  LAWYER: 'Abogado',
-  PROVIDER: 'Proveedor',
-  AUDITOR_AI: 'IA Auditor',
-};
+/** El nombre visible de cada rol vive en `metrics.roles`, que ya los tiene. */
+const ROLE_KEYS = new Set([
+  'SUPER_ADMIN', 'ADMIN', 'CONTADOR', 'EMPLOYEE', 'LAWYER', 'PROVIDER', 'AUDITOR_AI',
+]);
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }): Promise<React.ReactElement> {
+  const t = await getTranslations();
   const supabase = await createServerClient();
   const {
     data: { user: supabaseUser },
@@ -61,7 +58,7 @@ export default async function AdminLayout({
       <SessionGuard maxAgeHours={12} />
       <AppLayout
         userName={`${user.firstName} ${user.lastName}`}
-        userRole={ROLE_LABELS[user.role as string] ?? user.role}
+        userRole={ROLE_KEYS.has(user.role as string) ? t(`metrics.roles.${user.role}`) : (user.role as string)}
         userEmail={supabaseUser.email ?? ''}
         avatarUrl={user.avatarUrl ?? undefined}
         role={role}

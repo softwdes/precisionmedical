@@ -1081,7 +1081,7 @@ export function ReporteHorasClient({
               <SelectItem value="ALL">{t('allCountries')}</SelectItem>
               <SelectItem value="US">🇺🇸 USA</SelectItem>
               <SelectItem value="BO">🇧🇴 Bolivia</SelectItem>
-              <SelectItem value="PE">🇵🇪 Perú</SelectItem>
+              <SelectItem value="PE">🇵🇪 {t('countryPE')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

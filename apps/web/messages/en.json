@@ -1,5 +1,24 @@
 {
+  "providers": {
+    "serviceNamePlaceholder": "e.g. Lumbar X-ray"
+  },
+  "noAccess": {
+    "employeeAccount": "Your account is an employee account",
+    "timeclockHere": "Get into the time clock here:",
+    "contactAdmin": "If you think this is a mistake, contact your administrator.",
+    "goToTimeclock": "Go to PM Time Clock",
+    "title": "No access",
+    "noPermission": "You do not have permission to see this section."
+  },
+  "pwa": {
+    "installAdminApp": "Install the Admin App",
+    "iosHint": "Tap <b>⬆ Share</b> → <b>Add to Home Screen</b>",
+    "androidHint": "Tap <b>⋮</b> → <b>Install app</b> in Chrome",
+    "quickAccess": "Quick access from your home screen",
+    "install": "Install"
+  },
   "hoursReport": {
+    "countryPE": "Peru",
     "title": "Hours report",
     "generate": "Generate report",
     "periodThisWeek": "This week",
@@ -215,6 +234,9 @@
     "mfaSubtitle": "Enter the code from your authenticator app"
   },
   "nav": {
+    "comingSoon": "Coming soon — module in development",
+    "noModuleAccess": "Your role has no access to this module",
+    "openFullMenu": "Open the full menu",
     "dashboard": "Dashboard",
     "employees": "Employees",
     "payments": "Payments",
@@ -241,6 +263,14 @@
     "messages": "Messages"
   },
   "dashboard": {
+    "clinicStatsSoon": "Clinic statistics — coming soon",
+    "availableForSalaries": "Available for salaries",
+    "noAppointmentsToday": "No appointments scheduled for today",
+    "noLawyers": "No attorneys on file",
+    "noProviders": "No vendors on file",
+    "noFindings": "No findings",
+    "findingsCount": "{total, plural, one {# finding} other {# findings}}",
+    "findingsReview": "{total, plural, one {# finding} other {# findings}} · Review",
     "title": "Dashboard",
     "executiveTitle": "Executive",
     "subtitle": "Operations overview",
@@ -323,6 +353,23 @@
     }
   },
   "employees": {
+    "loadingPayments": "Loading payments…",
+    "allPositions": "All positions",
+    "invalidEmail": "Enter a valid email (e.g. name@domain.com)",
+    "medicalCredentials": "Medical credentials",
+    "specialtyReq": "Specialty *",
+    "pickSpecialty": "Pick a specialty",
+    "medicalLicense": "Medical license",
+    "licensePlaceholder": "License no.",
+    "doctorAutoAppears": "This provider shows up in the appointment system automatically.",
+    "newEmployeeTitle": "New employee",
+    "newEmployeeSubtitle": "EMPLOYEE REGISTERED SUCCESSFULLY",
+    "emailRegistered": "Email registered",
+    "contractType": "Contract type",
+    "typeHourly": "Hourly (Non-exempt)",
+    "typeSalaried": "Salaried (Exempt)",
+    "salariedNoOvertime": "Salaried — no overtime calculation",
+    "hourlyOvertime": "Hourly — overtime over 40h/week (FLSA)",
     "title": "Employees",
     "subtitle": "Workforce management",
     "addEmployee": "Add employee",
@@ -444,6 +491,14 @@
     "fechaPago": "Payment date"
   },
   "freelancers": {
+    "country": "Country",
+    "loadingReport": "Loading the report…",
+    "reason": "Reason",
+    "payDate": "Pay date",
+    "newFreelancer": "New freelancer",
+    "freelancerRegistered": "FREELANCER REGISTERED SUCCESSFULLY",
+    "select": "Select…",
+    "all": "All",
     "tab": "Freelancers",
     "title": "Freelancers",
     "records": "records",
@@ -568,6 +623,20 @@
     "reversed": "Payment reversed"
   },
   "finance": {
+    "excelAll": "All",
+    "excelGenerated": "Generated",
+    "excelAvgPerTx": "Average per transaction",
+    "excelMedian": "Median",
+    "excelPctOfTotal": "% of total",
+    "excelNetOfDay": "Net for the day",
+    "excelCumulative": "Cumulative",
+    "sheetSummary": "Summary",
+    "sheetByCategory": "By category",
+    "sheetBySite": "By site",
+    "sheetDaily": "Daily evolution",
+    "typeAll": "All",
+    "typeDeposits": "Deposits",
+    "typeExpenses": "Expenses",
     "boxesSubtitle": "{total, plural, one {# box} other {# boxes}} · manage, edit and set the minimum thresholds",
     "showInactive": "Show inactive",
     "newBoxBtn": "New box",
@@ -715,6 +784,7 @@
     "sentryDesc": "Error monitoring"
   },
   "cifo": {
+    "buttonLabel": "What CIFO says",
     "versionEtiqueta": "New version",
     "versionCambios": "{count, plural, one {# change} other {# changes}}",
     "versionCerrar": "Got it",
@@ -752,6 +822,8 @@
     "settingsSublabel": "System parameters"
   },
   "users": {
+    "permissionsUpdated": "Permissions updated",
+    "roleChangesApplied": "Role {rol} · changes applied",
     "tabUsers": "Users",
     "tabRoles": "Roles and permissions",
     "colRole": "Role",
@@ -1067,6 +1139,29 @@
     }
   },
   "wallets": {
+    "subtitleFull": "Wallets by currency and country · Precision Medical",
+    "noWalletsConfigured": "No wallets set up",
+    "noWalletsHint": "Create your first wallet to start recording financial operations",
+    "lastMovement": "Last: {fecha}",
+    "noMovements": "No movements",
+    "whereFrom": "Where does this balance come from?",
+    "nameReq": "Name *",
+    "namePlaceholder": "e.g. Bolivia Payroll, Operations Cash…",
+    "currencyReq": "Currency *",
+    "countryReq": "Country *",
+    "newWalletHint": "Add a wallet for a currency and country",
+    "countryUS": "United States · USD",
+    "countryBO": "Bolivia · BOB",
+    "countryPE": "Peru · PEN",
+    "baseReconciled": "Reconciled base · {fecha}",
+    "rowFxIn": "FX in",
+    "rowFxOut": "FX out",
+    "rowSalariesPaid": "Salaries paid",
+    "rowPettyCash": "Petty cash funding",
+    "noMovementsSince": "No movements since {desde}.",
+    "sinceReconciliation": "the reconciliation",
+    "sinceOpening": "the opening",
+    "committed": "Committed (pending salaries, not deducted yet):",
     "title": "Wallets",
     "subtitle": "Wallets by currency and country",
     "addNew": "New wallet",
@@ -1087,6 +1182,9 @@
     "recentMovements": "Recent movements"
   },
   "fx": {
+    "pair": "Pair",
+    "exchangeDate": "Exchange date",
+    "exchangeHousePlaceholder": "e.g. Money Exchange Co.",
     "title": "FX / Exchange",
     "subtitle": "Exchange operations between wallets",
     "addNew": "New operation",
@@ -1144,6 +1242,7 @@
     "allMonths": "All months"
   },
   "attendance": {
+    "playbackSpeed": "Playback speed",
     "loadingMap": "Loading map…",
     "clinic": "Clinic",
     "code": "Code",
@@ -1255,6 +1354,7 @@
     "filterPresent": "Present"
   },
   "metrics": {
+    "appointmentsCreated": "Appointments created",
     "visitsDone": "Visits completed",
     "timeByModule": "Time by module",
     "patients": "Patients",
@@ -1590,6 +1690,22 @@
     }
   },
   "aiAgents": {
+    "alertLowPettyCash": "Petty cash below the minimum",
+    "alertPaymentReview": "Payment review",
+    "startCifoChat": "Start a conversation with CIFO",
+    "lookForButton": "Look for the button",
+    "bottomRight": "in the bottom right corner",
+    "noFindingsOk": "No findings — the system is OK",
+    "findingsCount": "{total, plural, one {# finding} other {# findings}}",
+    "canCreateFindings": "• Create findings and send notifications",
+    "canMarkDuplicates": "• Mark duplicate payments as reviewed",
+    "canLogAudit": "• Record audit notes",
+    "cannotDeletePayments": "• Delete or change payments",
+    "cannotChangeSettings": "• Change system settings",
+    "cannotAccessPatients": "• Access patient data",
+    "enableAutonomous": "Turn on autonomous mode",
+    "errScan": "The scan could not be run",
+    "sampleQuestion": "How many employees are there in Bolivia?",
     "title": "AI Agents",
     "subtitle": "Intelligence center · Precision Medical",
     "addNew": "New agent",
@@ -1853,6 +1969,36 @@
     }
   },
   "clinics": {
+    "clinicsTitle": "Clinics",
+    "clinicsSubtitle": "{total, plural, one {# clinic registered} other {# clinics registered}} · GPS locations for attendance verification",
+    "colClinic": "Clinic",
+    "colCountry": "Country",
+    "colCoords": "GPS coordinates",
+    "colRadius": "Radius",
+    "colStatus": "Status",
+    "noGps": "No GPS",
+    "active": "Active",
+    "inactive": "Inactive",
+    "strict": "Strict",
+    "strictHint": "Strict geofencing on: employees outside the radius cannot clock in",
+    "editClinicAction": "Edit clinic",
+    "errAddressFirst": "Enter an address first",
+    "errAddressNotFound": "The address was not found. Check the text or adjust it by clicking on the map.",
+    "errGeocode": "The address could not be looked up",
+    "geocodeFound": "Found: {lugar}",
+    "mapLocation": "Location on the map",
+    "mapClickHint": "(click to pin)",
+    "address": "Address",
+    "optional": "(optional)",
+    "addressPlaceholder": "Street, city, ZIP",
+    "locateOnMap": "Find the address on the map",
+    "search": "Search",
+    "addressHint": "Type the address and click Search to pin the coordinates automatically.",
+    "phone": "Phone",
+    "phonePlaceholder": "+1 (801) …",
+    "activeClinic": "Active clinic",
+    "activeClinicHint": "Inactive ones do not show up in the Time Clock and are not assigned to new employees.",
+    "defineCoordsFirst": "Set the coordinates first",
     "newClinic": "New clinic",
     "editClinic": "Edit clinic — {name}",
     "createDescription": "Define the internal key, country and GPS location. The key CANNOT be changed later.",

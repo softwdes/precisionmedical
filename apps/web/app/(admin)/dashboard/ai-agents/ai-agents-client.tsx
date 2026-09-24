@@ -651,7 +651,7 @@ function DashboardTab({
             <p className="text-tiny text-text-muted">{t('aiAgents.lastConversationLabel')}</p>
             <p className="text-tiny text-text-2 mt-0.5 italic">
               {(costs?.cifoMonthCount ?? 0) > 0
-                ? '¿Cuántos empleados hay en Bolivia?'
+                ? t('aiAgents.sampleQuestion')
                 : t('aiAgents.noConversationsYet')}
             </p>
           </div>
@@ -887,15 +887,15 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
           <MessageCircle className="h-5 w-5 text-brand-text" />
         </div>
         <div>
-          <p className="text-small font-semibold text-text-1 mb-1">Iniciar conversación con CIFO</p>
+          <p className="text-small font-semibold text-text-1 mb-1">{t('aiAgents.startCifoChat')}</p>
           <p className="text-tiny text-text-3 max-w-sm">{t('aiAgents.openFabHint')}</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/25">
-          <span className="text-tiny text-brand-text font-medium">Busca el botón</span>
+          <span className="text-tiny text-brand-text font-medium">{t('aiAgents.lookForButton')}</span>
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand">
             <Sparkles className="h-2.5 w-2.5 text-white" />
           </div>
-          <span className="text-tiny text-brand-text font-medium">en la esquina inferior derecha</span>
+          <span className="text-tiny text-brand-text font-medium">{t('aiAgents.bottomRight')}</span>
         </div>
       </div>
 
@@ -904,7 +904,7 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
         <p className="text-small font-semibold text-text-1 mb-3">{t('aiAgents.cifoConversations')}</p>
         {convsLoading ? (
           <div className="rounded-xl border border-border bg-surface py-8 flex items-center justify-center">
-            <span className="text-tiny text-text-muted animate-pulse">Cargando...</span>
+            <span className="text-tiny text-text-muted animate-pulse">{t('common.loading')}</span>
           </div>
         ) : conversations.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface py-10 flex flex-col items-center gap-2">
@@ -1016,7 +1016,7 @@ function AuditAgentTab({
         findings_count?: number; critical_count?: number;
         warning_count?: number; info_count?: number; error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? 'Error al ejecutar el escaneo');
+      if (!res.ok) throw new Error(data.error ?? t('aiAgents.errScan'));
 
       // Clear pending timers and snap all steps to done
       stepTimers.current.forEach(clearTimeout);
@@ -1027,12 +1027,12 @@ function AuditAgentTab({
         warning_count:   data.warning_count   ?? 0,
         info_count:      data.info_count      ?? 0,
       });
-      toast.success(`${t('aiAgents.scanCompleted')} · ${data.findings_count ?? 0} hallazgos`);
+      toast.success(`${t('aiAgents.scanCompleted')} · ${t('aiAgents.findingsCount', { total: data.findings_count ?? 0 })}`);
       onScanComplete();
     } catch (err) {
       stepTimers.current.forEach(clearTimeout);
       setVisibleSteps(SCAN_STEPS.length);
-      toast.error(err instanceof Error ? err.message : 'Error al ejecutar el escaneo');
+      toast.error(err instanceof Error ? err.message : t('aiAgents.errScan'));
     } finally {
       setScanPending(false);
     }
@@ -1282,11 +1282,11 @@ function AuditAgentTab({
                 {/* Severity badges row */}
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
                   {scanResult.findings_count === 0 ? (
-                    <span className="text-tiny font-medium text-emerald">Sin hallazgos — sistema OK</span>
+                    <span className="text-tiny font-medium text-emerald">{t('aiAgents.noFindingsOk')}</span>
                   ) : (
                     <>
                       <span className="text-tiny text-text-muted font-mono">
-                        {scanResult.findings_count} hallazgo{scanResult.findings_count !== 1 ? 's' : ''}:
+                        {t('aiAgents.findingsCount', { total: scanResult.findings_count })}:
                       </span>
                       {scanResult.critical_count > 0 && (
                         <span className="text-tiny font-semibold text-rose bg-rose/10 px-2 py-0.5 rounded-full">
@@ -1402,23 +1402,23 @@ function AuditAgentTab({
             <div className="rounded-lg border border-emerald/25 bg-emerald/8 p-3">
               <p className="font-semibold text-emerald mb-2">{t('aiAgents.agentCanDo')}</p>
               <ul className="space-y-1 text-text-2 text-tiny">
-                <li>• Crear hallazgos y enviar notificaciones</li>
-                <li>• Marcar pagos duplicados como revisados</li>
-                <li>• Registrar notas de auditoría</li>
+                <li>{t('aiAgents.canCreateFindings')}</li>
+                <li>{t('aiAgents.canMarkDuplicates')}</li>
+                <li>{t('aiAgents.canLogAudit')}</li>
               </ul>
             </div>
             <div className="rounded-lg border border-rose/25 bg-rose/8 p-3">
               <p className="font-semibold text-rose mb-2">{t('aiAgents.agentCannotDo')}</p>
               <ul className="space-y-1 text-text-2 text-tiny">
-                <li>• Eliminar o modificar pagos</li>
-                <li>• Cambiar configuraciones del sistema</li>
-                <li>• Acceder a datos de pacientes</li>
+                <li>{t('aiAgents.cannotDeletePayments')}</li>
+                <li>{t('aiAgents.cannotChangeSettings')}</li>
+                <li>{t('aiAgents.cannotAccessPatients')}</li>
               </ul>
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowAutoConfirm(false)}>{t('common.cancel')}</Button>
-            <Button onClick={confirmAuto}>Activar modo autónomo</Button>
+            <Button onClick={confirmAuto}>{t('aiAgents.enableAutonomous')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

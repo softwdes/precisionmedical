@@ -206,7 +206,8 @@ export function EmpleadosMetricasClient() {
    * cuando tenía los textos adentro, cambiar a inglés no cambiaba nada.
    */
   const tCarrera = useTranslations('phoenix.carrera');
-  const t = useTranslations('metrics');
+  const t  = useTranslations('metrics');
+  const tc = useTranslations('common');
 
   /** Nombre legible de una acción; lo no mapeado se prettifica. */
   const esLlamada = (k: string): boolean => CALL_COLUMNS.some(c => c.key === k);
@@ -345,8 +346,8 @@ export function EmpleadosMetricasClient() {
         <KpiCard icon={MessageSquare} label="SMS enviados"    value={totals.smsSent}
           sub={totals.smsSent > 0 ? `${totals.smsDelivered} entregados` : undefined}
           color="bg-cyan/10 text-cyan" />
-        <KpiCard icon={UserPlus}     label="Pacientes nuevos" value={totals.patientsCreated}          color="bg-violet/10 text-violet-text" />
-        <KpiCard icon={CalendarDays} label="Citas creadas"   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
+        <KpiCard icon={UserPlus}     label={t('newPatients')} value={totals.patientsCreated}          color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={CalendarDays} label={t('appointmentsCreated')}   value={totals.appointmentsCreated}       color="bg-rose/10 text-rose" />
         <KpiCard icon={DollarSign}   label="Pagos"           value={totals.payments}                  color="bg-emerald/10 text-emerald" />
         {/* Retrabajo: lo que alguien tuvo que deshacer. Ámbar = mirar, no celebrar. */}
         <KpiCard icon={Undo2}        label="Anulaciones"     value={totals.voids}                     color="bg-amber/10 text-amber"
@@ -545,7 +546,7 @@ export function EmpleadosMetricasClient() {
               <button
                 onClick={() => setDetail(null)}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-white/[0.05] transition-colors"
-                aria-label="Cerrar"
+                aria-label={tc('close')}
               >
                 <X className="w-4 h-4" />
               </button>

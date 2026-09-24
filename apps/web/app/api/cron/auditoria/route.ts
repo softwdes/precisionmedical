@@ -108,7 +108,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id: crypto.randomUUID(),
       userId,
       type: 'AGENT_ALERT' as const,
-      title: h.module === 'caja_chica' ? 'Caja chica por debajo del mínimo' : 'Revisión de pagos',
+      // El titulo de la notificacion se GUARDA en la base, asi que queda
+      // congelado en el idioma en que se escribio: no puede seguir al lector.
+      // Para que salga en el idioma de cada admin hay que armar un titulo por
+      // destinatario con createTranslator y su preferredLocale, como se hizo en
+      // apps/back-office/lib/push.ts. Es trabajo aparte, no un reemplazo de texto.
+      title: h.module === 'caja_chica' ? 'Caja chica por debajo del minimo' : 'Revision de pagos',
       body: h.description as string,
       linkUrl: '/dashboard/ai-agents',
       createdAt: new Date().toISOString(),

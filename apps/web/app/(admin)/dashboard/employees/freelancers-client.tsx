@@ -718,14 +718,18 @@ function FreelancerFormDialog({
 
   const canSubmit = form.nombre.length >= 2 && form.pais && form.modalidad && form.moneda;
 
-  const MODALIDAD_DISPLAY: Record<string, string> = { POR_HORA: 'Por hora', POR_SERVICIO: 'Por servicio', CONTRATISTA: 'Contratista' };
+  const MODALIDAD_DISPLAY: Record<string, string> = {
+    POR_HORA:     t('freelancers.modalidades.POR_HORA'),
+    POR_SERVICIO: t('freelancers.modalidades.POR_SERVICIO'),
+    CONTRATISTA:  t('freelancers.modalidades.CONTRATISTA'),
+  };
 
   return (
     <>
     {successData && (
       <SuccessModal
-        title="Nuevo freelancer"
-        subtitle="FREELANCER REGISTRADO EXITOSAMENTE"
+        title={t('freelancers.newFreelancer')}
+        subtitle={t('freelancers.freelancerRegistered')}
         name={successData.nombre}
         card1={successData.email ? { icon: <Mail size={20} />, label: 'Email', value: successData.email, color: '#10B981' } : undefined}
         card2={{ icon: <Briefcase size={20} />, label: 'Modalidad · País', value: `${MODALIDAD_DISPLAY[successData.modalidad] ?? successData.modalidad} · ${successData.pais}`, color: '#6366F1' }}
@@ -796,7 +800,7 @@ function FreelancerFormDialog({
           <div className="space-y-1.5">
             <Label>{t('freelancers.modalidad')} *</Label>
             <Select value={form.modalidad} onValueChange={(v) => { f('modalidad', v); if (v === 'POR_SERVICIO') f('tarifaBase', ''); }}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('freelancers.select')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="POR_HORA">{t('freelancers.modalidades.POR_HORA')}</SelectItem>
                 <SelectItem value="POR_SERVICIO">{t('freelancers.modalidades.POR_SERVICIO')}</SelectItem>

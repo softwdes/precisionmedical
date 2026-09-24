@@ -337,7 +337,7 @@ export function FreelancersReportClient({
 
       {/* ─── KPIs por moneda ───────────────────────────────────────── */}
       {isLoading ? (
-        <div className="py-12 text-center text-small text-text-3">Cargando reporte...</div>
+        <div className="py-12 text-center text-small text-text-3">{t('freelancers.loadingReport')}</div>
       ) : !report || report.totalPayments === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">

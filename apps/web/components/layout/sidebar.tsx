@@ -158,6 +158,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
 }
 
 function NavGroup({ items, pathname, role, grants }: { items: NavItem[]; pathname: string; role: Role; grants: string[] }): React.ReactElement {
+  const t = useTranslations();
   return (
     <ul className="space-y-0.5">
       {items.map((item) => {
@@ -166,8 +167,8 @@ function NavGroup({ items, pathname, role, grants }: { items: NavItem[]; pathnam
         const hasAccess = can(role, item.module) || grants.includes(`admin:${item.module}`);
         const isBlocked = item.disabled || !hasAccess;
         const blockReason = item.disabled
-          ? 'Próximamente — módulo en desarrollo'
-          : 'Sin acceso a este módulo para tu rol';
+          ? t('nav.comingSoon')
+          : t('nav.noModuleAccess');
 
         if (isBlocked) {
           return (

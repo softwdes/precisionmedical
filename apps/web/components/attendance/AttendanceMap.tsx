@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Play, Pause, Gauge } from 'lucide-react';
 
 interface GeoPoint { lat: number; lng: number; at?: string }
@@ -66,6 +67,8 @@ function interpAt(traj: TimePoint[], t: number): { lat: number; lng: number } | 
 }
 
 export function AttendanceMap({ checkIn, checkOut, waypoints, shifts }: Props) {
+  const t = useTranslations();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const movingMarkerRef = useRef<L.Marker | null>(null);
@@ -414,7 +417,7 @@ export function AttendanceMap({ checkIn, checkOut, waypoints, shifts }: Props) {
               borderRadius: 6,
               padding: '3px 6px 3px 8px',
             }}
-            title="Velocidad de reproducción"
+            title={t('attendance.playbackSpeed')}
           >
             <Gauge size={11} style={{ color: 'var(--text-muted)' }} />
             <select

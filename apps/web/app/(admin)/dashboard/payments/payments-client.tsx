@@ -284,7 +284,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
               )}
             </div>
             <div>
-              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">Disponible para sueldos</p>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">{t('dashboard.availableForSalaries')}</p>
               {(() => {
                 const available = planilla.walletBalance - planilla.totalPending;
                 return (

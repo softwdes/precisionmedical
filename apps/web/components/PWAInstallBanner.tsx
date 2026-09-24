@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Download, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ import { toast } from 'sonner';
  * admin: dark glass + gradient border + indigo→violet→cyan ring.
  */
 export function PWAInstallBanner(): React.ReactElement | null {
+  const t = useTranslations();
   const { event, installed, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
 
   // Hide if: not Android, already installed, dismissed recently, or no install API available yet.
@@ -163,7 +165,7 @@ export function PWAInstallBanner(): React.ReactElement | null {
 
           <button
             onClick={dismiss}
-            aria-label="Cerrar"
+            aria-label={t('common.close')}
             style={{
               background: 'transparent',
               border: 'none',

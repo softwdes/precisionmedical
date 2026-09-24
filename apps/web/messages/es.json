@@ -1,5 +1,24 @@
 {
+  "providers": {
+    "serviceNamePlaceholder": "Ej: Radiografía lumbar"
+  },
+  "noAccess": {
+    "employeeAccount": "Tu cuenta es de empleado",
+    "timeclockHere": "Entrá al sistema de fichaje acá:",
+    "contactAdmin": "Si creés que esto es un error, escribile al administrador.",
+    "goToTimeclock": "Ir a PM Time Clock",
+    "title": "Sin acceso",
+    "noPermission": "No tenés permisos para ver esta sección."
+  },
+  "pwa": {
+    "installAdminApp": "Instalar Admin App",
+    "iosHint": "Tocá <b>⬆ Compartir</b> → <b>Agregar a inicio</b>",
+    "androidHint": "Tocá <b>⋮</b> → <b>Instalar app</b> en Chrome",
+    "quickAccess": "Acceso rápido desde tu inicio",
+    "install": "Instalar"
+  },
   "hoursReport": {
+    "countryPE": "Perú",
     "title": "Reporte de horas",
     "generate": "Generar reporte",
     "periodThisWeek": "Esta semana",
@@ -215,6 +234,9 @@
     "mfaSubtitle": "Ingresa el código de tu aplicación autenticadora"
   },
   "nav": {
+    "comingSoon": "Próximamente — módulo en desarrollo",
+    "noModuleAccess": "Sin acceso a este módulo para tu rol",
+    "openFullMenu": "Abrir el menú completo",
     "dashboard": "Dashboard",
     "employees": "Empleados",
     "payments": "Pagos",
@@ -241,6 +263,14 @@
     "messages": "Mensajes"
   },
   "dashboard": {
+    "clinicStatsSoon": "Estadísticas de clínicas — próximamente",
+    "availableForSalaries": "Disponible para sueldos",
+    "noAppointmentsToday": "Sin citas programadas para hoy",
+    "noLawyers": "Sin abogados registrados",
+    "noProviders": "Sin proveedores registrados",
+    "noFindings": "Sin hallazgos",
+    "findingsCount": "{total, plural, one {# hallazgo} other {# hallazgos}}",
+    "findingsReview": "{total, plural, one {# hallazgo} other {# hallazgos}} · Revisar",
     "title": "Dashboard",
     "executiveTitle": "Ejecutivo",
     "subtitle": "Vista general de operaciones",
@@ -323,6 +353,23 @@
     }
   },
   "employees": {
+    "loadingPayments": "Cargando pagos...",
+    "allPositions": "Todos los cargos",
+    "invalidEmail": "Ingresá un email válido (ej: nombre@dominio.com)",
+    "medicalCredentials": "Credenciales médicas",
+    "specialtyReq": "Especialidad *",
+    "pickSpecialty": "Seleccioná especialidad",
+    "medicalLicense": "Licencia médica",
+    "licensePlaceholder": "N° de licencia",
+    "doctorAutoAppears": "Este provider aparecerá automáticamente en el sistema de citas.",
+    "newEmployeeTitle": "Nuevo empleado",
+    "newEmployeeSubtitle": "EMPLEADO REGISTRADO EXITOSAMENTE",
+    "emailRegistered": "Email registrado",
+    "contractType": "Tipo de contrato",
+    "typeHourly": "Por hora (Non-exempt)",
+    "typeSalaried": "Asalariado (Exempt)",
+    "salariedNoOvertime": "Asalariado — sin cálculo de overtime",
+    "hourlyOvertime": "Por hora — overtime sobre 40h/semana (FLSA)",
     "title": "Empleados",
     "subtitle": "Gestión del personal",
     "addEmployee": "Agregar empleado",
@@ -444,6 +491,14 @@
     "fechaPago": "Fecha de pago"
   },
   "freelancers": {
+    "country": "País",
+    "loadingReport": "Cargando reporte...",
+    "reason": "Razón",
+    "payDate": "Fecha pago",
+    "newFreelancer": "Nuevo freelancer",
+    "freelancerRegistered": "FREELANCER REGISTRADO EXITOSAMENTE",
+    "select": "Seleccionar...",
+    "all": "Todos",
     "tab": "Freelancers",
     "title": "Freelancers",
     "records": "registros",
@@ -568,6 +623,20 @@
     "reversed": "Pago reversado"
   },
   "finance": {
+    "excelAll": "Todas",
+    "excelGenerated": "Generado",
+    "excelAvgPerTx": "Promedio por transacción",
+    "excelMedian": "Mediana",
+    "excelPctOfTotal": "% del total",
+    "excelNetOfDay": "Neto del día",
+    "excelCumulative": "Acumulado",
+    "sheetSummary": "Resumen",
+    "sheetByCategory": "Por categoría",
+    "sheetBySite": "Por sede",
+    "sheetDaily": "Evolución diaria",
+    "typeAll": "Todos",
+    "typeDeposits": "Depósitos",
+    "typeExpenses": "Gastos",
     "boxesSubtitle": "{total, plural, one {# caja} other {# cajas}} · gestioná, editá y configurá los umbrales mínimos",
     "showInactive": "Mostrar inactivas",
     "newBoxBtn": "Nueva caja",
@@ -715,6 +784,7 @@
     "sentryDesc": "Monitoreo de errores"
   },
   "cifo": {
+    "buttonLabel": "Qué dice CIFO",
     "versionEtiqueta": "Nueva versión",
     "versionCambios": "{count, plural, one {# cambio} other {# cambios}}",
     "versionCerrar": "Entendido",
@@ -752,6 +822,8 @@
     "settingsSublabel": "Parámetros del sistema"
   },
   "users": {
+    "permissionsUpdated": "Permisos actualizados",
+    "roleChangesApplied": "Rol {rol} · cambios aplicados",
     "tabUsers": "Usuarios",
     "tabRoles": "Roles y Permisos",
     "colRole": "Rol",
@@ -1067,6 +1139,29 @@
     }
   },
   "wallets": {
+    "subtitleFull": "Carteras por moneda y país · Precision Medical",
+    "noWalletsConfigured": "Sin wallets configuradas",
+    "noWalletsHint": "Creá tu primera cartera para comenzar a registrar operaciones financieras",
+    "lastMovement": "Último: {fecha}",
+    "noMovements": "Sin movimientos",
+    "whereFrom": "¿De dónde sale este saldo?",
+    "nameReq": "Nombre *",
+    "namePlaceholder": "Ej: Nómina Bolivia, Caja Operaciones...",
+    "currencyReq": "Moneda *",
+    "countryReq": "País *",
+    "newWalletHint": "Agregá una cartera para una moneda y país",
+    "countryUS": "Estados Unidos · USD",
+    "countryBO": "Bolivia · BOB",
+    "countryPE": "Perú · PEN",
+    "baseReconciled": "Base reconciliada · {fecha}",
+    "rowFxIn": "Entradas FX",
+    "rowFxOut": "Salidas FX",
+    "rowSalariesPaid": "Salarios pagados",
+    "rowPettyCash": "Financiamiento a Caja Chica",
+    "noMovementsSince": "Sin movimientos desde {desde}.",
+    "sinceReconciliation": "la reconciliación",
+    "sinceOpening": "la apertura",
+    "committed": "Comprometido (salarios pendientes, aún no descontados):",
     "title": "Wallets",
     "subtitle": "Carteras por moneda y país",
     "addNew": "Nueva wallet",
@@ -1087,6 +1182,9 @@
     "recentMovements": "Movimientos recientes"
   },
   "fx": {
+    "pair": "Par",
+    "exchangeDate": "Fecha de cambio",
+    "exchangeHousePlaceholder": "Ej: Cambios Bolívar",
     "title": "FX / Divisas",
     "subtitle": "Operaciones de cambio entre carteras",
     "addNew": "Nueva operación",
@@ -1144,6 +1242,7 @@
     "allMonths": "Todos los meses"
   },
   "attendance": {
+    "playbackSpeed": "Velocidad de reproducción",
     "loadingMap": "Cargando mapa...",
     "clinic": "Clínica",
     "code": "Código",
@@ -1255,6 +1354,7 @@
     "filterPresent": "Presentes"
   },
   "metrics": {
+    "appointmentsCreated": "Citas creadas",
     "visitsDone": "Consultas realizadas",
     "timeByModule": "Tiempo por módulo",
     "patients": "Pacientes",
@@ -1590,6 +1690,22 @@
     }
   },
   "aiAgents": {
+    "alertLowPettyCash": "Caja chica por debajo del mínimo",
+    "alertPaymentReview": "Revisión de pagos",
+    "startCifoChat": "Iniciar conversación con CIFO",
+    "lookForButton": "Buscá el botón",
+    "bottomRight": "en la esquina inferior derecha",
+    "noFindingsOk": "Sin hallazgos — sistema OK",
+    "findingsCount": "{total, plural, one {# hallazgo} other {# hallazgos}}",
+    "canCreateFindings": "• Crear hallazgos y enviar notificaciones",
+    "canMarkDuplicates": "• Marcar pagos duplicados como revisados",
+    "canLogAudit": "• Registrar notas de auditoría",
+    "cannotDeletePayments": "• Eliminar o modificar pagos",
+    "cannotChangeSettings": "• Cambiar configuraciones del sistema",
+    "cannotAccessPatients": "• Acceder a datos de pacientes",
+    "enableAutonomous": "Activar modo autónomo",
+    "errScan": "Error al ejecutar el escaneo",
+    "sampleQuestion": "¿Cuántos empleados hay en Bolivia?",
     "title": "Agentes IA",
     "subtitle": "Centro de inteligencia · Precision Medical",
     "addNew": "Nuevo agente",
@@ -1853,6 +1969,36 @@
     }
   },
   "clinics": {
+    "clinicsTitle": "Clínicas",
+    "clinicsSubtitle": "{total, plural, one {# clínica registrada} other {# clínicas registradas}} · ubicaciones GPS para verificación de asistencia",
+    "colClinic": "Clínica",
+    "colCountry": "País",
+    "colCoords": "Coordenadas GPS",
+    "colRadius": "Radio",
+    "colStatus": "Estado",
+    "noGps": "Sin GPS",
+    "active": "Activa",
+    "inactive": "Inactiva",
+    "strict": "Estricto",
+    "strictHint": "Geofencing estricto activo: los empleados fuera del rango no pueden marcar",
+    "editClinicAction": "Editar clínica",
+    "errAddressFirst": "Ingresá una dirección primero",
+    "errAddressNotFound": "No se encontró la dirección. Revisá el texto o ajustá haciendo clic en el mapa.",
+    "errGeocode": "Error al buscar la dirección",
+    "geocodeFound": "Encontrado: {lugar}",
+    "mapLocation": "Ubicación en el mapa",
+    "mapClickHint": "(clic para fijar)",
+    "address": "Dirección",
+    "optional": "(opcional)",
+    "addressPlaceholder": "Calle, ciudad, código postal",
+    "locateOnMap": "Localizar dirección en el mapa",
+    "search": "Buscar",
+    "addressHint": "Escribí la dirección y hacé clic en Buscar para fijar las coordenadas automáticamente.",
+    "phone": "Teléfono",
+    "phonePlaceholder": "+1 (801) ...",
+    "activeClinic": "Clínica activa",
+    "activeClinicHint": "Las inactivas no aparecen en el Time Clock ni se asignan a empleados nuevos.",
+    "defineCoordsFirst": "Definí las coordenadas primero",
     "newClinic": "Nueva clínica",
     "editClinic": "Editar clínica — {name}",
     "createDescription": "Define la clave interna, país y ubicación GPS. La clave NO se puede cambiar después.",

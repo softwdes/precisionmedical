@@ -43,19 +43,7 @@ type Crew = 'CLINIC' | 'DEV' | 'COMMS';
  * `all` primero porque el default es ver a todos: el filtro está para poder
  * comparar peras con peras, no para esconder gente.
  */
-const CREW_FILTERS: Array<[key: 'all' | Crew, label: string]> = [
-  ['all',    'Todos'],
-  ['CLINIC', 'Clínica'],
-  ['DEV',    'Devs'],
-  ['COMMS',  'Comunicaciones'],
-];
-
-/** Etiqueta corta para el chip de cada fila/carril. */
-export const CREW_LABEL: Record<Crew, string> = {
-  CLINIC: 'Clínica',
-  DEV:    'Devs',
-  COMMS:  'Comms',
-};
+const CREW_FILTERS: Array<'all' | Crew> = ['all', 'CLINIC', 'DEV', 'COMMS'];
 
 interface EmployeeRow {
   userId: string;
@@ -96,70 +84,71 @@ function totalOf(r: EmployeeRow): number {
   return r.activeMinutes + r.callsMade + r.callsAnswered + r.smsSent + r.totalActions;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Súper Admin', ADMIN: 'Admin', CONTADOR: 'Contador',
-  EMPLOYEE: 'Empleado', FRONT_DESK: 'Recepción', DOCTOR: 'Provider',
-  PROVIDER: 'Proveedor',
-};
+const ROLE_KEYS = new Set([
+  'SUPER_ADMIN', 'ADMIN', 'CONTADOR', 'EMPLOYEE', 'FRONT_DESK', 'DOCTOR', 'PROVIDER',
+]);
 
-/** Nombre legible de cada acción del audit log; lo no mapeado se prettifica. */
-const ACTION_LABELS: Record<string, string> = {
-  CREATE_PATIENT: 'Pacientes creados',
-  UPDATE_PATIENT: 'Pacientes editados',
-  CREATE_CASE_FROM_CALL: 'Casos creados',
-  UPDATE_CASE: 'Casos editados',
-  CREATE_APPOINTMENT: 'Citas creadas',
-  SCHEDULE_FIRST_APPOINTMENT: 'Primera cita agendada',
-  CONFIRM_APPOINTMENT: 'Citas confirmadas',
-  CONFIRM_FIRST_APPOINTMENT: 'Citas confirmadas',
-  CHECK_IN: 'Check-ins',
-  ADMIT_TO_ROOM: 'Admisiones a sala',
-  TRIAGE_VITALS_SAVED: 'Triajes',
-  TRIAGE_VITALS_CORRECTED: 'Triajes corregidos',
-  CREATE_LAB_ORDER: 'Órdenes de laboratorio',
-  ADD_LAB_ORDER: 'Órdenes de laboratorio',
-  UPLOAD_LAB_RESULT: 'Resultados de lab subidos',
-  CHARGE_CASH_SERVICE: 'Servicios cobrados',
-  DISPENSE_BRACE: 'Férulas entregadas',
-  REGISTER_BILLING_PAYMENT: 'Pagos registrados',
-  CANCEL_BILLING_PAYMENT: 'Pagos anulados',
-  CHECKOUT_APPOINTMENT: 'Salidas del paciente',
-  REOPEN_APPOINTMENT: 'Citas reabiertas',
-  DOCTOR_DONE_WITH_PATIENT: 'Consultas terminadas (doctor)',
-  SIGN_VISIT_NOTE: 'Notas firmadas',
-  CREATE_VISIT_NOTE: 'Notas clínicas creadas',
-  SEND_PORTAL_LINK: 'Links de portal enviados',
-  INSERT_CASE_NOTE: 'Notas de caso',
-  ANSWER_INBOUND_CALL: 'Entrantes reclamadas',
-  LOGIN_SUCCESS: 'Inicios de sesión',
-  LOGIN_FAILED: 'Intentos de sesión fallidos',
-  UPDATE_MEDICAL_HISTORY: 'Historial médico actualizado',
-  UPDATE_APPOINTMENT: 'Citas editadas',
-  MESSAGE_THREAD_CREATED: 'Hilos de mensaje creados',
-  MESSAGE_ENTRY_REPLY: 'Respuestas enviadas',
-  MESSAGE_ENTRY_NOTE: 'Notas internas',
-  MESSAGE_THREAD_SEALED: 'Hilos sellados',
-  MESSAGE_THREAD_DELETED: 'Hilos eliminados',
-  MESSAGING_VIEWED_OTHER_INBOX: 'Bandejas ajenas consultadas',
-  MESSAGE_TEMPLATE_CREATED: 'Plantillas de mensaje creadas',
-  VIEW_MESSAGE_ATTACHMENT: 'Adjuntos abiertos',
-  VOID_CASH_SERVICE: 'Servicios anulados',
-  VOID_BRACE: 'Férulas anuladas',
-  VOID_LAB_ORDER: 'Órdenes de lab anuladas',
-  DELETE_LAB_ORDER: 'Órdenes de lab eliminadas',
-  SET_CASE_COVERAGE: 'Cobertura definida',
-  VERIFY_PIP: 'PIP verificado',
-  STAFF_PHOTO_UPLOAD: 'Fotos subidas',
-  DOCTOR_VIEW_AS: 'Portal de doctor consultado',
-  SEGUIMIENTO_CALL_LOGGED: 'Seguimientos por llamada',
-  SEGUIMIENTO_EMAIL_LOGGED: 'Seguimientos por email',
-  SEGUIMIENTO_NOTE_ADDED: 'Notas de seguimiento',
-  SEGUIMIENTO_PAYMENT_LOGGED: 'Pagos de seguimiento',
-  SEGUIMIENTO_ESCALATED: 'Seguimientos escalados',
-};
+/**
+ * Las acciones del audit log que tienen nombre propio en el diccionario
+ * (`metrics.actions.*`). Lo que no esté acá se muestra prettificado: es
+ * preferible ver el código crudo a inventarle una traducción.
+ */
+const ACTION_KEYS = new Set([
+  'CREATE_PATIENT',
+  'UPDATE_PATIENT',
+  'CREATE_CASE_FROM_CALL',
+  'UPDATE_CASE',
+  'CREATE_APPOINTMENT',
+  'SCHEDULE_FIRST_APPOINTMENT',
+  'CONFIRM_APPOINTMENT',
+  'CONFIRM_FIRST_APPOINTMENT',
+  'CHECK_IN',
+  'ADMIT_TO_ROOM',
+  'TRIAGE_VITALS_SAVED',
+  'TRIAGE_VITALS_CORRECTED',
+  'CREATE_LAB_ORDER',
+  'ADD_LAB_ORDER',
+  'UPLOAD_LAB_RESULT',
+  'CHARGE_CASH_SERVICE',
+  'DISPENSE_BRACE',
+  'REGISTER_BILLING_PAYMENT',
+  'CANCEL_BILLING_PAYMENT',
+  'CHECKOUT_APPOINTMENT',
+  'REOPEN_APPOINTMENT',
+  'DOCTOR_DONE_WITH_PATIENT',
+  'SIGN_VISIT_NOTE',
+  'CREATE_VISIT_NOTE',
+  'SEND_PORTAL_LINK',
+  'INSERT_CASE_NOTE',
+  'ANSWER_INBOUND_CALL',
+  'LOGIN_SUCCESS',
+  'LOGIN_FAILED',
+  'UPDATE_MEDICAL_HISTORY',
+  'UPDATE_APPOINTMENT',
+  'MESSAGE_THREAD_CREATED',
+  'MESSAGE_ENTRY_REPLY',
+  'MESSAGE_ENTRY_NOTE',
+  'MESSAGE_THREAD_SEALED',
+  'MESSAGE_THREAD_DELETED',
+  'MESSAGING_VIEWED_OTHER_INBOX',
+  'MESSAGE_TEMPLATE_CREATED',
+  'VIEW_MESSAGE_ATTACHMENT',
+  'VOID_CASH_SERVICE',
+  'VOID_BRACE',
+  'VOID_LAB_ORDER',
+  'DELETE_LAB_ORDER',
+  'SET_CASE_COVERAGE',
+  'VERIFY_PIP',
+  'STAFF_PHOTO_UPLOAD',
+  'DOCTOR_VIEW_AS',
+  'SEGUIMIENTO_CALL_LOGGED',
+  'SEGUIMIENTO_EMAIL_LOGGED',
+  'SEGUIMIENTO_NOTE_ADDED',
+  'SEGUIMIENTO_PAYMENT_LOGGED',
+  'SEGUIMIENTO_ESCALATED',
+]);
 
-const actionLabel = (a: string): string =>
-  ACTION_LABELS[a] ?? a.replaceAll('_', ' ').toLowerCase();
+
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -175,10 +164,8 @@ const actionLabel = (a: string): string =>
  * `voids` va en ámbar al final: no es producción, es retrabajo. `access`
  * (logins, "ver como doctor") queda solo en el detalle: es rastro, no trabajo.
  */
-const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent'; label: string; full: string }> = [
-  { key: 'callsMade',     label: 'Llam.',  full: 'Llamadas hechas' },
-  { key: 'callsAnswered', label: 'Cont.',  full: 'Llamadas contestadas' },
-  { key: 'smsSent',       label: 'SMS',    full: 'SMS enviados' },
+const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent' }> = [
+  { key: 'callsMade' }, { key: 'callsAnswered' }, { key: 'smsSent' },
 ];
 
 /**
@@ -189,31 +176,27 @@ const CALL_COLUMNS: Array<{ key: 'callsMade' | 'callsAnswered' | 'smsSent'; labe
  * Acortar el rótulo no es esconder: el nombre completo está en el tooltip, en
  * el detalle de la persona y en el CSV.
  */
-const FAMILY_COLUMNS: Array<{ key: string; label: string; full: string; tone?: 'warn' }> = [
-  { key: 'patients',     label: 'Pac.',   full: 'Pacientes' },
-  { key: 'cases',        label: 'Casos',  full: 'Casos' },
-  { key: 'appointments', label: 'Citas',  full: 'Citas' },
-  { key: 'admission',    label: 'Adm.',   full: 'Admisión del día' },
-  { key: 'clinical',     label: 'Clín.',  full: 'Clínico (labs, notas, recetas)' },
-  { key: 'charges',      label: 'Cobros', full: 'Cobros y facturación' },
-  { key: 'portal',       label: 'Portal', full: 'Envíos al paciente / portal' },
-  { key: 'externals',    label: 'Buf.',   full: 'Bufetes, abogados y aseguradoras' },
-  { key: 'messages',     label: 'Msj.',   full: 'Mensajería interna' },
-  { key: 'catalogs',     label: 'Cat.',   full: 'Catálogos y configuración' },
-  { key: 'followup',     label: 'Seg.',   full: 'Seguimiento y cobranza' },
-  { key: 'ai',           label: 'Vigía',  full: 'Vigía (IA)' },
-  { key: 'otros',        label: 'Otros',  full: 'Otras acciones sin área asignada' },
-  { key: 'voids',        label: 'Anul.',  full: 'Anulaciones (retrabajo)', tone: 'warn' },
+/**
+ * El rótulo corto vive en `metrics.areasShort` y el completo en
+ * `metrics.areas`. Se abrevia porque el ancho de la tabla lo fijan los
+ * ENCABEZADOS y no los datos; el nombre completo va en el `title`, en el
+ * detalle de la persona y en el CSV.
+ */
+const FAMILY_COLUMNS: Array<{ key: string; tone?: 'warn' }> = [
+  { key: 'patients' }, { key: 'cases' }, { key: 'appointments' },
+  { key: 'admission' }, { key: 'clinical' }, { key: 'charges' },
+  { key: 'portal' }, { key: 'externals' }, { key: 'messages' },
+  { key: 'catalogs' }, { key: 'followup' }, { key: 'ai' },
+  { key: 'otros' }, { key: 'voids', tone: 'warn' },
 ];
 
-/** Etiquetas de módulo — espejo de `lib/activity-modules.ts` del back-office. */
-const MODULE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard', patients: 'Pacientes', calendar: 'Calendario',
-  admission: 'Admisión', billing: 'Facturación', edson: 'Bandeja Edson',
-  intake: 'Intake', messages: 'Mensajería', externals: 'Bufetes',
-  settings: 'Configuración', doctor: 'Portal Médico', attorney: 'Portal Legal',
-  vigia: 'Vigía (IA)', other: 'Sin módulo',
-};
+/** Módulos — espejo de `lib/activity-modules.ts` del back-office. El nombre
+ *  de cada uno vive en `metrics.modules`. */
+const MODULE_KEYS = [
+  'dashboard', 'patients', 'calendar', 'admission', 'billing', 'edson',
+  'intake', 'messages', 'externals', 'settings', 'doctor', 'attorney',
+  'vigia', 'other',
+];
 
 export function EmpleadosMetricasClient() {
   /**
@@ -223,6 +206,15 @@ export function EmpleadosMetricasClient() {
    * cuando tenía los textos adentro, cambiar a inglés no cambiaba nada.
    */
   const tCarrera = useTranslations('phoenix.carrera');
+  const t = useTranslations('metrics');
+
+  /** Nombre legible de una acción; lo no mapeado se prettifica. */
+  const esLlamada = (k: string): boolean => CALL_COLUMNS.some(c => c.key === k);
+  const colShort = (k: string): string => t(esLlamada(k) ? `callsShort.${k}` : `areasShort.${k}`);
+  const colFull  = (k: string): string => t(esLlamada(k) ? `calls.${k}` : `areas.${k}`);
+
+  const actionLabel = (a: string): string =>
+    ACTION_KEYS.has(a) ? t(`actions.${a}`) : a.replaceAll('_', ' ').toLowerCase();
 
   const [preset, setPreset] = useState<Preset>('today');
   const [from, setFrom] = useState(() => denverDay());
@@ -281,7 +273,7 @@ export function EmpleadosMetricasClient() {
    * filtrados y este tab no, y de ahí venía la sensación de que uno de los dos
    * sumaba mal. El número no estaba mal: le faltaba decir de quién era.
    */
-  const crewLabel = crew === 'all' ? 'todos los grupos' : CREW_LABEL[crew];
+  const crewLabel = crew === 'all' ? t('allGroups') : t(`crewsShort.${crew}`);
 
   /**
    * Los KPI de portada salen de `visible`, no de `rows`.
@@ -315,13 +307,13 @@ export function EmpleadosMetricasClient() {
       'empleado', 'rol', 'grupo', 'minutos_activos', 'acciones',
       ...CALL_COLUMNS.map(c => c.key),
       ...FAMILY_COLUMNS.map(c => c.key),
-      ...Object.keys(MODULE_LABELS).map(m => `min_${m}`),
+      ...MODULE_KEYS.map(m => `min_${m}`),
     ].join(',');
     const lines = visible.map((r) => [
       `"${r.name.replaceAll('"', '""')}"`, r.role, r.crew ?? '', r.activeMinutes, r.totalActions,
       ...CALL_COLUMNS.map(c => r[c.key] ?? 0),
       ...FAMILY_COLUMNS.map(c => r.families?.[c.key] ?? 0),
-      ...Object.keys(MODULE_LABELS).map(m => r.minutesByModule?.[m] ?? 0),
+      ...MODULE_KEYS.map(m => r.minutesByModule?.[m] ?? 0),
     ].join(','));
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
@@ -378,7 +370,7 @@ export function EmpleadosMetricasClient() {
         {/* Grupo de trabajo. Rankear devs contra recepción no compara nada:
             el dev prueba módulos enteros y su tasa es alta por definición. */}
         <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-          {CREW_FILTERS.map(([k, label]) => (
+          {CREW_FILTERS.map((k) => (
             <button
               key={k}
               onClick={() => setCrew(k)}
@@ -387,7 +379,7 @@ export function EmpleadosMetricasClient() {
                 crew === k ? 'bg-brand text-white' : 'text-text-3 hover:text-text-1',
               )}
             >
-              {label}
+              {t(`crews.${k}`)}
               {k !== 'all' && (
                 <span className={cn('ml-1.5 tabular-nums', crew === k ? 'text-white/70' : 'text-text-3/70')}>
                   {(rows ?? []).filter((r) => r.crew === k && (!onlyActive || totalOf(r) > 0)).length}
@@ -400,7 +392,7 @@ export function EmpleadosMetricasClient() {
         <div className="ml-auto flex items-center gap-2">
           {/* Tabla o carrera: la misma data contada de dos formas. */}
           <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-0.5">
-            {([['tabla', 'Tabla', Table2], ['carrera', 'Carrera', Trophy]] as const).map(([k, label, Icon]) => (
+            {([['tabla', 'viewTable', Table2], ['carrera', 'viewRace', Trophy]] as const).map(([k, label, Icon]) => (
               <button
                 key={k}
                 onClick={() => setView(k)}
@@ -445,7 +437,7 @@ export function EmpleadosMetricasClient() {
         ) : query.error ? (
           <div className="p-12 text-center">
             <Activity className="w-8 h-8 text-text-3 mx-auto mb-3" />
-            <p className="text-sm text-text-3">No se pudieron cargar las métricas. Cambia el período o recarga la página.</p>
+            <p className="text-sm text-text-3">{t('errLoad')}</p>
           </div>
         ) : visible.length === 0 ? (
           <div className="p-12 text-center">
@@ -459,10 +451,10 @@ export function EmpleadosMetricasClient() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Empleado</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Activo</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">{t('employee')}</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('active')}</th>
                   <th
-                    title="Total de acciones de staff en el período"
+                    title={t('totalActionsHint')}
                     className="px-2 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3 whitespace-nowrap"
                   >
                     Acc.
@@ -470,10 +462,10 @@ export function EmpleadosMetricasClient() {
                   {[...CALL_COLUMNS, ...FAMILY_COLUMNS].map((c) => (
                     <th
                       key={c.key}
-                      title={c.full}
+                      title={colFull(c.key)}
                       className="px-2 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3 whitespace-nowrap cursor-help"
                     >
-                      {c.label}
+                      {colShort(c.key)}
                     </th>
                   ))}
                 </tr>
@@ -489,8 +481,8 @@ export function EmpleadosMetricasClient() {
                       <div className="min-w-[130px] max-w-[190px]">
                         <div className="font-medium text-text-1 text-[12.5px]">{r.name}</div>
                         <div className="text-[10px] text-text-3 uppercase tracking-wider">
-                          {ROLE_LABELS[r.role] ?? r.role}
-                          {r.crew && <span className="text-text-3/60"> · {CREW_LABEL[r.crew]}</span>}
+                          {ROLE_KEYS.has(r.role) ? t(`roles.${r.role}`) : r.role}
+                          {r.crew && <span className="text-text-3/60"> · {t(`crewsShort.${r.crew}`)}</span>}
                         </div>
                       </div>
                     </td>
@@ -605,7 +597,7 @@ export function EmpleadosMetricasClient() {
                       return (
                         <div key={mod} className="flex items-center gap-2">
                           <span className="text-[11px] text-text-2 w-28 shrink-0 truncate">
-                            {MODULE_LABELS[mod] ?? mod}
+                            {MODULE_KEYS.includes(mod) ? t(`modules.${mod}`) : mod}
                           </span>
                           <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
                             <div

@@ -100,7 +100,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       reopenedById: dbUser?.id ?? null,
       reopenedByName: nombre,
     },
-    select: { id: true, status: true, reopenedAt: true, reopenedByName: true },
+    /**
+     * `updatedAt` va en la respuesta porque reabrir ESCRIBE la fila: sin
+     * devolverlo, el editor se queda con la fecha de antes y su primer guardado
+     * choca contra su propia reapertura. Ver `handleReabrir`.
+     */
+    select: { id: true, status: true, reopenedAt: true, reopenedByName: true, updatedAt: true },
   });
 
   return NextResponse.json({ ok: true, note: updated, venceEn: veredicto.venceEn?.toISOString() ?? null });

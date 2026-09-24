@@ -389,6 +389,52 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
 
   /** La versión que tiene esta pantalla. El servidor la compara con la de la base. */
   const version = React.useRef<string | null>(note?.updatedAt ?? null);
+  /**
+   * EL TEXTO QUE SABEMOS QUE TIENE EL SERVIDOR, sección por sección.
+   *
+   * Es lo que convierte "la nota cambió" en "ALGUIEN MÁS escribió esta sección",
+   * que son cosas distintas y se estaban tratando igual. El resolutor de
+   * conflictos comparaba el texto del servidor contra EL MÍO: como en la sección
+   * que estoy escribiendo el del servidor es por definición el anterior,
+   * cualquier rechazo por versión vieja se leía como choque y sacaba el cartel
+   * —aunque nadie más hubiera tocado nada.
+   *
+   * Pedido de Devin (2026-09-24): *"make sure an alert for this only comes up
+   * when it actually happens"*. Con esta foto, una sección solo choca si lo que
+   * hay en el servidor es distinto de lo último que el servidor nos dijo: eso sí
+   * es otra persona. Si coincide, nadie la tocó y se guarda encima sin molestar.
+   *
+   * Se actualiza en los cuatro momentos en que el servidor nos habla: al montar,
+   * en la foto de arranque, en cada guardado que sale bien y en la versión que
+   * viene con el rechazo.
+   */
+  const servidorConocido = React.useRef<Record<SectionField, string>>({
+    chiefComplaint: note?.chiefComplaint ?? '',
+    hpi:            note?.hpi ?? '',
+    ros:            note?.ros ?? '',
+    physicalExam:   note?.physicalExam ?? '',
+    assessment:     note?.assessment ?? '',
+    plan:           note?.plan ?? '',
+  });
+  /** Anota la foto del servidor. `null` no borra nada: se deja la que había. */
+  const anotarServidor = (n: VisitNoteData | null | undefined): void => {
+    if (!n) return;
+    for (const { field } of SECTIONS) servidorConocido.current[field] = n[field] ?? '';
+  };
+  /**
+   * HAY UN GUARDADO EN VUELO.
+   *
+   * En ref y no en estado porque hace falta ANTES del próximo render: el
+   * autoguardado se rearma en cada cambio de `content`, y un guardado que tarda
+   * dispara los siguientes encima. Con el servidor lento eso se convierte en
+   * tormenta: medido el 2026-09-24, **142 PUT encolados en el navegador** con
+   * uno solo llegando al servidor, cada uno cargando la misma versión vieja.
+   *
+   * Saltear no pierde nada: `dirty` y `tocadas` siguen puestos, así que el
+   * próximo autoguardado —o el reintento del resolutor de conflictos— manda lo
+   * que haya en ese momento, que además es más nuevo.
+   */
+  const enVuelo = React.useRef(false);
   /** Qué secciones tocó ESTA persona desde el último guardado. */
   const tocadas = React.useRef<Set<SectionField>>(new Set());
   const dxTocado = React.useRef(false);
@@ -462,6 +508,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     setDx(note.diagnoses ?? []);
     setTemplateId(note.templateId ?? null);
     if (note.updatedAt) version.current = note.updatedAt;
+    anotarServidor(note);
   }, [note, soloLectura, dirty]);
 
   /**
@@ -512,6 +559,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         setDx(servidor.diagnoses ?? []);
         setTemplateId(servidor.templateId ?? null);
         version.current = servidor.updatedAt;
+        anotarServidor(servidor);
       })
       .catch(() => { /* sin respuesta se sigue con lo que trajo el prop */ });
     return () => { vivo = false; };
@@ -547,6 +595,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
 
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isSigned) return false;
+    if (enVuelo.current) return false;
+    enVuelo.current = true;
     setSaving(true);
     setError('');
     // Lo que se manda en ESTE guardado. Se recuerda porque mientras el request
@@ -567,6 +617,9 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           error?: string; note?: VisitNoteData; doctorName?: string; holderName?: string;
         };
         setSaving(false);
+        // Antes de cualquier `return` de este bloque, y antes del reintento del
+        // resolutor —que vuelve a llamar a `save()` en el acto.
+        enVuelo.current = false;
         if (d.error === 'NOTE_LOCKED') {
           // El servidor aplica el candado por su cuenta. Se llega acá cuando el
           // candado cambió de manos entre latido y guardado: el texto NO se
@@ -586,6 +639,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       }
       const d = await res.json() as { note?: VisitNoteData };
       if (d.note?.updatedAt) version.current = d.note.updatedAt;
+      // Lo que acabamos de guardar ES lo que tiene el servidor ahora.
+      anotarServidor(d.note);
       // Se da por guardado SOLO lo que no volvió a cambiar mientras viajaba.
       for (const f of enviadas) {
         if (latest.current.content[f] === enviado[f]) tocadas.current.delete(f);
@@ -596,11 +651,13 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       setDirty(pendiente);
       setSavedAt(new Date());
       setSaving(false);
+      enVuelo.current = false;
       onSaved?.();
       return true;
     } catch {
       setError(t('noteSaveError'));
       setSaving(false);
+      enVuelo.current = false;
       return false;
     }
     // `resolverVersionNueva` se define abajo y no cambia de identidad de forma
@@ -616,6 +673,13 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
    *  · las que sí tocó y el otro también → conflicto. No se elige por nosotros:
    *    se muestran los dos textos y decide quien está escribiendo.
    *
+   * "Y el otro también" se mide contra `servidorConocido`, no contra mi texto:
+   * en la sección que estoy escribiendo el del servidor SIEMPRE va a ser
+   * distinto del mío, así que compararlos hacía que cualquier rechazo por
+   * versión vieja se leyera como choque. Si lo que hay en el servidor es igual a
+   * lo último que el servidor nos dijo, nadie más la tocó y no hay nada que
+   * preguntar.
+   *
    * Si no quedó ningún conflicto, se reintenta el guardado una sola vez con la
    * versión nueva — el caso normal cuando dos personas trabajan en secciones
    * distintas, y ahí no tiene sentido molestar a nadie.
@@ -626,7 +690,8 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     for (const { field } of SECTIONS) {
       const suyo = servidor[field] ?? '';
       if (tocadas.current.has(field) || enviadas.has(field)) {
-        if (suyo !== (latest.current.content[field] ?? '')) choques.push(field);
+        const otroLaEscribio = suyo !== (servidorConocido.current[field] ?? '');
+        if (otroLaEscribio && suyo !== (latest.current.content[field] ?? '')) choques.push(field);
       } else if (suyo !== proximo[field]) {
         proximo[field] = suyo;
       }
@@ -634,6 +699,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     setContent(proximo);
     if (!dxTocado.current) setDx(servidor.diagnoses ?? []);
     if (servidor.updatedAt) version.current = servidor.updatedAt;
+    anotarServidor(servidor);
 
     if (choques.length === 0) {
       // Reintento único: la versión ya es la de la base, así que este PUT no
@@ -960,6 +1026,19 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         );
         return;
       }
+      /**
+       * Reabrir ESCRIBE la nota, así que la versión que tiene el editor quedó
+       * vieja en el mismo acto. Sin esto, el primer guardado después de reabrir
+       * —la conciliación de medicación, por ejemplo— chocaba contra la propia
+       * reapertura y sacaba el cartel de "alguien más guardó cambios" con el
+       * provider solo en la nota. Es la secuencia que reportó Devin el
+       * 2026-09-23: reabrió 20:23:48, conció 20:24:32, cartel.
+       *
+       * `router.refresh()` refresca la PANTALLA pero no remonta el editor, así
+       * que `version` —que es un ref del montaje— no se entera por su cuenta.
+       */
+      const d = await res.json().catch(() => null) as { note?: { updatedAt?: string } } | null;
+      if (d?.note?.updatedAt) version.current = d.note.updatedAt;
       router.refresh();
     } catch {
       setErrorReabrir(t('noteReopenError'));

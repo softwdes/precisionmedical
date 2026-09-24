@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
@@ -239,6 +240,7 @@ function Empty() { return <span className="text-text-muted italic">—</span>; }
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOptions }: Props) {
+  const serverError = useServerError();
   const t    = useTranslations('phoenix.edsonTracking');
   const tc   = useTranslations('phoenix.common');
   // Las etiquetas de estado y de la leyenda se comparten con el calendario.
@@ -424,7 +426,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         patchRow(row.caseId, { appointment: { ...row.appointment, providerName: antes } });
-        setError(json.message ?? t('saveFailed'));
+        setError(serverError(json as ServerErrorBody, t('saveFailed')));
         return false;
       }
       return true;

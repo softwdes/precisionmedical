@@ -48,6 +48,14 @@ jobs:
         run: pnpm typecheck
         continue-on-error: true # Phase 0: relajado mientras se estabiliza
 
+      # Idioma: ni `tsc` ni el build ven un literal en castellano dentro de un
+      # .tsx, y next-intl no rompe cuando falta una clave — muestra la ruta
+      # cruda en pantalla. Esto compara contra scripts/i18n-baseline.json y
+      # falla solo si el número SUBE. Para bajarlo no hay que hacer nada; si un
+      # aumento es legítimo: pnpm i18n:audit -- --sellar
+      - name: i18n (no sumar castellano en duro)
+        run: pnpm i18n:audit
+
       - name: Build all apps
         run: pnpm build
         env:

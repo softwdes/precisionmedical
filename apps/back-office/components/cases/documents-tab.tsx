@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
@@ -652,6 +653,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
    */
   patientId?: string;
 }) {
+  const serverError = useServerError();
   const t  = useTranslations('phoenix.caseTabs.documents');
   const tc = useTranslations('phoenix.common');
   /**
@@ -828,7 +830,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
     try {
       const res = await fetch(`/api/admin/patients/${patientId}/documents/${doc.id}/download`);
       const data = await res.json();
-      if (!res.ok) { setError(data.message ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setError(serverError(data as ServerErrorBody)); return; }
       viewer.show({ fileName: data.name ?? doc.name, url: data.url, downloadUrl: data.downloadUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
@@ -877,7 +879,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
         // `CASE_NOT_FOUND` explican algo; "HTTP 400" no.
         const d = await res.json().catch(() => ({}));
         throw new Error(t('alertCreateFolderFallo', {
-          motivo: d.message ?? d.error ?? `HTTP ${res.status}`,
+          motivo: serverError(d as ServerErrorBody),
         }));
       }
       setNewFolderOpen(false);
@@ -925,7 +927,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
           // que "falló uno" no alcanza para nada.
           throw new Error(t('alertUploadFallo', {
             name: nombre,
-            motivo: urlData.message ?? urlData.error ?? `HTTP ${urlRes.status}`,
+            motivo: serverError(urlData as ServerErrorBody, `HTTP ${urlRes.status}`),
           }));
         }
 
@@ -1097,7 +1099,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(t('alertRenameFallo', {
-          motivo: d.message ?? d.error ?? `HTTP ${res.status}`,
+          motivo: serverError(d as ServerErrorBody),
         }));
       }
       setPorRenombrar(null);
@@ -1133,7 +1135,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
       const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       load(currentParentId, verPapelera);
     } catch (e) {
@@ -1154,7 +1156,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
         // restaurar el archivo solo lo dejaría colgando de algo invisible.
         throw new Error(data.error === 'CARPETA_ELIMINADA'
           ? t('alertRestoreFolderFirst', { name: data.carpeta ?? '—' })
-          : (data.message ?? `HTTP ${res.status}`));
+          : (serverError(data as ServerErrorBody)));
       }
       load(currentParentId, verPapelera);
     } catch (e) {
@@ -1187,7 +1189,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
         alert(t('alertDownloadS3'));
         return;
       }
-      alert(data.message ?? t('alertDownloadError'));
+      alert(serverError(data as ServerErrorBody, t('alertDownloadError')));
       return;
     }
     // Modal, no pestaña nueva: el usuario no pierde el expediente donde estaba

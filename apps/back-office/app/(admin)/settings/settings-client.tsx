@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { HexColorPicker } from 'react-colorful';
 import { useTranslations } from 'next-intl';
 import {
@@ -133,6 +134,9 @@ export function SettingsClient({
   isAdmin = false,
   allowedModules = null,
 }: Props) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.settings');
+  const serverError = useServerError();
   const ts = useTranslations('phoenix.settings');
   /**
    * La pestaña inicial es la PRIMERA VISIBLE, no `clinicas` fija.
@@ -208,10 +212,10 @@ export function SettingsClient({
         body: JSON.stringify({ ...form, name: form.name.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       setClinics((prev) => [...prev, { ...data.clinic, appointmentCount: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
       setCreateOpen(false);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Error al crear'); }
+    } catch (e) { setError(e instanceof Error ? e.message : t('errorCreate')); }
     finally { setSaving(false); }
   }
 
@@ -226,10 +230,10 @@ export function SettingsClient({
         body: JSON.stringify({ ...form, name: form.name.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       setClinics((prev) => prev.map((c) => c.id === editing.id ? { ...c, ...form } : c));
       setEditing(null);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Error al guardar'); }
+    } catch (e) { setError(e instanceof Error ? e.message : t('errorSave')); }
     finally { setSaving(false); }
   }
 
@@ -239,10 +243,10 @@ export function SettingsClient({
     try {
       const res = await fetch(`/api/admin/clinics/${deleting.id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       setClinics((prev) => prev.filter((c) => c.id !== deleting.id));
       setDeleting(null);
-    } catch (e) { alert(e instanceof Error ? e.message : 'Error al eliminar'); }
+    } catch (e) { alert(e instanceof Error ? e.message : t('errorDelete')); }
     finally { setSaving(false); }
   }
 
@@ -273,16 +277,16 @@ export function SettingsClient({
         <div className="px-4 sm:px-6 pb-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <p className="text-text-1 font-semibold text-sm">{clinics.length} clínica{clinics.length !== 1 ? 's' : ''} registrada{clinics.length !== 1 ? 's' : ''}</p>
-              <p className="text-text-muted text-[11px]">Ubicaciones donde se atiende a los pacientes</p>
+              <p className="text-text-1 font-semibold text-sm">{t('clinicsCount', { count: clinics.length })}</p>
+              <p className="text-text-muted text-[11px]">{t('clinicsHint')}</p>
             </div>
             <Button size="sm" onClick={openCreate} className="flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5" /> Agregar clínica
+              <Plus className="w-3.5 h-3.5" /> {t('addClinic')}
             </Button>
           </div>
 
           {clinics.length === 0 ? (
-            <EmptyState.Rich icon={Building2} title="Sin clínicas" subtitle="Agrega la primera ubicación clínica." />
+            <EmptyState.Rich icon={Building2} title={t('emptyClinicsTitle')} subtitle={t('emptyClinicsSubtitle')} />
           ) : (
             <>
               {/* Mobile: cards */}
@@ -299,8 +303,8 @@ export function SettingsClient({
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <IconAction icon={Pencil} label="Editar" onClick={() => openEdit(c)} />
-                      <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(c)} />
+                      <IconAction icon={Pencil} label={t('actionEdit')} onClick={() => openEdit(c)} />
+                      <IconAction icon={Trash2} label={t('actionDelete')} variant="danger" onClick={() => setDeleting(c)} />
                     </div>
                   </div>
                 ))}
@@ -331,8 +335,8 @@ export function SettingsClient({
                         <td className="px-3 py-3 text-text-muted text-[12px] font-mono">{c.zipCode || <span className="italic">—</span>}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
-                            <IconAction icon={Pencil} label="Editar" onClick={() => openEdit(c)} />
-                            <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(c)} />
+                            <IconAction icon={Pencil} label={t('actionEdit')} onClick={() => openEdit(c)} />
+                            <IconAction icon={Trash2} label={t('actionDelete')} variant="danger" onClick={() => setDeleting(c)} />
                           </div>
                         </td>
                       </tr>
@@ -375,7 +379,7 @@ export function SettingsClient({
             <div className="space-y-4 py-2">
               {/* Nombre */}
               <div>
-                <Label>Nombre <span className="text-rose">*</span></Label>
+                <Label>{t('fieldName')} <span className="text-rose">*</span></Label>
                 <Input value={form.name} onChange={set('name')} placeholder="Murray, Provo, West Valley..." autoFocus />
               </div>
 
@@ -425,7 +429,7 @@ export function SettingsClient({
               {/* Teléfono + Celular */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label>Teléfono</Label>
+                  <Label>{t('fieldPhone')}</Label>
                   <Input value={form.phone} onChange={set('phone')} placeholder="(801) 000-0000" />
                 </div>
                 <div>
@@ -436,7 +440,7 @@ export function SettingsClient({
 
               {/* Email */}
               <div>
-                <Label>Correo electrónico</Label>
+                <Label>{t('fieldEmail')}</Label>
                 <Input type="email" value={form.email} onChange={set('email')} placeholder="info@clinica.com" />
               </div>
 
@@ -446,7 +450,7 @@ export function SettingsClient({
                   <Label>Estado</Label>
                   <select value={form.state} onChange={set('state')}
                     className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand">
-                    <option value="">Seleccionar estado</option>
+                    <option value="">{t('fieldState')}</option>
                     {US_STATES.map((s) => (
                       <option key={s.code} value={s.code}>{s.name}</option>
                     ))}
@@ -456,7 +460,7 @@ export function SettingsClient({
                   <Label>Ciudad</Label>
                   <select value={form.city} onChange={set('city')} disabled={!form.state}
                     className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-40">
-                    <option value="">Seleccionar ciudad</option>
+                    <option value="">{t('fieldCity')}</option>
                     {cities.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -467,11 +471,11 @@ export function SettingsClient({
               {/* Código postal + Dirección */}
               <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3">
                 <div>
-                  <Label>Código postal</Label>
+                  <Label>{t('fieldZip')}</Label>
                   <Input value={form.zipCode} onChange={set('zipCode')} placeholder="84107" maxLength={10} />
                 </div>
                 <div>
-                  <Label>Dirección</Label>
+                  <Label>{t('fieldAddress')}</Label>
                   <Input value={form.address} onChange={set('address')} placeholder="275 E 6100 S Suite 100" />
                 </div>
               </div>
@@ -483,9 +487,9 @@ export function SettingsClient({
               )}
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">Cancelar</Button>
+              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">{tc('cancel')}</Button>
               <Button onClick={onSave} disabled={!form.name.trim() || saving} className="w-full sm:w-auto">
-                {saving ? 'Guardando…' : saveLabel}
+                {saving ? t('saving') : saveLabel}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -509,10 +513,10 @@ export function SettingsClient({
             )}
           </p>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setDeleting(null)} className="w-full sm:w-auto">Cancelar</Button>
+            <Button variant="outline" onClick={() => setDeleting(null)} className="w-full sm:w-auto">{tc('cancel')}</Button>
             <Button onClick={handleDelete} disabled={saving || (deleting?.appointmentCount ?? 0) > 0}
               className="w-full sm:w-auto bg-rose hover:bg-rose/90 text-white">
-              {saving ? 'Eliminando…' : 'Eliminar'}
+              {saving ? t('deleting') : t('btnDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

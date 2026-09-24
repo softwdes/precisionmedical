@@ -194,7 +194,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     });
     if (valid !== new Set(ids).size) {
       return NextResponse.json(
-        { error: 'MEMBER_NOT_IN_FIRM', message: 'Solo podés asignar miembros de tu propio despacho.' },
+        { error: 'MEMBER_NOT_IN_FIRM' },
         { status: 403 },
       );
     }

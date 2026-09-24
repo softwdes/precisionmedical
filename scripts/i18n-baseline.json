@@ -1,0 +1,13 @@
+{
+  "nota": "Línea base de textos en castellano en duro. Solo puede BAJAR. Se resella con: pnpm i18n:audit -- --sellar",
+  "sellado": "2026-09-24",
+  "apps": {
+    "apps/back-office": 136,
+    "apps/web": 416,
+    "apps/clinical": 87,
+    "apps/attorney": 63,
+    "apps/forms": 10,
+    "apps/timeclock": 0,
+    "packages/ui": 3
+  }
+}

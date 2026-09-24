@@ -149,7 +149,6 @@ export async function PATCH(
     if (servicios > 0 || cobros > 0) {
       return NextResponse.json({
         error: 'HAS_CHARGES',
-        message: 'Esta cita ya tiene cargos registrados. Quitalos primero desde Servicios y después se puede reabrir.',
         servicios,
         cobros,
       }, { status: 409 });
@@ -174,7 +173,6 @@ export async function PATCH(
   if (existing.status === 'CANCELLED' && parsed.status === 'CANCELLED') {
     return NextResponse.json({
       error:   'ALREADY_CANCELLED',
-      message: 'La cita ya está cancelada',
     }, { status: 409 });
   }
 
@@ -183,7 +181,7 @@ export async function PATCH(
     const keys = Object.keys(parsed);
     const onlyServices = keys.length === 1 && keys[0] === 'plannedServiceCodes';
     if (!onlyServices) {
-      return NextResponse.json({ error: 'IMMUTABLE', message: 'No se puede modificar una cita completada' }, { status: 422 });
+      return NextResponse.json({ error: 'IMMUTABLE' }, { status: 422 });
     }
   }
 
@@ -223,7 +221,6 @@ export async function PATCH(
   if (parsed.scheduledFor !== undefined && isWeekendInDenver(new Date(parsed.scheduledFor))) {
     return NextResponse.json({
       error: 'WEEKEND_NOT_ALLOWED',
-      message: 'No se pueden agendar citas en fin de semana.',
     }, { status: 400 });
   }
 

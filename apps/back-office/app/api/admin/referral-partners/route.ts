@@ -134,7 +134,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const existing = await mismoNombre(parsed.name);
   if (existing && !existing.deletedAt) {
     return NextResponse.json(
-      { error: 'DUPLICATE_NAME', message: `"${existing.name}" ya está en el catálogo.`, partner: existing },
+      { error: 'DUPLICATE_NAME', params: { name: existing.name }, partner: existing },
       { status: 409 },
     );
   }
@@ -185,7 +185,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const dup = await mismoNombre(parsed.name, before.id);
     if (dup && !dup.deletedAt) {
       return NextResponse.json(
-        { error: 'DUPLICATE_NAME', message: `"${dup.name}" ya está en el catálogo.`, partner: dup },
+        { error: 'DUPLICATE_NAME', params: { name: dup.name }, partner: dup },
         { status: 409 },
       );
     }

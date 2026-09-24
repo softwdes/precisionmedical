@@ -195,9 +195,7 @@ export async function POST(
     const nombreDelMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
     return NextResponse.json({
       error: 'GUARDIAN_REQUIRED',
-      message: `${nombreDelMenor} es menor de edad y no tiene responsable legal asignado. `
-        + 'Asignalo en la ficha del paciente antes de enviar el formulario — es quien tiene que firmar '
-        + 'los consentimientos. Si el paciente ya está en la clínica, se puede llenar en la tablet.',
+      params: { name: nombreDelMenor },
       patientId: caseRecord.patient.id,
     }, { status: 400 });
   }

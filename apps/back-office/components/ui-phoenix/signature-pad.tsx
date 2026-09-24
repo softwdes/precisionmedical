@@ -8,6 +8,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Eraser, PenLine } from 'lucide-react';
 
 interface Props {
@@ -18,7 +19,8 @@ interface Props {
   height?: number;
 }
 
-export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', hintLabel = 'Firme en el área de arriba.', height = 200 }: Props) {
+export function SignaturePad({ onChange, initialValue, clearLabel, hintLabel, height = 200 }: Props) {
+  const tc = useTranslations('phoenix.common');
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const drawing     = useRef(false);
   const lastPos     = useRef<{ x: number; y: number } | null>(null);
@@ -154,7 +156,7 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
         {!hasStrokes && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
             <PenLine className="w-7 h-7 text-text-muted" />
-            <span className="text-[11px] text-text-muted italic">{hintLabel}</span>
+            <span className="text-[11px] text-text-muted italic">{hintLabel ?? tc('uiSignHint')}</span>
           </div>
         )}
         <canvas
@@ -177,7 +179,7 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
           className="flex items-center gap-1.5 text-[11px] text-text-muted hover:text-rose transition-colors"
         >
           <Eraser className="w-3 h-3" />
-          {clearLabel}
+          {clearLabel ?? tc('uiClear')}
         </button>
         {hasStrokes && (
           <span className="text-[10px] text-emerald/70 flex items-center gap-1">

@@ -18,6 +18,7 @@
  */
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Heading, Bold, Italic, List, ListOrdered, Quote, Link2, CheckSquare, RectangleHorizontal, UserRound,
 } from 'lucide-react';
@@ -213,6 +214,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
   mergeFieldsLabel,
   sidePanel,
 }, refExterno) {
+  const tc = useTranslations('phoenix.common');
   const ref = React.useRef<HTMLDivElement>(null);
   // Arranca en '' (no en `value`) a propósito: así el efecto de sync de abajo
   // SÍ vuelca el contenido inicial en el primer render cuando se edita una
@@ -410,36 +412,36 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEdi
       <div className="min-w-0 flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-bg-2/60 flex-wrap">
-        <button type="button" onClick={toggleHeading} disabled={disabled} className={btn} title="Encabezado" aria-label="Encabezado">
+        <button type="button" onClick={toggleHeading} disabled={disabled} className={btn} title={tc('edHeading')} aria-label={tc('edHeading')}>
           <Heading className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => exec('bold')} disabled={disabled} className={btn} title="Negrita" aria-label="Negrita">
+        <button type="button" onClick={() => exec('bold')} disabled={disabled} className={btn} title={tc('edBold')} aria-label={tc('edBold')}>
           <Bold className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => exec('italic')} disabled={disabled} className={btn} title="Itálica" aria-label="Itálica">
+        <button type="button" onClick={() => exec('italic')} disabled={disabled} className={btn} title={tc('edItalic')} aria-label={tc('edItalic')}>
           <Italic className="w-3.5 h-3.5" />
         </button>
         <div className="w-px h-4 bg-border mx-1" />
-        <button type="button" onClick={() => exec('insertUnorderedList')} disabled={disabled} className={btn} title="Lista" aria-label="Lista">
+        <button type="button" onClick={() => exec('insertUnorderedList')} disabled={disabled} className={btn} title={tc('edList')} aria-label={tc('edList')}>
           <List className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => exec('insertOrderedList')} disabled={disabled} className={btn} title="Lista numerada" aria-label="Lista numerada">
+        <button type="button" onClick={() => exec('insertOrderedList')} disabled={disabled} className={btn} title={tc('edListNumbered')} aria-label={tc('edListNumbered')}>
           <ListOrdered className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => exec('formatBlock', 'blockquote')} disabled={disabled} className={btn} title="Cita" aria-label="Cita">
+        <button type="button" onClick={() => exec('formatBlock', 'blockquote')} disabled={disabled} className={btn} title={tc('edQuote')} aria-label={tc('edQuote')}>
           <Quote className="w-3.5 h-3.5" />
         </button>
         <div className="w-px h-4 bg-border mx-1" />
-        <button type="button" onClick={addLink} disabled={disabled} className={btn} title="Enlace" aria-label="Enlace">
+        <button type="button" onClick={addLink} disabled={disabled} className={btn} title={tc('edLink')} aria-label={tc('edLink')}>
           <Link2 className="w-3.5 h-3.5" />
         </button>
         <div className="w-px h-4 bg-border mx-1" />
         {/* Los dos controles de los snippets de Medusa. El espacio después de la
             casilla es para que el texto que sigue no quede pegado al cuadrito. */}
-        <button type="button" onClick={() => exec('insertHTML', `${CHECKBOX_HTML}&nbsp;`)} disabled={disabled} className={btn} title="Casilla" aria-label="Casilla">
+        <button type="button" onClick={() => exec('insertHTML', `${CHECKBOX_HTML}&nbsp;`)} disabled={disabled} className={btn} title={tc('edCheckbox')} aria-label={tc('edCheckbox')}>
           <CheckSquare className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => exec('insertHTML', `${BLANK_HTML}&nbsp;`)} disabled={disabled} className={btn} title="Campo en blanco" aria-label="Campo en blanco">
+        <button type="button" onClick={() => exec('insertHTML', `${BLANK_HTML}&nbsp;`)} disabled={disabled} className={btn} title={tc('edBlank')} aria-label={tc('edBlank')}>
           <RectangleHorizontal className="w-3.5 h-3.5" />
         </button>
 

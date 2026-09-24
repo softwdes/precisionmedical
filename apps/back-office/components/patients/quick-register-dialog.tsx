@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
@@ -483,6 +484,7 @@ type TipoElegido = 'MVA' | 'GENERAL' | 'SIN_CASO';
 export function QuickRegisterDialog({
   open, onOpenChange, providerId, initialFirstName, initialLastName, initial, referralId, onCreated,
 }: Props) {
+  const serverError = useServerError();
   const t      = useTranslations('quickRegister');
   /* Los textos del desvío de GM viven en `caseWizard`: son los mismos en las
      tres pantallas que crean casos y no se duplican por namespace. */
@@ -739,7 +741,7 @@ export function QuickRegisterDialog({
             setCandidatosContacto(jsonPac.candidatos as CandidatoContacto[]);
             return;
           }
-          setError(jsonPac.message ?? 'An error occurred. Please try again.');
+          setError(serverError(jsonPac as ServerErrorBody, 'An error occurred. Please try again.'));
           return;
         }
 
@@ -857,9 +859,9 @@ export function QuickRegisterDialog({
           const fields = json.details.fieldErrors as Record<string, string[]>;
           const msgs = Object.entries(fields)
             .flatMap(([path, errs]) => errs.map(e => `${path}: ${e}`));
-          setError(msgs.length ? msgs.join(' · ') : (json.message ?? 'Please check all required fields.'));
+          setError(msgs.length ? msgs.join(' · ') : (serverError(json as ServerErrorBody, 'Please check all required fields.')));
         } else {
-          setError(json.message ?? 'An error occurred. Please try again.');
+          setError(serverError(json as ServerErrorBody, 'An error occurred. Please try again.'));
         }
         return;
       }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, Phone, Mail, Pencil, Trash2, Link2, LinkIcon } from 'lucide-react';
 import { npiValido, npiFormaSospechosa } from '@/lib/npi';
@@ -58,23 +59,21 @@ interface Props {
   };
 }
 
-const SPECIALTY_LABELS: Record<string, string> = {
-  CHIROPRACTIC:     'Quiropráctica',
-  GENERAL:          'Medicina General',
-  NEUROLOGY:        'Neurología',
-  ORTHOPEDICS:      'Ortopedia',
-  OTHER:            'Otra',
-  PAIN_MANAGEMENT:  'Manejo del Dolor',
-  PHYSICAL_THERAPY: 'Terapia Física',
-  PSYCHOLOGY:       'Psicología',
-  RADIOLOGY:        'Radiología',
-};
+/** Solo el ORDEN del selector: la etiqueta vive en `spec*` del diccionario. */
+const SPECIALTIES = [
+  'CHIROPRACTIC', 'GENERAL', 'NEUROLOGY', 'ORTHOPEDICS', 'OTHER',
+  'PAIN_MANAGEMENT', 'PHYSICAL_THERAPY', 'PSYCHOLOGY', 'RADIOLOGY',
+] as const;
 
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE:           'Activo',
-  INACTIVE:         'Inactivo',
-  PENDING_APPROVAL: 'Pendiente',
-  TERMINATED:       'Terminado',
+/** Ídem para el estado — la etiqueta vive en `stActive`, `stInactive`, … */
+const STATUSES = ['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'TERMINATED'] as const;
+
+/** El estado no se llama igual que su clave: `PENDING_APPROVAL` → `stPending`. */
+const STATUS_KEY: Record<string, string> = {
+  ACTIVE: 'stActive',
+  INACTIVE: 'stInactive',
+  PENDING_APPROVAL: 'stPending',
+  TERMINATED: 'stTerminated',
 };
 
 const EMPTY_FORM = {
@@ -89,7 +88,9 @@ const EMPTY_FORM = {
   employeeId: '' as string,
 };
 
-export function ProvidersClient({ providers, stats }: Props) {
+export function ProvidersClient({ providers, stats }: Props) {
+  const t = useTranslations('phoenix.providers');
+  const tc = useTranslations('phoenix.common');
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [search, setSearch]   = useState('');
@@ -170,7 +171,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       setEditing(null);
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error desconocido');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -181,7 +182,7 @@ export function ProvidersClient({ providers, stats }: Props) {
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/providers?id=${deleting.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error(t('errorDelete'));
       setDeleting(null);
       refresh();
     } catch (e) {
@@ -201,48 +202,48 @@ export function ProvidersClient({ providers, stats }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="firstName">Nombre</Label>
-          <Input id="firstName" value={form.firstName} onChange={set('firstName')} placeholder="Nombre" />
+          <Label htmlFor="firstName">{t('fieldFirstName')}</Label>
+          <Input id="firstName" value={form.firstName} onChange={set('firstName')} placeholder={t('fieldFirstName')} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="lastName">Apellido</Label>
-          <Input id="lastName" value={form.lastName} onChange={set('lastName')} placeholder="Apellido" />
+          <Label htmlFor="lastName">{t('fieldLastName')}</Label>
+          <Input id="lastName" value={form.lastName} onChange={set('lastName')} placeholder={t('fieldLastName')} />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={form.email} onChange={set('email')} placeholder="doctor@clinica.com" />
+          <Label htmlFor="email">{t('fieldEmail')}</Label>
+          <Input id="email" type="email" value={form.email} onChange={set('email')} placeholder={t('phEmail')} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="phone">Teléfono</Label>
+          <Label htmlFor="phone">{t('fieldPhone')}</Label>
           <Input id="phone" value={form.phone} onChange={set('phone')} placeholder="(801) 555-0100" />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="specialty">Especialidad</Label>
+          <Label htmlFor="specialty">{t('fieldSpecialty')}</Label>
           <select
             id="specialty"
             value={form.specialty}
             onChange={set('specialty')}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            {Object.entries(SPECIALTY_LABELS).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
+            {SPECIALTIES.map((val) => (
+              <option key={val} value={val}>{t(`spec${val}`)}</option>
             ))}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="status">Estado</Label>
+          <Label htmlFor="status">{t('fieldStatus')}</Label>
           <select
             id="status"
             value={form.status}
             onChange={set('status')}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            {Object.entries(STATUS_LABELS).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
+            {STATUSES.map((val) => (
+              <option key={val} value={val}>{t(STATUS_KEY[val] ?? val)}</option>
             ))}
           </select>
         </div>
@@ -261,8 +262,8 @@ export function ProvidersClient({ providers, stats }: Props) {
         */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="licenseNumber">Número de licencia</Label>
-          <Input id="licenseNumber" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="Licencia estatal" />
+          <Label htmlFor="licenseNumber">{t('fieldLicense')}</Label>
+          <Input id="licenseNumber" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder={t('phLicense')} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="npi">NPI</Label>
@@ -272,7 +273,7 @@ export function ProvidersClient({ providers, stats }: Props) {
             onChange={set('npi')}
             inputMode="numeric"
             maxLength={10}
-            placeholder="10 dígitos"
+            placeholder={t('phNpi')}
             aria-invalid={npiMal || undefined}
             className={npiMal ? '!border-rose focus:!border-rose' : undefined}
           />
@@ -306,7 +307,7 @@ export function ProvidersClient({ providers, stats }: Props) {
           onChange={set('employeeId')}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          <option value="">— Sin vínculo —</option>
+          <option value="">{t('noLinkOption')}</option>
           {availableEmployees(providerId).map(d => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
@@ -325,15 +326,15 @@ export function ProvidersClient({ providers, stats }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Providers"
-        subtitle={`${stats.active} activos · ${stats.total} total`}
+        title={t('title')}
+        subtitle={t('subtitle', { activos: stats.active, total: stats.total })}
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"      value={stats.total}    sub="registrados"    color="text-text-1" />
-        <KpiCard label="Activos"    value={stats.active}   sub="en servicio"    color="text-emerald" />
-        <KpiCard label="Vinculados" value={stats.total - unlinkedCount} sub="con empleado HR" color="text-brand-text" />
-        <KpiCard label="Sin vínculo" value={unlinkedCount} sub="pendientes"     color={unlinkedCount > 0 ? 'text-amber' : 'text-text-muted'} />
+        <KpiCard label={t('kpiTotal')}    value={stats.total}    sub={t('kpiTotalSub')}    color="text-text-1" />
+        <KpiCard label={t('kpiActive')}   value={stats.active}   sub={t('kpiActiveSub')}   color="text-emerald" />
+        <KpiCard label={t('kpiLinked')}   value={stats.total - unlinkedCount} sub={t('kpiLinkedSub')} color="text-brand-text" />
+        <KpiCard label={t('kpiUnlinked')} value={unlinkedCount} sub={t('kpiUnlinkedSub')} color={unlinkedCount > 0 ? 'text-amber' : 'text-text-muted'} />
       </div>
 
       {/* Filters */}
@@ -342,16 +343,16 @@ export function ProvidersClient({ providers, stats }: Props) {
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
           <Input
             className="pl-9 h-8 text-sm"
-            placeholder="Buscar por nombre o email…"
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todos" />
-        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label="Activos" />
-        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label="Inactivos" />
+        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label={t('filterAll')} />
+        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label={t('filterActive')} />
+        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={t('filterInactive')} />
         {unlinkedCount > 0 && (
-          <FilterPill active={filter === 'unlinked'} onClick={() => setFilter('unlinked')} label={`Sin vínculo (${unlinkedCount})`} />
+          <FilterPill active={filter === 'unlinked'} onClick={() => setFilter('unlinked')} label={t('filterUnlinked', { count: unlinkedCount })} />
         )}
       </div>
 
@@ -360,14 +361,14 @@ export function ProvidersClient({ providers, stats }: Props) {
         <DataTable.Scroll>
           <DataTable.Table>
             <DataTable.Head>
-              <DataTable.Th>Provider</DataTable.Th>
-              <DataTable.Th>Especialidad</DataTable.Th>
-              <DataTable.Th>Contacto</DataTable.Th>
-              <DataTable.Th>Licencia</DataTable.Th>
-              <DataTable.Th>Empleado HR</DataTable.Th>
-              <DataTable.Th>Estado</DataTable.Th>
-              <DataTable.Th align="right">Citas</DataTable.Th>
-              <DataTable.Th align="right">Acciones</DataTable.Th>
+              <DataTable.Th>{t('colProvider')}</DataTable.Th>
+              <DataTable.Th>{t('colSpecialty')}</DataTable.Th>
+              <DataTable.Th>{t('colContact')}</DataTable.Th>
+              <DataTable.Th>{t('colLicense')}</DataTable.Th>
+              <DataTable.Th>{t('colEmployee')}</DataTable.Th>
+              <DataTable.Th>{t('colStatus')}</DataTable.Th>
+              <DataTable.Th align="right">{t('colAppointments')}</DataTable.Th>
+              <DataTable.Th align="right">{t('colActions')}</DataTable.Th>
             </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
@@ -385,7 +386,7 @@ export function ProvidersClient({ providers, stats }: Props) {
                     </div>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <span className="text-sm text-text-2">{SPECIALTY_LABELS[p.specialty] ?? p.specialty}</span>
+                    <span className="text-sm text-text-2">{t(`spec${p.specialty}`)}</span>
                   </DataTable.Td>
                   <DataTable.Td>
                     <div className="space-y-0.5">
@@ -411,13 +412,13 @@ export function ProvidersClient({ providers, stats }: Props) {
                         <span className="text-[11px] text-text-2">{p.employee.firstName} {p.employee.lastName}</span>
                       </div>
                     ) : (
-                      <span className="text-[11px] text-amber italic">Sin vínculo</span>
+                      <span className="text-[11px] text-amber italic">{t('noLink')}</span>
                     )}
                   </DataTable.Td>
                   <DataTable.Td>
                     <StatusPill
                       state={p.status === 'ACTIVE' ? 'active' : p.status === 'PENDING_APPROVAL' ? 'warning' : 'inactive'}
-                      label={STATUS_LABELS[p.status] ?? p.status}
+                      label={t(STATUS_KEY[p.status] ?? p.status)}
                     />
                   </DataTable.Td>
                   <DataTable.Td align="right">
@@ -425,8 +426,8 @@ export function ProvidersClient({ providers, stats }: Props) {
                   </DataTable.Td>
                   <DataTable.Td align="right">
                     <div className="flex items-center gap-1 justify-end">
-                      <IconAction icon={Pencil} label="Editar"   onClick={() => openEdit(p)} />
-                      <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(p)} />
+                      <IconAction icon={Pencil} label={t('actionEdit')}   onClick={() => openEdit(p)} />
+                      <IconAction icon={Trash2} label={t('actionDelete')} variant="danger" onClick={() => setDeleting(p)} />
                     </div>
                   </DataTable.Td>
                 </DataTable.Row>
@@ -441,13 +442,13 @@ export function ProvidersClient({ providers, stats }: Props) {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Provider</DialogTitle>
+            <DialogTitle>{t('editTitle')}</DialogTitle>
           </DialogHeader>
           <FormFields providerId={editing?.id} />
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>{tc('cancel')}</Button>
             <Button className="w-full sm:w-auto" onClick={() => handleSave()} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar Cambios'}
+              {saving ? t('saving') : t('btnSave')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -457,16 +458,19 @@ export function ProvidersClient({ providers, stats }: Props) {
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Eliminar Provider</DialogTitle>
+            <DialogTitle>{t('deleteTitle')}</DialogTitle>
             <DialogDescription>
-              ¿Eliminar a <strong>{deleting?.firstName} {deleting?.lastName}</strong>? Esta acción es reversible desde base de datos.
+              {t.rich('deleteDesc', {
+                nombre: `${deleting?.firstName ?? ''} ${deleting?.lastName ?? ''}`.trim(),
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           {error && <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">{error}</p>}
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleting(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleting(null)} disabled={saving}>{tc('cancel')}</Button>
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDelete} disabled={saving}>
-              {saving ? 'Eliminando…' : 'Sí, eliminar'}
+              {saving ? t('deleting') : t('btnDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

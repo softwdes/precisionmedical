@@ -13,6 +13,7 @@
  */
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { CheckCircle2, XCircle, X, Info } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -47,6 +48,7 @@ export function useToast(): ToastContextValue {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+  const tc = useTranslations('phoenix.common');
   const [items, setItems] = React.useState<ToastItem[]>([]);
   const idRef = React.useRef(0);
 
@@ -107,7 +109,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }): Reac
               type="button"
               onClick={() => dismiss(it.id)}
               className="text-text-muted hover:text-text-1 ml-1"
-              aria-label="Cerrar"
+              aria-label={tc('close')}
             >
               <X className="w-3.5 h-3.5" />
             </button>

@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Search, X } from 'lucide-react';
 
 interface Props {
@@ -17,7 +18,8 @@ interface Props {
   disabled?:   boolean;
 }
 
-export function LocationSelect({ label, value, onChange, options, placeholder = 'Seleccionar...', disabled }: Props) {
+export function LocationSelect({ label, value, onChange, options, placeholder, disabled }: Props) {
+  const tc = useTranslations('phoenix.common');
   const [open,   setOpen]   = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,7 +73,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
         `}
       >
         <span className={value ? 'text-text-1' : 'text-text-muted'}>
-          {value || placeholder}
+          {value || placeholder || tc('uiSelectPlaceholder')}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           {value && !disabled && (
@@ -97,7 +99,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
               ref={inputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar..."
+              placeholder={tc('uiSearchPlaceholder')}
               className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted outline-none"
             />
           </div>
@@ -105,7 +107,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
           {/* Options */}
           <ul className="max-h-48 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <li className="px-3 py-2 text-xs text-text-muted">Sin resultados</li>
+              <li className="px-3 py-2 text-xs text-text-muted">{tc('uiNoResults')}</li>
             )}
             {filtered.map(opt => (
               <li key={opt}>

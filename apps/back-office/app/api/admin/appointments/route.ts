@@ -380,7 +380,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!parsed.allowPast && horarioYaPaso(new Date(parsed.scheduledFor))) {
     return NextResponse.json({
       error: 'DATE_IN_PAST',
-      message: 'El horario seleccionado ya pasó. Por favor selecciona un nuevo horario disponible.',
     }, { status: 400 });
   }
 
@@ -395,7 +394,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (isWeekendInDenver(new Date(parsed.scheduledFor))) {
     return NextResponse.json({
       error: 'WEEKEND_NOT_ALLOWED',
-      message: 'No se pueden agendar citas en fin de semana.',
     }, { status: 400 });
   }
 
@@ -412,7 +410,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const SCHEDULABLE = ['NEW_REFERRAL', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED', 'INTAKE_PENDING'];
   if (!SCHEDULABLE.includes(caseRecord.status)) {
     return NextResponse.json(
-      { error: 'INVALID_CASE_STATUS', message: `El caso está en status ${caseRecord.status} y no permite agendar` },
+      { error: 'INVALID_CASE_STATUS', params: { status: caseRecord.status } },
       { status: 422 },
     );
   }

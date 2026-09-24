@@ -22,14 +22,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
   let parsed;
   try { parsed = UpdateSchema.parse(await req.json()); }
-  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD', message: 'Datos inválidos. Verifica que todos los campos estén completos.' }, { status: 400 }); }
+  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
 
   const clinic = await db.clinic.findUnique({ where: { id }, select: { id: true } });
   if (!clinic) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
   if (parsed.name) {
     const dup = await db.clinic.findFirst({ where: { name: parsed.name, NOT: { id } }, select: { id: true } });
-    if (dup) return NextResponse.json({ error: 'DUPLICATE_NAME', message: `Ya existe una clínica con el nombre "${parsed.name}".` }, { status: 409 });
+    if (dup) return NextResponse.json({ error: 'DUPLICATE_NAME', params: { name: parsed.name } }, { status: 409 });
   }
 
   const updated = await db.clinic.update({ where: { id }, data: parsed });
@@ -57,7 +57,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   if (clinic._count.appointments > 0) {
     return NextResponse.json({
       error: 'HAS_APPOINTMENTS',
-      message: `No se puede eliminar "${clinic.name}" — tiene ${clinic._count.appointments} cita(s) registrada(s).`,
+      params: { name: clinic.name, count: clinic._count.appointments },
     }, { status: 409 });
   }
 

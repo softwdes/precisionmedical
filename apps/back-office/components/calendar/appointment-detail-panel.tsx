@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { edad } from '@/lib/fechas';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -256,6 +257,7 @@ const fmt$ = (n: number) =>
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, hidePayments = false, coverage = COVERAGE_UNSET, onOpenCase, suspended = false, allowSignQr = false }: Props) {
+  const serverError = useServerError();
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
@@ -606,7 +608,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       const res = await fetch(`/api/admin/appointments/${appt.id}/confirm`, { method: 'POST' });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.message ?? `HTTP ${res.status}`);
+        throw new Error(serverError(d as ServerErrorBody));
       }
       /**
        * El servidor puede decir "no hice nada" con un 200.
@@ -685,7 +687,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.message ?? `HTTP ${res.status}`);
+        throw new Error(serverError(d as ServerErrorBody));
       }
       router.refresh();
       // Se abre el editor en el acto: reabrir no es el objetivo, es el permiso.
@@ -705,7 +707,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'NO_SHOW' }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
       setNoShowOpen(false);
       router.refresh();
       await irAServicios();
@@ -723,7 +725,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     setAccionError(null); setCheckingIn(true);
     try {
       const res = await fetch(`/api/admin/admission/${appt.id}/check-in`, { method: 'POST' });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
       router.refresh(); onRefresh(); onClose();
     } catch (e) {
       setAccionError(e instanceof Error ? e.message : t('errorCheckIn'));
@@ -845,7 +847,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'CANCELLED', cancelledSameDay: mismoDia }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
       router.refresh();
       // La del MISMO DIA consumio el horario y cobra: encadena a Servicios igual
       // que el no-show. La que aviso libero la agenda y no genera nada, asi que
@@ -878,7 +880,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         if (d.error === 'HAS_HISTORY') {
           throw new Error(t(`deleteBlocked_${d.reason}` as 'deleteBlocked_CARGOS'));
         }
-        throw new Error(d.message ?? `HTTP ${res.status}`);
+        throw new Error(serverError(d as ServerErrorBody));
       }
       router.refresh();
       onRefresh();

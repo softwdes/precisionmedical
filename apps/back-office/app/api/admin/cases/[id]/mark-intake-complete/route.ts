@@ -32,7 +32,7 @@ export async function POST(
 
   if (caseRecord.status !== 'INTAKE_PENDING') {
     return NextResponse.json(
-      { error: 'INVALID_STATUS', message: `Esperado INTAKE_PENDING, encontrado ${caseRecord.status}.` },
+      { error: 'INVALID_STATUS', params: { status: caseRecord.status, esperado: 'INTAKE_PENDING' } },
       { status: 409 },
     );
   }

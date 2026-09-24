@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   FileText, Plus, Search as SearchIcon, Pencil, Trash2,
@@ -65,40 +66,25 @@ interface Props {
   };
 }
 
-const ENCOUNTER_LABELS: Record<string, string> = {
-  FOLLOW_UP:    'Seguimiento',
-  NEW_PATIENT:  'Paciente Nuevo',
-  RE_EVAL:      'Re-evaluación',
-  URI:          'IRA',
-  PHYSICAL:     'Física Anual',
-  NURSING_HOME: 'Casa de Reposo',
-  CLOSING:      'Cierre / MMI',
-  OTHER:        'Otro',
-};
+/**
+ * Solo el ORDEN de cada selector: la etiqueta vive en el diccionario
+ * (`enc*`, `case*`, `scope*`, `sec*`) y se resuelve al dibujar, que es el
+ * único momento que conoce el idioma.
+ */
+const ENCOUNTERS = [
+  'FOLLOW_UP', 'NEW_PATIENT', 'RE_EVAL', 'URI',
+  'PHYSICAL', 'NURSING_HOME', 'CLOSING', 'OTHER',
+] as const;
 
-const CASE_TYPE_LABELS: Record<string, string> = {
-  MVA:          'MVA',
-  GENERAL:      'General',
-  NURSING_HOME: 'Casa Reposo',
-};
+const CASE_TYPES = ['MVA', 'GENERAL', 'NURSING_HOME'] as const;
 
-const SCOPE_LABELS: Record<string, string> = {
-  PERSONAL:  'Personal',
-  SHARED:    'Compartida',
-  SPECIALTY: 'Especialidad',
-};
+const SCOPES = ['PERSONAL', 'SHARED', 'SPECIALTY'] as const;
 
-const SECTION_KEY_LABELS: Record<string, string> = {
-  QUEJA_PRINCIPAL: 'Queja Principal',
-  HPI:             'HPI',
-  ROS:             'ROS',
-  EXAMEN_FISICO:   'Examen Físico',
-  EVALUACIONES:    'Evaluaciones',
-  PLAN:            'Plan',
-  DIAGNOSTICOS:    'Diagnósticos',
-};
+const SECTION_KEYS = [
+  'QUEJA_PRINCIPAL', 'HPI', 'ROS', 'EXAMEN_FISICO',
+  'EVALUACIONES', 'PLAN', 'DIAGNOSTICOS',
+] as const;
 
-const SECTION_KEYS = Object.keys(SECTION_KEY_LABELS) as Array<keyof typeof SECTION_KEY_LABELS>;
 
 const EMPTY_SECTION = (key: string, index: number) => ({
   sectionKey: key,
@@ -121,6 +107,8 @@ const EMPTY_FORM = {
 type FormType = typeof EMPTY_FORM;
 
 export function TemplatesClient({ templates, stats }: Props) {
+  const t = useTranslations('phoenix.noteTemplates');
+  const tc = useTranslations('phoenix.common');
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [search, setSearch]     = useState('');
@@ -217,7 +205,7 @@ export function TemplatesClient({ templates, stats }: Props) {
       setEditing(null);
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error desconocido');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -228,7 +216,7 @@ export function TemplatesClient({ templates, stats }: Props) {
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/templates?id=${deleting.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error(t('errorDelete'));
       setDeleting(null);
       refresh();
     } catch (e) {
@@ -242,46 +230,46 @@ export function TemplatesClient({ templates, stats }: Props) {
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
       {/* Metadata */}
       <div className="space-y-1.5">
-        <Label htmlFor="title">Título de la plantilla</Label>
-        <Input id="title" value={form.title} onChange={setField('title')} placeholder="NG-MVA F/U Chiro" />
+        <Label htmlFor="title">{t('fieldTitle')}</Label>
+        <Input id="title" value={form.title} onChange={setField('title')} placeholder={t('phTitle')} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="description">Descripción (opcional)</Label>
-        <Input id="description" value={form.description} onChange={setField('description')} placeholder="Motor Vehicle Accident Follow-up — Quiropráctica" />
+        <Label htmlFor="description">{t('fieldDescription')}</Label>
+        <Input id="description" value={form.description} onChange={setField('description')} placeholder={t('phDescription')} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="encounterType">Tipo de encuentro</Label>
+          <Label htmlFor="encounterType">{t('fieldEncounter')}</Label>
           <select
             id="encounterType"
             value={form.encounterType}
             onChange={setField('encounterType')}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            {Object.entries(ENCOUNTER_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {ENCOUNTERS.map((v) => <option key={v} value={v}>{t(`enc${v}`)}</option>)}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="caseType">Tipo de caso</Label>
+          <Label htmlFor="caseType">{t('fieldCaseType')}</Label>
           <select
             id="caseType"
             value={form.caseType}
             onChange={setField('caseType')}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            {Object.entries(CASE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {CASE_TYPES.map((v) => <option key={v} value={v}>{t(`case${v}`)}</option>)}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="scope">Alcance</Label>
+          <Label htmlFor="scope">{t('fieldScope')}</Label>
           <select
             id="scope"
             value={form.scope}
             onChange={setField('scope')}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            {Object.entries(SCOPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {SCOPES.map((v) => <option key={v} value={v}>{t(`scope${v}`)}</option>)}
           </select>
         </div>
       </div>
@@ -311,7 +299,7 @@ export function TemplatesClient({ templates, stats }: Props) {
                     }
                   </button>
                   <span className="text-sm font-medium text-text-1">
-                    {SECTION_KEY_LABELS[section.sectionKey] ?? section.sectionKey}
+                    {t(`sec${section.sectionKey}`)}
                   </span>
                   {section.content && (
                     <span className="text-[10px] text-text-muted">{section.content.length} chars</span>
@@ -327,7 +315,7 @@ export function TemplatesClient({ templates, stats }: Props) {
                   <Textarea
                     value={section.content}
                     onChange={(e) => setSectionContent(section.sectionKey, e.target.value)}
-                    placeholder={`Contenido por defecto para ${SECTION_KEY_LABELS[section.sectionKey]}…`}
+                    placeholder={t('phSection', { seccion: t(`sec${section.sectionKey}`) })}
                     className="text-sm min-h-[80px]"
                   />
                 </div>
@@ -346,8 +334,8 @@ export function TemplatesClient({ templates, stats }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Plantillas de Notas"
-        subtitle={`${stats.active} activas · ${stats.shared} compartidas · ${stats.total} total`}
+        title={t('title')}
+        subtitle={t('subtitle', { activas: stats.active, compartidas: stats.shared, total: stats.total })}
         action={
           <Button onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> Nueva Plantilla
@@ -356,10 +344,10 @@ export function TemplatesClient({ templates, stats }: Props) {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"       value={stats.total}                                    sub="plantillas"    color="text-text-1" />
-        <KpiCard label="Activas"     value={stats.active}                                   sub="disponibles"   color="text-emerald" />
-        <KpiCard label="Compartidas" value={stats.shared}                                   sub="SHARED scope"  color="text-violet-text" />
-        <KpiCard label="F/U"         value={stats.byEncounter['FOLLOW_UP'] ?? 0}            sub="Seguimiento"   color="text-cyan" />
+        <KpiCard label={t('kpiTotal')}    value={stats.total}                         sub={t('kpiTotalSub')}    color="text-text-1" />
+        <KpiCard label={t('kpiActive')}   value={stats.active}                        sub={t('kpiActiveSub')}   color="text-emerald" />
+        <KpiCard label={t('kpiShared')}   value={stats.shared}                        sub={t('kpiSharedSub')}   color="text-violet-text" />
+        <KpiCard label={t('kpiFollowUp')} value={stats.byEncounter['FOLLOW_UP'] ?? 0} sub={t('kpiFollowUpSub')} color="text-cyan" />
       </div>
 
       {/* Filters */}
@@ -368,15 +356,15 @@ export function TemplatesClient({ templates, stats }: Props) {
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
           <Input
             className="pl-9 h-8 text-sm"
-            placeholder="Buscar por título o descripción…"
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todas" />
-        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label="Activas" />
-        <FilterPill active={filter === 'shared'}   onClick={() => setFilter('shared')}   label="Compartidas" />
-        <FilterPill active={filter === 'personal'} onClick={() => setFilter('personal')} label="Personales" />
+        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label={t('filterAll')} />
+        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label={t('filterActive')} />
+        <FilterPill active={filter === 'shared'}   onClick={() => setFilter('shared')}   label={t('filterShared')} />
+        <FilterPill active={filter === 'personal'} onClick={() => setFilter('personal')} label={t('filterPersonal')} />
       </div>
 
       {/* Table */}
@@ -386,7 +374,7 @@ export function TemplatesClient({ templates, stats }: Props) {
             <DataTable.Head>
               <DataTable.Th>Plantilla</DataTable.Th>
               <DataTable.Th>Encuentro</DataTable.Th>
-              <DataTable.Th>Caso</DataTable.Th>
+              <DataTable.Th>{t('colCase')}</DataTable.Th>
               <DataTable.Th>Alcance</DataTable.Th>
               <DataTable.Th>Secciones</DataTable.Th>
               <DataTable.Th align="right">Usos</DataTable.Th>
@@ -400,45 +388,45 @@ export function TemplatesClient({ templates, stats }: Props) {
                     <EmptyState.Inline message={search ? `Sin resultados para "${search}"` : 'No hay plantillas aún'} />
                   </td>
                 </tr>
-              ) : filtered.map((t) => (
-                <DataTable.Row key={t.id} muted={!t.isActive}>
+              ) : filtered.map((tpl) => (
+                <DataTable.Row key={tpl.id} muted={!tpl.isActive}>
                   <DataTable.Td>
                     <div>
-                      <p className="text-sm font-medium text-text-1">{t.title}</p>
-                      {t.description && (
-                        <p className="text-[11px] text-text-muted truncate max-w-[220px]">{t.description}</p>
+                      <p className="text-sm font-medium text-text-1">{tpl.title}</p>
+                      {tpl.description && (
+                        <p className="text-[11px] text-text-muted truncate max-w-[220px]">{tpl.description}</p>
                       )}
                     </div>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <span className="text-sm text-text-2">{ENCOUNTER_LABELS[t.encounterType] ?? t.encounterType}</span>
+                    <span className="text-sm text-text-2">{t(`enc${tpl.encounterType}`)}</span>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <TagPill colorClass="bg-violet/15 text-violet-text border-violet/30" label={CASE_TYPE_LABELS[t.caseType] ?? t.caseType} />
+                    <TagPill colorClass="bg-violet/15 text-violet-text border-violet/30" label={t(`case${tpl.caseType}`)} />
                   </DataTable.Td>
                   <DataTable.Td>
                     <TagPill
                       colorClass={
-                        t.scope === 'SHARED'    ? 'bg-cyan/15 text-cyan border-cyan/30' :
-                        t.scope === 'SPECIALTY' ? 'bg-amber/15 text-amber border-amber/30' :
+                        tpl.scope === 'SHARED'    ? 'bg-cyan/15 text-cyan border-cyan/30' :
+                        tpl.scope === 'SPECIALTY' ? 'bg-amber/15 text-amber border-amber/30' :
                                                   'bg-white/5 text-text-2 border-border'
                       }
-                      label={SCOPE_LABELS[t.scope] ?? t.scope}
+                      label={t(`scope${tpl.scope}`)}
                     />
                   </DataTable.Td>
                   <DataTable.Td>
-                    <span className="text-sm tabular-nums">{t.sections.length}</span>
+                    <span className="text-sm tabular-nums">{tpl.sections.length}</span>
                   </DataTable.Td>
                   <DataTable.Td align="right">
-                    <span className="text-sm tabular-nums">{t.usageCount}</span>
+                    <span className="text-sm tabular-nums">{tpl.usageCount}</span>
                   </DataTable.Td>
                   <DataTable.Td>
-                    <StatusPill state={t.isActive ? 'active' : 'inactive'} label={t.isActive ? 'Activa' : 'Inactiva'} />
+                    <StatusPill state={tpl.isActive ? 'active' : 'inactive'} label={tpl.isActive ? t('stActive') : t('stInactive')} />
                   </DataTable.Td>
                   <DataTable.Td align="right">
                     <div className="flex items-center gap-1 justify-end">
-                      <IconAction icon={Pencil} label="Editar"   onClick={() => openEdit(t)} />
-                      <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(t)} />
+                      <IconAction icon={Pencil} label={t('actionEdit')}   onClick={() => openEdit(tpl)} />
+                      <IconAction icon={Trash2} label={t('actionDelete')} variant="danger" onClick={() => setDeleting(tpl)} />
                     </div>
                   </DataTable.Td>
                 </DataTable.Row>
@@ -453,14 +441,14 @@ export function TemplatesClient({ templates, stats }: Props) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[92vh]">
           <DialogHeader>
-            <DialogTitle>Nueva Plantilla</DialogTitle>
-            <DialogDescription>Define el contenido por defecto de cada sección de la nota clínica.</DialogDescription>
+            <DialogTitle>{t('newTitle')}</DialogTitle>
+            <DialogDescription>{t('subtitleNew')}</DialogDescription>
           </DialogHeader>
           <FormFields />
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateOpen(false)} disabled={saving}>{tc('cancel')}</Button>
             <Button className="w-full sm:w-auto" onClick={() => handleSave(false)} disabled={saving}>
-              {saving ? 'Guardando…' : 'Crear Plantilla'}
+              {saving ? t('saving') : t('btnCreate')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -470,13 +458,13 @@ export function TemplatesClient({ templates, stats }: Props) {
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-2xl max-h-[92vh]">
           <DialogHeader>
-            <DialogTitle>Editar Plantilla</DialogTitle>
+            <DialogTitle>{t('editTitle')}</DialogTitle>
           </DialogHeader>
           <FormFields />
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>{tc('cancel')}</Button>
             <Button className="w-full sm:w-auto" onClick={() => handleSave(true)} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar Cambios'}
+              {saving ? t('saving') : t('btnSave')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -486,16 +474,19 @@ export function TemplatesClient({ templates, stats }: Props) {
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Eliminar Plantilla</DialogTitle>
+            <DialogTitle>{t('deleteTitle')}</DialogTitle>
             <DialogDescription>
-              ¿Eliminar <strong>"{deleting?.title}"</strong>? Las notas existentes no se verán afectadas.
+              {t.rich('deleteDesc', {
+                titulo: deleting?.title ?? '',
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           {error && <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">{error}</p>}
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleting(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleting(null)} disabled={saving}>{tc('cancel')}</Button>
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDelete} disabled={saving}>
-              {saving ? 'Eliminando…' : 'Sí, eliminar'}
+              {saving ? t('deleting') : t('btnDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

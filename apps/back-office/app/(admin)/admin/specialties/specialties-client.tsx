@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Eye, Pencil, KeyRound, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
 import {
   Button,
@@ -189,9 +190,9 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
                     <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <IconAction onClick={() => setViewing(sp)} icon={Eye} label="Ver" />
-                        <IconAction onClick={() => setEditing(sp)} icon={Pencil} label="Editar" />
+                        <IconAction onClick={() => setEditing(sp)} icon={Pencil} label={t('actionEdit')} />
                         <IconAction onClick={() => { /* permissions tbd */ }} icon={KeyRound} label="Permisos" disabled />
-                        <IconAction onClick={() => setDeleting(sp)} icon={Trash2} label="Eliminar" variant="danger" />
+                        <IconAction onClick={() => setDeleting(sp)} icon={Trash2} label={t('actionDelete')} variant="danger" />
                       </div>
                     </DataTable.Td>
                   </DataTable.Row>
@@ -271,6 +272,8 @@ function SpecialtyDialog({
   editing: Specialty | null;
   onSaved: () => void;
 }) {
+  const t = useTranslations('phoenix.specialties');
+  const serverError = useServerError();
   const [name, setName]                 = useState(editing?.name ?? '');
   const [description, setDescription]   = useState(editing?.description ?? '');
   const [color, setColor]               = useState(editing?.color ?? COLOR_PALETTE[0]);
@@ -318,11 +321,11 @@ function SpecialtyDialog({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -359,7 +362,7 @@ function SpecialtyDialog({
               value={description ?? ''}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Descripción opcional del service line..."
+              placeholder={t('phDescription')}
             />
           </div>
 
@@ -411,7 +414,7 @@ function SpecialtyDialog({
           <div>
             <Label htmlFor="cptInput">
               CPT codes sugeridos
-              <span className="text-text-muted text-xs ml-1 font-normal">(separados por coma · pre-cargan en B.21)</span>
+              <span className="text-text-muted text-xs ml-1 font-normal">{t('fieldCptHint')}</span>
             </Label>
             <Input
               id="cptInput"
@@ -458,6 +461,8 @@ function ViewDialog({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.specialties');
   if (!specialty) return null;
   return (
     <Dialog open={!!specialty} onOpenChange={(open) => !open && onClose()}>
@@ -490,21 +495,21 @@ function ViewDialog({
                 ))}
               </div>
             ) : (
-              <span className="text-text-muted italic text-xs">Ninguno</span>
+              <span className="text-text-muted italic text-xs">{t('noneCpt')}</span>
             )
           } />
-          <InfoRow label="Providers"     value={<span className="font-mono text-text-1">{specialty.doctorCount}</span>} />
-          <InfoRow label="Estado"        value={
+          <InfoRow label={t('viewProviders')} value={<span className="font-mono text-text-1">{specialty.doctorCount}</span>} />
+          <InfoRow label={t('viewStatus')}    value={
             <StatusPill
               state={specialty.isActive ? 'active' : 'inactive'}
-              label={specialty.isActive ? 'Activa' : 'Inactiva'}
+              label={specialty.isActive ? t('stActive') : t('stInactive')}
             />
           } />
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> Editar</Button>
+          <Button variant="outline" onClick={onClose}>{tc('close')}</Button>
+          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> {t('viewEdit')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -529,6 +534,9 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onConfirmed: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.specialties');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -541,11 +549,11 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/specialties?id=${specialty.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al eliminar');
+      setError(e instanceof Error ? e.message : t('errorDelete'));
     } finally {
       setDeleting(false);
     }
@@ -555,19 +563,22 @@ function DeleteConfirmDialog({
     <Dialog open={!!specialty} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-rose">Eliminar especialidad</DialogTitle>
+          <DialogTitle className="text-rose">{t('deleteTitle')}</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-text-1">"{specialty.name}"</strong>? Se hace soft-delete (queda inactiva, no se borra del DB).
+            {t.rich('deleteDesc', {
+              nombre: specialty.name,
+              b: (chunks) => <strong className="text-text-1">{chunks}</strong>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-3 text-sm text-text-2">
           {specialty.doctorCount > 0 && (
             <div className="bg-amber/10 border border-amber/30 rounded-md p-3 mb-3 text-amber text-xs">
-              ⚠ Tiene <strong>{specialty.doctorCount} doctor{specialty.doctorCount > 1 ? 'es' : ''}</strong> asignado{specialty.doctorCount > 1 ? 's' : ''}. Revisa antes de continuar.
+              {t('deleteWarn', { count: specialty.doctorCount })}
             </div>
           )}
-          <p className="text-xs text-text-muted">El registro queda con <code className="text-text-2">deletedAt</code> seteado. Podés revertirlo manualmente desde DB si hace falta.</p>
+          <p className="text-xs text-text-muted">{t('deleteNote')}</p>
         </div>
 
         {error && (
@@ -577,9 +588,9 @@ function DeleteConfirmDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('cancel')}</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Eliminando...' : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar</>)}
+            {deleting ? t('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {t('btnDelete')}</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -48,6 +48,9 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 export default async function SettlementPrintPage({ params }: Props) {
+  // Server component: el texto se resuelve con `getTranslations`, que ya se
+  // usaba arriba para el título de la pestaña.
+  const t = await getTranslations('phoenix.settlementPrint');
   const { caseId } = await params;
 
   const caseData = await db.case.findUnique({
@@ -122,9 +125,8 @@ export default async function SettlementPrintPage({ params }: Props) {
           server component: React no puede serializar una función a un elemento
           del DOM en RSC, así que la página reventaba al renderizar — con `tsc`
           limpio. El botón vive ahora en un client component chico y compartido.
-          La etiqueta queda en español, como estaba: el cuerpo de esta página no
-          tiene `t` (su i18n es deuda previa) y traerla sería otro cambio. */}
-      <PrintButton label="Imprimir / Guardar PDF" />
+          La etiqueta ya sale del diccionario, igual que el resto del cuerpo. */}
+      <PrintButton label={t('printButton')} />
 
       <div className="page">
         {/* Header */}
@@ -158,16 +160,16 @@ export default async function SettlementPrintPage({ params }: Props) {
 
         {/* Settlement details */}
         <div className="section">
-          <div className="section-title">Datos del pago</div>
+          <div className="section-title">{t('paymentData')}</div>
           <table>
             <tbody>
               <tr>
-                <td className="label">Método</td>
+                <td className="label">{t('method')}</td>
                 <td className="value">{meta?.method ? (METHOD_LABEL[meta.method] ?? meta.method) : '—'}</td>
               </tr>
               {meta?.reference && (
                 <tr>
-                  <td className="label">Referencia</td>
+                  <td className="label">{t('reference')}</td>
                   <td className="value" style={{ fontFamily: 'monospace' }}>{meta.reference}</td>
                 </tr>
               )}
@@ -179,7 +181,7 @@ export default async function SettlementPrintPage({ params }: Props) {
               )}
               {meta?.receivedAt && (
                 <tr>
-                  <td className="label">Fecha recibido</td>
+                  <td className="label">{t('receivedOn')}</td>
                   <td className="value">{fmtDate(meta.receivedAt)}</td>
                 </tr>
               )}
@@ -189,42 +191,42 @@ export default async function SettlementPrintPage({ params }: Props) {
 
         {/* Case info */}
         <div className="section">
-          <div className="section-title">Información del caso</div>
+          <div className="section-title">{t('caseInfo')}</div>
           <table>
             <tbody>
               <tr>
-                <td className="label">Código de caso</td>
+                <td className="label">{t('caseCode')}</td>
                 <td className="value" style={{ fontFamily: 'monospace' }}>{caseData.caseCode}</td>
               </tr>
               <tr>
-                <td className="label">Paciente</td>
+                <td className="label">{t('patient')}</td>
                 <td className="value">{caseData.patient.firstName} {caseData.patient.lastName}</td>
               </tr>
               <tr>
-                <td className="label">Código paciente</td>
+                <td className="label">{t('patientCode')}</td>
                 <td className="value" style={{ fontFamily: 'monospace' }}>{caseData.patient.patientCode}</td>
               </tr>
               {caseData.accidentDate && (
                 <tr>
-                  <td className="label">Fecha de accidente</td>
+                  <td className="label">{t('accidentDate')}</td>
                   <td className="value">{fmtDate(caseData.accidentDate)}</td>
                 </tr>
               )}
               {caseData.primaryInsurance && (
                 <tr>
-                  <td className="label">Aseguradora</td>
+                  <td className="label">{t('carrier')}</td>
                   <td className="value">{caseData.primaryInsurance.name}</td>
                 </tr>
               )}
               {caseData.lawFirm && (
                 <tr>
-                  <td className="label">Bufete</td>
+                  <td className="label">{t('firm')}</td>
                   <td className="value">{caseData.lawFirm.firmName}</td>
                 </tr>
               )}
               {caseData.attorney && (
                 <tr>
-                  <td className="label">Abogado</td>
+                  <td className="label">{t('attorney')}</td>
                   <td className="value">{caseData.attorney.firstName} {caseData.attorney.lastName}</td>
                 </tr>
               )}

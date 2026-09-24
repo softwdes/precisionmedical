@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
 import {
   Button,
@@ -325,6 +326,7 @@ function ServiceDialog({
 }) {
   const t = useTranslations('phoenix.services');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
 
   const CATEGORY_OPTIONS = [
     { value: 'EM',                label: t('cat_EM') },
@@ -408,7 +410,7 @@ function ServiceDialog({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onSaved();
     } catch (e) {
@@ -596,6 +598,7 @@ function DeleteConfirmDialog({
 }) {
   const t = useTranslations('phoenix.services');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -608,7 +611,7 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/services?id=${service.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {

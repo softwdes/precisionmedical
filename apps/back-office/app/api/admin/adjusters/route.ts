@@ -123,7 +123,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const carrier = await db.insuranceCarrier.findUnique({ where: { id: parsed.insuranceCarrierId } });
   if (!carrier || carrier.deletedAt) {
     return NextResponse.json(
-      { error: 'CARRIER_NOT_FOUND', message: 'La aseguradora seleccionada ya no existe.' },
+      { error: 'CARRIER_NOT_FOUND' },
       { status: 404 },
     );
   }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   if (existing && !existing.deletedAt) {
     return NextResponse.json(
-      { error: 'DUPLICATE_NAME', message: `"${parsed.name}" ya está registrado en ${carrier.name}.` },
+      { error: 'DUPLICATE_IN_CARRIER', params: { name: parsed.name, carrier: carrier.name } },
       { status: 409 },
     );
   }
@@ -188,7 +188,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     });
     if (dup && dup.id !== before.id && !dup.deletedAt) {
       return NextResponse.json(
-        { error: 'DUPLICATE_NAME', message: `"${parsed.name}" ya está registrado en esa aseguradora.` },
+        { error: 'DUPLICATE_NAME', params: { name: parsed.name } },
         { status: 409 },
       );
     }

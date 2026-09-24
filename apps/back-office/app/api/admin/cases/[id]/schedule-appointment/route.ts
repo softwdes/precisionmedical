@@ -81,7 +81,7 @@ export async function POST(
     return NextResponse.json(
       {
         error: 'INVALID_STATUS',
-        message: `No se puede agendar desde status ${caseRecord.status}. Esperado: CONFIRMED.`,
+        params: { status: caseRecord.status, esperado: 'CONFIRMED' },
         currentStatus: caseRecord.status,
       },
       { status: 409 },
@@ -113,7 +113,7 @@ export async function POST(
   const scheduledForDate = new Date(parsed.scheduledFor);
   if (horarioYaPaso(scheduledForDate)) {
     return NextResponse.json(
-      { error: 'INVALID_DATE', message: 'La fecha/hora debe ser futura.' },
+      { error: 'INVALID_DATE' },
       { status: 400 },
     );
   }
@@ -121,7 +121,7 @@ export async function POST(
   // Ninguna clínica atiende sábado/domingo (ver /api/admin/appointments POST)
   if (isWeekendInDenver(scheduledForDate)) {
     return NextResponse.json(
-      { error: 'WEEKEND_NOT_ALLOWED', message: 'No se pueden agendar citas en fin de semana.' },
+      { error: 'WEEKEND_NOT_ALLOWED' },
       { status: 400 },
     );
   }

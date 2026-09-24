@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { MoreHorizontal, Eye, PenLine, History, FileDown, FileText, FileSignature, Loader2 } from 'lucide-react';
@@ -305,6 +306,7 @@ export function SignDialog({
   onClose: () => void;
   onSigned: () => void;
 }): React.ReactElement {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
 
@@ -325,7 +327,7 @@ export function SignDialog({
       });
       const data = await res.json().catch(() => ({})) as { message?: string; error?: string };
       if (!res.ok) {
-        setError(data.error === 'NOT_AN_ATTORNEY' ? t('notAnAttorney') : (data.message ?? t('signError')));
+        setError(data.error === 'NOT_AN_ATTORNEY' ? t('notAnAttorney') : (serverError(data as ServerErrorBody, t('signError'))));
         return;
       }
       onSigned();

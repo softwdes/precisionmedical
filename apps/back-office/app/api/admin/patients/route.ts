@@ -197,7 +197,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json(
-        { ok: false, error: 'EMAIL_TAKEN', message: 'Este email ya está registrado en otro paciente.' },
+        { ok: false, error: 'EMAIL_TAKEN' },
         { status: 409 },
       );
     }

@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { Copy, Check, Plus, X, Mail, Phone, UserRound, Loader2 } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
@@ -277,6 +278,7 @@ export function ManagersSection({
   autoOpen?: boolean;
   handleRef?: Ref<SectionHandle>;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, loading, reload } = useManagers(caseId);
 
@@ -347,7 +349,7 @@ export function ManagersSection({
         setError(
           soloCorreo ? ''
           : campos   ? t('managerCheckFields', { fields: campos.join(', ') })
-          : json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`,
+          : serverError(json as ServerErrorBody, t('errSave')),
         );
         return false;
       }

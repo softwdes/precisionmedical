@@ -22,6 +22,7 @@
  */
 
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Camera, Download, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
@@ -269,6 +270,7 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
    */
   onFotosPaciente?: (r: { fotos: Record<string, string>; sinLink: string[] }) => void;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.patients');
   const tc = useTranslations('phoenix.common');
   const viewer = useFileViewer(t('archivosDownloadError'));
@@ -328,7 +330,7 @@ function ArchivosDelPaciente({ patientId, onFotosPaciente }: {
     try {
       const res = await fetch(`/api/admin/patients/${patientId}/documents/${doc.id}/download`);
       const data = await res.json();
-      if (!res.ok) { alert(data.message ?? t('archivosDownloadError')); return; }
+      if (!res.ok) { alert(serverError(data as ServerErrorBody, t('archivosDownloadError'))); return; }
       viewer.show({ fileName: data.name ?? doc.name, url: data.url, downloadUrl: data.downloadUrl });
     } catch {
       alert(t('archivosDownloadError'));

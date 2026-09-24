@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useImperativeHandle, useRef, type Ref } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { Plus, X, Mail, Phone, Printer, Loader2, MapPin } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
@@ -318,6 +319,7 @@ export function AdjustersPopover({
   /** Para que la grilla repinte la celda cuando se asigna desde acá. */
   onChanged?: () => void;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.edsonTracking');
   const { current, carrier, loading, reload } = useCaseAdjusters(caseId);
   const [saving, setSaving] = useState(false);
@@ -340,7 +342,7 @@ export function AdjustersPopover({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.message ?? json.error ?? t('errSave'));
+        setError(serverError(json as ServerErrorBody, t('errSave')));
         return;
       }
       await reload();
@@ -416,6 +418,7 @@ export function AdjustersSection({
   autoOpen?: boolean;
   handleRef?: Ref<import('./case-managers').SectionHandle>;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.edsonTracking');
   const { current, past, carrier, loading, reload } = useCaseAdjusters(caseId);
 
@@ -449,7 +452,7 @@ export function AdjustersSection({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
+        setError(serverError(json as ServerErrorBody, t('errSave')));
         return;
       }
       setAdding(false);
@@ -471,7 +474,7 @@ export function AdjustersSection({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.message ?? json.error ?? `${t('errSave')} (HTTP ${res.status})`);
+        setError(serverError(json as ServerErrorBody, t('errSave')));
         return;
       }
       setAdding(false); setName(''); setPhone(''); setExt(''); setFax(''); setEmail('');

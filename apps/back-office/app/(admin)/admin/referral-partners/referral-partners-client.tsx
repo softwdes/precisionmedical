@@ -17,6 +17,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import {
   Pencil, Trash2, Plus, Search as SearchIcon, Phone, Merge, Users, AlertTriangle,
 } from 'lucide-react';
@@ -273,6 +274,7 @@ export function PartnerDialog({
 }) {
   const t  = useTranslations('phoenix.referralPartners');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [type, setType]       = useState<TipoReferidor>(editing?.type ?? tipoInicial ?? 'CHIROPRACTOR');
   const [name, setName]       = useState(editing?.name ?? initialName ?? '');
   const [contactName, setContactName] = useState(editing?.contactName ?? '');
@@ -325,7 +327,7 @@ export function PartnerDialog({
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       onCreated?.(data.partner);
       onSaved?.();
       onOpenChange(false);
@@ -435,6 +437,7 @@ function MergeDialog({
 }) {
   const t  = useTranslations('phoenix.referralPartners');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [intoId, setIntoId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
@@ -462,7 +465,7 @@ function MergeDialog({
         body: JSON.stringify({ fromId: from.id, intoId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
       onMerged();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errSave'));
@@ -525,6 +528,7 @@ function DeleteConfirmDialog({
 }) {
   const t  = useTranslations('phoenix.referralPartners');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -537,7 +541,7 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/referral-partners?id=${partner.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {

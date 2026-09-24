@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, Info, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   Button,
   Dialog,
@@ -55,11 +56,13 @@ export function ConfirmDialog({
   onCancel,
   title,
   description,
-  confirmLabel = 'Confirmar',
-  cancelLabel  = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   variant      = 'warning',
   showCancel   = true,
 }: Props) {
+  // Sin prop, la etiqueta sale del idioma de quien mira.
+  const tc = useTranslations('phoenix.common');
   const cfg = VARIANT_CONFIG[variant];
   const dismiss = onCancel ?? onConfirm;
 
@@ -89,7 +92,7 @@ export function ConfirmDialog({
               onClick={dismiss}
               className="w-full sm:w-auto"
             >
-              {cancelLabel}
+              {cancelLabel ?? tc('cancel')}
             </Button>
           )}
           <button
@@ -97,7 +100,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className={`w-full sm:w-auto px-4 py-2 rounded-md text-sm font-semibold transition-colors ${cfg.confirmClass}`}
           >
-            {confirmLabel}
+            {confirmLabel ?? tc('confirm')}
           </button>
         </DialogFooter>
       </DialogContent>

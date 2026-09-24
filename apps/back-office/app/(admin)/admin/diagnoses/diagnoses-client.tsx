@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
   Button,
@@ -333,6 +334,7 @@ function CategoryPill({ cat }: { cat: string }) {
 function DiagnosisDialog({ open, onOpenChange, editing, onSaved, categoryOptions }: { open: boolean; onOpenChange: (open: boolean) => void; editing: Diagnosis | null; onSaved: () => void; categoryOptions: { value: string; label: string }[] }) {
   const t  = useTranslations('phoenix.diagnoses');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
 
   const [icd10Code, setIcd10Code]               = useState(editing?.icd10Code ?? '');
   const [icd10Description, setIcd10Description] = useState(editing?.icd10Description ?? '');
@@ -383,7 +385,7 @@ function DiagnosisDialog({ open, onOpenChange, editing, onSaved, categoryOptions
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onSaved();
     } catch (e) {
@@ -522,6 +524,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 function DeleteConfirmDialog({ diagnosis, onClose, onConfirmed }: { diagnosis: Diagnosis | null; onClose: () => void; onConfirmed: () => void }) {
   const t  = useTranslations('phoenix.diagnoses');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
 
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -534,7 +537,7 @@ function DeleteConfirmDialog({ diagnosis, onClose, onConfirmed }: { diagnosis: D
       const res = await fetch(`/api/admin/diagnoses?id=${diagnosis.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {

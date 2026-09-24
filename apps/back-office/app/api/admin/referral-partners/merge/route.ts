@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!from || !into) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   if (into.deletedAt) {
     return NextResponse.json(
-      { error: 'TARGET_DELETED', message: 'El referidor que queda no puede ser uno borrado.' },
+      { error: 'TARGET_DELETED' },
       { status: 409 },
     );
   }

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { Eye, Pencil, KeyRound, Trash2, Plus, Search as SearchIcon, Phone, Mail, Printer, Globe, AlertTriangle } from 'lucide-react';
 import {
   Button,
@@ -70,28 +71,14 @@ const COLOR_PALETTE = [
   '#EC4899', '#6366F1', '#10B981', '#8B5CF6',
 ];
 
-const TYPE_OPTIONS = [
-  { value: 'PIP',     label: 'PIP — Personal Injury Protection' },
-  { value: 'MED_PAY', label: 'Med Pay — Medical Payments' },
-  { value: 'HEALTH',  label: 'Health — Seguro de salud' },
-  { value: 'WORKERS', label: 'Workers — Workers Compensation' },
-  { value: 'OTHER',   label: 'Otro' },
-];
-
-const HCFA_CHANNELS = [
-  { value: 'EMAIL',  label: '📧 Email (PDF adjunto)' },
-  { value: 'FAX',    label: '📠 Fax' },
-  { value: 'PORTAL', label: '🌐 Portal web' },
-  { value: 'PAPER',  label: '✉️ Correo postal' },
-  { value: 'EDI',    label: '⚡ EDI (preferido high-volume)' },
-];
-
-const RESPONSE_SPEEDS = [
-  { value: 'UNKNOWN', label: 'Sin data aún' },
-  { value: 'FAST',    label: '🟢 Rápido (< 15 días)' },
-  { value: 'AVERAGE', label: '🟡 Promedio (15-30 días)' },
-  { value: 'SLOW',    label: '🔴 Lento (> 30 días)' },
-];
+/**
+ * Solo el ORDEN de cada selector: la etiqueta sale del diccionario al dibujar
+ * (`type*`, `hcfa*`, `speed*`). Un array con el texto adentro se resuelve al
+ * cargar el módulo, cuando todavía no existe el `t`.
+ */
+const TYPE_OPTIONS = ['PIP', 'MED_PAY', 'HEALTH', 'WORKERS', 'OTHER'] as const;
+const HCFA_CHANNELS = ['EMAIL', 'FAX', 'PORTAL', 'PAPER', 'EDI'] as const;
+const RESPONSE_SPEEDS = ['UNKNOWN', 'FAST', 'AVERAGE', 'SLOW'] as const;
 
 export function InsurancesClient({ insurances, stats }: Props) {
   const router = useRouter();
@@ -162,11 +149,11 @@ export function InsurancesClient({ insurances, stats }: Props) {
             <DataTable.Head>
               <DataTable.Th>{t('columnCarrier')}</DataTable.Th>
               <DataTable.Th align="center">{t('columnType')}</DataTable.Th>
-              <DataTable.Th>Claims</DataTable.Th>
+              <DataTable.Th>{t('colClaims')}</DataTable.Th>
               <DataTable.Th align="center">HCFA</DataTable.Th>
-              <DataTable.Th align="right">Avg respuesta</DataTable.Th>
-              <DataTable.Th align="center">Estado</DataTable.Th>
-              <DataTable.Th align="right">Acciones</DataTable.Th>
+              <DataTable.Th align="right">{t('colResponseAvg')}</DataTable.Th>
+              <DataTable.Th align="center">{t('colStatus')}</DataTable.Th>
+              <DataTable.Th align="right">{t('colActions')}</DataTable.Th>
             </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
@@ -229,15 +216,15 @@ export function InsurancesClient({ insurances, stats }: Props) {
                     <DataTable.Td align="center">
                       <StatusPill
                         state={ins.isActive ? 'active' : 'inactive'}
-                        label={ins.isActive ? 'Activa' : 'Inactiva'}
+                        label={ins.isActive ? t('stActive') : t('stInactive')}
                       />
                     </DataTable.Td>
                     <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
-                        <IconAction onClick={() => setViewing(ins)} icon={Eye}     label="Ver" />
-                        <IconAction onClick={() => setEditing(ins)} icon={Pencil}  label="Editar" />
-                        <IconAction onClick={() => {}} icon={KeyRound} label="Permisos" disabled />
-                        <IconAction onClick={() => setDeleting(ins)} icon={Trash2} label="Eliminar" variant="danger" />
+                        <IconAction onClick={() => setViewing(ins)} icon={Eye}     label={t('actionView')} />
+                        <IconAction onClick={() => setEditing(ins)} icon={Pencil}  label={t('actionEdit')} />
+                        <IconAction onClick={() => {}} icon={KeyRound} label={t('actionPermissions')} disabled />
+                        <IconAction onClick={() => setDeleting(ins)} icon={Trash2} label={t('actionDelete')} variant="danger" />
                       </div>
                     </DataTable.Td>
                   </DataTable.Row>
@@ -247,7 +234,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
-          left={`${filtered.length} de ${stats.total} aseguradoras`}
+          left={t('footerLeft', { n: filtered.length, total: stats.total })}
           right={
             <span className="flex items-center gap-4">
               <span>🟢 &lt;15d: <strong className="text-emerald">{stats.fast}</strong></span>
@@ -284,6 +271,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
 
 /** TypePill — Pill por tipo de cobertura PIP/MED_PAY/HEALTH/WORKERS/OTHER */
 function TypePill({ type }: { type: string }) {
+  const t = useTranslations('phoenix.insurances');
   const colors: Record<string, string> = {
     PIP:     'bg-cyan/15 text-cyan border-cyan/30',
     MED_PAY: 'bg-violet/15 text-violet-text border-violet/30',
@@ -291,14 +279,15 @@ function TypePill({ type }: { type: string }) {
     WORKERS: 'bg-amber/15 text-amber border-amber/30',
     OTHER:   'bg-white/5 text-text-2 border-border',
   };
+  // PIP, Med Pay, Health y Workers son nombres de producto y van igual en los
+  // dos idiomas; el único que se traduce es "Otro".
   const labels: Record<string, string> = {
     PIP:     'PIP',
     MED_PAY: 'Med Pay',
     HEALTH:  'Health',
     WORKERS: 'Workers',
-    OTHER:   'Otro',
   };
-  return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? colors.OTHER} mono />;
+  return <TagPill label={labels[type] ?? t('tagOTHER')} colorClass={colors[type] ?? colors.OTHER} mono />;
 }
 
 /** HcfaChannelPill — Pill por canal de envío HCFA (Email/Fax/Portal/Paper/EDI) */
@@ -342,6 +331,9 @@ function InsuranceDialog({
   editing: Insurance | null;
   onSaved: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.insurances');
+  const serverError = useServerError();
   const [name, setName]             = useState(editing?.name ?? '');
   const [legalName, setLegalName]   = useState(editing?.legalName ?? '');
   const [shortCode, setShortCode]   = useState(editing?.shortCode ?? '');
@@ -415,11 +407,11 @@ function InsuranceDialog({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -438,23 +430,23 @@ function InsuranceDialog({
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2 scroll-thin">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <Label htmlFor="name">Nombre comercial <span className="text-rose">*</span></Label>
+              <Label htmlFor="name">{t('fieldName')} <span className="text-rose">*</span></Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="GEICO" autoFocus />
             </div>
             <div>
-              <Label htmlFor="shortCode">Código corto <span className="text-rose">*</span></Label>
+              <Label htmlFor="shortCode">{t('fieldShortCode')} <span className="text-rose">*</span></Label>
               <Input id="shortCode" value={shortCode} onChange={(e) => setShortCode(e.target.value.toUpperCase())} placeholder="G, SF, PR" maxLength={4} />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="legalName">Nombre legal completo</Label>
+            <Label htmlFor="legalName">{t('fieldLegalName')}</Label>
             <Input id="legalName" value={legalName ?? ''} onChange={(e) => setLegalName(e.target.value)} placeholder="Government Employees Insurance Company" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Color para avatar</Label>
+              <Label>{t('fieldColor')}</Label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {COLOR_PALETTE.map((c) => (
                   <button
@@ -476,7 +468,7 @@ function InsuranceDialog({
                 onChange={(e) => setType(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
-                {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {TYPE_OPTIONS.map((v) => <option key={v} value={v}>{t(`type${v}`)}</option>)}
               </select>
             </div>
           </div>
@@ -485,7 +477,7 @@ function InsuranceDialog({
             <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">Claims contact</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="claimsPhone">Teléfono</Label>
+                <Label htmlFor="claimsPhone">{t('fieldPhone')}</Label>
                 <Input id="claimsPhone" value={claimsPhone ?? ''} onChange={(e) => setClaimsPhone(e.target.value)} placeholder="1-800-..." />
               </div>
               <div>
@@ -502,7 +494,7 @@ function InsuranceDialog({
               </div>
             </div>
             <div className="mt-3">
-              <Label htmlFor="claimsAddress">Dirección postal para claims</Label>
+              <Label htmlFor="claimsAddress">{t('fieldClaimsAddress')}</Label>
               <textarea
                 id="claimsAddress"
                 value={claimsAddress ?? ''}
@@ -524,39 +516,39 @@ function InsuranceDialog({
                   onChange={(e) => setHcfaChannel(e.target.value)}
                   className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 >
-                  {HCFA_CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  {HCFA_CHANNELS.map((v) => <option key={v} value={v}>{t(`hcfa${v}`)}</option>)}
                 </select>
               </div>
               <div>
-                <Label htmlFor="avgResponseDays">Días promedio de respuesta</Label>
+                <Label htmlFor="avgResponseDays">{t('fieldResponseDays')}</Label>
                 <Input id="avgResponseDays" type="number" value={avgResponseDays} onChange={(e) => setAvgResponseDays(e.target.value)} placeholder="14" min={0} />
               </div>
             </div>
             <div className="mt-3">
-              <Label htmlFor="responseSpeed">Clasificación de velocidad</Label>
+              <Label htmlFor="responseSpeed">{t('fieldSpeed')}</Label>
               <select
                 id="responseSpeed"
                 value={responseSpeed}
                 onChange={(e) => setResponseSpeed(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
-                {RESPONSE_SPEEDS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {RESPONSE_SPEEDS.map((v) => <option key={v} value={v}>{t(`speed${v}`)}</option>)}
               </select>
             </div>
             <label className="flex items-center gap-2 mt-3 cursor-pointer">
               <input type="checkbox" checked={preauthRequired} onChange={(e) => setPreauthRequired(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
-              <span className="text-sm text-text-2">Requiere pre-autorización antes de servicios</span>
+              <span className="text-sm text-text-2">{t('fieldPreauth')}</span>
             </label>
           </div>
 
           <div className="pt-3 border-t border-border">
-            <Label htmlFor="notes">Notas internas (Brunella/Edson)</Label>
+            <Label htmlFor="notes">{t('fieldNotes')}</Label>
             <textarea
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Detalles operativos: agente específico, observaciones, etc."
+              placeholder={t('phNotes')}
             />
           </div>
 
@@ -571,9 +563,9 @@ function InsuranceDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear aseguradora'}
+            {saving ? tc('saving') : editing ? tc('saveChanges') : t('newButton')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -588,6 +580,8 @@ function ViewDialog({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.insurances');
   if (!insurance) return null;
   return (
     <Dialog open={!!insurance} onOpenChange={(open) => !open && onClose()}>
@@ -607,7 +601,7 @@ function ViewDialog({
           <InfoRow label="Estado" value={
             <StatusPill
               state={insurance.isActive ? 'active' : 'inactive'}
-              label={insurance.isActive ? 'Activa' : 'Inactiva'}
+              label={insurance.isActive ? t('stActive') : t('stInactive')}
             />
           } />
           <InfoRow label="Claims phone"
@@ -627,8 +621,8 @@ function ViewDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> Editar</Button>
+          <Button variant="outline" onClick={onClose}>{tc('close')}</Button>
+          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> {t('viewEdit')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -655,6 +649,9 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onConfirmed: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const t = useTranslations('phoenix.insurances');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -667,11 +664,11 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/insurances?id=${insurance.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al eliminar');
+      setError(e instanceof Error ? e.message : t('errorDelete'));
     } finally {
       setDeleting(false);
     }
@@ -681,9 +678,12 @@ function DeleteConfirmDialog({
     <Dialog open={!!insurance} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-rose">Eliminar aseguradora</DialogTitle>
+          <DialogTitle className="text-rose">{t('deleteTitle')}</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-text-1">"{insurance.name}"</strong>? Se hace soft-delete (queda inactiva).
+            {t.rich('deleteDesc', {
+              nombre: insurance.name,
+              b: (chunks) => <strong className="text-text-1">{chunks}</strong>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -692,9 +692,9 @@ function DeleteConfirmDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('cancel')}</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Eliminando...' : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar</>)}
+            {deleting ? t('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {t('btnDelete')}</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

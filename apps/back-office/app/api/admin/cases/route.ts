@@ -371,7 +371,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (mismaPersona) {
       return NextResponse.json({
         error: 'DUPLICATE_PATIENT',
-        message: `Ya existe un paciente con ese nombre y contacto: ${mismaPersona.firstName} ${mismaPersona.lastName} (${mismaPersona.patientCode}).`,
+        params: { name: `${mismaPersona.firstName} ${mismaPersona.lastName} (${mismaPersona.patientCode})` },
         existingPatientId: mismaPersona.id,
         existingPatientCode: mismaPersona.patientCode,
         candidatos,
@@ -507,8 +507,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (correoMenor && correoMenor.toLowerCase() === correoApoderado) {
       return NextResponse.json({
         error: 'GUARDIAN_EMAIL_IS_PATIENT_EMAIL',
-        message: 'El correo del apoderado no puede ser también el del paciente. '
-          + 'El correo del apoderado vive en su propia ficha — dejá vacío el del menor.',
       }, { status: 400 });
     }
   }
@@ -528,7 +526,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     const scheduledForDate = new Date(parsed.appointment.scheduledFor);
     if (scheduledForDate.getTime() < Date.now()) {
-      return NextResponse.json({ error: 'INVALID_DATE', message: 'La fecha/hora debe ser futura.' }, { status: 400 });
+      return NextResponse.json({ error: 'INVALID_DATE' }, { status: 400 });
     }
 
     // ─── Verificar conflicto de horario (P1) ────────────────────────────
@@ -551,17 +549,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (conflict) {
       const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
       if (conflict.scheduledFor < apptEnd && conflictEnd > scheduledForDate) {
-        const conflictTime = conflict.scheduledFor.toLocaleTimeString('es-US', {
-          hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-        });
         return NextResponse.json(
           {
             error:   'SLOT_CONFLICT',
-            message: `El provider ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
-            // Los mismos campos que el resto de los 409 de cruce, para que el
-            // día que el wizard arme su cartel no tenga que volver a tocar esto.
-            // Acá el texto SIGUE saliendo en español: los tres diálogos del alta
-            // muestran `message` tal cual (ver pending-tasks.md).
+            params:  { paciente: `${conflict.patient.firstName} ${conflict.patient.lastName}` },
+            /**
+             * La HORA no viaja formateada, a propósito: se armaba con
+             * `toLocaleTimeString('es-US')`, o sea en castellano para todo el
+             * mundo. Va `conflictAt` en ISO y la formatea quien la muestra, que
+             * es el único que sabe en qué idioma está mirando.
+             */
             conflictAppointmentId: conflict.id,
             conflictAt:      conflict.scheduledFor.toISOString(),
             conflictPatient: `${conflict.patient.firstName} ${conflict.patient.lastName}`,

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import {
   Pencil, Trash2, Plus, Search as SearchIcon, Phone, Printer, AlertTriangle,
 } from 'lucide-react';
@@ -268,6 +269,7 @@ function AdjusterDialog({
 }) {
   const t  = useTranslations('phoenix.adjusters');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [insuranceCarrierId, setCarrier] = useState(editing?.insuranceCarrierId ?? carriers[0]?.id ?? '');
   const [name, setName]           = useState(editing?.name ?? '');
   const [phone, setPhone]         = useState(editing?.phone ?? '');
@@ -322,7 +324,7 @@ function AdjusterDialog({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onSaved();
     } catch (e) {
@@ -428,6 +430,7 @@ function DeleteConfirmDialog({
 }) {
   const t  = useTranslations('phoenix.adjusters');
   const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -440,7 +443,7 @@ function DeleteConfirmDialog({
       const res = await fetch(`/api/admin/adjusters?id=${adjuster.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onConfirmed();
     } catch (e) {

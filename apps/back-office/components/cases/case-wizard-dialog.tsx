@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, X } from 'lucide-react';
@@ -160,6 +161,7 @@ function ConsentBlock({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editCaseId, onSaved }: Props) {
+  const serverError = useServerError();
   const t      = useTranslations('caseWizard');
   const router = useRouter();
 
@@ -402,7 +404,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           setError('');
           return;
         }
-        setError(json.message ?? json.error ?? 'Error al crear el caso.');
+        setError(serverError(json as ServerErrorBody, 'Error al crear el caso.'));
         return;
       }
       onOpenChange(false);
@@ -465,7 +467,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.message ?? json.error ?? 'Error al guardar.'); return; }
+      if (!res.ok) { setError(serverError(json as ServerErrorBody, 'Error al guardar.')); return; }
       onOpenChange(false);
       if (onSaved) onSaved();
     } catch {

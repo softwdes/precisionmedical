@@ -21,6 +21,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { Trash2, RotateCcw, Search, AlertCircle, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
@@ -57,6 +58,7 @@ export function DeletedAppointmentsDialog({
   /** Para que el calendario vuelva a pedir sus citas cuando una regresa. */
   onRestored: () => void;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.calendar');
 
   const [citas,     setCitas]     = useState<CitaEliminada[]>([]);
@@ -114,7 +116,7 @@ export function DeletedAppointmentsDialog({
           return;
         }
       }
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
       setCitas(cs => cs.filter(c => c.id !== cita.id));
       onRestored();
     } catch (e) {

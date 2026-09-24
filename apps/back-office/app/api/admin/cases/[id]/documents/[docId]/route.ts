@@ -60,7 +60,7 @@ export async function DELETE(
 
   if (doc.isFolder && doc._count.children > 0) {
     return NextResponse.json(
-      { error: 'FOLDER_NOT_EMPTY', message: 'Vacía la carpeta antes de eliminarla.' },
+      { error: 'FOLDER_NOT_EMPTY' },
       { status: 409 },
     );
   }

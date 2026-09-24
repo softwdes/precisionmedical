@@ -84,6 +84,10 @@ const ProviderInputSchema = z.object({
    * que vuelva a entrar un `9906372145`.
    */
   npi: z.string().trim()
+    /* El texto queda acá: esto es un mensaje de ZOD, que viaja por
+       `flatten()` en `details` y no por el `error` de la respuesta, así que
+       `lib/server-error.ts` no lo ve. Traducir las validaciones de zod es su
+       propia tarea — ver pending-tasks. */
     .refine((v) => v === '' || npiValido(v), { message: 'NPI inválido' })
     .nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'TERMINATED']).default('ACTIVE'),

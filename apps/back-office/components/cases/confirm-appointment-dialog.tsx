@@ -1,5 +1,7 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
+import { useTranslations } from 'next-intl';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -36,6 +38,9 @@ interface ConfirmAppointmentDialogProps {
 }
 
 export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: ConfirmAppointmentDialogProps) {
+  const t  = useTranslations('phoenix.confirmAppt');
+  const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const router = useRouter();
 
   const [dolConfirmed, setDolConfirmed]    = useState(false);
@@ -80,12 +85,12 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       setSuccess(true);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al confirmar');
+      setError(e instanceof Error ? e.message : t('errorConfirm'));
     } finally {
       setSaving(false);
     }
@@ -96,20 +101,20 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
-          <DialogTitle className="sr-only">Cita confirmada</DialogTitle>
+          <DialogTitle className="sr-only">{t('okTitle')}</DialogTitle>
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-emerald/20 border-2 border-emerald flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
             </div>
-            <h2 className="text-xl font-bold text-text-1 mb-2">Cita confirmada</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-2">{t('okTitle')}</h2>
             <p className="text-text-2 text-sm mb-4">
               <code className="text-emerald font-mono font-bold">{caseInfo.caseCode}</code>
             </p>
             <div className="text-xs text-text-muted mb-6">
-              <strong className="text-text-2">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> · status <code className="text-emerald">CONFIRMED</code><br />
-              El paciente está listo para venir a su primera cita.
+              <strong className="text-text-2">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> · {t('okStatus')} <code className="text-emerald">CONFIRMED</code><br />
+              {t('okBody')}
             </div>
-            <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+            <Button onClick={() => onOpenChange(false)}>{tc('close')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -123,10 +128,14 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PhoneCall className="w-5 h-5 text-cyan" />
-            Confirmar cita · llamada 24h antes
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Llamá a <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> y completá el checklist abajo. Solo se confirma cuando los 4 items están marcados.
+            {t.rich('desc', {
+              paciente: `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}`,
+              // El nombre va en negrita: es a quién hay que llamar.
+              b: (chunks) => <strong className="text-text-1">{chunks}</strong>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,8 +147,8 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Llamar a paciente</div>
-                <div className="text-text-1 font-mono text-base mt-1">{caseInfo.patient.phone ?? '— sin teléfono —'}</div>
+                <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('callPatient')}</div>
+                <div className="text-text-1 font-mono text-base mt-1">{caseInfo.patient.phone ?? t('noPhone')}</div>
               </div>
               {caseInfo.patient.phone && (
                 <div className="w-10 h-10 rounded-full bg-emerald flex items-center justify-center text-white">
@@ -152,21 +161,21 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           {/* Script de llamada — context para Recepción */}
           <div className="rounded-lg border border-brand/20 bg-brand/5 p-4">
             <div className="flex items-center gap-2 text-brand-text text-xs font-semibold uppercase tracking-wider mb-2">
-              <Info className="w-3.5 h-3.5" /> Datos del caso (para referencia durante la llamada)
+              <Info className="w-3.5 h-3.5" /> {t('caseDataTitle')}
             </div>
             <div className="space-y-1 text-xs text-text-2">
-              <div><strong className="text-text-1">Caso:</strong> <code className="font-mono">{caseInfo.caseCode}</code></div>
+              <div><strong className="text-text-1">{t('fieldCase')}</strong> <code className="font-mono">{caseInfo.caseCode}</code></div>
               {caseInfo.accidentDate && (
-                <div><strong className="text-text-1">DOL (Date of Loss):</strong> {new Date(caseInfo.accidentDate).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
+                <div><strong className="text-text-1">{t('fieldDol')}</strong> {new Date(caseInfo.accidentDate).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
               )}
               {caseInfo.accidentLocation && (
-                <div><strong className="text-text-1">Lugar:</strong> {caseInfo.accidentLocation}</div>
+                <div><strong className="text-text-1">{t('fieldPlace')}</strong> {caseInfo.accidentLocation}</div>
               )}
               {caseInfo.lawFirm && (
-                <div><strong className="text-text-1">Bufete:</strong> {caseInfo.lawFirm.firmName}</div>
+                <div><strong className="text-text-1">{t('fieldFirm')}</strong> {caseInfo.lawFirm.firmName}</div>
               )}
               {caseInfo.primaryInsurance && (
-                <div><strong className="text-text-1">Aseguradora:</strong> {caseInfo.primaryInsurance.name}</div>
+                <div><strong className="text-text-1">{t('fieldInsurer')}</strong> {caseInfo.primaryInsurance.name}</div>
               )}
             </div>
           </div>
@@ -175,7 +184,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           <div className="rounded-lg border border-border bg-bg-2/30 p-4">
             <div className="flex items-center gap-2 text-text-1 font-semibold text-sm mb-3">
               <ClipboardList className="w-4 h-4 text-brand-text" />
-              Checklist de confirmación
+              {t('checklistTitle')}
               <span className="text-text-muted text-xs font-normal ml-auto">
                 {[dolConfirmed, docsBringing, timeConfirmed, infoUpToDate].filter(Boolean).length}/4
               </span>
@@ -184,39 +193,39 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
               <ChecklistItem
                 checked={dolConfirmed}
                 onChange={setDolConfirmed}
-                label="DOL (fecha del accidente) confirmada con el paciente"
-                hint="Confirma que la fecha en el sistema coincide con lo que reporta el paciente"
+                label={t('chkDol')}
+                hint={t('chkDolHint')}
               />
               <ChecklistItem
                 checked={docsBringing}
                 onChange={setDocsBringing}
-                label="Trae documentos (ID + reporte ER si lo tiene)"
-                hint="Pídele al paciente que traiga identificación y cualquier reporte médico previo"
+                label={t('chkDocs')}
+                hint={t('chkDocsHint')}
               />
               <ChecklistItem
                 checked={timeConfirmed}
                 onChange={setTimeConfirmed}
-                label="Horario de la cita confirmado"
-                hint="Verifica que el horario sigue siendo conveniente · si no, ofrece reagendar"
+                label={t('chkTime')}
+                hint={t('chkTimeHint')}
               />
               <ChecklistItem
                 checked={infoUpToDate}
                 onChange={setInfoUpToDate}
-                label="Información personal sin cambios"
-                hint="¿Cambió de teléfono, dirección, aseguradora? Actualizar antes de la cita"
+                label={t('chkInfo')}
+                hint={t('chkInfoHint')}
               />
             </div>
           </div>
 
           {/* Notes optional */}
           <div>
-            <Label htmlFor="notes">Notas adicionales (opcional)</Label>
+            <Label htmlFor="notes">{t('notesLabel')}</Label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Ej: paciente pidió llegar 15 min antes · viene con familiar · prefiere ES..."
+              placeholder={t('notesPlaceholder')}
             />
           </div>
 
@@ -231,14 +240,14 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
         <DialogFooter className="border-t border-border pt-3">
           <div className="text-xs text-text-muted mr-auto flex items-center gap-1">
             {allChecked ? (
-              <><Check className="w-3.5 h-3.5 text-emerald" /> <span className="text-emerald">Listo para confirmar</span></>
+              <><Check className="w-3.5 h-3.5 text-emerald" /> <span className="text-emerald">{t('readyToConfirm')}</span></>
             ) : (
-              <><Calendar className="w-3.5 h-3.5" /> Status → <code className="text-emerald">CONFIRMED</code></>
+              <><Calendar className="w-3.5 h-3.5" /> {t('statusArrow')} <code className="text-emerald">CONFIRMED</code></>
             )}
           </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleConfirm} disabled={saving || !allChecked}>
-            {saving ? 'Confirmando...' : <><FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita</>}
+            {saving ? t('confirming') : <><FileCheck className="w-3.5 h-3.5 mr-1" /> {t('btnConfirm')}</>}
           </Button>
         </DialogFooter>
       </DialogContent>

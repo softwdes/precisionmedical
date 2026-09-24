@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import {
   APPT_COLORS, MVA_FIRST_GLOW, CANCELLED_SAMEDAY_FILL, CANCELLED_SAMEDAY_RING,
 } from '@/lib/appointment-colors';
@@ -778,6 +779,7 @@ function LegendStats({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CalendarClient({ clinics, providers, lockedProviderId }: CalendarClientProps) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.calendar');
   const router   = useRouter();
   const pathname = usePathname();
@@ -1004,7 +1006,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
    * se traducen.
    */
   const textoDelCruce = (data: RespuestaDeCruce): string => {
-    if (data.error !== 'SLOT_CONFLICT' || !data.conflictAt) return data.message ?? '';
+    if (data.error !== 'SLOT_CONFLICT' || !data.conflictAt) return serverError(data as ServerErrorBody);
     const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
     });
@@ -1044,7 +1046,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       // Se muestra el mensaje REAL del servidor. Antes el toast renderizaba una
       // constante ("Error al reprogramar") y descartaba este texto, así que un
       // rechazo con motivo concreto se veía como una falla aleatoria.
-      setDragError(data.message ?? data.error ?? t('dragError'));
+      setDragError(serverError(data as ServerErrorBody, t('dragError')));
       setTimeout(() => setDragError(null), 6000);
     } catch {
       setDragError(t('dragConnectionError'));

@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useTranslations } from 'next-intl';
 
 /**
  * B.44 — Visor de Audit Log
@@ -85,6 +86,7 @@ function actionColor(action: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AuditLogsClient({ kpis, initialLogs }: Props) {
+  const t = useTranslations('phoenix.auditLogs');
   const [logs,    setLogs]    = useState<AuditEntry[]>(initialLogs);
   const [total,   setTotal]   = useState(kpis.total);
   const [page,    setPage]    = useState(1);
@@ -158,10 +160,10 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
         title={
           <span className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-brand-text" />
-            Audit Log
+            {t('title')}
           </span>
         }
-        subtitle="Registro de actividad HIPAA — todas las acciones del sistema"
+        subtitle={t('subtitle')}
         action={
           <button
             onClick={() => fetchLogs(page)}
@@ -175,10 +177,10 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiCard label="Total eventos"  value={fmtNum(kpis.total)}      color="text-brand-text"   />
-        <KpiCard label="Hoy"            value={fmtNum(kpis.todayCount)} color="text-cyan"    />
-        <KpiCard label="Humanos"        value={fmtNum(kpis.humanCount)} color="text-emerald" />
-        <KpiCard label="Sistema / AI"   value={fmtNum(kpis.systemCount)} color="text-violet-text" />
+        <KpiCard label={t('kpiTotal')}  value={fmtNum(kpis.total)}      color="text-brand-text"   />
+        <KpiCard label={t('kpiToday')}  value={fmtNum(kpis.todayCount)} color="text-cyan"    />
+        <KpiCard label={t('kpiHumans')} value={fmtNum(kpis.humanCount)} color="text-emerald" />
+        <KpiCard label={t('kpiSystem')} value={fmtNum(kpis.systemCount)} color="text-violet-text" />
       </div>
 
       {/* Filters */}
@@ -200,7 +202,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
-              placeholder="Buscar acción, entidad, ID…"
+              placeholder={t('searchPlaceholder')}
               className="w-full rounded-md border border-border bg-bg-2 pl-7 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
             />
           </div>
@@ -211,10 +213,10 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             onChange={e => setActorType(e.target.value)}
             className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
-            <option value="">Tipo de actor</option>
-            <option value="HUMAN_USER">Humano</option>
-            <option value="AI_AGENT">AI Agent</option>
-            <option value="SYSTEM">Sistema</option>
+            <option value="">{t('filterActor')}</option>
+            <option value="HUMAN_USER">{t('actorHuman')}</option>
+            <option value="AI_AGENT">{t('actorAgent')}</option>
+            <option value="SYSTEM">{t('actorSystem')}</option>
           </select>
 
           {/* Action */}
@@ -223,7 +225,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             onChange={e => setAction(e.target.value)}
             className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
-            <option value="">Acción (todas)</option>
+            <option value="">{t('filterAction')}</option>
             {actionOpts.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
 
@@ -233,7 +235,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             onChange={e => setEntityType(e.target.value)}
             className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
-            <option value="">Entidad (todas)</option>
+            <option value="">{t('filterEntity')}</option>
             {entityTypeOpts.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
 
@@ -296,20 +298,20 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
         {logs.length === 0 ? (
           <EmptyState.Rich
             icon={Shield}
-            title="Sin eventos"
-            subtitle="No hay eventos de auditoría que coincidan con los filtros."
+            title={t('emptyTitle')}
+            subtitle={t('emptySubtitle')}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border/30">
-                  <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold whitespace-nowrap">Fecha</th>
-                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Actor</th>
-                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Acción</th>
-                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Entidad</th>
-                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden lg:table-cell">IP</th>
-                  <th className="sticky right-0 z-10 bg-bg-2 text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden xl:table-cell">Metadata</th>
+                  <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold whitespace-nowrap">{t('colDate')}</th>
+                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colActor')}</th>
+                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colAction')}</th>
+                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colEntity')}</th>
+                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden lg:table-cell">{t('colIp')}</th>
+                  <th className="sticky right-0 z-10 bg-bg-2 text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden xl:table-cell">{t('colMetadata')}</th>
                 </tr>
               </thead>
               <tbody>

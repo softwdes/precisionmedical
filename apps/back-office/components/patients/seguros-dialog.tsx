@@ -23,6 +23,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { Plus, Pencil, Trash2, Shield, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
@@ -343,6 +344,7 @@ export function SegurosDialog({ caso, titular, onClose }: {
   titular: string;
   onClose: () => void;
 }) {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.patients');
   const tCommon = useTranslations('phoenix.common');
   const cd = caso?.consentsData ?? null;
@@ -402,7 +404,7 @@ export function SegurosDialog({ caso, titular, onClose }: {
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.message ?? t('errorSave'));
+      setError(serverError(json as ServerErrorBody, t('errorSave')));
       return false;
     }
     return true;
@@ -429,7 +431,7 @@ export function SegurosDialog({ caso, titular, onClose }: {
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.message ?? t('errorSave'));
+      setError(serverError(json as ServerErrorBody, t('errorSave')));
       return false;
     }
     return true;

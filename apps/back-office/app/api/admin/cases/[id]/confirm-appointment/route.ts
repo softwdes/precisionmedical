@@ -59,7 +59,7 @@ export async function POST(
   const ALLOWED_FROM: string[] = ['INTAKE_COMPLETED', 'INTAKE_PENDING'];
   if (!ALLOWED_FROM.includes(caseRecord.status)) {
     return NextResponse.json(
-      { error: 'INVALID_STATUS', message: `No se puede confirmar desde status ${caseRecord.status}. Esperado: INTAKE_COMPLETED.` },
+      { error: 'INVALID_STATUS', params: { status: caseRecord.status, esperado: 'INTAKE_COMPLETED' } },
       { status: 409 },
     );
   }

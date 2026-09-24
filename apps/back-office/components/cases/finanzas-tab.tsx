@@ -7,6 +7,7 @@ import { localeApp } from '@/lib/fechas';
  */
 
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
@@ -434,6 +435,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
    */
   onAddCharge?: () => void;
 }>(function FinanzasTab({ caseId, filterAppointmentId, readOnly = false, onChanged, onAddCharge }, ref) {
+  const serverError = useServerError();
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
   // Claves del CTA "Cobrar $X" — las mismas del Resumen (una sola voz)
@@ -711,7 +713,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
           paidAt: new Date().toISOString(),
         }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json(); throw new Error(serverError(d as ServerErrorBody)); }
       setPayOpen(false);
       load();
       onChanged?.();
@@ -769,7 +771,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
           paidAt: new Date().toISOString(),
         }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
       setLineaAPagar(null);
       load();
       onChanged?.();

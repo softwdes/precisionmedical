@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { buildPortalSms, buildPortalEmail, MAGIC_LINK_PLACEHOLDER, smsSegments } from '@/lib/portal-message';
@@ -275,6 +276,7 @@ function ChannelTab({
 // ─── Main dialog ───────────────────────────────────────────────────────────────
 
 export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDialogProps) {
+  const serverError = useServerError();
   const router = useRouter();
 
   const [channel,  setChannel]  = useState<Channel>('SMS');
@@ -374,7 +376,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { message?: string; error?: string };
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       const data = await res.json() as { sent: SendResult };
       setResult(data.sent);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { MessageSquarePlus, AlertCircle, Lock, Users } from 'lucide-react';
@@ -37,6 +38,7 @@ interface AddNoteDialogProps {
 }
 
 export function AddNoteDialog({ open, onOpenChange, caseId, caseCode, onSaved }: AddNoteDialogProps) {
+  const serverError = useServerError();
   const router = useRouter();
   const t = useTranslations('addNoteDialog');
   const [content, setContent] = useState('');
@@ -64,7 +66,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode, onSaved }:
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       onOpenChange(false);
       router.refresh();

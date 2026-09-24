@@ -1,5 +1,6 @@
 'use client';
 import { localeApp, fecha, fechaCalendario } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
@@ -243,18 +244,19 @@ function LawFirmSelectInline({ firmId, onChange }: {
   firmId: string | null;
   onChange: (label: string, id: string | null) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [firms, setFirms] = useState<LawFirmOption[]>([]);
   useEffect(() => {
     fetch('/api/admin/lawyers/autocomplete').then(r => r.json()).then(j => setFirms(j.results ?? [])).catch(() => {});
   }, []);
   return (
     <div>
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Firma de abogados</label>
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">{t('fieldFirm')}</label>
       <select value={firmId ?? ''} onChange={e => {
         const sel = firms.find(f => f.id === e.target.value);
         onChange(sel?.label ?? '', sel?.id ?? null);
       }} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand appearance-none">
-        <option value="">Nombre de la firma de abogados que refirió el caso médico...</option>
+        <option value="">{t('phFirm')}</option>
         {firms.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
       </select>
     </div>
@@ -275,12 +277,8 @@ interface CaseDetail {
   specialty: { id: string; name: string } | null;
 }
 
-const CASE_STATUS_LABEL: Record<string, string> = {
-  NEW_REFERRAL:     'Nuevo referido', INTAKE_PENDING: 'Intake pendiente',
-  INTAKE_COMPLETED: 'Intake completo', CONFIRMED: 'Confirmado',
-  ACTIVE: 'Activo', MMI: 'MMI', CLOSED: 'Cerrado',
-  SETTLED: 'Liquidado', ARCHIVED: 'Archivado', CANCELLED: 'Cancelado',
-};
+/** El estado del caso se traduce al dibujarlo: `cs<ESTADO>` del diccionario. */
+const claveEstadoCaso = (estado: string): string => `cs${estado}`;
 const CASE_STATUS_COLOR: Record<string, string> = {
   NEW_REFERRAL:     'bg-brand/10 text-[#4338CA] dark:text-[#818CF8] border-brand/20',
   INTAKE_PENDING:   'bg-amber/10 text-amber border-amber/20',
@@ -329,7 +327,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-brand-text" />
-            {detail?.caseCode ?? 'Caso'}
+            {detail?.caseCode ?? t('caseFallback')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
             {detail?.patient ? `${detail.patient.firstName} ${detail.patient.lastName}` : ''}
@@ -438,6 +436,8 @@ function fmtDateInput(raw: string): string {
 function CaseEditDialog({ caseId, open, onClose, onSaved }: {
   caseId: string; open: boolean; onClose: () => void; onSaved: () => void;
 }) {
+  const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const tWiz   = useTranslations('caseWizard');
   const t      = useTranslations('phoenix.patients');
   const [detail, setDetail]     = useState<CaseDetail | null>(null);
@@ -495,7 +495,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.message ?? t('errorSave')); return; }
+      if (!res.ok) { setError(serverError(json as ServerErrorBody, t('errorSave'))); return; }
       onSaved();
       onClose();
     } catch {
@@ -548,7 +548,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
               <>
                 {/* Fecha del accidente */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Fecha del accidente</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">{t('fieldAccidentDate')}</label>
                   <input type="date"
                     value={accDateDisp}
                     onChange={e => setAccDateDisp(e.target.value)}
@@ -558,9 +558,9 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
 
                 {/* Descripción */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Descripción del accidente</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">{t('fieldAccidentDesc')}</label>
                   <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                    placeholder="Describe brevemente los síntomas y el accidente."
+                    placeholder={t('phAccidentDesc')}
                     className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
                   />
                 </div>
@@ -574,16 +574,16 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                 {/* Abogado + Quiropráctico */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Abogado representante</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">{t('fieldAttorney')}</label>
                     <input type="text" value={attorney} onChange={e => setAttorney(e.target.value)}
-                      placeholder="Nombre del abogado"
+                      placeholder={t('phAttorney')}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Quiropráctico tratante</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">{t('fieldChiro')}</label>
                     <input type="text" value={chiropractor} onChange={e => setChiropractor(e.target.value)}
-                      placeholder="Nombre del quiropráctico"
+                      placeholder={t('phChiro')}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
                     />
                   </div>
@@ -598,9 +598,9 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose} disabled={saving}>{tc('cancel')}</Button>
           <Button className="w-full sm:w-auto" onClick={handleSave} disabled={saving || loading}>
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? tc('saving') : tc('saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1200,6 +1200,8 @@ function ThOrden({
 
 
 export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, currentUserId, isAdmin = false, scopeProviderId, soloMisPacientes = false, basePath = '/patients' }: Props) {
+  const tc = useTranslations('phoenix.common');
+  const serverError = useServerError();
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const tCalls  = useTranslations('phoenix.calls');
@@ -1603,7 +1605,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       const res = await fetch(`/api/admin/patients/${deleteTarget.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setDeleteError(json.message ?? t('errorDelete'));
+        setDeleteError(serverError(json as ServerErrorBody, t('errorDelete')));
         return;
       }
       setDeleteTarget(null);
@@ -1622,7 +1624,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     try {
       const res = await fetch(`/api/admin/cases/${deleteCaseTarget.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setDeleteCaseError(json.message ?? t('errorCancelCase')); return; }
+      if (!res.ok) { setDeleteCaseError(serverError(json as ServerErrorBody, t('errorCancelCase'))); return; }
       const pid = Object.keys(expandedCases).find(k => (expandedCases[k] ?? []).some(c => c.id === deleteCaseTarget.id));
       setDeleteCaseTarget(null);
       if (pid) {
@@ -1654,7 +1656,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     try {
       const res = await fetch(`/api/admin/patients/${restoreTarget.id}/restore`, { method: 'POST' });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setRestoreError(json.message ?? t('errorRestore')); return; }
+      if (!res.ok) { setRestoreError(serverError(json as ServerErrorBody, t('errorRestore'))); return; }
       setRestoreTarget(null);
       router.refresh();
     } catch {
@@ -2486,7 +2488,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="text-[12px] font-mono text-text-1">{c.caseCode}</span>
                                       <TagPill
-                                        label={CASE_STATUS_LABEL[c.status] ?? c.status}
+                                        label={t(claveEstadoCaso(c.status))}
                                         colorClass={
                                           c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
                                           : cerrado                ? 'bg-bg-2 text-text-muted border-border'
@@ -2709,7 +2711,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
               {(viewTarget.insuranceCarrier || viewTarget.policyNumber) && (
                 <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Seguro</p>
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('viewInsurance')}</p>
                   <div className="flex items-center gap-2 text-text-2">
                     <Shield className="w-3.5 h-3.5 text-text-muted" />
                     <span>{viewTarget.insuranceCarrier ?? '—'}</span>
@@ -2759,9 +2761,9 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setViewTarget(null)}>Cerrar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setViewTarget(null)}>{tc('close')}</Button>
             <Button className="w-full sm:w-auto" onClick={() => { setEditTarget(viewTarget); setViewTarget(null); }}>
-              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+              <Pencil className="w-3.5 h-3.5 mr-1" /> {t('viewEdit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3254,9 +3256,12 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       <Dialog open={!!restoreTarget} onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-text-1">Restaurar paciente</DialogTitle>
+            <DialogTitle className="text-text-1">{t('restoreTitle')}</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
-              ¿Restaurar a <strong>{restoreTarget?.firstName} {restoreTarget?.lastName}</strong>? El paciente y todos sus casos archivados volverán a estar visibles.
+              {t.rich('restoreDesc', {
+                nombre: `${restoreTarget?.firstName ?? ''} ${restoreTarget?.lastName ?? ''}`.trim(),
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber mt-2">

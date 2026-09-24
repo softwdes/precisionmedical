@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -85,6 +86,7 @@ const SPECIALTY_COLORS: Record<string, string> = {
 };
 
 export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: ScheduleAppointmentDialogProps) {
+  const serverError = useServerError();
   const router = useRouter();
   const tac   = useTranslations('phoenix.avisoCita');
   /**
@@ -93,6 +95,8 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
    * campo, y dos redacciones distintas para lo mismo es cómo se desincronizan.
    */
   const t     = useTranslations('phoenix.calendar');
+  const tc    = useTranslations('phoenix.common');
+  const ts    = useTranslations('phoenix.scheduleAppt');
   const toast = useToast();
 
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -188,7 +192,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       const data = await res.json();
       setSuccess({
@@ -216,26 +220,26 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
-          <DialogTitle className="sr-only">Cita agendada</DialogTitle>
+          <DialogTitle className="sr-only">{ts('okTitle')}</DialogTitle>
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-emerald/20 border-2 border-emerald flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
             </div>
-            <h2 className="text-xl font-bold text-text-1 mb-2">Cita agendada</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-2">{ts('okTitle')}</h2>
             <p className="text-text-2 text-sm mb-4">
               <code className="text-emerald font-mono font-bold">{caseInfo.caseCode}</code>
             </p>
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 text-left text-xs space-y-1 mb-4">
-              <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">Detalles</div>
-              <div><strong className="text-text-1">Paciente:</strong> {caseInfo.patient.firstName} {caseInfo.patient.lastName}</div>
-              <div><strong className="text-text-1">Provider:</strong> {success.providerName}</div>
-              <div><strong className="text-text-1">Clínica:</strong> {success.clinicName}</div>
-              <div><strong className="text-text-1">Cuándo:</strong> {new Date(success.scheduledFor).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">{ts('okDetails')}</div>
+              <div><strong className="text-text-1">{ts('okPatient')}</strong> {caseInfo.patient.firstName} {caseInfo.patient.lastName}</div>
+              <div><strong className="text-text-1">{ts('okProvider')}</strong> {success.providerName}</div>
+              <div><strong className="text-text-1">{ts('okClinic')}</strong> {success.clinicName}</div>
+              <div><strong className="text-text-1">{ts('okWhen')}</strong> {new Date(success.scheduledFor).toLocaleString(localeApp(), { dateStyle: 'medium', timeStyle: 'short' })}</div>
             </div>
             <div className="text-xs text-text-muted mb-6">
-              Status del caso → <code className="text-brand-text">ACTIVE</code> · El paciente entra al flujo clínico.
+              {ts.rich('okStatus', { b: (chunks) => <strong className="text-brand-text">{chunks}</strong> })}
             </div>
-            <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+            <Button onClick={() => onOpenChange(false)}>{tc('close')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -348,13 +352,13 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           {scheduledForLocalLabel && (
             <div className={`rounded-md border px-3 py-2 text-xs ${isFuture ? 'bg-emerald/5 border-emerald/20 text-emerald' : 'bg-rose/5 border-rose/20 text-rose'}`}>
               <strong className="capitalize">{scheduledForLocalLabel}</strong>
-              {!isFuture && <span className="ml-2">⚠ La fecha/hora debe ser futura</span>}
+              {!isFuture && <span className="ml-2">{ts('mustBeFuture')}</span>}
             </div>
           )}
 
           {/* Duración */}
           <div>
-            <Label>Duración (minutos)</Label>
+            <Label>{ts('fieldDuration')}</Label>
             <div className="grid grid-cols-6 gap-1.5 mt-1.5">
               {DURATION_OPTIONS.map((d) => (
                 <button
@@ -415,9 +419,9 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               </div>
               <div className="space-y-0.5 text-text-2">
                 <div><strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong> ({SPECIALTY_LABELS[selectedProvider.specialty]})</div>
-                <div>en <strong className="text-text-1">{selectedClinic.name}</strong></div>
+                <div>{ts('summaryAt')} <strong className="text-text-1">{selectedClinic.name}</strong></div>
                 <div className="capitalize">📅 <strong className="text-text-1">{scheduledForLocalLabel}</strong></div>
-                <div>Duración: <strong className="text-text-1">{duration} min</strong> · Tipo: <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
+                <div>{ts('summaryDuration')} <strong className="text-text-1">{duration} min</strong> · {ts('summaryType')} <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
               </div>
             </div>
           )}
@@ -431,9 +435,9 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleSchedule} disabled={!canSubmit}>
-            {saving ? 'Agendando...' : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar cita</>}
+            {saving ? ts('scheduling') : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> {ts('btnSchedule')}</>}
           </Button>
         </DialogFooter>
       </DialogContent>

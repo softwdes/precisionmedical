@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import {
@@ -33,6 +34,7 @@ const EMPTY_RESULTS: SearchResults = {
 };
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }): React.ReactElement | null {
+  const t = useTranslations('phoenix.palette');
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
@@ -103,7 +105,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             autoFocus
             value={query}
             onValueChange={setQuery}
-            placeholder="Buscar bufetes, aseguradoras, servicios, diagnósticos, especialidades..."
+            placeholder={t('placeholder')}
             className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
           />
           {loading && (
@@ -114,7 +116,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             type="button"
             onClick={() => onOpenChange(false)}
             className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
-            aria-label="Close search"
+            aria-label={t('closeSearch')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -123,9 +125,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
           {query.length === 0 && (
             <div className="px-3 py-12 text-center">
-              <div className="text-text-2 text-sm mb-2">Escribe al menos 2 caracteres</div>
+              <div className="text-text-2 text-sm mb-2">{t('minChars')}</div>
               <div className="text-text-muted text-xs">
-                Busca transversal en todos los catálogos del back-office
+                {t('hint')}
               </div>
               <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs text-text-2">
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Stethoscope</kbd>
@@ -145,7 +147,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Pacientes — al tope · entrada principal para B.4 ficha */}
           {results.patients.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={User} label="Pacientes" count={results.patients.length} />}>
+            <Command.Group heading={<GroupHeading icon={User} label={t('groupPatients')} count={results.patients.length} />}>
               {results.patients.map((p) => (
                 <ResultItem
                   key={p.id}
@@ -189,7 +191,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Lawyers */}
           {results.lawyers.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={Scale} label="Bufetes" count={results.lawyers.length} />}>
+            <Command.Group heading={<GroupHeading icon={Scale} label={t('groupFirms')} count={results.lawyers.length} />}>
               {results.lawyers.map((l) => (
                 <ResultItem
                   key={l.id}
@@ -245,7 +247,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Diagnoses */}
           {results.diagnoses.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={FileText} label="Diagnósticos" count={results.diagnoses.length} />}>
+            <Command.Group heading={<GroupHeading icon={FileText} label={t('groupDiagnoses')} count={results.diagnoses.length} />}>
               {results.diagnoses.map((d) => (
                 <ResultItem
                   key={d.id}

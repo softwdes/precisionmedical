@@ -154,8 +154,7 @@ export async function PATCH(
     if (correoPaciente && correoPaciente.toLowerCase() === d.guardian.email.toLowerCase()) {
       return NextResponse.json({
         ok: false,
-        error: 'GUARDIAN_EMAIL_IS_PATIENT_EMAIL',
-        message: 'El correo del apoderado no puede ser también el del paciente. '
+        error: 'GUARDIAN_EMAIL_IS_PATIENT_EMAIL'
           + 'El correo del apoderado vive en su propia ficha — dejá vacío el del menor.',
       }, { status: 400 });
     }
@@ -313,7 +312,7 @@ export async function PATCH(
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json(
-        { ok: false, error: 'EMAIL_TAKEN', message: 'Este email ya está registrado en otro paciente.' },
+        { ok: false, error: 'EMAIL_TAKEN' },
         { status: 409 },
       );
     }

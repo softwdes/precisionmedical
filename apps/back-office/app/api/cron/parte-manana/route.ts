@@ -152,17 +152,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // de alguien no es una noticia.
       if (citas.length === 0) continue;
 
-      const primera = new Intl.DateTimeFormat('es-US', {
-        timeZone: ZONA_CLINICA, hour: 'numeric', minute: '2-digit', hour12: true,
-      }).format(citas[0]!.scheduledFor);
+      const primeraCita = citas[0]!.scheduledFor;
 
-      await enviarAviso([ficha.userId], {
-        titulo: citas.length === 1 ? 'Hoy tenés 1 paciente' : `Hoy tenés ${citas.length} pacientes`,
-        cuerpo: `El primero a las ${primera}`,
+      await enviarAviso([ficha.userId], ({ t, locale }) => ({
+        titulo: t('diaPacientes', { count: citas.length }),
+        // La hora se formatea acá adentro: afuera no se sabe a qué idioma va, y
+        // `'es-US'` en duro le mandaba "3:00 p. m." a quien lee inglés.
+        cuerpo: t('diaPrimeroA', {
+          hora: new Intl.DateTimeFormat(`${locale}-US`, {
+            timeZone: ZONA_CLINICA, hour: 'numeric', minute: '2-digit', hour12: true,
+          }).format(primeraCita),
+        }),
         url: '/doctor',
         // Un tag por DÍA: si el cron se reintenta, reemplaza en vez de apilar.
         tag: `parte-${key}`,
-      });
+      }));
       enviados += 1;
     }
   }
@@ -172,14 +176,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const cola = await colaIntake();
     if (cola.citasHoy > 0) {
       const sinFirmar = cola.filas.length;
-      await enviarAviso(idsClinica, {
-        titulo: cola.citasHoy === 1 ? 'Hoy hay 1 cita' : `Hoy hay ${cola.citasHoy} citas`,
+      await enviarAviso(idsClinica, ({ t }) => ({
+        titulo: t('diaCitas', { count: cola.citasHoy }),
         cuerpo: sinFirmar > 0
-          ? `${sinFirmar} llegan sin admisión firmada`
-          : 'Todas con su admisión firmada',
+          ? t('diaSinFirmar', { count: sinFirmar })
+          : t('diaTodasFirmadas'),
         url: '/dashboard',
         tag: `parte-${key}`,
-      });
+      }));
       enviados += idsClinica.length;
     }
   }
@@ -209,14 +213,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const peor = cola.filas.reduce((a, b) => (diasDeLaFila(b) > diasDeLaFila(a) ? b : a));
     const dias = diasDeLaFila(peor);
 
-    await enviarAviso([ab.id], {
-      titulo: cola.filas.length === 1
-        ? '1 caso necesita atención'
-        : `${cola.filas.length} casos necesitan atención`,
-      cuerpo: `El más atrasado, ${dias} ${dias === 1 ? 'día' : 'días'}`,
+    await enviarAviso([ab.id], ({ t }) => ({
+      titulo: t('casosAtencion', { count: cola.filas.length }),
+      cuerpo: t('casoMasAtrasado', { count: dias }),
       url: '/attorney/vigia',
       tag: `parte-${key}`,
-    });
+    }));
     abogadosAvisados += 1;
     enviados += 1;
   }

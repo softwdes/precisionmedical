@@ -41,7 +41,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Custom PM- enforcement
   if (parsed.type === 'CUSTOM_PM' && !parsed.code.startsWith('PM-')) {
     return NextResponse.json(
-      { error: 'INVALID_CODE_PREFIX', message: 'Códigos CUSTOM_PM deben empezar con "PM-"' },
+      { error: 'INVALID_CODE_PREFIX', params: { prefijo: 'PM-' } },
       { status: 400 },
     );
   }
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   if (existing) {
     return NextResponse.json(
-      { error: 'DUPLICATE_CODE', message: `Ya existe el código "${parsed.code}" en fiscal year ${FY}` },
+      { error: 'DUPLICATE_CODE', params: { code: parsed.code } },
       { status: 409 },
     );
   }

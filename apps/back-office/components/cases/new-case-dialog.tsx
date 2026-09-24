@@ -1,5 +1,6 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
@@ -180,6 +181,7 @@ const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
 };
 
 export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName, onQuickRegister, onCasoCreado }: NewCaseDialogProps) {
+  const serverError = useServerError();
   const router = useRouter();
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
@@ -818,7 +820,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         if (data.error === 'GM_CASE_ALREADY_EXISTS' && data.caso?.id) {
           setGmExistente({ id: data.caso.id, caseCode: data.caso.caseCode });
         }
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       const data = await res.json();
       const caseId = data.case.id;

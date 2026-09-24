@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Pencil, ShieldAlert, User, Stethoscope, PhoneCall, UserPlus, Users } from 'lucide-react';
@@ -135,6 +136,7 @@ function normalizeRelation(stored: string): { selectVal: string; otherVal: strin
 }
 
 export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
+  const serverError = useServerError();
   const t      = useTranslations('phoenix.patients');
   const tc     = useTranslations('common');
   const router = useRouter();
@@ -387,7 +389,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        setError(j.message ?? j.error ?? t('editError'));
+        setError(serverError(j as ServerErrorBody, t('editError')));
         return;
       }
       setOpen(false);

@@ -101,7 +101,7 @@ export function DoctorCombobox({
           {open && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden max-h-52 overflow-y-auto">
               {filtered.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-text-muted">Sin resultados</div>
+                <div className="px-3 py-2 text-[11px] text-text-muted">{t('uiNoResults')}</div>
               ) : (
                 filtered.map(p => (
                   <button

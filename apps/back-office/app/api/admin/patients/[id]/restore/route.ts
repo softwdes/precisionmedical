@@ -38,7 +38,7 @@ export async function POST(
   });
   if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
   if (existing.status !== 'INACTIVE') {
-    return NextResponse.json({ ok: false, error: 'NOT_INACTIVE', message: 'El paciente no está inactivo.' }, { status: 409 });
+    return NextResponse.json({ ok: false, error: 'NOT_INACTIVE' }, { status: 409 });
   }
 
   // Citas futuras que quedaron canceladas y habrá que reagendar. Se cuenta ANTES

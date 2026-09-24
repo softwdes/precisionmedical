@@ -364,7 +364,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<NextRes
   if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
 
   if (existing.deletedAt) {
-    return NextResponse.json({ ok: false, error: 'ALREADY_ARCHIVED', message: 'El caso ya está archivado.' }, { status: 409 });
+    return NextResponse.json({ ok: false, error: 'ALREADY_ARCHIVED' }, { status: 409 });
   }
 
   /**

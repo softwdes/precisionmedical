@@ -450,7 +450,7 @@ function PrescriptionModal({
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Unidad de dispensación</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldUnit')}</label>
               <select
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
@@ -475,7 +475,7 @@ function PrescriptionModal({
           {/* Fecha inicio + checkboxes */}
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de inicio</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldStartDate')}</label>
               <input
                 type="date"
                 value={startDate}
@@ -485,11 +485,11 @@ function PrescriptionModal({
             </div>
             <label className="flex items-center gap-2 cursor-pointer mt-4">
               <input type="checkbox" checked={autoExpire} onChange={e => setAutoExpire(e.target.checked)} className="accent-brand" />
-              <span className="text-sm text-text-1">Expiración automática</span>
+              <span className="text-sm text-text-1">{t('fieldAutoExpire')}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer mt-4">
               <input type="checkbox" checked={autoRenew} onChange={e => setAutoRenew(e.target.checked)} className="accent-brand" />
-              <span className="text-sm text-text-1">Renovación automática</span>
+              <span className="text-sm text-text-1">{t('fieldAutoRenew')}</span>
             </label>
           </div>
 
@@ -508,7 +508,7 @@ function PrescriptionModal({
 
           {/* Diagnóstico */}
           <div className="relative">
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Diagnóstico</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldDiagnosis')}</label>
             {diagnosisSelected ? (
               <div className="flex items-center justify-between rounded-md bg-brand/10 border border-brand/30 px-3 py-2">
                 <span className="text-sm text-text-1">{diagnosisSelected}</span>
@@ -535,12 +535,12 @@ function PrescriptionModal({
                 )}
               </>
             )}
-            {!diagnosisSelected && <p className="text-[10px] text-text-muted mt-0.5">Selecciona un diagnóstico para ver su descripción</p>}
+            {!diagnosisSelected && <p className="text-[10px] text-text-muted mt-0.5">{t('pickDiagnosisHint')}</p>}
           </div>
 
           {/* Farmacia */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Nombre de la farmacia</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldPharmacy')}</label>
             <input
               type="text"
               value={pharmacy}
@@ -552,7 +552,7 @@ function PrescriptionModal({
 
           {/* Nota farmacia */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Nota para la farmacia</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldPharmacyNote')}</label>
             <textarea
               value={pharmacyNote}
               onChange={e => setPharmacyNote(e.target.value)}
@@ -565,7 +565,7 @@ function PrescriptionModal({
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>{tc('cancel')}</Button>
           <Button size="sm" onClick={handleSave} disabled={saving || !drugSelected}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
             Crear prescripción
@@ -660,7 +660,7 @@ function LabModal({
           {/* Fecha + Tipo de facturación — 2 columnas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de toma de muestra</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldSampleDate')}</label>
               <input
                 type="date"
                 value={sampleDate}
@@ -669,7 +669,7 @@ function LabModal({
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Tipo de facturación</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldBillingType')}</label>
               <select
                 value={billingType}
                 onChange={e => setBillingType(e.target.value)}
@@ -696,7 +696,7 @@ function LabModal({
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Diagnósticos</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t('fieldDiagnoses')}</label>
               <MultiSelectSearch
                 placeholder={t('placeholderDiagnoses')}
                 selected={selectedDiags}
@@ -712,7 +712,7 @@ function LabModal({
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>{tc('cancel')}</Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
             Crear laboratorio

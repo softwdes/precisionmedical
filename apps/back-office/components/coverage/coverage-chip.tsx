@@ -15,6 +15,7 @@
  */
 
 import * as React from 'react';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -192,6 +193,7 @@ function CoverageDialog({ caseId, coverage, onClose, onSaved }: {
   onClose: () => void;
   onSaved: (next: CoverageDTO) => void;
 }): React.ReactElement {
+  const serverError = useServerError();
   const t = useTranslations('phoenix.coverage');
   const tc = useTranslations('phoenix.common');
   const router = useRouter();
@@ -223,7 +225,7 @@ function CoverageDialog({ caseId, coverage, onClose, onSaved }: {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(json.message ?? t('error')); return; }
+      if (!res.ok) { setError(serverError(json as ServerErrorBody, t('error'))); return; }
       onSaved(json.coverage as CoverageDTO);
       // El precio que ofrece el picker y el desglose del total dependen de esto:
       // refrescar para que la pantalla entera quede consistente.

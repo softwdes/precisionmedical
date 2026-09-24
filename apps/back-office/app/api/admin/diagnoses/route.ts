@@ -100,7 +100,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const existing = await db.diagnosis.findUnique({ where: { icd10Code: parsed.icd10Code } });
   if (existing) {
-    return NextResponse.json({ error: 'DUPLICATE_CODE', message: `Ya existe ICD-10 "${parsed.icd10Code}"` }, { status: 409 });
+    return NextResponse.json({ error: 'DUPLICATE_CODE', params: { code: parsed.icd10Code } }, { status: 409 });
   }
 
   const created = await db.diagnosis.create({

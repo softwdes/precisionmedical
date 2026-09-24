@@ -1,5 +1,6 @@
 'use client';
 import { localeApp, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica, weekdayEnClinica } from '@/lib/fechas';
+import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -243,6 +244,7 @@ type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FO
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
+  const serverError = useServerError();
   const { open, onOpenChange, onSuccess, initialDate, initialTime, initialClinicId, editAppointment, isReschedule } = props;
   const isEditMode = !!editAppointment;
   const router = useRouter();
@@ -1209,7 +1211,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           });
           return;
         }
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        throw new Error(serverError(data as ServerErrorBody));
       }
       if (pending.mode === 'edit') {
         /**

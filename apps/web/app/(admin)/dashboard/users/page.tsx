@@ -13,7 +13,6 @@ export async function generateMetadata() {
 }
 
 export default async function UsersPage(): Promise<React.ReactElement> {
-  const t = await getTranslations();
   // Get current user role (with permission check)
   const role = await getCurrentUserRole();
   if (!can(role, 'usuarios')) {
@@ -29,7 +28,7 @@ export default async function UsersPage(): Promise<React.ReactElement> {
   ]);
 
   return (
-    <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
+    <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
       <UsersClient
         initial={initial}
         currentUserRole={role}

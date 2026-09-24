@@ -9,7 +9,6 @@ export async function generateMetadata() {
 }
 
 export default async function TasksPage(): Promise<React.ReactElement> {
-  const t = await getTranslations();
   const [initial, employees] = await Promise.all([
     // pageSize DEBE coincidir con el de tasks-client: si no, `initial` no
     // corresponde a la primera clave de la query y no puede usarse de initialData.
@@ -17,7 +16,7 @@ export default async function TasksPage(): Promise<React.ReactElement> {
     api.employees.list({ page: 1, pageSize: 200 }),
   ]);
   return (
-    <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
+    <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
       <TasksClient initial={initial} employees={employees.items} />
     </Suspense>
   );

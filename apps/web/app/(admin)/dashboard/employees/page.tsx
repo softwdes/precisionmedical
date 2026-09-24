@@ -33,7 +33,6 @@ export default async function EmployeesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
-  const t = await getTranslations();
   const role = await getCurrentUserRole();
   const empPerm = getPermission(role, 'empleados');
 
@@ -97,7 +96,7 @@ export default async function EmployeesPage({
   return (
     <>
       <ModuleTabs tabs={TABS} activeTab={activeTab} />
-      <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
+      <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
         {content}
       </Suspense>
     </>

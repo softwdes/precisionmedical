@@ -9,7 +9,6 @@ export async function generateMetadata() {
 }
 
 export default async function PaymentsPage(): Promise<React.ReactElement> {
-  const t = await getTranslations();
   const [initial, summary, planillaBolivia] = await Promise.all([
     api.payments.list({ page: 1, pageSize: 25 }),
     api.payments.getSummary({}),
@@ -17,7 +16,7 @@ export default async function PaymentsPage(): Promise<React.ReactElement> {
   ]);
 
   return (
-    <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
+    <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
       <PaymentsClient initial={initial} summary={summary} planillaBolivia={planillaBolivia} />
     </Suspense>
   );

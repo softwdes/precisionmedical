@@ -371,7 +371,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
   // que ya trae el PDF de al lado.
   const handleExportExcel = useCallback(() => {
     const xml  = construirWorkbookCajaChica(report, applied, totalBalance,
-      Object.fromEntries(CAT_KEYS.map(k => [k, tCat(k)])), t, locale);
+      Object.fromEntries(CAT_KEYS.map(k => [k, tCat(k)])));
     const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');

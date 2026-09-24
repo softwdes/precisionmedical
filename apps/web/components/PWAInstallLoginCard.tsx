@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { Download, Share, MoreVertical } from 'lucide-react';
 import { detectPlatform, isStandalone, wasDismissedRecently, markDismissed, type BeforeInstallPromptEvent } from '@/lib/use-pwa-install';
@@ -19,9 +18,6 @@ if (typeof window !== 'undefined') {
 }
 
 export function PWAInstallLoginCard(): React.ReactElement | null {
-  const t  = useTranslations('pwa');
-  const tc = useTranslations('common');
-
   const [platform, setPlatform] = useState<'android' | 'ios' | 'desktop' | 'unknown'>('unknown');
   const [event,    setEvent]    = useState<BeforeInstallPromptEvent | null>(cachedEvent);
   const [hidden,   setHidden]   = useState(false);
@@ -61,12 +57,12 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               <Share size={14} color="#A5B4FC" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#C7D2FE', margin: 0, lineHeight: 1.25 }}>{t('installAdminApp')}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#C7D2FE', margin: 0, lineHeight: 1.25 }}>Instalar Admin App</p>
               <p style={{ fontSize: 10.5, color: '#6B7592', margin: '2px 0 0', lineHeight: 1.4 }}>
-                {t.rich('iosHint', { b: (c) => <strong style={{ color: '#A5B4FC' }}>{c}</strong> })}
+                Toca <strong style={{ color: '#A5B4FC' }}>⬆ Compartir</strong> → <strong style={{ color: '#A5B4FC' }}>Agregar a inicio</strong>
               </p>
             </div>
-            <button onClick={dismiss} aria-label={tc('close')} style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 4, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}>✕</button>
+            <button onClick={dismiss} aria-label="Cerrar" style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 4, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}>✕</button>
           </div>
         </div>
       </div>
@@ -83,13 +79,13 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               <Download size={15} color="#A5B4FC" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12.5, fontWeight: 600, color: '#C7D2FE', margin: 0, letterSpacing: '0.01em', lineHeight: 1.25 }}>{t('installAdminApp')}</p>
-              <p style={{ fontSize: 10.5, color: '#8B95B5', margin: '2px 0 0', lineHeight: 1.35 }}>{t('quickAccess')}</p>
+              <p style={{ fontSize: 12.5, fontWeight: 600, color: '#C7D2FE', margin: 0, letterSpacing: '0.01em', lineHeight: 1.25 }}>Instalar Admin App</p>
+              <p style={{ fontSize: 10.5, color: '#8B95B5', margin: '2px 0 0', lineHeight: 1.35 }}>Acceso rápido desde tu inicio</p>
             </div>
             <button onClick={() => void handleInstall()} style={{ padding: '7px 12px', borderRadius: 8, background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', color: 'white', fontSize: 11.5, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxShadow: '0 4px 12px rgba(99,102,241,0.40)' }}>
-              {t('install')}
+              Instalar
             </button>
-            <button onClick={dismiss} aria-label={tc('close')} style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}>✕</button>
+            <button onClick={dismiss} aria-label="Cerrar" style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}>✕</button>
           </div>
         </div>
       </div>
@@ -105,12 +101,12 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
             <MoreVertical size={14} color="#A5B4FC" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#C7D2FE', margin: 0, lineHeight: 1.25 }}>{t('installAdminApp')}</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#C7D2FE', margin: 0, lineHeight: 1.25 }}>Instalar Admin App</p>
             <p style={{ fontSize: 10.5, color: '#6B7592', margin: '2px 0 0', lineHeight: 1.4 }}>
-              {t.rich('androidHint', { b: (c) => <strong style={{ color: '#A5B4FC' }}>{c}</strong> })}
+              Toca <strong style={{ color: '#A5B4FC' }}>⋮</strong> → <strong style={{ color: '#A5B4FC' }}>Instalar app</strong> en Chrome
             </p>
           </div>
-          <button onClick={dismiss} aria-label={tc('close')} style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 4, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}>✕</button>
+          <button onClick={dismiss} aria-label="Cerrar" style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 4, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}>✕</button>
         </div>
       </div>
     </div>

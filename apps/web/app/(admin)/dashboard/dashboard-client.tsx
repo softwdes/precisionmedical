@@ -630,7 +630,7 @@ export function DashboardClient({
             {apptsQ.isLoading && !apptsQ.data ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[54px] w-full" />)
             ) : appointments.length === 0 ? (
-              <p className="py-6 text-center text-[12.5px] text-text-muted">{t('dashboard.noAppointmentsToday')}</p>
+              <p className="py-6 text-center text-[12.5px] text-text-muted">Sin citas programadas para hoy</p>
             ) : (
               appointments.map((apt) => {
                 const typeInfo   = APPT_TYPE_MAP[apt.type]   ?? { key: 'autoAccident', color: 'cyan' };
@@ -699,7 +699,7 @@ export function DashboardClient({
             {refsQ.isLoading && !refsQ.data ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[46px] w-full" />)
             ) : (refs?.lawyers ?? []).length === 0 ? (
-              <p className="py-4 text-center text-[12px] text-text-muted">{t('dashboard.noLawyers')}</p>
+              <p className="py-4 text-center text-[12px] text-text-muted">Sin abogados registrados</p>
             ) : (
               (refs?.lawyers ?? []).map((l) => (
                 <div key={l.rank}
@@ -736,7 +736,7 @@ export function DashboardClient({
             {refsQ.isLoading && !refsQ.data ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[46px] w-full" />)
             ) : (refs?.providers ?? []).length === 0 ? (
-              <p className="py-4 text-center text-[12px] text-text-muted">{t('dashboard.noProviders')}</p>
+              <p className="py-4 text-center text-[12px] text-text-muted">Sin proveedores registrados</p>
             ) : (
               (refs?.providers ?? []).map((p) => (
                 <div key={p.rank}
@@ -1011,10 +1011,10 @@ export function DashboardClient({
                   {agent === undefined
                     ? '—'
                     : agent.auditPendingFindings === 0
-                      ? t('dashboard.noFindings')
+                      ? 'Sin hallazgos'
                       : agent.auditPendingFindings <= 3
-                        ? t('dashboard.findingsCount', { total: agent.auditPendingFindings })
-                        : t('dashboard.findingsReview', { total: agent.auditPendingFindings })}
+                        ? `${agent.auditPendingFindings} hallazgos`
+                        : `${agent.auditPendingFindings} hallazgos · Revisar`}
                 </span>
               )}
             </div>

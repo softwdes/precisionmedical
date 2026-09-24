@@ -12,13 +12,21 @@ import { db } from '@precision-medical/database';
 export { VIGENTES, ELIMINADAS } from '@precision-medical/database';
 
 /**
- * Estados que ya son un HECHO de la visita y no un plan.
+ * Estados que ya son un DESENLACE de la visita y no un plan.
  *
  * Una cita en cualquiera de estos no se elimina: se corrige con su propio
  * desenlace. Eliminarla escondería algo que pasó de verdad.
+ *
+ * `CHECKED_IN` NO está acá, y no por olvido: el paciente que llegó y espera en
+ * la sala no tiene todavía ningún desenlace. Igual está protegido —lo frena el
+ * `checkedInAt` de más abajo—, pero por esa rama y no por ésta, así el cartel
+ * dice "el paciente ya hizo check-in" en vez de "ya tiene un desenlace
+ * (atendida, no vino o en consulta)", que de él es falso en las tres.
+ *
+ * Se vio en pantalla el 23-sep-2026: la regla frenaba bien y el motivo mentía.
  */
-const ESTADOS_CON_HISTORIA = new Set([
-  'COMPLETED', 'NO_SHOW', 'CHECKED_IN', 'IN_PROGRESS',
+const ESTADOS_CON_DESENLACE = new Set([
+  'COMPLETED', 'NO_SHOW', 'IN_PROGRESS',
 ]);
 
 export type MotivoNoEliminable =
@@ -64,7 +72,7 @@ export async function porQueNoSePuedeEliminar(
   });
   if (!cita) return null; // no existe: que el endpoint responda 404
 
-  if (ESTADOS_CON_HISTORIA.has(cita.status)) return 'ESTADO';
+  if (ESTADOS_CON_DESENLACE.has(cita.status)) return 'ESTADO';
   // La cancelación del MISMO DÍA conserva servicios y admite penalidad: es
   // plata en juego, no un registro sobrante (ver `cancelledSameDay`).
   if (cita.cancelledSameDay)      return 'PENALIDAD';

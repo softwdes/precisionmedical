@@ -453,18 +453,6 @@ const STRINGS = {
     // Step 7
     idTitle: 'Tu identificación',
     idSub: 'Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita.',
-    /**
-     * La salida del paso de fotos. Existe porque el formulario se llena DESDE
-     * LA CASA del paciente: si ahí la cámara falla, no hay nadie al lado para
-     * ayudarlo, y hasta hoy el único final posible era abandonar el formulario
-     * entero después de haberlo llenado todo.
-     */
-    fotosNoPuedo: 'No puedo tomarlas ahora',
-    fotosDiferidasTitulo: '¿Prefiere traerlas a la clínica?',
-    fotosDiferidasTexto: 'Puede terminar el formulario ahora y traer sus documentos a su primera visita. Le tomamos las fotos en el mostrador, no demora.',
-    fotosDiferidasSi: 'Sí, las llevo a la clínica',
-    fotosDiferidasNo: 'Prefiero intentar de nuevo',
-    fotosDiferidasAviso: '📷 Va a terminar sin las fotos. Tráigalas a su primera visita.',
     selfieLabel: 'Selfie tipo ID',
     selfieBtn: 'Seleccionar selfie',
     dlLabel: 'ID / Licencia de conducir',
@@ -817,12 +805,6 @@ const STRINGS = {
     // Step 7
     idTitle: 'Your identification',
     idSub: 'We need your ID to verify your identity. Phase 1A: photos are reviewed at your first visit.',
-    fotosNoPuedo: "I can't take them right now",
-    fotosDiferidasTitulo: 'Would you rather bring them to the clinic?',
-    fotosDiferidasTexto: 'You can finish the form now and bring your documents to your first visit. We take the photos at the front desk, it only takes a moment.',
-    fotosDiferidasSi: "Yes, I'll bring them to the clinic",
-    fotosDiferidasNo: 'I want to try again',
-    fotosDiferidasAviso: '📷 You will finish without the photos. Please bring them to your first visit.',
     selfieLabel: 'ID-style selfie',
     selfieBtn: 'Select selfie',
     dlLabel: "ID / Driver's license",
@@ -2064,10 +2046,6 @@ export function IntakeWizard({
 
   // ── Photo upload ─────────────────────────────────────────────────────────────
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
-  /** Se ofrece la salida recién después del primer intento fallido. */
-  const [ofrecerDiferir, setOfrecerDiferir] = useState(false);
-  /** El paciente eligió traer los documentos a la clínica. Queda en el caso. */
-  const [fotosDiferidas, setFotosDiferidas] = useState(false);
 
   const handlePhotoConfirm = (type: keyof typeof photoUrls) => async (file: File) => {
     setPhotoUploadError(null);
@@ -2276,9 +2254,6 @@ export function IntakeWizard({
       if (stepNum === 8) body = { fotos: {
         reusadas: [...heredadas],
         tarjetaSeguroVigente: seguroVigente,
-        // Qué falta y si el paciente eligió traerlo. El servidor no le cree las
-        // claves: vuelve a mirar qué fotos hay de verdad antes de anotarlo.
-        diferidas: fotosDiferidas,
       }};
       if (stepNum === 9) {
         const consentSvg = consentSigDataUrl || (consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '');
@@ -2411,24 +2386,35 @@ export function IntakeWizard({
       if (!fotoGuardada(photoUrls.dlFront)) faltan.push(t.dlLabel);
 
       /**
-       * Faltan fotos. Hasta el 17-sep esto era una pared: se mostraba "Falta:
-       * …" y no había forma de seguir. Con el formulario llenándose desde la
-       * CASA del paciente, esa pared no protege nada — el que no puede sacar la
-       * foto no la saca, y lo único que logramos es que abandone el formulario
-       * entero, incluido todo lo que ya había escrito.
+       * Faltan fotos: NO SE PUEDE SEGUIR. El paciente sube sus documentos sí o sí.
        *
-       * Ahora se pide igual (primero el aviso), pero si insiste puede diferirlo
-       * a propósito, con una pregunta explícita. No es un "saltar" escondido:
-       * hay que elegirlo, queda registrado en el caso y le avisa a la clínica.
+       * ── Por qué esto volvió a ser una pared (Erick, 24-sep-2026) ───────────
+       *
+       * Entre el 17 y el 24 de septiembre acá hubo una salida: "No puedo
+       * tomarlas ahora / las llevo a la clínica". Se construyó el día que una
+       * paciente con iPhone quedó encerrada porque el botón para elegir la foto
+       * de la galería **estaba roto y no hacía nada**, y el paso no la dejaba
+       * avanzar. En ese momento la salida era lo único que evitaba perder el
+       * formulario entero.
+       *
+       * Se saca por dos razones:
+       *
+       *  1. **Ese botón ya está arreglado** (`bf883c7a`). La causa real de "no
+       *     puedo sacar la foto" era un bug nuestro, no el paciente. Con la
+       *     galería funcionando, la salida dejó de tener a quién rescatar.
+       *  2. **La midieron sus consecuencias**: de 34 intakes en una semana, 7
+       *     terminaron sin alguna foto — 4 pacientes reales sin su selfie o su
+       *     licencia, y la clínica enterándose de a uno, a mano.
+       *
+       * Erick: "el paciente sí o sí toma fotos a sus documentos". La salida que
+       * se construyó pertenece al lado de la CLÍNICA —donde alguien del staff
+       * puede decidir y hacerse cargo— y no al formulario que llena el paciente
+       * solo en su casa.
        */
-      if (faltan.length > 0 && !fotosDiferidas) {
+      if (faltan.length > 0) {
         setPhotoUploadError(
           (lang === 'es' ? '⚠️ Falta: ' : '⚠️ Missing: ') + faltan.join(' · '),
         );
-        // La salida recién aparece después del primer intento: si se ofreciera
-        // de entrada, la mitad la tomaría por el camino fácil y la clínica se
-        // quedaría sin las fotos de todos.
-        setOfrecerDiferir(true);
         window.scrollTo(0, 0);
         return;
       }
@@ -2480,16 +2466,9 @@ export function IntakeWizard({
      * único que viaja acá es la constancia de las que reusó. Es un dato de
      * expediente, no del paciente: dejarlo trancado detrás de un error de red
      * sería frenarlo en un paso que para él ya terminó bien. Y no se manda
-     * nada si no heredó ninguna, no hubo pregunta que contestar y no quedó
-     * nada pendiente.
-     *
-     * ⚠️ `fotosDiferidas` TIENE que estar en esta condición. Sin él, el caso
-     * más importante —el paciente que no pudo sacar ninguna foto, o sea el que
-     * no heredó nada y al que no se le preguntó por el seguro— es exactamente
-     * el que no manda nada, y la clínica nunca se entera de que tiene que
-     * tomárselas. Lo pillé probándolo: el aviso no llegaba a la base.
+     * nada si no heredó ninguna y no hubo pregunta que contestar.
      */
-    if (fromStep === 8 && (heredadas.size > 0 || seguroVigente !== null || fotosDiferidas)) {
+    if (fromStep === 8 && (heredadas.size > 0 || seguroVigente !== null)) {
       await saveStepData(8);
     }
     // El siguiente paso sale de la lista, no de `step + 1`: así el salto del
@@ -4220,65 +4199,6 @@ export function IntakeWizard({
                       background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)',
                     }}>
                       <span style={{ fontSize: 12, color: 'rgba(239,68,68,0.90)', lineHeight: 1.55 }}>{photoUploadError}</span>
-                    </div>
-                  )}
-
-                  {/* ── La salida ────────────────────────────────────────────
-                      Aparece solo después de que intentó y no pudo. Es una
-                      pregunta, no un botón de saltar: el paciente tiene que
-                      decir que sí, y lo que elige queda registrado en el caso
-                      para que la clínica sepa que tiene que tomarlas ella. */}
-                  {ofrecerDiferir && !fotosDiferidas && (
-                    <div style={{
-                      padding: '14px 16px', borderRadius: 10,
-                      background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.28)',
-                    }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
-                        {t.fotosDiferidasTitulo}
-                      </div>
-                      <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, margin: '0 0 12px' }}>
-                        {t.fotosDiferidasTexto}
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() => { setFotosDiferidas(true); setPhotoUploadError(null); setOfrecerDiferir(false); }}
-                          style={{
-                            flex: '1 1 180px', padding: '12px 14px', borderRadius: 10,
-                            background: 'rgba(6,182,212,0.14)', border: '1px solid rgba(6,182,212,0.45)',
-                            color: CYAN, fontSize: 13.5, fontWeight: 700,
-                            cursor: 'pointer', fontFamily: 'inherit',
-                          }}
-                        >
-                          {t.fotosDiferidasSi}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setOfrecerDiferir(false); setPhotoUploadError(null); }}
-                          style={{
-                            flex: '1 1 140px', padding: '12px 14px', borderRadius: 10,
-                            background: 'transparent', border: '1px solid rgba(255,255,255,0.20)',
-                            color: 'rgba(255,255,255,0.62)', fontSize: 13.5, fontWeight: 600,
-                            cursor: 'pointer', fontFamily: 'inherit',
-                          }}
-                        >
-                          {t.fotosDiferidasNo}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ya eligió traerlas: se lo recuerda hasta que termine, para
-                      que no llegue al mostrador sin los documentos. */}
-                  {fotosDiferidas && (
-                    <div style={{
-                      display: 'flex', gap: 10, alignItems: 'flex-start',
-                      padding: '12px 14px', borderRadius: 10,
-                      background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.28)',
-                    }}>
-                      <span style={{ fontSize: 12.5, color: 'rgba(103,232,249,0.92)', lineHeight: 1.55 }}>
-                        {t.fotosDiferidasAviso}
-                      </span>
                     </div>
                   )}
 

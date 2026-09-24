@@ -30,11 +30,47 @@ type Ctx = { params: Promise<{ appointmentId: string }> };
 const CAMPOS = {
   editingByUserId: true, editingByName: true, editingSince: true,
   editingHeartbeatAt: true, editingTypedAt: true,
+  /**
+   * Se lee para volver a escribirlo IGUAL en cada update del candado. Ver
+   * `sinTocarLaVersion`.
+   */
+  updatedAt: true,
   waitingByUserId: true, waitingByName: true, waitingSince: true,
   status: true,
   /** Reabierta para corregir: vuelve a ser editable y por lo tanto candadeable. */
   reopenedAt: true,
 } as const;
+
+/**
+ * EL LATIDO NO ES UN CAMBIO DE LA NOTA.
+ *
+ * Todo lo que escribe esta ruta —quién la tiene, el latido, quién espera— es
+ * estado del CANDADO, no contenido clínico. Pero `updatedAt` lleva
+ * `@updatedAt`, así que Prisma lo movía en cada uno de estos updates, y ese es
+ * justo el campo con el que el PUT decide si la nota que te llevás es vieja
+ * (`existing.updatedAt > baseUpdatedAt` → `STALE_NOTE`).
+ *
+ * Con un latido cada 20 segundos, la versión de la nota avanzaba sola. Medido el
+ * 2026-09-23 sobre una nota abierta y sin tocar: 21:09:42 → 21:10:02 → 21:10:22
+ * → 21:10:42, cada salto pegado a su `editingHeartbeatAt`. Resultado: abrir una
+ * nota, leerla veinte segundos y escribir una letra alcanzaba para que el
+ * guardado chocara contra "la versión nueva" — que era la misma nota, movida por
+ * el propio latido de quien estaba escribiendo. Reproducido de punta a punta:
+ * `PUT` 409 y el cartel *"Someone else saved changes to: History of present
+ * illness"* sin que hubiera nadie más.
+ *
+ * Eso es lo que reportó Devin dos veces el 2026-09-23. El caché viejo de Next lo
+ * empeoraba —arrancaba con una fecha todavía más atrasada— pero no hacía falta:
+ * con la página recién cargada pasaba igual.
+ *
+ * Reescribir `updatedAt` con su propio valor lo deja quieto. Prisma respeta el
+ * valor que le pasás por encima de `@updatedAt` (ya se usa así en
+ * `admission/[id]/admit`). Así `updatedAt` vuelve a significar lo único que
+ * tiene que significar: cuándo cambió el TEXTO.
+ */
+function sinTocarLaVersion<T extends object>(nota: { updatedAt: Date }, data: T): T & { updatedAt: Date } {
+  return { ...data, updatedAt: nota.updatedAt };
+}
 
 const BodySchema = z.object({
   /** `true` si el usuario tocó una tecla desde el latido anterior. */
@@ -160,7 +196,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (notify && !nota.waitingByUserId) {
       await db.visitNote.update({
         where: { appointmentId },
-        data: { waitingByUserId: yo, waitingByName: miNombre, waitingSince: ahora },
+        data: sinTocarLaVersion(nota, { waitingByUserId: yo, waitingByName: miNombre, waitingSince: ahora }),
       });
       esperando = { nombre: miNombre, desde: ahora.toISOString() };
 
@@ -204,7 +240,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     !estado.tomado && nota.editingByUserId === yo && estado.motivoLibre === 'inactividad';
 
   if (eraMioYVencio) {
-    await db.visitNote.update({ where: { appointmentId }, data: CANDADO_LIBRE });
+    await db.visitNote.update({ where: { appointmentId }, data: sinTocarLaVersion(nota, CANDADO_LIBRE) });
     return NextResponse.json({
       mio: false, porNombre: null, desde: null, esperando: null,
       soltadoPorInactividad: true,
@@ -246,7 +282,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   await db.visitNote.update({
     where: { appointmentId },
-    data: {
+    data: sinTocarLaVersion(nota, {
       editingByUserId: yo,
       editingByName: miNombre,
       editingHeartbeatAt: ahora,
@@ -264,7 +300,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
        * esto ese texto quedaba en su pantalla sin ningún lugar donde caer.
        */
       ...(desalojando ? { desalojadoAUserId: estado.porUserId, desalojadoEn: ahora } : {}),
-    },
+    }),
   });
 
   return NextResponse.json({
@@ -287,7 +323,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
 
   const nota = await db.visitNote.findUnique({
     where: { appointmentId },
-    select: { editingByUserId: true },
+    select: { editingByUserId: true, updatedAt: true },
   });
 
   /*
@@ -298,7 +334,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
    * ajeno al salir de la pantalla.
    */
   if (nota?.editingByUserId && nota.editingByUserId === actor.actorUserId) {
-    await db.visitNote.update({ where: { appointmentId }, data: CANDADO_LIBRE });
+    await db.visitNote.update({ where: { appointmentId }, data: sinTocarLaVersion(nota, CANDADO_LIBRE) });
   }
 
   return NextResponse.json({ ok: true });

@@ -464,6 +464,61 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
     if (note.updatedAt) version.current = note.updatedAt;
   }, [note, soloLectura, dirty]);
 
+  /**
+   * AL ABRIR, LA VERDAD LA TIENE EL SERVIDOR.
+   *
+   * El editor arranca su control de version con el `updatedAt` que venia en el
+   * prop, y ese prop puede ser VIEJO: Next guarda el payload de la pagina en su
+   * Router Cache, asi que volver a entrar a una nota que se acaba de escribir
+   * sirve la foto de la vez anterior. Con esa fecha vieja, el primer guardado
+   * choca contra la fila mas nueva y el servidor contesta `STALE_NOTE`.
+   *
+   * Asi salio el reporte de Devin del 2026-09-23. El audit log de la nota de
+   * Aaron Black Test lo deja escrito: firmo 20:19:56, reabrio 20:23:48, volvio a
+   * entrar, hizo la conciliacion de medicacion 20:24:32 —que escribe una linea
+   * en el HPI— y ahi salto *"Someone else saved changes to: History of present
+   * illness"*. El "alguien mas" era el mismo, cuatro minutos antes.
+   *
+   * Invalidar el cache al SALIR ayuda pero no alcanza: solo cubre las salidas
+   * por los botones del editor, y a la nota se llega por Mi Dia, por el
+   * calendario, por el expediente y con el boton de atras del navegador. La
+   * unica defensa que cubre todos los caminos es no creerle a la fecha del prop:
+   * al montar se le pregunta al servidor cual es la version real.
+   *
+   * Se adopta en SILENCIO y solo cuando no hay nada propio que perder —recien se
+   * abrio, no se toco una tecla—. Si la persona ya empezo a escribir mientras el
+   * pedido viajaba, no se toca nada y el camino normal de conflicto hace su
+   * trabajo, que para eso esta.
+   */
+  React.useEffect(() => {
+    let vivo = true;
+    void fetch(`/api/admin/visit-notes/${appointmentId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { note?: VisitNoteData | null } | null) => {
+        const servidor = d?.note;
+        if (!vivo || !servidor?.updatedAt) return;
+        if (servidor.updatedAt === version.current) return;
+        // Nada propio en juego: si se toco algo, mandan el estado local y el
+        // resolutor de conflictos.
+        if (tocadas.current.size || dxTocado.current || tplTocado.current) return;
+        setContent({
+          chiefComplaint: servidor.chiefComplaint ?? '',
+          hpi:            servidor.hpi ?? '',
+          ros:            servidor.ros ?? '',
+          physicalExam:   servidor.physicalExam ?? '',
+          assessment:     servidor.assessment ?? '',
+          plan:           servidor.plan ?? '',
+        });
+        setDx(servidor.diagnoses ?? []);
+        setTemplateId(servidor.templateId ?? null);
+        version.current = servidor.updatedAt;
+      })
+      .catch(() => { /* sin respuesta se sigue con lo que trajo el prop */ });
+    return () => { vivo = false; };
+    // Una sola vez por nota: es la foto de arranque, no un pulso.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointmentId]);
+
   const tomarLaNota = (): void => {
     tomada.current = true;
     setTomadaUi(true);
@@ -836,6 +891,22 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   const tieneContenido = (['chiefComplaint', 'hpi', 'assessment', 'plan'] as const)
     .some((k) => (content[k] ?? '').replace(/<[^>]*>/g, '').trim().length > 0);
 
+  /**
+   * SALIR INVALIDANDO EL CACHÉ.
+   *
+   * Sin esto la nota "se perdía": Devin escribió una nota entera, usó Guardar y
+   * salir, volvió desde Mi Día y la vio VACÍA — aunque el texto estaba guardado.
+   * Lo que devolvía la pantalla era la copia que el Router Cache de Next había
+   * guardado al ENTRAR, de antes de escribir.
+   *
+   * Y de ahí salía el segundo síntoma: el editor arranca su control de versión
+   * con el `updatedAt` de esa copia vieja, así que al guardar de nuevo el
+   * servidor veía la fila más nueva y contestaba STALE_NOTE — el cartel de
+   * "alguien más guardó cambios". Ese alguien era él mismo, de la vez anterior.
+   *
+   * `router.refresh()` invalida ese caché. Es lo que ya hacen los otros tres
+   * caminos del editor (firmar, reabrir, addendum); salir era el único que no.
+   */
   const salirDeVerdad = async (): Promise<void> => {
     if (!onSaveExit) return;
     if (!soloLectura && dirty) {
@@ -844,6 +915,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       setSaliendo(false);
       if (!ok) return;
     }
+    router.refresh();
     onSaveExit();
   };
 
@@ -1017,6 +1089,9 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
       setConfirmSign(false);
       if (salirTrasFirmar) {
         setSalirTrasFirmar(false);
+        // Mismo motivo que en `salirDeVerdad`: sin invalidar, al volver se ve
+        // la copia de antes de firmar.
+        router.refresh();
         // Ya está firmada y guardada: se sale directo, sin pasar por
         // `guardarYSalir` (que volvería a preguntar por la firma).
         onSaveExit?.();

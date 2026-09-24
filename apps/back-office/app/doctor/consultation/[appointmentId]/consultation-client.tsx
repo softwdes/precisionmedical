@@ -214,6 +214,16 @@ export function ConsultationClient({
    */
   const cargosDeLaVisita = (a.servicesPanel.plannedServiceCodes ?? []) as PlannedService[];
 
+  /**
+   * Cuantos cargos tiene la visita en total, para el aviso del firmado.
+   *
+   * Arranca con los CPT del payload y lo corrige `NoteCharges` en cuanto carga
+   * los de efectivo, que viven en otra tabla y no vienen aca. Sin esto una visita
+   * cobrada entera de bolsillo le avisaba al provider que no habia cargado nada,
+   * con los cargos listados tres centimetros mas arriba.
+   */
+  const [cuentaCargos, setCuentaCargos] = React.useState(cargosDeLaVisita.length);
+
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
   const isCompleted = a.status === 'COMPLETED';
@@ -747,7 +757,7 @@ export function ConsultationClient({
                    ACÁ y no dentro del editor porque necesita cobertura, caso y saber
                    llegar al tab de Servicios — cosas que el editor no tiene por qué
                    conocer. Y NO se congela al firmar: la plata corre en otro reloj. */
-                sinCargos={cargosDeLaVisita.length === 0}
+                sinCargos={cuentaCargos === 0}
                 /* Los ACTIVOS, no todos: conciliar es revisar lo que el paciente
                    está tomando hoy, no su historia de medicación. */
                 medicamentosActivos={patientContext.history.medications.filter((m) => m.status === 'IN_USE')}
@@ -761,6 +771,7 @@ export function ConsultationClient({
                     /* El Resumen del paso 4 lee los CPT del payload del SERVER: sin
                        esto, se agrega un cargo acá y la salida sigue diciendo que faltan. */
                     onChanged={() => router.refresh()}
+                    onCuenta={setCuentaCargos}
                   />
                 }
                 mergeData={mergeDataFromPatient(patientContext)}

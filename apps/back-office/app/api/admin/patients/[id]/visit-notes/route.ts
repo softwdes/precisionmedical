@@ -108,7 +108,7 @@ export interface NotaAnterior {
 }
 
 const pelado = (v: string | null): string =>
-  (v ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/s+/g, ' ').trim();
+  (v ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
 const conTexto = (v: string | null): boolean => pelado(v).length > 0;
 
@@ -121,7 +121,7 @@ const conTexto = (v: string | null): boolean => pelado(v).length > 0;
 const RECORTE = 90;
 
 const recortar = (v: string): string =>
-  v.length <= RECORTE ? v : v.slice(0, RECORTE).replace(/s+S*$/, '') + '…';
+  v.length <= RECORTE ? v : v.slice(0, RECORTE).replace(/\s+\S*$/, '') + '…';
 
 export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const user = await getSessionUser();

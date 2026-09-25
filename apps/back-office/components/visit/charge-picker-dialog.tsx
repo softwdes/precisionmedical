@@ -159,6 +159,19 @@ export function ChargePickerDialog({
   const [favoritesOnly, setFavoritesOnly] = React.useState(false);
   const [data, setData] = React.useState<Payload>(EMPTY);
   const [loading, setLoading] = React.useState(true);
+  /**
+   * El spinner que TAPA la lista sale SOLO la primera vez.
+   *
+   * Antes salía en cada tecla: la lista entera se iba, el diálogo se
+   * encogía al alto del spinner y se volvía a estirar con los resultados
+   * nuevos. Escribiendo una palabra eso son seis saltos, y desde afuera se
+   * lee como si la ventana se recargara sola (Erick, 25-sep-2026).
+   *
+   * Con resultados ya en pantalla no hace falta vaciarla: se dejan los de
+   * antes, atenuados, y el aviso de que está buscando lo da la lupa. Nada
+   * se mueve de lugar y no se pierde el contexto de lo que se venía viendo.
+   */
+  const primeraBusqueda = loading && data === EMPTY;
   const [addingKey, setAddingKey] = React.useState<string | null>(null);
   const [togglingFav, setTogglingFav] = React.useState<string | null>(null);
   /** Ítem al que se le está escribiendo el monto de ESTE cargo. */
@@ -614,7 +627,13 @@ export function ChargePickerDialog({
 
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              {/* La lupa se vuelve spinner mientras busca: mismo sitio y mismo
+                  tamaño, así el aviso no corre ni un pixel de la ventana. */}
+              {loading ? (
+                <Loader2 className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted animate-spin pointer-events-none" />
+              ) : (
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              )}
               {/*
                 SIN `autoFocus` — a propósito. El foco al abrir lo da
                 `onOpenAutoFocus` allá arriba, que corre UNA vez por apertura.
@@ -677,8 +696,13 @@ export function ChargePickerDialog({
           </div>
         </div>
 
-        <div className="px-5 py-3 overflow-y-auto flex-1">
-          {loading ? (
+        <div
+          aria-busy={loading}
+          className={`px-5 py-3 overflow-y-auto flex-1 transition-opacity ${
+            loading && !primeraBusqueda ? 'opacity-60' : ''
+          }`}
+        >
+          {primeraBusqueda ? (
             <div className="flex items-center justify-center py-10 text-text-muted text-xs gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('searching')}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { marcarCortinaMostrada } from './use-novedad';
 
 /**
  * La cortina de versión: el número tomando la pantalla entera.
@@ -85,13 +86,20 @@ export function CortinaVersion({
    * distingue entre quien lo leyó y quien no estaba frente a la pantalla.
    *
    * Ahora "visto" significa que la persona hizo algo. Si la cortina se cerró
-   * sola a los seis segundos, el punto sigue latiendo y la próxima sesión
-   * vuelve a mostrarla — que es lo correcto: nadie la vio.
+   * sola a los seis segundos, el punto sigue latiendo — nadie la miró.
+   *
+   * Lo que ya NO depende de esto es si la cortina vuelve a salir: eso lo
+   * decide `marcarCortinaMostrada`, que se escribe al abrir. Atarlo acá hacía
+   * que reapareciera todas las mañanas, porque el camino normal es dejarla
+   * cerrarse sola (Erick, 2026-09-24). Las dos llaves están explicadas en
+   * `use-novedad.ts`.
    */
   onDescartada?: () => void;
 }): React.ReactElement | null {
   const [abierta, setAbierta] = React.useState(false);
   const nonce = datos?.nonce ?? null;
+  /** Primitivo, no el objeto: sirve de dependencia sin reabrir la cortina. */
+  const version = datos?.version ?? null;
 
   const alDescartar = React.useRef(onDescartada);
   alDescartar.current = onDescartada;
@@ -111,13 +119,23 @@ export function CortinaVersion({
    * para el tipeo, y acá el síntoma sería mucho peor.
    */
   React.useEffect(() => {
-    if (nonce === null) return;
+    if (nonce === null || version === null) return;
     setAbierta(true);
     // Que ya se mostró en ESTA sesión del navegador. Sin esto, una cortina que
     // se cerró sola volvería a taparle la pantalla en cada navegación hasta que
     // la persona la descarte — y eso la convierte en un castigo.
     try { window.sessionStorage.setItem(CLAVE_SESION, '1'); } catch { /* da igual */ }
-  }, [nonce]);
+    /*
+     * Y que ya se mostró esta VERSIÓN, para siempre. Es lo único que impide que
+     * vuelva mañana: el camino normal es mirarla y dejar que se cierre sola, y
+     * eso nunca contó como "vista" (ver las dos llaves en `use-novedad.ts`).
+     *
+     * Ojo con la tentación de unificarla con `onDescartada`: son distintas a
+     * propósito. Esta dice "ya le tapé la pantalla"; aquélla, "la miró". El
+     * punto ámbar de la insignia sigue latiendo hasta que la persona la toque.
+     */
+    marcarCortinaMostrada(version);
+  }, [nonce, version]);
 
   React.useEffect(() => {
     if (!abierta) return;

@@ -33,11 +33,45 @@ import type { ReleaseModuleGroup } from './types';
  * cualquiera sin lanzamiento nuevo— no le cuesta una request a nadie.
  */
 
-/** La versión que la persona ya vio, y cuándo la vio. */
+/**
+ * ⚠️ Son DOS marcas porque son DOS preguntas, y confundirlas ya costó dos bugs.
+ *
+ *  · `CLAVE_VERSION` — **"¿la persona la vio?"**. Se escribe solo cuando hace
+ *    algo: el botón, el fondo, Escape. Es la que apaga el punto ámbar de la
+ *    insignia.
+ *  · `CLAVE_CORTINA` — **"¿ya le tapé la pantalla con esta versión?"**. Se
+ *    escribe al ABRIR, mire quien mire. Es la que decide si la cortina vuelve
+ *    a salir sola.
+ *
+ * Con una sola llave no hay forma de acertar. Marcándola al abrir, el punto
+ * ámbar se apagaba un segundo después de cargar la página y Erick lo reclamó
+ * (*"falta el punto ámbar parpadeante"*). Marcándola solo al descartar, la
+ * cortina volvía **todas las mañanas** — porque el camino normal es mirar los
+ * seis segundos y dejar que se cierre sola, así que la marca casi nunca se
+ * escribía. Erick lo reclamó el 2026-09-24: *"debería salir solo la primera
+ * vez que lancemos una versión, está apareciendo siempre al iniciar el día"*.
+ *
+ * Las dos quejas son ciertas a la vez, y esa es la señal de que era una llave
+ * de menos. Ahora la cortina sale UNA vez por versión y el punto sigue
+ * latiendo hasta que alguien la toque.
+ */
 const CLAVE_VERSION = 'cifo:version-vista';
 const CLAVE_DESDE = 'cifo:version-vista-at';
+const CLAVE_CORTINA = 'cifo:cortina-vista';
 /** La misma que usa `CortinaVersion`: ya se mostró en esta sesión. */
 const CLAVE_SESION = 'cifo:cortina-mostrada';
+
+/**
+ * Deja constancia de que la cortina de esta versión YA se abrió, la haya
+ * mirado alguien o no. Lo llama `CortinaVersion` al abrirse.
+ *
+ * Va acá y no en `cortina-version.tsx` para que la llave se escriba y se lea
+ * en el mismo archivo: partirla entre dos es cómo se termina con un `setItem`
+ * y un `getItem` que no coinciden.
+ */
+export function marcarCortinaMostrada(version: string): void {
+  try { window.localStorage.setItem(CLAVE_CORTINA, version); } catch { /* modo privado */ }
+}
 
 /**
  * El pedido de "mostrame otra vez lo de la versión", desde la insignia del
@@ -100,17 +134,34 @@ export function useNovedadDeVersion(version: string, audiencia: string): Novedad
   const [novedad, setNovedad] = useState<NovedadDeVersion | null>(null);
 
   useEffect(() => {
-    let vista: string | null = null;
+    let cortinaVista: string | null = null;
     let desde: string | null = null;
     try {
-      vista = window.localStorage.getItem(CLAVE_VERSION);
+      /*
+       * El `??` es la transición para quien ya venía usando esto.
+       *
+       * `CLAVE_CORTINA` nació hoy, así que nadie la tiene escrita. Sin este
+       * respaldo, la cortina saldría UNA vez más incluso a quien ya la había
+       * descartado — y el reclamo era justamente que aparece de más. Si
+       * alguien tiene la marca vieja, la cortina obviamente ya se le mostró.
+       *
+       * Se puede borrar cuando la 3.10 quede atrás; mientras tanto no cuesta
+       * nada y evita una molestia a todo el mundo el día del despliegue.
+       */
+      cortinaVista = window.localStorage.getItem(CLAVE_CORTINA)
+        ?? window.localStorage.getItem(CLAVE_VERSION);
       desde = window.localStorage.getItem(CLAVE_DESDE);
     } catch {
       /* Modo privado: se trata como "no vio nada" y el aviso sale igual. */
     }
 
     let cancelado = false;
-    const sinVer = esVersionNueva(version, vista);
+    /**
+     * Para ABRIRSE SOLA manda `CLAVE_CORTINA`, no `CLAVE_VERSION`: la pregunta
+     * acá es "¿ya le tapé la pantalla con esta versión?", no "¿la vio?". Ver
+     * la nota de las dos llaves arriba.
+     */
+    const sinMostrar = esVersionNueva(version, cortinaVista);
 
     /**
      * A pedido: alguien tocó la insignia del sidebar.
@@ -122,22 +173,17 @@ export function useNovedadDeVersion(version: string, audiencia: string): Novedad
     window.addEventListener(EVENTO_NOVEDAD, aPedido);
 
     /**
-     * Automático: solo si la versión no se vio Y la cortina no se mostró ya en
-     * esta sesión del navegador.
+     * Automático: solo si la cortina de esta versión nunca se abrió Y no se
+     * abrió ya en esta sesión del navegador.
      *
-     * Las dos condiciones hacen falta y miden cosas distintas. "No la vio" vive
-     * en `localStorage` y solo se apaga cuando la persona **descarta** la
-     * cortina; si se cerró sola, sigue sin verla. Pero sin la marca de sesión,
-     * eso significaría taparle la pantalla en CADA navegación hasta que la
-     * descarte, que es exactamente cómo se hace odiar un aviso.
-     *
-     * Con las dos: se muestra una vez por sesión, y si nunca la descartó vuelve
-     * mañana. El punto de la insignia, mientras tanto, sigue latiendo — ahí es
-     * donde queda la deuda pendiente, sin robarle la pantalla a nadie.
+     * La de sesión parece redundante ahora que la otra se persiste al abrir, y
+     * casi lo es — pero cubre el modo privado, donde `localStorage` tira y la
+     * marca nunca llega a escribirse. Sin ella, ahí la cortina reaparecería en
+     * cada navegación, que es exactamente cómo se hace odiar un aviso.
      */
     let yaEnEstaSesion = false;
     try { yaEnEstaSesion = window.sessionStorage.getItem(CLAVE_SESION) === '1'; } catch { /* da igual */ }
-    if (sinVer && !yaEnEstaSesion) void traer();
+    if (sinMostrar && !yaEnEstaSesion) void traer();
 
     return () => { cancelado = true; window.removeEventListener(EVENTO_NOVEDAD, aPedido); };
 

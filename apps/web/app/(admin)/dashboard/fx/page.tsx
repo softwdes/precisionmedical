@@ -10,6 +10,7 @@ export async function generateMetadata() {
 }
 
 export default async function FxPage(): Promise<React.ReactElement> {
+  const t = await getTranslations();
   const [initial, wallets, initialSummary, initialHouses] = await Promise.all([
     api.fx.list({ page: 1, pageSize: 25 }),
     api.wallets.list(),
@@ -17,7 +18,7 @@ export default async function FxPage(): Promise<React.ReactElement> {
     api.fx.getExchangeHouses(),
   ]);
   return (
-    <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
+    <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
       <FxClient initial={initial} wallets={wallets} initialSummary={initialSummary} initialHouses={initialHouses} />
     </Suspense>
   );

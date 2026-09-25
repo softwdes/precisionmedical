@@ -27,6 +27,7 @@ export default async function FinanzasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
+  const t = await getTranslations();
   const params = await searchParams;
   const tab = (params.tab as string) ?? 'caja-chica';
   const activeTab = TABS.some(t => t.key === tab) ? tab : 'caja-chica';
@@ -66,7 +67,7 @@ export default async function FinanzasPage({
   return (
     <>
       <ModuleTabs tabs={TABS} activeTab={activeTab} />
-      <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
+      <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
         {content}
       </Suspense>
     </>

@@ -171,7 +171,7 @@ export function FreelancersPagosClient({
         <Select value={statusFilter || 'ALL'} onValueChange={(v) => { setStatusFilter(v === 'ALL' ? '' : v); setPage(1); }}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Estado" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Todos</SelectItem>
+            <SelectItem value="ALL">{t('freelancers.all')}</SelectItem>
             <SelectItem value="PENDING">{t('freelancers.statusPENDING')}</SelectItem>
             <SelectItem value="PAID">{t('freelancers.statusPAID')}</SelectItem>
             <SelectItem value="CANCELLED">{t('freelancers.statusCANCELLED')}</SelectItem>

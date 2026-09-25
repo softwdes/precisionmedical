@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { EVENTO_ABRIR, MARCA_ABRIR } from '@precision-medical/agente/saludo';
 
@@ -19,6 +20,8 @@ import { EVENTO_ABRIR, MARCA_ABRIR } from '@precision-medical/agente/saludo';
  * mancha. Con el cuerpo completo se reconoce la silueta aunque sea diminuto.
  */
 export function CifoButton(): React.ReactElement {
+  const t = useTranslations();
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -38,8 +41,8 @@ export function CifoButton(): React.ReactElement {
     <button
       type="button"
       onClick={abrir}
-      title="Qué dice CIFO"
-      aria-label="Qué dice CIFO"
+      title={t('cifo.buttonLabel')}
+      aria-label={t('cifo.buttonLabel')}
       className="relative inline-flex items-center justify-center h-9 w-9 rounded-md bg-bg-2 border border-border hover:border-brand/40 transition-colors"
     >
       <img

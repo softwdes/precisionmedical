@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 
@@ -18,6 +19,7 @@ type Props = {
 export function SuccessToast({
   icon, title, detail, statusText, barColor = '#10B981', warning, onClose, autoCloseMs = 5000,
 }: Props): React.ReactElement {
+  const t = useTranslations();
   const [exiting, setExiting] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -95,7 +97,7 @@ export function SuccessToast({
           </div>
           <button
             onClick={dismiss}
-            aria-label="Cerrar"
+            aria-label={t('common.close')}
             style={{ background: 'transparent', border: 'none', padding: 2, cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
           >
             <X size={14} />

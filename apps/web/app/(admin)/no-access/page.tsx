@@ -1,11 +1,14 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useRole } from '@/contexts/role-context';
 import { Lock, ArrowLeft, Clock } from 'lucide-react';
 import { TIMECLOCK_URL } from '@/lib/app-urls';
 
 export default function NoAccessPage(): React.ReactElement {
+  const t = useTranslations();
+
   const role = useRole();
   const isEmployee = role === 'employee';
 
@@ -23,36 +26,36 @@ export default function NoAccessPage(): React.ReactElement {
 
       {isEmployee ? (
         <>
-          <h1 className="text-xl font-bold text-text-1 mb-2">Tu cuenta es de empleado</h1>
+          <h1 className="text-xl font-bold text-text-1 mb-2">{t('noAccess.employeeAccount')}</h1>
           <p className="text-sm text-text-3 max-w-sm mb-1">
-            Accede al sistema de fichaje aquí:
+            {t('noAccess.timeclockHere')}
           </p>
           <p className="text-xs text-text-muted max-w-sm mb-8">
-            Si crees que esto es un error, contacta al administrador.
+            {t('noAccess.contactAdmin')}
           </p>
           <a
             href={TIMECLOCK_URL}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
           >
             <Clock className="h-4 w-4" />
-            Ir a PM Time Clock
+            {t('noAccess.goToTimeclock')}
           </a>
         </>
       ) : (
         <>
-          <h1 className="text-xl font-bold text-text-1 mb-2">Sin acceso</h1>
+          <h1 className="text-xl font-bold text-text-1 mb-2">{t('noAccess.title')}</h1>
           <p className="text-sm text-text-3 max-w-sm mb-1">
-            No tienes permisos para ver esta sección.
+            {t('noAccess.noPermission')}
           </p>
           <p className="text-xs text-text-muted max-w-sm mb-8">
-            Si crees que esto es un error, contacta al administrador.
+            {t('noAccess.contactAdmin')}
           </p>
           <button
             onClick={handleBack}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-medium text-text-2 hover:bg-surface/80 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver
+            {t('common.back')}
           </button>
         </>
       )}

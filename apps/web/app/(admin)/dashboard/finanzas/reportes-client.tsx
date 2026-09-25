@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useCallback } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -27,18 +28,15 @@ const CAT_COLORS: Record<string, string> = {
   OTHER:           '#475569',
 };
 const CLINIC_COLORS = ['#6366F1','#8B5CF6','#06B6D4','#10B981','#F59E0B','#F43F5E','#3B82F6'];
-const CAT_LABELS: Record<string, string> = {
-  FOOD:             'Alimentación',
-  CALACOTO:         'Calacoto',
-  RECORDINGS:       'Grabaciones',
-  MAINTENANCE:      'Limpieza',
-  OFFICE:           'Papelería y oficina',
-  UTILITIES:        'Servicios básicos',
-  MEDICAL_SUPPLIES: 'Suministros médicos',
-  TRANSPORT:        'Transporte',
-  VIATICOS:         'Viáticos',
-  OTHER:            'Otros',
-};
+/**
+ * Las diez categorías de gasto. Los NOMBRES no están acá: ya vivían en
+ * `pettyCash.categories` del diccionario, en los dos idiomas, y este archivo
+ * tenía una segunda copia sin traducir. Queda solo el orden.
+ */
+const CAT_KEYS = [
+  'FOOD', 'CALACOTO', 'RECORDINGS', 'MAINTENANCE', 'OFFICE',
+  'UTILITIES', 'MEDICAL_SUPPLIES', 'TRANSPORT', 'VIATICOS', 'OTHER',
+];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -114,6 +112,10 @@ function FilterSidebar({
   isFetching: boolean;
   onClose?: () => void;
 }) {
+  const t    = useTranslations('finance');
+  const tc   = useTranslations('common');
+  const tCat = useTranslations('pettyCash.categories');
+
   const [activePreset, setActivePreset] = useState('mes');
 
   function setPreset(p: string) {
@@ -138,42 +140,42 @@ function FilterSidebar({
       {/* Mobile close */}
       {onClose && (
         <div className="flex items-center justify-between md:hidden">
-          <span className="text-sm font-semibold text-text-1">Filtros</span>
+          <span className="text-sm font-semibold text-text-1">{t('filters')}</span>
           <button onClick={onClose} className="p-1 text-text-3 hover:text-text-1"><X size={16} /></button>
         </div>
       )}
 
       {/* Período */}
       <div>
-        <span className={labelCls}>Período</span>
+        <span className={labelCls}>{t('period')}</span>
         <div className="flex flex-col gap-1.5">
           <div>
-            <p className="text-[10.5px] text-text-3 mb-1">Desde</p>
+            <p className="text-[10.5px] text-text-3 mb-1">{t('from')}</p>
             <input type="date" value={filters.dateFrom}
               onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
               className="w-full bg-bg-2 border border-border rounded-lg px-2.5 py-1.5 text-[11.5px] text-text-1 font-sans" />
           </div>
           <div>
-            <p className="text-[10.5px] text-text-3 mb-1">Hasta</p>
+            <p className="text-[10.5px] text-text-3 mb-1">{t('to')}</p>
             <input type="date" value={filters.dateTo}
               onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
               className="w-full bg-bg-2 border border-border rounded-lg px-2.5 py-1.5 text-[11.5px] text-text-1 font-sans" />
           </div>
         </div>
         <div className="flex flex-col gap-1 mt-2">
-          {[{k:'mes',l:'Este mes'},{k:'7d',l:'Últimos 7 días'},{k:'30d',l:'Últimos 30 días'},{k:'tri',l:'Trimestre'}].map(p => (
-            <button key={p.k} onClick={() => setPreset(p.k)} className={presetCls(activePreset === p.k)}>{p.l}</button>
+          {[{k:'mes',l:'presetMonth'},{k:'7d',l:'preset7d'},{k:'30d',l:'preset30d'},{k:'tri',l:'presetQuarter'}].map(p => (
+            <button key={p.k} onClick={() => setPreset(p.k)} className={presetCls(activePreset === p.k)}>{t(p.l)}</button>
           ))}
         </div>
       </div>
 
       {/* Sede */}
       <div>
-        <span className={labelCls}>Sede</span>
+        <span className={labelCls}>{t('site')}</span>
         <Select value={filters.country} onValueChange={v => setFilters(f => ({ ...f, country: v as Filters['country'], clinicName: '' }))}>
           <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las sedes</SelectItem>
+            <SelectItem value="all">{t('allSites')}</SelectItem>
             <SelectItem value="EEUU">🇺🇸 EEUU</SelectItem>
             <SelectItem value="Bolivia">🇧🇴 Bolivia</SelectItem>
           </SelectContent>
@@ -182,11 +184,11 @@ function FilterSidebar({
 
       {/* Clínica */}
       <div>
-        <span className={labelCls}>Clínica</span>
+        <span className={labelCls}>{t('clinic')}</span>
         <Select value={filters.clinicName || 'all'} onValueChange={v => setFilters(f => ({ ...f, clinicName: v === 'all' ? '' : v }))}>
           <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las clínicas</SelectItem>
+            <SelectItem value="all">{t('allClinics')}</SelectItem>
             {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -194,25 +196,25 @@ function FilterSidebar({
 
       {/* Tipo */}
       <div>
-        <span className={labelCls}>Tipo</span>
+        <span className={labelCls}>{t('type')}</span>
         <Select value={filters.tipo} onValueChange={v => setFilters(f => ({ ...f, tipo: v as Filters['tipo'] }))}>
           <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="DEPOSIT">Depósitos</SelectItem>
-            <SelectItem value="EXPENSE">Gastos</SelectItem>
+            <SelectItem value="all">{t('all')}</SelectItem>
+            <SelectItem value="DEPOSIT">{t('deposits')}</SelectItem>
+            <SelectItem value="EXPENSE">{t('expenses')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Categoría */}
       <div>
-        <span className={labelCls}>Categoría</span>
+        <span className={labelCls}>{t('category')}</span>
         <Select value={filters.category || 'all'} onValueChange={v => setFilters(f => ({ ...f, category: v === 'all' ? '' : v }))}>
           <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            <SelectItem value="all">{t('allCategories')}</SelectItem>
+            {CAT_KEYS.map(k => <SelectItem key={k} value={k}>{tCat(k)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -222,8 +224,8 @@ function FilterSidebar({
         className="mt-auto w-full bg-brand text-white rounded-[9px] py-2.5 text-[12.5px] font-bold font-sans flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
       >
         {isFetching
-          ? <><RefreshCw size={13} className="animate-spin" />Cargando...</>
-          : 'Generar reporte'}
+          ? <><RefreshCw size={13} className="animate-spin" />{tc('loading')}</>
+          : t('generate')}
       </button>
     </div>
   );
@@ -231,6 +233,11 @@ function FilterSidebar({
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
+  const t    = useTranslations('finance');
+  const tc   = useTranslations('common');
+  const tCat = useTranslations('pettyCash.categories');
+  const locale = useLocale();
+
   const defaultFilters: Filters = {
     dateFrom: firstOfMonth(), dateTo: todayStr(),
     country: 'all', clinicName: '', tipo: 'all', category: '',
@@ -363,7 +370,8 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
   // máquina de Erick. Además llevaba solo la tabla de categorías, menos de lo
   // que ya trae el PDF de al lado.
   const handleExportExcel = useCallback(() => {
-    const xml  = construirWorkbookCajaChica(report, applied, totalBalance, CAT_LABELS);
+    const xml  = construirWorkbookCajaChica(report, applied, totalBalance,
+      Object.fromEntries(CAT_KEYS.map(k => [k, tCat(k)])), t, locale);
     const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -378,24 +386,24 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
   }, [report, applied, totalBalance]);
 
   const handleExportPDF = useCallback(() => {
-    const catRows = report.byCategory.map(r=>`<tr><td>${CAT_LABELS[r.category]??r.category}</td><td style="text-align:center">${r.count}</td><td style="text-align:right;color:#dc2626">$${fmt(r.amount)}</td><td style="text-align:right">${(r.pct*100).toFixed(1)}%</td></tr>`).join('');
+    const catRows = report.byCategory.map(r=>`<tr><td>${tCat(r.category)}</td><td style="text-align:center">${r.count}</td><td style="text-align:right;color:#dc2626">$${fmt(r.amount)}</td><td style="text-align:right">${(r.pct*100).toFixed(1)}%</td></tr>`).join('');
     const clinicRows = report.byClinic.map(c=>`<tr><td>${c.clinicName}</td><td>${c.country==='EEUU'?'🇺🇸':'🇧🇴'} ${c.country}</td><td style="text-align:right;color:#dc2626">$${fmt(c.amount)}</td></tr>`).join('');
-    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Reporte Caja Chica</title>
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${t('pdfTitle')}</title>
 <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:20px;margin:0}.sub{color:#666;font-size:12px;margin:4px 0 20px}.kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}.kpi{background:#f3f4f6;padding:10px 16px;border-radius:8px;flex:1;min-width:120px}.kpi-l{font-size:10px;color:#666;text-transform:uppercase}.kpi-v{font-size:17px;font-weight:700;margin-top:4px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:18px 0 8px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #e5e7eb;padding:6px 8px;font-size:10px;text-transform:uppercase;color:#666}td{padding:6px 8px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</style>
 </head><body>
-<h1>Reporte Caja Chica — Precision Medical</h1>
-<p class="sub">${applied.dateFrom} – ${applied.dateTo} · Generado ${new Date().toLocaleDateString('es-ES')}</p>
+<h1>${t('pdfHeading')}</h1>
+<p class="sub">${applied.dateFrom} – ${applied.dateTo} · ${t('pdfGenerated', { fecha: new Date().toLocaleDateString(locale) })}</p>
 <div class="kpis">
-  <div class="kpi"><div class="kpi-l">Saldo actual</div><div class="kpi-v">$${fmt(totalBalance)}</div></div>
-  <div class="kpi"><div class="kpi-l">Depósitos</div><div class="kpi-v" style="color:#16a34a">$${fmt(report.kpis.totalDeposits)}</div></div>
-  <div class="kpi"><div class="kpi-l">Gastos</div><div class="kpi-v" style="color:#dc2626">$${fmt(report.kpis.totalExpenses)}</div></div>
-  <div class="kpi"><div class="kpi-l">Transacciones</div><div class="kpi-v">${report.kpis.txCount}</div></div>
-  <div class="kpi"><div class="kpi-l">Promedio</div><div class="kpi-v">$${fmt(report.kpis.avgAmount)}</div></div>
+  <div class="kpi"><div class="kpi-l">${t('currentBalance')}</div><div class="kpi-v">$${fmt(totalBalance)}</div></div>
+  <div class="kpi"><div class="kpi-l">${t('deposits')}</div><div class="kpi-v" style="color:#16a34a">$${fmt(report.kpis.totalDeposits)}</div></div>
+  <div class="kpi"><div class="kpi-l">${t('expenses')}</div><div class="kpi-v" style="color:#dc2626">$${fmt(report.kpis.totalExpenses)}</div></div>
+  <div class="kpi"><div class="kpi-l">${t('transactions')}</div><div class="kpi-v">${report.kpis.txCount}</div></div>
+  <div class="kpi"><div class="kpi-l">${t('average')}</div><div class="kpi-v">$${fmt(report.kpis.avgAmount)}</div></div>
 </div>
-<h2>Por categoría</h2>
-<table><thead><tr><th>Categoría</th><th>Transacciones</th><th style="text-align:right">Monto</th><th style="text-align:right">%</th></tr></thead><tbody>${catRows}</tbody></table>
-<h2>Por clínica / sede</h2>
-<table><thead><tr><th>Clínica</th><th>Sede</th><th style="text-align:right">Monto</th></tr></thead><tbody>${clinicRows}</tbody></table>
+<h2>${t('byCategory')}</h2>
+<table><thead><tr><th>${t('category')}</th><th>${t('transactions')}</th><th style="text-align:right">${t('amount')}</th><th style="text-align:right">%</th></tr></thead><tbody>${catRows}</tbody></table>
+<h2>${t('byClinicSite')}</h2>
+<table><thead><tr><th>${t('clinic')}</th><th>${t('site')}</th><th style="text-align:right">${t('amount')}</th></tr></thead><tbody>${clinicRows}</tbody></table>
 </body></html>`;
     const win = window.open('','_blank');
     if (win){win.document.write(html);win.document.close();win.print();}
@@ -444,10 +452,10 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
               {/* Mobile filtros button */}
               <button onClick={() => setDrawerOpen(true)}
                 className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-text-2 bg-bg-2 shrink-0">
-                <SlidersHorizontal size={13} /> Filtros
+                <SlidersHorizontal size={13} /> {t('filters')}
               </button>
               <div className="min-w-0">
-                <h1 className="text-base sm:text-[17px] font-bold text-text-1 truncate">Reporte Financiero — Caja Chica</h1>
+                <h1 className="text-base sm:text-[17px] font-bold text-text-1 truncate">{t('reportTitle')}</h1>
                 <p className="text-[11px] text-text-3 mt-0.5 truncate">
                   {applied.dateFrom} – {applied.dateTo}
                   {applied.country !== 'all' && ` · ${applied.country}`}
@@ -470,10 +478,10 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
           {/* KPIs — 2 cols mobile, 4 cols desktop */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
             {[
-              { label: 'Saldo actual total',    value: `$${fmt(totalBalance)}`,              color: '#6366F1', meta: `${initialBoxes.length} cajas` },
-              { label: 'Total depósitos',        value: `$${fmt(report.kpis.totalDeposits)}`, color: '#10B981', meta: 'en el período' },
-              { label: 'Total gastos',           value: `$${fmt(report.kpis.totalExpenses)}`, color: '#F43F5E', meta: `${report.kpis.txCount} transacciones` },
-              { label: 'Promedio / transacción', value: `$${fmt(report.kpis.avgAmount)}`,     color: '#F59E0B', meta: `Mediana $${fmt(report.kpis.medianAmount)}` },
+              { label: t('kpiTotalBalance'),  value: `$${fmt(totalBalance)}`,              color: '#6366F1', meta: t('boxesCount', { total: initialBoxes.length }) },
+              { label: t('kpiTotalDeposits'), value: `$${fmt(report.kpis.totalDeposits)}`, color: '#10B981', meta: t('inPeriod') },
+              { label: t('kpiTotalExpenses'), value: `$${fmt(report.kpis.totalExpenses)}`, color: '#F43F5E', meta: t('txCount', { total: report.kpis.txCount }) },
+              { label: t('kpiAvgPerTx'),      value: `$${fmt(report.kpis.avgAmount)}`,     color: '#F59E0B', meta: t('median', { monto: `$${fmt(report.kpis.medianAmount)}` }) },
             ].map(k => (
               <div key={k.label} className="relative overflow-hidden rounded-xl border border-border bg-surface p-3 sm:p-4">
                 <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl" style={{ background: k.color }} />
@@ -490,8 +498,8 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
             {/* Line chart — full width on mobile, 2/3 on desktop */}
             <div className="lg:col-span-2 min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Evolución del saldo</p>
-                <p className="text-[10.5px] text-text-3 mt-0.5">Balance acumulado por día</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">{t('balanceEvolution')}</p>
+                <p className="text-[10.5px] text-text-3 mt-0.5">{t('cumulativeByDay')}</p>
               </div>
               <div className="w-full overflow-hidden">
                 <canvas ref={lineRef} className="w-full" style={{ height: 130 }} />
@@ -509,8 +517,8 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
             {/* Donut — full width on mobile, 1/3 on desktop */}
             <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Por categoría</p>
-                <p className="text-[10.5px] text-text-3 mt-0.5">Distribución de gastos</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">{t('byCategory')}</p>
+                <p className="text-[10.5px] text-text-3 mt-0.5">{t('expenseDistribution')}</p>
               </div>
               <div className="w-full overflow-hidden">
                 <canvas ref={donutRef} className="w-full" style={{ height: 120 }} />
@@ -519,7 +527,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
                 {report.byCategory.slice(0, 5).map(s => (
                   <span key={s.category} className="flex items-center gap-1.5 text-[10.5px] text-text-3">
                     <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CAT_COLORS[s.category] ?? '#475569' }} />
-                    {CAT_LABELS[s.category] ?? s.category} · ${fmt(s.amount)}
+                    {tCat(s.category)} · ${fmt(s.amount)}
                   </span>
                 ))}
               </div>
@@ -529,8 +537,8 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
           {/* Bar chart */}
           <div className="overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Gastos por sede / clínica</p>
-              <p className="text-[10.5px] text-text-3 mt-0.5">Comparativa del período seleccionado</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">{t('expensesByClinic')}</p>
+              <p className="text-[10.5px] text-text-3 mt-0.5">{t('periodComparison')}</p>
             </div>
             <div className="w-full overflow-hidden">
               <canvas ref={barRef} className="w-full" style={{ height: 80 }} />
@@ -540,14 +548,14 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
           {/* Tabla desglose */}
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Desglose por categoría</p>
-              <p className="text-[11px] text-text-3">{report.byCategory.length} categorías</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">{t('categoryBreakdown')}</p>
+              <p className="text-[11px] text-text-3">{t('categoriesCount', { total: report.byCategory.length })}</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 <thead>
                   <tr className="bg-bg-0">
-                    {['Categoría','Transac.','Monto total','% total','Distribución'].map((h, i) => (
+                    {[t('category'), t('colTx'), t('colAmountTotal'), t('colPctTotal'), t('colDistribution')].map((h, i) => (
                       <th key={h} className="text-[9.5px] font-bold uppercase tracking-[0.06em] text-text-3 px-4 py-2.5 border-b border-border"
                         style={{ textAlign: i >= 2 && i < 4 ? 'right' : 'left' }}>{h}</th>
                     ))}
@@ -555,13 +563,13 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
                 </thead>
                 <tbody>
                   {report.byCategory.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-sm text-text-3">Sin movimientos en el período seleccionado</td></tr>
+                    <tr><td colSpan={5} className="text-center py-8 text-sm text-text-3">{t('noMovements')}</td></tr>
                   ) : report.byCategory.map(r => (
                     <tr key={r.category} className="border-b border-border hover:bg-bg-2 transition-colors">
                       <td className="px-4 py-2.5 text-[12px] font-medium text-text-1">
                         <span className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CAT_COLORS[r.category] ?? '#475569' }} />
-                          {CAT_LABELS[r.category] ?? r.category}
+                          {tCat(r.category)}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-[12px] text-text-2">{r.count}</td>

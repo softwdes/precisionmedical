@@ -312,7 +312,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
   <div class="kpi"><div class="kpi-l">Tasa USD→BOB</div><div class="kpi-v">${summary?.lastRateUsdBob != null ? Number(summary.lastRateUsdBob).toFixed(2) : '—'}</div></div>
   <div class="kpi"><div class="kpi-l">Tasa USD→PEN</div><div class="kpi-v">${summary?.lastRateUsdPen != null ? Number(summary.lastRateUsdPen).toFixed(2) : '—'}</div></div>
 </div>
-<table><thead><tr><th>Fecha</th><th>Par</th><th style="text-align:right">Monto origen</th><th style="text-align:right">Tasa</th><th style="text-align:right">Monto destino</th><th>Casa de cambio</th><th>Estado</th></tr></thead>
+<table><thead><tr><th>${t('common.date')}</th><th>${t('fx.pair')}</th><th style="text-align:right">Monto origen</th><th style="text-align:right">Tasa</th><th style="text-align:right">Monto destino</th><th>Casa de cambio</th><th>Estado</th></tr></thead>
 <tbody>${body}</tbody></table></body></html>`;
     const win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); win.print(); }
@@ -702,7 +702,7 @@ function EditFxModal({
           </div>
 
           <div className="space-y-1">
-            <Label>Fecha de cambio</Label>
+            <Label>{t('fx.exchangeDate')}</Label>
             <Input
               type="date"
               value={performedAt}
@@ -1024,7 +1024,7 @@ function CreateFxModal({
                 <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('fx.walletOrigen')}</p>
                 <Select value={fromWalletId} onValueChange={v => { setFromWalletId(v); setTasa(''); }}>
                   <SelectTrigger className="min-h-[44px] w-full">
-                    <SelectValue placeholder="Seleccionar..." />
+                    <SelectValue placeholder={t('common.select')} />
                   </SelectTrigger>
                   <SelectContent>
                     {wallets.map(w => (
@@ -1044,7 +1044,7 @@ function CreateFxModal({
                 <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('fx.walletDestino')}</p>
                 <Select value={toWalletId} onValueChange={v => { setToWalletId(v); setTasa(''); }}>
                   <SelectTrigger className="min-h-[44px] w-full">
-                    <SelectValue placeholder="Seleccionar..." />
+                    <SelectValue placeholder={t('common.select')} />
                   </SelectTrigger>
                   <SelectContent>
                     {wallets.map(w => (
@@ -1145,7 +1145,7 @@ function CreateFxModal({
           {/* ── SECTION D: Additional fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-[12px]">Fecha de cambio *</Label>
+              <Label className="text-[12px]">{t('fx.exchangeDate')} *</Label>
               <Input
                 type="date"
                 className="min-h-[44px]" style={{ fontSize: 14 }}
@@ -1166,7 +1166,7 @@ function CreateFxModal({
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-[12px]">{t('fx.exchangeHouse')} ({t('common.optional')})</Label>
               <Input
-                placeholder="Ej: Cambios Bolívar"
+                placeholder={t('fx.exchangeHousePlaceholder')}
                 className="min-h-[44px]" style={{ fontSize: 14 }}
                 value={exchangeHouse}
                 onChange={e => setExchangeHouse(e.target.value)}

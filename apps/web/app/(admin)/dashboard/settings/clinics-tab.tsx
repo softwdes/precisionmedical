@@ -31,9 +31,9 @@ export function ClinicsTab(): React.ReactElement {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-text-1">Clínicas</h2>
+          <h2 className="text-base font-semibold text-text-1">{t('clinicsTitle')}</h2>
           <p className="text-small text-text-3">
-            {clinics.length} clínicas registradas · ubicaciones GPS para verificación de asistencia
+            {t('clinicsSubtitle', { total: clinics.length })}
           </p>
         </div>
         {canEdit && (
@@ -60,11 +60,11 @@ export function ClinicsTab(): React.ReactElement {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Clínica</TableHead>
-                <TableHead>País</TableHead>
-                <TableHead>Coordenadas GPS</TableHead>
-                <TableHead>Radio</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead>{t('colClinic')}</TableHead>
+                <TableHead>{t('colCountry')}</TableHead>
+                <TableHead>{t('colCoords')}</TableHead>
+                <TableHead>{t('colRadius')}</TableHead>
+                <TableHead>{t('colStatus')}</TableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>
@@ -105,7 +105,7 @@ export function ClinicsTab(): React.ReactElement {
                             {c.lat!.toFixed(5)}, {c.lng!.toFixed(5)}
                           </div>
                         ) : (
-                          <span className="text-tiny text-text-muted italic">Sin GPS</span>
+                          <span className="text-tiny text-text-muted italic">{t('noGps')}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-small text-text-2">
@@ -114,16 +114,16 @@ export function ClinicsTab(): React.ReactElement {
                       <TableCell>
                         <div className="flex flex-col gap-1 items-start">
                           <Badge variant={c.is_active ? 'success' : 'secondary'}>
-                            {c.is_active ? 'Activa' : 'Inactiva'}
+                            {c.is_active ? t('active') : t('inactive')}
                           </Badge>
                           {c.strict_geofencing && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
                               style={{ background: 'rgba(244,63,94,0.12)', color: '#F43F5E', border: '1px solid rgba(244,63,94,0.28)' }}
-                              title="Geofencing estricto activo: empleados fuera del rango no pueden marcar"
+                              title={t('strictHint')}
                             >
                               <Lock className="h-2.5 w-2.5" />
-                              Estricto
+                              {t('strict')}
                             </span>
                           )}
                         </div>
@@ -134,7 +134,7 @@ export function ClinicsTab(): React.ReactElement {
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditing(c as Clinic)}
-                            title="Editar clínica"
+                            title={t('editClinicAction')}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>

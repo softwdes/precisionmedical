@@ -195,22 +195,22 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
         </td>
       </tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<title>${t('pettyCash.pdfTitle', { mes: monthLabel })}</title>
+<title>Caja Chica ${monthLabel}</title>
 <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{margin:0;font-size:20px}
 .sub{color:#666;font-size:12px;margin:4px 0 20px}.kpis{display:flex;gap:12px;margin-bottom:20px}
 .kpi{background:#f3f4f6;padding:10px 14px;border-radius:8px;flex:1}.kpi-l{font-size:10px;color:#666;text-transform:uppercase}
 .kpi-v{font-size:17px;font-weight:700}table{width:100%;border-collapse:collapse;font-size:11px}
 th{text-align:left;border-bottom:2px solid #e5e7eb;padding:7px 5px;font-size:10px;text-transform:uppercase;color:#666}
 td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</style></head><body>
-<h1>${t('pettyCash.pdfHeading')}</h1>
-<p class="sub">${t('pettyCash.pdfGenerated', { mes: monthLabel, fecha: new Date().toLocaleDateString(locale) })}</p>
+<h1>Caja Chica — Precision Medical</h1>
+<p class="sub">${monthLabel} · Generado ${new Date().toLocaleDateString('es-ES')}</p>
 <div class="kpis">
-  <div class="kpi"><div class="kpi-l">${t('pettyCash.kpiTotalBalance')}</div><div class="kpi-v">$${fmt(kpis?.total ?? 0)}</div></div>
+  <div class="kpi"><div class="kpi-l">Saldo Total</div><div class="kpi-v">$${fmt(kpis?.total ?? 0)}</div></div>
   <div class="kpi"><div class="kpi-l">🇺🇸 EEUU</div><div class="kpi-v">$${fmt(kpis?.eeuu ?? 0)}</div></div>
   <div class="kpi"><div class="kpi-l">🇧🇴 Bolivia</div><div class="kpi-v">$${fmt(kpis?.bolivia ?? 0)}</div></div>
-  <div class="kpi"><div class="kpi-l">${t('pettyCash.monthlyExpensesLabel', { month: monthLabel })}</div><div class="kpi-v" style="color:#dc2626">$${fmt(kpis?.monthlyExpenses ?? 0)}</div></div>
+  <div class="kpi"><div class="kpi-l">Gastos del Mes</div><div class="kpi-v" style="color:#dc2626">$${fmt(kpis?.monthlyExpenses ?? 0)}</div></div>
 </div>
-<table><thead><tr><th>${t('pettyCash.colDate')}</th><th>${t('pettyCash.colSite')}</th><th>${t('pettyCash.colClinic')}</th><th>${t('pettyCash.colDescription')}</th><th>${t('pettyCash.colMovement')}</th><th>${t('pettyCash.colCategory')}</th><th style="text-align:right">${t('pettyCash.colAmount')}</th></tr></thead>
+<table><thead><tr><th>Fecha</th><th>Sede</th><th>Clínica</th><th>Descripción</th><th>Movimiento</th><th>Categoría</th><th style="text-align:right">Monto</th></tr></thead>
 <tbody>${rows}</tbody></table></body></html>`;
     const win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); win.print(); }
@@ -467,7 +467,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                             <button
                               onClick={() => setEditTx(tx as TxItem)}
                               className="p-1 rounded hover:bg-brand/10 text-text-3 hover:text-brand-text transition-colors"
-                              title={t('pettyCash.edit')}
+                              title="Editar"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -533,7 +533,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
               <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
                 <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.topCategories')}</p>
                 {cats.length === 0 ? (
-                  <p className="text-xs text-text-3 text-center py-2">{t('pettyCash.noMovementsMonth')}</p>
+                  <p className="text-xs text-text-3 text-center py-2">Sin movimientos este mes</p>
                 ) : cats.map(([cat, amount]) => (
                   <div key={cat} className="space-y-1">
                     <div className="flex justify-between text-xs">
@@ -556,7 +556,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
               return (
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex items-center gap-1.5">
                   <span className="text-emerald-text text-xs font-bold">✓</span>
-                  <p className="text-xs font-semibold text-emerald-text">{t('pettyCash.allBoxesHealthy')}</p>
+                  <p className="text-xs font-semibold text-emerald-text">Todas las cajas saludables</p>
                 </div>
               );
             }
@@ -616,7 +616,6 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
 // Dialog — Editar movimiento
 // ─────────────────────────────────────────────────────
 function EditarMovimientoDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () => void; onSuccess: () => void }) {
-  const t = useTranslations();
   const [description, setDescription] = useState(tx.description);
   const [category,    setCategory]    = useState(tx.category ?? '');
   const [date,        setDate]        = useState(tx.performedAt.slice(0, 10));
@@ -626,21 +625,21 @@ function EditarMovimientoDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClos
     onError: (e) => toast.error(e.message),
   });
 
-  const categoryOptions = CATEGORY_KEYS.map(key => ({ value: key, label: t(`pettyCash.categories.${key}`) }));
+  const categoryOptions = CATEGORY_KEYS.map(key => ({ value: key, label: CATEGORY_LABELS_ES[key] ?? key }));
   const isExpense = tx.type === 'EXPENSE';
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{t('pettyCash.editMovement')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Editar movimiento</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2 pb-1">
           <div className="space-y-1.5">
-            <Label>{t('pettyCash.colDescription')}</Label>
+            <Label>Descripción</Label>
             <Input value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           {isExpense && (
             <div className="space-y-1.5">
-              <Label>{t('pettyCash.colCategory')}</Label>
+              <Label>Categoría</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -650,17 +649,17 @@ function EditarMovimientoDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClos
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>{t('pettyCash.colDate')}</Label>
+            <Label>Fecha</Label>
             <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button
             disabled={update.isPending || !description.trim()}
             onClick={() => update.mutate({ id: tx.id, description, category: isExpense ? category : undefined, performedAt: date })}
           >
-            {update.isPending ? t('common.saving') : t('common.save')}
+            {update.isPending ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -672,7 +671,6 @@ function EditarMovimientoDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClos
 // Dialog — Revertir movimiento
 // ─────────────────────────────────────────────────────
 function RevertirDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () => void; onSuccess: () => void }) {
-  const t = useTranslations();
   const [reason, setReason] = useState('');
   const isDeposit = tx.type === 'DEPOSIT';
 
@@ -684,7 +682,7 @@ function RevertirDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () =>
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{t('pettyCash.revertMovement')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Revertir movimiento</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2 pb-1">
           <div className={`rounded-lg border p-3 space-y-1 ${isDeposit ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-rose-500/25 bg-rose-500/5'}`}>
             <p className="text-xs font-medium text-text-1 truncate">{tx.description}</p>
@@ -693,25 +691,25 @@ function RevertirDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () =>
             </p>
           </div>
           <p className="text-xs text-text-3">
-            {t('pettyCash.revertHint')}
+            Esto crea un movimiento compensatorio que restaura el saldo de la caja. El movimiento original queda en el historial.
           </p>
           <div className="space-y-1.5">
-            <Label>{t('pettyCash.revertReason')}</Label>
+            <Label>Motivo de la reversión</Label>
             <Input
-              placeholder={t('pettyCash.revertReasonPlaceholder')}
+              placeholder="Ej: Error en el monto ingresado"
               value={reason}
               onChange={e => setReason(e.target.value)}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button
             variant="destructive"
             disabled={reverse.isPending || !reason.trim()}
             onClick={() => reverse.mutate({ transactionId: tx.id, reason })}
           >
-            {reverse.isPending ? t('pettyCash.reverting') : t('pettyCash.confirmRevert')}
+            {reverse.isPending ? 'Revirtiendo...' : 'Confirmar reversión'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -793,7 +791,7 @@ function NuevoMovimientoModal({
           detail: `$${amtNum.toFixed(2)} · ${clinic}`,
           statusText: 'MOVIMIENTO REGISTRADO',
           barColor,
-          warning: hadLowWarn ? t('pettyCash.lowAfterMovement') : undefined,
+          warning: hadLowWarn ? '⚠ Saldo bajo después de este movimiento' : undefined,
         });
       }
       onSuccess();
@@ -895,7 +893,7 @@ function NuevoMovimientoModal({
                   </Select>
                 ) : (
                   <Input
-                    placeholder={t('pettyCash.sedeNamePlaceholder')}
+                    placeholder="Nombre de la sede"
                     value={clinic}
                     onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
                   />
@@ -929,11 +927,11 @@ function NuevoMovimientoModal({
             {/* Origen — solo Depósito. Cartera (misma moneda) de la que sale el dinero. */}
             {isDeposit && (
               <div className="space-y-1.5">
-                <Label>{t('pettyCash.moneySource')} <span className="text-text-3 font-normal">({t('common.optional')})</span></Label>
+                <Label>Origen del dinero <span className="text-text-3 font-normal">({t('common.optional')})</span></Label>
                 <Select value={sourceWalletId || 'NONE'} onValueChange={v => setSourceWalletId(v === 'NONE' ? '' : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="NONE">{t('pettyCash.noSource')}</SelectItem>
+                    <SelectItem value="NONE">Sin origen (no afecta wallets)</SelectItem>
                     {sourceWalletOptions.map(w => (
                       <SelectItem key={w.id} value={w.id}>{w.name} · {w.currency}</SelectItem>
                     ))}

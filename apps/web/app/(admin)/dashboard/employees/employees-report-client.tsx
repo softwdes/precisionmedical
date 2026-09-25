@@ -217,7 +217,7 @@ export function EmployeesReportClient({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-tiny">{t('freelancers.country')}</Label>
+              <Label className="text-tiny">País</Label>
               <Select value={country || 'ALL'} onValueChange={(v) => setCountry(v === 'ALL' ? '' : v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -234,7 +234,7 @@ export function EmployeesReportClient({
 
       {/* Body */}
       {isLoading ? (
-        <div className="py-12 text-center text-small text-text-3">{t('freelancers.loadingReport')}</div>
+        <div className="py-12 text-center text-small text-text-3">Cargando reporte...</div>
       ) : !report || report.totalPayments === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
@@ -438,8 +438,8 @@ export function EmployeesReportClient({
                       <TableRow>
                         <TableHead>Empleado</TableHead>
                         <TableHead className="text-right">Monto</TableHead>
-                        <TableHead>{t('freelancers.reason')}</TableHead>
-                        <TableHead>{t('freelancers.payDate')}</TableHead>
+                        <TableHead>Razón</TableHead>
+                        <TableHead>Fecha pago</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

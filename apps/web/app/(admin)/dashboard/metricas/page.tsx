@@ -46,7 +46,6 @@ export default async function MetricasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
-  const t = await getTranslations();
   const params  = await searchParams;
   const isAdmin = await isMetricsAdmin();
 
@@ -128,7 +127,7 @@ export default async function MetricasPage({
     content = (
       <div className="p-6">
         <div className="rounded-xl border border-border bg-surface p-8 text-center">
-          <p className="text-text-3 text-sm">{t('dashboard.clinicStatsSoon')}</p>
+          <p className="text-text-3 text-sm">Estadísticas de clínicas — próximamente</p>
         </div>
       </div>
     );
@@ -137,7 +136,7 @@ export default async function MetricasPage({
   return (
     <>
       <ModuleTabs tabs={tabs} activeTab={activeTab} />
-      <Suspense fallback={<div className="p-6 text-text-3">{t('common.loading')}</div>}>
+      <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
         {content}
       </Suspense>
     </>

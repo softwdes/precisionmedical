@@ -18,7 +18,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
 import {
   Activity, ArrowLeft, Clock, FlaskConical, Loader2, Pill,
@@ -48,30 +47,24 @@ interface DoctorRow {
   services: number;
 }
 
-/** Módulos — espejo de `lib/activity-modules.ts` del back-office. El nombre
- *  de cada uno vive en `metrics.modules`. */
-const MODULE_KEYS = [
-  'dashboard', 'patients', 'calendar', 'admission', 'billing', 'edson',
-  'intake', 'messages', 'externals', 'settings', 'doctor', 'attorney',
-  'vigia', 'other',
-];
-
-/** Solo el color: la etiqueta de cada estado vive en `metrics.note*`. */
-const NOTE_COLOR: Record<string, string> = {
-  SIGNED: 'text-emerald bg-emerald/10 border-emerald/20',
-  DRAFT:  'text-amber bg-amber/10 border-amber/20',
-  VOIDED: 'text-rose bg-rose/10 border-rose/20',
+/** Etiquetas de módulo — espejo de `lib/activity-modules.ts` del back-office. */
+const MODULE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard', patients: 'Pacientes', calendar: 'Calendario',
+  admission: 'Admisión', billing: 'Facturación', edson: 'Bandeja Edson',
+  intake: 'Intake', messages: 'Mensajería', externals: 'Bufetes',
+  settings: 'Configuración', doctor: 'Portal Médico', attorney: 'Portal Legal',
+  vigia: 'Vigía (IA)', other: 'Sin módulo',
 };
-const NOTE_KEY: Record<string, string> = {
-  SIGNED: 'noteSigned', DRAFT: 'noteDraft', VOIDED: 'noteVoided',
+
+const NOTE_LABEL: Record<string, { label: string; color: string }> = {
+  SIGNED: { label: 'Firmada',  color: 'text-emerald bg-emerald/10 border-emerald/20' },
+  DRAFT:  { label: 'Borrador', color: 'text-amber bg-amber/10 border-amber/20' },
+  VOIDED: { label: 'Anulada',  color: 'text-rose bg-rose/10 border-rose/20' },
 };
 
 const money = (v: string | number): string => `$${Number(v).toFixed(2)}`;
 
 export function DoctoresMetricasClient() {
-  const t  = useTranslations('metrics');
-  const tc = useTranslations('common');
-
   const [preset, setPreset] = useState<Preset>('today');
   const [from, setFrom] = useState(() => denverDay());
   const [to, setTo] = useState(() => denverDay());
@@ -128,12 +121,12 @@ export function DoctoresMetricasClient() {
 
       {/* KPIs del período */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard icon={Clock}        label={t('systemUse')}        value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
-        <KpiCard icon={Stethoscope}  label={t('visits')}           value={totals.consultations}             color="bg-violet/10 text-violet-text" />
-        <KpiCard icon={Timer}        label={t('avgDuration')}      value={fmtSeconds(totals.avgSeconds)}    color="bg-violet/10 text-violet-text" />
-        <KpiCard icon={Pill}         label={t('prescriptions')}    value={totals.rx}                        color="bg-brand/10 text-brand-text" />
-        <KpiCard icon={FlaskConical} label={t('labs')}             value={totals.labs}                      color="bg-cyan/10 text-cyan" />
-        <KpiCard icon={DollarSign}   label={t('bracesAndServices')} value={totals.braces + totals.services}  color="bg-amber/10 text-amber" />
+        <KpiCard icon={Clock}        label="Uso del sistema" value={fmtMinutes(totals.activeMinutes)} color="bg-emerald/10 text-emerald" />
+        <KpiCard icon={Stethoscope}  label="Consultas"       value={totals.consultations}             color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={Timer}        label="Duración prom."  value={fmtSeconds(totals.avgSeconds)}    color="bg-violet/10 text-violet-text" />
+        <KpiCard icon={Pill}         label="Recetas"         value={totals.rx}                        color="bg-brand/10 text-brand-text" />
+        <KpiCard icon={FlaskConical} label="Labs"            value={totals.labs}                      color="bg-cyan/10 text-cyan" />
+        <KpiCard icon={DollarSign}   label="Férulas + serv." value={totals.braces + totals.services}  color="bg-amber/10 text-amber" />
       </div>
 
       {/* Filtro de período */}
@@ -151,27 +144,27 @@ export function DoctoresMetricasClient() {
         ) : query.error ? (
           <div className="p-12 text-center">
             <Activity className="w-8 h-8 text-text-3 mx-auto mb-3" />
-            <p className="text-sm text-text-3">{t('errLoad')}</p>
+            <p className="text-sm text-text-3">No se pudieron cargar las métricas. Cambia el período o recarga la página.</p>
           </div>
         ) : (rows ?? []).length === 0 ? (
           <div className="p-12 text-center">
             <Stethoscope className="w-8 h-8 text-text-3 mx-auto mb-3" />
-            <p className="text-sm text-text-3">{t('noActiveDoctors')}</p>
+            <p className="text-sm text-text-3">No hay doctores activos.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[980px]">
               <thead>
                 <tr className="border-b border-border bg-surface-2">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">{t('provider')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('systemUseShort')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('visits')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('avgDuration')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('patients')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('prescriptions')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('labs')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('braces')}</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('services')}</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-text-3 sticky left-0 bg-surface-2 z-10">Provider</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Uso sistema</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Consultas</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Duración prom.</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Pacientes</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Recetas</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Labs</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Férulas</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-text-3">Servicios</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -206,7 +199,7 @@ export function DoctoresMetricasClient() {
                       {r.openEndedConsultations > 0 && (
                         <div
                           className="text-[9px] text-amber mt-0.5"
-                          title={t('longVisitsNote')}
+                          title="Consultas de más de 4 h: el doctor no marcó “Terminé” y se cerraron con el checkout. Quedan fuera del promedio."
                         >
                           {r.openEndedConsultations} sin cerrar
                         </div>
@@ -214,7 +207,7 @@ export function DoctoresMetricasClient() {
                       {r.consultations - r.measuredConsultations - r.openEndedConsultations > 0 && (
                         <div
                           className="text-[9px] text-text-3 mt-0.5"
-                          title={t('noRoomTimeNote')}
+                          title="Consultas sin hora de entrada a sala: no se puede medir su duración."
                         >
                           {r.consultations - r.measuredConsultations - r.openEndedConsultations} sin medir
                         </div>
@@ -254,7 +247,7 @@ export function DoctoresMetricasClient() {
                   <button
                     onClick={() => setApptId(null)}
                     className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-white/[0.05] transition-colors"
-                    aria-label={t('backToList')}
+                    aria-label="Volver a la lista"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
@@ -267,15 +260,15 @@ export function DoctoresMetricasClient() {
                   </h3>
                   <p className="text-xs text-text-3 mt-0.5">
                     {apptId && detail?.appointment
-                      ? `${detail.appointment.patientCode ?? ''} · ${detail.appointment.caseCode ?? t('noCase')} · ${fmtClinicDate(detail.appointment.scheduledFor)}`
-                      : `${t('visitsDone')} · ${from} → ${to}`}
+                      ? `${detail.appointment.patientCode ?? ''} · ${detail.appointment.caseCode ?? 'sin caso'} · ${fmtClinicDate(detail.appointment.scheduledFor)}`
+                      : `Consultas realizadas · ${from} → ${to}`}
                   </p>
                 </div>
               </div>
               <button
                 onClick={closeAll}
                 className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-white/[0.05] transition-colors"
-                aria-label={tc('close')}
+                aria-label="Cerrar"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -287,7 +280,7 @@ export function DoctoresMetricasClient() {
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-emerald" />
-                  {t('timeByModule')}
+                  Tiempo por módulo
                 </div>
                 <div className="space-y-1">
                   {Object.entries(doctor.minutesByModule)
@@ -297,7 +290,7 @@ export function DoctoresMetricasClient() {
                       return (
                         <div key={mod} className="flex items-center gap-2">
                           <span className="text-[11px] text-text-2 w-28 shrink-0 truncate">
-                            {MODULE_KEYS.includes(mod) ? t(`modules.${mod}`) : mod}
+                            {MODULE_LABELS[mod] ?? mod}
                           </span>
                           <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
                             <div className="h-full rounded-full bg-emerald"
@@ -326,7 +319,7 @@ export function DoctoresMetricasClient() {
                 <div className="space-y-1">
                   {(consultationsQ.data?.consultations ?? []).map((c) => {
                     const dur = elapsedSeconds(c.admittedAt, c.endedAt);
-                    const note = c.noteStatus ? { color: NOTE_COLOR[c.noteStatus] ?? NOTE_COLOR.DRAFT, label: t(NOTE_KEY[c.noteStatus] ?? 'noteDraft') } : null;
+                    const note = c.noteStatus ? NOTE_LABEL[c.noteStatus] : null;
                     return (
                       <button
                         key={c.id}
@@ -371,12 +364,12 @@ export function DoctoresMetricasClient() {
                   {/* Tiempos */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
-                      { label: t('arrived'),          v: fmtClinicTime(detail.appointment?.checkedInAt ?? null) },
-                      { label: t('toRoom'),           v: fmtClinicTime(detail.appointment?.admittedAt ?? null) },
-                      { label: t('providerFinished'), v: fmtClinicTime(detail.appointment?.doctorDoneAt ?? null) },
-                      { label: t('departure'),        v: fmtClinicTime(detail.appointment?.checkedOutAt ?? null) },
+                      { label: 'Llegó',       v: fmtClinicTime(detail.appointment?.checkedInAt ?? null) },
+                      { label: 'A consulta',  v: fmtClinicTime(detail.appointment?.admittedAt ?? null) },
+                      { label: 'Provider terminó', v: fmtClinicTime(detail.appointment?.doctorDoneAt ?? null) },
+                      { label: 'Salida',      v: fmtClinicTime(detail.appointment?.checkedOutAt ?? null) },
                       {
-                        label: t('duration'),
+                        label: 'Duración',
                         v: (() => {
                           const s = elapsedSeconds(
                             detail.appointment?.admittedAt ?? null,
@@ -396,7 +389,7 @@ export function DoctoresMetricasClient() {
 
                   {/* Triaje */}
                   {detail.triage && (
-                    <Section title={t('triage')}>
+                    <Section title="Triaje">
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-text-2">
                         {detail.triage.systolicMmhg != null && <span>PA {detail.triage.systolicMmhg}/{detail.triage.diastolicMmhg}</span>}
                         {detail.triage.pulseBpm != null && <span>Pulso {detail.triage.pulseBpm}</span>}
@@ -414,9 +407,9 @@ export function DoctoresMetricasClient() {
 
                   {/* Nota + diagnósticos */}
                   {detail.note && (
-                    <Section title={t('clinicalNote')} trailing={
-                      <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded border', NOTE_COLOR[detail.note.status] ?? NOTE_COLOR.DRAFT)}>
-                        {t(NOTE_KEY[detail.note.status] ?? 'noteDraft')}
+                    <Section title="Nota clínica" trailing={
+                      <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded border', (NOTE_LABEL[detail.note.status] ?? NOTE_LABEL.DRAFT)?.color)}>
+                        {(NOTE_LABEL[detail.note.status] ?? NOTE_LABEL.DRAFT)?.label}
                         {detail.note.signedByName ? ` · ${detail.note.signedByName}` : ''}
                       </span>
                     }>
@@ -468,7 +461,7 @@ export function DoctoresMetricasClient() {
 
                   {/* Férulas + servicios */}
                   {(detail.braces.length > 0 || detail.services.length > 0) && (
-                    <Section title={t('bracesAndServicesFull')}>
+                    <Section title="Férulas y servicios">
                       {detail.braces.map((b, i) => (
                         <div key={`b${i}`} className="flex items-center justify-between text-[12px] text-text-2 py-0.5">
                           <span className="truncate">{b.name}{b.side ? ` (${b.side})` : ''}{b.quantity > 1 ? ` ×${b.quantity}` : ''}</span>
@@ -486,18 +479,18 @@ export function DoctoresMetricasClient() {
 
                   {/* Billing */}
                   {detail.billing && Number(detail.billing.totalCost) > 0 && (
-                    <Section title={t('visitCharges')}>
+                    <Section title="Cobros de la visita">
                       <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">{t('total')}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">Total</div>
                           <div className="text-sm font-bold text-text-1 font-mono">{money(detail.billing.totalCost)}</div>
                         </div>
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">{t('paid')}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">Pagado</div>
                           <div className="text-sm font-bold text-emerald font-mono">{money(detail.billing.amountPaid)}</div>
                         </div>
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">{t('balance')}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3">Saldo</div>
                           <div className={cn('text-sm font-bold font-mono', Number(detail.billing.balanceDue) > 0 ? 'text-amber' : 'text-text-1')}>
                             {money(detail.billing.balanceDue)}
                           </div>

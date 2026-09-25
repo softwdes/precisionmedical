@@ -196,7 +196,18 @@ function GroupRow({ children, colSpan, strong }: {
            * Sin el `!`, la línea salía con el color de la cuadrícula y el
            * token nuevo no se veía por ningún lado.
            */
-          strong ? 'bg-bg-2 border-t-2 !border-t-group-sep' : 'bg-bg-1 border-t border-border-strong',
+          /*
+           * `bg-bg-3` y no `bg-bg-2`: Edson lo pidio el 2026-09-25 ("make this
+           * separation background color darker") y tenia razon — en tema claro
+           * `--bg-2` es #F1F5F9 contra el #FFFFFF de las filas, o sea 1.5% de
+           * diferencia. `--bg-3` es #E2E8F0, que ya se lee como una banda.
+           *
+           * El token resuelve los dos temas en el sentido correcto: en oscuro
+           * ACLARA (#1A2238 sobre #0F1524), que es como se separa ahi.
+           *
+           * Solo cambia Tracking: `strong` no lo usa ninguna otra pantalla.
+           */
+          strong ? 'bg-bg-3 border-t-2 !border-t-group-sep' : 'bg-bg-1 border-t border-border-strong',
         ].join(' ')}
       >
         <div className="sticky left-4 w-fit">{children}</div>

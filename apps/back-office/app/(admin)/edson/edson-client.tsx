@@ -748,7 +748,23 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
           * pantallas y el estilo del sistema es el gris chico. Esta es la
           * excepcion de Edson, no una regla nueva.
           */}
-        <DataTable.Table gridLines className="text-[7.5px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px] [&_th]:!font-bold [&_th]:!text-text-1 [&_th]:!tracking-normal">
+        {/*
+          * `!text-[11px]` — el `!` NO es decorativo.
+          *
+          * Acá decía `text-[7.5px]` desde el 2026-09-15 y NUNCA se aplicó:
+          * `DataTable.Table` trae `text-sm` en el MISMO elemento, misma
+          * especificidad, y gana el que sale último en la hoja compilada. Lo
+          * medi en el navegador el 2026-09-25 pidiendo las reglas que le pegan
+          * al <table>: las dos matchean y el computed era 14px. Diez días de
+          * creer que la vista estaba en 7.5px.
+          *
+          * 11px y no 7.5px: 7.5 nunca fue un tamaño, era una intención que no
+          * corrió. El pedido real de Edson (2026-09-25, "make them 2 sizes
+          * smaller") sale de ver 14px. De 14 a 11 la columna del paciente pasa
+          * de 248px a 201px — esos 47px son los que hoy le comen el apellido y
+          * truncan el seguro.
+          */}
+        <DataTable.Table gridLines className="!text-[11px] [&_td]:!py-1 [&_td]:!px-2 [&_th]:!py-1 [&_th]:!px-2 [&_th]:!leading-tight [&_th]:!text-[9px] [&_th]:!font-bold [&_th]:!text-text-1 [&_th]:!tracking-normal">
             <DataTable.Head>
               <DataTable.Th sticky="left">{t('colPatient')}</DataTable.Th>
               {/*
@@ -870,30 +886,42 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               title={row.appointment.latestStatus ?? row.appointment.status}
                             />
                             {/*
-                              * Nombre, nacimiento y telefono en UNA linea.
+                              * Tres renglones: nombre / nacimiento + telefono /
+                              * quien agendo. Lo pidio Edson el 2026-09-25, con
+                              * estas palabras: "birth and phone number squeeze
+                              * underneath the name and above the person who
+                              * created the appointment".
                               *
-                              * Estaban apilados y eso costaba el doble de alto por
-                              * fila. Con las 13 columnas ya entrando sin scroll
-                              * horizontal, el ancho es lo que sobra y el alto lo
-                              * que falta: se paga una cosa con la otra.
+                              * Es la vuelta atras de la decision del 2026-09-16,
+                              * que los habia puesto en UNA linea porque el apilado
+                              * costaba el doble de alto y la vista pasaba de ~10
+                              * filas visibles a ~22. Ese razonamiento sigue siendo
+                              * cierto — el alto es lo escaso. Lo que cambio es
+                              * quien decide: el que lee esta hoja ocho horas por
+                              * dia dice que necesita el nombre entero sin que la
+                              * fecha se lo coma, y esa es su cancha.
                               *
-                              * En un TELEFONO ese trato se da vuelta —ahí el ancho
-                              * es lo escaso y el alto es gratis porque ya scrolleás
-                              * en vertical—, así que abajo de sm vuelven a apilarse.
-                              * El span de abajo era `whitespace-nowrap shrink-0`, o
-                              * sea que NUNCA se encogía: fijaba el ancho mínimo de
-                              * la columna en 375px y, con Acciones fija a la
-                              * derecha, esta se pintaba 103px ENCIMA del nombre.
+                              * El alto casi no se paga: los dos renglones chicos
+                              * son de 9.5px y venian gastando ~14px cada uno por
+                              * el interlineado heredado del tema. Con
+                              * `leading-none` pintan lo que miden, y la tercera
+                              * linea entra con lo que sobra de las otras dos.
+                              *
+                              * `whitespace-nowrap` SIN `shrink-0`: el span nunca
+                              * tiene que dejar de encogerse. Con los dos juntos
+                              * fijaba el ancho minimo de la columna en 375px y,
+                              * con Acciones fija a la derecha, esta se pintaba
+                              * 103px ENCIMA del nombre.
                               */}
                             <div className="min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1.5 min-w-0">
+                            <div className="flex flex-col gap-0 min-w-0">
                               <span
-                                className="text-text-1 font-semibold truncate"
+                                className="text-text-1 font-semibold truncate leading-tight"
                                 style={{ textDecoration: vis.strike ? 'line-through' : undefined }}
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
-                              <span className="text-text-muted text-[9.5px] whitespace-nowrap font-mono sm:shrink-0">
+                              <span className="text-text-muted text-[9.5px] leading-none whitespace-nowrap font-mono truncate">
                                 {/* El teléfono sale de los DOS campos: acá se leía
                                     solo `phone` y por eso 1.048 pacientes con caso
                                     abierto aparecían sin teléfono teniéndolo cargado
@@ -905,9 +933,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               * Quien agendo, pedido por Edson: "missing here who
                               * created this appointment".
                               *
-                              * Va en segunda linea a pedido suyo, sabiendo que
-                              * cuesta alto de fila: es el mismo apilado que se
-                              * quito para pasar de 10 filas visibles a ~22.
+                              * Va en el ULTIMO renglon a pedido suyo: "above
+                              * the person who created the appointment" (2026-09-25)
+                              * lo deja debajo del nacimiento y el telefono.
                               *
                               * Antes salia SOLO el autor del caso y por eso casi
                               * todas las filas la tenian vacia:
@@ -925,7 +953,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               */}
                             {autorFila && (
                               <div
-                                className="text-amber text-[9.5px] italic truncate"
+                                className="text-amber text-[9.5px] leading-none italic truncate"
                                 title={row.appointment.createdBy ? t('colCreatedBy') : t('colCreatedByCase')}
                               >
                                 {t('createdByShort', { name: autorFila })}
@@ -965,7 +993,14 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
                             {row.appointment.clinicName && (
-                              <span className="flex items-center gap-1 text-[9.5px] text-text-muted">
+                              /* `leading-none`: sin esto el nombre de la clinica
+                                 pinta 9.5px de letra en 20px de alto, porque el
+                                 `line-height` lo hereda del tema y el tamaño
+                                 arbitrario no lo toca. Esos 10px eran los que
+                                 hacian de esta celda la MAS ALTA de la fila (40px
+                                 contra 37 del paciente), o sea que el alto de toda
+                                 la tabla lo fijaba un interlineado de más. */
+                              <span className="flex items-center gap-1 text-[9.5px] leading-none text-text-muted">
                                 <span
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ background: row.appointment.clinicColor ?? 'var(--text-muted)' }}

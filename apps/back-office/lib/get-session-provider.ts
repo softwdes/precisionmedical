@@ -57,6 +57,21 @@ export const PORTAL_ONLY_ROLES = new Set(['DOCTOR', 'PROVIDER']);
 const getRole = cache(async (email: string): Promise<string> => fetchDbRole(email));
 
 /**
+ * `clinicModules` del proyecto Admin, memorizado por request — por la MISMA
+ * razón que `getRole`, y le faltaba.
+ *
+ * Detrás hay un `fetch` HTTP al Admin (~144 ms medidos el 2026-09-25). Lo
+ * piden `canViewAsDoctor` y `getDoctorMenus`, y los dos corren en el layout del
+ * portal: eran **dos llamadas al mismo endpoint por el mismo correo** en el
+ * mismo render. Iban dentro de un `Promise.all`, así que en reloj de pared
+ * costaban una sola — pero eran dos viajes de verdad, y cualquiera que llame a
+ * las dos fuera de ese `Promise.all` paga las dos en fila.
+ */
+const getModules = cache(
+  async (email: string): Promise<Record<string, boolean> | null> => fetchUserClinicModules(email),
+);
+
+/**
  * Rol de la sesión actual, o null si no hay sesión.
  *
  * Sale de `roles_config` en la base **Admin** — la MISMA fuente que consulta el
@@ -88,7 +103,7 @@ export const canViewAsDoctor = cache(async (email: string): Promise<boolean> => 
   const role = await getRole(email);
   if (ADMIN_ROLES.has(role)) return true;
 
-  const modules = await fetchUserClinicModules(email);
+  const modules = await getModules(email);
   return modules?.[DOCTOR_VIEW_MODULE] === true;
 });
 
@@ -112,7 +127,7 @@ export const getDoctorMenus = cache(async (): Promise<Record<string, boolean> | 
   if (!user?.email) return null;
 
   if (ADMIN_ROLES.has(await getRole(user.email))) return null;
-  return fetchUserClinicModules(user.email);
+  return getModules(user.email);
 });
 
 /** Perfil propio del usuario logueado (null si no es doctor). */

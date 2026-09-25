@@ -134,37 +134,75 @@ export default async function DoctorMyDayPage({
   const doneMap = new Map(doneRows.map((r) => [r.id, r.doctorDoneAt]));
 
   /**
-   * Las fotos de todos los pacientes del día, en DOS viajes.
-   *
-   * La tarjeta grande (el paciente en curso) la elige el cliente entre las
-   * citas, así que el servidor no sabe cuál va a ser: o trae todas las fotos o
-   * no trae ninguna. `selfiesDePacientes` hace una consulta y UNA firma en
-   * lote; pedirlas de a una serían dos viajes por fila.
-   *
-   * Si el almacenamiento falla, la lista se dibuja igual con iniciales.
+   * Solo cuando se mira HOY: esta pantalla navega por fecha con las flechas, y
+   * un "te esperan hace 12 minutos" mientras mirás el martes pasado sería
+   * mentira. Se calcula acá arriba porque de esto depende una de las tres
+   * consultas de abajo.
    */
-  const fotos = await selfiesDePacientes(appts.map((a) => a.patient.id))
-    .catch(() => new Map<string, string>());
+  const esHoy = dateKey === todayKey;
 
   /**
-   * Qué citas del día ya tienen algo facturado, en UNA consulta.
+   * ⚠️ LAS TRES JUNTAS. Ninguna depende de las otras: las tres salen de `appts`
+   * y ya lo tienen.
    *
-   * Lo consume el filtro "sin penalidad": un no-show o una cancelación del
-   * mismo día consumieron el horario, así que corresponde cobrar — y lo que
-   * este filtro muestra es lo que se selló y quedó sin cobrar. Preguntarlo por
-   * cita serían hasta 20 viajes para dibujar una lista.
+   * Estaban encadenadas —fotos, después facturado, después deudas— y cada
+   * eslabón es un viaje completo a la base. Medido el 2026-09-25 desde acá:
+   * **137 ms por viaje, traiga 0 filas o 20**. O sea que el costo no era la
+   * consulta sino la fila india: ~410 ms de los que ~270 eran puro esperar el
+   * turno.
    *
-   * "Le pusieron algo" = cualquier línea facturada. Para un desenlace no hay
-   * otra cosa que cobrarle, así que una línea ES la penalidad (mismo criterio
-   * que la cola de admisión).
+   * Es el mismo criterio que ya aplica el `Promise.all` de arriba con las citas
+   * y las notas; este bloque se había quedado atrás porque cada consulta se
+   * agregó en un momento distinto.
+   *
+   * Si agregás una cuarta, va ACÁ salvo que necesite el resultado de otra.
    */
-  const facturado = appts.length
-    ? await db.appointmentBilling.groupBy({
-        by:     ['appointmentId'],
-        where:  { appointmentId: { in: appts.map((a) => a.id) } },
-        _count: { _all: true },
-      }).catch(() => [])
-    : [];
+  const [fotos, facturado, deudas] = await Promise.all([
+    /**
+     * Las fotos de todos los pacientes del día, en DOS viajes.
+     *
+     * La tarjeta grande (el paciente en curso) la elige el cliente entre las
+     * citas, así que el servidor no sabe cuál va a ser: o trae todas las fotos
+     * o no trae ninguna. `selfiesDePacientes` hace una consulta y UNA firma en
+     * lote; pedirlas de a una serían dos viajes por fila.
+     *
+     * Si el almacenamiento falla, la lista se dibuja igual con iniciales.
+     */
+    selfiesDePacientes(appts.map((a) => a.patient.id))
+      .catch(() => new Map<string, string>()),
+
+    /**
+     * Qué citas del día ya tienen algo facturado, en UNA consulta.
+     *
+     * Lo consume el filtro "sin penalidad": un no-show o una cancelación del
+     * mismo día consumieron el horario, así que corresponde cobrar — y lo que
+     * este filtro muestra es lo que se selló y quedó sin cobrar. Preguntarlo
+     * por cita serían hasta 20 viajes para dibujar una lista.
+     *
+     * "Le pusieron algo" = cualquier línea facturada. Para un desenlace no hay
+     * otra cosa que cobrarle, así que una línea ES la penalidad (mismo criterio
+     * que la cola de admisión).
+     */
+    appts.length
+      ? db.appointmentBilling.groupBy({
+          by:     ['appointmentId'],
+          where:  { appointmentId: { in: appts.map((a) => a.id) } },
+          _count: { _all: true },
+        }).catch(() => [])
+      : Promise.resolve([]),
+
+    /**
+     * A quién hay que cobrarle antes de atenderlo.
+     *
+     * No hay forma de deducirlo de la lista del día: ni el saldo del mostrador
+     * ni la marca manual viajan con la cita. Se pide solo para los pacientes de
+     * HOY, así que en los días que se navegan con las flechas no cuesta nada.
+     *
+     * El alcance sigue siendo el de él: le pasa los pacientes de SUS citas.
+     */
+    esHoy ? deudasDelDia(appts.map((a) => a.patient.id)) : Promise.resolve([]),
+  ]);
+
   const conCargo = new Set(facturado.filter((g) => g._count._all > 0).map((g) => g.appointmentId));
 
   const appointments: MyDayAppointment[] = appts.map((a) => ({
@@ -211,29 +249,15 @@ export default async function DoctorMyDayPage({
    * recepción — si el saludo consultara por su cuenta, podría contradecir a la
    * pantalla que está tapando.
    *
-   * Solo cuando se mira HOY: esta pantalla navega por fecha con las flechas, y
-   * un "te esperan hace 12 minutos" mientras mirás el martes pasado sería
-   * mentira.
+   * La única que sí consulta es `deudas`, y no se pide acá: viaja arriba, en el
+   * `Promise.all` de las tres, para no agregar un eslabón más a la fila.
    */
-  const esHoy = dateKey === todayKey;
   const yaSalio = (s: string) => s === 'COMPLETED' || s === 'CHECKED_OUT';
   // Ya llegó y todavía no entró: ni atendiéndose ni terminado. Ese es el que
   // está sentado en la sala.
   const enSala = appointments.find(
     (a) => a.checkedInAt !== null && a.status !== 'IN_PROGRESS' && !yaSalio(a.status),
   );
-  /**
-   * A quién hay que cobrarle antes de atenderlo — la única consulta nueva.
-   *
-   * Rompe a propósito el "cero consultas" de arriba, y es el único caso en que
-   * vale: no hay forma de deducirlo de la lista del día, porque ni el saldo del
-   * mostrador ni la marca manual viajan con la cita. Se pide solo para los
-   * pacientes de HOY (`esHoy`), así que en los días que se navegan con las
-   * flechas no se pide nada.
-   *
-   * El alcance sigue siendo el de él: le pasa los pacientes de SUS citas.
-   */
-  const deudas = esHoy ? await deudasDelDia(appts.map((a) => a.patient.id)) : [];
 
   const saludo = {
     hoy: todayKey,

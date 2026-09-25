@@ -120,6 +120,30 @@ export function CortinaVersion({
    */
   React.useEffect(() => {
     if (nonce === null || version === null) return;
+    /*
+     * Nunca encima de alguien que está trabajando.
+     *
+     * Este efecto NO corre solo al cargar la página: se dispara cada vez que el
+     * sondeo detecta un despliegue nuevo con la pestaña abierta. Y la cortina es
+     * `fixed inset-0 z-[100]`, mientras que los diálogos de Radix van en `z-50`:
+     * cae POR ENCIMA de cualquier ventana abierta y se come el clic que la
+     * persona estaba por dar. Con varios despliegues en un mismo día —como el
+     * 24-sep— eso es literalmente el "hago clic y no pasa nada" que reportó
+     * cobranza sobre el buscador de cargos.
+     *
+     * `[data-state="open"]` es lo que distingue un diálogo de Radix realmente
+     * abierto. Hace falta el filtro: el `SideDrawer` de novedades también lleva
+     * `role="dialog"` pero se monta SIEMPRE (escondido con `translate-x-full`),
+     * así que sin él la cortina no saldría jamás.
+     *
+     * Se marca como mostrada igual. El aviso no se pierde —la insignia sigue con
+     * su punto ámbar y el panel tiene la nota entera—, y taparle la pantalla a
+     * quien está cobrando cuesta mucho más que saltear una cortina.
+     */
+    if (document.querySelector('[role="dialog"][data-state="open"]') !== null) {
+      marcarCortinaMostrada(version);
+      return;
+    }
     setAbierta(true);
     // Que ya se mostró en ESTA sesión del navegador. Sin esto, una cortina que
     // se cerró sola volvería a taparle la pantalla en cada navegación hasta que

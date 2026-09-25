@@ -6630,7 +6630,16 @@
       "editChiro": "Clic para editar el quiropráctico / referral",
       "chiroFreeText": "Escríbelo y Enter — no modifica el formulario del paciente",
       "showWholeCase": "Ver el caso completo",
-      "colCreatedByCase": "Quién creó el caso"
+      "colCreatedByCase": "Quién creó el caso",
+      "adjusterCreate": "Agregar «{nombre}» al catálogo",
+      "adjusterCreateName": "Nombre del adjuster",
+      "adjusterCreateCarrier": "Buscar la aseguradora…",
+      "adjusterCreateChange": "cambiar",
+      "adjusterCreatePhone": "Teléfono",
+      "adjusterCreateExt": "Ext.",
+      "adjusterCreateSave": "Agregar y asignar",
+      "adjusterCreateNeedsCarrier": "Elegí la aseguradora de la lista: el catálogo la necesita.",
+      "adjusterCreateFailed": "No se pudo agregar al catálogo."
     },
     "online": {
       "badge": "Cita online",

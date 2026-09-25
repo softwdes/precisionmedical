@@ -6630,7 +6630,16 @@
       "editChiro": "Click to edit the chiropractor / referral",
       "chiroFreeText": "Type it and press Enter — the intake form is not modified",
       "showWholeCase": "Show the whole case",
-      "colCreatedByCase": "Who created the case"
+      "colCreatedByCase": "Who created the case",
+      "adjusterCreate": "Add “{nombre}” to the catalog",
+      "adjusterCreateName": "Adjuster name",
+      "adjusterCreateCarrier": "Search the carrier…",
+      "adjusterCreateChange": "change",
+      "adjusterCreatePhone": "Phone",
+      "adjusterCreateExt": "Ext.",
+      "adjusterCreateSave": "Add and assign",
+      "adjusterCreateNeedsCarrier": "Pick the carrier from the list — the catalog needs it.",
+      "adjusterCreateFailed": "Could not add to the catalog."
     },
     "online": {
       "badge": "Online visit",

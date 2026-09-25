@@ -198,11 +198,24 @@ interface AdjusterDelCatalogo {
  * dejaba la lista vacía en el 83% de los casos.
  */
 function CatalogoAdjusters({
-  carrierId, onPick, saving,
+  carrierId, onPick, saving, onCrear,
 }: {
   carrierId: string | null;
   onPick: (a: AdjusterDelCatalogo) => void;
   saving: boolean;
+  /**
+   * Crear en el catálogo al que no está, con lo que Edson venía escribiendo.
+   *
+   * Aparece SOLO cuando la búsqueda no encontró nada, y esa es la protección
+   * más importante contra los repetidos: el buscador recorre el catálogo
+   * ENTERO, no solo la aseguradora del caso, así que para llegar a este botón
+   * hay que haber visto antes que no había ningún parecido.
+   *
+   * Medido el 2026-09-24: 103 adjusters en el catálogo y solo 3 repetidos de
+   * verdad, dos de ellos por culpa de una aseguradora duplicada y no del
+   * adjuster. O sea que el riesgo real es chico y ya tiene freno.
+   */
+  onCrear?: (nombre: string) => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const [q, setQ] = useState('');
@@ -266,7 +279,22 @@ function CatalogoAdjusters({
       )}
 
       {!cargando && lista.length === 0 && (
-        <p className="text-[12px] text-text-muted italic py-1">{t('adjusterCatalogEmpty')}</p>
+        <div className="py-1 space-y-1">
+          <p className="text-[12px] text-text-muted italic">{t('adjusterCatalogEmpty')}</p>
+          {/* Dar de alta al que no está, con lo que ya venía escrito. Va PEGADO
+              al aviso de "no hay nadie" y no suelto en el panel: el momento en
+              que alguien quiere crear es justo este, y en cualquier otro lugar
+              sería una invitación a duplicar. */}
+          {onCrear && q.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => onCrear(q.trim())}
+              className="text-[11.5px] text-brand-text hover:underline underline-offset-2 font-medium"
+            >
+              {t('adjusterCreate', { nombre: q.trim() })}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Sin borde: el escalón de fondo ya separa la lista de la caja (Regla #0). */}
@@ -301,6 +329,7 @@ function CatalogoAdjusters({
           })}
         </div>
       )}
+
     </div>
   );
 }
@@ -320,10 +349,80 @@ export function AdjustersPopover({
   onChanged?: () => void;
 }) {
   const serverError = useServerError();
-  const t = useTranslations('phoenix.edsonTracking');
+  const t  = useTranslations('phoenix.edsonTracking');
+  const tc = useTranslations('phoenix.common');
   const { current, carrier, loading, reload } = useCaseAdjusters(caseId);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
+
+  /**
+   * El alta en el catálogo, desde el mismo panel.
+   *
+   * `null` = no se está creando nada. Con un objeto adentro, el panel muestra
+   * el formulario corto en vez de la lista.
+   *
+   * El catálogo exige aseguradora (`insurance_adjusters.insuranceCarrierId` es
+   * obligatorio) y eso NO se puede dar por hecho: medido el 2026-09-24, **67 de
+   * cada 100 casos de la cola no la tienen cargada**. Por eso el formulario la
+   * pide siempre, aunque el caso ya traiga una: se precarga y se puede cambiar.
+   *
+   * Y NO se escribe en el caso. Decisión de Erick, 2026-09-24: "el adjuster solo
+   * es para Edson hasta que digan que se ponga al caso". Elegir acá la
+   * aseguradora sirve para clasificar al adjuster en el catálogo, no para
+   * completarle el expediente a nadie.
+   */
+  const [alta, setAlta] = useState<{
+    nombre: string; phone: string; extension: string;
+    carrier: { id: string; label: string } | null;
+  } | null>(null);
+  /** Búsqueda de aseguradora del formulario de alta. */
+  const [carrierQ, setCarrierQ] = useState('');
+  const [carrierOpts, setCarrierOpts] = useState<{ id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!alta || alta.carrier) { setCarrierOpts([]); return; }
+    let vivo = true;
+    const id = setTimeout(async () => {
+      const sp = new URLSearchParams({ q: carrierQ.trim(), omitType: '1' });
+      const res  = await fetch(`/api/admin/insurances/autocomplete?${sp}`);
+      const json = await res.json().catch(() => ({}));
+      if (vivo && res.ok) setCarrierOpts(json.results ?? []);
+    }, 250);
+    return () => { vivo = false; clearTimeout(id); };
+  }, [alta, carrierQ]);
+
+  /**
+   * Crea en el catálogo y lo asigna al caso, en ese orden.
+   *
+   * Si el alta sale bien y la asignación falla, el adjuster queda creado — y
+   * está bien que quede: es un dato válido del catálogo, y al reintentar ya
+   * aparece en la lista en vez de crearse dos veces.
+   */
+  async function crearYAsignar() {
+    if (!alta) return;
+    if (!alta.carrier) { setError(t('adjusterCreateNeedsCarrier')); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/adjusters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insuranceCarrierId: alta.carrier.id,
+          name:      alta.nombre.trim(),
+          phone:     alta.phone.trim() || null,
+          extension: alta.extension.trim() || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(serverError(json, t('adjusterCreateFailed'))); return; }
+      setAlta(null);
+      setCarrierQ('');
+      await asignar(json.adjuster?.id ?? json.id);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   /**
    * El catálogo se asigna DESDE ACÁ, sin pasar por el modal.
@@ -377,11 +476,98 @@ export function AdjustersPopover({
         * lo rechazó el 2026-09-18: "que se quite todo eso y quede como el
         * provider: doble clic y aparece directo el listado".
         */}
-      <CatalogoAdjusters
-        carrierId={carrier?.id ?? null}
-        onPick={(a) => void asignar(a.id)}
-        saving={saving}
-      />
+      {alta ? (
+        /* Alta en el catálogo. Reemplaza la lista en vez de apilarse debajo:
+           el panel es angosto y dos cosas activas a la vez no se leen. */
+        <div className="rounded-md bg-bg-2/40 p-2.5 space-y-2">
+          <input
+            value={alta.nombre}
+            onChange={(e) => setAlta({ ...alta, nombre: e.target.value })}
+            placeholder={t('adjusterCreateName')}
+            className="w-full bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
+          />
+
+          {/* La aseguradora SE ELIGE, no se escribe. Si se pudiera tipear, en un
+              mes hay "Farm Bureau" y "Farm Bureau Ins." — que es exactamente el
+              origen de 2 de los 3 repetidos que tiene el catálogo hoy. */}
+          {alta.carrier ? (
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] text-text-1 truncate flex-1">{alta.carrier.label}</span>
+              <button
+                type="button"
+                onClick={() => { setAlta({ ...alta, carrier: null }); setCarrierQ(''); }}
+                className="text-[10px] text-text-muted hover:text-text-1 underline underline-offset-2 shrink-0"
+              >
+                {t('adjusterCreateChange')}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input
+                value={carrierQ}
+                onChange={(e) => setCarrierQ(e.target.value)}
+                placeholder={t('adjusterCreateCarrier')}
+                className="w-full bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+              {carrierOpts.length > 0 && (
+                <div className="mt-1 max-h-28 overflow-y-auto rounded bg-bg-1">
+                  {carrierOpts.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setAlta({ ...alta, carrier: c })}
+                      className="w-full text-left px-2 py-1 text-[11.5px] text-text-2 hover:bg-white/[0.04] border-b border-row-sep last:border-0"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <input
+              value={alta.phone}
+              onChange={(e) => setAlta({ ...alta, phone: e.target.value })}
+              placeholder={t('adjusterCreatePhone')}
+              className="flex-1 min-w-0 bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+            <input
+              value={alta.extension}
+              onChange={(e) => setAlta({ ...alta, extension: e.target.value })}
+              placeholder={t('adjusterCreateExt')}
+              className="w-16 shrink-0 bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" onClick={() => void crearYAsignar()} disabled={saving || !alta.nombre.trim()}>
+              {t('adjusterCreateSave')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => { setAlta(null); setCarrierQ(''); setError(''); }}
+              className="text-[11px] text-text-muted hover:text-text-1 underline underline-offset-2"
+            >
+              {tc('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <CatalogoAdjusters
+          carrierId={carrier?.id ?? null}
+          onPick={(a) => void asignar(a.id)}
+          saving={saving}
+          onCrear={(nombre) => setAlta({
+            nombre,
+            phone: '',
+            extension: '',
+            // Se precarga la del caso cuando la hay — en 1 de cada 3 filas.
+            carrier: carrier ? { id: carrier.id, label: carrier.name } : null,
+          })}
+        />
+      )}
 
       {error && <div className="text-rose text-[12px]">{error}</div>}
 

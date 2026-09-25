@@ -152,6 +152,8 @@ export function ChargePickerDialog({
   const pathname = usePathname();
 
   const [q, setQ] = React.useState(busquedaInicial ?? '');
+  // Para enfocarlo al abrir desde `onOpenAutoFocus`, sin depender del orden.
+  const buscadorRef = React.useRef<HTMLInputElement>(null);
   // Arranca en el circuito que le corresponde al paciente; el otro está a un clic.
   const [view, setView] = React.useState<View>(coverage.type === 'SELF_PAY' ? 'CASH' : 'INSURANCE');
   const [favoritesOnly, setFavoritesOnly] = React.useState(false);
@@ -558,7 +560,26 @@ export function ChargePickerDialog({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[88vh]">
+      <DialogContent
+        className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[88vh]"
+        /**
+         * Quién se queda el foco al abrir, decidido acá y no por carrera.
+         *
+         * Con solo `autoFocus` en el input esto era una carrera y la perdía a
+         * veces: medido en producción el 2026-09-24, dos aperturas seguidas de
+         * la misma página dieron una el input y otra el botón "With insurance",
+         * que es el primer enfocable del diálogo. Radix enfoca al primero SALVO
+         * que ya haya algo enfocado adentro cuando corre su efecto, y ese
+         * "cuando" no está garantizado.
+         *
+         * `preventDefault()` le saca esa decisión a Radix y la tomamos nosotros.
+         * Determinista, sin depender del orden.
+         */
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          buscadorRef.current?.focus();
+        }}
+      >
         <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
           <DialogTitle className="text-[14px] flex items-center gap-2">
             <Plus className="w-4 h-4 text-violet-text shrink-0" />
@@ -609,6 +630,7 @@ export function ChargePickerDialog({
                 `revertir-pago-dialog`.
               */}
               <input
+                ref={buscadorRef}
                 type="text"
                 autoFocus
                 value={q}

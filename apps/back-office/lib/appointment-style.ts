@@ -123,6 +123,76 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
   const isPending = appt.status === 'PENDING' || appt.status === 'SCHEDULED';
 
   /**
+   * ⚠️ El tipo sale del CASO, que es la misma fuente que usa el filtro.
+   *
+   * Antes era `appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO'`
+   * — el tipo de la CITA y una bandera vieja del caso— mientras que el filtro
+   * "MVA · 1ª visita" y la etiqueta de texto leen `case.caseType`. Dos fuentes
+   * para la misma pregunta, y cuando no coinciden la tarjeta se contradice sola.
+   *
+   * Erick lo vio el 2026-09-24 en Alexander Lutz (GM-3402): tarjeta **rosa de
+   * MVA con el sello `🆕`** y la etiqueta diciendo **"GM 1st"**. El caso es
+   * GENERAL y su cita es FAMILY_PRACTICE, pero le quedó `accidentType = 'AUTO'`
+   * de cuando era MVA — el mismo resto que la fecha del accidente.
+   *
+   * Lo peor no era el ícono: una tarjeta pintada de MVA que el filtro de MVA
+   * **no devuelve** es exactamente el reclamo de Edson. Medido: **7 citas
+   * vivas** con `caseType = 'GENERAL'` y `accidentType = 'AUTO'`.
+   *
+   * `accidentType` deja de decidir el color justamente porque sobrevive a la
+   * reclasificación. Y se mantiene el tipo de la CITA como respaldo para las
+   * que no tienen caso, donde no hay `caseType` que mirar.
+   *
+   * ⚠️ De dónde sale `caseType`, porque no se ve. `admission/route.ts` lo
+   * selecciona explícito, pero `appointments/route.ts` lo recibe por el spread
+   * de `COVERAGE_FIELDS` (`lib/coverage.ts`) — no aparece escrito en su
+   * `select`. Si alguien saca ese spread, acá `tipoDeCaso` queda `undefined`
+   * para siempre, el color vuelve a salir solo del tipo de la CITA y **no hay
+   * un solo error de `tsc`**: el campo es opcional. Lo encontró Main Push
+   * revisando el push, y por eso queda anotado.
+   *
+   * Esto se calcula ACÁ ARRIBA, antes de los desenlaces, porque los desenlaces
+   * también necesitan el sello. Ver `selloDeTipo` justo abajo.
+   */
+  const tipoDeCaso = appt.case?.caseType;
+  const isMVA = tipoDeCaso === 'MVA' || (!tipoDeCaso && appt.type === 'AUTO_ACCIDENT');
+  const isGM  = tipoDeCaso === 'GENERAL'
+    || (!tipoDeCaso && (appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE'));
+
+  /**
+   * El sello de TIPO, independiente del estado.
+   *
+   * Existe porque el relleno y el sello responden preguntas distintas y no
+   * tienen por qué apagarse juntos: **el relleno dice qué pasó con la cita, el
+   * sello dice de qué es**. Es el mismo reparto de canales que ya usa la cita
+   * sin confirmar más abajo (relleno ámbar + aro del tipo), extendido a los
+   * desenlaces, que habían quedado afuera por omisión y no por criterio.
+   *
+   * Sin esto, una vez atendida la tarjeta perdía TODA la información de tipo:
+   * una MVA 1ª atendida, una GM 1ª atendida y un seguimiento atendido se veían
+   * idénticos, y en la pantalla de Edson —cuyo trabajo es seguir primeras
+   * visitas de MVA— eso hace imposible contar de un vistazo cuántas se
+   * atendieron. En el no-show pesa todavía más: una primera visita de MVA que
+   * no vino es justo la que hay que perseguir, y era la tarjeta más silenciosa
+   * del calendario.
+   *
+   * Erick lo pidió el 2026-09-24 viendo a Aaron Black Test (MVA-3415, 22-sep):
+   * la tarjeta estaba en la vista FILTRADA por "MVA · 1ª visita", la etiqueta
+   * decía "MVA 1st" y el sello no estaba. Y el contador de la leyenda dice
+   * "N primeras visitas 🆕" contando también las atendidas y las canceladas,
+   * así que el número llevaba el sello y las tarjetas que lo componen no.
+   *
+   * El COLOR no cambia: el estado sigue mandando sobre el tipo para el relleno,
+   * el aro y el tachado. Acá solo se agrega un canal que estaba vacío.
+   */
+  const selloDeTipo = (): string | undefined => {
+    if (isFirst) return isMVA ? BADGE_MVA_1RA : isGM ? BADGE_GM_1RA : '🆕';
+    // El seguimiento de GM nunca tuvo sello — su color alcanza y agregarle uno
+    // acá lo inventaría solo para los desenlaces.
+    return isMVA ? BADGE_MVA : undefined;
+  };
+
+  /**
    * Cita que NO ocurrio: tachada. Va PRIMERO porque el estado manda sobre el
    * tipo — una MVA cancelada es una cancelada, no una MVA.
    *
@@ -167,12 +237,14 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
           border: CANCELLED_SAMEDAY_RING,
           text: 'var(--cal-text-cancelled-sameday)',
           strike: true,
+          badge: selloDeTipo(),
         }
       : {
           bg: 'rgba(244,63,94,0.08)',
           border: 'rgba(244,63,94,0.35)',
           text: 'var(--cal-text-cancelled)',
           strike: true,
+          badge: selloDeTipo(),
         };
   }
   if (appt.status === 'NO_SHOW') {
@@ -181,6 +253,7 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       border: 'rgba(100,116,139,0.35)',
       text: 'var(--cal-text-noshow)',
       strike: true,
+      badge: selloDeTipo(),
     };
   }
 
@@ -189,33 +262,9 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       bg: 'rgba(99,102,241,0.18)',
       border: 'rgba(99,102,241,0.35)',
       text: 'var(--cal-text-attended)',
+      badge: selloDeTipo(),
     };
   }
-  /**
-   * ⚠️ El tipo sale del CASO, que es la misma fuente que usa el filtro.
-   *
-   * Antes era `appt.type === 'AUTO_ACCIDENT' || appt.case?.accidentType === 'AUTO'`
-   * — el tipo de la CITA y una bandera vieja del caso— mientras que el filtro
-   * "MVA · 1ª visita" y la etiqueta de texto leen `case.caseType`. Dos fuentes
-   * para la misma pregunta, y cuando no coinciden la tarjeta se contradice sola.
-   *
-   * Erick lo vio el 2026-09-24 en Alexander Lutz (GM-3402): tarjeta **rosa de
-   * MVA con el sello `🆕`** y la etiqueta diciendo **"GM 1st"**. El caso es
-   * GENERAL y su cita es FAMILY_PRACTICE, pero le quedó `accidentType = 'AUTO'`
-   * de cuando era MVA — el mismo resto que la fecha del accidente.
-   *
-   * Lo peor no era el ícono: una tarjeta pintada de MVA que el filtro de MVA
-   * **no devuelve** es exactamente el reclamo de Edson. Medido: 9 citas así.
-   *
-   * `accidentType` deja de decidir el color justamente porque sobrevive a la
-   * reclasificación. Y se mantiene el tipo de la CITA como respaldo para las
-   * que no tienen caso, donde no hay `caseType` que mirar.
-   */
-  const tipoDeCaso = appt.case?.caseType;
-  const isMVA = tipoDeCaso === 'MVA' || (!tipoDeCaso && appt.type === 'AUTO_ACCIDENT');
-  const isGM  = tipoDeCaso === 'GENERAL'
-    || (!tipoDeCaso && (appt.type === 'FAMILY_PRACTICE' || appt.type === 'URGENT_CARE'));
-
   /**
    * ── Agendada / sin confirmar ───────────────────────────────────────────────
    *
@@ -254,7 +303,15 @@ export function baseEventStyle(appt: StyleableAppointment): EventStyle {
       border: 'rgba(245,158,11,0.40)',
       text: 'var(--cal-text-pending)',
     };
-    if (!isFirst) return base;
+    /*
+     * El seguimiento sin confirmar también lleva su sello. Quedó afuera cuando
+     * se agregó el 🚗 (2026-09-24): una MVA de seguimiento CONFIRMADA lo tenía
+     * y la misma cita AGENDADA no, y las dos están igual de por pasar. Es la
+     * misma incoherencia que los desenlaces, en otra rama.
+     *
+     * El relleno ámbar y el aro no se tocan: acá solo se llena el canal vacío.
+     */
+    if (!isFirst) return { ...base, badge: selloDeTipo() };
 
     if (isMVA) {
       return { ...base, border: 'rgba(236,72,153,0.65)', glow: '0 0 10px rgba(244,63,94,0.35)', badge: BADGE_MVA_1RA };

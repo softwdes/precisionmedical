@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { ALL_ROLES, ROLE_META } from '@/lib/permissions';
@@ -111,6 +112,7 @@ function EditPermissionsModal({
   onClose: () => void;
   onSaved: () => void;
 }): React.ReactElement {
+  const t = useTranslations();
   // Defaults para nuevas apps según v2-apps.ts (aplican cuando aún no hay valor en DB)
   // Default del toggle de Clinic Back-Office cuando la fila no trae valor:
   // espejo de la matriz estatica de `v2-apps.ts`. Los roles que ya entran por
@@ -151,14 +153,14 @@ function EditPermissionsModal({
       });
       if (!res.ok) {
         const d = await res.json() as { error?: string };
-        throw new Error(d.error ?? 'Error al guardar');
+        throw new Error(d.error ?? t('users.errSave'));
       }
-      toast.success('Permisos actualizados', {
-        description: `Rol ${config.label} · cambios aplicados`,
+      toast.success(t('users.permissionsUpdated'), {
+        description: t('users.roleChangesApplied', { rol: config.label }),
       });
       onSaved();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error al guardar');
+      toast.error(e instanceof Error ? e.message : t('users.errSave'));
     } finally {
       setSaving(false);
     }
@@ -277,7 +279,7 @@ function EditPermissionsModal({
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? 'Guardando…' : 'Guardar cambios'}
+            {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>

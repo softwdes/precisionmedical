@@ -3,11 +3,11 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@precision/ui';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { useTheme } from '@/components/providers/theme-provider';
-import { Bell, Search, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
+import { Bell, Search, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy, Languages } from 'lucide-react';
 import { CifoButton } from './cifo-button';
 import { api as trpc } from '@/lib/trpc/client';
 import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
@@ -57,6 +57,7 @@ export function Topbar({
   avatarUrl,
 }: TopbarProps): React.ReactElement {
   const t      = useTranslations();
+  const locale = useLocale() as 'es' | 'en';
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
@@ -80,6 +81,10 @@ export function Topbar({
   });
 
   const { data: me } = trpc.users.me.useQuery();
+
+  const utils              = trpc.useUtils();
+  const updatePreferences  = trpc.users.updatePreferences.useMutation();
+  const [savingLocale, setSavingLocale] = useState(false);
 
   useEffect(() => {
     if (!me?.preferredLocale) return;
@@ -133,6 +138,40 @@ export function Topbar({
     setMenuOpen(false); setPwOpen(true);
   };
 
+  /**
+   * El idioma se guarda en DOS lugares y hacen falta los dos: la cookie pinta
+   * la pantalla en el próximo render del servidor, y la fila de `users` es de
+   * donde lo lee todo lo que corre sin request —el aviso al celular, que se
+   * arma en un cron.
+   *
+   * Acá, a diferencia de back-office, la base MANDA: el efecto de arriba ya
+   * revierte la cookie si no coincide con `preferredLocale`. Así que si la
+   * mutación falla se deshace el cambio y se dice por qué, en vez de dejar la
+   * pantalla en un idioma que nadie guardó.
+   */
+  const escribirCookieIdioma = (code: 'es' | 'en'): void => {
+    document.cookie = `locale=${code};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
+  };
+
+  const setLocale = (next: 'es' | 'en'): void => {
+    if (next === locale || savingLocale) return;
+    setSavingLocale(true);
+    escribirCookieIdioma(next);
+    updatePreferences.mutate({ preferredLocale: next }, {
+      onSuccess: () => {
+        // Sin esto el efecto de arriba ve el valor viejo en caché y revierte.
+        void utils.users.me.invalidate();
+        router.refresh();
+      },
+      onError: () => {
+        escribirCookieIdioma(locale);
+        toast.error(t('account.languageSaveFailed'));
+        router.refresh();
+      },
+      onSettled: () => setSavingLocale(false),
+    });
+  };
+
   const suggestPassword = () => {
     const pw = generateSecurePassword();
     setNewPw(pw); setConfirmPw(pw); setShowNew(true); setShowConf(true);
@@ -140,19 +179,19 @@ export function Topbar({
 
   const copyPassword = () => {
     void navigator.clipboard.writeText(newPw);
-    toast.success('Contraseña copiada');
+    toast.success(t('account.passwordCopied'));
   };
 
   const handlePasswordChange = async (): Promise<void> => {
-    if (!newPw)               return setPwError('Ingresa una nueva contraseña');
-    if (newPw.length < 8)     return setPwError('Mínimo 8 caracteres');
-    if (newPw !== confirmPw)  return setPwError('Las contraseñas no coinciden');
+    if (!newPw)               return setPwError(t('account.passwordRequired'));
+    if (newPw.length < 8)     return setPwError(t('account.passwordTooShort'));
+    if (newPw !== confirmPw)  return setPwError(t('account.passwordMismatch'));
     setPwLoading(true); setPwError('');
     const supabase = createSupabaseClient();
     const { error } = await supabase.auth.updateUser({ password: newPw });
     setPwLoading(false);
     if (error) return setPwError(error.message);
-    toast.success('Contraseña actualizada correctamente');
+    toast.success(t('account.passwordUpdated'));
     setPwOpen(false);
   };
 
@@ -221,17 +260,49 @@ export function Topbar({
           )}
         </button>
 
+        {/* ─── Preferencias personales: idioma + tema ─────────────────────
+            El idioma vive en `users.preferredLocale` y hasta hoy NADIE lo
+            escribía: la mutación existía y solo el tema la llamaba, así que la
+            columna se quedaba en su default y no había forma de pasarse a
+            inglés. El par va junto y con la misma forma porque son la misma
+            clase de cosa: cómo quiere ver la pantalla esta persona. */}
+        <div
+          className="hidden items-center gap-0.5 p-1 rounded-xl border border-border bg-surface h-8 sm:flex"
+          role="group"
+          aria-label={t('account.switchLanguage')}
+          aria-busy={savingLocale}
+        >
+          {(['es', 'en'] as const).map((code) => {
+            const active = locale === code;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLocale(code)}
+                disabled={savingLocale}
+                aria-pressed={active}
+                className={cn(
+                  'flex h-6 min-w-[28px] items-center justify-center rounded-[8px] px-1.5 text-[10px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed',
+                  active ? 'bg-gradient-brand text-white shadow-sm' : 'text-text-3 hover:text-text-1',
+                )}
+              >
+                {code}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Theme toggle */}
         <div className="hidden items-center gap-0.5 p-1 rounded-xl border border-border bg-surface h-8 sm:flex">
           <button
             onClick={() => theme !== 'dark' && toggleTheme()}
             className={cn('flex h-6 w-7 items-center justify-center rounded-[8px] transition-all', theme === 'dark' ? 'bg-gradient-brand text-white shadow-sm' : 'text-text-3 hover:text-text-1')}
-            aria-label="Modo oscuro"
+            aria-label={t('common.darkMode')}
           ><Moon className="h-3 w-3" /></button>
           <button
             onClick={() => theme !== 'light' && toggleTheme()}
             className={cn('flex h-6 w-7 items-center justify-center rounded-[8px] transition-all', theme === 'light' ? 'bg-gradient-brand text-white shadow-sm' : 'text-text-3 hover:text-text-1')}
-            aria-label="Modo claro"
+            aria-label={t('common.lightMode')}
           ><Sun className="h-3 w-3" /></button>
         </div>
 
@@ -268,15 +339,41 @@ export function Topbar({
                   onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
                 >
                   <User className="h-3.5 w-3.5 text-brand-text shrink-0" />
-                  Ver perfil
+                  {t('account.viewProfile')}
                 </button>
                 <button
                   className={cn(menuItemCls, 'text-text-2 hover:bg-surface hover:text-text-1')}
                   onClick={openPwModal}
                 >
                   <KeyRound className="h-3.5 w-3.5 text-amber shrink-0" />
-                  Cambiar contraseña
+                  {t('account.changePassword')}
                 </button>
+                {/* El idioma repetido acá a propósito: la pastilla de la
+                    barra es `hidden sm:flex` y en un teléfono no existe.
+                    Este menú sí se abre en móvil. */}
+                <div className={cn(menuItemCls, 'justify-between text-text-2')}>
+                  <span className="flex items-center gap-2.5">
+                    <Languages className="h-3.5 w-3.5 text-cyan shrink-0" />
+                    {t('settings.language')}
+                  </span>
+                  <span className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+                    {(['es', 'en'] as const).map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setLocale(code)}
+                        disabled={savingLocale}
+                        aria-pressed={locale === code}
+                        className={cn(
+                          'flex h-5 min-w-[26px] items-center justify-center rounded-[6px] px-1 text-[10px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed',
+                          locale === code ? 'bg-gradient-brand text-white' : 'text-text-3 hover:text-text-1',
+                        )}
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </span>
+                </div>
                 {/* Los avisos del aparato van acá porque son una preferencia
                     personal del dispositivo, la misma clase de cosa que el
                     idioma y el tema. A diferencia del botón de la barra, esta
@@ -289,7 +386,7 @@ export function Topbar({
                   onClick={() => { setMenuOpen(false); void handleLogout(); }}
                 >
                   <LogOut className="h-3.5 w-3.5 shrink-0" />
-                  Cerrar sesión
+                  {t('auth.logout')}
                 </button>
               </div>
             </div>
@@ -301,7 +398,7 @@ export function Topbar({
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Mi perfil</DialogTitle>
+            <DialogTitle>{t('account.myProfile')}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-brand text-2xl font-bold text-white shadow-glow overflow-hidden">
@@ -314,12 +411,12 @@ export function Topbar({
               </span>
             </div>
             <div className="w-full rounded-xl border border-border bg-surface px-4 py-3">
-              <p className="text-xs text-text-3 mb-0.5">Correo electrónico</p>
+              <p className="text-xs text-text-3 mb-0.5">{t('auth.email')}</p>
               <p className="text-sm text-text-1 font-medium">{userEmail || '—'}</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setProfileOpen(false)}>Cerrar</Button>
+            <Button variant="ghost" onClick={() => setProfileOpen(false)}>{t('common.close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -334,7 +431,7 @@ export function Topbar({
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Cambiar contraseña</DialogTitle>
+            <DialogTitle>{t('account.changePassword')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <button
@@ -343,11 +440,11 @@ export function Topbar({
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/[0.07] py-2.5 text-sm font-semibold text-brand-text hover:bg-brand/[0.12] transition-colors"
             >
               <Zap className="h-3.5 w-3.5" />
-              Sugerir contraseña segura
+              {t('account.suggestPassword')}
             </button>
 
             <div className="space-y-1.5">
-              <Label>Nueva contraseña</Label>
+              <Label>{t('account.newPassword')}</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -370,7 +467,7 @@ export function Topbar({
                     type="button"
                     onClick={copyPassword}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-3 hover:text-text-1 transition-colors"
-                    title="Copiar"
+                    title={t('account.copyPassword')}
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
@@ -379,7 +476,7 @@ export function Topbar({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Confirmar contraseña</Label>
+              <Label>{t('account.confirmPassword')}</Label>
               <div className="relative">
                 <Input
                   type={showConf ? 'text' : 'password'}
@@ -401,9 +498,9 @@ export function Topbar({
             {pwError && <p className="text-xs text-rose-text">{pwError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setPwOpen(false)}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => setPwOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => void handlePasswordChange()} disabled={pwLoading}>
-              {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
+              {pwLoading ? t('common.saving') : t('account.savePassword')}
             </Button>
           </DialogFooter>
         </DialogContent>

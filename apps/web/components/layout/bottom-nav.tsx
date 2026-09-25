@@ -141,7 +141,7 @@ export function BottomNav({ onMoreClick }: BottomNavProps): React.ReactElement {
           <button
             type="button"
             onClick={onMoreClick}
-            aria-label="Abrir menu completo"
+            aria-label={t('nav.openFullMenu')}
             className={cn(
               'group relative flex w-full flex-col items-center justify-center gap-0.5 transition-all',
               'active:scale-[0.92]',

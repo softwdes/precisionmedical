@@ -102,11 +102,26 @@ export default async function RootLayout({
               />
             </ThemeProvider>
           </TRPCProvider>
-          {/* UpdateBanner usa useTranslations → DEBE ir dentro del provider de i18n */}
+          {/*
+            TODO lo que use `useTranslations` va ADENTRO de este provider.
+            No es una preferencia de orden: sin provider el hook **lanza**, y
+            como esto es el layout raíz se lleva puestas TODAS las páginas,
+            /login incluido. Una clave que falta solo dibuja la ruta cruda; el
+            contexto ausente rompe el render entero.
+
+            Tiró el Admin en producción dos veces (2026-09-23 y 2026-09-24):
+            `PWAInstallBanner` colgaba acá afuera y se le agregó el hook. Ni
+            `tsc` ni `next build` lo ven —estas rutas se compilan pero no se
+            ejecutan— y en producción next-intl le borra el mensaje al error
+            (`throw Error(void 0)`), así que el stack no dice nada.
+
+            La advertencia ya estaba escrita para `UpdateBanner` y pasó igual,
+            por eso ahora no queda nada afuera que pueda necesitarlo.
+          */}
           <UpdateBanner />
+          <PWAInstallBanner />
+          <SWRegister />
         </NextIntlClientProvider>
-        <PWAInstallBanner />
-        <SWRegister />
       </body>
     </html>
   );

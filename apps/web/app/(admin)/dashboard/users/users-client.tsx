@@ -109,6 +109,7 @@ function InlineRoleSelect({
   currentUserId: string;
   onRoleChanged: () => void;
 }): React.ReactElement {
+  const t = useTranslations();
   const currentDbRole = user.role as string;
   const currentInternalRole = dbRoleToRole(currentDbRole);
   const [saving, setSaving] = useState(false);
@@ -130,13 +131,13 @@ function InlineRoleSelect({
       });
       if (!res.ok) {
         const d = await res.json() as { error?: string };
-        throw new Error(d.error ?? 'Error al guardar');
+        throw new Error(d.error ?? t('users.errSave'));
       }
       setSaved(true);
       onRoleChanged();
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error al cambiar rol');
+      toast.error(e instanceof Error ? e.message : t('users.errRoleChange'));
     } finally {
       setSaving(false);
     }
@@ -202,27 +203,28 @@ function ActionButtons({
   onSendAccess: (u: UserRow) => void;
   onDelete: (u: UserRow) => void;
 }): React.ReactElement {
+  const t = useTranslations();
   const isProtected = user.email === PROTECTED_EMAIL;
   return (
     <div className="flex items-center gap-1">
       <button
         onClick={(e) => { e.stopPropagation(); onView(user.id); }}
         className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-        title="Ver usuario"
+        title={t('users.viewUser')}
       >
         <Eye className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); onEdit(user); }}
         className="p-1.5 rounded text-text-muted hover:text-brand-text hover:bg-brand/10 transition-colors"
-        title="Editar usuario"
+        title={t('users.editUserAction')}
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); onSendAccess(user); }}
         className="p-1.5 rounded text-text-muted hover:text-emerald-text hover:bg-emerald-500/10 transition-colors"
-        title="Enviar acceso"
+        title={t('users.sendAccess')}
       >
         <KeyRound className="h-3.5 w-3.5" />
       </button>
@@ -230,7 +232,7 @@ function ActionButtons({
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(user); }}
           className="p-1.5 rounded text-text-muted hover:text-rose-text hover:bg-rose-500/10 transition-colors"
-          title="Eliminar usuario"
+          title={t('users.deleteUserAction')}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -322,7 +324,7 @@ export function UsersClient({
   );
 
   const deleteUser = trpc.users.delete.useMutation({
-    onSuccess: () => { toast.success('Usuario eliminado'); setDeletingUser(null); void refetch(); },
+    onSuccess: () => { toast.success(t('users.deleted')); setDeletingUser(null); void refetch(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -358,7 +360,7 @@ export function UsersClient({
                 : 'border-transparent text-text-3 hover:text-text-2',
             )}
           >
-            {tab === 'usuarios' ? 'Usuarios' : 'Roles y Permisos'}
+            {tab === 'usuarios' ? t('users.tabUsers') : t('users.tabRoles')}
           </button>
         ))}
       </div>
@@ -448,8 +450,8 @@ export function UsersClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('users.userLabel')}</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Accesos</TableHead>
+                    <TableHead>{t('users.colRole')}</TableHead>
+                    <TableHead>{t('users.colAccess')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
                     <TableHead>{t('users.lastAccess')}</TableHead>
                     <TableHead className="w-28"></TableHead>
@@ -558,8 +560,8 @@ export function UsersClient({
                   initials: `${sendingAccessUser.firstName.charAt(0)}${sendingAccessUser.lastName.charAt(0)}`.toUpperCase(),
                   name: `${sendingAccessUser.firstName} ${sendingAccessUser.lastName}`,
                   email: sendingAccessUser.email,
-                  header: 'Acceso enviado',
-                  title: 'Enlace de acceso enviado',
+                  header: t('users.accessSentHeader'),
+                  title: t('users.accessSentTitle'),
                   emailSent: true,
                 });
                 setSendingAccessUser(null);
@@ -577,13 +579,13 @@ export function UsersClient({
           name={toasts[0].name}
           card1={toasts[0].emailSent ? {
             icon: <Mail size={20} />,
-            label: 'Invitación enviada',
+            label: t('users.inviteSent'),
             value: toasts[0].email,
             color: '#10B981',
           } : undefined}
           card2={toasts[0].role ? {
             icon: <ShieldCheck size={20} />,
-            label: 'Rol asignado',
+            label: t('users.roleAssigned'),
             value: ROLE_META[dbRoleToRole(toasts[0].role)].label,
             color: '#6366F1',
           } : undefined}
@@ -670,9 +672,9 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
             {/* From-employee toggle */}
             <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface/50 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-text-1">Desde empleado existente</p>
+                <p className="text-sm font-medium text-text-1">{t('users.fromEmployee')}</p>
                 <p className="text-tiny text-text-muted">
-                  Selecciona un empleado para prellenar y vincular su user con el registro.
+                  {t('users.fromEmployeeHint')}
                 </p>
               </div>
               <button
@@ -703,17 +705,17 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
             {/* Employee picker (only when toggle is ON) */}
             {fromEmployee && (
               <div className="space-y-1.5">
-                <Label>Empleado *</Label>
+                <Label>{t('users.employeeReq')}</Label>
                 {loadingEmployees ? (
-                  <p className="text-tiny text-text-muted py-2">Cargando empleados...</p>
+                  <p className="text-tiny text-text-muted py-2">{t('users.loadingEmployees')}</p>
                 ) : availableEmployees.length === 0 ? (
                   <div className="rounded border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-tiny text-amber-text">
-                    No hay empleados disponibles sin usuario asignado. Crea uno desde el módulo Empleados primero.
+                    {t('users.noEmployeesAvailable')}
                   </div>
                 ) : (
                   <Select value={selectedEmployeeId} onValueChange={handlePickEmployee}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un empleado..." />
+                      <SelectValue placeholder={t('users.pickEmployee')} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableEmployees.map(emp => (
@@ -841,19 +843,19 @@ const DOCTOR_MENU_PREFIX = 'doctor:';
  * (no "Catálogo").
  */
 const DOCTOR_MODULES: Array<{ key: string; label: string; emoji: string }> = [
-  { key: 'myday',         label: 'Mi Día',        emoji: '☀️' },
-  { key: 'calendar',      label: 'Citas',         emoji: '📅' },
-  { key: 'patients',      label: 'Mis Pacientes', emoji: '👥' },
-  { key: 'prescriptions', label: 'Recetas',       emoji: '💊' },
+  { key: 'myday',         label: 'modDoctorMyDay',        emoji: '☀️' },
+  { key: 'calendar',      label: 'modDoctorAppointments', emoji: '📅' },
+  { key: 'patients',      label: 'modDoctorPatients',     emoji: '👥' },
+  { key: 'prescriptions', label: 'modDoctorPrescriptions', emoji: '💊' },
   // Mensajes entró al menú del portal el 2026-09-08 (espejo de DOCTOR_MENUS).
-  { key: 'messages',      label: 'Mensajes',      emoji: '✉️' },
-  { key: 'stats',         label: 'Estadísticas',  emoji: '📈' },
+  { key: 'messages',      label: 'modDoctorMessages',     emoji: '✉️' },
+  { key: 'stats',         label: 'modDoctorStats',        emoji: '📈' },
   // Desde 2026-09-05 Plantillas y Laboratorios viven bajo el menú Configuración
   // del portal. Las LLAVES no cambian (ya están guardadas en fichas reales):
   // solo la etiqueta dice dónde los va a encontrar el provider. Los snippets
   // por sección van con Plantillas.
-  { key: 'templates',     label: 'Configuración › Plantillas y snippets', emoji: '📄' },
-  { key: 'catalog',       label: 'Configuración › Laboratorios',          emoji: '🧪' },
+  { key: 'templates',     label: 'modDoctorTemplates',    emoji: '📄' },
+  { key: 'catalog',       label: 'modDoctorCatalog',      emoji: '🧪' },
 ];
 
 const doctorMenuKey = (key: string): string => `${DOCTOR_MENU_PREFIX}${key}`;
@@ -946,14 +948,17 @@ const CIFO_MODULE = 'cifo';
  *   2. `apps/web/middleware.ts` → lo deja entrar al Admin, ACOTADO a su módulo
  *   3. `finanzasProcedure` (packages/api) → deja que sus consultas contesten
  */
-const ADMIN_GRANTS: Array<{ key: string; label: string; emoji: string; detalle: string }> = [
+const ADMIN_GRANTS: Array<{ key: string; emoji: string; i18nLabel: string; i18nDetalle: string }> = [
   {
     key: 'admin:finanzas',
-    label: 'Finanzas (Admin)',
     emoji: '🏦',
-    detalle: 'Cajas chicas y reportes. Entra al Admin SOLO a esa pantalla.',
+    i18nLabel: 'adminFinanceLabel',
+    i18nDetalle: 'adminFinanceDetail',
   },
 ];
+
+/** Las etiquetas de DOCTOR_MODULES son claves; las de CLINIC_MODULES ya son texto en ingles. */
+const DOCTOR_KEYS = new Set(DOCTOR_MODULES.map(m => m.key));
 
 const SETTINGS_TAB_PREFIX = 'settings:';
 
@@ -961,25 +966,25 @@ const SETTINGS_GRUPOS: Array<{
   grupo: string; label: string; emoji: string;
   tabs: Array<{ key: string; label: string }>;
 }> = [
-  { grupo: 'clinica', label: 'Clínica', emoji: '🏥', tabs: [
-    { key: 'clinicas',       label: 'Clínicas'      },
-    { key: 'especialidades', label: 'Especialidades' },
-    { key: 'doctores',       label: 'Providers'     },
+  { grupo: 'clinica', label: 'grpClinic', emoji: '🏥', tabs: [
+    { key: 'clinicas',       label: 'tabClinics'     },
+    { key: 'especialidades', label: 'tabSpecialties' },
+    { key: 'doctores',       label: 'tabProviders'   },
   ] },
-  { grupo: 'externos', label: 'Externos', emoji: '⚖️', tabs: [
-    { key: 'bufetes',      label: 'Bufetes'      },
-    { key: 'aseguradoras', label: 'Aseguradoras' },
-    { key: 'ajustadores',  label: 'Ajustadores'  },
+  { grupo: 'externos', label: 'grpExternals', emoji: '⚖️', tabs: [
+    { key: 'bufetes',      label: 'tabFirms'    },
+    { key: 'aseguradoras', label: 'tabCarriers' },
+    { key: 'ajustadores',  label: 'tabAdjusters' },
   ] },
-  { grupo: 'catalogos', label: 'Catálogos', emoji: '💲', tabs: [
-    { key: 'servicios',    label: 'Servicios CPT' },
-    { key: 'labs',         label: 'Labs y precios' },
-    { key: 'diagnosticos', label: 'Diagnósticos'  },
-    { key: 'snippets',     label: 'Plantillas'    },
+  { grupo: 'catalogos', label: 'grpCatalogs', emoji: '💲', tabs: [
+    { key: 'servicios',    label: 'tabServices'  },
+    { key: 'labs',         label: 'tabLabs'      },
+    { key: 'diagnosticos', label: 'tabDiagnoses' },
+    { key: 'snippets',     label: 'tabTemplates' },
   ] },
-  { grupo: 'registros', label: 'Registros', emoji: '📜', tabs: [
-    { key: 'auditlog', label: 'Audit Log'      },
-    { key: 'releases', label: 'Notas de release' },
+  { grupo: 'registros', label: 'grpRecords', emoji: '📜', tabs: [
+    { key: 'auditlog', label: 'tabAuditLog' },
+    { key: 'releases', label: 'tabReleases' },
   ] },
 ];
 
@@ -1072,7 +1077,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   };
 
   const update = trpc.users.update.useMutation({
-    onSuccess: () => { toast.success('Usuario actualizado'); onSaved(); },
+    onSuccess: () => { toast.success(t('users.updated')); onSaved(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -1082,11 +1087,11 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   const candidateEmployee = details?.candidateEmployee ?? null;
 
   const linkMut = trpc.users.linkEmployee.useMutation({
-    onSuccess: () => { toast.success('Empleado vinculado'); void refetchDetails(); },
+    onSuccess: () => { toast.success(t('users.employeeLinked')); void refetchDetails(); },
     onError: (e) => toast.error(e.message),
   });
   const unlinkMut = trpc.users.unlinkEmployee.useMutation({
-    onSuccess: () => { toast.success('Empleado desvinculado'); void refetchDetails(); },
+    onSuccess: () => { toast.success(t('users.employeeUnlinked')); void refetchDetails(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -1194,9 +1199,9 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Back-Office — Visibilidad</p>
+                  <p className="text-sm font-medium text-text-1">{t('users.backOfficeVisibility')}</p>
                   <p className="text-[11px] text-text-muted">
-                    {fullVision ? 'Visión completa: ve todos los menús del Back-Office.' : 'Solo ve los menús marcados.'}
+                    {fullVision ? t('users.fullVisionBackOffice') : t('users.onlyCheckedMenus')}
                   </p>
                 </div>
                 <button
@@ -1208,7 +1213,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                   // color (se veia en la captura de Erick, 1-sep). `violet` no
                   // sufre esto porque ahi si se hace spread de la escala.
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullVision ? 'bg-emerald' : 'bg-amber'}`}
-                  title={fullVision ? 'Visión completa' : 'Menús seleccionados'}
+                  title={fullVision ? t('users.fullVision') : t('users.selectedMenus')}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${fullVision ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1227,7 +1232,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                           className="h-3.5 w-3.5 accent-indigo-500"
                         />
                         <span className="text-[11px] w-4 text-center">{mod.emoji}</span>
-                        <span className="text-[12.5px] text-text-2">{mod.label}</span>
+                        <span className="text-[12.5px] text-text-2">{DOCTOR_KEYS.has(mod.key) ? t(`users.${mod.label}`) : mod.label}</span>
                       </label>
                     );
                   })}
@@ -1242,18 +1247,18 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Portal Médico — Visibilidad</p>
+                  <p className="text-sm font-medium text-text-1">{t('users.doctorPortalVisibility')}</p>
                   <p className="text-[11px] text-text-muted">
                     {fullDoctorVision
-                      ? 'Visión completa: ve todos los menús de su portal.'
-                      : 'Solo ve los menús marcados.'}
+                      ? t('users.fullVisionDoctorPortal')
+                      : t('users.onlyCheckedMenus')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFullDoctorVision(v => !v)}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullDoctorVision ? 'bg-emerald' : 'bg-amber'}`}
-                  title={fullDoctorVision ? 'Visión completa' : 'Menús seleccionados'}
+                  title={fullDoctorVision ? t('users.fullVision') : t('users.selectedMenus')}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${fullDoctorVision ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1272,7 +1277,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                           className="h-3.5 w-3.5 accent-violet-500"
                         />
                         <span className="text-[11px] w-4 text-center">{mod.emoji}</span>
-                        <span className="text-[12.5px] text-text-2">{mod.label}</span>
+                        <span className="text-[12.5px] text-text-2">{DOCTOR_KEYS.has(mod.key) ? t(`users.${mod.label}`) : mod.label}</span>
                       </label>
                     );
                   })}
@@ -1314,9 +1319,9 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                   />
                   <span className="text-[11px] w-4 text-center">🗂️</span>
                   <span className="min-w-0">
-                    <span className="block text-[12.5px] text-text-2">Notas clínicas</span>
+                    <span className="block text-[12.5px] text-text-2">{t('users.clinicalNotes')}</span>
                     <span className="block text-[11px] text-text-muted">
-                      Supervisión. No se da por defecto: hay que marcarlo.
+                      {t('users.clinicalNotesHint')}
                     </span>
                   </span>
                 </label>
@@ -1333,10 +1338,9 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                   />
                   <span className="text-[11px] w-4 text-center">🤖</span>
                   <span className="min-w-0">
-                    <span className="block text-[12.5px] text-text-2">CIFO en el Dashboard</span>
+                    <span className="block text-[12.5px] text-text-2">{t('users.cifoDashboard')}</span>
                     <span className="block text-[11px] text-text-muted">
-                      El agente que contesta sobre el día. Lo tiene todo el
-                      Back-Office; destildá para quitárselo.
+                      {t('users.cifoHint')}
                     </span>
                   </span>
                 </label>
@@ -1347,7 +1351,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                     daba el rol. Quien reciba una entra al Admin acotado a ella. */}
                 <div className="pt-1 border-t border-border/60 space-y-1.5">
                   <p className="px-2 text-[11px] text-text-muted">
-                    Acceso al <span className="text-text-2">Admin</span>, por módulo:
+                    {t.rich('users.adminAccessByModule', { b: (c) => <span className="text-text-2">{c}</span> })}
                   </p>
                   {ADMIN_GRANTS.map(g => {
                     const on = adminGrants[g.key] === true;
@@ -1361,8 +1365,8 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                         />
                         <span className="text-[11px] w-4 text-center">{g.emoji}</span>
                         <span className="min-w-0">
-                          <span className="block text-[12.5px] text-text-2">{g.label}</span>
-                          <span className="block text-[11px] text-text-muted">{g.detalle}</span>
+                          <span className="block text-[12.5px] text-text-2">{t(`users.${g.i18nLabel}`)}</span>
+                          <span className="block text-[11px] text-text-muted">{t(`users.${g.i18nDetalle}`)}</span>
                         </span>
                       </label>
                     );
@@ -1391,23 +1395,23 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
                   {SETTINGS_GRUPOS.map(g => {
                     const full = settingsFull[g.grupo] !== false;
-                    const ninguna = !full && g.tabs.every(t => settingsTabs[t.key] === false);
+                    const ninguna = !full && g.tabs.every(x => settingsTabs[x.key] === false);
                     return (
                       <div key={g.grupo} className="rounded-md bg-bg-2/40 px-2 py-1.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="flex items-center gap-2 min-w-0">
                             <span className="text-[11px] w-4 text-center">{g.emoji}</span>
-                            <span className="text-[12.5px] text-text-2">{g.label}</span>
+                            <span className="text-[12.5px] text-text-2">{t(`users.${g.label}`)}</span>
                             <span className="text-[11px] text-text-muted">
                               {full
-                                ? `las ${g.tabs.length}`
-                                : `${g.tabs.filter(t => settingsTabs[t.key] !== false).length} de ${g.tabs.length}`}
+                                ? t('users.tabsAll', { total: g.tabs.length })
+                                : t('users.tabsSome', { n: g.tabs.filter(x => settingsTabs[x.key] !== false).length, total: g.tabs.length })}
                             </span>
                           </span>
                           <button
                             type="button"
                             onClick={() => setSettingsFull(s => ({ ...s, [g.grupo]: !full }))}
-                            title={full ? 'Ve el grupo completo' : 'Elegir pestaña por pestaña'}
+                            title={full ? t('users.groupFull') : t('users.groupPerTab')}
                             className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${full ? 'bg-emerald' : 'bg-amber'}`}
                           >
                             <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${full ? 'translate-x-5' : 'translate-x-1'}`} />
@@ -1416,17 +1420,17 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
                         {!full && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1.5 mt-1.5 border-t border-border/60">
-                            {g.tabs.map(t => {
-                              const on = settingsTabs[t.key] !== false;
+                            {g.tabs.map(tab => {
+                              const on = settingsTabs[tab.key] !== false;
                               return (
-                                <label key={t.key} className="flex items-center gap-2 rounded px-1.5 py-1 cursor-pointer hover:bg-surface transition-colors" style={{ opacity: on ? 1 : 0.55 }}>
+                                <label key={tab.key} className="flex items-center gap-2 rounded px-1.5 py-1 cursor-pointer hover:bg-surface transition-colors" style={{ opacity: on ? 1 : 0.55 }}>
                                   <input
                                     type="checkbox"
                                     checked={on}
-                                    onChange={() => setSettingsTabs(s => ({ ...s, [t.key]: !on }))}
+                                    onChange={() => setSettingsTabs(s => ({ ...s, [tab.key]: !on }))}
                                     className="h-3.5 w-3.5 accent-indigo-500"
                                   />
-                                  <span className="text-[12px] text-text-2">{t.label}</span>
+                                  <span className="text-[12px] text-text-2">{t(`users.${tab.label}`)}</span>
                                 </label>
                               );
                             })}
@@ -1487,18 +1491,18 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
                       como la misma cosa repetida. Y el prefijo era justo lo que
                       hacía pensar que este switch daba el portal — la palabra que
                       importa es OTRO. */}
-                  <p className="text-sm font-medium text-text-1">Ver como OTRO doctor</p>
+                  <p className="text-sm font-medium text-text-1">{t('users.viewAsOtherDoctor')}</p>
                   <p className="text-[11px] text-text-muted">
                     {doctorView
-                      ? 'Puede entrar al portal de cualquier otro médico y trabajar a su nombre.'
-                      : 'Solo su propio portal (si es provider). No suplanta a nadie.'}
+                      ? t('users.viewAsOtherDoctorOn')
+                      : t('users.viewAsOtherDoctorOff')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setDoctorView(v => !v)}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${doctorView ? 'bg-violet-500' : 'bg-border'}`}
-                  title={doctorView ? 'Con acceso al portal médico' : 'Sin acceso al portal médico'}
+                  title={doctorView ? t('users.doctorPortalOn') : t('users.doctorPortalOff')}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${doctorView ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1507,8 +1511,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
               {doctorView && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                   <p className="text-[11px] text-amber-text leading-relaxed">
-                    Todo lo que registre en el portal queda a nombre del médico elegido.
-                    Para pruebas, usar un doctor de QA — no uno que esté atendiendo.
+                    {t('users.viewAsOtherDoctorWarn')}
                   </p>
                 </div>
               )}
@@ -1519,18 +1522,18 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Ver como OTRO bufete</p>
+                  <p className="text-sm font-medium text-text-1">{t('users.viewAsOtherFirm')}</p>
                   <p className="text-[11px] text-text-muted">
                     {attorneyView
-                      ? 'Puede entrar al portal de cualquier bufete y trabajar a su nombre.'
-                      : 'Solo su propio despacho (si es abogado). No suplanta a nadie.'}
+                      ? t('users.viewAsOtherFirmOn')
+                      : t('users.viewAsOtherFirmOff')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAttorneyView(v => !v)}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${attorneyView ? 'bg-indigo-500' : 'bg-border'}`}
-                  title={attorneyView ? 'Con acceso al portal legal' : 'Sin acceso al portal legal'}
+                  title={attorneyView ? t('users.legalPortalOn') : t('users.legalPortalOff')}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${attorneyView ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -1539,8 +1542,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
               {attorneyView && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                   <p className="text-[11px] text-amber-text leading-relaxed">
-                    Ve los casos y firma en nombre del bufete elegido, y lo que registre
-                    queda a nombre de esa ficha. Para pruebas, elegir un despacho de QA.
+                    {t('users.viewAsOtherFirmWarn')}
                   </p>
                 </div>
               )}
@@ -1552,25 +1554,25 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-text-1">Pedidos de bufetes</p>
+                  <p className="text-sm font-medium text-text-1">{t('users.firmRequests')}</p>
                   <p className="text-[11px] text-text-muted">
                     {firmRequests
-                      ? 'Ve el menú "Pedidos de bufetes" del back-office: todo lo que pidieron los abogados y si se respondió.'
-                      : 'No ve el menú. Solo recibe los pedidos que le lleguen a su propia bandeja.'}
+                      ? t('users.firmRequestsOn')
+                      : t('users.firmRequestsOff')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFirmRequests(v => !v)}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${firmRequests ? 'bg-indigo-500' : 'bg-border'}`}
-                  title={firmRequests ? 'Con el menú Pedidos de bufetes' : 'Sin el menú Pedidos de bufetes'}
+                  title={firmRequests ? t('users.firmRequestsTitleOn') : t('users.firmRequestsTitleOff')}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${firmRequests ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
               {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
                 <p className="text-[11px] text-text-muted leading-relaxed">
-                  Esta cuenta ya lo tiene por su rol de administrador — el interruptor no le agrega nada.
+                  {t('users.firmRequestsAdminNote')}
                 </p>
               )}
             </div>
@@ -1824,6 +1826,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
   onClose: () => void;
   onSent: () => void;
 }): React.ReactElement {
+  const t = useTranslations();
   const sendAccess = trpc.users.sendPasswordReset.useMutation({
     onSuccess: onSent,
     onError: (e) => toast.error(e.message),
@@ -1847,7 +1850,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
       setCopiada(true);
       setTimeout(() => setCopiada(false), 2000);
     } catch {
-      toast.error('No se pudo copiar. Seleccionala y copiala a mano.');
+      toast.error(t('users.copyFailed'));
     }
   };
 
@@ -1857,7 +1860,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-emerald-text" />
-            Enviar acceso
+            {t('users.sendAccess')}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1 overflow-y-auto flex-1 min-h-0">
@@ -1873,12 +1876,12 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
           </div>
           {/* Message */}
           <p className="text-sm text-text-2 leading-relaxed">
-            Se enviará un enlace de acceso al correo registrado. El usuario podrá establecer su contraseña y entrar al sistema.
+            {t('users.sendAccessMsg')}
           </p>
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
             <p className="text-xs text-emerald-text flex items-start gap-2">
               <Mail className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              El enlace expira en 1 hora y solo puede usarse una vez.
+              {t('users.sendAccessExpiry')}
             </p>
           </div>
 
@@ -1886,10 +1889,9 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
           <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
             {tempPassword === null ? (
               <>
-                <p className="text-sm font-medium text-text-1">¿No le llega el correo?</p>
+                <p className="text-sm font-medium text-text-1">{t('users.noEmailQ')}</p>
                 <p className="text-xs text-text-3 leading-relaxed">
-                  Generá una contraseña temporal y pasásela vos. Es única para esta
-                  persona y va a tener que cambiarla al entrar.
+                  {t('users.noEmailHint')}
                 </p>
                 <Button
                   variant="outline"
@@ -1897,12 +1899,12 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
                   loading={tempPass.isPending}
                   onClick={() => tempPass.mutate({ id: user.id })}
                 >
-                  Generar contraseña temporal
+                  {t('users.generateTempPassword')}
                 </Button>
               </>
             ) : (
               <>
-                <p className="text-sm font-medium text-text-1">Contraseña temporal</p>
+                <p className="text-sm font-medium text-text-1">{t('users.tempPassword')}</p>
                 {/* Se muestra UNA vez: no se guarda en ningun lado y no hay forma
                     de volver a verla. Si se pierde, se genera otra. */}
                 <div className="flex items-center gap-2">
@@ -1910,13 +1912,12 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
                     {tempPassword}
                   </code>
                   <Button variant="outline" size="sm" onClick={() => void copiar()}>
-                    {copiada ? <Check className="h-3.5 w-3.5" /> : 'Copiar'}
+                    {copiada ? <Check className="h-3.5 w-3.5" /> : t('users.copy')}
                   </Button>
                 </div>
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                   <p className="text-xs text-amber-text leading-relaxed">
-                    Anotala ahora: no se vuelve a mostrar. Pasásela en persona o por
-                    un canal privado — al entrar el sistema le va a exigir cambiarla.
+                    {t('users.tempPasswordWarn')}
                   </p>
                 </div>
               </>
@@ -1924,14 +1925,14 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
           </div>
         </div>
         <DialogFooter className="shrink-0">
-          <Button variant="ghost" onClick={onClose} disabled={sendAccess.isPending}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={sendAccess.isPending}>{t('common.cancel')}</Button>
           <Button
             loading={sendAccess.isPending}
             onClick={() => sendAccess.mutate({ id: user.id })}
             style={{ background: '#10b981', color: '#fff' }}
           >
             <KeyRound className="h-3.5 w-3.5" />
-            Enviar acceso
+            {t('users.sendAccess')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1964,7 +1965,7 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
             </div>
           </div>
           <p className="text-sm text-text-2 leading-relaxed">
-            ¿Estás seguro de que deseas eliminar este usuario? Se eliminará su acceso al sistema y esta acción <strong className="text-text-1">no se puede deshacer</strong>.
+            {t.rich('users.deleteConfirm', { b: (chunks) => <strong className="text-text-1">{chunks}</strong> })}
           </p>
         </div>
         <DialogFooter className="shrink-0">

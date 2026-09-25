@@ -167,7 +167,7 @@ function AddTariffDialog({ providerId, onClose, onAdded }: { providerId: string;
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>{t('providers.serviceName')} *</Label>
-            <Input value={form.serviceName} onChange={(e) => f('serviceName', e.target.value)} placeholder="Ej: Radiografía lumbar" />
+            <Input value={form.serviceName} onChange={(e) => f('serviceName', e.target.value)} placeholder={t('providers.serviceNamePlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

@@ -34,10 +34,10 @@ export interface DatosReporte {
   byClinic: Array<{ clinicName: string; country: string; amount: number; count: number }>;
 }
 
-const TIPO_LABELS: Record<FiltrosAplicados['tipo'], string> = {
-  all: 'Todos',
-  DEPOSIT: 'Depósitos',
-  EXPENSE: 'Gastos',
+const TIPO_KEYS: Record<FiltrosAplicados['tipo'], string> = {
+  all: 'typeAll',
+  DEPOSIT: 'typeDeposits',
+  EXPENSE: 'typeExpenses',
 };
 
 const esc = (s: string | number | null | undefined) =>
@@ -64,30 +64,35 @@ const lbl = (v: string) => cell(v, 'String', 'bold');
 const money   = (n: number) => cell(Math.round(n * 100) / 100, 'Number', 'money');
 const pctCell = (n: number) => cell(Math.round(n * 10000) / 10000, 'Number', 'pct');
 
+/** El tipo de `t`: este módulo no es un componente y lo recibe por parámetro. */
+type Traducir = (k: string, p?: Record<string, string | number>) => string;
+
 export function construirWorkbookCajaChica(
   report: DatosReporte,
   applied: FiltrosAplicados,
   totalBalance: number,
   catLabels: Record<string, string>,
+  t: Traducir,
+  locale: string,
 ): string {
   // Hoja 1 — con qué filtros salieron estos números, y los KPIs de arriba.
   // Sin el bloque de filtros, dos exports del mismo mes son indistinguibles.
   const resumenRows = [
-    `<Row>${lbl('Reporte Financiero — Caja Chica')}</Row>`,
+    `<Row>${lbl(t('reportTitle'))}</Row>`,
     '<Row/>',
-    `<Row>${lbl('Período')}${cell(`${applied.dateFrom} a ${applied.dateTo}`)}</Row>`,
-    `<Row>${lbl('Sede')}${cell(applied.country === 'all' ? 'Todas' : applied.country)}</Row>`,
-    `<Row>${lbl('Clínica')}${cell(applied.clinicName || 'Todas')}</Row>`,
-    `<Row>${lbl('Tipo')}${cell(TIPO_LABELS[applied.tipo])}</Row>`,
-    `<Row>${lbl('Categoría')}${cell(applied.category ? (catLabels[applied.category] ?? applied.category) : 'Todas')}</Row>`,
-    `<Row>${lbl('Generado')}${cell(new Date().toLocaleString('es-ES'))}</Row>`,
+    `<Row>${lbl(t('period'))}${cell(`${applied.dateFrom} a ${applied.dateTo}`)}</Row>`,
+    `<Row>${lbl(t('site'))}${cell(applied.country === 'all' ? t('excelAll') : applied.country)}</Row>`,
+    `<Row>${lbl(t('clinic'))}${cell(applied.clinicName || t('excelAll'))}</Row>`,
+    `<Row>${lbl(t('type'))}${cell(t(TIPO_KEYS[applied.tipo]))}</Row>`,
+    `<Row>${lbl(t('category'))}${cell(applied.category ? (catLabels[applied.category] ?? applied.category) : t('excelAll'))}</Row>`,
+    `<Row>${lbl(t('excelGenerated'))}${cell(new Date().toLocaleString(locale))}</Row>`,
     '<Row/>',
-    `<Row>${lbl('Saldo actual total')}${money(totalBalance)}</Row>`,
-    `<Row>${lbl('Total depósitos')}${money(report.kpis.totalDeposits)}</Row>`,
-    `<Row>${lbl('Total gastos')}${money(report.kpis.totalExpenses)}</Row>`,
-    `<Row>${lbl('Transacciones')}${cell(report.kpis.txCount, 'Number')}</Row>`,
-    `<Row>${lbl('Promedio por transacción')}${money(report.kpis.avgAmount)}</Row>`,
-    `<Row>${lbl('Mediana')}${money(report.kpis.medianAmount)}</Row>`,
+    `<Row>${lbl(t('kpiTotalBalance'))}${money(totalBalance)}</Row>`,
+    `<Row>${lbl(t('kpiTotalDeposits'))}${money(report.kpis.totalDeposits)}</Row>`,
+    `<Row>${lbl(t('kpiTotalExpenses'))}${money(report.kpis.totalExpenses)}</Row>`,
+    `<Row>${lbl(t('transactions'))}${cell(report.kpis.txCount, 'Number')}</Row>`,
+    `<Row>${lbl(t('excelAvgPerTx'))}${money(report.kpis.avgAmount)}</Row>`,
+    `<Row>${lbl(t('excelMedian'))}${money(report.kpis.medianAmount)}</Row>`,
   ].join('');
 
   const catRows = report.byCategory.map(r => `<Row>
@@ -132,30 +137,30 @@ export function construirWorkbookCajaChica(
     <Style ss:ID="money"><NumberFormat ss:Format="#,##0.00"/></Style>
     <Style ss:ID="pct"><NumberFormat ss:Format="0.0%"/></Style>
   </Styles>
-  <Worksheet ss:Name="Resumen">
+  <Worksheet ss:Name="${t('sheetSummary')}">
     <Table>
       <Column ss:Width="160"/><Column ss:Width="130"/>
       ${resumenRows}
     </Table>
   </Worksheet>
-  <Worksheet ss:Name="Por categoría">
+  <Worksheet ss:Name="${t('sheetByCategory')}">
     <Table>
       <Column ss:Width="150"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="80"/>
-      <Row>${hd('Categoría')}${hd('Transacciones')}${hd('Monto')}${hd('% del total')}</Row>
+      <Row>${hd(t('category'))}${hd(t('transactions'))}${hd(t('amount'))}${hd(t('excelPctOfTotal'))}</Row>
       ${catRows}
     </Table>
   </Worksheet>
-  <Worksheet ss:Name="Por sede">
+  <Worksheet ss:Name="${t('sheetBySite')}">
     <Table>
       <Column ss:Width="150"/><Column ss:Width="80"/><Column ss:Width="90"/><Column ss:Width="90"/>
-      <Row>${hd('Clínica')}${hd('Sede')}${hd('Transacciones')}${hd('Monto')}</Row>
+      <Row>${hd(t('clinic'))}${hd(t('site'))}${hd(t('transactions'))}${hd(t('amount'))}</Row>
       ${clinicRows}
     </Table>
   </Worksheet>
-  <Worksheet ss:Name="Evolución diaria">
+  <Worksheet ss:Name="${t('sheetDaily')}">
     <Table>
       <Column ss:Width="80"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="100"/>
-      <Row>${hd('Fecha')}${hd('Bolivia')}${hd('EEUU')}${hd('Neto del día')}${hd('Acumulado')}</Row>
+      <Row>${hd(t('colDate'))}${hd('Bolivia')}${hd('EEUU')}${hd(t('excelNetOfDay'))}${hd(t('excelCumulative'))}</Row>
       ${dailyRows}
     </Table>
   </Worksheet>

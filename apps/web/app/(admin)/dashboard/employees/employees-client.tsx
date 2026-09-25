@@ -179,7 +179,7 @@ export function EmployeesClient({
         <PaymentsClient initial={pagosInitial} summary={pagosSummary} />
       )}
       {view === 'pagos' && (!pagosInitial || !pagosSummary) && (
-        <div className="py-12 text-center text-small text-text-3">Cargando pagos...</div>
+        <div className="py-12 text-center text-small text-text-3">{t('employees.loadingPayments')}</div>
       )}
 
       {/* ─── SUB-TAB: LISTA (default) ─────────────────────────────── */}
@@ -209,7 +209,7 @@ export function EmployeesClient({
         <Select value={positionFilter} onValueChange={(v) => { setPositionFilter(v === 'ALL' ? '' : v); setPage(1); }}>
           <SelectTrigger className="w-44"><SelectValue placeholder={t('employees.position')} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Todos los cargos</SelectItem>
+            <SelectItem value="ALL">{t('employees.allPositions')}</SelectItem>
             {Object.entries(POSITION_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -821,11 +821,11 @@ function CreateEmployeeDialog({
     <>
     {successData && (
       <SuccessModal
-        title="Nuevo empleado"
-        subtitle="EMPLEADO REGISTRADO EXITOSAMENTE"
+        title={t('employees.newEmployeeTitle')}
+        subtitle={t('employees.newEmployeeSubtitle')}
         name={successData.name}
-        card1={{ icon: <Mail size={20} />, label: 'Email registrado', value: successData.email, color: '#10B981' }}
-        card2={{ icon: <Briefcase size={20} />, label: 'Tipo de contrato', value: TYPE_DISPLAY[successData.type] ?? successData.type, color: '#6366F1' }}
+        card1={{ icon: <Mail size={20} />, label: t('employees.emailRegistered'), value: successData.email, color: '#10B981' }}
+        card2={{ icon: <Briefcase size={20} />, label: t('employees.contractType'), value: TYPE_DISPLAY[successData.type] ?? successData.type, color: '#6366F1' }}
         onClose={() => setSuccessData(null)}
         autoCloseMs={4000}
       />
@@ -860,7 +860,7 @@ function CreateEmployeeDialog({
                 className={emailTouched && !emailValid ? 'border-rose focus-visible:ring-rose' : ''}
               />
               {emailTouched && !emailValid && (
-                <p className="text-[11px] text-rose">Ingresa un email válido (ej: nombre@dominio.com)</p>
+                <p className="text-[11px] text-rose">{t('employees.invalidEmail')}</p>
               )}
             </div>
             <div className="space-y-1.5">
@@ -921,11 +921,11 @@ function CreateEmployeeDialog({
 
             {form.position === 'DOCTOR' && (
               <div className="rounded-lg border border-brand/25 bg-brand/5 p-3 space-y-3">
-                <p className="text-[11px] font-semibold text-brand-text uppercase tracking-wider">Credenciales médicas</p>
+                <p className="text-[11px] font-semibold text-brand-text uppercase tracking-wider">{t('employees.medicalCredentials')}</p>
                 <div className="space-y-1.5">
-                  <Label>Especialidad *</Label>
+                  <Label>{t('employees.specialtyReq')}</Label>
                   <Select value={form.specialty} onValueChange={(v) => f('specialty', v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecciona especialidad" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t('employees.pickSpecialty')} /></SelectTrigger>
                     <SelectContent>
                       {SPECIALTY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
@@ -937,11 +937,11 @@ function CreateEmployeeDialog({
                     <Input value={form.npiNumber} onChange={(e) => f('npiNumber', e.target.value)} placeholder="1234567890" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Licencia médica</Label>
-                    <Input value={form.licenseNumber} onChange={(e) => f('licenseNumber', e.target.value)} placeholder="Nº de licencia" />
+                    <Label>{t('employees.medicalLicense')}</Label>
+                    <Input value={form.licenseNumber} onChange={(e) => f('licenseNumber', e.target.value)} placeholder={t('employees.licensePlaceholder')} />
                   </div>
                 </div>
-                <p className="text-[10px] text-text-muted">Este doctor aparecerá automáticamente en el sistema de citas.</p>
+                <p className="text-[10px] text-text-muted">{t('employees.doctorAutoAppears')}</p>
               </div>
             )}
 
@@ -1107,7 +1107,7 @@ function EditEmployeeDialog({
                 className={emailTouched && !emailValid ? 'border-rose focus-visible:ring-rose' : ''}
               />
               {emailTouched && !emailValid && (
-                <p className="text-[11px] text-rose">Ingresa un email válido (ej: nombre@dominio.com)</p>
+                <p className="text-[11px] text-rose">{t('employees.invalidEmail')}</p>
               )}
             </div>
             <div className="space-y-1.5">
@@ -1182,18 +1182,18 @@ function EditEmployeeDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Tipo de contrato</Label>
+              <Label>{t('employees.contractType')}</Label>
               <Select value={form.employment_type} onValueChange={(v) => f('employment_type', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="non_exempt">Por hora (Non-exempt)</SelectItem>
-                  <SelectItem value="exempt">Asalariado (Exempt)</SelectItem>
+                  <SelectItem value="non_exempt">{t('employees.typeHourly')}</SelectItem>
+                  <SelectItem value="exempt">{t('employees.typeSalaried')}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-text-muted">
                 {form.employment_type === 'exempt'
-                  ? 'Asalariado — sin cálculo de overtime'
-                  : 'Por hora — overtime sobre 40h/semana (FLSA)'}
+                  ? t('employees.salariedNoOvertime')
+                  : t('employees.hourlyOvertime')}
               </p>
             </div>
             <div className="border-t" />

@@ -85,7 +85,31 @@ export function CargosDialog({
   }, [clinical.visits]);
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+    /*
+      `modal={false}` NO es cosmético: es lo que arregla el buscador de cargos.
+
+      Adentro de este diálogo se abre el picker de cargos, que es OTRO diálogo de
+      Radix. Cada diálogo modal instala una trampa de foco —"si el foco sale de
+      mi caja, lo traigo de vuelta"— y el picker sale en un portal aparte, así
+      que para ESTE diálogo su buscador está "afuera".
+
+      Radix pausa la trampa de afuera cuando se abre la de adentro, pero con la
+      página recién cargada eso falla: medido en producción el 2026-09-25, la
+      primera apertura después de un reload deja el foco en la X de ESTE diálogo,
+      y ni el clic ni un `focus()` por código se lo pueden dar al buscador — el
+      foco rebota a la X al instante (`OUT<-BUTTON{Cerrar}` → `BUTTON{Cerrar}`).
+
+      Para quien cobra eso es: hago clic y no pasa nada, y si escribo una frase
+      con un espacio —"no show"— la barra espaciadora APRIETA esa X y se cierra
+      todo. Es el reporte de Darrell del 2026-09-23, palabra por palabra.
+
+      Sin `modal`, Radix monta el `FocusScope` con `trapped={false}` y esta
+      ventana deja de disputar el foco. No se pierde nada visible: el velo lo
+      sigue dibujando `DialogContent`, y cerrar tocando afuera lo sigue
+      manejando `DismissableLayer`. Lo único que se va es el bloqueo del scroll
+      de la página de atrás, que acá cuesta mucho menos que no poder cobrar.
+    */
+    <Dialog open modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Sin botón de cerrar propio: `DialogContent` ya trae el suyo y se
             veían DOS X pegadas (visto en pantalla, 18-sep). `pr-12` le deja el

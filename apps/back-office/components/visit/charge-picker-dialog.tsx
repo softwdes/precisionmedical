@@ -616,23 +616,28 @@ export function ChargePickerDialog({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
               {/*
-                `autoFocus`: este diálogo se abre DENTRO de otro —desde la
-                ventana de cargos, que a su vez sale del cobro— y hasta ahora
-                había que acertarle con el click a un campo chico en la tercera
-                capa. Darrell (88 años) reportó el 2026-09-23 que el cursor le
-                aparecía pero no lograba escribir; enfocando al abrir no tiene
-                que clickear nada y empieza a tipear de una.
+                SIN `autoFocus` — a propósito. El foco al abrir lo da
+                `onOpenAutoFocus` allá arriba, que corre UNA vez por apertura.
+                `autoFocus` es un atributo de MONTAJE: se vuelve a disparar cada
+                vez que React rehace este nodo, y si algo del propio foco
+                provoca un redibujo, se realimenta.
 
-                Gana sobre el autofoco de Radix sin pelearlo: React aplica
-                `autoFocus` al montar el nodo, y el FocusScope solo mueve el foco
-                si al correr su efecto NO hay nada enfocado adentro del diálogo
-                —acá ya lo hay—. Mismo patrón que el textarea de
-                `revertir-pago-dialog`.
+                No es teórico. Erick midió en su máquina, el 2026-09-24, UN clic
+                en este campo y **1556 `focusin` sobre este mismo input**,
+                terminando en `InternalError: too much recursion`. Que fueran
+                todos sobre el mismo elemento —y no alternando con otro— es lo
+                que descarta una pelea entre ventanas y señala un reenfoque que
+                se repite solo.
+
+                Cada reenfoque, además, vuelve a SELECCIONAR el texto: por eso
+                cada tecla pisaba la anterior y el campo parecía bloqueado.
+
+                Si alguna vez hace falta enfocar de nuevo, va por el ref y
+                atado a un evento, nunca por un atributo de montaje.
               */}
               <input
                 ref={buscadorRef}
                 type="text"
-                autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t('searchPlaceholder')}

@@ -49,6 +49,24 @@ export function InlineText({
   value: string | null;
   onSave: (next: string | null) => Promise<boolean>;
   readOnly?: boolean;
+  /**
+   * Monoespaciada para el valor. **HOY NO LA PASA NADIE, a proposito.**
+   *
+   * La pasaba la celda de Claim #, y tenia fundamento: en un numero como
+   * `44-0L4Q-844` el `0` y la `Q` se confunden en la fuente normal, y ese
+   * numero se tipea a mano en el portal del seguro.
+   *
+   * Erick lo dio vuelta el 2026-09-26: Edson es el UNICO que usa esta vista, la
+   * leyo como un estilo roto ("everything seems the same style, except
+   * 44-0L4Q-844") y la vista es suya. Se quito de los NUEVE lugares que la
+   * tenian —claim, nacimiento, los dos telefonos, las fechas de las notas, la
+   * direccion de reclamos y el textarea de notas— porque dejar ocho en mono y
+   * una no SI habria sido una inconsistencia de verdad.
+   *
+   * El prop se deja: si algun dia se quiere volver, es una palabra. Pero no se
+   * reponga en UNA sola celda "porque se lee mejor" — o vuelven las nueve o
+   * ninguna.
+   */
   mono?: boolean;
   title?: string;
 }) {

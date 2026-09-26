@@ -921,7 +921,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               >
                                 {row.patient.lastName}, {row.patient.firstName}
                               </span>
-                              <span className="text-text-muted text-[9.5px] leading-none whitespace-nowrap font-mono truncate">
+                              <span className="text-text-muted text-[9.5px] leading-none whitespace-nowrap truncate">
                                 {/* El teléfono sale de los DOS campos: acá se leía
                                     solo `phone` y por eso 1.048 pacientes con caso
                                     abierto aparecían sin teléfono teniéndolo cargado
@@ -1183,7 +1183,6 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                         <DataTable.Td className={COL_SM}>
                           <InlineText
                             value={row.claimNum}
-                            mono
                             readOnly={archived}
                             title={t('editClaim')}
                             onSave={next => saveCell(row.caseId, { claimNum: next }, { claimNum: next })}
@@ -1228,7 +1227,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                   <span key={i} className="block">
                                     <Txt v={a.name} />
                                     {a.phone && (
-                                      <span className="block text-[9.5px] text-text-muted font-mono truncate">
+                                      <span className="block text-[9.5px] text-text-muted truncate">
                                         {a.phone}{a.ext ? ` ext. ${a.ext}` : ''}
                                       </span>
                                     )}
@@ -1562,7 +1561,7 @@ function NoteCell({ row, onOpen }: { row: Row; onOpen: () => void }) {
             */}
           <span className="flex items-baseline gap-1.5 min-w-0">
             <span className="text-[8px] text-text-2 truncate">
-              <span className="text-text-muted font-mono">{fmtDate(row.lastNoteAt)} · </span>
+              <span className="text-text-muted">{fmtDate(row.lastNoteAt)} · </span>
               {row.lastNote}
             </span>
             <span className="text-[9.5px] text-text-muted whitespace-nowrap shrink-0">
@@ -1658,7 +1657,7 @@ function NotesPopover({
           )}
           {notes.map(n => (
             <div key={n.id} className="border-l-2 border-border-strong pl-3">
-              <div className="text-[11px] text-text-muted font-mono">
+              <div className="text-[11px] text-text-muted">
                 {fmtDate(n.createdAt)} {fmtTime(n.createdAt)}{n.authorName ? ` · ${n.authorName}` : ''}
               </div>
               <div className="text-[13px] text-text-1 whitespace-pre-wrap break-words leading-relaxed">
@@ -1743,7 +1742,7 @@ function NoteEntry({
   return (
     <div className="border-l-2 border-border-strong pl-3 group/note">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-text-muted font-mono">
+        <span className="text-[11px] text-text-muted">
           {fmtDate(note.createdAt)} {fmtTime(note.createdAt)}{note.authorName ? ` · ${note.authorName}` : ''}
         </span>
         {!editing && (
@@ -1847,6 +1846,24 @@ function TrackingDialog({
   const [lawFirm, setLawFirm] = useState<AutoResult | null>(
     row.lawFirmId ? { id: row.lawFirmId, label: row.firmName ?? '—' } : null,
   );
+  /*
+    * El abogado tiene DOS formas de estar puesto y el modal solo conocia una.
+    *
+    * La grilla ya deja escribirlo a mano desde el 2026-08-25: el `InlineCombo`
+    * de la columna guarda `attorneyNameRaw`, que es una columna del caso, y la
+    * ruta `update-legal-insurance` la acepta. Pero el MODAL montaba un
+    * `Autocomplete` que solo SELECCIONA, asi que la misma persona, en el mismo
+    * caso, podia escribir el abogado desde la fila y no desde el modal.
+    *
+    * Erick lo reporto el 2026-09-26 como "el abogado solo puede ser
+    * seleccionado, no se puede crear aqui". No hacia falta crear nada: la
+    * capacidad ya existia en el producto y al modal le faltaba.
+    *
+    * Ojo con la precedencia, que la fija la ruta: poner `attorneyId` BORRA el
+    * `attorneyNameRaw`. Son excluyentes a proposito — un abogado del catalogo
+    * y un nombre suelto no pueden convivir en el mismo caso.
+    */
+  const [attorneyRaw, setAttorneyRaw] = useState<string>(row.attorneyId ? '' : (row.attorneyName ?? ''));
   const [attorney, setAttorney] = useState<AutoResult | null>(
     row.attorneyId ? { id: row.attorneyId, label: row.attorneyName ?? '—' } : null,
   );
@@ -1947,6 +1964,12 @@ function TrackingDialog({
       if ((row.chiropractor ?? '') !== chiropractor) casePatch.chiropractor = chiropractor.trim() || null;
       if ((row.lawFirmId ?? null) !== (lawFirm?.id ?? null)) casePatch.lawFirmId = lawFirm?.id ?? null;
       if ((row.attorneyId ?? null) !== (attorney?.id ?? null)) casePatch.attorneyId = attorney?.id ?? null;
+      // Solo viaja si NO hay uno del catalogo: la ruta le da prioridad al id y
+      // mandar los dos deja el nombre suelto en un campo que ella misma borra.
+      const rawOriginal = row.attorneyId ? '' : (row.attorneyName ?? '');
+      if (!attorney && rawOriginal !== attorneyRaw) {
+        casePatch.attorneyNameRaw = attorneyRaw.trim() || null;
+      }
       if (Object.keys(casePatch).length > 0) {
         const r2 = await fetch(`/api/admin/cases/${row.caseId}`, {
           method: 'PATCH',
@@ -2027,13 +2050,51 @@ function TrackingDialog({
             <div>
               <Label>{t('fieldAttorney')}</Label>
               {lawFirm ? (
-                <Autocomplete
-                  endpoint="/api/admin/lawyers/autocomplete"
-                  extraParams={{ firmId: lawFirm.id }}
-                  placeholder={t('fieldAttorneyPlaceholder')}
-                  selected={attorney}
-                  onSelect={setAttorney}
-                />
+                <>
+                  <Autocomplete
+                    endpoint="/api/admin/lawyers/autocomplete"
+                    extraParams={{ firmId: lawFirm.id }}
+                    placeholder={t('fieldAttorneyPlaceholder')}
+                    selected={attorney}
+                    onSelect={sel => { setAttorney(sel); if (sel) setAttorneyRaw(''); }}
+                    /*
+                      * `renderEmpty` y no `renderAction`: el segundo abre el panel
+                      * con solo enfocar el campo, y ofrecer "usar lo escrito"
+                      * antes de que haya buscado invita a saltearse el catalogo.
+                      * Asi aparece unicamente cuando la busqueda no encontro a
+                      * nadie, que es cuando el ofrecimiento tiene sentido.
+                      *
+                      * Se reusa `attorneyFreeText`, la misma frase que la grilla
+                      * ya muestra para esto. No se agregan claves nuevas: hoy
+                      * `messages/*.json` tiene trabajo sin declarar de otras dos
+                      * sesiones mezclado adentro, y tocarlo arrastraria lo ajeno.
+                      */
+                    renderEmpty={(q, close) => q.length < 2 ? null : (
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-[12px] hover:bg-brand/10"
+                        onClick={() => { setAttorney(null); setAttorneyRaw(q); close(); }}
+                      >
+                        {t('attorneyFreeText')} — <span className="font-semibold">{q}</span>
+                      </button>
+                    )}
+                  />
+                  {/* Lo escrito a mano se VE y se puede sacar: sin esto queda
+                      guardado en el caso sin nada en pantalla que lo diga. */}
+                  {!attorney && attorneyRaw && (
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-2">
+                      <span className="truncate">{attorneyRaw}</span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-text-muted hover:text-rose"
+                        title={tc('delete')}
+                        onClick={() => setAttorneyRaw('')}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-muted italic">
                   {t('fieldAttorneyNeedsFirm')}

@@ -164,7 +164,7 @@ function BillingAddress({ carrier, onSaved }: { carrier: Carrier | null; onSaved
         value={value}
         onChange={e => { setValue(e.target.value); setDirty(true); }}
         placeholder={t('billingAddressPh')}
-        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none font-mono"
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-[12.5px] text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
       />
       <div className="flex items-center gap-2 mt-1">
         {/* Se avisa siempre, no solo al editar: Edson tiene que saber que lo que
@@ -576,7 +576,7 @@ export function AdjustersPopover({
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-0.5">
             {t('billingAddress')}
           </div>
-          <p className="text-[11.5px] text-text-2 whitespace-pre-wrap font-mono">{carrier.claimsAddress}</p>
+          <p className="text-[11.5px] text-text-2 whitespace-pre-wrap">{carrier.claimsAddress}</p>
         </div>
       )}
 

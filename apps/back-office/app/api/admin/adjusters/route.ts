@@ -41,6 +41,67 @@ function toData(parsed: z.infer<typeof InputSchema>) {
   };
 }
 
+/**
+ * Convierte una excepcion en una respuesta que el cliente sepa leer.
+ *
+ * El cliente cae al generico "The action could not be completed" cuando la
+ * respuesta no trae NI codigo conocido NI texto (ver `lib/server-error.ts`).
+ * Una excepcion sin atrapar produce exactamente eso: Next devuelve su propio
+ * 500, `res.json()` no parsea, el cliente se queda con `{}` y pinta el
+ * generico. Erick lo vio asi el 2026-09-26 editando un ajustador.
+ *
+ * **El generico ERA el bug**, aparte de lo que lo disparara: no le dice nada al
+ * usuario —no sabe si reintentar, si falta un campo o si el nombre ya existe— y
+ * tampoco a soporte, porque el motivo real se perdia entero.
+ *
+ * Dos salidas:
+ *
+ *  · `P2002` tiene causa conocida y se redacta: el unico indice es
+ *    (carrier, name) y NO mira `deletedAt`, asi que un ajustador borrado sigue
+ *    ocupando el nombre. El POST ya lo resuelve reviviendo la fila; el PATCH
+ *    puede chocar igual si su guarda de duplicado no lo vio, porque esa guarda
+ *    deja pasar a proposito al que esta borrado.
+ *
+ *  · Cualquier otra cosa sale SIN codigo pero CON `detail`. El usuario sigue
+ *    viendo el generico —no hay frase honesta para "algo se rompio"— pero
+ *    `srvWithDetail` le agrega el motivo entre parentesis y soporte deja de
+ *    estar a ciegas. No se inventa un codigo nuevo porque agregarlo obliga a
+ *    tocar `messages/*.json`, que hoy tiene trabajo sin declarar de otras dos
+ *    sesiones mezclado adentro.
+ */
+function comoRespuesta(err: unknown, nombre: string): NextResponse {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    return NextResponse.json(
+      { error: 'DUPLICATE_NAME', params: { name: nombre }, detail: 'P2002' },
+      { status: 409 },
+    );
+  }
+  // Queda en el log del servidor ADEMAS de viajar: si el cliente se cierra
+  // antes de leerlo, el rastro no se pierde.
+  console.error('[adjusters] excepcion sin atrapar:', err);
+  return NextResponse.json(
+    { detail: err instanceof Error ? err.message : String(err) },
+    { status: 500 },
+  );
+}
+
+/**
+ * El audit se escribe pero NO puede voltear la respuesta.
+ *
+ * La fila ya se guardo cuando esto corre. Si el log falla y dejamos propagar,
+ * el usuario ve un error por algo que SI se guardo, y al reintentar se lleva un
+ * "ya existe" que no entiende.
+ *
+ * Es el caso contrario al de `regla-el-audit-de-divulgacion-va-antes`, y la
+ * diferencia importa: alla el audit registra quien VIO datos de otro y por eso
+ * va con `await` ANTES de servirlos —si servis y despues falla el log,
+ * divulgaste sin constancia—. Aca el audit registra un cambio que ya ocurrio;
+ * perder la anotacion es malo, mentirle al usuario sobre su escritura es peor.
+ */
+async function auditarSinRomper(fn: () => Promise<unknown>): Promise<void> {
+  try { await fn(); } catch (err) { console.error('[adjusters] audit log fallido:', err); }
+}
+
 /** Tope de la lista: hoy el catálogo tiene 103 y el buscador lo achica. */
 const MAX_LISTA = 60;
 
@@ -141,14 +202,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const created = existing
-    ? await db.insuranceAdjuster.update({
-        where: { id: existing.id },
-        data: { ...toData(parsed), deletedAt: null },
-      })
-    : await db.insuranceAdjuster.create({ data: toData(parsed) });
+  // La escritura va adentro: entre el chequeo de duplicado de arriba y este
+  // `create` hay una ventana en la que otra sesion puede tomar el nombre, y ahi
+  // el indice tira P2002. Sin esto, esa carrera sale como "no se pudo".
+  let created;
+  try {
+    created = existing
+      ? await db.insuranceAdjuster.update({
+          where: { id: existing.id },
+          data: { ...toData(parsed), deletedAt: null },
+        })
+      : await db.insuranceAdjuster.create({ data: toData(parsed) });
+  } catch (err) {
+    return comoRespuesta(err, parsed.name.trim());
+  }
 
-  await writeAuditLog(db, {
+  await auditarSinRomper(() => writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole: actor.actorRole,
@@ -159,7 +228,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     userAgent: actor.userAgent,
     before: existing ? (existing as unknown as Prisma.JsonValue) : undefined,
     after: created as unknown as Prisma.JsonValue,
-  });
+  }));
 
   return NextResponse.json({ ok: true, adjuster: created, restored: !!existing }, { status: 201 });
 }
@@ -186,20 +255,45 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const dup = await db.insuranceAdjuster.findUnique({
       where: { insuranceCarrierId_name: { insuranceCarrierId: parsed.insuranceCarrierId, name: parsed.name.trim() } },
     });
-    if (dup && dup.id !== before.id && !dup.deletedAt) {
-      return NextResponse.json(
-        { error: 'DUPLICATE_NAME', params: { name: parsed.name } },
-        { status: 409 },
-      );
+    /*
+      * Antes decia `&& !dup.deletedAt`, o sea que si el duplicado estaba
+      * BORRADO dejaba pasar — y dos lineas mas abajo el `update` chocaba igual
+      * contra el indice, porque `@@unique([insuranceCarrierId, name])` no mira
+      * `deletedAt`. Eso terminaba en un P2002 sin atrapar, un 500, y el cartel
+      * generico que no dice nada.
+      *
+      * El borrado se trata aparte y NO como error: es la misma persona que
+      * alguien dio de baja, asi que se la revive y se le mueve el nombre, igual
+      * que hace el POST. Devolver "ya existe" seria mentir —en la pantalla no
+      * hay ningun ajustador con ese nombre— y dejaria a Edson sin salida.
+      */
+    if (dup && dup.id !== before.id) {
+      if (!dup.deletedAt) {
+        return NextResponse.json(
+          { error: 'DUPLICATE_NAME', params: { name: parsed.name } },
+          { status: 409 },
+        );
+      }
+      // Libera el nombre: el borrado pasa a un marcador propio. No se elimina
+      // la fila porque colgarian de ella las notas y el audit anterior.
+      await db.insuranceAdjuster.update({
+        where: { id: dup.id },
+        data: { name: `${dup.name} (${dup.id.slice(-6)})` },
+      });
     }
   }
 
-  const updated = await db.insuranceAdjuster.update({
-    where: { id: parsed.id },
-    data: toData(parsed),
-  });
+  let updated;
+  try {
+    updated = await db.insuranceAdjuster.update({
+      where: { id: parsed.id },
+      data: toData(parsed),
+    });
+  } catch (err) {
+    return comoRespuesta(err, parsed.name.trim());
+  }
 
-  await writeAuditLog(db, {
+  await auditarSinRomper(() => writeAuditLog(db, {
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole: actor.actorRole,
@@ -210,7 +304,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     userAgent: actor.userAgent,
     before: before as unknown as Prisma.JsonValue,
     after: updated as unknown as Prisma.JsonValue,
-  });
+  }));
 
   return NextResponse.json({ ok: true, adjuster: updated });
 }

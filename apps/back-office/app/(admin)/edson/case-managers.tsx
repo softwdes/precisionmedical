@@ -132,7 +132,7 @@ export function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: 
       <span className="text-text-muted shrink-0">{icon}</span>
       {href
         ? <a href={href} className="text-cyan hover:underline truncate text-[12px]">{value}</a>
-        : <span className="text-text-2 truncate text-[12px] font-mono">{value}</span>}
+        : <span className="text-text-2 truncate text-[12px]">{value}</span>}
       <button
         type="button"
         title={copied ? t('copied') : t('copy')}
@@ -293,6 +293,15 @@ export function ManagersSection({
   const [error, setError]     = useState('');
   /** Marca el borde del campo: el mensaje solo no dice DÓNDE mirar. */
   const [emailMal, setEmailMal] = useState(false);
+  /**
+   * Los dos nombres, que son OBLIGATORIOS y no se marcaban.
+   *
+   * El boton de adentro se deshabilita si falta alguno, asi que por ese camino
+   * nunca se llegaba a marcarlos. Pero por el pie del modal si se llega — ver
+   * `flush`.
+   */
+  const [firstMal, setFirstMal] = useState(false);
+  const [lastMal,  setLastMal]  = useState(false);
 
   const assignedIds = new Set(current.map(m => m.lawyer?.id).filter(Boolean));
   const available   = firmMembers.filter(m => !assignedIds.has(m.id));
@@ -353,7 +362,8 @@ export function ManagersSection({
         );
         return false;
       }
-      setAdding(false); setPickId(''); setFirst(''); setLast(''); setEmail(''); setPhone(''); setEmailMal(false);
+      setAdding(false); setPickId(''); setFirst(''); setLast(''); setEmail(''); setPhone('');
+      setEmailMal(false); setFirstMal(false); setLastMal(false);
       await reload();
       onChanged?.();
       return true;
@@ -376,8 +386,34 @@ export function ManagersSection({
     */
   useImperativeHandle(handleRef, () => ({
     flush: async () => {
-      if (adding && mode === 'new' && firstName.trim() && lastName.trim()) return assign();
       if (adding && mode === 'pick' && pickId) return assign();
+      if (adding && mode === 'new') {
+        if (firstName.trim() && lastName.trim()) return assign();
+        /*
+          * Hay algo escrito pero INCOMPLETO. Antes esto caia en el `return true`
+          * de abajo —"no habia nada pendiente"— y el modal guardaba el caso,
+          * cerraba, y lo escrito se perdia sin una palabra.
+          *
+          * Es el MISMO sintoma que Edson ya habia reportado ("escribia el
+          * nombre, pulsaba Guardar y no pasaba nada") y que este `flush` vino a
+          * resolver: el arreglo cubrio el caso "completo pero no pulso el boton
+          * de adentro" y dejo afuera el caso "incompleto", que desde la silla
+          * del usuario se ve igual. Erick lo volvio a ver el 2026-09-26 con el
+          * apellido vacio.
+          *
+          * Ahora se marca que falta y se devuelve `false`, que es lo que hace
+          * que el modal NO cierre (ver `edson-client.tsx`, donde un `false`
+          * aborta el guardado).
+          */
+        const algoEscrito = !!(firstName.trim() || lastName.trim() || email.trim() || phone.trim());
+        if (algoEscrito) {
+          const faltan: string[] = [];
+          if (!firstName.trim()) { setFirstMal(true); faltan.push(t('managerFirstName')); }
+          if (!lastName.trim())  { setLastMal(true);  faltan.push(t('managerLastName')); }
+          setError(t('managerCheckFields', { fields: faltan.join(', ') }));
+          return false;
+        }
+      }
       return true;   // no habia nada pendiente
     },
   }));
@@ -458,11 +494,25 @@ export function ManagersSection({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <Label htmlFor="cm-first">{t('managerFirstName')}</Label>
-                <Input id="cm-first" value={firstName} onChange={e => setFirst(e.target.value)} />
+                <Input
+                  id="cm-first"
+                  value={firstName}
+                  /* Escribir limpia la marca: dejarla puesta mientras se corrige
+                     convierte la ayuda en un reproche. */
+                  onChange={e => { setFirst(e.target.value); if (firstMal) setFirstMal(false); }}
+                  aria-invalid={firstMal || undefined}
+                  className={firstMal ? '!border-rose focus:!border-rose' : undefined}
+                />
               </div>
               <div>
                 <Label htmlFor="cm-last">{t('managerLastName')}</Label>
-                <Input id="cm-last" value={lastName} onChange={e => setLast(e.target.value)} />
+                <Input
+                  id="cm-last"
+                  value={lastName}
+                  onChange={e => { setLast(e.target.value); if (lastMal) setLastMal(false); }}
+                  aria-invalid={lastMal || undefined}
+                  className={lastMal ? '!border-rose focus:!border-rose' : undefined}
+                />
               </div>
               <div>
                 <Label htmlFor="cm-email">{t('managerEmail')}</Label>

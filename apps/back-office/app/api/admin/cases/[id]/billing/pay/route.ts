@@ -30,6 +30,25 @@ const Schema = z.object({
     amount:    z.number().min(0),
     discount:  z.number().min(0).default(0),
     notes:     z.string().nullable().default(null),
+    /**
+     * Quién paga, cómo y de qué tipo — OPCIONALES y por entrada.
+     *
+     * Si no vienen, cae a los del envío, que es como funcionaba antes: todo
+     * llamador existente sigue andando sin tocar una línea.
+     *
+     * Hacían falta porque un mismo cargo recibe pagos de distinta especie a
+     * la vez —copago del paciente, cheque del seguro y ajuste contractual
+     * sobre la MISMA visita— y con un solo tipo por envío eso eran tres
+     * rondas: abrir la ventana, cargar, cerrar, y de nuevo (Darrell,
+     * 25-sep-2026, regularizando una visita del 30-ene).
+     *
+     * El loop de abajo recalcula el saldo en CADA vuelta, así que varias
+     * entradas contra el mismo `billingId` se aplican en orden y sin pisarse.
+     */
+    source:             z.enum(['INSURANCE', 'PATIENT', 'LAWYER']).optional(),
+    method:             z.enum(['CHECK', 'CARD', 'CASH', 'TRANSFER', 'NONE']).optional(),
+    paymentType:        z.string().nullable().optional(),
+    insuranceCarrierId: z.string().nullable().optional(),
   }).refine(p => p.amount + p.discount > 0, {
     // Cobrar $0 y perdonar $0 no es un pago: antes lo impedía `positive()` en
     // `amount`, pero ahora perdonar sin cobrar un peso es un caso legítimo.
@@ -69,6 +88,15 @@ export async function POST(
 
   const paidAt = parsed.paidAt ? new Date(parsed.paidAt) : new Date();
   const createdPayments: string[] = [];
+  /**
+   * Lo REALMENTE aplicado, para el audit log.
+   *
+   * Desde que cada entrada puede traer su propio quién-paga y tipo, anotar
+   * los del envío sería escribir un dato falso en el registro legal: un
+   * envío con copago + cheque del seguro + ajuste quedaría asentado como si
+   * los tres fueran del tipo que vino por defecto.
+   */
+  const aplicados: Array<{ source: string; paymentType: string | null }> = [];
   let totalPerdonado = 0;
 
   for (const entry of parsed.payments) {
@@ -102,21 +130,30 @@ export async function POST(
     if (monto + perdonado <= 0) continue;
 
     // Create payment record
+    // Lo de la entrada manda; el del envío es el default.
+    const source      = entry.source      ?? parsed.source;
+    const method      = entry.method      ?? parsed.method;
+    const paymentType = entry.paymentType !== undefined ? entry.paymentType : parsed.paymentType;
+    const carrierId   = entry.insuranceCarrierId !== undefined
+      ? entry.insuranceCarrierId
+      : parsed.insuranceCarrierId;
+
     const payment = await db.billingPayment.create({
       data: {
         billingId:         entry.billingId,
-        source:            parsed.source,
-        paymentType:       parsed.paymentType,
+        source,
+        paymentType,
         amount:            monto,
         discount:          perdonado,
-        method:            parsed.method,
+        method,
         status:            'COMPLETED',
-        insuranceCarrierId: parsed.source === 'INSURANCE' ? parsed.insuranceCarrierId : null,
+        insuranceCarrierId: source === 'INSURANCE' ? carrierId : null,
         notes:             entry.notes,
         paidAt,
       },
     });
     createdPayments.push(payment.id);
+    aplicados.push({ source, paymentType });
     totalPerdonado += perdonado;
 
     // Los totales del cargo salen de sus pagos, no de una resta sobre el valor
@@ -135,8 +172,9 @@ export async function POST(
     userAgent: actor.userAgent,
     metadata: {
       caseCode: caseRecord.caseCode,
-      source: parsed.source,
-      paymentType: parsed.paymentType,
+      // Los distintos, no el del envío: ver `aplicados`.
+      sources: [...new Set(aplicados.map(a => a.source))],
+      paymentTypes: [...new Set(aplicados.map(a => a.paymentType))],
       paymentIds: createdPayments,
       totalEntries: parsed.payments.length,
       // Lo perdonado va al audit aunque sea 0: es plata que la clínica deja de

@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, claveDia, instanteEnClinica } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 /**
@@ -192,6 +192,25 @@ const tiposDePago = (t: Traducir): Record<string, { label: string; value: string
  * PACIENTE— y al buscarlos solo en su lista salían como "—". El dato existe y
  * es legible; el que estaba mal era el lugar donde se buscaba.
  */
+/**
+ * El instante que se guarda como fecha del pago.
+ *
+ * Si la fecha elegida es HOY se guarda el instante real: un cobro de hoy
+ * tiene hora y es lo que hace cuadrar el corte del día. Si es una fecha
+ * PASADA —cobranza poniéndose al día con lo que el seguro pagó meses atrás—
+ * se guarda el MEDIODÍA de ese día en la zona de la clínica.
+ *
+ * El mediodía y no la medianoche: una clave `2026-01-30` pasada a ISO sin
+ * zona es medianoche UTC, y leída en Utah eso es la TARDE DEL 29. El pago
+ * aparecería un día antes en toda la app. Es la misma trampa que ya nos
+ * costó la fecha de nacimiento, y por eso esto no se arma a mano.
+ */
+function instanteDelPago(clave: string): string {
+  return clave === claveDia(new Date())
+    ? new Date().toISOString()
+    : instanteEnClinica(clave, 12 * 60).toISOString();
+}
+
 function rotuloDeTipo(
   tipos: Record<string, { label: string; value: string }[]>,
   valor: string | null,
@@ -507,6 +526,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const [paySource, setPaySource]     = useState<'INSURANCE' | 'PATIENT' | 'LAWYER'>('PATIENT');
   const [payMethod, setPayMethod]     = useState<string>('CHECK');
   const [payType, setPayType]         = useState<string>('');
+  /**
+   * CUÁNDO se recibió la plata — no cuándo se tipeó.
+   *
+   * Antes iba `new Date()` en duro en los dos caminos de cobro, así que un
+   * pago del seguro que entró en marzo quedaba sellado con la fecha de hoy.
+   * No se veía en pantalla y ensuciaba en silencio todo reporte por fecha.
+   * Salió cobrando un copago contra una visita del 30-ene (Darrell,
+   * 25-sep-2026), justo mientras se pone al día con pagos viejos.
+   */
+  const [payFecha, setPayFecha] = useState<string>(() => claveDia(new Date()));
   const [payInsuranceId, setPayInsuranceId] = useState<string>('');
   const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
@@ -524,6 +553,25 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const [revirtiendo, setRevirtiendo] = useState<PagoARevertir | null>(null);
   /** Visita con el detalle desplegado en el modal de cobro */
   const [detalleVisita, setDetalleVisita] = useState<string | null>(null);
+
+  /**
+   * ─── Los pagos YA registrados de una visita ────────────────────────────
+   *
+   * Distinto de `detalleVisita`, que abre las LÍNEAS de la visita (qué se le
+   * cobró). Esto abre los PAGOS (qué se cobró ya, cuándo y por qué vía).
+   *
+   * El v2 lo tiene con una flecha pegada al monto pagado, y cobranza lo
+   * pidió de vuelta por nombre (Darrell, 25-sep-2026). Nosotros teníamos el
+   * dato —y más completo que ellos— pero solo en la lista del PIE, que es de
+   * todo el caso: para saber si a una visita vieja ya le habían aplicado el
+   * seguro y el ajuste había que barrerla entera. Justo lo que él estaba
+   * haciendo cuando lo pidió.
+   *
+   * Va desplegable EN LÍNEA y no como diálogo, aunque el v2 use un diálogo:
+   * acá ya hay dos modales apilados y un tercero vuelve a meternos en la
+   * pelea de foco que costó dos días (ver `cargos-dialog.tsx`).
+   */
+  const [pagosVisita, setPagosVisita] = useState<string | null>(null);
 
   /**
    * ─── Pago de UNA línea ────────────────────────────────────────────────────
@@ -544,6 +592,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
   const [lpSource, setLpSource]   = useState<'INSURANCE' | 'PATIENT' | 'LAWYER'>('PATIENT');
   const [lpMethod, setLpMethod]   = useState<string>('CARD');
   const [lpType, setLpType]       = useState<string>('');
+  /** Ídem para el cobro de una sola línea. Ver `payFecha`. */
+  const [lpFecha, setLpFecha] = useState<string>(() => claveDia(new Date()));
   const [lpMonto, setLpMonto]     = useState<string>('');
   /**
    * Lo que se PERDONA en este mismo cobro (Reduction agreement y similares).
@@ -553,8 +603,42 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
    * Perdonar es una decisión sobre UN cargo, y este es el diálogo de un cargo.
    */
   const [lpDescuento, setLpDescuento] = useState<string>('');
+  /**
+   * El mismo descuento, escrito en PORCENTAJE.
+   *
+   * Así se pacta de verdad: el acuerdo con el bufete dice "aceptamos el
+   * 60%", no "$1.596". El v2 lo tiene como columna y cobranza lo pidió de
+   * vuelta (Darrell, 25-sep-2026).
+   *
+   * NO se copió su columna. En el v2 el descuento cuelga del CARGO; acá
+   * cuelga del PAGO por decisión de Erick (16-sep-2026), para que se revierta
+   * con él y quede quién lo perdonó. Un porcentaje en la fila de la visita
+   * sería un tercer lugar donde vive la misma cifra.
+   *
+   * Mueve LOS DOS campos: perdonar el 40% es cobrar el 60%. Escribir solo el
+   * descuento contra un monto que ya se llevó el saldo entero no deja lugar
+   * —es lo que explica `lpDiscountNeedsRoom`— y el campo se comía la cifra.
+   */
+  const [lpDescPct, setLpDescPct] = useState<string>('');
   const [lpNotas, setLpNotas]     = useState<string>('');
   const [lpGuardando, setLpGuardando] = useState(false);
+
+  /**
+   * Pagos ADICIONALES sobre el MISMO cargo, en la misma apertura.
+   *
+   * Un cargo recibe plata de varias especies a la vez: el copago lo trae el
+   * paciente, el cheque lo manda el seguro y el ajuste contractual no lo
+   * trae nadie. Con un solo quién-paga/tipo por envío eso eran tres rondas
+   * —abrir, cargar, cerrar, repetir— sobre una sola visita (Darrell,
+   * 25-sep-2026, regularizando el 30-ene).
+   *
+   * El de arriba es el primero; estos son del segundo en adelante y llevan
+   * SOLO lo que puede diferir. El descuento y la nota no se repiten: perdonar
+   * es una decisión sobre el cargo, no sobre cada pago que entra.
+   */
+  const [lpExtras, setLpExtras] = useState<Array<{
+    source: 'INSURANCE' | 'PATIENT' | 'LAWYER'; method: string; type: string; monto: string;
+  }>>([]);
   const [noteDialogFor, setNoteDialogFor] = useState<string | null>(null); // billingId de la fila con "Nota de pago" abierta
   const [noteDraft, setNoteDraft]         = useState('');
   const openAfterLoad = useRef(false);
@@ -640,6 +724,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
         setPaySource(fuente);
         setPayMethod('CHECK');
         setPayType(PAYMENT_TYPES[fuente][0].value);
+        setPayFecha(claveDia(new Date()));
         setPayInsuranceId(freshInsurances[0]?.id ?? '');
         setPayOpen(true);
       }
@@ -675,6 +760,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
     setPaySource(fuente);
     setPayMethod('CHECK');
     setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+    setPayFecha(claveDia(new Date()));
     setPayInsuranceId(insurances[0]?.id ?? '');
     setPayOpen(true);
   }
@@ -758,7 +844,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
           method: payMethod,
           paymentType: payType || null,
           insuranceCarrierId: paySource === 'INSURANCE' ? (payInsuranceId || null) : null,
-          paidAt: new Date().toISOString(),
+          paidAt: instanteDelPago(payFecha),
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(serverError(d as ServerErrorBody)); }
@@ -781,10 +867,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
     setLpSource(src);
     setLpMethod('CARD');
     setLpType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+    setLpFecha(claveDia(new Date()));
+    setLpExtras([]);
     setLpMonto(l.balanceDue.toFixed(2));
     // Vacío, no "0.00": perdonar es la excepción y el campo tiene que verse sin
     // usar, no como un cero que alguien tenga que borrar para escribir encima.
     setLpDescuento('');
+    setLpDescPct('');
     setLpNotas('');
   }
 
@@ -795,7 +884,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
     const descuento = parseFloat(lpDescuento) || 0;
     // Perdonar SIN cobrar es válido: un Reduction agreement puede cerrar el
     // saldo entero sin que entre un peso. Lo que no vale es un pago vacío.
-    if (monto + descuento <= 0) { alert(t('alertMinAmount')); return; }
+    /*
+     * Los adicionales cuentan para el mínimo.
+     *
+     * Alguien puede dejar el primer monto en cero y cargar solo el cheque
+     * del seguro abajo. Mirar únicamente el de arriba lo rebotaría con
+     * "monto mínimo" teniendo la pantalla llena de plata.
+     */
+    const extras = lpExtras
+      .map(e => ({ ...e, num: parseFloat(e.monto) || 0 }))
+      .filter(e => e.num > 0);
+    const totalExtras = extras.reduce((s, e) => s + e.num, 0);
+    if (monto + descuento + totalExtras <= 0) { alert(t('alertMinAmount')); return; }
 
     setLpGuardando(true);
     try {
@@ -803,20 +903,35 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Una sola entrada: es el punto de este diálogo. El monto NO se
-          // reparte porque ya sabemos contra qué línea va.
-          payments: [{
+          // El primero es el de arriba; los de abajo van detrás, cada uno
+          // con su propio quién-paga, método y tipo. La API recalcula el
+          // saldo en cada vuelta, así que se aplican en orden sin pisarse.
+          payments: [
+            {
             billingId: l.id,
             amount: Math.min(monto, l.balanceDue),
             // Lo perdonado entra en el mismo pago: se revierte con él.
             discount: Math.min(descuento, Math.max(0, l.balanceDue - Math.min(monto, l.balanceDue))),
             notes: lpNotas || null,
-          }],
+            },
+            /* Cada adicional con lo suyo. Sin descuento ni nota: perdonar y
+               explicar son decisiones sobre el CARGO, no sobre cada especie
+               de plata que entra contra él. */
+            ...extras.map(e => ({
+              billingId: l.id,
+              amount: e.num,
+              discount: 0,
+              notes: null,
+              source: e.source,
+              method: e.method,
+              paymentType: e.type || null,
+            })),
+          ],
           source: lpSource,
           method: lpMethod,
           paymentType: lpType || null,
           insuranceCarrierId: lpSource === 'INSURANCE' ? (insurances[0]?.id ?? null) : null,
-          paidAt: new Date().toISOString(),
+          paidAt: instanteDelPago(lpFecha),
         }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(serverError(d as ServerErrorBody)); }
@@ -1468,6 +1583,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                     const monto = parseFloat(payAmounts[v.key] ?? '0') || 0;
                     const reparto = repartir(v.lineas, monto);
                     const abierta = detalleVisita === v.key;
+                    /* `v.key` ES el appointmentId — ver `agruparPorVisita`. */
+                    const pagosDeLaVisita = payments.filter(p => p.appointmentId === v.key);
+                    const yaPagado = pagosDeLaVisita.reduce((s, p) => s + p.amount, 0);
+                    const pagosAbiertos = pagosVisita === v.key;
                     /**
                      * La visita lleva CPT, o sea que su saldo es del seguro.
                      *
@@ -1485,9 +1604,21 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                             onClick={() => setDetalleVisita(abierta ? null : v.key)}
                             className="flex items-center gap-2 min-w-0 flex-1 text-left"
                           >
-                            {abierta
-                              ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                              : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />}
+                            {/*
+                              El galón en una pastilla de color, no suelto.
+
+                              Era `w-3.5 text-text-muted`: un gris de 14px sin
+                              etiqueta, y cobranza no supo nunca que la fila se
+                              abría — pidió como función nueva el cobro por
+                              línea, que ya existía acá adentro (Darrell,
+                              25-sep-2026). Un control que nadie descubre no
+                              está construido.
+                            */}
+                            <span className="w-5 h-5 rounded flex items-center justify-center bg-brand/10 text-brand shrink-0">
+                              {abierta
+                                ? <ChevronDown className="w-3.5 h-3.5" />
+                                : <ChevronRight className="w-3.5 h-3.5" />}
+                            </span>
                             <span className="text-[13px] font-semibold text-text-1 whitespace-nowrap">
                               {fmtDate(v.fecha)}
                             </span>
@@ -1531,10 +1662,31 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                           {/* Ancho fijo para que quede debajo de su encabezado:
                               una píldora que se encoge con el monto no forma
                               columna y vuelve a mezclarse con el campo de al lado. */}
-                          <span className="w-[92px] flex justify-end shrink-0">
+                          <span className="w-[92px] flex flex-col items-end gap-0.5 shrink-0">
                             <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
                               {fmt$(v.saldo)}
                             </span>
+                            {/*
+                              Lo YA cobrado, y solo cuando hay algo — como el v2:
+                              una flecha en una fila sin pagos promete algo que no
+                              existe. Va DEBAJO del pendiente y no en una columna
+                              nueva: con 92px más la fila no entra en un teléfono
+                              (regla #4), y acá queda pegada a la cifra que explica.
+                            */}
+                            {yaPagado > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setPagosVisita(pagosAbiertos ? null : v.key)}
+                                aria-expanded={pagosAbiertos}
+                                title={t('payVisitPaymentsTooltip')}
+                                className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-emerald hover:underline"
+                              >
+                                {fmt$(yaPagado)}
+                                {pagosAbiertos
+                                  ? <ChevronDown className="w-3 h-3" />
+                                  : <ChevronRight className="w-3 h-3" />}
+                              </button>
+                            )}
                           </span>
 
                           <input
@@ -1597,6 +1749,46 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                           </span>
                         </div>
 
+                        {/* Los pagos ya registrados de ESTA visita. Mismas
+                            columnas que la lista del pie, sin "a qué visita":
+                            acá la visita ya la dice la fila de arriba. */}
+                        {pagosAbiertos && (
+                          <div className="px-4 pb-3 pt-0 bg-emerald/[0.04] border-t border-row-sep">
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted py-2">
+                              {t('payVisitPaymentsTitle')}
+                            </div>
+                            <table className="w-full text-[11.5px]">
+                              <thead>
+                                <tr className="text-[10px] uppercase tracking-wider text-text-muted">
+                                  <th className="text-left font-semibold pb-1">{t('colPaidAt')}</th>
+                                  <th className="text-right font-semibold pb-1">{t('colAmount')}</th>
+                                  <th className="text-left font-semibold pb-1 pl-3">{t('colMethod')}</th>
+                                  <th className="text-left font-semibold pb-1 pl-3">{t('colType')}</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-row-sep">
+                                {pagosDeLaVisita.map(p => (
+                                  <tr key={p.id}>
+                                    <td className="py-1 font-mono text-text-2 whitespace-nowrap">{fmtDate(p.paidAt)}</td>
+                                    <td className="py-1 text-right font-mono tabular-nums font-semibold text-emerald whitespace-nowrap">
+                                      {fmt$(p.amount)}
+                                      {/* Lo perdonado, pegado a la cifra que explica por qué
+                                          el saldo bajó más que lo que entró. Igual que el pie. */}
+                                      {p.discount > 0 && (
+                                        <div className="text-[10px] font-normal text-amber">
+                                          {t('historyDiscountRow', { amount: fmt$(p.discount) })}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-1 pl-3 text-text-2 whitespace-nowrap">{METHOD_LABELS[p.method] ?? p.method}</td>
+                                    <td className="py-1 pl-3 text-text-muted">{rotuloDeTipo(PAYMENT_TYPES, p.paymentType) ?? '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
                         {abierta && (
                           <div className="px-4 pb-3 pt-0 bg-bg-2/30">
                             <table className="w-full text-[11.5px]">
@@ -1635,9 +1827,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                                         onClick={() => abrirPagoDeLinea(l)}
                                         title={t('lpTooltip')}
                                         aria-label={t('lpTooltip')}
-                                        className="p-1 rounded text-text-muted hover:text-emerald transition-colors"
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-emerald/30 bg-emerald/10 text-emerald text-[10px] font-semibold hover:bg-emerald/20 transition-colors"
                                       >
-                                        <CreditCard className="w-3.5 h-3.5" />
+                                        <CreditCard className="w-3 h-3 shrink-0" />
+                                        <span className="hidden sm:inline whitespace-nowrap">{t('lpPay')}</span>
                                       </button>
                                     </td>
                                   </tr>
@@ -1719,6 +1912,26 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                 )}
               </div>
 
+              {/*
+                CUÁNDO entró la plata. Por defecto hoy, y nunca en el futuro.
+
+                Va acá arriba y no escondida en un avanzado: cobranza está
+                registrando pagos viejos que nadie había cargado, y si la
+                fecha no se ve, se sella hoy sin que nadie se entere.
+              */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {t('paidOn')}
+                </label>
+                <input
+                  type="date"
+                  value={payFecha}
+                  max={claveDia(new Date())}
+                  onChange={(e) => setPayFecha(e.target.value || claveDia(new Date()))}
+                  className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                />
+              </div>
+
               {/* Segunda fila: tipo de pago del seguro (ancho completo) */}
               {paySource === 'INSURANCE' && (
                 <SelectUp
@@ -1796,11 +2009,28 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
               const tiposLp = PAYMENT_TYPES[lpSource] ?? [];
               const lpMontoNum = parseFloat(lpMonto) || 0;
               const lpDescNum  = parseFloat(lpDescuento) || 0;
+              /* Los adicionales también habilitan el botón: se puede dejar el
+                 primer monto en cero y cargar solo el cheque del seguro. */
+              const lpExtrasNum = lpExtras.reduce((s, e) => s + (parseFloat(e.monto) || 0), 0);
               const cobra = Math.min(lpMontoNum, l.balanceDue);
               // Lo cobrado manda: el descuento solo llega hasta lo que quede
               // después de él. Es el mismo orden que aplica el servidor.
               const topeDescuento = Math.max(0, l.balanceDue - cobra);
               const quedaPendiente = Math.max(0, topeDescuento - Math.min(lpDescNum, topeDescuento));
+              /**
+               * Lo que se pasa del saldo, si se pasa.
+               *
+               * El monto de arriba arranca en el saldo ENTERO. Quien agregue un
+               * segundo pago sin bajarlo primero se lleva una sorpresa cara: la
+               * API recorta cada entrada a lo que queda por aplicar y la que da
+               * cero la SALTEA, sin error y sin aviso. Se cargaban tres pagos y
+               * quedaba uno.
+               *
+               * Se avisa acá en vez de recortar solo: quien cobra es el que sabe
+               * cuál de las cifras está mal, y adivinar por él sobre plata que
+               * entró de verdad es peor que frenarlo.
+               */
+              const excedente = (cobra + Math.min(lpDescNum, topeDescuento) + lpExtrasNum) - l.balanceDue;
               return (
                 <div
                   className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
@@ -1878,6 +2108,21 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                         </div>
                       </div>
 
+                      {/* La fecha del pago, antes de los montos: primero CUÁNDO
+                          entró y después cuánto. Ver `payFecha`. */}
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                          {t('paidOn')}
+                        </label>
+                        <input
+                          type="date"
+                          value={lpFecha}
+                          max={claveDia(new Date())}
+                          onChange={(e) => setLpFecha(e.target.value || claveDia(new Date()))}
+                          className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                        />
+                      </div>
+
                       {/* Y los tres montos juntos, que es la cuenta que hay que
                           leer de un vistazo: cobro + descuento = lo que queda. */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1892,6 +2137,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                             onChange={e => {
                               const raw = parseFloat(e.target.value);
                               // Mismo tope al escribir que el campo por visita.
+                              // Tocar el monto a mano invalida el porcentaje.
+                              setLpDescPct('');
                               setLpMonto(!isNaN(raw) && raw > l.balanceDue ? l.balanceDue.toFixed(2) : e.target.value);
                             }}
                             className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm font-mono text-right text-text-1 outline-none focus:border-brand"
@@ -1931,6 +2178,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                             value={lpDescuento}
                             onChange={e => {
                               const raw = parseFloat(e.target.value);
+                              setLpDescPct('');
                               setLpDescuento(!isNaN(raw) && raw > topeDescuento ? topeDescuento.toFixed(2) : e.target.value);
                             }}
                             placeholder="0.00"
@@ -1940,6 +2188,26 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                               del descuento arranca en 0 y el campo se traga lo
                               que se teclee. En vez de dejarlo pasar por mudo,
                               dice por qué y qué hacer. */}
+                          {/* El porcentaje, debajo del monto que produce. */}
+                          {l.balanceDue > 0 && (
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <input
+                                type="number" min="0" max="100" step="1"
+                                value={lpDescPct}
+                                onChange={e => {
+                                  setLpDescPct(e.target.value);
+                                  const pct = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                                  const perdona = Math.round(l.balanceDue * pct) / 100;
+                                  setLpDescuento(perdona > 0 ? perdona.toFixed(2) : '');
+                                  setLpMonto((l.balanceDue - perdona).toFixed(2));
+                                }}
+                                placeholder="0"
+                                aria-label={t('lpDiscountPct')}
+                                className="w-16 shrink-0 rounded-md bg-bg-2 border border-border px-2 py-1 text-xs font-mono text-right text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                              />
+                              <span className="text-[10px] text-text-muted leading-snug">{t('lpDiscountPctHint')}</span>
+                            </div>
+                          )}
                           {topeDescuento <= 0 && l.balanceDue > 0 && (
                             <p className="mt-1 text-[10px] text-text-muted leading-snug">{t('lpDiscountNeedsRoom')}</p>
                           )}
@@ -1971,6 +2239,84 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                           className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
                         />
                       </div>
+
+                      {/* ── Más pagos sobre este MISMO cargo ─────────────── */}
+                      {lpExtras.map((ex, i) => {
+                        const tiposEx = PAYMENT_TYPES[ex.source] ?? [];
+                        const cambiar = (patch: Partial<typeof ex>) =>
+                          setLpExtras(xs => xs.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+                        return (
+                          <div key={i} className="rounded-md bg-bg-2/40 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                                {t('lpExtraTitle', { n: i + 2 })}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setLpExtras(xs => xs.filter((_, k) => k !== i))}
+                                className="text-[11px] font-semibold text-rose hover:underline"
+                              >
+                                {t('lpExtraRemove')}
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpWhoPays')}</label>
+                                <SelectUp
+                                  value={ex.source}
+                                  onChange={v => {
+                                    const src = v as typeof ex.source;
+                                    /* El tipo depende del origen: dejar el viejo guardaría
+                                       un valor que su propia lista ya no ofrece. */
+                                    cambiar({ source: src, type: PAYMENT_TYPES[src]?.[0]?.value ?? '' });
+                                  }}
+                                  options={sourceOptions}
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpMethod')}</label>
+                                <SelectUp value={ex.method} onChange={v => cambiar({ method: v })} options={methodOptions} className="mt-1" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpType')}</label>
+                                <SelectUp value={ex.type} onChange={v => cambiar({ type: v })} options={tiposEx} className="mt-1" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('lpAmount')}</label>
+                                <input
+                                  type="number" step="0.01" min="0"
+                                  value={ex.monto}
+                                  onChange={e => cambiar({ monto: e.target.value })}
+                                  className="w-full mt-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm font-mono text-right text-text-1 outline-none focus:border-brand"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Sin tope artificial: el que cobra sabe cuántas especies
+                          entraron. La API recorta cada una al saldo que queda. */}
+                      <button
+                        type="button"
+                        onClick={() => setLpExtras(xs => [...xs, {
+                          /* Con el tipo del origen ya puesto, como el de arriba:
+                             un tipo vacío se guarda como null y el pago queda sin
+                             decir qué era. */
+                          source: lpSource, method: lpMethod, monto: '',
+                          type: PAYMENT_TYPES[lpSource]?.[0]?.value ?? '',
+                        }])}
+                        className="w-full rounded-md border border-dashed border-border py-2 text-[11.5px] font-semibold text-text-2 hover:text-brand-text hover:border-brand/40 transition-colors"
+                      >
+                        + {t('lpAddAnother')}
+                      </button>
+
+                      {excedente > 0.004 && (
+                        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                          {t('lpOverBalance', { amount: fmt$(excedente) })}
+                        </div>
+                      )}
                     </div>
 
                     <div className="shrink-0 px-5 py-4 border-t border-border flex flex-col sm:flex-row justify-end gap-2">
@@ -1979,7 +2325,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                       </Button>
                       <Button
                         size="sm"
-                        disabled={lpGuardando || (lpMontoNum + lpDescNum) <= 0}
+                        /* Y bloqueado si se pasa del saldo: avisar y dejar guardar
+                           igual sería decorar la pérdida en vez de evitarla. */
+                        disabled={
+                          lpGuardando
+                          || (lpMontoNum + lpDescNum + lpExtrasNum) <= 0
+                          || excedente > 0.004
+                        }
                         onClick={registrarPagoDeLinea}
                         className="w-full sm:w-auto gap-1.5"
                       >

@@ -5876,7 +5876,17 @@
           "PATIENT": "pagó el paciente",
           "INSURANCE": "pagó el seguro",
           "LAWYER": "pagó el abogado"
-        }
+        },
+        "lpPay": "Cobrar",
+        "lpExtraTitle": "Pago {n}",
+        "lpExtraRemove": "Quitar",
+        "lpAddAnother": "Agregar otro pago a este cargo",
+        "lpDiscountPct": "Porcentaje de descuento",
+        "lpDiscountPctHint": "% del saldo — también ajusta el monto a cobrar",
+        "lpOverBalance": "Los pagos suman {amount} más de lo que debe este cargo. Bajá alguno de los montos — si no, los de abajo no se registrarían.",
+        "paidOn": "Fecha del pago",
+        "payVisitPaymentsTitle": "Pagos registrados para esta visita",
+        "payVisitPaymentsTooltip": "Ver los pagos ya registrados de esta visita"
       },
       "prescripciones": {
         "fieldUnit": "Unidad de dispensación",

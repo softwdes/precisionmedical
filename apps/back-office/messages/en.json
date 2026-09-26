@@ -5876,7 +5876,17 @@
           "PATIENT": "paid by patient",
           "INSURANCE": "paid by insurance",
           "LAWYER": "paid by attorney"
-        }
+        },
+        "lpPay": "Pay",
+        "lpExtraTitle": "Payment {n}",
+        "lpExtraRemove": "Remove",
+        "lpAddAnother": "Add another payment to this charge",
+        "lpDiscountPct": "Discount percentage",
+        "lpDiscountPctHint": "% of the balance — also adjusts the amount to charge",
+        "lpOverBalance": "The payments add up to {amount} more than this charge owes. Lower one of the amounts — otherwise the extra ones would not be recorded.",
+        "paidOn": "Payment date",
+        "payVisitPaymentsTitle": "Payments recorded for this visit",
+        "payVisitPaymentsTooltip": "See the payments already recorded for this visit"
       },
       "prescripciones": {
         "fieldUnit": "Dispensing unit",

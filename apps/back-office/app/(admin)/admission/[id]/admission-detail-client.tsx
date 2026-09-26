@@ -36,6 +36,7 @@ import {
   TriageVitalsForm, EMPTY_VITALS,
   type TriageRecord, type VitalsState, type TriageVitalsFormHandle,
 } from '@/components/visit/triage-vitals-form';
+import { DrugHistoryConsentDialog } from '@/components/visit/drug-history-consent-dialog';
 import { DoctorStepPanel } from './doctor-step-panel';
 import { nombreProviderO, nombreProviderONull } from '@/lib/provider-name';
 
@@ -68,6 +69,8 @@ interface ApptDetail {
   patient: {
     id: string; firstName: string; lastName: string;
     phone: string | null; email: string | null; dateOfBirth: string | null;
+    /** null = todavia nadie se lo pregunto. */
+    consentToDrugHistory: boolean | null;
   };
   /** Contexto clínico para el panel del paso 3 — el mismo que ve el doctor. */
   patientContext: PatientContext | null;
@@ -107,7 +110,11 @@ function fmtDate(iso: string | null) {
 }
 
 // ─── Small reusable pieces ────────────────────────────────────────────────────
-function ChecklistCard({ done, label, meta }: { done: boolean; label: string; meta?: string }) {
+function ChecklistCard({ done, label, meta, accion, accionLabel }: {
+  done: boolean; label: string; meta?: string;
+  /** Solo los items que se pueden RESOLVER desde acá traen acción. */
+  accion?: () => void; accionLabel?: string;
+}) {
   return (
     <div className={`rounded-lg p-3 flex items-start gap-2.5 ${done ? 'bg-emerald/5' : 'bg-bg-2/30'}`}>
       {done
@@ -117,6 +124,15 @@ function ChecklistCard({ done, label, meta }: { done: boolean; label: string; me
       <div className="flex-1 min-w-0">
         <div className={`text-[12px] font-semibold ${done ? 'text-emerald' : 'text-text-2'}`}>{label}</div>
         {meta && <div className="text-[10px] text-text-muted mt-0.5">{meta}</div>}
+        {!done && accion && accionLabel && (
+          <button
+            type="button"
+            onClick={accion}
+            className="mt-1.5 text-[11px] font-semibold text-violet-text hover:underline"
+          >
+            {accionLabel}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -136,6 +152,8 @@ export function AdmissionDetailClient({
   const [loading,   setLoading]   = useState(true);
   const [admitting, setAdmitting] = useState(false);
   const [portalOpen, setPortalOpen] = useState(false);
+  /** El diálogo del permiso de historial de farmacia, abierto desde la lista. */
+  const [pidiendoConsentimiento, setPidiendoConsentimiento] = useState(false);
   const [showServices, setShowServices] = useState(false);
   const [viewStep,     setViewStep]     = useState<number | null>(null); // null = auto
   const [billingHistory, setBillingHistory] = useState<Array<{
@@ -329,6 +347,33 @@ export function AdmissionDetailClient({
       done:  !!d.case?.pipActive,
       label: t('docPipVerified'),
       meta:  d.case?.pipVerifiedAt ? t('docPipVerifiedOn', { date: fmtDate(d.case.pipVerifiedAt) }) : t('docPipNotVerified'),
+    },
+    /**
+     * EL PERMISO DEL HISTORIAL DE FARMACIA — se pregunta ACA.
+     *
+     * Con ese permiso, ScriptSure baja por Surescripts 12 meses de lo que el
+     * paciente retiró en CUALQUIER farmacia y de CUALQUIER médico, y lo cruza
+     * por interacciones. Es lo que Devin pidió el 2026-09-25 ("current
+     * medications taken by patient that may have been prescribed by another
+     * provider"), y ya estaba construido: lo que faltaba era que alguien lo
+     * preguntara.
+     *
+     * Hasta hoy el único momento en que se pedía era cuando el provider chocaba
+     * con el corte del servidor en mitad de una receta. Medido el 2026-09-25:
+     * **1 paciente consintió, 5.775 sin preguntar**. La función existía apagada.
+     *
+     * Va en la admisión porque es donde corresponde: la MA ya está con el
+     * paciente delante repasando formulario y consentimientos, y la ruta del
+     * permiso se diseñó para que la tome ella (su guard no exige provider). Que
+     * quede tomado ACA es lo que hace que el provider encuentre el historial ya
+     * disponible en vez de frenarse a mitad de la receta.
+     */
+    {
+      done:  d.patient.consentToDrugHistory === true,
+      label: t('docDrugHistory'),
+      meta:  d.patient.consentToDrugHistory === true ? t('docDrugHistoryOk') : t('docDrugHistoryPending'),
+      accion: () => setPidiendoConsentimiento(true),
+      accionLabel: t('docDrugHistoryAsk'),
     },
   ];
 
@@ -915,6 +960,18 @@ export function AdmissionDetailClient({
           }}
         />
       )}
+
+      {/* El permiso del historial de farmacia. Es el MISMO diálogo que ve el
+          provider cuando choca con el corte del servidor en mitad de una receta
+          — no hay dos textos ni dos criterios, y la atestación queda igual en la
+          auditoría con nombre y hora. Acá se abre ANTES, que es cuando la MA
+          tiene al paciente delante. */}
+      <DrugHistoryConsentDialog
+        open={pidiendoConsentimiento}
+        appointmentId={d.id}
+        onCancel={() => setPidiendoConsentimiento(false)}
+        onGranted={() => { setPidiendoConsentimiento(false); void syncDetail(); }}
+      />
     </div>
   );
 }

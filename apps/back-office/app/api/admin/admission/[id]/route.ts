@@ -23,7 +23,7 @@ export async function GET(
         // El fragmento compartido primero: trae lo que necesita el panel de
         // contexto clínico (el mismo que ve el doctor en su consulta). Los cuatro
         // campos que ya se usaban están adentro.
-        patient: { select: PATIENT_CONTEXT_SELECT },
+        patient: { select: { ...PATIENT_CONTEXT_SELECT, consentToDrugHistory: true } },
         provider: {
           select: { id: true, firstName: true, lastName: true, specialty: true },
         },
@@ -142,6 +142,12 @@ export async function GET(
           phone:       appt.patient.phone,
           email:       appt.patient.email,
           dateOfBirth: appt.patient.dateOfBirth?.toISOString() ?? null,
+          /**
+           * El permiso para bajar el historial de farmacia. Viaja acá porque la
+           * ADMISION es donde se pregunta: la MA ya esta con el paciente delante
+           * repasando formulario y consentimientos. Ver el item de la lista.
+           */
+          consentToDrugHistory: appt.patient.consentToDrugHistory ?? null,
         },
         // Panel de contexto clínico del paso 3 — el MISMO que ve el doctor en su
         // consulta, armado por el helper compartido (Erick, 2026-08-13: "el

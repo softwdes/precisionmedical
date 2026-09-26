@@ -3451,7 +3451,11 @@
       "outsideClinics": "+{count} at another facility",
       "outsideClinicsHint": "Appointments at facilities that are not our own locations. Still counted under All.",
       "chargePending": "Payment pending",
-      "chargePendingHint": "Click to charge in the case finances"
+      "chargePendingHint": "Click to charge in the case finances",
+      "docDrugHistory": "Pharmacy history",
+      "docDrugHistoryOk": "Patient authorized querying the pharmacy network",
+      "docDrugHistoryPending": "Not asked yet. With their consent, the provider sees what they take from other providers",
+      "docDrugHistoryAsk": "Record the consent"
     },
     "dashboard": {
       "novedadEtiqueta": "New version",

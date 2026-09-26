@@ -3451,7 +3451,11 @@
       "outsideClinics": "+{count} en otro centro",
       "outsideClinicsHint": "Citas en centros que no son sede propia. Siguen contadas en Todas.",
       "chargePending": "Falta cobrar",
-      "chargePendingHint": "Clic para cobrar en Finanzas del caso"
+      "chargePendingHint": "Clic para cobrar en Finanzas del caso",
+      "docDrugHistory": "Historial de farmacia",
+      "docDrugHistoryOk": "El paciente autorizó consultar la red de farmacias",
+      "docDrugHistoryPending": "Sin preguntar. Con su permiso, el provider ve lo que toma recetado por otros médicos",
+      "docDrugHistoryAsk": "Registrar el permiso"
     },
     "dashboard": {
       "novedadEtiqueta": "Nueva versión",

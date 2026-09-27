@@ -31,6 +31,18 @@ const SnippetInputSchema = z.object({
   // el tope es para que un pegado accidental de un PDF entero no entre.
   content: z.string().max(200_000).default(''),
   isActive: z.boolean().default(true),
+  /**
+   * A qué lista va. Devin, 2026-09-25: *"there should be an option to save as
+   * global or individual"*.
+   *
+   * `SHARED` = la lista de toda la clínica. `PERSONAL` = solo de quien lo
+   * guarda. El enum del schema trae además `SPECIALTY`, que NO se ofrece: no
+   * hay pantalla que lo administre y un alcance que nadie puede ver ni corregir
+   * es un lugar donde se pierden cosas.
+   *
+   * Por defecto `SHARED`, que es lo que hacían los 278 snippets que ya existen.
+   */
+  scope: z.enum(['PERSONAL', 'SHARED']).default('SHARED'),
 });
 
 /**
@@ -78,8 +90,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : [ownMessageSection(messageContext)];
   }
 
+  /**
+   * QUIÉN VE QUÉ. Los compartidos son de todos; los personales, solo de su
+   * autor.
+   *
+   * Este filtro es la otra mitad de haber abierto `scope` en el POST y sin él
+   * el alcance sería decorativo: hasta hoy la consulta traía TODO porque todo
+   * era `SHARED`, así que el primer snippet personal de un provider habría
+   * aparecido en la pantalla de los demás.
+   *
+   * `scope: null` entra en "compartido" a propósito: la columna tiene default
+   * pero una fila cargada por fuera podría no tenerlo, y esconderla sería peor
+   * que mostrarla — es texto de la clínica, no dato clínico.
+   */
+  const deQuien = session.userId
+    ? { OR: [{ scope: { not: 'PERSONAL' as const } }, { scope: 'PERSONAL' as const, createdById: session.userId }] }
+    : { scope: { not: 'PERSONAL' as const } };
+
   const rows = await db.snippet.findMany({
-    where: { deletedAt: null, ...(sections ? { sectionKey: { in: [...sections] } } : {}) },
+    where: { deletedAt: null, ...deQuien, ...(sections ? { sectionKey: { in: [...sections] } } : {}) },
     include: {
       favorites: session.userId ? { where: { userId: session.userId }, select: { id: true } } : false,
       _count: { select: { favorites: true } },
@@ -90,6 +119,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const snippets = rows.map((s) => ({
     id: s.id,
     sectionKey: s.sectionKey,
+    /** Para que la lista pueda distinguir "mío" de "de la clínica". */
+    scope: s.scope,
     title: s.title,
     description: s.description,
     content: s.content,
@@ -129,7 +160,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       description: parsed.description ?? null,
       content:     parsed.content,
       isActive:    parsed.isActive,
-      scope:       'SHARED', // globales — la UI no ofrece otro alcance
+      scope:       parsed.scope,
       createdById: session.userId,
     },
   });

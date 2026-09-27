@@ -37,6 +37,7 @@ import { PriorVisitsDialog, type TraidoDeVisita } from './prior-visits-dialog';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 import { VisitNotePrintDialog } from './visit-note-print-dialog';
 import { SnippetPanel, type SnippetItem } from './snippet-panel';
+import { GuardarSnippetDialog } from './guardar-snippet-dialog';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -287,6 +288,19 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
   // resueltos, y el editor avisa por `onChange` como si se hubiera tecleado —
   // así pasa por `setSection` y el autoguardado.
   const [snippetsAbiertos, setSnippetsAbiertos] = React.useState<Set<SectionField>>(() => new Set());
+  /**
+   * Qué sección se está guardando como snippet. `null` = el diálogo cerrado.
+   *
+   * Se guarda el campo y no un booleano porque el diálogo necesita saber DE CUÁL
+   * sección sale: el texto, su clave y su nombre en pantalla.
+   */
+  const [guardandoSnippet, setGuardandoSnippet] = React.useState<SectionField | null>(null);
+  /**
+   * Se incrementa al guardar uno: es lo que hace que la lista de esa sección se
+   * vuelva a pedir. Sin esto el snippet recién creado no aparece hasta recargar,
+   * y el gesto queda a medias — se guarda y no se ve.
+   */
+  const [snippetsVersion, setSnippetsVersion] = React.useState(0);
   React.useEffect(() => {
     try {
       const raw = window.localStorage.getItem(SNIPPETS_PREF);
@@ -1598,6 +1612,19 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
                 >
                   <Scissors className="w-3 h-3" /> {t('snpPanelShow')}
                 </button>
+                {/* Guardar ESTA sección como snippet, sin salir de la nota.
+                    Solo aparece con algo escrito: un botón que abre un diálogo
+                    para guardar la nada es un clic que termina en un aviso.
+                    Pedido de Devin, 2026-09-25. */}
+                {(content[field] ?? '').replace(/<[^>]*>/g, '').trim() !== '' && (
+                  <button
+                    type="button"
+                    onClick={() => setGuardandoSnippet(field)}
+                    className="text-[11px] font-semibold text-text-muted hover:text-text-1 hover:underline flex items-center gap-1"
+                  >
+                    <Scissors className="w-3 h-3" /> {t('snpSaveBtn')}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setTplTarget(key)}
@@ -1627,6 +1654,9 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
               // completo está en el docblock de `rich-text-editor.tsx`.
               sidePanel={snippetsAbiertos.has(field) ? (
                 <SnippetPanel
+                  // Cambiar la `key` remonta el panel, que es lo que lo hace
+                  // volver a pedir la lista cuando se acaba de guardar uno.
+                  key={`${key}-${snippetsVersion}`}
                   bare
                   section={key}
                   settingsHref={settingsHref(key)}
@@ -1961,6 +1991,25 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
           // la próxima firma —hecha desde el botón normal— saldría de la nota
           // sola, sin que nadie se lo haya pedido.
           onCancel={() => { setConfirmSign(false); setSalirTrasFirmar(false); }}
+        />
+      )}
+
+      {/* Guardar una sección como snippet. Al guardar se abre la lista de esa
+          sección y se la remonta, para que el snippet nuevo se VEA: guardar algo
+          que no aparece deja a cualquiera dudando de si se guardó. */}
+      {guardandoSnippet && (
+        <GuardarSnippetDialog
+          open
+          sectionKey={SECTIONS.find((x) => x.field === guardandoSnippet)?.key ?? ''}
+          sectionLabel={secLabel(SECTIONS.find((x) => x.field === guardandoSnippet)?.key ?? '')}
+          content={content[guardandoSnippet] ?? ''}
+          onClose={() => setGuardandoSnippet(null)}
+          onSaved={() => {
+            const campo = guardandoSnippet;
+            setGuardandoSnippet(null);
+            setSnippetsVersion((v) => v + 1);
+            if (campo) setSnippetsAbiertos((prev) => new Set(prev).add(campo));
+          }}
         />
       )}
 

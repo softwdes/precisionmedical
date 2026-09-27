@@ -25,11 +25,11 @@ import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Camera, Download, Eye, FileText, FolderOpen, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Camera, Download, Eye, FileText, FolderOpen, Loader2, RefreshCw, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { localeApp } from '@/lib/fechas';
-import { nombreDeFoto, urlParaDescargar } from '@/lib/descarga-archivo';
+import { bajarDelServidor, baseDeFoto, nombreDeFoto, urlParaDescargar } from '@/lib/descarga-archivo';
 
 export type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
@@ -506,6 +506,8 @@ export function ArchivosDialog({
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(initialPhotos);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting]   = useState<Record<string, boolean>>({});
+  /** Qué recuadro está generando su PDF. Tarda: puede haber una conversión. */
+  const [pdfDe, setPdfDe]         = useState<Record<string, boolean>>({});
   /**
    * Qué recuadros tienen algo en la papelera.
    *
@@ -646,6 +648,34 @@ export function ArchivosDialog({
       setErrors(p => ({ ...p, [photoKey]: tCam('errConnection') }));
     } finally {
       setDeleting(p => ({ ...p, [photoKey]: false }));
+    }
+  }
+
+  /**
+   * La misma foto, envuelta en un PDF, bajada SIN abrir otra ventana.
+   *
+   * Antes esto era un `<a href>` al endpoint, y en el back-office instalado
+   * como app eso abre una ventana aparte que se queda en blanco mientras baja
+   * (Erick, 27-sep-2026). `bajarDelServidor` recibe la respuesta acá mismo y la
+   * guarda; ver el porqué completo en `lib/descarga-archivo.ts`.
+   *
+   * El otro motivo es el error: con el `<a>`, un PDF que no se podía generar
+   * dejaba una pantalla con un JSON crudo o nada. Acá el motivo vuelve y se
+   * dice en el recuadro, en el mismo lugar donde ya se avisan los otros fallos
+   * de esa foto.
+   */
+  async function bajarComoPdf(photoKey: PhotoKey, etiqueta: string) {
+    setErrors(p => ({ ...p, [photoKey]: '' }));
+    setPdfDe(p => ({ ...p, [photoKey]: true }));
+    try {
+      await bajarDelServidor(
+        `/api/admin/patients/${patientId}/photo-pdf?tipo=${photoKey}`,
+        `${baseDeFoto(lastName, firstName, etiqueta)}.pdf`,
+      );
+    } catch {
+      setErrors(p => ({ ...p, [photoKey]: t('photoPdfError') }));
+    } finally {
+      setPdfDe(p => ({ ...p, [photoKey]: false }));
     }
   }
 
@@ -878,15 +908,24 @@ export function ArchivosDialog({
                             * con la sesión de un admin, es un SSRF.
                             */}
                           {!/\.pdf(\?|$)/i.test(url) && (
-                            <a
-                              href={`/api/admin/patients/${patientId}/photo-pdf?tipo=${key}`}
-                              onClick={(e) => e.stopPropagation()}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); void bajarComoPdf(key, label); }}
+                              disabled={pdfDe[key] ?? false}
                               title={t('photoDownloadPdf')}
                               aria-label={t('photoDownloadPdf')}
-                              className="pointer-events-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 hover:bg-white/30 rounded p-1.5"
+                              /* Mientras trabaja se queda VISIBLE aunque el mouse
+                                 se vaya del recuadro: si se desvanece, el que lo
+                                 apretó no tiene forma de saber que está pasando
+                                 algo y vuelve a apretar. */
+                              className={`pointer-events-auto flex items-center transition-opacity bg-white/15 hover:bg-white/30 rounded p-1.5 ${
+                                pdfDe[key] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }`}
                             >
-                              <FileText className="w-3.5 h-3.5 text-white" />
-                            </a>
+                              {pdfDe[key]
+                                ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                                : <FileText className="w-3.5 h-3.5 text-white" />}
+                            </button>
                           )}
                           {!soloLectura && (
                             <>

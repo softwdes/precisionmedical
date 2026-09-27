@@ -5210,7 +5210,8 @@
       "linkContactCancel": "Cancelar",
       "linkContactSharedPhone": "Es un número compartido o de la clínica",
       "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
-      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro."
+      "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
+      "photoPdfError": "No se pudo generar el PDF."
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

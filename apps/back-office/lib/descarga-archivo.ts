@@ -112,9 +112,19 @@ export function nombreDeFoto(
   etiqueta: string,
   url: string,
 ): string {
+  return `${baseDeFoto(apellido, nombre, etiqueta)}.${extensionDeUrl(url)}`;
+}
+
+/**
+ * El mismo nombre, pero con la extensión que le toque a quien llama.
+ *
+ * Existe para el PDF: ahí la extensión NO sale de la URL —la URL apunta a una
+ * imagen y lo que baja es un PDF— así que derivarla de `nombreDeFoto` con un
+ * reemplazo sería adivinar dos veces.
+ */
+export function baseDeFoto(apellido: string, nombre: string, etiqueta: string): string {
   const partes = [apellido, nombre, etiqueta].map(limpiarParaNombre).filter(Boolean);
-  const base = partes.join('-') || 'foto';
-  return `${base}.${extensionDeUrl(url)}`;
+  return partes.join('-') || 'foto';
 }
 
 /**
@@ -130,4 +140,80 @@ function limpiarParaNombre(texto: string): string {
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Bajar un archivo que genera NUESTRO servidor, sin navegar a ningún lado.
+ *
+ * ── Por qué no alcanza un `<a href>` ────────────────────────────────────────
+ *
+ * Un `<a>` apuntado a `/api/…` es una NAVEGACIÓN: el navegador se va a esa URL
+ * y recién cuando llegan las cabeceras descubre que era un adjunto. En una
+ * pestaña normal eso queda disimulado, pero el back-office se usa instalado
+ * como app (PWA) y en ese modo una navegación que sale de la pantalla **abre
+ * una ventana aparte**, que se queda en blanco mientras baja el archivo. Es lo
+ * que reportó Erick el 27-sep-2026 bajando la licencia como PDF: "primero lo
+ * abre en una página nueva y de ahí se baja".
+ *
+ * Con `fetch` no hay navegación: la respuesta se recibe acá, se convierte en un
+ * objeto local y se baja con un `<a download>` de un solo uso. El atributo
+ * `download` sí manda porque la URL es del MISMO origen — que es justo lo
+ * contrario del caso de Storage que resuelve `urlParaDescargar` arriba.
+ *
+ * ── Y el segundo motivo, que importa más ───────────────────────────────────
+ *
+ * Con el `<a>` un error no se veía: el servidor contesta un JSON con el motivo
+ * y el navegador lo mostraba como una página de texto crudo, o no mostraba
+ * nada. Acá el error VUELVE a quien llamó, que puede decirlo en el recuadro.
+ * Generar este PDF puede tardar —hay fotos que se convierten de formato— así
+ * que quien llame debería además mostrar que está trabajando.
+ *
+ * @param nombreDeRespaldo El que se usa si la respuesta no trae nombre propio.
+ * @throws El código de error del servidor (`FOTO_NO_ENCONTRADA`, …) o `HTTP nnn`.
+ */
+export async function bajarDelServidor(url: string, nombreDeRespaldo: string): Promise<void> {
+  const res = await fetch(url, { cache: 'no-store' });
+
+  if (!res.ok) {
+    // El cuerpo trae el motivo; si no se puede leer, queda el código HTTP.
+    let detalle = `HTTP ${res.status}`;
+    try {
+      const j = await res.json() as { error?: string };
+      if (j?.error) detalle = j.error;
+    } catch { /* no era JSON */ }
+    throw new Error(detalle);
+  }
+
+  const blob = await res.blob();
+  const objeto = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = objeto;
+  a.download = nombreDeCabecera(res.headers.get('content-disposition')) ?? nombreDeRespaldo;
+  // Tiene que estar en el documento para que el click cuente en Firefox.
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  /* El objeto NO se libera en el acto: en varios navegadores revocarlo en el
+     mismo turno cancela la descarga que se acaba de disparar. Un minuto es de
+     sobra y el objeto muere con la pestaña de todas formas. */
+  setTimeout(() => URL.revokeObjectURL(objeto), 60_000);
+}
+
+/**
+ * El nombre que eligió el servidor, sacado de `Content-Disposition`.
+ *
+ * Se puede leer porque la respuesta es del mismo origen. Devuelve `null` si la
+ * cabecera no vino o no trae nombre, y ahí manda el de respaldo.
+ */
+function nombreDeCabecera(cabecera: string | null): string | null {
+  if (!cabecera) return null;
+  // `filename*=UTF-8''…` gana sobre `filename="…"` cuando están los dos.
+  const extendido = cabecera.match(/filename\*=UTF-8''([^;]+)/i);
+  if (extendido?.[1]) {
+    try { return decodeURIComponent(extendido[1]); } catch { /* sigue abajo */ }
+  }
+  const simple = cabecera.match(/filename="?([^";]+)"?/i);
+  return simple?.[1]?.trim() || null;
 }

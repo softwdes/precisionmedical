@@ -219,6 +219,9 @@ export async function GET(
       paidAt: p.paidAt ?? p.createdAt,
       serviceCode: b.serviceCode,
       serviceDescription: b.serviceDescription,
+      /** Para colgar el pago de SU visita en la tabla de visitas. La fecha no
+       *  alcanza: dos citas del mismo día serían la misma fila. */
+      appointmentId: b.appointment?.id ?? null,
       appointmentDate: b.appointment?.scheduledFor ?? null,
       clinicName: b.appointment?.clinic?.name ?? null,
       clinicColor: b.appointment?.clinic?.color ?? null,

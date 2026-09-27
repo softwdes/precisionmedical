@@ -28,7 +28,7 @@
  * por nombre, con la factura en la mano.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search, Loader2, ChevronRight, ChevronDown, DollarSign,
@@ -87,6 +87,8 @@ interface PagoDetalle {
   source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
   method: string; paymentType: string | null;
   insuranceCarrier: { id: string; name: string } | null;
+  /** Para colgar el pago de SU visita en la tabla de visitas. */
+  appointmentId: string | null;
   notes: string | null; paidAt: string;
   serviceCode: string | null; serviceDescription: string | null;
   appointmentDate: string | null;
@@ -587,6 +589,14 @@ function FilaPaciente({
   t: Traducir;
   tc: Traducir;
 }) {
+  /**
+   * Qué visita tiene abierto el detalle de SUS pagos.
+   *
+   * Es la flecha que el v2 pone pegada al monto pagado y que Erick reclamó
+   * (27-sep-2026): yo la había hecho solo en el modal de cobro y esta tabla
+   * quedó sin ella, mostrando $764,20 sin forma de ver de dónde salía.
+   */
+  const [pagosDe, setPagosDe] = useState<string | null>(null);
   const nombre = `${f.firstName} ${f.lastName}`.trim();
   const sinDeuda = f.deuda <= 0;
 
@@ -757,7 +767,10 @@ function FilaPaciente({
                       {t('visitsTitle')} <span className="font-normal normal-case">({detalle.visitas.length})</span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full table-fixed text-[11.5px] min-w-[700px]">
+                      {/* `max-w` para que en una pantalla ancha las cifras no queden
+                          a 700px de su fecha: con seis columnas la tabla estirada
+                          deja un hueco en el medio y el ojo no cruza la fila. */}
+                      <table className="w-full max-w-[980px] table-fixed text-[11.5px] min-w-[700px]">
                         <thead>
                           <tr className="text-[10px] uppercase tracking-wider text-text-muted border-b border-row-sep">
                             <th className="text-left py-1.5 pr-3 w-[104px]">{t('vColDate')}</th>
@@ -770,8 +783,15 @@ function FilaPaciente({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-row-sep">
-                          {detalle.visitas.map(v => (
-                            <tr key={`${v.appointmentId ?? 'x'}-${v.caseCode ?? ''}`}>
+                          {detalle.visitas.map(v => {
+                            const clave = `${v.appointmentId ?? 'x'}-${v.caseCode ?? ''}`;
+                            const abiertoPagos = pagosDe === clave;
+                            /* Los pagos de ESTA visita. Por `appointmentId` y no por
+                               fecha: dos citas del mismo día se mezclarían. */
+                            const suyos = detalle.pagos.filter(p => p.appointmentId && p.appointmentId === v.appointmentId);
+                            return (
+                            <Fragment key={clave}>
+                            <tr>
                               <td className="py-1.5 pr-3 whitespace-nowrap font-mono text-text-1">{fmtFecha(v.fecha)}</td>
                               <td className="py-1.5 pr-3">
                                 <span className="flex items-center gap-2 min-w-0">
@@ -798,7 +818,26 @@ function FilaPaciente({
                                 {v.descontado > 0 ? fmt$(v.descontado) : '—'}
                               </td>
                               <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-emerald">
-                                {v.pagado > 0 ? fmt$(v.pagado) : '—'}
+                                {/*
+                                  La flecha del v2, pegada al monto pagado: abre los pagos
+                                  de ESTA visita sin tener que barrer la lista de abajo,
+                                  que es de todo el caso. Solo donde hay algo que abrir —
+                                  una flecha en una fila sin pagos promete lo que no existe.
+                                */}
+                                {v.pagado > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPagosDe(abiertoPagos ? null : clave)}
+                                    aria-expanded={abiertoPagos}
+                                    title={t('vSeePayments')}
+                                    className="inline-flex items-center gap-0.5 font-mono tabular-nums text-emerald hover:underline"
+                                  >
+                                    {fmt$(v.pagado)}
+                                    {abiertoPagos
+                                      ? <ChevronDown className="w-3 h-3" />
+                                      : <ChevronRight className="w-3 h-3" />}
+                                  </button>
+                                ) : '—'}
                               </td>
                               <td className={`py-1.5 pr-3 text-right font-mono tabular-nums font-semibold ${v.deuda > 0 ? 'text-rose' : 'text-text-muted'}`}>
                                 {fmt$(v.deuda)}
@@ -819,7 +858,38 @@ function FilaPaciente({
                                 </Button>
                               </td>
                             </tr>
-                          ))}
+                            {abiertoPagos && suyos.length > 0 && (
+                              <tr>
+                                <td colSpan={7} className="px-0 pb-2">
+                                  <div className="rounded-md bg-emerald/[0.05] px-3 py-2">
+                                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
+                                      {t('vPaymentsOfVisit')}
+                                    </div>
+                                    {suyos.map(p => (
+                                      <div key={p.id} className="flex items-center gap-3 flex-wrap py-0.5">
+                                        <span className="font-mono text-text-2 w-[92px] shrink-0">{fmtFecha(p.paidAt)}</span>
+                                        <span className="font-mono tabular-nums font-semibold text-emerald w-[88px] text-right shrink-0">{fmt$(p.amount)}</span>
+                                        <span className="text-text-2 w-[92px] shrink-0">{t(`source_${p.source}`)}</span>
+                                        <span className="text-text-2 w-[76px] shrink-0">{p.method}</span>
+                                        <span className="text-text-muted min-w-0 truncate" title={p.paymentType ?? undefined}>
+                                          {p.paymentType ?? '—'}
+                                        </span>
+                                        {/* La nota del cobro: es donde cobranza escribe el
+                                            número de cheque y quién pagó. */}
+                                        {p.notes && (
+                                          <span className="basis-full text-[10px] italic text-text-muted truncate" title={p.notes}>
+                                            {p.notes}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

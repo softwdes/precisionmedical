@@ -381,7 +381,9 @@
       "vColDiscount": "Descuento",
       "vColPaid": "Pagado",
       "vColPending": "Pendiente",
-      "vCharges": "{count, plural, one {# cargo} other {# cargos}}"
+      "vCharges": "{count, plural, one {# cargo} other {# cargos}}",
+      "vSeePayments": "Ver los pagos de esta visita",
+      "vPaymentsOfVisit": "Pagos de esta visita"
     },
     "notesAudit": {
       "subtitleProviders": "Cuánto escribió cada provider, y qué dejó abierto.",

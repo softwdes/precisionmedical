@@ -1232,14 +1232,23 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
               {/* A qué se aplicó: el servicio Y la visita. Un monto suelto
                   con su fecha de cobro no dice qué se estaba pagando. */}
               <td className="px-3 py-2.5 text-xs min-w-[200px]">
-                <div className="text-text-2 truncate">
+                {/* Mismo `title` que la lista de /cobranzas: las dos vistas de
+                    Finanzas tienen que dejar leer lo que recortan. */}
+                <div
+                  className="text-text-2 truncate"
+                  title={[p.serviceCode, p.serviceDescription].filter(Boolean).join(' · ') || undefined}
+                >
                   {p.serviceDescription ?? p.serviceCode ?? '—'}
                 </div>
                 <div className="text-[10px] text-text-muted flex items-center gap-2 flex-wrap">
                   <span>{t('historyVisitOf')} {fmtDate(p.appointmentDate)}</span>
                   <SedeDeLaVisita nombre={p.clinicName} color={p.clinicColor} />
                 </div>
-                {p.notes && <div className="text-[10px] italic text-text-muted mt-0.5">{p.notes}</div>}
+                {p.notes && (
+                  <div className="text-[10px] italic text-text-muted mt-0.5 truncate" title={p.notes}>
+                    {p.notes}
+                  </div>
+                )}
               </td>
               <td className="px-3 py-2.5">
                 {/* "Revertir" y no un tacho: el pago NO se borra — queda

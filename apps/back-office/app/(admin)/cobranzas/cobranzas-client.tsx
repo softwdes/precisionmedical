@@ -95,7 +95,20 @@ interface PagoDetalle {
   clinicName: string | null; clinicColor: string | null;
 }
 
-interface Detalle { casos: CasoDetalle[]; pagos: PagoDetalle[] }
+/**
+ * Un renglón por VISITA — la vista del v2 (Erick, 27-sep-2026).
+ *
+ * El caso dice cuánto debe alguien; la visita dice de QUÉ día viene, que es
+ * el nivel al que cobranza concilia contra el remito del seguro.
+ */
+interface VisitaDetalle {
+  appointmentId: string | null; fecha: string | null;
+  caseId: string | null; caseCode: string | null;
+  clinicName: string | null; clinicColor: string | null;
+  total: number; descontado: number; pagado: number; deuda: number; cargos: number;
+}
+
+interface Detalle { casos: CasoDetalle[]; visitas: VisitaDetalle[]; pagos: PagoDetalle[] }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -149,7 +162,10 @@ export function CobranzasClient() {
    * segunda implementación del cobro sería una segunda forma de equivocarse
    * con la plata.
    */
-  const [cobrando, setCobrando] = useState<{ caseId: string; patientId: string } | null>(null);
+  /** `appointmentId` acota el modal a UNA visita — ver la sección de visitas. */
+  const [cobrando, setCobrando] = useState<{
+    caseId: string; patientId: string; appointmentId?: string | null;
+  } | null>(null);
   const finanzasRef = useRef<FinanzasTabHandle>(null);
 
   /** La cara que se está mirando en grande, o `null`. Ver `FotoGrandeDialog`. */
@@ -220,7 +236,15 @@ export function CobranzasClient() {
       const res = await fetch(`/api/admin/cobranzas/${patientId}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setDetalles(prev => ({ ...prev, [patientId]: { casos: data.casos ?? [], pagos: data.pagos ?? [] } }));
+      setDetalles(prev => ({
+        ...prev,
+        [patientId]: {
+          casos:   data.casos   ?? [],
+          // Tolera una respuesta vieja en vuelo durante el despliegue.
+          visitas: data.visitas ?? [],
+          pagos:   data.pagos   ?? [],
+        },
+      }));
     } catch {
       /* La fila desplegada muestra su propio vacío; no se rompe la lista entera. */
     } finally {
@@ -417,6 +441,8 @@ export function CobranzasClient() {
                       onFoto={() => abrirFoto(f)}
                       onCobrar={() => cobrar(f)}
                       onCobrarCaso={(caseId) => setCobrando({ caseId, patientId: f.patientId })}
+                      onCobrarVisita={(caseId, appointmentId) =>
+                        setCobrando({ caseId, patientId: f.patientId, appointmentId })}
                       onRevertir={setRevirtiendo}
                       onCargosCaso={(caseId, caseCode) => setCargosDe({
                         caseId, caseCode,
@@ -502,7 +528,10 @@ export function CobranzasClient() {
       {cobrando && (
         <div className="h-0 overflow-hidden">
           <FinanzasTab
-            key={cobrando.caseId}
+            /* La visita entra en la `key`: cambiar de visita tiene que
+               REMONTAR el tab, no reusarlo con el filtro viejo. */
+            key={`${cobrando.caseId}:${cobrando.appointmentId ?? ''}`}
+            filterAppointmentId={cobrando.appointmentId ?? undefined}
             ref={finanzasRef}
             caseId={cobrando.caseId}
             onChanged={alCobrar}
@@ -539,7 +568,7 @@ export function CobranzasClient() {
 type Traducir = ReturnType<typeof useTranslations>;
 
 function FilaPaciente({
-  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCargosCaso,
+  f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCobrarVisita, onCargosCaso,
   onRevertir, t, tc,
 }: {
   f: Fila;
@@ -551,6 +580,8 @@ function FilaPaciente({
   onCobrar: () => void;
   onCargosCaso: (caseId: string, caseCode: string) => void;
   onCobrarCaso: (caseId: string) => void;
+  /** Cobrar UNA visita: abre el mismo modal acotado a su cita. */
+  onCobrarVisita: (caseId: string, appointmentId: string | null) => void;
   /** Deshacer un cobro desde el desplegable, sin entrar al caso. */
   onRevertir: (pago: PagoARevertir) => void;
   t: Traducir;
@@ -715,6 +746,86 @@ function FilaPaciente({
                   </div>
                 )}
 
+                {/*
+                  Las VISITAS, con las columnas del v2: costo, descuento, pagado
+                  y pendiente. Es el nivel al que cobranza concilia contra el
+                  remito del seguro, y el caso solo no se lo daba.
+                */}
+                {detalle.visitas.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">
+                      {t('visitsTitle')} <span className="font-normal normal-case">({detalle.visitas.length})</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-fixed text-[11.5px] min-w-[700px]">
+                        <thead>
+                          <tr className="text-[10px] uppercase tracking-wider text-text-muted border-b border-row-sep">
+                            <th className="text-left py-1.5 pr-3 w-[104px]">{t('vColDate')}</th>
+                            <th className="text-left py-1.5 pr-3">{t('vColWhere')}</th>
+                            <th className="text-right py-1.5 pr-3 w-[92px]">{t('vColCost')}</th>
+                            <th className="text-right py-1.5 pr-3 w-[92px]">{t('vColDiscount')}</th>
+                            <th className="text-right py-1.5 pr-3 w-[92px]">{t('vColPaid')}</th>
+                            <th className="text-right py-1.5 pr-3 w-[92px]">{t('vColPending')}</th>
+                            <th className="text-right py-1.5 w-[92px]" aria-hidden="true" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-row-sep">
+                          {detalle.visitas.map(v => (
+                            <tr key={`${v.appointmentId ?? 'x'}-${v.caseCode ?? ''}`}>
+                              <td className="py-1.5 pr-3 whitespace-nowrap font-mono text-text-1">{fmtFecha(v.fecha)}</td>
+                              <td className="py-1.5 pr-3">
+                                <span className="flex items-center gap-2 min-w-0">
+                                  {v.caseCode && <span className="font-mono text-cyan shrink-0">{v.caseCode}</span>}
+                                  {/* Mismo punto de color que el resto de Finanzas. */}
+                                  {v.clinicName && (
+                                    <span className="inline-flex items-center gap-1 min-w-0 text-text-muted">
+                                      <span
+                                        className="w-2 h-2 rounded-full shrink-0 ring-1 ring-inset ring-black/20"
+                                        style={{ backgroundColor: v.clinicColor ?? '#6366F1' }}
+                                        aria-hidden="true"
+                                      />
+                                      <span className="truncate" title={v.clinicName}>{v.clinicName}</span>
+                                    </span>
+                                  )}
+                                  <span className="text-text-muted shrink-0">{t('vCharges', { count: v.cargos })}</span>
+                                </span>
+                              </td>
+                              <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-text-2">{fmt$(v.total)}</td>
+                              {/* Lo perdonado se DESPEJA de los otros tres y solo se
+                                  muestra cuando existe: un cero en cada fila es ruido
+                                  en la columna donde se busca la excepción. */}
+                              <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-amber">
+                                {v.descontado > 0 ? fmt$(v.descontado) : '—'}
+                              </td>
+                              <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-emerald">
+                                {v.pagado > 0 ? fmt$(v.pagado) : '—'}
+                              </td>
+                              <td className={`py-1.5 pr-3 text-right font-mono tabular-nums font-semibold ${v.deuda > 0 ? 'text-rose' : 'text-text-muted'}`}>
+                                {fmt$(v.deuda)}
+                              </td>
+                              <td className="py-1.5 text-right">
+                                {/* Abre el MISMO modal de cobro, acotado a esta visita.
+                                    No se reimplementa el cobro acá: una segunda forma de
+                                    mover plata es una segunda forma de equivocarse. */}
+                                <Button
+                                  size="sm"
+                                  variant={v.deuda > 0 ? 'default' : 'outline'}
+                                  disabled={v.deuda <= 0 || !v.caseId}
+                                  title={v.deuda <= 0 ? t('payDisabled') : undefined}
+                                  onClick={() => v.caseId && onCobrarVisita(v.caseId, v.appointmentId)}
+                                  className="whitespace-nowrap"
+                                >
+                                  {t('payDebts')}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 {/* Los pagos ya hechos. */}
                 <div>
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">
@@ -767,9 +878,23 @@ function FilaPaciente({
                                 )}
                               </td>
                               <td className="py-1.5 pr-3 whitespace-nowrap text-text-2">{p.method}</td>
-                              <td className="py-1.5 pr-3 text-text-muted truncate">{p.paymentType ?? '—'}</td>
+                              <td className="py-1.5 pr-3 text-text-muted truncate" title={p.paymentType ?? undefined}>
+                                {p.paymentType ?? '—'}
+                              </td>
                               <td className="py-1.5">
-                                <span className="block text-text-2 truncate">
+                                {/*
+                                  El `title` con el texto ENTERO.
+                                  El recorte ya andaba —`table-fixed` manda los anchos—
+                                  pero una descripción de catálogo se come la columna y
+                                  quedaba ilegible sin forma de abrirla. Un cargo dice
+                                  qué se cobró: cortarlo y no dejar leerlo es esconderlo
+                                  (Erick, 27-sep-2026, mirando un pago de $764,20 con
+                                  cuatro servicios encadenados).
+                                */}
+                                <span
+                                  className="block text-text-2 truncate"
+                                  title={[p.serviceCode, p.serviceDescription].filter(Boolean).join(' · ') || undefined}
+                                >
                                   {p.serviceCode && <span className="font-mono text-cyan mr-1.5">{p.serviceCode}</span>}
                                   {p.serviceDescription ?? '—'}
                                 </span>
@@ -792,7 +917,11 @@ function FilaPaciente({
                                     </span>
                                   )}
                                 </span>
-                                {p.notes && <span className="block text-[10px] italic text-text-muted truncate">{p.notes}</span>}
+                                {p.notes && (
+                                  <span className="block text-[10px] italic text-text-muted truncate" title={p.notes}>
+                                    {p.notes}
+                                  </span>
+                                )}
                               </td>
                               {/* Deshacer el cobro sin salir de la lista. Sin
                                   `caseId` no hay a qué ruta pegarle: los pagos

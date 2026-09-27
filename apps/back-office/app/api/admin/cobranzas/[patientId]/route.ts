@@ -124,6 +124,53 @@ export async function GET(
    * 2026-08-08), y eso incluye no mezclar dos casos: un MVA lo paga el abogado
    * del acuerdo y un GENERAL lo paga el paciente o su seguro de salud.
    */
+  /**
+   * Un renglón por VISITA, que es como lo lee cobranza.
+   *
+   * El caso dice cuánto debe alguien; la visita dice de QUÉ día viene esa
+   * deuda, y es el nivel al que se concilia contra el remito del seguro.
+   * Es la vista del v2 y Erick la pidió de vuelta (27-sep-2026).
+   *
+   * Sale de los MISMOS `cargos` que ya se consultaron: agrupar de nuevo no
+   * cuesta una query más.
+   *
+   * `descontado` se despeja igual que en el resumen por caso —de los otros
+   * tres— y nunca se suma: lo perdonado vive en el PAGO, no en el cargo
+   * (decisión de Erick, 16-sep), así que no hay una columna que leer.
+   */
+  const codigoPorCaso = new Map(casos.map(c => [c.id, c.caseCode]));
+  const porVisita = new Map<string, {
+    appointmentId: string | null; fecha: string | null;
+    caseId: string | null; caseCode: string | null;
+    clinicName: string | null; clinicColor: string | null;
+    total: number; pagado: number; deuda: number; cargos: number;
+  }>();
+  for (const b of cargos) {
+    const cid = b.caseId ?? b.appointment?.caseId ?? null;
+    if (!cid) continue;
+    // Un cargo sin cita no existe hoy —`appointmentId` es obligatorio— pero
+    // los migrados del v2 pueden venir sueltos: se muestran aparte y no se
+    // funden todos en una sola fila fantasma.
+    const key = b.appointment?.id ?? `sin-cita-${b.id}`;
+    const g = porVisita.get(key) ?? {
+      appointmentId: b.appointment?.id ?? null,
+      fecha: b.appointment?.scheduledFor?.toISOString() ?? null,
+      caseId: cid,
+      caseCode: codigoPorCaso.get(cid) ?? null,
+      clinicName: b.appointment?.clinic?.name ?? null,
+      clinicColor: b.appointment?.clinic?.color ?? null,
+      total: 0, pagado: 0, deuda: 0, cargos: 0,
+    };
+    g.total  += Number(b.totalCost);
+    g.pagado += Number(b.amountPaid);
+    g.deuda  += Number(b.balanceDue);
+    g.cargos += 1;
+    porVisita.set(key, g);
+  }
+  const visitas = [...porVisita.values()]
+    .map(v => ({ ...v, descontado: v.total - v.pagado - v.deuda }))
+    .sort((a, z) => new Date(z.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime());
+
   const casosResumen = casos.map(c => {
     const suyos  = porCaso.get(c.id) ?? [];
     const total  = suyos.reduce((s, b) => s + Number(b.totalCost), 0);
@@ -186,6 +233,7 @@ export async function GET(
       lastName: paciente.lastName,
     },
     casos: casosResumen,
+    visitas,
     pagos,
   });
 }

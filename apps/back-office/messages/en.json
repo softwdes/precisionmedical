@@ -373,7 +373,15 @@
       "source_INSURANCE": "Insurance",
       "source_LAWYER": "Attorney",
       "footerCount": "{desde}–{hasta} of {total}",
-      "footerPage": "Page {page} of {pages}"
+      "footerPage": "Page {page} of {pages}",
+      "visitsTitle": "Visits",
+      "vColDate": "Visit date",
+      "vColWhere": "Case and clinic",
+      "vColCost": "Cost",
+      "vColDiscount": "Discount",
+      "vColPaid": "Paid",
+      "vColPending": "Pending",
+      "vCharges": "{count, plural, one {# charge} other {# charges}}"
     },
     "notesAudit": {
       "subtitleProviders": "How much each provider wrote, and what they left open.",

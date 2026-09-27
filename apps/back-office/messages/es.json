@@ -373,7 +373,15 @@
       "source_INSURANCE": "Seguro",
       "source_LAWYER": "Abogado",
       "footerCount": "{desde}–{hasta} de {total}",
-      "footerPage": "Página {page} de {pages}"
+      "footerPage": "Página {page} de {pages}",
+      "visitsTitle": "Visitas",
+      "vColDate": "Fecha de visita",
+      "vColWhere": "Caso y sede",
+      "vColCost": "Costo",
+      "vColDiscount": "Descuento",
+      "vColPaid": "Pagado",
+      "vColPending": "Pendiente",
+      "vCharges": "{count, plural, one {# cargo} other {# cargos}}"
     },
     "notesAudit": {
       "subtitleProviders": "Cuánto escribió cada provider, y qué dejó abierto.",

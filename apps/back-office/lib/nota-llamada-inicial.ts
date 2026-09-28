@@ -84,6 +84,7 @@ export interface DatosLlamadaInicial {
 
 const T = {
   es: {
+    autor:          'Front Office (llamada inicial)',
     llamada:        'Llamada inicial',
     desconocido:    'desconocido',
     tipoDeCaso:     'Tipo de caso',
@@ -108,6 +109,7 @@ const T = {
     } as Record<CaseType, string>,
   },
   en: {
+    autor:          'Front Office (initial call)',
     llamada:        'Initial call',
     desconocido:    'unknown',
     tipoDeCaso:     'Case type',
@@ -203,4 +205,41 @@ export function construirNotaLlamadaInicial(
       : t.citaPendiente,
     lineaFormulario(d, lang),
   ].filter(Boolean).join('\n');
+}
+
+/**
+ * Cómo se firma esta nota en la lista de notas internas.
+ *
+ * Vive acá y no en la ruta porque **es parte de la nota**, no del alta: el
+ * cuerpo ya se escribía en el idioma de quien da el alta desde el 2026-09-01 y
+ * la firma se quedó en castellano duro en `api/admin/cases/route.ts`. El
+ * resultado era una nota con el cuerpo en inglés y el autor en castellano
+ * —"Front Office (llamada inicial)" encima de "Initial call · unknown"—, que es
+ * exactamente lo que fotografió Erick el 2026-09-28.
+ *
+ * Las notas ya escritas se quedan como están, por la misma razón que el cuerpo:
+ * una nota es el registro de lo que se dijo en un momento, no una vista.
+ */
+export function autorNotaLlamadaInicial(lang: Idioma): string {
+  return T[lang].autor;
+}
+
+/**
+ * El idioma del staff que está haciendo la acción, leído de la cookie.
+ *
+ * Estaba escrito adentro de `api/admin/cases/route.ts` y ahora lo usan varias
+ * rutas que ESCRIBEN texto en la base —notas automáticas, avisos del timeline—.
+ * Vive acá, al lado de la primera nota que lo necesitó.
+ *
+ * Se resuelve en el SERVIDOR y no se pide al cliente a propósito: una ruta que
+ * espera que le manden el idioma se rompe en silencio el día que un caller nuevo
+ * se olvida de mandarlo, y el bug vuelve sin que nadie toque este archivo.
+ *
+ * El default es `en`, igual que `i18n/request.ts`: el back-office arranca en
+ * inglés.
+ */
+export async function idiomaDelStaff(): Promise<Idioma> {
+  const { cookies } = await import('next/headers');
+  const store = await cookies();
+  return store.get('locale')?.value === 'es' ? 'es' : 'en';
 }

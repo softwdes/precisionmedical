@@ -474,3 +474,26 @@ export function fechaSolaParaCorreo(fecha: Date, lang: 'es' | 'en'): string {
     ? `${DIAS_CORREO.es[diaSemana]} ${dia} de ${MESES_SMS.es[mes]}. de ${anio}`
     : `${DIAS_CORREO.en[diaSemana]}, ${MESES_SMS.en[mes]} ${dia}, ${anio}`;
 }
+
+/**
+ * La primera letra en mayúscula — y SOLO la primera.
+ *
+ * Existe para reemplazar la clase `capitalize` de Tailwind sobre fechas.
+ * `capitalize` capitaliza CADA palabra, y en castellano eso destroza las
+ * preposiciones de una fecha: `lunes, 28 de sept de 2026, 9:00 a.m.` sale
+ * `Lunes, 28 De Sept De 2026, 9:00 A.M.`. Erick lo reportó el 28-sep-2026 en el
+ * cartel de la sala de espera (`Lun, 28 De Sept`) y el mismo patrón estaba en
+ * cinco lugares más del back-office.
+ *
+ * En inglés no se nota —`Mon, Sep 28` ya viene capitalizado— y por eso vivió
+ * tanto tiempo.
+ *
+ * No se puede resolver con CSS: `::first-letter` solo aplica a contenedores de
+ * bloque y todos estos rótulos son `<span>`.
+ */
+export function primeraMayuscula(texto: string): string;
+export function primeraMayuscula(texto: null | undefined): null;
+export function primeraMayuscula(texto: string | null | undefined): string | null {
+  if (!texto) return null;
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}

@@ -3273,11 +3273,16 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            {/* Los tres textos de estos botones se quedaron en castellano duro
+                cuando `e9bf62d3` (23-sep) tradujo el resto del diálogo: el
+                título, la descripción y el aviso ámbar pasaron a i18n y el pie
+                no. En la versión en inglés quedaban "Cancelar" y "Sí,
+                restaurar" abajo de un texto en inglés (Erick, 28-sep). */}
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setRestoreTarget(null)} disabled={restoring}>
-              Cancelar
+              {t('btnCancel')}
             </Button>
             <Button className="w-full sm:w-auto bg-emerald hover:bg-emerald/90 text-white" onClick={handleRestore} disabled={restoring}>
-              {restoring ? 'Restaurando...' : 'Sí, restaurar'}
+              {restoring ? t('btnRestoring') : t('btnYesRestore')}
             </Button>
           </DialogFooter>
         </DialogContent>

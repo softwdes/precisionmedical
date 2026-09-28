@@ -234,7 +234,7 @@ export function CatalogItemDialog({ open, onClose, item, defaultKind, onSaved }:
               <FormField.Input
                 label={t('field.size')} value={d.sizeLabel ?? ''}
                 onChange={(v) => set('sizeLabel', v || null)}
-                placeholder="any size"
+                placeholder={t("phAnySize")}
               />
             )}
             <FormField.Input

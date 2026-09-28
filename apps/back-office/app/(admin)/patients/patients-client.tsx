@@ -612,6 +612,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
 function CaseQrDialog({ caseId, caseCode, open, onClose }: {
   caseId: string; caseCode: string; open: boolean; onClose: () => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [portalUrl, setPortalUrl]   = useState('');
   const [qrDataUrl, setQrDataUrl]   = useState('');
   const [loading, setLoading]       = useState(false);
@@ -656,7 +657,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <QrCode className="w-4 h-4 text-brand-text" />
-            Patient Access
+            {t("qrDialogTitle")}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs font-mono">
             Case #{caseCode}
@@ -664,8 +665,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
         </DialogHeader>
 
         <p className="text-[11px] text-text-muted leading-relaxed -mt-1">
-          Share this QR code or link with the patient so they can securely complete
-          or update their registration information.
+          {t("qrDialogHint")}
         </p>
 
         {loading && (
@@ -681,7 +681,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
               <button
                 onClick={handleCopy}
                 className="p-1 rounded text-text-muted hover:text-brand-text transition-colors shrink-0"
-                title="Copy link"
+                title={t("qrCopyLink")}
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -689,21 +689,21 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
 
             {qrDataUrl && (
               <div className="flex justify-center">
-                <img src={qrDataUrl} alt="QR Code" className="rounded-lg w-[220px] h-[220px]" />
+                <img src={qrDataUrl} alt={t("qrAlt")} className="rounded-lg w-[220px] h-[220px]" />
               </div>
             )}
           </>
         )}
 
         {!loading && !portalUrl && (
-          <div className="text-[11px] text-rose text-center py-4">Could not generate the link.</div>
+          <div className="text-[11px] text-rose text-center py-4">{t("qrLinkError")}</div>
         )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Close</Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t("btnClose")}</Button>
           {qrDataUrl && (
             <Button className="w-full sm:w-auto" onClick={handleDownload}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Download QR
+              <Download className="w-3.5 h-3.5 mr-1" /> {t("btnDownloadQr")}
             </Button>
           )}
         </DialogFooter>
@@ -1800,7 +1800,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             />
             {false && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-brand-text font-medium animate-pulse">
-                Buscando…
+                {t("searching")}
               </span>
             )}
           </div>
@@ -2671,7 +2671,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           {viewTarget && (
             <div className="space-y-4 text-sm">
               <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Contacto</p>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t("viewContact")}</p>
                 {/* Con `viewTarget.phone &&` acá afuera, un paciente que tiene
                     SOLO celular no mostraba ningún teléfono: la condición miraba
                     el fijo y se llevaba puesto al `phone2` de adentro. */}
@@ -2700,7 +2700,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
               {(viewTarget.accidentDate || viewTarget.accidentType) && (
                 <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Accidente</p>
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t("viewAccident")}</p>
                   <div className="flex items-center gap-2 text-text-2">
                     <Car className="w-3.5 h-3.5 text-text-muted" />
                     <span>{fechaCalendario(viewTarget.accidentDate)}</span>
@@ -2726,7 +2726,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                   Es el mismo defecto que tenía el formulario de edición. */}
               {(viewTarget.guardianPatient || viewTarget.guardianName) && (
                 <div className="rounded-md bg-amber/10 border border-amber/30 p-3 space-y-2">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-amber">Responsable legal</p>
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-amber">{t("viewGuardian")}</p>
                   <div className="flex items-center gap-2 text-text-2 flex-wrap">
                     <UserCheck className="w-3.5 h-3.5 text-amber" />
                     <span>
@@ -3294,7 +3294,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           <DialogHeader className="px-4 py-3 border-b border-border flex-row items-center justify-between shrink-0">
             <DialogTitle className="text-text-1 text-sm flex items-center gap-2">
               <Printer className="w-4 h-4 text-amber" />
-              Patient Intake Form
+              {t("intakePdfTitle")}
             </DialogTitle>
           </DialogHeader>
           {pdfCaseId && (
@@ -3302,7 +3302,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               src={`/api/admin/cases/${pdfCaseId}/pdf`}
               className="w-full flex-1"
               style={{ height: 'calc(90vh - 57px)', border: 'none' }}
-              title="Patient Intake Form"
+              title={t("intakePdfTitle")}
             />
           )}
         </DialogContent>

@@ -237,6 +237,7 @@ function ActionForm({
   onCancel:   () => void;
   loading:    boolean;
 }) {
+  const t  = useTranslations('phoenix.seguimiento');
   const tc = useTranslations('phoenix.common');
   const [content, setContent] = useState('');
   const [amount,  setAmount]  = useState('');
@@ -245,10 +246,10 @@ function ActionForm({
   useEffect(() => { textRef.current?.focus(); }, []);
 
   const config = {
-    call:    { title: '📞 Registrar llamada al bufete',    placeholder: 'Ej: Mary Smith no disponible, dejé mensaje con asistente Jane…', needsAmount: false },
-    email:   { title: '📧 Registrar email enviado',        placeholder: 'Ej: Envié HCFA + balance a mary@smithjohnson.com…',              needsAmount: false },
-    payment: { title: '💰 Registrar pago parcial',         placeholder: 'Ej: Cheque recibido de Smith & Johnson LLP…',                    needsAmount: true  },
-    escalate:{ title: '🚨 Escalar a Brunella',             placeholder: 'Ej: Sin respuesta después de 3 intentos, necesita atención…',    needsAmount: false },
+    call:    { title: t("logCallTitle"),     placeholder: t("logCallPlaceholder"),     needsAmount: false },
+    email:   { title: t("logEmailTitle"),    placeholder: t("logEmailPlaceholder"),    needsAmount: false },
+    payment: { title: t("logPaymentTitle"),  placeholder: t("logPaymentPlaceholder"),  needsAmount: true  },
+    escalate:{ title: t("logEscalateTitle"), placeholder: t("logEscalatePlaceholder"), needsAmount: false },
   };
 
   const cfg = config[type as NonNullable<ActiveAction>];
@@ -278,7 +279,7 @@ function ActionForm({
       {cfg.needsAmount && (
         <div>
           <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">
-            Monto recibido (USD)
+            {t("fieldAmountUsd")}
           </label>
           <input
             type="number"
@@ -293,7 +294,7 @@ function ActionForm({
       )}
 
       <div>
-        <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">Notas</label>
+        <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">{t("fieldNotes")}</label>
         <textarea
           ref={textRef}
           value={content}
@@ -310,7 +311,7 @@ function ActionForm({
           onClick={onCancel}
           className="rounded-lg border border-border px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 transition-colors"
         >
-          Cancelar
+          {tc("cancel")}
         </button>
         <button
           type="submit"
@@ -406,7 +407,7 @@ export function SeguimientoDetailClient() {
           onClick={() => router.push('/intake/seguimiento')}
           className="flex items-center gap-2 text-[13px] text-text-muted hover:text-text-1 mb-6"
         >
-          <ArrowLeft className="w-4 h-4" /> Volver a Seguimiento
+          <ArrowLeft className="w-4 h-4" /> {t("backToFollowUp")}
         </button>
         <div className="rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-[13px] text-rose">
           {error ?? t('errNotFoundDot')}
@@ -449,7 +450,7 @@ export function SeguimientoDetailClient() {
           className="flex items-center gap-1.5 text-[13px] text-text-muted hover:text-text-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Seguimiento
+          {t("breadcrumb")}
         </button>
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-[12px] text-text-muted hidden sm:block">{c.caseCode}</span>
@@ -504,7 +505,7 @@ export function SeguimientoDetailClient() {
             </div>
 
             <div className="text-right shrink-0">
-              <div className="text-[9px] uppercase tracking-widest text-text-muted mb-0.5">Pendiente</div>
+              <div className="text-[9px] uppercase tracking-widest text-text-muted mb-0.5">{t("kpiPending")}</div>
               <div className={`font-mono font-black text-[20px] sm:text-2xl ${amountColor}`}>
                 {financial.totalPendingFmt}
               </div>
@@ -517,9 +518,9 @@ export function SeguimientoDetailClient() {
 
         {/* ── Financial Summary ────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2.5">
-          <FinancialCard label="Facturado"  value={financial.totalBilledFmt}    tone="brand"   />
-          <FinancialCard label="Cobrado"    value={financial.totalCollectedFmt} tone="emerald" />
-          <FinancialCard label="Pendiente"  value={financial.totalPendingFmt}   tone="rose"    />
+          <FinancialCard label={t("kpiBilled")}    value={financial.totalBilledFmt}    tone="brand"   />
+          <FinancialCard label={t("kpiCollected")} value={financial.totalCollectedFmt} tone="emerald" />
+          <FinancialCard label={t("kpiPending")}   value={financial.totalPendingFmt}   tone="rose"    />
         </div>
 
         {/* ── Attorney Contact ─────────────────────────────────────────────── */}
@@ -621,35 +622,35 @@ export function SeguimientoDetailClient() {
         >
           <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
             <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden sm:block">
-              Acciones:
+              {t("actionsLabel")}
             </span>
             <button
               type="button"
               onClick={() => setActiveAction('call')}
               className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand-text hover:bg-brand/20 transition-all"
             >
-              <Phone className="w-3.5 h-3.5" /> Llamar bufete
+              <Phone className="w-3.5 h-3.5" /> {t("actionCallFirm")}
             </button>
             <button
               type="button"
               onClick={() => setActiveAction('email')}
               className="flex items-center gap-1.5 rounded-lg bg-brand/10 border border-brand/30 px-3 py-1.5 text-[11px] font-semibold text-brand-text hover:bg-brand/20 transition-all"
             >
-              <Mail className="w-3.5 h-3.5" /> Enviar recordatorio
+              <Mail className="w-3.5 h-3.5" /> {t("actionSendReminder")}
             </button>
             <button
               type="button"
               onClick={() => setActiveAction('payment')}
               className="flex items-center gap-1.5 rounded-lg bg-emerald/10 border border-emerald/30 px-3 py-1.5 text-[11px] font-semibold text-emerald hover:bg-emerald/20 transition-all"
             >
-              <DollarSign className="w-3.5 h-3.5" /> Pago parcial
+              <DollarSign className="w-3.5 h-3.5" /> {t("actionPartialPayment")}
             </button>
             <button
               type="button"
               onClick={() => setActiveAction('escalate')}
               className="flex items-center gap-1.5 rounded-lg bg-rose/10 border border-rose/30 px-3 py-1.5 text-[11px] font-semibold text-rose hover:bg-rose/20 transition-all"
             >
-              <AlertOctagon className="w-3.5 h-3.5" /> Escalar a Brunella
+              <AlertOctagon className="w-3.5 h-3.5" /> {t("actionEscalate")}
             </button>
           </div>
         </div>

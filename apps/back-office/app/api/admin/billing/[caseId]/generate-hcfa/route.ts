@@ -10,6 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { idiomaDelStaff } from '@/lib/nota-llamada-inicial';
 
 export async function POST(
   req: NextRequest,
@@ -41,14 +42,20 @@ export async function POST(
   }
 
   const insurerName = c.primaryInsurance?.name ?? 'Aseguradora';
-  const content = `🤖 HCFA CMS-1500 generado y enviado electrónicamente a ${insurerName} · Ref: HCFA-${c.caseCode}-${Date.now().toString(36).toUpperCase()}`;
+  /* La nota queda ESCRITA en la base, así que se redacta en el idioma de quien
+     la generó — mismo criterio que la nota de llamada inicial. */
+  const lang = await idiomaDelStaff();
+  const ref = `HCFA-${c.caseCode}-${Date.now().toString(36).toUpperCase()}`;
+  const content = lang === 'en'
+    ? `🤖 HCFA CMS-1500 generated and sent electronically to ${insurerName} · Ref: ${ref}`
+    : `🤖 HCFA CMS-1500 generado y enviado electrónicamente a ${insurerName} · Ref: ${ref}`;
 
   const note = await db.caseNote.create({
     data: {
       caseId,
       content,
       isPrivate:   true,
-      authorName:  'Sistema',
+      authorName:  lang === 'en' ? 'System' : 'Sistema',
     },
     select: { id: true, createdAt: true },
   });

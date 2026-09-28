@@ -138,6 +138,9 @@ const COPY = {
     errorTitle:  'Algo salió mal',
     errorSub:    'Por favor pídele ayuda a la recepción.',
     retry:       'Intentar de nuevo',
+    firstPH:     'María',
+    lastPH:      'García',
+    hipaa:       '🔒 Tu información está protegida bajo HIPAA. No la compartimos sin tu consentimiento. · Your information is protected under HIPAA. We do not share it without your consent.',
   },
   en: {
     title:       'Welcome / Bienvenido',
@@ -153,6 +156,9 @@ const COPY = {
     errorTitle:  'Something went wrong',
     errorSub:    'Please ask the front desk for help.',
     retry:       'Try again',
+    firstPH:     'Mary',
+    lastPH:      'Smith',
+    hipaa:       '🔒 Your information is protected under HIPAA. We do not share it without your consent. · Tu información está protegida bajo HIPAA. No la compartimos sin tu consentimiento.',
   },
 } as const;
 
@@ -270,7 +276,7 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
           autoComplete="given-name"
           value={firstName}
           onChange={e => setFirstName(e.target.value)}
-          placeholder="María"
+          placeholder={c.firstPH}
           required
         />
 
@@ -281,7 +287,7 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
           autoComplete="family-name"
           value={lastName}
           onChange={e => setLastName(e.target.value)}
-          placeholder="García"
+          placeholder={c.lastPH}
           required
         />
 
@@ -306,7 +312,7 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
       </form>
 
       <div style={{ marginTop: 28, fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'center', maxWidth: 360, lineHeight: 1.7 }}>
-        🔒 Tu información está protegida bajo HIPAA. No compartimos tu información sin tu consentimiento.
+        {c.hipaa}
       </div>
     </div>
   );

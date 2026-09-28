@@ -142,7 +142,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {query.length >= 2 && totalResults === 0 && !loading && (
             <Command.Empty className="px-3 py-12 text-center text-text-muted text-sm">
-              No se encontró nada para "<span className="text-text-1 font-mono">{query}</span>"
+              {t.rich("emptyFor", { q: query, m: (c) => <span className="text-text-1 font-mono">{c}</span> })}
             </Command.Empty>
           )}
 
@@ -174,7 +174,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Specialties */}
           {results.specialties.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={Stethoscope} label="Especialidades" count={results.specialties.length} />}>
+            <Command.Group heading={<GroupHeading icon={Stethoscope} label={t("groupSpecialties")} count={results.specialties.length} />}>
               {results.specialties.map((sp) => (
                 <ResultItem
                   key={sp.id}
@@ -184,7 +184,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: sp.color, boxShadow: `0 0 8px ${sp.color}80` }} />
                   }
                   title={sp.name}
-                  subtitle="Especialidad"
+                  subtitle={t("itemSpecialty")}
                 />
               ))}
             </Command.Group>
@@ -212,7 +212,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Insurances */}
           {results.insurances.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={ShieldCheck} label="Aseguradoras" count={results.insurances.length} />}>
+            <Command.Group heading={<GroupHeading icon={ShieldCheck} label={t("groupInsurances")} count={results.insurances.length} />}>
               {results.insurances.map((ins) => (
                 <ResultItem
                   key={ins.id}
@@ -232,7 +232,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* Services */}
           {results.services.length > 0 && (
-            <Command.Group heading={<GroupHeading icon={DollarSign} label="Servicios CPT" count={results.services.length} />}>
+            <Command.Group heading={<GroupHeading icon={DollarSign} label={t("groupServices")} count={results.services.length} />}>
               {results.services.map((s) => (
                 <ResultItem
                   key={s.id}
@@ -265,8 +265,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <div className="border-t border-border px-4 py-2 text-[10px] text-text-2 flex items-center justify-between">
           <span>
-            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono">↑↓</kbd> navegar
-            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono ml-2">↵</kbd> abrir
+            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono">↑↓</kbd> {t("kbdNavigate")}
+            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono ml-2">↵</kbd> {t("kbdOpen")}
           </span>
           <span>Phoenix Global Search · B.34</span>
         </div>

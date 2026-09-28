@@ -29,7 +29,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
       if (resetError) { setError(resetError.message); return; }
       setSent(true);
     } catch {
-      setError('Could not send. Check your connection and try again.');
+      setError(tm('fpErrNetwork'));
     } finally {
       setLoading(false);
     }
@@ -47,10 +47,10 @@ export default function ForgotPasswordPage(): React.ReactElement {
               <span style={{color:'#0a0a0a',fontWeight:900,fontSize:20,letterSpacing:'-0.02em'}}>PM</span>
             </div>
             <h1 style={{color:'#F1F5FF',fontSize:18,fontWeight:700,margin:'0 0 4px',letterSpacing:'-0.02em'}}>
-              {sent ? 'Email sent' : 'Reset password'}
+              {sent ? tm('fpTitleSent') : tm('fpTitle')}
             </h1>
             <p style={{color:'#4A5474',fontSize:12,margin:0}}>
-              {sent ? `Revisá tu bandeja de entrada` : 'Te enviaremos un link de acceso'}
+              {sent ? tm('fpSubSent') : tm('fpSub')}
             </p>
           </div>
 
@@ -61,13 +61,13 @@ export default function ForgotPasswordPage(): React.ReactElement {
                 <CheckCircle size={28} color="#10B981" />
               </div>
               <p style={{color:'#8B9CC8',fontSize:13,lineHeight:1.6,marginBottom:20}}>
-                Si <strong style={{color:'#F1F5FF'}}>{email}</strong> tiene una cuenta activa, recibirás un email con el link para crear tu nueva contraseña.
+                {tm.rich('fpSentBody', { email, b: (c) => <strong style={{color:'#F1F5FF'}}>{c}</strong> })}
               </p>
               <p style={{color:'#4A5474',fontSize:11,marginBottom:24}}>
-                Revisá también tu carpeta de spam.
+                {tm('fpSpam')}
               </p>
               <a href="/login" style={{display:'inline-flex',alignItems:'center',gap:6,color:'#F59E0B',fontSize:13,fontWeight:600,textDecoration:'none'}}>
-                <ArrowLeft size={14}/> Volver al login
+                <ArrowLeft size={14}/> {tm('fpBackToLogin')}
               </a>
             </div>
           ) : (
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
                   <Mail size={15} color="#F59E0B" style={{flexShrink:0}}/>
                   <input
                     type="email" required autoFocus
-                    placeholder="tu@email.com"
+                    placeholder={tm('fpEmailPlaceholder')}
                     value={email} onChange={e => setEmail(e.target.value)}
                     style={{flex:1,background:'none',border:'none',outline:'none',color:'#F1F5FF',fontSize:14,fontFamily:'inherit'}}
                   />
@@ -95,13 +95,13 @@ export default function ForgotPasswordPage(): React.ReactElement {
 
               {/* Submit */}
               <button type="submit" disabled={loading} style={{width:'100%',background:'linear-gradient(135deg,#F59E0B 0%,#D97706 100%)',borderRadius:10,padding:'12px 16px',color:'#0a0a0a',fontWeight:700,fontSize:14,border:'none',cursor:loading?'not-allowed':'pointer',opacity:loading?0.8:1,fontFamily:'inherit',marginBottom:16}}>
-                {loading ? tm('sending') : 'Enviar link de acceso →'}
+                {loading ? tm('sending') : tm('fpSubmit')}
               </button>
 
               {/* Back */}
               <div style={{textAlign:'center'}}>
                 <a href="/login" style={{display:'inline-flex',alignItems:'center',gap:6,color:'#4A5474',fontSize:12,fontWeight:500,textDecoration:'none'}}>
-                  <ArrowLeft size={12}/> Volver al login
+                  <ArrowLeft size={12}/> {tm('fpBackToLogin')}
                 </a>
               </div>
             </form>

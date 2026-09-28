@@ -392,12 +392,12 @@ export function PreCallStep({
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
             <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">{t('cancel')}</Button>
             <Button variant="outline" onClick={handleStartCall} className="w-full sm:w-auto">
-              Continuar sin llamar
+              {t("btnContinueNoCall")}
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
             <Button onClick={handleCallExisting} disabled={!selectedPatient.phone} className="w-full sm:w-auto">
               <Phone className="w-3.5 h-3.5 mr-1" />
-              Llamar
+              {t("btnCall")}
             </Button>
           </div>
         ) : (

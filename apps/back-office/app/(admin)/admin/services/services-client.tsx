@@ -494,7 +494,7 @@ function ServiceDialog({
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
-              placeholder="Notas operativas privadas..."
+              placeholder={t("phInternalNotes")}
             />
           </div>
 

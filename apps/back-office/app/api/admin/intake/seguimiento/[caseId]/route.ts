@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { nombreProviderO } from '@/lib/provider-name';
+import { idiomaDelStaff } from '@/lib/nota-llamada-inicial';
 
 /**
  * B.24 — Detalle de seguimiento del caso
@@ -95,6 +96,7 @@ export async function GET(
   ctx: { params: Promise<{ caseId: string }> },
 ) {
   const { caseId } = await ctx.params;
+  const lang = await idiomaDelStaff();
 
   const raw = await db.case.findUnique({
     where:  { id: caseId },
@@ -232,9 +234,13 @@ export async function GET(
       id:         `urgent-${caseId}`,
       type:       'urgent',
       date:       urgentDate.toISOString(),
-      title:      'Caso escaló a urgente automáticamente',
-      subtitle:   'Superó 60 días sin cobrar. Pendiente acción inmediata.',
-      authorName: 'Sistema',
+      /* Este item NO se guarda: se calcula en cada pedido. Por eso se traduce
+         acá y no se congela en la base como las notas. */
+      title:      lang === 'en' ? 'Case escalated to urgent automatically' : 'Caso escaló a urgente automáticamente',
+      subtitle:   lang === 'en'
+        ? 'Over 60 days uncollected. Immediate action pending.'
+        : 'Superó 60 días sin cobrar. Pendiente acción inmediata.',
+      authorName: lang === 'en' ? 'System' : 'Sistema',
     });
   }
 

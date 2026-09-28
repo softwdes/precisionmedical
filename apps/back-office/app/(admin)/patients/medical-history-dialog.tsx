@@ -1784,7 +1784,7 @@ function AllergiesEditDialog({
         <div className="px-6 pb-5 flex flex-col sm:flex-row gap-2 justify-end">
           <button onClick={onClose} disabled={isPending}
             className="w-full sm:w-auto px-4 py-2 rounded-md border border-border text-sm text-text-2 hover:bg-white/5 disabled:opacity-50 transition-colors">
-            Cancelar
+            {tc("cancel")}
           </button>
           <button onClick={handleSave} disabled={isPending}
             className="w-full sm:w-auto px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">

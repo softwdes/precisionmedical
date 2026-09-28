@@ -13,7 +13,8 @@ import { QrCode, CheckCircle2, AlertCircle, Trash2, Loader2 } from 'lucide-react
 type Step = 'idle' | 'enrolling' | 'verifying' | 'done';
 
 export default function SecuritySettingsPage() {
-  const t = useTranslations('phoenix.security');
+  const t  = useTranslations('phoenix.security');
+  const tc = useTranslations('phoenix.common');
   const supabase = createClient();
 
   const [enrolled,    setEnrolled]    = useState(false);
@@ -52,7 +53,7 @@ export default function SecuritySettingsPage() {
     setLoading(true);
     try {
       const { data, error: err } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Authenticator App' });
-      if (err || !data) { setError(err?.message ?? 'Error al iniciar enrollment.'); return; }
+      if (err || !data) { setError(err?.message ?? t('errEnroll')); return; }
 
       setFactorId(data.id);
       setQrUri(data.totp.qr_code);
@@ -60,11 +61,11 @@ export default function SecuritySettingsPage() {
 
       // Start a challenge so the user can verify immediately
       const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: data.id });
-      if (chErr || !ch) { setError('Error al iniciar desafío.'); return; }
+      if (chErr || !ch) { setError(t('errChallenge')); return; }
       setChallengeId(ch.id);
       setStep('verifying');
     } catch {
-      setError('Error de conexión.');
+      setError(t('errNetwork'));
     } finally {
       setLoading(false);
     }
@@ -81,11 +82,11 @@ export default function SecuritySettingsPage() {
         challengeId,
         code: code.replace(/\s/g, ''),
       });
-      if (err) { setError('Código inválido. Verificá tu app y volvé a intentar.'); return; }
+      if (err) { setError(t('errCode')); return; }
       setEnrolled(true);
       setStep('done');
     } catch {
-      setError('Error de conexión.');
+      setError(t('errNetwork'));
     } finally {
       setLoading(false);
     }
@@ -103,7 +104,7 @@ export default function SecuritySettingsPage() {
       setFactorId('');
       setStep('idle');
     } catch {
-      setError('Error de conexión.');
+      setError(t('errNetwork'));
     } finally {
       setLoading(false);
     }
@@ -112,9 +113,9 @@ export default function SecuritySettingsPage() {
   if (pageLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-text-1">Seguridad</h1>
+        <h1 className="text-2xl font-bold text-text-1">{t('pageTitle')}</h1>
         <div className="flex items-center gap-2 text-text-muted text-sm mt-8">
-          <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+          <Loader2 className="w-4 h-4 animate-spin" /> {tc('loading')}
         </div>
       </div>
     );
@@ -122,7 +123,7 @@ export default function SecuritySettingsPage() {
 
   return (
     <div className="p-6 max-w-2xl">
-      <h1 className="text-2xl font-bold text-text-1">Seguridad</h1>
+      <h1 className="text-2xl font-bold text-text-1">{t('pageTitle')}</h1>
 
       <div className="mt-6 rounded-lg border border-border bg-bg-1 p-5">
         {/* Header */}
@@ -131,17 +132,17 @@ export default function SecuritySettingsPage() {
           <div>
             <p className="text-sm font-semibold text-text-1">{t('mfaTitle')}</p>
             <p className="text-[11px] text-text-muted mt-0.5">
-              Protege tu cuenta con Google Authenticator, Authy, o cualquier app TOTP compatible.
+              {t('mfaSubtitle')}
             </p>
           </div>
           <div className="ml-auto">
             {enrolled ? (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald/10 border border-emerald/30 text-emerald uppercase tracking-wider">
-                Activo
+                {t('statusActive')}
               </span>
             ) : (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber/10 border border-amber/30 text-amber uppercase tracking-wider">
-                No configurado
+                {t('statusNotSet')}
               </span>
             )}
           </div>
@@ -162,7 +163,7 @@ export default function SecuritySettingsPage() {
               className="flex items-center gap-2 w-fit text-[12px] text-rose border border-rose/30 rounded-md px-3 py-1.5 bg-rose/5 hover:bg-rose/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Eliminar autenticador
+              {t('btnRemove')}
             </button>
           </div>
         ) : step === 'verifying' ? (
@@ -170,17 +171,17 @@ export default function SecuritySettingsPage() {
             {/* QR + secret */}
             <div className="rounded-md bg-bg-2/40 border border-border/40 p-4">
               <p className="text-[11px] text-text-muted mb-3">
-                1. Abrí tu app autenticadora y escaneá el código QR, o ingresá la clave manualmente.
+                {t('step1')}
               </p>
               {qrUri && (
                 <div className="flex flex-col items-center gap-3 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrUri} alt="QR MFA" className="w-40 h-40 rounded-md border border-border bg-white p-1" />
+                  <img src={qrUri} alt={t('qrAlt')} className="w-40 h-40 rounded-md border border-border bg-white p-1" />
                 </div>
               )}
               {secret && (
                 <div>
-                  <p className="text-[10px] text-text-muted mb-1 uppercase tracking-wider">Clave manual</p>
+                  <p className="text-[10px] text-text-muted mb-1 uppercase tracking-wider">{t('manualKey')}</p>
                   <code className="text-xs font-mono bg-bg-2 border border-border rounded px-2 py-1 tracking-widest text-brand-text break-all">
                     {secret}
                   </code>
@@ -190,7 +191,7 @@ export default function SecuritySettingsPage() {
 
             <div>
               <p className="text-[11px] text-text-muted mb-2">
-                2. Ingresá el código de 6 dígitos que muestra tu app para confirmar.
+                {t('step2')}
               </p>
               <input
                 type="text"
@@ -219,21 +220,21 @@ export default function SecuritySettingsPage() {
                 disabled={loading || code.replace(/\s/g,'').length < 6}
                 className="px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold disabled:opacity-50"
               >
-                {loading ? 'Verificando…' : 'Activar MFA'}
+                {loading ? t('btnVerifying') : t('btnActivate')}
               </button>
               <button
                 type="button"
                 onClick={() => { setStep('idle'); setCode(''); setQrUri(''); setSecret(''); }}
                 className="px-4 py-2 rounded-md border border-border text-text-muted text-sm"
               >
-                Cancelar
+                {tc('cancel')}
               </button>
             </div>
           </form>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-[12px] text-text-muted">
-              Agregá una capa extra de seguridad. Necesitarás tu app autenticadora cada vez que inicies sesión.
+              {t('mfaPitch')}
             </p>
             {error && (
               <div className="flex items-center gap-2 text-rose text-[12px]">
@@ -246,7 +247,7 @@ export default function SecuritySettingsPage() {
               className="flex items-center gap-2 w-fit px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-              Configurar autenticador
+              {t('btnSetUp')}
             </button>
           </div>
         )}
@@ -254,7 +255,7 @@ export default function SecuritySettingsPage() {
 
       {/* HIPAA note */}
       <div className="mt-4 rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-[11px] text-cyan">
-        HIPAA · MFA es requerido para acceso a registros PHI bajo 45 CFR § 164.312(d).
+        {t('hipaaNote')}
       </div>
     </div>
   );

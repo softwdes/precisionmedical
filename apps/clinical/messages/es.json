@@ -2,6 +2,8 @@
   "clinical": {
     "common": {
       "saving": "Guardando...",
+      "noteSignedBy": "Nota firmada por {quien}",
+      "noteSignedByAt": "Nota firmada por {quien} el {fecha} a las {hora}",
       "saved": "Guardado",
       "cancel": "Cancelar",
       "save": "Guardar",

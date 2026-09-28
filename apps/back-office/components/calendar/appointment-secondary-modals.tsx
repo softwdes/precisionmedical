@@ -197,8 +197,8 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       onClose={onClose}
       footer={
         <>
-          {lawyer.phone && <ActionBtn href={lawyer.phone} label="Call" color="#fda4af" tel />}
-          {lawyer.email && <ActionBtn label="Email" color="#fda4af" />}
+          {lawyer.phone && <ActionBtn href={lawyer.phone} label={t("actionCall")} color="#fda4af" tel />}
+          {lawyer.email && <ActionBtn label={t("actionEmail")} color="#fda4af" />}
         </>
       }
     >
@@ -284,16 +284,16 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
           FR
         </div>
         <div>
-          <div className="text-text-1 font-bold text-sm">Front Office</div>
+          <div className="text-text-1 font-bold text-sm">{t("frontOfficeLabel")}</div>
           <div className="text-text-muted text-xs">{t('callHandlerRoleLabel')} · {appt.clinic.name}</div>
         </div>
       </div>
-      <DataRow label="Clinic"               value={appt.clinic.name} />
+      <DataRow label={t("rowClinic")} value={appt.clinic.name} />
       <DataRow label={t('rowChannel')}      value={`📞 ${t('channelInboundCall')}`} />
       <DataRow label={t('rowAppointmentScheduled')} value={t('scheduledOnSameCall')} highlight />
       <div className="pt-2 text-[11px] text-text-muted rounded-md px-3 py-2 border border-border"
         style={{ background: 'rgba(255,255,255,0.02)' }}>
-        📜 Detailed audit log available in Phase 1B (requires call audit table).
+        {t("auditPhase1bNote")}
       </div>
     </ModalShell>
   );

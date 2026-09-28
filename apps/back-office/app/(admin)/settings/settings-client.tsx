@@ -202,9 +202,9 @@ export function SettingsClient({
   }
 
   async function handleCreate() {
-    if (!form.name.trim()) return setError('El nombre de la clínica es requerido.');
-    if (!form.state)       return setError('Selecciona un estado.');
-    if (!form.city)        return setError('Selecciona una ciudad.');
+    if (!form.name.trim()) return setError(t('errNameRequired'));
+    if (!form.state)       return setError(t('errPickState'));
+    if (!form.city)        return setError(t('errPickCity'));
     setError(null); setSaving(true);
     try {
       const res = await fetch('/api/admin/clinics', {
@@ -221,8 +221,8 @@ export function SettingsClient({
 
   async function handleEdit() {
     if (!editing) return;
-    if (!form.state) return setError('Selecciona un estado.');
-    if (!form.city)  return setError('Selecciona una ciudad.');
+    if (!form.state) return setError(t('errPickState'));
+    if (!form.city)  return setError(t('errPickCity'));
     setError(null); setSaving(true);
     try {
       const res = await fetch(`/api/admin/clinics/${editing.id}`, {
@@ -315,7 +315,7 @@ export function SettingsClient({
                 <table className="w-full text-sm min-w-[800px]">
                   <thead>
                     <tr className="border-b border-border bg-bg-2/40">
-                      {['Color','Nombre','Teléfono','Celular','Correo','Estado','Ciudad','Código postal','Acciones'].map((h) => (
+                      {[t('fieldColor'), t('fieldName'), t('fieldPhone'), t('fieldMobile'), t('fieldEmail'), t('fieldState'), t('fieldCity'), t('fieldZip'), t('colActions')].map((h) => (
                         <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -366,8 +366,8 @@ export function SettingsClient({
 
       {/* ── Clinic form dialog (shared for create + edit) ── */}
       {[
-        { open: createOpen, onClose: () => setCreateOpen(false), title: 'Nueva clínica', onSave: handleCreate, saveLabel: 'Crear clínica' },
-        { open: !!editing,  onClose: () => setEditing(null),     title: 'Editar clínica', onSave: handleEdit,  saveLabel: 'Guardar cambios' },
+        { open: createOpen, onClose: () => setCreateOpen(false), title: t('dlgNewClinic'),  onSave: handleCreate, saveLabel: t('btnCreateClinic') },
+        { open: !!editing,  onClose: () => setEditing(null),     title: t('dlgEditClinic'), onSave: handleEdit,  saveLabel: tc('saveChanges') },
       ].map(({ open, onClose, title, onSave, saveLabel }) => (
         <Dialog key={title} open={open} onOpenChange={(o) => !o && onClose()}>
           <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
@@ -385,7 +385,7 @@ export function SettingsClient({
 
               {/* Color swatches */}
               <div>
-                <Label>Color</Label>
+                <Label>{t('fieldColor')}</Label>
                 <div className="mt-1.5 flex flex-wrap gap-2 items-center">
                   {COLOR_SWATCHES.map((hex) => (
                     <button key={hex} type="button" onClick={() => { setForm((p) => ({ ...p, color: hex })); setPickerOpen(false); }}
@@ -400,7 +400,7 @@ export function SettingsClient({
                   {/* Custom color toggle */}
                   <div className="relative" ref={pickerRef}>
                     <button type="button" onClick={() => setPickerOpen((o) => !o)}
-                      title="Color personalizado"
+                      title={t('customColor')}
                       className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center bg-bg-2 border-border hover:border-text-muted"
                       style={!COLOR_SWATCHES.includes(form.color) ? {
                         borderColor: 'white',
@@ -433,7 +433,7 @@ export function SettingsClient({
                   <Input value={form.phone} onChange={set('phone')} placeholder="(801) 000-0000" />
                 </div>
                 <div>
-                  <Label>Celular</Label>
+                  <Label>{t('fieldMobile')}</Label>
                   <Input value={form.cellPhone} onChange={set('cellPhone')} placeholder="(801) 000-0000" />
                 </div>
               </div>
@@ -447,7 +447,7 @@ export function SettingsClient({
               {/* Estado + Ciudad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label>Estado</Label>
+                  <Label>{t('fieldState')}</Label>
                   <select value={form.state} onChange={set('state')}
                     className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand">
                     <option value="">{t('fieldState')}</option>
@@ -457,7 +457,7 @@ export function SettingsClient({
                   </select>
                 </div>
                 <div>
-                  <Label>Ciudad</Label>
+                  <Label>{t('fieldCity')}</Label>
                   <select value={form.city} onChange={set('city')} disabled={!form.state}
                     className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-40">
                     <option value="">{t('fieldCity')}</option>
@@ -501,14 +501,14 @@ export function SettingsClient({
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose">
-              <Trash2 className="w-4 h-4" /> Eliminar clínica
+              <Trash2 className="w-4 h-4" /> {t('dlgDeleteTitle')}
             </DialogTitle>
           </DialogHeader>
           <p className="text-text-2 text-sm py-2">
-            ¿Eliminar <strong>{deleting?.name}</strong>? Esta acción no se puede deshacer.
+            {t.rich('dlgDeleteBody', { nombre: deleting?.name ?? '', b: (c) => <strong>{c}</strong> })}
             {deleting && deleting.appointmentCount > 0 && (
               <span className="block mt-2 text-amber text-[11px]">
-                ⚠ Esta clínica tiene {deleting.appointmentCount} cita(s) — no se podrá eliminar.
+                {t('dlgDeleteHasAppointments', { count: deleting.appointmentCount })}
               </span>
             )}
           </p>

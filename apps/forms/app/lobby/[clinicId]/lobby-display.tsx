@@ -86,8 +86,24 @@ function initials(display: string): string {
   return display.replace(/[^A-Z]/g, '').slice(0, 2);
 }
 
+/** Los tres modos del cartel: castellano, inglés, o los dos juntos. */
+type Lang = 'es' | 'en' | 'both';
+
 // ─── Clock component ──────────────────────────────────────────────────────────
-function LiveClock() {
+/**
+ * El reloj y la fecha del cartel.
+ *
+ * La fecha SEGUÍA EL TOGGLE y no lo hacía: estaba clavada en `es-US`, así que
+ * con la pantalla en inglés el 28-sep-2026 decía "Lun, 28 De Sept" (Erick la
+ * fotografió con EN seleccionado). Ahora recibe `lang` como todo lo demás del
+ * cartel.
+ *
+ * Y el "De" con mayúscula era un segundo error, distinto: `textTransform:
+ * capitalize` capitaliza CADA palabra, así que convertía la preposición del
+ * castellano — "lun, 28 de sept" salía "Lun, 28 De Sept". Se capitaliza sólo
+ * la primera letra, a mano.
+ */
+function LiveClock({ lang }: { lang: Lang }) {
   const [tick, setTick] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,19 +119,25 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
 
-  const dateStr = new Date().toLocaleDateString('es-US', {
-    weekday: 'short',
-    day:     'numeric',
-    month:   'short',
-    timeZone: 'America/Denver',
-  });
+  /* Una fecha por idioma, con el mismo criterio que `tx`: en "both" van las
+     dos, separadas por `·`, como el resto del cartel. */
+  const fecha = (locale: string) => {
+    const s = new Date().toLocaleDateString(locale, {
+      weekday: 'short',
+      day:     'numeric',
+      month:   'short',
+      timeZone: 'America/Denver',
+    });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+  const dateStr = tx(lang, fecha('es-US'), fecha('en-US'));
 
   return (
     <div style={{ textAlign: 'right', lineHeight: 1.3 }}>
       <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
         {tick ?? '--:--'}
       </div>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textTransform: 'capitalize' }}>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
         {dateStr}
       </div>
     </div>
@@ -516,7 +538,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
           </div>
 
           {/* Clock */}
-          <LiveClock />
+          <LiveClock lang={lang} />
         </header>
 
         {/* ── Main content ───────────────────────────────────────────────── */}

@@ -153,7 +153,7 @@ function InAppCamera({
           className="w-16 h-16 rounded-full border-[3px] border-white/70 flex items-center justify-center disabled:opacity-40 hover:scale-105 transition-transform">
           <div className={`w-12 h-12 rounded-full transition-colors ${ready ? 'bg-white' : 'bg-white/30'}`} />
         </button>
-        <p className="text-[10px] text-white/25">Capturar</p>
+        <p className="text-[10px] text-white/25">{tCam("capture")}</p>
       </div>
     </div>
   );

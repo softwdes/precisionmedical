@@ -192,10 +192,10 @@ export function DiagnosesClient({ stats, userId = '' }: Props) {
           <DataTable.Table>
             <DataTable.Head>
               <DataTable.Th align="center" width="40px">⭐</DataTable.Th>
-              <DataTable.Th>ICD-10 (billing)</DataTable.Th>
+              <DataTable.Th>{t("columnIcd10")}</DataTable.Th>
               <DataTable.Th>{t('snomedCol')}</DataTable.Th>
-              <DataTable.Th align="center">Cat.</DataTable.Th>
-              <DataTable.Th>Body system</DataTable.Th>
+              <DataTable.Th align="center">{t("columnCategory")}</DataTable.Th>
+              <DataTable.Th>{t("columnBodySystem")}</DataTable.Th>
               <DataTable.Th align="center">PI</DataTable.Th>
               <DataTable.Th align="right">{t('columnActions')}</DataTable.Th>
             </DataTable.Head>
@@ -485,7 +485,7 @@ function ViewDialog({ diagnosis, onClose, onEdit }: { diagnosis: Diagnosis | nul
         </DialogHeader>
         <div className="space-y-3 py-4">
           <div className="bg-brand/5 border border-brand/20 rounded-md p-3">
-            <div className="text-brand-text text-xs font-semibold uppercase tracking-wider mb-1.5">ICD-10 (billing)</div>
+            <div className="text-brand-text text-xs font-semibold uppercase tracking-wider mb-1.5">{t("columnIcd10")}</div>
             <code className="text-brand-text font-mono font-bold text-base">{diagnosis.icd10Code}</code>
             <div className="text-text-2 text-sm mt-1">{diagnosis.icd10Description}</div>
           </div>

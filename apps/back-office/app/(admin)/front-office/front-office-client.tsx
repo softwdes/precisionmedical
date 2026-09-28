@@ -372,10 +372,10 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
                   : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
-              ← Anterior
+              {t("pagPrev")}
             </a>
             <span className="px-3 py-1.5 text-xs text-text-muted">
-              Pág. {pagination.page} / {Math.ceil(pagination.total / pagination.pageSize)}
+              {t("pagOf", { n: pagination.page, total: Math.ceil(pagination.total / pagination.pageSize) })}
             </span>
             <a
               href={`/front-office?page=${pagination.page + 1}`}
@@ -385,7 +385,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
                   : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
-              Siguiente →
+              {t("pagNext")}
             </a>
           </div>
         </div>
@@ -535,7 +535,7 @@ function CaseCard({
           className="text-[10px] opacity-60 hover:opacity-100"
           onClick={(e) => { e.stopPropagation(); onSimulateIntake(); }}
           disabled={isMarkingIntake}
-          title="Phase 1A dev: simula que el paciente completó el portal"
+          title={t("devSimulateHint")}
         >
           <Zap className="w-3 h-3 mr-1" />{isMarkingIntake ? '...' : 'DEV ⚡'}
         </Button>

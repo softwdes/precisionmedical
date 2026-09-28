@@ -253,7 +253,8 @@ function ValidationItem({ label, ok }: { label: string; ok: boolean }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function HcfaClient() {
-  const t = useTranslations('phoenix.hcfa');
+  const t  = useTranslations('phoenix.hcfa');
+  const tc = useTranslations('phoenix.common');
   const router = useRouter();
   const params = useParams<{ caseId: string }>();
   const caseId = params.caseId;
@@ -325,7 +326,7 @@ export function HcfaClient() {
     return (
       <div className="min-h-screen bg-bg-0 px-4 sm:px-6 lg:px-8 py-6">
         <button type="button" onClick={() => router.back()} className="flex items-center gap-2 text-[13px] text-text-muted hover:text-text-1 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Volver
+          <ArrowLeft className="w-4 h-4" /> {tc('back')}
         </button>
         <div className="rounded-lg border border-rose/30 bg-rose/5 px-4 py-3 text-[13px] text-rose">
           {error ?? t('errNotFoundDot')}
@@ -353,7 +354,7 @@ export function HcfaClient() {
           className="flex items-center gap-1.5 text-[13px] text-text-muted hover:text-text-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Bandeja
+          {t('breadcrumbInbox')}
         </button>
         <span className="text-border">/</span>
         <span className="flex items-center gap-1.5 text-[13px] font-semibold text-amber">
@@ -387,7 +388,7 @@ export function HcfaClient() {
         {generated && !generating && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 text-[13px] text-emerald">
             <Check className="w-4 h-4" />
-            HCFA ya fue generado para este caso. Podés regenerarlo si es necesario.
+            {t('alreadyGenerated')}
           </div>
         )}
 
@@ -397,7 +398,7 @@ export function HcfaClient() {
           {/* LEFT: CMS-1500 Preview */}
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
             <div className="text-[9px] text-text-muted uppercase tracking-widest font-bold mb-3">
-              VISTA PREVIA · CMS-1500
+              {t('previewLabel')}
             </div>
             {/* Scrollable preview */}
             <div className="overflow-auto rounded-md" style={{ maxHeight: 600 }}>
@@ -411,13 +412,13 @@ export function HcfaClient() {
             {/* ── Configuration ─────────────────────────────────────── */}
             <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
-                <span>⚙️</span> Configuración
+                <span>⚙️</span> {t('configTitle')}
               </div>
 
               <div className="space-y-3">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">
-                    Aseguradora destino
+                    {t('targetInsurer')}
                   </label>
                   <div className="rounded-lg border border-border bg-bg-2/40 px-3 py-2 text-[13px] text-text-1">
                     {d.insurerName}
@@ -429,7 +430,7 @@ export function HcfaClient() {
 
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-2">
-                    Método de envío
+                    {t('sendMethod')}
                   </label>
                   <div className="space-y-2">
                     <label className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-all ${
@@ -478,7 +479,7 @@ export function HcfaClient() {
             {/* ── Validations ──────────────────────────────────────── */}
             <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
-                <span>✓</span> Validaciones
+                <span>✓</span> {t('validationsTitle')}
               </div>
               <div className="space-y-2">
                 {validList.map(v => (
@@ -488,7 +489,7 @@ export function HcfaClient() {
               {!d.allValid && (
                 <div className="mt-3 flex items-start gap-2 rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  Hay validaciones pendientes. Podés generar igualmente, pero verificá los datos antes de enviar.
+                  {t('validationsWarning')}
                 </div>
               )}
             </div>
@@ -496,7 +497,7 @@ export function HcfaClient() {
             {/* ── Post-generation checklist ──────────────────────── */}
             <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
-                <span>📤</span> Después de generar
+                <span>📤</span> {t('afterGenerateTitle')}
               </div>
               <div className="space-y-1.5 text-[11px] text-text-2">
                 {[
@@ -528,24 +529,24 @@ export function HcfaClient() {
               {generating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Generando…
+                  {t('btnGenerating')}
                 </>
               ) : generated ? (
                 <>
                   <Check className="w-4 h-4" />
-                  HCFA Generado · Regenerar
+                  {t('btnRegenerate')}
                 </>
               ) : (
                 <>
                   <FileText className="w-4 h-4" />
-                  📄 Generar HCFA y enviar
+                  {t('btnGenerate')}
                 </>
               )}
             </button>
 
             {/* Total display */}
             <div className="flex items-center justify-between rounded-lg border border-border bg-bg-1 px-4 py-3">
-              <span className="text-[11px] text-text-muted uppercase tracking-wider">Total facturado</span>
+              <span className="text-[11px] text-text-muted uppercase tracking-wider">{t('totalBilled')}</span>
               <span className="font-mono font-black text-amber text-lg">{d.totalChargeFmt}</span>
             </div>
 

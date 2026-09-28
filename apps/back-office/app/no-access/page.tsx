@@ -1,9 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { createClient } from '@precision-medical/auth/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function NoAccessPage() {
+  const t = useTranslations('phoenix.misc');
   const router = useRouter();
   const params = useSearchParams();
   // ?portal=doctor → el usuario intentó entrar al Portal Médico sin permiso
@@ -36,12 +38,12 @@ export default function NoAccessPage() {
       }}>
         <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚫</div>
         <h1 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
-          {isDoctorPortal ? 'Doctor Portal — no access' : 'No access'}
+          {isDoctorPortal ? t('naTitleDoctor') : t('naTitle')}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: '13px', lineHeight: '1.6', marginBottom: '24px' }}>
           {isDoctorPortal
-            ? 'This account is not a doctor account. The Doctor Portal is limited to clinical staff — ask your administrator if you need access.'
-            : 'Your account does not have permission to access this module. Please contact your system administrator.'}
+            ? t('naBodyDoctor')
+            : t('naBody')}
         </p>
         <button
           onClick={handleLogout}
@@ -56,7 +58,7 @@ export default function NoAccessPage() {
             cursor:       'pointer',
           }}
         >
-          Cerrar sesión
+          {t('naLogout')}
         </button>
       </div>
     </div>

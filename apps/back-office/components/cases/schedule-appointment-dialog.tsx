@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, primeraMayuscula } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -159,10 +159,12 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   const scheduledForLocalLabel = useMemo(() => {
     if (!scheduledForIso) return null;
-    return new Date(scheduledForIso).toLocaleString(localeApp(), {
+    /* Ver el helper: la clase capitalize de Tailwind sube cada palabra y en
+       castellano eso rompe las preposiciones de la fecha. */
+    return primeraMayuscula(new Date(scheduledForIso).toLocaleString(localeApp(), {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
       hour: 'numeric', minute: '2-digit',
-    });
+    }));
   }, [scheduledForIso]);
 
   const isFuture = scheduledForIso ? new Date(scheduledForIso).getTime() > Date.now() : false;
@@ -255,7 +257,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald" />
-            Agendar primera cita
+            {ts("dialogTitle")}
           </DialogTitle>
           <DialogDescription>
             {tsa.rich('patientCaseLine', {
@@ -264,7 +266,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               b: (chunks) => <strong className="text-text-1">{chunks}</strong>,
               c: (chunks) => <code className="text-text-1 font-mono">{chunks}</code>,
             })}
-            Al agendar, el status pasa a <code className="text-brand-text">ACTIVE</code> y el caso entra al flujo clínico.
+            {ts.rich("dialogHint", { c: (chunks) => <code className="text-brand-text">{chunks}</code> })}
           </DialogDescription>
         </DialogHeader>
 
@@ -273,7 +275,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           <div>
             <Label htmlFor="clinic">
               <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Clínica <span className="text-rose">*</span>
+              {ts("fieldClinic")} <span className="text-rose">*</span>
             </Label>
             <select
               id="clinic"
@@ -296,7 +298,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           <div>
             <Label htmlFor="provider">
               <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Doctor <span className="text-rose">*</span>
+              {ts("fieldDoctor")} <span className="text-rose">*</span>
             </Label>
             <select
               id="provider"
@@ -330,7 +332,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
             <div>
               <Label htmlFor="date">
                 <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                Fecha <span className="text-rose">*</span>
+                {ts("fieldDate")} <span className="text-rose">*</span>
               </Label>
               <input
                 id="date"
@@ -344,7 +346,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
             <div>
               <Label htmlFor="time">
                 <Clock className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                Hora <span className="text-rose">*</span>
+                {ts("fieldTime")} <span className="text-rose">*</span>
               </Label>
               <input
                 id="time"
@@ -358,7 +360,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
           {scheduledForLocalLabel && (
             <div className={`rounded-md border px-3 py-2 text-xs ${isFuture ? 'bg-emerald/5 border-emerald/20 text-emerald' : 'bg-rose/5 border-rose/20 text-rose'}`}>
-              <strong className="capitalize">{scheduledForLocalLabel}</strong>
+              <strong>{scheduledForLocalLabel}</strong>
               {!isFuture && <span className="ml-2">{ts('mustBeFuture')}</span>}
             </div>
           )}
@@ -422,12 +424,12 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           {selectedClinic && selectedProvider && scheduledForIso && isFuture && (
             <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-xs">
               <div className="text-brand-text font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
-                <ChevronRight className="w-3 h-3" /> Resumen
+                <ChevronRight className="w-3 h-3" /> {ts("summaryTitle")}
               </div>
               <div className="space-y-0.5 text-text-2">
                 <div><strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong> ({SPECIALTY_LABELS[selectedProvider.specialty]})</div>
                 <div>{ts('summaryAt')} <strong className="text-text-1">{selectedClinic.name}</strong></div>
-                <div className="capitalize">📅 <strong className="text-text-1">{scheduledForLocalLabel}</strong></div>
+                <div>📅 <strong className="text-text-1">{scheduledForLocalLabel}</strong></div>
                 <div>{ts('summaryDuration')} <strong className="text-text-1">{duration} min</strong> · {ts('summaryType')} <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
               </div>
             </div>

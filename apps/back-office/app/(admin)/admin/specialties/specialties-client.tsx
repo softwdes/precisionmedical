@@ -189,9 +189,9 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
                     </DataTable.Td>
                     <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
-                        <IconAction onClick={() => setViewing(sp)} icon={Eye} label="Ver" />
+                        <IconAction onClick={() => setViewing(sp)} icon={Eye} label={t("actionView")} />
                         <IconAction onClick={() => setEditing(sp)} icon={Pencil} label={t('actionEdit')} />
-                        <IconAction onClick={() => { /* permissions tbd */ }} icon={KeyRound} label="Permisos" disabled />
+                        <IconAction onClick={() => { /* permissions tbd */ }} icon={KeyRound} label={t("actionPermissions")} disabled />
                         <IconAction onClick={() => setDeleting(sp)} icon={Trash2} label={t('actionDelete')} variant="danger" />
                       </div>
                     </DataTable.Td>
@@ -336,22 +336,22 @@ function SpecialtyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? `Editar — ${editing.name}` : 'Nueva especialidad'}</DialogTitle>
+          <DialogTitle>{editing ? t("dlgEdit", { nombre: editing.name }) : t("createSpecialty")}</DialogTitle>
           <DialogDescription>
-            Define el service line. Se consume en B.10 calendar, B.17 "Mi día", B.21 firma de nota.
+            {t("modalDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div>
             <Label htmlFor="name">
-              Nombre <span className="text-rose">*</span>
+              {t("fieldName")} <span className="text-rose">*</span>
             </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Cardiology"
+              placeholder={t("phName")}
               autoFocus
             />
           </div>
@@ -387,7 +387,7 @@ function SpecialtyDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="workflowType">Workflow</Label>
+              <Label htmlFor="workflowType">{t("fieldWorkflow")}</Label>
               <select
                 id="workflowType"
                 value={workflowType}
@@ -400,7 +400,7 @@ function SpecialtyDialog({
               </select>
             </div>
             <div>
-              <Label htmlFor="caseType">Case type</Label>
+              <Label htmlFor="caseType">{t("fieldCaseType")}</Label>
               <select
                 id="caseType"
                 value={caseType}
@@ -414,7 +414,7 @@ function SpecialtyDialog({
 
           <div>
             <Label htmlFor="cptInput">
-              CPT codes sugeridos
+              {t("fieldCpt")}
               <span className="text-text-muted text-xs ml-1 font-normal">{t('fieldCptHint')}</span>
             </Label>
             <Input
@@ -432,7 +432,7 @@ function SpecialtyDialog({
               onChange={(e) => setIsActive(e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm text-text-2">Especialidad activa</span>
+            <span className="text-sm text-text-2">{t("fieldActive")}</span>
           </label>
 
           {error && (
@@ -480,15 +480,15 @@ function ViewDialog({
         </DialogHeader>
 
         <div className="space-y-3 py-4 text-sm">
-          <InfoRow label="Workflow"      value={<WorkflowPill type={specialty.workflowType} />} />
-          <InfoRow label="Case type"     value={<code className="text-xs text-text-2 font-mono">{specialty.caseType}</code>} />
-          <InfoRow label="Color"         value={
+          <InfoRow label={t("fieldWorkflow")} value={<WorkflowPill type={specialty.workflowType} />} />
+          <InfoRow label={t("fieldCaseType")} value={<code className="text-xs text-text-2 font-mono">{specialty.caseType}</code>} />
+          <InfoRow label={t("fieldColor")} value={
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded border border-white/20" style={{ background: specialty.color }} />
               <code className="text-xs text-text-2 font-mono">{specialty.color}</code>
             </div>
           } />
-          <InfoRow label="CPT sugeridos" value={
+          <InfoRow label={t("fieldCpt")} value={
             specialty.cptSuggested.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {specialty.cptSuggested.map((c) => (

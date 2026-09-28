@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { localeDeFechas } from '@/lib/locale-cliente';
 import {
   CheckCircle2, Loader2,
 } from 'lucide-react';
@@ -65,7 +66,7 @@ function calcAge(dob: string | null): string {
 }
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-US', {
+  return new Date(iso).toLocaleTimeString(localeDeFechas(), {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }

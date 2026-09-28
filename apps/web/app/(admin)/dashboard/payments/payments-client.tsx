@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { localeDeFechas } from '@/lib/locale-fechas';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Badge, Input, Label, Textarea,
@@ -247,7 +248,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                 1 USD = {planilla.lastFxRate.toFixed(2)} BOB
                 {planilla.lastFxDate && (
                   <span className="text-[9.5px] font-normal text-cyan/60 ml-1">
-                    · {new Date(planilla.lastFxDate).toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })}
+                    · {new Date(planilla.lastFxDate).toLocaleDateString(localeDeFechas(), { day: 'numeric', month: 'short' })}
                   </span>
                 )}
               </span>

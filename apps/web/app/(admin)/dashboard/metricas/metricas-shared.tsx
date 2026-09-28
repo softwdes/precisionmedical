@@ -7,6 +7,7 @@
  */
 
 import { cn } from '@precision/ui';
+import { localeDeFechas } from '@/lib/locale-fechas';
 
 // ─── Período ─────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export function fmtSeconds(sec: number): string {
 export function fmtClinicTime(iso: string | null): string {
   if (!iso) return '—';
   const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
-  return new Date(utc).toLocaleTimeString('es-US', {
+  return new Date(utc).toLocaleTimeString(localeDeFechas(), {
     timeZone: 'America/Denver', hour: '2-digit', minute: '2-digit',
   });
 }
@@ -73,7 +74,7 @@ export function fmtClinicTime(iso: string | null): string {
 export function fmtClinicDate(iso: string | null): string {
   if (!iso) return '—';
   const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
-  return new Date(utc).toLocaleDateString('es-US', {
+  return new Date(utc).toLocaleDateString(localeDeFechas(), {
     timeZone: 'America/Denver', month: 'short', day: 'numeric',
   });
 }

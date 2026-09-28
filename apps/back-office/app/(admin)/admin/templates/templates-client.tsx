@@ -276,7 +276,7 @@ export function TemplatesClient({ templates, stats }: Props) {
 
       {/* Sections */}
       <div className="space-y-2">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Secciones</p>
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t("fieldSections")}</p>
         {form.sections.map((section) => {
           const isExpanded = expandedSections.has(section.sectionKey);
           return (
@@ -338,7 +338,7 @@ export function TemplatesClient({ templates, stats }: Props) {
         subtitle={t('subtitle', { activas: stats.active, compartidas: stats.shared, total: stats.total })}
         action={
           <Button onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> Nueva Plantilla
+            <Plus className="w-4 h-4 mr-1" /> {t("newTitle")}
           </Button>
         }
       />
@@ -372,14 +372,14 @@ export function TemplatesClient({ templates, stats }: Props) {
         <DataTable.Scroll>
           <DataTable.Table>
             <DataTable.Head>
-              <DataTable.Th>Plantilla</DataTable.Th>
-              <DataTable.Th>Encuentro</DataTable.Th>
-              <DataTable.Th>{t('colCase')}</DataTable.Th>
-              <DataTable.Th>Alcance</DataTable.Th>
-              <DataTable.Th>Secciones</DataTable.Th>
-              <DataTable.Th align="right">Usos</DataTable.Th>
-              <DataTable.Th>Estado</DataTable.Th>
-              <DataTable.Th align="right">Acciones</DataTable.Th>
+              <DataTable.Th>{t("colTemplate")}</DataTable.Th>
+              <DataTable.Th>{t("colEncounter")}</DataTable.Th>
+              <DataTable.Th>{t("colCase")}</DataTable.Th>
+              <DataTable.Th>{t("colScope")}</DataTable.Th>
+              <DataTable.Th>{t("colSections")}</DataTable.Th>
+              <DataTable.Th align="right">{t("colUses")}</DataTable.Th>
+              <DataTable.Th>{t("colStatus")}</DataTable.Th>
+              <DataTable.Th align="right">{t("colActions")}</DataTable.Th>
             </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (

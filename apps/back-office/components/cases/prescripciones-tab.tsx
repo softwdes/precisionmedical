@@ -379,7 +379,7 @@ function PrescriptionModal({
           {/* Medicamento */}
           <div className="relative">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">
-              Medicamento <span className="text-rose">*</span>
+              {t("fieldDrug")} <span className="text-rose">*</span>
             </label>
             {drugSelected ? (
               <div className="flex items-center justify-between rounded-md bg-violet/10 border border-violet/30 px-3 py-2">
@@ -408,7 +408,7 @@ function PrescriptionModal({
               </>
             )}
             {!drugSelected && drugQuery && (
-              <p className="text-[10px] text-text-muted mt-1">O escribe el nombre directamente:
+              <p className="text-[10px] text-text-muted mt-1">{t("orTypeName")}
                 <button onClick={() => { setDrugSelected(drugQuery); setDrugQuery(''); }} className="ml-1 text-brand-text underline">usar "{drugQuery}"</button>
               </p>
             )}
@@ -416,7 +416,7 @@ function PrescriptionModal({
 
           {/* Dosis */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Dosis</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldDose")}</label>
             <input
               type="text"
               value={dose}
@@ -428,7 +428,7 @@ function PrescriptionModal({
 
           {/* Indicaciones */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Indicaciones</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldDirections")}</label>
             <textarea
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
@@ -441,7 +441,7 @@ function PrescriptionModal({
           {/* Cantidad / Unidad / Reposiciones */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Cantidad a dispensar</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldQuantity")}</label>
               <input
                 type="number"
                 value={quantity}
@@ -461,7 +461,7 @@ function PrescriptionModal({
               </select>
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Reposiciones</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldRefills")}</label>
               <select
                 value={refills}
                 onChange={e => setRefills(e.target.value)}
@@ -495,7 +495,7 @@ function PrescriptionModal({
 
           {/* Prescrito por */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Prescrito por</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldPrescribedBy")}</label>
             <select
               value={prescribedBy}
               onChange={e => setPrescribedBy(e.target.value)}
@@ -630,7 +630,7 @@ function LabModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-            <FlaskConical className="w-4 h-4 text-cyan" /> Crear laboratorio
+            <FlaskConical className="w-4 h-4 text-cyan" /> {t("createLab")}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 p-1 rounded">
             <X className="w-4 h-4" />
@@ -642,7 +642,7 @@ function LabModal({
 
           {/* Médico — full width dropdown */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Provider</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldProvider")}</label>
             <select
               value={providerId}
               onChange={e => {
@@ -684,7 +684,7 @@ function LabModal({
           {/* Laboratorios + Diagnósticos — 2 columnas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Laboratorios</label>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">{t("fieldLabs")}</label>
               <MultiSelectSearch
                 placeholder={t('placeholderLabs')}
                 selected={selectedLabs}

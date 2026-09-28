@@ -19,6 +19,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { localeDeFechas } from '@/lib/locale-cliente';
 import {
   ChevronDown, ChevronRight, Save, CheckCircle2,
   Bot, Search, X, Plus, Loader2, AlertTriangle,
@@ -131,7 +132,7 @@ function calcAge(dob: string | null): string {
 }
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-US', {
+  return new Date(iso).toLocaleTimeString(localeDeFechas(), {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -2599,8 +2600,9 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <CheckCircle2 size={16} />
                       <span>
-                        Nota firmada por {signedBy ?? 'Provider'}{' '}
-                        {signedAt ? `el ${new Date(signedAt).toLocaleDateString('es-US', { timeZone: 'America/Denver' })} a las ${new Date(signedAt).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}` : ''}
+                        {signedAt
+                          ? tc('noteSignedByAt', { quien: signedBy ?? 'Provider', fecha: new Date(signedAt).toLocaleDateString(localeDeFechas(), { timeZone: 'America/Denver' }), hora: fmtTime(signedAt) })
+                          : tc('noteSignedBy', { quien: signedBy ?? 'Provider' })}
                       </span>
                     </div>
                     <a

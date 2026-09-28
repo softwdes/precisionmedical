@@ -18,6 +18,7 @@ import * as React from 'react';
 import { useLocale } from 'next-intl';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FloatingPanel } from './floating-panel';
+import { primeraMayuscula } from '@/lib/fechas';
 
 export interface DatePickerProps {
   /** YYYY-MM-DD seleccionado */
@@ -195,7 +196,9 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
     ? placeholder
     : isTodayValue && !alwaysShowDate
       ? todayLabel
-      : new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`));
+      /* Primera letra a mano: la clase capitalize sube tambien las
+         preposiciones y en castellano deja "28 De Sept De 2026". */
+      : primeraMayuscula(new Intl.DateTimeFormat(locale, dateOpts).format(new Date(`${value}T12:00:00`)));
 
   /**
    * ¿"Hoy" está fuera de lo elegible? Entonces el atajo del pie no puede
@@ -222,7 +225,7 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         onClick={() => setOpen(o => !o)}
         className={
           size === 'lg'
-            ? `h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold hover:bg-white/5 transition-colors flex items-center gap-2 capitalize ${isTodayValue ? a.text : 'text-text-1'}`
+            ? `h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold hover:bg-white/5 transition-colors flex items-center gap-2 ${isTodayValue ? a.text : 'text-text-1'}`
             : size === 'inline'
               ? `w-full text-left rounded-[3px] px-1 -mx-1 whitespace-nowrap hover:bg-brand/10 hover:ring-1 hover:ring-brand/30 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer ${value ? 'text-text-2' : 'text-text-muted'}`
               : `h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] hover:bg-white/5 transition-colors flex items-center gap-1.5 ${isTodayValue ? `${a.text} font-semibold` : 'text-text-1'}`
@@ -258,7 +261,7 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
             >
               <ChevronLeft className="w-3 h-3" />
             </button>
-            <span className="text-[12px] font-semibold text-text-1 capitalize">{monthLabel}</span>
+            <span className="text-[12px] font-semibold text-text-1">{primeraMayuscula(monthLabel)}</span>
             <button
               type="button"
               onClick={() => setView(v => (v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 }))}

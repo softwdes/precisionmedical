@@ -8,6 +8,7 @@
 import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import type { Metadata } from 'next';
+import { getLocale } from 'next-intl/server';
 
 type Props = { params: Promise<{ appointmentId: string }> };
 
@@ -18,24 +19,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     select: { patient: { select: { firstName: true, lastName: true } }, scheduledFor: true },
   });
   if (!appt) return { title: 'Firma de Asistencia' };
+  const { fmtDate } = formateadores(await getLocale());
   return {
     title: `Firma — ${appt.patient.lastName}, ${appt.patient.firstName} — ${fmtDate(appt.scheduledFor)}`,
   };
 }
 
-function fmtDate(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
-  });
-}
-
-function fmtDateTime(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-  });
+/** Mismo criterio que la pantalla de check-in: el idioma del usuario manda.
+    Ver el comentario largo en `checkin/[appointmentId]/page.tsx`. */
+function formateadores(locale: string) {
+  const loc = locale === 'en' ? 'en-US' : 'es-US';
+  return {
+    fmtDate: (d: Date | null | undefined): string => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString(loc, {
+        month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
+      });
+    },
+    fmtDateTime: (d: Date | null | undefined): string => {
+      if (!d) return '—';
+      return new Date(d).toLocaleString(loc, {
+        month: 'long', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+      });
+    },
+  };
 }
 
 function calcAge(dob: Date | null): string {
@@ -44,6 +52,7 @@ function calcAge(dob: Date | null): string {
 }
 
 export default async function AttendancePrintPage({ params }: Props) {
+  const { fmtDate, fmtDateTime } = formateadores(await getLocale());
   const { appointmentId } = await params;
 
   const appt = await db.appointment.findUnique({

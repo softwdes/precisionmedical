@@ -170,7 +170,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             className="flex items-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-xs text-text-1 hover:bg-bg-2 transition-colors"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            {t("btnRefresh")}
           </button>
         }
       />
@@ -190,7 +190,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           Filtros
           {hasFilters && (
             <button onClick={resetFilters} className="ml-auto text-rose hover:underline normal-case font-normal text-[10px]">
-              Limpiar filtros
+              {t("btnClearFilters")}
             </button>
           )}
         </div>
@@ -389,7 +389,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                 disabled={page <= 1 || loading}
                 className="rounded px-2 py-1 text-[10px] text-text-muted hover:text-text-1 disabled:opacity-30"
               >
-                Primera
+                {t("pagFirst")}
               </button>
               <button
                 onClick={() => fetchLogs(page - 1)}
@@ -410,7 +410,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                 disabled={page >= pages || loading}
                 className="rounded px-2 py-1 text-[10px] text-text-muted hover:text-text-1 disabled:opacity-30"
               >
-                Última
+                {t("pagLast")}
               </button>
             </div>
           </div>

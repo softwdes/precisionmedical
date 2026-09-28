@@ -80,7 +80,7 @@ export function ReleasesClient(): React.ReactElement {
       setReleases(data.releases);
       setError(null);
     } catch {
-      setError('No se pudo cargar la lista.');
+      setError(t('errLoadList'));
     }
   }, []);
 
@@ -143,7 +143,7 @@ export function ReleasesClient(): React.ReactElement {
     return (
       <div className="flex items-center gap-2 px-4 sm:px-6 py-8 text-[12px] text-text-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Cargando releases…
+        {t('loading')}
       </div>
     );
   }
@@ -221,10 +221,10 @@ export function ReleasesClient(): React.ReactElement {
                     <Rocket className="w-3 h-3" />
                   )}
                   {published
-                    ? 'Despublicar'
+                    ? t('btnUnpublish')
                     : release.missingEnglish > 0
-                      ? 'Publicar sin traducir'
-                      : 'Publicar'}
+                      ? t('btnPublishUntranslated')
+                      : t('btnPublish')}
                 </button>
               </div>
             }
@@ -233,7 +233,7 @@ export function ReleasesClient(): React.ReactElement {
               <p className="text-[11px] text-text-3">
                 {new Date(release.deployedAt).toLocaleString()}
                 {published && release.publishedByName !== null
-                  ? ' · publicado por ' + release.publishedByName
+                  ? ' · ' + t('publishedBy', { nombre: release.publishedByName })
                   : ''}
               </p>
 

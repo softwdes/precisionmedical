@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, Wallet, BadgeDollarSign } from 'lucide-react';
+import { localeDeFechas } from '@/lib/locale-fechas';
 
 /**
  * El aviso de CIFO en el Admin: cómo viene el día, en una línea por cosa.
@@ -59,7 +60,7 @@ export function CifoAviso({ visitas, cajas, salarios }: {
   if (!visitas && cajas.length === 0 && !haySalarios) return null;
 
   const dia = visitas
-    ? new Date(`${visitas.dia}T12:00:00Z`).toLocaleDateString('es-ES', {
+    ? new Date(`${visitas.dia}T12:00:00Z`).toLocaleDateString(localeDeFechas(), {
         weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
       })
     : null;

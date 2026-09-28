@@ -9,6 +9,7 @@
 import type { Metadata } from 'next';
 import { db } from '@precision-medical/database';
 import { notFound } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 
 type Props = { params: Promise<{ appointmentId: string }> };
 
@@ -31,25 +32,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     select: { patient: { select: { firstName: true, lastName: true } }, scheduledFor: true },
   });
   if (!appt) return { title: 'Nota Clínica' };
+  const locale = await getLocale();
   return {
-    title: `Nota — ${appt.patient.lastName}, ${appt.patient.firstName} — ${appt.scheduledFor.toLocaleDateString('es-US', { timeZone: 'America/Denver' })}`,
+    title: `Nota — ${appt.patient.lastName}, ${appt.patient.firstName} — ${appt.scheduledFor.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', { timeZone: 'America/Denver' })}`,
   };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtDate(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
-  });
-}
-
-function fmtDateTime(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-  });
+/** Mismo criterio que el resto: el idioma del usuario manda. Antes `es-US`
+    estaba clavado y la nota impresa salia en castellano siempre. */
+function formateadores(locale: string) {
+  const loc = locale === 'en' ? 'en-US' : 'es-US';
+  return {
+    fmtDate: (d: Date | null | undefined): string => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString(loc, {
+        month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
+      });
+    },
+    fmtDateTime: (d: Date | null | undefined): string => {
+      if (!d) return '—';
+      return new Date(d).toLocaleString(loc, {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+      });
+    },
+  };
 }
 
 function calcAge(dob: Date | null): string {
@@ -70,6 +78,7 @@ const SOAP_ORDER = ['chiefComplaint', 'hpi', 'ros', 'physicalExam', 'assessment'
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function PrintPage({ params }: Props) {
+  const { fmtDate, fmtDateTime } = formateadores(await getLocale());
   const { appointmentId } = await params;
 
   const appt = await db.appointment.findUnique({

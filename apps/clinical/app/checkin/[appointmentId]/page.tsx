@@ -12,20 +12,36 @@
 
 import { db } from '@precision-medical/database';
 import { notFound } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 import { CheckinClient } from './checkin-client';
 
 type Props = { params: Promise<{ appointmentId: string }> };
 
-function fmtDate(d: Date | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
-  });
-}
-function fmtTime(d: Date): string {
-  return d.toLocaleTimeString('es-US', {
-    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-  });
+/**
+ * Los formateadores de fecha, atados al idioma del usuario.
+ *
+ * Estaban clavados en `es-US`, o sea que esta pantalla mostraba las fechas en
+ * castellano aunque el sistema estuviera en inglés (Erick, 28-sep-2026, a partir
+ * del mismo error en el cartel de la sala de espera).
+ *
+ * Se devuelven desde una fábrica en vez de tomar el locale por parámetro para no
+ * tocar los ocho lugares que ya los llaman: la página los desestructura con el
+ * mismo nombre y las llamadas siguen igual.
+ */
+function formateadores(locale: string) {
+  const loc = locale === 'en' ? 'en-US' : 'es-US';
+  return {
+    fmtDate: (d: Date | null | undefined): string => {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString(loc, {
+        month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
+      });
+    },
+    fmtTime: (d: Date): string =>
+      d.toLocaleTimeString(loc, {
+        hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+      }),
+  };
 }
 function calcAge(dob: Date | null): number | null {
   if (!dob) return null;
@@ -33,6 +49,7 @@ function calcAge(dob: Date | null): number | null {
 }
 
 export default async function CheckinPage({ params }: Props) {
+  const { fmtDate, fmtTime } = formateadores(await getLocale());
   const { appointmentId } = await params;
 
   const appt = await db.appointment.findUnique({

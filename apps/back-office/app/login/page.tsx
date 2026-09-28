@@ -117,7 +117,7 @@ export default function LoginPage(): React.ReactElement {
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState(callbackErr ? 'Authentication error. Please try again.' : '');
+  const [error,        setError]        = useState(callbackErr ? tm('loginErrAuth') : '');
   const [lockedUntil,  setLockedUntil]  = useState<Date | null>(null);
 
   // MFA state
@@ -182,7 +182,7 @@ export default function LoginPage(): React.ReactElement {
       router.replace(redirectTo);
       router.refresh();
     } catch {
-      setError('Connection error. Check your network and try again.');
+      setError(tm('loginErrNetwork'));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -209,7 +209,7 @@ export default function LoginPage(): React.ReactElement {
       router.replace(redirectTo);
       router.refresh();
     } catch {
-      setError('Connection error. Check your network and try again.');
+      setError(tm('loginErrNetwork'));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -350,7 +350,7 @@ export default function LoginPage(): React.ReactElement {
               {reason === 'session_expired' && (
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(56,189,248,0.10)',border:'1px solid rgba(56,189,248,0.30)',color:'#7dd3fc',fontSize:12}}>
                   <span style={{flexShrink:0}}>🔒</span>
-                  <span>Your session expired due to inactivity. Please sign in again.</span>
+                  <span>{tm('loginSessionExpired')}</span>
                 </div>
               )}
 
@@ -358,7 +358,7 @@ export default function LoginPage(): React.ReactElement {
               {lockedUntil && (
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(244,63,94,0.10)',border:'1px solid rgba(244,63,94,0.28)',color:'#F43F5E',fontSize:12}}>
                   <AlertCircle size={13} style={{flexShrink:0}}/>
-                  <span>Account locked. Try again in <strong>{formatLockRemaining(lockedUntil)}</strong>.</span>
+                  <span>{tm.rich('loginLocked', { tiempo: formatLockRemaining(lockedUntil), b: (c) => <strong>{c}</strong> })}</span>
                 </div>
               )}
 
@@ -366,7 +366,7 @@ export default function LoginPage(): React.ReactElement {
               {mfaStep ? (
                 <form onSubmit={handleMfa}>
                   <div style={{marginBottom:16,fontSize:13,color:'rgba(255,255,255,0.55)',textAlign:'center'}}>
-                    Enter the 6-digit code from your authenticator app.
+                    {tm('loginMfaHint')}
                   </div>
                   <div className="pm-field" style={{display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>
                     <Key size={17} color="#38BDF8" style={{flexShrink:0}} />
@@ -393,11 +393,11 @@ export default function LoginPage(): React.ReactElement {
                   <button type="submit" disabled={loading} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(37,99,235,0.50),0 4px 14px rgba(56,189,248,0.28)',color:'#fff',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:loading?0.85:1,fontFamily:'inherit'}}>
                     {loading ? (
                       <svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                    ) : 'Verify →'}
+                    ) : tm('loginBtnVerify')}
                   </button>
                   <div style={{textAlign:'center',marginTop:12}}>
                     <button type="button" onClick={()=>{setMfaStep(false);setMfaCode('');}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'#38BDF8',opacity:0.7,fontWeight:500}}>
-                      ← Back
+                      {tm('loginBtnBack')}
                     </button>
                   </div>
                 </form>
@@ -428,9 +428,9 @@ export default function LoginPage(): React.ReactElement {
                     {loading ? (
                       <>
                         <svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                        Signing in...
+                        {tm('loginSigningIn')}
                       </>
-                    ) : 'Sign in →'}
+                    ) : tm('loginBtnSignIn')}
                   </button>
 
                   {/* Forgot password */}
@@ -438,7 +438,7 @@ export default function LoginPage(): React.ReactElement {
                     <a href="/forgot-password" style={{fontSize:12,color:'#38BDF8',opacity:0.7,textDecoration:'none',fontWeight:500,letterSpacing:'0.02em'}}
                       onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
                       onMouseLeave={e=>(e.currentTarget.style.opacity='0.7')}>
-                      Forgot your password?
+                      {tm('loginForgot')}
                     </a>
                   </div>
                 </form>
@@ -452,7 +452,7 @@ export default function LoginPage(): React.ReactElement {
           {/* Status */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:16,marginBottom:10}}>
             <div className="lm-sys" style={{width:6,height:6,borderRadius:'50%',background:'#38BDF8',boxShadow:'0 0 6px #38BDF8,0 0 12px rgba(56,189,248,0.4)'}} />
-            <span style={{fontSize:11,color:'#4A5474',fontWeight:600,letterSpacing:'0.04em'}}>All systems operational</span>
+            <span style={{fontSize:11,color:'#4A5474',fontWeight:600,letterSpacing:'0.04em'}}>{tm('loginSystemsOk')}</span>
           </div>
 
           {/* Security pills */}

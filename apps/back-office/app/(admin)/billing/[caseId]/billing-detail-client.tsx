@@ -194,6 +194,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function BillingDetailClient({ caseId }: { caseId: string }) {
   const tc = useTranslations('phoenix.common');
+  const t  = useTranslations('phoenix.billing');
   const router = useRouter();
   const [detail,     setDetail]     = useState<CaseDetail | null>(null);
   const [loading,    setLoading]    = useState(true);
@@ -225,7 +226,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
   if (loading || !detail) {
     return (
       <div className="flex flex-col">
-        <PageHeader title={tc('loading')} subtitle="Billing · Brunella" />
+        <PageHeader title={tc('loading')} subtitle={t('detailSubtitle')} />
         <div className="px-6 pb-6 space-y-4">
           {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-lg bg-bg-2/40 animate-pulse" />)}
         </div>
@@ -251,7 +252,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Bandeja
+              {t('btnInbox')}
             </button>
             {/* B.27 — Ledger */}
             <button
@@ -280,7 +281,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-emerald/35 bg-emerald/8 text-emerald text-xs hover:bg-emerald/15 transition-all"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Settlado ✓
+                {t('btnSettled')}
               </button>
             )}
             {/* B.26 — siempre visible; verde si ya generado, amber si no */}
@@ -309,7 +310,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             {/* Case summary */}
             <div className="rounded-lg border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                📋 Resumen del caso
+                {t('caseSummary')}
               </div>
               <div className="space-y-2">
                 {[
@@ -346,7 +347,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 </div>
                 {latestVisit.note.assessment && (
                   <div className="text-[11px] text-text-2 leading-relaxed mb-2 line-clamp-3">
-                    <span className="text-brand-text font-bold">A: </span>{latestVisit.note.assessment}
+                    <span className="text-brand-text font-bold">{t('assessmentPrefix')} </span>{latestVisit.note.assessment}
                   </div>
                 )}
                 {/* CPT list */}
@@ -379,7 +380,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                     </div>
                   ))}
                   <div className="border-t border-border pt-2 flex justify-between text-[11px] font-bold">
-                    <span className="text-text-muted">Total</span>
+                    <span className="text-text-muted">{t('total')}</span>
                     <span className="text-amber">{fmtMoney(d.billedTotal)}</span>
                   </div>
                 </div>
@@ -389,7 +390,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             {/* Actions */}
             <div className="rounded-lg border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                🚀 Acciones del caso
+                {t('caseActions')}
               </div>
               <div className="space-y-2">
                 {/* B.27 Ledger */}
@@ -399,7 +400,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                   className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-brand/30 bg-brand/5 text-brand-text text-xs font-semibold hover:bg-brand/10 transition-colors"
                 >
                   <BarChart3 className="w-3.5 h-3.5" />
-                  Ver ledger completo →
+                  {t('btnFullLedger')}
                 </button>
                 {/* B.28 Settlement */}
                 {d.status !== 'SETTLED' && d.status !== 'CLOSED' && (
@@ -409,7 +410,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                     className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-emerald/30 bg-emerald/8 text-emerald text-xs font-semibold hover:bg-emerald/15 transition-colors"
                   >
                     <Target className="w-3.5 h-3.5" />
-                    🎯 Procesar Settlement →
+                    {t('btnProcessSettlement')}
                   </button>
                 )}
 
@@ -419,7 +420,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                     className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
                   >
                     <Scale className="w-3.5 h-3.5" />
-                    Llamar al abogado
+                    {t('btnCallAttorney')}
                   </a>
                 )}
                 {d.primaryInsurance?.claimsPhone && (
@@ -437,7 +438,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                     className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-violet/30 hover:text-violet-text transition-colors"
                   >
                     <Mail className="w-3.5 h-3.5" />
-                    Email a aseguradora
+                    {t('btnEmailInsurer')}
                   </a>
                 )}
               </div>
@@ -448,10 +449,10 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
           <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div className="text-sm font-bold text-text-1 uppercase tracking-wider">
-                📒 Notas internas · Brunella
+                {t('internalNotes')}
               </div>
               <span className="border border-brand/30 rounded-full px-2.5 py-0.5 text-[10px] bg-brand/8 text-brand-text font-semibold">
-                {d.notes.length} notas
+                {t('notesCount', { count: d.notes.length })}
               </span>
             </div>
 
@@ -461,7 +462,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             {/* Timeline */}
             {d.notes.length === 0 ? (
               <div className="text-center py-8 text-text-muted text-sm border border-dashed border-border rounded-lg">
-                Sin notas internas aún. Agregá la primera nota arriba.
+                {t('noInternalNotes')}
               </div>
             ) : (
               <div className="relative pl-5 border-l-2 border-brand/15">

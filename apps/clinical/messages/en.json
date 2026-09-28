@@ -2,6 +2,8 @@
   "clinical": {
     "common": {
       "saving": "Saving...",
+      "noteSignedBy": "Note signed by {quien}",
+      "noteSignedByAt": "Note signed by {quien} on {fecha} at {hora}",
       "saved": "Saved",
       "cancel": "Cancel",
       "save": "Save",

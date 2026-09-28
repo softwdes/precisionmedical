@@ -11,14 +11,15 @@
  */
 
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { db, VIGENTES } from '@precision-medical/database';
 import { CheckCircle2, Clock, UserCheck, AlertCircle } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtTime(iso: Date): string {
-  return iso.toLocaleTimeString('es-US', {
+/** La hora en el idioma del usuario — estaba clavada en `es-US`. */
+function fmtTime(iso: Date, locale: string): string {
+  return iso.toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-US', {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -47,10 +48,20 @@ function StatusBadge({ status, labels }: { status: string; labels: Record<string
   );
 }
 
+
+/** La fecha larga de la cabecera. Primera letra en mayuscula y nada mas: en
+    castellano subir cada palabra deja "Lunes, 28 De Septiembre". */
+function fechaLarga(d: Date, locale: string): string {
+  const s = d.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver',
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function ClinicalHomePage() {
   const t = await getTranslations('clinical.queue');
+  const locale = await getLocale();
   const now   = new Date();
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const eod   = new Date(now); eod.setHours(23, 59, 59, 999);
@@ -112,7 +123,7 @@ export default async function ClinicalHomePage() {
           </div>
         </div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
-          {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
+          {fechaLarga(now, locale)}
         </div>
       </header>
 
@@ -145,6 +156,7 @@ export default async function ClinicalHomePage() {
                 appt={appt}
                 now={now}
                 statusLabels={statusLabels}
+                locale={locale}
                 action={
                   <Link href={`/triage/${appt.id}`} style={btn('emerald')}>
                     {t('action.triage')}
@@ -164,6 +176,7 @@ export default async function ClinicalHomePage() {
                 appt={appt}
                 now={now}
                 statusLabels={statusLabels}
+                locale={locale}
                 action={
                   <Link href={`/checkin/${appt.id}`} style={btn('indigo')}>
                     {t('action.checkin')}
@@ -183,6 +196,7 @@ export default async function ClinicalHomePage() {
                 appt={appt}
                 now={now}
                 statusLabels={statusLabels}
+                locale={locale}
                 action={
                   <Link href={`/visit/${appt.id}`} style={btn('amber')}>
                     {t('action.viewVisit')}
@@ -197,7 +211,7 @@ export default async function ClinicalHomePage() {
         {done.length > 0 && (
           <Section title={t('section.completed')} color="rgba(255,255,255,0.25)" count={done.length}>
             {done.map(appt => (
-              <ApptRow key={appt.id} appt={appt} now={now} statusLabels={statusLabels} dimmed />
+              <ApptRow key={appt.id} appt={appt} now={now} statusLabels={statusLabels} locale={locale} dimmed />
             ))}
           </Section>
         )}
@@ -258,7 +272,8 @@ type ApptData = {
   case: { caseCode: string; intakeFormCompletedAt: Date | null } | null;
 };
 
-function ApptRow({ appt, now, action, dimmed = false, statusLabels }: {
+function ApptRow({ appt, now, action, dimmed = false, statusLabels, locale }: {
+  locale: string;
   appt: ApptData; now: Date; action?: React.ReactNode; dimmed?: boolean; statusLabels: Record<string, string>;
 }) {
   const age = appt.patient.dateOfBirth
@@ -286,11 +301,11 @@ function ApptRow({ appt, now, action, dimmed = false, statusLabels }: {
       {/* Time */}
       <div style={{ minWidth: 48, textAlign: 'center', flexShrink: 0 }}>
         <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 14, color: '#fff' }}>
-          {fmtTime(appt.scheduledFor)}
+          {fmtTime(appt.scheduledFor, locale)}
         </div>
         {appt.checkedInAt && (
           <div style={{ fontSize: 9, color: '#34d399', marginTop: 1 }}>
-            ✓ {fmtTime(appt.checkedInAt)}
+            ✓ {fmtTime(appt.checkedInAt, locale)}
           </div>
         )}
       </div>

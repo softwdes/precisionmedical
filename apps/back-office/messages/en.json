@@ -10,7 +10,33 @@
       "firms": "Law firms",
       "errLoadData": "The data could not be loaded",
       "cptNoteExample": "Cannot be billed together with 97140. Requires modifier -25 if billed with E&M.",
-      "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…"
+      "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…",
+      "fpTitleSent": "Email sent",
+      "fpTitle": "Reset password",
+      "fpSubSent": "Check your inbox",
+      "fpSub": "We will send you a sign-in link",
+      "fpSentBody": "If <b>{email}</b> has an active account, you will get an email with the link to create your new password.",
+      "fpSpam": "Check your spam folder too.",
+      "fpBackToLogin": "Back to sign in",
+      "fpSubmit": "Send sign-in link →",
+      "fpErrNetwork": "Could not send. Check your connection and try again.",
+      "fpEmailPlaceholder": "you@email.com",
+      "naTitleDoctor": "Doctor Portal — no access",
+      "naTitle": "No access",
+      "naBodyDoctor": "This account is not a doctor account. The Doctor Portal is limited to clinical staff — ask your administrator if you need access.",
+      "naBody": "Your account does not have permission to access this module. Please contact your system administrator.",
+      "naLogout": "Sign out",
+      "loginErrAuth": "Authentication error. Please try again.",
+      "loginErrNetwork": "Connection error. Check your network and try again.",
+      "loginSessionExpired": "Your session expired due to inactivity. Please sign in again.",
+      "loginLocked": "Account locked. Try again in <b>{tiempo}</b>.",
+      "loginMfaHint": "Enter the 6-digit code from your authenticator app.",
+      "loginBtnVerify": "Verify →",
+      "loginBtnBack": "← Back",
+      "loginSigningIn": "Signing in...",
+      "loginBtnSignIn": "Sign in →",
+      "loginForgot": "Forgot your password?",
+      "loginSystemsOk": "All systems operational"
     },
     "precall": {
       "phFirstName": "Maria",
@@ -29,7 +55,25 @@
     "security": {
       "mfaTitle": "Two-factor authentication (TOTP)",
       "mfaOk": "MFA is set up. Your account is protected.",
-      "confirmRemoveMfa": "Remove two-factor authentication? Your account will be less protected."
+      "confirmRemoveMfa": "Remove two-factor authentication? Your account will be less protected.",
+      "pageTitle": "Security",
+      "mfaSubtitle": "Protect your account with Google Authenticator, Authy, or any compatible TOTP app.",
+      "statusActive": "Active",
+      "statusNotSet": "Not set up",
+      "btnRemove": "Remove authenticator",
+      "step1": "1. Open your authenticator app and scan the QR code, or enter the key manually.",
+      "qrAlt": "QR code for the authenticator app",
+      "manualKey": "Manual key",
+      "step2": "2. Enter the 6-digit code your app shows to confirm.",
+      "btnVerifying": "Verifying…",
+      "btnActivate": "Enable MFA",
+      "mfaPitch": "Add an extra layer of security. You will need your authenticator app every time you sign in.",
+      "btnSetUp": "Set up authenticator",
+      "hipaaNote": "HIPAA · MFA is required for PHI record access under 45 CFR § 164.312(d).",
+      "errEnroll": "Could not start setup.",
+      "errChallenge": "Could not start verification.",
+      "errNetwork": "Connection error.",
+      "errCode": "Invalid code. Check your app and try again."
     },
     "settlement": {
       "ledgerUpdated": "Ledger updated — balance $0",
@@ -42,7 +86,42 @@
       "pageTitle": "🎯 Settlement received",
       "pageSubtitle": "{bufete} sent the settlement check. Apply it to the lien and close the case.",
       "firmFallback": "Law firm",
-      "noCptDetail": "No CPT detail available"
+      "noCptDetail": "No CPT detail available",
+      "matchesLien": "Matches the lien exactly",
+      "doneTitle": "Settlement processed",
+      "doneSubtitle": "Case {caso} closed successfully",
+      "summaryTitle": "Summary",
+      "fieldAmount": "Amount",
+      "fieldMethod": "Method",
+      "fieldPayor": "Payor",
+      "btnBackToBilling": "Back to billing ←",
+      "btnPrintReceipt": "🖨 Print receipt",
+      "btnBackToBillingLeft": "← Back to billing",
+      "caseDataTitle": "Case data",
+      "lienAccrued": "Accrued lien",
+      "lienDetailTitle": "Lien breakdown",
+      "colConcept": "Item",
+      "colAmount": "Amount",
+      "pipReceived": "PIP received",
+      "lienTotal": "Lien total",
+      "receivedTitle": "Settlement received",
+      "fieldReceivedDate": "Date received",
+      "methodCheck": "Check",
+      "fieldAmountReceived": "Amount received",
+      "onConfirmTitle": "On confirming settlement",
+      "chkLedger": "The ledger updates: balance goes to $0",
+      "chkStatus": "The case moves to SETTLED",
+      "chkNote": "Settlement note recorded and filed",
+      "chkAudit": "Audit log saved (HIPAA)",
+      "chkEmailPatient": "Email to the patient: \"Your case is closed\" (Phase 2)",
+      "chkEmailFirm": "Email to {bufete}: receipt confirmation (Phase 2)",
+      "chkReport": "Report added to this month metrics",
+      "partialBalance": "The remaining balance of {monto} stays as an open amount",
+      "errLoadCase": "The case could not be loaded for settlement.",
+      "errAmountPositive": "The amount must be a positive number.",
+      "errAlreadySettled": "This case was already settled.",
+      "errProcess": "Error processing the settlement. Please try again.",
+      "errNetwork": "Network error. Check your connection and try again."
     },
     "camera": {
       "cancel": "Cancel",
@@ -65,7 +144,27 @@
       "errSaveNote": "The note could not be saved",
       "firmContact": "Law firm contact",
       "noComms": "No communications with the law firm yet.",
-      "noTimeline": "No events in the timeline yet."
+      "noTimeline": "No events in the timeline yet.",
+      "fieldAmountUsd": "Amount received (USD)",
+      "fieldNotes": "Notes",
+      "backToFollowUp": "Back to Follow-up",
+      "breadcrumb": "Follow-up",
+      "kpiBilled": "Billed",
+      "kpiCollected": "Collected",
+      "kpiPending": "Pending",
+      "actionsLabel": "Actions:",
+      "actionCallFirm": "Call the firm",
+      "actionSendReminder": "Send reminder",
+      "actionPartialPayment": "Partial payment",
+      "actionEscalate": "Escalate to Brunella",
+      "logCallTitle": "📞 Log call to the firm",
+      "logCallPlaceholder": "E.g. Mary Smith unavailable, left a message with Jane…",
+      "logEmailTitle": "📧 Log email sent",
+      "logEmailPlaceholder": "E.g. Sent HCFA + balance to mary@smithjohnson.com…",
+      "logPaymentTitle": "💰 Log partial payment",
+      "logPaymentPlaceholder": "E.g. Check received from Smith & Johnson LLP…",
+      "logEscalateTitle": "🚨 Escalate to Brunella",
+      "logEscalatePlaceholder": "E.g. No response after 3 attempts, needs attention…"
     },
     "hcfa": {
       "noDiagnoses": "— No diagnoses on file —",
@@ -74,7 +173,20 @@
       "noEmail": "— no email on file",
       "errLoad": "The data could not be loaded",
       "errNotFound": "Case not found",
-      "errNotFoundDot": "Case not found."
+      "errNotFoundDot": "Case not found.",
+      "breadcrumbInbox": "Inbox",
+      "alreadyGenerated": "The HCFA has already been generated for this case. You can regenerate it if needed.",
+      "previewLabel": "Preview · CMS-1500",
+      "configTitle": "Settings",
+      "targetInsurer": "Target insurer",
+      "sendMethod": "Delivery method",
+      "validationsTitle": "Validations",
+      "validationsWarning": "There are pending validations. You can still generate it, but check the data before sending.",
+      "afterGenerateTitle": "After generating",
+      "btnGenerating": "Generating…",
+      "btnRegenerate": "HCFA generated · Regenerate",
+      "btnGenerate": "📄 Generate HCFA and send",
+      "totalBilled": "Total billed"
     },
     "releasesAdmin": {
       "title": "Release notes",
@@ -91,7 +203,12 @@
       "placeholderEs": "Text in Spanish",
       "placeholderEn": "English — required to publish",
       "titleNothingReady": "No entry is ready: approve one with Save",
-      "titlePublishAnyway": "It publishes anyway: anyone with the app in English will see those lines in Spanish"
+      "titlePublishAnyway": "It publishes anyway: anyone with the app in English will see those lines in Spanish",
+      "loading": "Loading releases…",
+      "btnUnpublish": "Unpublish",
+      "btnPublishUntranslated": "Publish untranslated",
+      "btnPublish": "Publish",
+      "publishedBy": "published by {nombre}"
     },
     "settlementPrint": {
       "printButton": "Print / Save PDF",
@@ -115,7 +232,14 @@
       "groupPatients": "Patients",
       "groupFirms": "Law firms",
       "groupDiagnoses": "Diagnoses",
-      "closeSearch": "Close search"
+      "closeSearch": "Close search",
+      "emptyFor": "Nothing found for “<m>{q}</m>”",
+      "groupSpecialties": "Specialties",
+      "itemSpecialty": "Specialty",
+      "groupInsurances": "Insurers",
+      "groupServices": "CPT services",
+      "kbdNavigate": "navigate",
+      "kbdOpen": "open"
     },
     "scheduleAppt": {
       "patientCaseLine": "Patient <b>{paciente}</b> · case <c>{caso}</c>.",
@@ -138,7 +262,14 @@
       "summaryType": "Type:",
       "loading": "Loading...",
       "btnSchedule": "Schedule appointment",
-      "scheduling": "Scheduling..."
+      "scheduling": "Scheduling...",
+      "dialogTitle": "Schedule first appointment",
+      "dialogHint": "On scheduling, the status becomes <c>ACTIVE</c> and the case enters the clinical flow.",
+      "fieldClinic": "Clinic",
+      "fieldDoctor": "Doctor",
+      "fieldDate": "Date",
+      "fieldTime": "Time",
+      "summaryTitle": "Summary"
     },
     "noteTemplates": {
       "errorDelete": "The template could not be deleted.",
@@ -234,7 +365,11 @@
       "colAction": "Action",
       "colEntity": "Entity",
       "colIp": "IP",
-      "colMetadata": "Metadata"
+      "colMetadata": "Metadata",
+      "btnRefresh": "Refresh",
+      "btnClearFilters": "Clear filters",
+      "pagFirst": "First",
+      "pagLast": "Last"
     },
     "confirmAppt": {
       "title": "Confirm appointment · call 24 h before",
@@ -2295,7 +2430,11 @@
       "fieldCaseType": "Case type",
       "fieldCpt": "Suggested CPT codes",
       "fieldCptHelp": "(comma-separated · auto-loaded when signing the note)",
-      "fieldActive": "Specialty is active"
+      "fieldActive": "Specialty is active",
+      "actionView": "View",
+      "actionPermissions": "Permissions",
+      "dlgEdit": "Edit — {nombre}",
+      "phName": "E.g. Cardiology"
     },
     "lawyers": {
       "title": "Law Firms",
@@ -2606,7 +2745,24 @@
       "columnType": "Type",
       "columnClaims": "Claims",
       "columnHcfa": "HCFA",
-      "columnResponse": "Avg response"
+      "columnResponse": "Avg response",
+      "dlgEdit": "Edit — {nombre}",
+      "dlgNew": "New insurer",
+      "dlgHint": "Used when creating a case (autocomplete), when Edson verifies PIP, and when the HCFA is sent.",
+      "fieldCoverageType": "Coverage type",
+      "sectionClaimsContact": "Claims contact",
+      "fieldFax": "Fax",
+      "fieldPortal": "Web portal",
+      "sectionHcfa": "HCFA submission",
+      "fieldPreferredChannel": "Preferred channel",
+      "chkActive": "Active insurer (receiving claims)",
+      "rowClaimsPhone": "Claims phone",
+      "rowClaimsEmail": "Claims email",
+      "rowClaimsFax": "Claims fax",
+      "rowPortal": "Portal",
+      "rowHcfaChannel": "HCFA channel",
+      "rowAvgResponse": "Average response",
+      "rowPreauth": "Pre-auth required?"
     },
     "services": {
       "title": "Billable Services",
@@ -2679,7 +2835,8 @@
       "validShortDesc": "Short description is required",
       "validCustomPm": "CUSTOM_PM codes must start with \"PM-\" (e.g. PM-DIRECT)",
       "errorSave": "Error saving",
-      "errorDelete": "Error deleting"
+      "errorDelete": "Error deleting",
+      "phInternalNotes": "Private operational notes..."
     },
     "diagnoses": {
       "snomedCol": "SNOMED CT (clinical)",
@@ -2863,7 +3020,9 @@
         "startSearchBtn": "Continue → Create Case / Appointment",
         "patientVerifyTitle": "Verify patient",
         "patientVerifyHint": "Confirm this is the right patient before continuing.",
-        "pasteHint": "Type it, or paste with Ctrl+V"
+        "pasteHint": "Type it, or paste with Ctrl+V",
+        "btnContinueNoCall": "Continue without calling",
+        "btnCall": "Call"
       },
       "newCase": {
         "cancelCall": "Cancel call",
@@ -3057,7 +3216,11 @@
         "referrerAttorneyLabel": "Referring attorney",
         "referrerHint": "Who sent us the patient. It can differ from the firm that represents them, and you can leave it empty and continue.",
         "optionalTag": "(optional)"
-      }
+      },
+      "pagPrev": "← Previous",
+      "pagNext": "Next →",
+      "pagOf": "Page {n} / {total}",
+      "devSimulateHint": "Phase 1A dev: simulates the patient completing the portal"
     },
     "billing": {
       "colType": "Type",
@@ -3156,7 +3319,21 @@
       "sendToFirm": "Send to {firm}",
       "defaultFirm": "firm",
       "printSavePdf": "Print / Save PDF",
-      "caseCount": "{count} case{count, plural, one {} other {s}}"
+      "caseCount": "{count} case{count, plural, one {} other {s}}",
+      "detailSubtitle": "Billing · Brunella",
+      "btnInbox": "Inbox",
+      "caseSummary": "📋 Case summary",
+      "assessmentPrefix": "A:",
+      "total": "Total",
+      "caseActions": "🚀 Case actions",
+      "btnFullLedger": "View full ledger →",
+      "btnProcessSettlement": "🎯 Process settlement →",
+      "btnCallAttorney": "Call the attorney",
+      "btnEmailInsurer": "Email the insurer",
+      "internalNotes": "📒 Internal notes · Brunella",
+      "notesCount": "{count, plural, one {# note} other {# notes}}",
+      "noInternalNotes": "No internal notes yet. Add the first one above.",
+      "btnSettled": "Settled ✓"
     },
     "intake": {
       "loadError": "The data could not be loaded",
@@ -4151,7 +4328,10 @@
       "reopenLoading": "Reopening…",
       "errorReopen": "The appointment could not be reopened. Try again.",
       "dupUpcomingTitle": "This patient already has {count, plural, one {an appointment} other {# appointments}} coming up",
-      "dupMore": "and {count} more"
+      "dupMore": "and {count} more",
+      "actionEmail": "Email",
+      "frontOfficeLabel": "Front Office",
+      "auditPhase1bNote": "📜 Detailed audit log available in Phase 1B (requires call audit table)."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5215,7 +5395,16 @@
       "linkContactSharedPhone": "It is a shared or clinic phone",
       "linkContactSharedPhoneHint": "Not a family tie: unrelated people use it. The record is created without a link, and the review is logged.",
       "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
-      "photoPdfError": "The PDF could not be generated."
+      "photoPdfError": "The PDF could not be generated.",
+      "qrDialogTitle": "Patient Access",
+      "qrDialogHint": "Share this QR code or link with the patient so they can securely complete or update their registration information.",
+      "qrCopyLink": "Copy link",
+      "qrAlt": "QR code",
+      "qrLinkError": "Could not generate the link.",
+      "viewContact": "Contact",
+      "viewAccident": "Accident",
+      "viewGuardian": "Legal guardian",
+      "intakePdfTitle": "Patient Intake Form"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",
@@ -5977,7 +6166,17 @@
         "colBillingType": "Billing type",
         "colDoctor": "Provider",
         "colLabs": "Labs",
-        "colDiagnoses": "Diagnoses"
+        "colDiagnoses": "Diagnoses",
+        "fieldDrug": "Drug",
+        "orTypeName": "Or type the name directly:",
+        "fieldDose": "Dose",
+        "fieldDirections": "Directions",
+        "fieldQuantity": "Quantity to dispense",
+        "fieldRefills": "Refills",
+        "fieldPrescribedBy": "Prescribed by",
+        "createLab": "Create lab order",
+        "fieldProvider": "Provider",
+        "fieldLabs": "Labs"
       },
       "documents": {
         "emptyTitle": "No documents",
@@ -6111,7 +6310,20 @@
         "sub_REFERRALS": "The referrals firms send (\"Have a referral?\"). Whoever opens it creates the case from the message."
       },
       "labsLoading": "Loading the price catalog…",
-      "labsLoadError": "Could not load the price catalog. Reload the page."
+      "labsLoadError": "Could not load the price catalog. Reload the page.",
+      "fieldColor": "Color",
+      "fieldMobile": "Mobile",
+      "colActions": "Actions",
+      "errNameRequired": "The clinic name is required.",
+      "errPickState": "Select a state.",
+      "errPickCity": "Select a city.",
+      "dlgNewClinic": "New clinic",
+      "btnCreateClinic": "Create clinic",
+      "dlgEditClinic": "Edit clinic",
+      "dlgDeleteTitle": "Delete clinic",
+      "dlgDeleteBody": "Delete <b>{nombre}</b>? This cannot be undone.",
+      "dlgDeleteHasAppointments": "⚠ This clinic has {count, plural, one {# appointment} other {# appointments}} — it cannot be deleted.",
+      "customColor": "Custom color"
     },
     "providers": {
       "errorDelete": "The Provider could not be deleted.",
@@ -6509,7 +6721,8 @@
           "DME": "Braces"
         }
       },
-      "missingCostHint": "Real cost not loaded for this item"
+      "missingCostHint": "Real cost not loaded for this item",
+      "phAnySize": "any size"
     },
     "edsonTracking": {
       "title": "MVA Tracking",

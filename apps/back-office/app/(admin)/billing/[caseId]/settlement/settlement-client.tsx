@@ -88,6 +88,7 @@ function fmtMoney(n: number): string {
 // ─── Diff indicator ──────────────────────────────────────────────────────────
 
 function DiffIndicator({ lienTotal, amountStr }: { lienTotal: number; amountStr: string }) {
+  const t = useTranslations('phoenix.settlement');
   const amount = parseFloat(amountStr.replace(/[^0-9.]/g, ''));
   if (!amount || isNaN(amount)) return null;
   const diff = amount - lienTotal;
@@ -97,7 +98,7 @@ function DiffIndicator({ lienTotal, amountStr }: { lienTotal: number; amountStr:
     return (
       <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-emerald">
         <CheckCircle2 className="w-3.5 h-3.5" />
-        Coincide exactamente con el lien
+        {t('matchesLien')}
       </div>
     );
   }
@@ -137,15 +138,15 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
         <CheckCircle2 className="w-10 h-10 text-emerald" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-text-1 mb-2">Settlement procesado</h2>
-        <p className="text-text-muted text-[13px]">Caso {caseCode} cerrado exitosamente</p>
+        <h2 className="text-2xl font-bold text-text-1 mb-2">{t('doneTitle')}</h2>
+        <p className="text-text-muted text-[13px]">{t('doneSubtitle', { caso: caseCode })}</p>
       </div>
       <div className="rounded-xl border border-emerald/25 bg-emerald/8 p-5 w-full max-w-sm text-left">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-emerald mb-3">Resumen</div>
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-emerald mb-3">{t('summaryTitle')}</div>
         {[
-          { label: 'Monto', value: amount },
-          { label: 'Método', value: method },
-          { label: 'Emisor', value: payor },
+          { label: t('fieldAmount'), value: amount },
+          { label: t('fieldMethod'), value: method },
+          { label: t('fieldPayor'), value: payor },
         ].map(r => (
           <div key={r.label} className="flex justify-between text-[12px] mb-2">
             <span className="text-text-muted">{r.label}</span>
@@ -165,7 +166,7 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
           onClick={onBack}
           className="rounded-lg bg-amber px-6 py-2.5 text-[13px] font-semibold text-black hover:bg-amber/90 transition-colors"
         >
-          Volver al billing ←
+          {t('btnBackToBilling')}
         </button>
         <a
           href={`/billing/${caseId}/settlement/print`}
@@ -173,7 +174,7 @@ function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
           rel="noreferrer"
           className="rounded-lg border border-emerald/30 bg-emerald/10 px-6 py-2.5 text-[13px] font-semibold text-emerald hover:bg-emerald/15 transition-colors"
         >
-          🖨 Imprimir comprobante
+          {t('btnPrintReceipt')}
         </a>
       </div>
     </div>
@@ -220,7 +221,7 @@ export function SettlementClient() {
         amount: s.lienTotal > 0 ? s.lienTotal.toFixed(2) : '',
       }));
     } catch {
-      setError('No se pudo cargar el caso para settlement.');
+      setError(t('errLoadCase'));
     } finally {
       setLoading(false);
     }
@@ -232,7 +233,7 @@ export function SettlementClient() {
     e.preventDefault();
     const amount = parseFloat(form.amount);
     if (!amount || isNaN(amount) || amount <= 0) {
-      setSubmitError('El monto debe ser un número positivo.');
+      setSubmitError(t('errAmountPositive'));
       return;
     }
     setSubmitting(true);
@@ -252,9 +253,9 @@ export function SettlementClient() {
       const json = await res.json() as { ok: boolean; error?: string; settled?: { amountFmt: string } };
       if (!json.ok) {
         if (json.error === 'ALREADY_SETTLED') {
-          setSubmitError('Este caso ya fue settlado anteriormente.');
+          setSubmitError(t('errAlreadySettled'));
         } else {
-          setSubmitError('Error al procesar el settlement. Intentá de nuevo.');
+          setSubmitError(t('errProcess'));
         }
         return;
       }
@@ -266,7 +267,7 @@ export function SettlementClient() {
       });
       setSettled(true);
     } catch {
-      setSubmitError('Error de red. Revisá la conexión e intentá de nuevo.');
+      setSubmitError(t('errNetwork'));
     } finally {
       setSubmitting(false);
     }
@@ -323,7 +324,7 @@ export function SettlementClient() {
           </div>
           <button type="button" onClick={() => router.push(`/billing/${caseId}`)}
             className="rounded-lg bg-amber px-6 py-2.5 text-[13px] font-semibold text-black hover:bg-amber/90 transition-colors">
-            ← Volver al billing
+            {t('btnBackToBillingLeft')}
           </button>
         </div>
       </div>
@@ -384,7 +385,7 @@ export function SettlementClient() {
                 <div className="flex items-center gap-2 mb-4">
                   <FileText className="w-4 h-4 text-brand-text" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Datos del caso
+                    {t('caseDataTitle')}
                   </span>
                 </div>
 
@@ -406,7 +407,7 @@ export function SettlementClient() {
                   ))}
                   {/* Lien acumulado — highlighted */}
                   <div className="flex items-center justify-between border-t border-border pt-2.5 mt-1">
-                    <span className="text-[11.5px] text-text-muted">Lien acumulado</span>
+                    <span className="text-[11.5px] text-text-muted">{t('lienAccrued')}</span>
                     <span className="font-mono font-bold text-[14px]" style={{ color: '#fda4af' }}>
                       {s.lienTotalFmt}
                     </span>
@@ -419,7 +420,7 @@ export function SettlementClient() {
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-4 h-4 text-amber" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Detalle del lien
+                    {t('lienDetailTitle')}
                   </span>
                 </div>
 
@@ -429,8 +430,8 @@ export function SettlementClient() {
                   <table className="w-full text-[11.5px]">
                     <thead>
                       <tr className="border-b border-border/30">
-                        <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Concepto</th>
-                        <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Monto</th>
+                        <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colConcept')}</th>
+                        <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colAmount')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -443,7 +444,7 @@ export function SettlementClient() {
                       {/* Deducciones PIP pagado */}
                       {s.totalPaid > 0 && (
                         <tr className="border-b border-border/40">
-                          <td className="py-2 text-emerald">− PIP recibido</td>
+                          <td className="py-2 text-emerald">− {t('pipReceived')}</td>
                           <td className="py-2 text-right font-mono text-emerald">({s.totalPaidFmt})</td>
                         </tr>
                       )}
@@ -454,7 +455,7 @@ export function SettlementClient() {
                         style={{ background: 'rgba(244,63,94,0.06)' }}
                       >
                         <td className="py-2.5 px-1 font-bold text-[12px]" style={{ color: '#fda4af' }}>
-                          Total lien
+                          {t('lienTotal')}
                         </td>
                         <td className="py-2.5 text-right font-mono font-bold text-[13px]" style={{ color: '#fda4af' }}>
                           {s.lienTotalFmt}
@@ -480,7 +481,7 @@ export function SettlementClient() {
                 <div className="flex items-center gap-2 mb-4">
                   <CheckCircle2 className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Settlement recibido
+                    {t('receivedTitle')}
                   </span>
                 </div>
 
@@ -488,7 +489,7 @@ export function SettlementClient() {
                   {/* Fecha de recepción */}
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-                      Fecha de recepción
+                      {t('fieldReceivedDate')}
                     </label>
                     <input
                       type="date"
@@ -504,14 +505,14 @@ export function SettlementClient() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-                        Método
+                        {t('fieldMethod')}
                       </label>
                       <select
                         value={form.method}
                         onChange={e => setForm(f => ({ ...f, method: e.target.value as FormState['method'] }))}
                         className="w-full rounded-lg border border-border bg-bg-2 px-3 py-2 text-[12px] text-text-1 focus:border-emerald/50 focus:outline-none"
                       >
-                        <option value="check">Cheque</option>
+                        <option value="check">{t('methodCheck')}</option>
                         <option value="wire">Wire Transfer</option>
                         <option value="ach">ACH</option>
                       </select>
@@ -534,7 +535,7 @@ export function SettlementClient() {
                   {/* Emisor */}
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-                      Emisor
+                      {t('fieldPayor')}
                     </label>
                     <input
                       type="text"
@@ -549,7 +550,7 @@ export function SettlementClient() {
                   {/* Monto recibido — big input */}
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-                      Monto recibido
+                      {t('fieldAmountReceived')}
                     </label>
                     <div
                       className="rounded-lg border p-3"
@@ -587,19 +588,19 @@ export function SettlementClient() {
                 <div className="flex items-center gap-2 mb-4">
                   <Mail className="w-4 h-4 text-brand-text" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Al confirmar settlement
+                    {t('onConfirmTitle')}
                   </span>
                 </div>
 
                 <div className="space-y-2.5 text-[12px] text-text-2 leading-relaxed">
                   {[
-                    { text: 'Ledger se actualiza: balance pasa a $0', always: true },
-                    { text: `Caso pasa a estado SETTLED`, always: true },
-                    { text: 'Nota de settlement registrada y archivada', always: true },
-                    { text: 'Audit log guardado (HIPAA)', always: true },
-                    { text: `Email al paciente: "Tu caso está cerrado"  (Phase 2)`, always: false },
-                    { text: `Email a ${s.firmName ?? 'bufete'}: confirmación de recepción (Phase 2)`, always: false },
-                    { text: 'Reporte agregado a métricas del mes', always: true },
+                    { text: t('chkLedger'), always: true },
+                    { text: t('chkStatus'), always: true },
+                    { text: t('chkNote'), always: true },
+                    { text: t('chkAudit'), always: true },
+                    { text: t('chkEmailPatient'), always: false },
+                    { text: t('chkEmailFirm', { bufete: s.firmName ?? t('firmFallback') }), always: false },
+                    { text: t('chkReport'), always: true },
                   ].map((item, i) => (
                     <div key={i} className={`flex items-start gap-2 ${!item.always ? 'opacity-50' : ''}`}>
                       <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${item.always ? 'text-emerald' : 'text-text-muted'}`} />
@@ -609,7 +610,7 @@ export function SettlementClient() {
                   {isPartial && (
                     <div className="flex items-start gap-2 text-amber">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span>Balance restante {fmtMoney(s.lienTotal - amountNum)} queda como saldo pendiente</span>
+                      <span>{t('partialBalance', { monto: fmtMoney(s.lienTotal - amountNum) })}</span>
                     </div>
                   )}
                 </div>

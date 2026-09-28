@@ -8,7 +8,7 @@
  */
 
 import Link  from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { db, VIGENTES } from '@precision-medical/database';
 import {
   ClipboardList, UserCheck, CheckCircle2,
@@ -16,8 +16,9 @@ import {
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtTime(iso: Date): string {
-  return iso.toLocaleTimeString('es-US', {
+/** La hora en el idioma del usuario — estaba clavada en `es-US`. */
+function fmtTime(iso: Date, locale: string): string {
+  return iso.toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-US', {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
 }
@@ -67,8 +68,9 @@ type ApptRowTranslations = {
 };
 
 function ApptRow({
-  appt, isHero = false, t,
+  appt, isHero = false, t, locale,
 }: {
+  locale: string;
   appt: {
     id: string;
     scheduledFor: Date;
@@ -134,7 +136,7 @@ function ApptRow({
           fontSize: isHero ? 20 : 14,
           color: isHero ? '#a78bfa' : '#fff',
         }}>
-          {fmtTime(appt.scheduledFor)}
+          {fmtTime(appt.scheduledFor, locale)}
         </div>
       </div>
 
@@ -269,7 +271,18 @@ function ApptRow({
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+/** La fecha larga de la cabecera, con la primera letra en mayuscula y nada mas:
+    en castellano `capitalize` subiria tambien las preposiciones. */
+function fechaLarga(d: Date, locale: string): string {
+  const s = d.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver',
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default async function DoctorMiDiaPage() {
+  const locale = await getLocale();
   const t     = await getTranslations('clinical.doctor');
   const now   = new Date();
   const today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -366,7 +379,7 @@ export default async function DoctorMiDiaPage() {
             {t('templates')}
           </Link>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-            {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
+            {fechaLarga(now, locale)}
           </div>
         </div>
       </header>
@@ -390,7 +403,7 @@ export default async function DoctorMiDiaPage() {
               <AlertTriangle size={12} /> {t('section.unsignedNotes', { count: unsignedDone.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {unsignedDone.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
+              {unsignedDone.map(a => <ApptRow key={a.id} appt={a} t={apptT} locale={locale} />)}
             </div>
           </section>
         )}
@@ -404,7 +417,7 @@ export default async function DoctorMiDiaPage() {
             }}>
               <UserCheck size={12} /> {t('section.nextPatient')}
             </h3>
-            <ApptRow appt={nextAppt} isHero t={apptT} />
+            <ApptRow appt={nextAppt} isHero t={apptT} locale={locale} />
           </section>
         ) : (
           <div style={{
@@ -427,7 +440,7 @@ export default async function DoctorMiDiaPage() {
               <ChevronRight size={12} /> {t('section.queue', { count: queue.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {queue.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
+              {queue.map(a => <ApptRow key={a.id} appt={a} t={apptT} locale={locale} />)}
             </div>
           </section>
         )}
@@ -442,7 +455,7 @@ export default async function DoctorMiDiaPage() {
               {t('section.completed', { count: done.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {done.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
+              {done.map(a => <ApptRow key={a.id} appt={a} t={apptT} locale={locale} />)}
             </div>
           </section>
         )}

@@ -421,9 +421,9 @@ function InsuranceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editing ? `Editar — ${editing.name}` : 'Nueva aseguradora'}</DialogTitle>
+          <DialogTitle>{editing ? t('dlgEdit', { nombre: editing.name }) : t('dlgNew')}</DialogTitle>
           <DialogDescription>
-            Consumido en B.2 (autocomplete al crear caso), B.12 (Edson verifica PIP) y B.26 (Brunella envía HCFA).
+            {t('dlgHint')}
           </DialogDescription>
         </DialogHeader>
 
@@ -461,7 +461,7 @@ function InsuranceDialog({
               </div>
             </div>
             <div>
-              <Label htmlFor="type">Tipo de cobertura</Label>
+              <Label htmlFor="type">{t('fieldCoverageType')}</Label>
               <select
                 id="type"
                 value={type}
@@ -474,22 +474,22 @@ function InsuranceDialog({
           </div>
 
           <div className="pt-3 border-t border-border">
-            <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">Claims contact</div>
+            <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">{t('sectionClaimsContact')}</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="claimsPhone">{t('fieldPhone')}</Label>
                 <Input id="claimsPhone" value={claimsPhone ?? ''} onChange={(e) => setClaimsPhone(e.target.value)} placeholder="1-800-..." />
               </div>
               <div>
-                <Label htmlFor="claimsEmail">Email</Label>
+                <Label htmlFor="claimsEmail">{tc('email')}</Label>
                 <Input id="claimsEmail" type="email" value={claimsEmail ?? ''} onChange={(e) => setClaimsEmail(e.target.value)} placeholder="claims@..." />
               </div>
               <div>
-                <Label htmlFor="claimsFax">Fax</Label>
+                <Label htmlFor="claimsFax">{t('fieldFax')}</Label>
                 <Input id="claimsFax" value={claimsFax ?? ''} onChange={(e) => setClaimsFax(e.target.value)} placeholder="1-866-..." />
               </div>
               <div>
-                <Label htmlFor="portalUrl">Portal web</Label>
+                <Label htmlFor="portalUrl">{t('fieldPortal')}</Label>
                 <Input id="portalUrl" type="url" value={portalUrl ?? ''} onChange={(e) => setPortalUrl(e.target.value)} placeholder="https://..." />
               </div>
             </div>
@@ -506,10 +506,10 @@ function InsuranceDialog({
           </div>
 
           <div className="pt-3 border-t border-border">
-            <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">HCFA submission</div>
+            <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">{t('sectionHcfa')}</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="hcfaChannel">Canal preferido</Label>
+                <Label htmlFor="hcfaChannel">{t('fieldPreferredChannel')}</Label>
                 <select
                   id="hcfaChannel"
                   value={hcfaChannel}
@@ -554,7 +554,7 @@ function InsuranceDialog({
 
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
-            <span className="text-sm text-text-2">Aseguradora activa (recibiendo claims)</span>
+            <span className="text-sm text-text-2">{t('chkActive')}</span>
           </label>
 
           {error && (
@@ -597,26 +597,26 @@ function ViewDialog({
         </DialogHeader>
 
         <div className="space-y-3 py-4 text-sm">
-          <InfoRow label="Tipo" value={<TypePill type={insurance.type} />} />
-          <InfoRow label="Estado" value={
+          <InfoRow label={tc('type')} value={<TypePill type={insurance.type} />} />
+          <InfoRow label={tc('status')} value={
             <StatusPill
               state={insurance.isActive ? 'active' : 'inactive'}
               label={insurance.isActive ? t('stActive') : t('stInactive')}
             />
           } />
-          <InfoRow label="Claims phone"
+          <InfoRow label={t('rowClaimsPhone')}
             value={insurance.claimsPhone ? <span className="font-mono">{insurance.claimsPhone}</span> : <Empty />} />
-          <InfoRow label="Claims email"
+          <InfoRow label={t('rowClaimsEmail')}
             value={insurance.claimsEmail ? <a href={`mailto:${insurance.claimsEmail}`} className="text-cyan hover:text-text-1">{insurance.claimsEmail}</a> : <Empty />} />
-          <InfoRow label="Claims fax"
+          <InfoRow label={t('rowClaimsFax')}
             value={insurance.claimsFax ? <span className="font-mono">{insurance.claimsFax}</span> : <Empty />} />
-          <InfoRow label="Portal"
+          <InfoRow label={t('rowPortal')}
             value={insurance.portalUrl ? <a href={insurance.portalUrl} target="_blank" rel="noopener" className="text-cyan hover:text-text-1 truncate inline-block max-w-[280px]">{insurance.portalUrl}</a> : <Empty />} />
-          <InfoRow label="HCFA channel" value={<HcfaChannelPill channel={insurance.hcfaChannel} />} />
-          <InfoRow label="Avg respuesta" value={<ResponseDaysCell days={insurance.avgResponseDays} speed={insurance.responseSpeed} />} />
-          <InfoRow label="Pre-auth req?" value={insurance.preauthRequired ? <span className="text-amber">⚠ Sí</span> : <span className="text-text-2">No</span>} />
+          <InfoRow label={t('rowHcfaChannel')} value={<HcfaChannelPill channel={insurance.hcfaChannel} />} />
+          <InfoRow label={t('rowAvgResponse')} value={<ResponseDaysCell days={insurance.avgResponseDays} speed={insurance.responseSpeed} />} />
+          <InfoRow label={t('rowPreauth')} value={insurance.preauthRequired ? <span className="text-amber-text">⚠ {tc('yes')}</span> : <span className="text-text-2">{tc('no')}</span>} />
           {insurance.notes && (
-            <InfoRow label="Notas" value={<div className="text-text-2 whitespace-pre-wrap text-xs">{insurance.notes}</div>} />
+            <InfoRow label={t('fieldNotes')} value={<div className="text-text-2 whitespace-pre-wrap text-xs">{insurance.notes}</div>} />
           )}
         </div>
 

@@ -1168,7 +1168,8 @@
       "msgUnarchived": "Back in the inbox.",
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
-      "msgYouPrefix": "You → {name}"
+      "msgYouPrefix": "You → {name}",
+      "lienOpenError": "The agreement could not be opened."
     },
     "doctor": {
       "greeting": "{name}",
@@ -4325,7 +4326,8 @@
       "sectionInternalNotes": "Internal notes",
       "noteSaved": "Note saved",
       "notesEmpty": "No notes yet.",
-      "notePrivate": "Private"
+      "notePrivate": "Private",
+      "intakeOpenError": "The intake form could not be opened."
     },
     "patients": {
       "phFirm": "Name of the firm that referred the medical case…",

@@ -262,6 +262,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */
   const tc = useTranslations('phoenix.charges');
+  const tcom = useTranslations('phoenix.common');
   const locale = useLocale();
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -340,7 +341,30 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // a nadie: el asistente necesita saber cuánto cobrar HOY.
   const [services,       setServices]       = useState<PlannedService[]>([]);
   const [cashCharges,    setCashCharges]    = useState<CashCharge[]>([]);
-  const [svcLoaded,      setSvcLoaded]      = useState(false);
+  /**
+   * De QUÉ cita están cargados los servicios — no un booleano.
+   *
+   * Era `svcLoaded: boolean` con un efecto aparte que lo volvía a `false`
+   * cuando cambiaba `appt.id`, y esos dos efectos CORRÍAN LOS DOS AL MONTAR, en
+   * ese orden: el de carga ponía `true` y el de reseteo lo volvía a `false` en
+   * el mismo lote. El estado terminaba igual que al principio, así que las
+   * dependencias del efecto de carga no cambiaban, no volvía a correr nunca y
+   * el tab se quedaba en "Loading..." para siempre.
+   *
+   * Sólo se veía cuando el padre YA pasa `plannedServiceCodes`, porque ahí
+   * `setSvcLoaded(true)` ocurre sincrónicamente dentro del efecto y alcanza a
+   * ser pisado. Con la otra rama —la que va a buscar la cita— el `true` llega
+   * en un microtask posterior, después del reseteo, y se salva. Por eso pasaba
+   * en Day Admission y no en el calendario (Erick, 28-sep-2026); lo introdujo
+   * `4eee1df8` el 29-ago al agregar el efecto de reseteo.
+   *
+   * Guardando el ID no hace falta ningún efecto que resetee: si la cita cambia,
+   * `svcLoaded` da `false` en el mismo render y el efecto de carga se dispara
+   * solo. Y como la lista está detrás de ese flag, tampoco se ven los cargos de
+   * la cita anterior, que es lo que el efecto borrado venía a evitar.
+   */
+  const [svcLoadedFor,   setSvcLoadedFor]   = useState<string | null>(null);
+  const svcLoaded = svcLoadedFor === appt.id;
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
   /** Por qué NO se pudo quitar un cargo. Hoy solo hay un motivo: ya se cobró. */
@@ -404,7 +428,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
     if (appt.plannedServiceCodes) {
       setServices(appt.plannedServiceCodes);
-      setSvcLoaded(true);
+      setSvcLoadedFor(appt.id);
       return;
     }
     try {
@@ -412,7 +436,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       const d = await res.json();
       setServices((d.plannedServiceCodes as PlannedService[]) ?? []);
     } catch { /* la lista queda vacía y el tab lo muestra */ }
-    setSvcLoaded(true);
+    setSvcLoadedFor(appt.id);
   }, [appt.id, appt.plannedServiceCodes, loadCashCharges]);
 
   useEffect(() => {
@@ -423,13 +447,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   /**
    * Cambió la cita: lo cargado ya no le corresponde.
    *
-   * El componente no se remonta por sí solo —no lleva `key`— así que sin esto
-   * `svcLoaded` seguía en true y `services` conservaba los cargos de la cita
-   * ANTERIOR. Como agregar construye sobre ese estado, el cargo nuevo se habría
-   * guardado junto con los CPT de otra cita.
+   * El componente no se remonta por sí solo —no lleva `key`— así que `services`
+   * y `cashCharges` conservarían los cargos de la cita ANTERIOR, y como agregar
+   * construye sobre ese estado, el cargo nuevo se guardaría junto con los CPT de
+   * otra cita.
+   *
+   * Lo que este efecto YA NO hace es tocar el flag de cargado: eso ahora se
+   * deriva de `svcLoadedFor === appt.id` y se invalida solo. Volverlo a poner
+   * acá es lo que provocaba la carrera del "Loading..." eterno — ver el
+   * comentario de `svcLoadedFor`.
    */
   useEffect(() => {
-    setSvcLoaded(false);
     setServices([]);
     setCashCharges([]);
   }, [appt.id]);
@@ -975,7 +1003,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           encabezados de sección dicen más con menos tinta. */}
       {!svcLoaded ? (
         <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tcom("loading")}
         </div>
       ) : chargeCount === 0 ? (
         <EmptyState.Rich

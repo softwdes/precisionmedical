@@ -13,6 +13,18 @@
  *
  * El bloqueo de acá es de interfaz. El de verdad está en el endpoint del PDF,
  * que devuelve 409 sin la firma: si alguien pega la URL a mano, no hay papel.
+ *
+ * ── Firmado: se abre ACÁ, no en otra pestaña ───────────────────────────────
+ *
+ * Hasta el 28-sep-2026 el clic hacía `window.open`. Erick lo marcó: las demás
+ * impresiones del sistema —resultados de laboratorio, documentos del
+ * expediente, formulario de admisión— abren el visor en un modal, y esta era
+ * la única que sacaba al usuario de la pantalla. Peor todavía acá, porque el
+ * botón vive DENTRO del modal del caso: la pestaña nueva tapaba el caso y al
+ * volver había que reabrirlo.
+ *
+ * Se usa el mismo `FileViewerDialog` que el resto, que además ya resuelve el
+ * ir a la pestaña y el descargar como salidas del propio modal.
  */
 
 import * as React from 'react';
@@ -21,9 +33,12 @@ import { Lock, PenLine, Printer } from 'lucide-react';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
+import { FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 
-export function LienPrintButton({ caseId, locked, onSign, portal = 'attorney' }: {
+export function LienPrintButton({ caseId, caseCode, locked, onSign, portal = 'attorney' }: {
   caseId: string;
+  /** Sólo para el nombre del archivo en el visor y en la descarga. */
+  caseCode?: string;
   /** Falta la firma del abogado — el PDF todavía no se puede emitir. */
   locked: boolean;
   /** Abre el diálogo de firma. Ausente si esta cuenta no puede firmar. */
@@ -41,15 +56,44 @@ export function LienPrintButton({ caseId, locked, onSign, portal = 'attorney' }:
   const t = useTranslations('phoenix.attorney');
   const tc = useTranslations('phoenix.common');
   const [preview, setPreview] = React.useState(false);
+  const viewer = useFileViewer(t('lienOpenError'));
 
-  // Firmado: el PDF se abre en una pestaña, que ya trae el visor del navegador
-  // con previsualización, impresión y descarga. No hace falta un visor propio.
+  /*
+   * `show` y no `open`: `open` es para los archivos que hay que ir a buscar a
+   * Storage —primero se pide la URL firmada y recién ahí se pinta—. Este PDF lo
+   * genera nuestra propia ruta y la URL ya se conoce, así que el visor la recibe
+   * hecha y no hay ni un fetch de ida y vuelta.
+   *
+   * El nombre TIENE que terminar en `.pdf`: el visor decide por la extensión si
+   * embebe el documento o muestra "no se puede previsualizar".
+   *
+   * ⚠️ ESTE VISOR SE MONTA DENTRO DEL MODAL DEL CASO, y es el primero que lo
+   * hace ahí: el diálogo de "previsualización bloqueada" de abajo nunca se abre
+   * en el back office (`locked` entra siempre en `false` para la clínica), así
+   * que hasta hoy esa pantalla no tenía ningún Dialog anidado.
+   *
+   * Un Dialog modal de Radix adentro de otro puede dejar el foco en la X del de
+   * AFUERA, y entonces la barra espaciadora la aprieta y cierra las dos
+   * ventanas. Es la causa raíz del buscador de cargos (`b001fd75`), y la vista
+   * de caso por interceptor quedó como una de las tres candidatas sin confirmar
+   * de ese mismo bug.
+   *
+   * Acá el riesgo es menor —este modal no tiene ningún campo de texto, que es
+   * donde el robo de foco se nota— pero si aparece, el síntoma es ese: apretar
+   * espacio cierra todo. El arreglo conocido es `modal={false}` en el Dialog de
+   * AFUERA (el del caso), no en este.
+   */
   function abrir(): void {
-    window.open(`/api/${portal}/cases/${caseId}/lien`, '_blank', 'noopener');
+    viewer.show({
+      fileName: `lien-${caseCode ?? caseId}.pdf`,
+      url: `/api/${portal}/cases/${caseId}/lien`,
+    });
   }
 
   return (
     <>
+      <FileViewerDialog {...viewer.props} />
+
       <Button variant="outline" size="sm" onClick={() => (locked ? setPreview(true) : abrir())}>
         <Printer className="w-3.5 h-3.5 mr-1.5" />
         {t('lienPrint')}

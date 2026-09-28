@@ -95,8 +95,32 @@ export function CaseDetailModal({
     router.replace(sinCasoAbierto(pathname, searchParams), { scroll: false });
   }, [router, pathname, searchParams]);
 
+  /**
+   * `modal={false}`: sin esto NO SE PUEDE ESCRIBIR una nota del caso.
+   *
+   * Adentro de este diálogo se abren otros —`AddNoteDialog`, el visor del
+   * intake, el del lien—, y un Dialog modal de Radix dentro de otro deja el foco
+   * en la **X del de afuera**: el `autoFocus` del textarea no sobrevive, tipear
+   * no escribe nada y, como un botón enfocado se activa con la barra
+   * espaciadora, el primer espacio cierra las dos ventanas. El botón de guardar
+   * queda apagado en consecuencia, porque el contenido nunca deja de estar
+   * vacío — eso NO es un segundo bug, es el síntoma del mismo.
+   *
+   * Es la misma causa raíz que el buscador de cargos de Darrell (`b001fd75`),
+   * donde quedaron tres candidatas sin confirmar. **Ésta era una de las tres**, y
+   * el reporte del tester del 28-sep-2026 la confirma: "al agregar nota no se
+   * habilita el textarea". El textarea no tiene `disabled` en ninguna parte —
+   * verificado por grep sobre `add-note-dialog.tsx`, los dos únicos `disabled`
+   * del archivo están en los botones del pie.
+   *
+   * `modal={false}` monta el `FocusScope` con `trapped={false}` y deja de
+   * disputar el foco. **No se pierde el velo** —lo dibuja `DialogContent`, no el
+   * modo modal— ni el cierre al tocar afuera. Lo único que se va es el bloqueo
+   * del scroll de atrás, y este modal ocupa el 94% de la pantalla con su propio
+   * scroll interno.
+   */
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) close(); }}>
+    <Dialog open modal={false} onOpenChange={(v) => { if (!v) close(); }}>
       <DialogContent className="max-w-[1280px] w-[96vw] h-[94vh] p-0 overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">
           {t('caseModalTitle', { code: caseInfo.caseCode })}

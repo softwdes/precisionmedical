@@ -1168,7 +1168,8 @@
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}"
+      "msgYouPrefix": "Vos → {name}",
+      "lienOpenError": "No se pudo abrir el acuerdo."
     },
     "doctor": {
       "greeting": "{name}",
@@ -4325,7 +4326,8 @@
       "sectionInternalNotes": "Notas internas",
       "noteSaved": "Nota guardada",
       "notesEmpty": "Sin notas todavía.",
-      "notePrivate": "Privada"
+      "notePrivate": "Privada",
+      "intakeOpenError": "No se pudo abrir el formulario de admisión."
     },
     "patients": {
       "phFirm": "Nombre del bufete que refirió el caso médico…",

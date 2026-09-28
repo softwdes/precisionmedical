@@ -28,7 +28,7 @@ import { Button } from '@precision/ui';
 // SIN tab Notes: las notas del doctor viven en el Historial Médico del paciente
 // (decisión de Erick 2026-08-08) — un tab aparte era redundante.
 import { TABS_CON_FILTRO_DE_VISITA, TABS_ATTORNEY, type ActiveTab } from '@/lib/case-tabs';
-import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast } from '@/components/ui-phoenix';
+import { PageHeader, TagPill, PersonAvatar, EntityAvatar, useToast, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { PastillaMembresia } from '@/components/membresias/pastilla-membresia';
 import type { Membresia } from '@/lib/membresias';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
@@ -883,6 +883,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                         abogado no lo firme. */}
                     <LienPrintButton
                       caseId={caseInfo.id}
+                      caseCode={caseInfo.caseCode}
                       portal={isAttorney ? 'attorney' : 'admin'}
                       locked={isAttorney ? signatureRequired : false}
                       onSign={isAttorney ? onRequestSign : undefined}
@@ -1304,8 +1305,10 @@ function ActionButtons({
   isMarkingIntake: boolean;
 }) {
   const t = useTranslations('phoenix.caseDetail');
+  const visorIntake = useFileViewer(t('intakeOpenError'));
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      <FileViewerDialog {...visorIntake.props} />
       {status === 'NEW_REFERRAL' && (
         <Button onClick={onSendPortal} size="sm">
           <Send className="w-3.5 h-3.5 mr-1" /> {t('btnSendForms')}
@@ -1361,9 +1364,23 @@ function ActionButtons({
         * intakes distintos según por dónde entraras. Ahora los dos caminos —este
         * botón y la fila del tab Documentos— van al mismo documento.
         */}
+      {/*
+        * El intake se abre ACÁ, no en otra pestaña — mismo cambio que el lien
+        * el 28-sep-2026, y por el mismo motivo: este botón vive dentro del
+        * modal del caso, así que la pestaña nueva tapaba el caso y al volver
+        * había que reabrirlo. El resto del sistema ya usa este visor.
+        *
+        * `downloadUrl` con `?download=1` porque la ruta sirve el PDF `inline`
+        * salvo que se le pida lo contrario: sin eso el botón de descargar del
+        * visor abriría el documento en vez de bajarlo.
+        */}
       <Button
         variant="outline" size="sm"
-        onClick={() => window.open(`/api/admin/cases/${caseId}/pdf`, '_blank')}
+        onClick={() => visorIntake.show({
+          fileName: `intake-${caseId}.pdf`,
+          url: `/api/admin/cases/${caseId}/pdf`,
+          downloadUrl: `/api/admin/cases/${caseId}/pdf?download=1`,
+        })}
       >
         <FileText className="w-3.5 h-3.5 mr-1" /> {t('viewIntake')}
       </Button>

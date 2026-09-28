@@ -760,6 +760,28 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
     { tipo: 'CPT' | 'CASH'; apptId: string; id: string; value: string } | null>(null);
 
   /**
+   * Qué fila está en edición — y hay que mirar la CITA, no sólo el id.
+   *
+   * El `id` de un cargo de seguro **no identifica la fila**: es el `refId` del
+   * catálogo (ver `mapaDeCargos` en `lib/charges.ts`), así que el mismo CPT en
+   * dos visitas del mismo caso lleva el MISMO id. Comparando sólo por id, tocar
+   * el lápiz de un 99214 abría la caja de monto en todos los 99214 del caso y
+   * lo que se escribía se veía en todos — reportado por un tester el
+   * 2026-09-28 sobre dos visitas de la misma semana.
+   *
+   * Medido ese día: el id `cmrjoy5oh001qapc6vb5r3rx1` (99214) se repite en 2
+   * citas en 2 casos. Son pocos hoy y van a crecer solos: 99214 es el código
+   * de seguimiento, o sea el que por definición se repite entre visitas.
+   *
+   * ⚠️ GUARDAR ya estaba bien: `patchCpt` usa `editando.apptId`, así que el
+   * monto se escribía en la cita correcta. Lo que estaba mal era lo que se VEÍA,
+   * y eso es peor de lo que parece — quien edita cree que está cambiando dos
+   * cargos y en realidad cambia uno.
+   */
+  const enEdicion = (tipo: 'CPT' | 'CASH', apptId: string, id: string): boolean =>
+    editando?.tipo === tipo && editando.apptId === apptId && editando.id === id;
+
+  /**
    * El rechazo de la API, dicho en el mostrador. Sin esto el clic en el tacho
    * no hacía nada y no había forma de saber que el cargo estaba protegido
    * porque ya se había cobrado (ver lib/charge-payments.ts).
@@ -963,7 +985,7 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
                     <div key={s.id} className="flex items-center gap-2 text-[12.5px] group">
                       <span className="font-mono text-[11px] text-cyan shrink-0 w-[70px]">{s.code}</span>
                       <span className="text-text-2 flex-1 min-w-0">{s.description}</span>
-                      {editando?.tipo === 'CPT' && editando.id === s.id ? cajaDeMonto() : (
+                      {enEdicion('CPT', v.appointmentId, s.id) ? cajaDeMonto() : (
                         <>
                           {s.fee !== undefined && <span className="text-text-2 shrink-0 tabular-nums">{money(Number(s.fee))}</span>}
                           <EditAmountButton
@@ -1004,7 +1026,7 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
                             <span className="text-text-muted"> · {horaCobro(c.chargedAt)}</span>
                           )}
                         </span>
-                        {editando?.tipo === 'CASH' && editando.id === c.id ? (
+                        {enEdicion('CASH', v.appointmentId, c.id) ? (
                           <>
                             {cajaDeMonto()}
                             {/* Lo que se corrige es el precio UNITARIO; sin esto

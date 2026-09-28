@@ -191,6 +191,106 @@ export function buildAppointmentReminderSms(args: {
 }
 
 /**
+ * El SMS de que la cita SE MOVIO.
+ *
+ * ── Por que existe, si la reprogramacion ya avisaba por correo ──────────────
+ *
+ * Porque el mensaje que hay que corregir vive en el SMS. El alta manda un SMS
+ * con la fecha; si despues la cita se mueve y la correccion sale SOLO por
+ * correo, el telefono del paciente se queda con la fecha vieja **para
+ * siempre**, y encima sin nada al lado que la contradiga.
+ *
+ * Eso fue exactamente lo que paso el 2026-09-28: Michael Case recibio el SMS a
+ * las 4:53 PM diciendo "lun 28" —correcto en ese momento— y la cita se movio al
+ * martes 29 ocho minutos despues. El SMS era verdad cuando salio y se volvio
+ * mentira sin que nadie lo tocara. Medidos ese dia: 23 movimientos de fecha
+ * posteriores a un SMS entregado, 11 pacientes con la fecha vieja encima y 5 de
+ * ellos sin correo, o sea sin haber recibido NADA.
+ *
+ * El correo se queda igual: dice mas y se lee mejor. Este no lo reemplaza, lo
+ * acompaña — la correccion tiene que volver por el canal donde quedo el error.
+ *
+ * ── Nombra la fecha ANTERIOR ────────────────────────────────────────────────
+ *
+ * Cuesta unos 40 caracteres y los vale: el paciente tiene dos mensajes nuestros
+ * con dos fechas distintas y sin esa linea no sabe cual gana. Con ella, el
+ * mensaje nuevo se explica solo.
+ *
+ * Cuando `cuandoAntes` es null lo que cambio fue la SEDE y no el horario, y el
+ * texto lo dice asi: prometer "se reprogramo" a quien conserva su hora lo manda
+ * a revisar una agenda que no cambio.
+ *
+ * Sin acentos, igual que el resto de los SMS: uno solo pasa el mensaje a UCS-2
+ * y el segmento cae de 153 a 67 caracteres (ver `DIAS_SMS` en `lib/fechas`).
+ */
+export function buildAppointmentRescheduleSms(args: {
+  lang: PortalMessageLang;
+  /** La fecha NUEVA, ya formateada en la zona de la clinica. */
+  cuando: string;
+  /** La que tenia. `null` cuando el horario no se toco y cambio la sede. */
+  cuandoAntes: string | null;
+  horaLlegada: string;
+  clinica: string;
+  direccion?: string | null;
+  telefono?: string | null;
+  nombrePaciente?: string | null;
+  enLinea?: boolean;
+  enlace?: string | null;
+}): string {
+  const { lang, cuando, cuandoAntes, horaLlegada, clinica, direccion, telefono,
+          nombrePaciente, enLinea, enlace } = args;
+
+  const es = lang === 'es';
+  const esHorario = cuandoAntes !== null;
+
+  const deQuien = nombrePaciente
+    ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
+    : (es ? 'Su cita' : 'Your appointment');
+
+  const titular = esHorario
+    ? (es ? `${deQuien} CAMBIO de fecha.` : `${deQuien} CHANGED.`)
+    : (es ? `${deQuien} cambio de lugar, a la misma hora.`
+          : `${deQuien} moved to a new location, same time.`);
+
+  const antes = cuandoAntes
+    ? (es ? `Reemplaza la del ${cuandoAntes}.` : `This replaces the one on ${cuandoAntes}.`)
+    : null;
+
+  const cierre = es
+    ? 'Mensaje automatico, no responda. HELP ayuda, STOP para salir.'
+    : 'Automated message, do not reply. HELP for help, STOP to opt out.';
+  const consultas = telefono
+    ? (es ? `Consultas: ${telefono}.` : `Questions: ${telefono}.`)
+    : null;
+
+  // En linea: ni direccion ni hora de llegada, igual que el SMS de alta.
+  if (enLinea) {
+    return [
+      es ? `Precision Medical: ${titular} Ahora es por videollamada el ${cuando}.`
+         : `Precision Medical: ${titular} It is now a video visit on ${cuando}.`,
+      antes,
+      enlace
+        ? (es ? `Conectese desde: ${enlace}` : `Join from: ${enlace}`)
+        : (es ? 'La clinica lo contactara a esa hora.' : 'The clinic will contact you at that time.'),
+      consultas,
+      cierre,
+    ].filter(Boolean).join(' ');
+  }
+
+  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
+  return [
+    es ? `Precision Medical: ${titular} Ahora es el ${cuando}, ${lugar}.`
+       : `Precision Medical: ${titular} It is now ${cuando}, ${lugar}.`,
+    es ? `Llegue ${horaLlegada} para el registro.`
+       : `Arrive at ${horaLlegada} for check-in.`,
+    antes,
+    consultas,
+    cierre,
+  ].filter(Boolean).join(' ');
+}
+
+
+/**
  * Cuántos segmentos SMS ocupa un texto — cada uno se factura aparte.
  *
  * Con alfabeto GSM entran 160 en un segmento y 153 por segmento si son varios;

@@ -5721,7 +5721,8 @@
       "dadoDeBaja": "They replied STOP and opted out of messages.",
       "canalApagado": "The notification channel is turned off.",
       "falloGenerico": "The send failed.",
-      "avisarAMano": "Call them instead."
+      "avisarAMano": "Call them instead.",
+      "sinContacto": "the record has no phone and no email"
     },
     "portalEnvio": {
       "errSend": "The portal link could not be sent",

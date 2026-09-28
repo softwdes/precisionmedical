@@ -171,7 +171,10 @@ export function describirAvisoCita(
     : t('recordatorioNoSalio');
 
   const porque =
-    r.motivo === 'SIN_TELEFONO' ? t('sinTelefono')
+    // Sin telefono NI correo: no hay canal, no es que uno haya fallado. La
+    // frase manda a llamar en vez de a revisar la configuracion.
+    r.motivo === 'SIN_CONTACTO'  ? t('sinContacto')
+    : r.motivo === 'SIN_TELEFONO' ? t('sinTelefono')
     : r.motivo === 'SIN_EMAIL'  ? t('sinEmail')
     : r.motivo === 'OPTED_OUT'  ? t('dadoDeBaja')
     : r.motivo === 'DESHABILITADO' ? t('canalApagado')

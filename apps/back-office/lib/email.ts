@@ -179,11 +179,42 @@ export interface SendEmailResult {
   operationId: string | null;
   to: string | null;
   error: 'DISABLED' | 'NO_FROM' | 'NO_CREDENTIALS' | 'INVALID_TO'
-       | 'NOT_IN_TEST_ALLOWLIST' | 'TWILIO_ERROR' | null;
+       | 'NOT_IN_TEST_ALLOWLIST' | 'TWILIO_ERROR' | 'CORREO_INVENTADO' | null;
   errorDetail: string | null;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * El dominio que INVENTA el alta rápida cuando el paciente no dio correo.
+ *
+ * `quick-register` genera `quick-<nombre>-<epoch>@no-email.lienmaster.local`
+ * para poder guardar la ficha. Es un relleno, no una dirección: `.local` no
+ * existe en el DNS público y nada de lo que se mande ahí puede llegar.
+ *
+ * El problema no era mandar al vacío, era MENTIR: `cita.email` venía con
+ * texto, así que el código lo trataba como "tiene correo", el aviso salía y
+ * quedaba registrado como enviado. Medido el 2026-09-28: **21 pacientes** con
+ * una de estas direcciones, y Miriam Heier entre ellos — su cita se movió, el
+ * sistema dijo que le avisó, y no le avisó nada.
+ *
+ * Tratarlo como `null` es lo que hace que el sistema diga la verdad: sin correo
+ * el aviso responde `SIN_EMAIL`, recepción lo ve y llama por teléfono.
+ */
+export const DOMINIO_SIN_CORREO = '@no-email.lienmaster.local';
+
+/**
+ * La dirección si sirve para mandarle algo a alguien; `null` si no.
+ *
+ * Único resolvedor de "¿tiene correo?" para todo el sistema. Antes cada lugar
+ * hacía `email?.trim() || null`, que da por bueno el relleno del alta rápida.
+ */
+export function correoUsable(email: string | null | undefined): string | null {
+  const limpio = email?.trim();
+  if (!limpio) return null;
+  if (limpio.toLowerCase().endsWith(DOMINIO_SIN_CORREO)) return null;
+  return limpio;
+}
 
 /**
  * Manda un correo y lo registra. NO lanza: devuelve el resultado, igual que
@@ -225,6 +256,15 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
     return fail('NO_CREDENTIALS', 'faltan las API Keys de Twilio');
   }
   if (!EMAIL_RE.test(to)) return fail('INVALID_TO', `dirección no válida: "${to}"`);
+  // El relleno del alta rapida pasa el regex —tiene forma de correo— y no
+  // existe. Se corta aca y no solo en el llamador: es el ultimo lugar por el
+  // que pasan TODOS los envios, asi que ninguna pantalla nueva puede volver a
+  // reportar como enviado algo que no tenia a donde ir.
+  if (!correoUsable(to)) {
+    return fail('CORREO_INVENTADO',
+      `"${to}" es el relleno que genera el alta rapida, no una direccion real. ` +
+      'El paciente no tiene correo: avisenle por telefono.');
+  }
 
   /**
    * El carril sin PHI se salta el allowlist — ese es todo el punto de tenerlo

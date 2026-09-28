@@ -31,10 +31,11 @@
 
 import { db, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, correoUsable } from '@/lib/email';
 import {
   buildAppointmentReminderSms, buildAppointmentReminderEmail,
   buildAppointmentRescheduleEmail, buildAppointmentCancelledEmail,
+  buildAppointmentRescheduleSms,
   correoDeCitaTexto, correoDeCitaHtml,
   idiomaDelPaciente, type DatosDeCita, type CorreoDeCita,
 } from '@/lib/portal-message';
@@ -162,7 +163,9 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
     caseId:        cita.caseId,
     scheduledFor:  cita.scheduledFor,
     telefono:      destino.phone?.trim() || null,
-    email:         destino.email?.trim() || null,
+    // `correoUsable` y no `trim()`: el alta rapida inventa direcciones
+    // `@no-email.lienmaster.local` que tienen forma de correo y no existen.
+    email:         correoUsable(destino.email),
     nombreDestinatario: `${destino.firstName} ${destino.lastName ?? ''}`.trim(),
     datos: {
       lang,
@@ -241,6 +244,20 @@ export async function enviarRecordatorioDeCita(args: {
 // antes van por correo, NO por SMS. El SMS se queda solo en el momento de
 // agendar, que es el que ya existía.
 
+/** Los motivos por los que un aviso no sale. Compartidos por los dos canales. */
+export type MotivoAviso =
+  | 'SIN_TELEFONO' | 'SIN_EMAIL' | 'SIN_CONTACTO'
+  | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO' | 'CITA_PASADA';
+
+/**
+ * El resultado de un aviso que sale por DOS canales.
+ *
+ * `enviado: true` significa que salio por al menos uno. `porSms` esta para que
+ * la pantalla pueda decir por donde fue sin tener que adivinarlo.
+ */
+export type ResultadoAvisoCambio =
+  | { enviado: true;  messageLogId: string | null; porSms: boolean }
+  | { enviado: false; motivo: MotivoAviso; detalle?: string };
 export type ResultadoAvisoEmail =
   | { enviado: true;  messageLogId: string | null }
   | { enviado: false; motivo: 'SIN_EMAIL' | 'CITA_NO_ENCONTRADA' | 'ERROR_ENVIO' | 'DESHABILITADO' | 'CITA_PASADA'; detalle?: string };
@@ -315,12 +332,29 @@ export async function enviarRecordatorio24h(cita: CitaParaAvisar): Promise<Resul
 }
 
 /**
- * El aviso de que la cita se movió.
+ * El aviso de que la cita se movió — por SMS **y** por correo.
  *
- * `cuandoAntes` lo tiene que pasar el caller: para cuando esto corre, la cita
- * ya se guardó con la fecha nueva y la anterior ya no está en ninguna parte.
- * Pedirlo como parámetro es lo que obliga a leerlo ANTES del update — si se
- * intentara resolver acá, siempre llegaría tarde.
+ * ── Por qué los dos canales ────────────────────────────────────────────────
+ *
+ * Porque el mensaje que hay que corregir está en el SMS. El alta manda un SMS
+ * con la fecha; si la corrección sale solo por correo, el teléfono se queda con
+ * la fecha vieja para siempre. El 2026-09-28 eso dejó a 11 pacientes con una
+ * cita mal anotada y a 5 de ellos sin enterarse de nada, porque no tenían
+ * correo (ver `buildAppointmentRescheduleSms`).
+ *
+ * Esto INVIERTE en parte la decisión del 18-sep de mandar la reprogramación
+ * solo por correo. Lo que la motivaba —no duplicar el SMS del alta— sigue
+ * valiendo para el recordatorio de 24 h, que no contradice nada: agrega. La
+ * reprogramación sí contradice, y por eso vuelve al canal del error.
+ *
+ * ── "Enviado" es que llegó por ALGUNO ──────────────────────────────────────
+ *
+ * Con dos canales, `enviado: false` tiene que significar que no salió por
+ * ninguno; si no, la pantalla mandaría a recepción a avisar a mano algo que el
+ * paciente ya recibió por SMS. El motivo que se devuelve es el del canal que
+ * MÁS cerca estuvo de servir, y `SIN_CONTACTO` es el caso de verdad grave: la
+ * ficha no tiene ni teléfono ni correo, así que no hay forma automática de
+ * avisarle y alguien tiene que levantar el tubo.
  */
 export async function avisarReprogramacion(args: {
   appointmentId: string;
@@ -332,7 +366,7 @@ export async function avisarReprogramacion(args: {
   scheduledForAnterior: Date | null;
   actorUserId?: string | null;
   actorName?: string | null;
-}): Promise<ResultadoAvisoEmail> {
+}): Promise<ResultadoAvisoCambio> {
   try {
     const cita = await cargarCitaParaAvisar(args.appointmentId);
     if (!cita) return { enviado: false, motivo: 'CITA_NO_ENCONTRADA' };
@@ -341,19 +375,61 @@ export async function avisarReprogramacion(args: {
     // pasada a un día que viene sí, que es una reprogramación de verdad.
     if (noSeAvisaPorqueYaPaso(cita.scheduledFor)) return { enviado: false, motivo: 'CITA_PASADA' };
 
+    const cuandoAntes = args.scheduledForAnterior
+      ? fechaParaSms(args.scheduledForAnterior, cita.datos.lang)
+      : null;
+
+    /**
+     * El SMS va PRIMERO y con `await`: es el canal que corrige el mensaje
+     * equivocado, así que si algo se cae en el medio, que se caiga después de
+     * haber mandado el que importa.
+     */
+    let smsOk = false;
+    let smsMotivo: MotivoAviso | null = null;
+    if (!cita.telefono) {
+      smsMotivo = 'SIN_TELEFONO';
+    } else {
+      const body = buildAppointmentRescheduleSms({
+        ...cita.datos,
+        // El canal es el TELÉFONO: se nombra al paciente según `sharesPhone`,
+        // que es lo que `cita.datos.nombrePaciente` ya trae resuelto.
+        cuandoAntes,
+      });
+      const res = await sendSms({
+        to: cita.telefono,
+        body,
+        patientId:    cita.patientId,
+        caseId:       cita.caseId,
+        sentByUserId: args.actorUserId ?? null,
+        sentByName:   args.actorName ?? null,
+      });
+      smsOk = res.ok;
+      if (!res.ok) smsMotivo = res.error === 'DISABLED' ? 'DESHABILITADO' : 'ERROR_ENVIO';
+    }
+
     const correo = buildAppointmentRescheduleEmail({
       ...cita.datos,
       nombrePaciente: cita.nombrePacienteEnCorreo,
-      cuandoAntes: args.scheduledForAnterior
-        ? fechaParaSms(args.scheduledForAnterior, cita.datos.lang)
-        : null,
+      cuandoAntes,
     });
 
-    return await enviarCorreoDeCita({
+    const email = await enviarCorreoDeCita({
       cita, correo,
       actorUserId: args.actorUserId,
       actorName:   args.actorName,
     });
+
+    if (smsOk || email.enviado) {
+      return { enviado: true, messageLogId: email.enviado ? email.messageLogId : null, porSms: smsOk };
+    }
+
+    // Ninguno de los dos salió. Sin teléfono Y sin correo no es un fallo del
+    // canal: es una ficha sin forma de contacto, y se dice con su propio nombre
+    // para que la pantalla mande a llamar en vez de a revisar la configuración.
+    if (smsMotivo === 'SIN_TELEFONO' && email.motivo === 'SIN_EMAIL') {
+      return { enviado: false, motivo: 'SIN_CONTACTO' };
+    }
+    return { enviado: false, motivo: smsMotivo === 'SIN_TELEFONO' ? email.motivo : (smsMotivo ?? email.motivo) };
   } catch (err) {
     console.error('[aviso-reprogramacion] falló para %s:', args.appointmentId, err);
     return { enviado: false, motivo: 'ERROR_ENVIO', detalle: String(err) };

@@ -1466,7 +1466,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
           los 768px del padre; (2) Radix maneja dialogos anidados, incluyendo el
           pointer-events/focus trap -- un portal manual a body quedaba fuera de
           su subarbol y el modal se veia pero no se podia clickear. */}
-      <Dialog open={payOpen && !readOnly} onOpenChange={setPayOpen}>
+      {/*
+        `modal={false}` por lo mismo que en `cargos-dialog.tsx`: desde acá se
+        abre el diálogo de revertir, que es OTRO Dialog de Radix en su propio
+        portal. Con los dos modales, la trampa de foco de éste no se pausa en
+        la primera apertura tras cargar la página y le arrastra el foco a su
+        propia X — medido en producción el 25-sep-2026, y costó dos días.
+
+        No se pierde nada visible: el velo lo dibuja `DialogContent` y el
+        cierre por clic afuera lo maneja `DismissableLayer`. Solo se va el
+        bloqueo del scroll de atrás.
+      */}
+      <Dialog open={payOpen && !readOnly} modal={false} onOpenChange={setPayOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
             {/* Modal header — el título dice el ALCANCE real del cobro.
@@ -1773,6 +1784,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                                   <th className="text-right font-semibold pb-1">{t('colAmount')}</th>
                                   <th className="text-left font-semibold pb-1 pl-3">{t('colMethod')}</th>
                                   <th className="text-left font-semibold pb-1 pl-3">{t('colType')}</th>
+                                  <th className="w-20 pb-1" aria-hidden="true" />
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-row-sep">
@@ -1791,6 +1803,31 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, {
                                     </td>
                                     <td className="py-1 pl-3 text-text-2 whitespace-nowrap">{METHOD_LABELS[p.method] ?? p.method}</td>
                                     <td className="py-1 pl-3 text-text-muted">{rotuloDeTipo(PAYMENT_TYPES, p.paymentType) ?? '—'}</td>
+                                    {/*
+                                      Revertir DESDE ACÁ, que es donde está el que cobra.
+
+                                      El botón existe desde `d62fd074`, pero solo en el CUERPO
+                                      del tab — y en /cobranzas ese cuerpo se monta dentro de
+                                      un `h-0 overflow-hidden`, así que desde el modal de cobro
+                                      es invisible. Aquella vez se arregló la vista del caso;
+                                      la pantalla donde cobranza trabaja quedó igual.
+
+                                      Cobranza veía únicamente campos para repartir montos:
+                                      *"it seems to only give me the option to put it on
+                                      another part of the total payment"* (Darrell, 28-sep).
+                                      No era una impresión: en toda la historia de v3 hay
+                                      CERO reversiones (medido en la base). Nadie lo encontró.
+                                    */}
+                                    <td className="py-1 text-right">
+                                      {!readOnly && (
+                                        <RevertirPagoButton
+                                          onClick={() => setRevirtiendo({
+                                            caseId, billingId: p.billingId, payId: p.id,
+                                            monto: p.amount, descuento: p.discount ?? 0,
+                                          })}
+                                        />
+                                      )}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>

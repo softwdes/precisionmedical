@@ -607,7 +607,7 @@ function UploadModal({ onClose, onUpload, uploading, nombresEnCarpeta }: {
             className="gap-1.5"
           >
             {uploading
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo…</>
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("uploading")}</>
               : <><Upload className="w-3.5 h-3.5" /> {t('uploadTitle')}</>
             }
           </Button>
@@ -1450,7 +1450,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-text-muted text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+            <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
           </div>
         ) : error ? (
           <div className="m-4 rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>

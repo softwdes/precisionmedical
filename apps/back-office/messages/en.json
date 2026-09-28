@@ -6248,7 +6248,8 @@
         "alertDownloadS3": "Download will be available when S3 storage is configured.",
         "alertDownloadError": "Error generating download link",
         "alertBulkS3": "Bulk download will be available when S3 storage is configured.",
-        "placeholderFolder": "Folder name"
+        "placeholderFolder": "Folder name",
+        "uploading": "Uploading…"
       }
     },
     "settings": {
@@ -6389,7 +6390,11 @@
       "fieldScriptsure": "Prescriber ID (ScriptSure)",
       "phScriptsure": "e.g. 10845",
       "scriptsureHint": "ScriptSure assigns it when the prescriber is set up. Without this number the provider cannot send prescriptions.",
-      "scriptsureSoloNumeros": "The ScriptSure ID is digits only."
+      "scriptsureSoloNumeros": "The ScriptSure ID is digits only.",
+      "npiInvalid": "That NPI is not valid. It is 10 digits and the last one is a check digit — make sure none is missing or extra.",
+      "npiSuspicious": "Valid, but real NPIs start with 1 or 2. Double-check it is the right one.",
+      "linkedEmployee": "Linked employee (HR)",
+      "linkedEmployeeHint": "Only employees with the Provider role who are not linked to another clinical profile appear here."
     },
     "charges": {
       "chargesOnVisit": "{count} charges on this visit",
@@ -6959,6 +6964,29 @@
       "marcaAyuda": "This is what whoever receives them will read, in CIFO's greeting.",
       "marcaSinPermiso": "You do not have permission to change this. The front desk does it.",
       "marcaError": "Could not save. Try again."
+    },
+    "intakeLink": {
+      "title": "📋 Intake form link",
+      "subtitle": "Share the link or QR so <b>{nombre}</b> can sign consents and complete intake.",
+      "formLink": "Form link",
+      "generating": "Generating link...",
+      "retry": "Retry",
+      "copyLink": "Copy link",
+      "copied": "Copied",
+      "copy": "Copy",
+      "openTab": "Open in new tab",
+      "qrHint": "Patient scans to complete the form on their phone",
+      "alsoSendVia": "Also send via",
+      "sms": "SMS",
+      "email": "Email",
+      "guardianBlocked": "Minor with no legal guardian assigned — sending is blocked. Use the QR/link on the clinic tablet, or assign the guardian on the patient record.",
+      "revokeWarn": "Old link stops working",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "newLinkHint": "Issue a new link and invalidate the current one",
+      "newLink": "New link",
+      "close": "Close",
+      "downloadQr": "Download QR"
     }
   },
   "caseWizard": {

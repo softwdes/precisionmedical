@@ -6248,7 +6248,8 @@
         "alertDownloadS3": "La descarga estará disponible cuando se configure el almacenamiento S3.",
         "alertDownloadError": "Error al generar enlace de descarga",
         "alertBulkS3": "La descarga masiva estará disponible cuando se configure el almacenamiento S3.",
-        "placeholderFolder": "Nombre de la carpeta"
+        "placeholderFolder": "Nombre de la carpeta",
+        "uploading": "Subiendo…"
       }
     },
     "settings": {
@@ -6389,7 +6390,11 @@
       "fieldScriptsure": "Id de prescriptor (ScriptSure)",
       "phScriptsure": "Ej. 10845",
       "scriptsureHint": "Lo asigna ScriptSure al dar de alta al prescriptor. Sin este número el provider no puede emitir recetas.",
-      "scriptsureSoloNumeros": "El id de ScriptSure es solo números."
+      "scriptsureSoloNumeros": "El id de ScriptSure es solo números.",
+      "npiInvalid": "Ese NPI no es válido. Son 10 dígitos y el último es un verificador — revisá que no falte ni sobre un número.",
+      "npiSuspicious": "Válido, pero los NPI reales empiezan en 1 o 2. Verificá que sea el correcto.",
+      "linkedEmployee": "Empleado vinculado (HR)",
+      "linkedEmployeeHint": "Solo aparecen empleados con cargo Provider no vinculados a otro perfil clínico."
     },
     "charges": {
       "chargesOnVisit": "{count} cargos en esta visita",
@@ -6959,6 +6964,29 @@
       "marcaAyuda": "Esto es lo que va a leer quien lo reciba, en el saludo de CIFO.",
       "marcaSinPermiso": "No tenés permiso para cambiar esto. Lo hace recepción.",
       "marcaError": "No se pudo guardar. Probá de nuevo."
+    },
+    "intakeLink": {
+      "title": "📋 Enlace del formulario de admisión",
+      "subtitle": "Compartí el enlace o el QR para que <b>{nombre}</b> firme los consentimientos y complete la admisión.",
+      "formLink": "Enlace del formulario",
+      "generating": "Generando el enlace...",
+      "retry": "Reintentar",
+      "copyLink": "Copiar enlace",
+      "copied": "Copiado",
+      "copy": "Copiar",
+      "openTab": "Abrir en una pestaña nueva",
+      "qrHint": "El paciente lo escanea para completar el formulario en su teléfono",
+      "alsoSendVia": "Enviar además por",
+      "sms": "SMS",
+      "email": "Email",
+      "guardianBlocked": "Es menor y no tiene responsable legal asignado — el envío está bloqueado. Usá el QR o el enlace en la tablet de la clínica, o asignale el responsable en la ficha del paciente.",
+      "revokeWarn": "El enlace anterior deja de funcionar",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "newLinkHint": "Emitir un enlace nuevo e invalidar el actual",
+      "newLink": "Enlace nuevo",
+      "close": "Cerrar",
+      "downloadQr": "Descargar QR"
     }
   },
   "caseWizard": {

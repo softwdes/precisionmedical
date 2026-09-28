@@ -291,13 +291,12 @@ export function ProvidersClient({ providers, stats }: Props) {
               corrige en el acto. */}
           {npiMal && (
             <p className="text-[11px] text-rose">
-              Ese NPI no es válido. Son 10 dígitos y el último es un verificador —
-              revisá que no falte o sobre un número.
+              {t("npiInvalid")}
             </p>
           )}
           {!npiMal && form.npi.trim() !== '' && npiFormaSospechosa(form.npi) && (
             <p className="text-[11px] text-amber">
-              Válido, pero los NPI reales empiezan en 1 o 2. Verificá que sea el correcto.
+              {t("npiSuspicious")}
             </p>
           )}
         </div>
@@ -332,7 +331,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       <div className="space-y-1.5">
         <Label htmlFor="employeeId" className="flex items-center gap-1.5">
           <Link2 className="w-3.5 h-3.5 text-brand-text" />
-          Empleado vinculado (HR)
+          {t("linkedEmployee")}
         </Label>
         <select
           id="employeeId"
@@ -346,7 +345,7 @@ export function ProvidersClient({ providers, stats }: Props) {
           ))}
         </select>
         <p className="text-[11px] text-text-muted">
-          Solo aparecen empleados con cargo Provider no vinculados a otro perfil clínico.
+          {t("linkedEmployeeHint")}
         </p>
       </div>
 

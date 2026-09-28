@@ -13,6 +13,7 @@
  * ya tenía en la mano. Ver `lib/portal-token.ts`.
  */
 
+import { useTranslations } from 'next-intl';
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, Download, ExternalLink, RefreshCw, Mail, MessageSquare } from 'lucide-react';
@@ -40,6 +41,7 @@ interface IntakeFormLinkDialogProps {
 }
 
 export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFormLinkDialogProps) {
+  const t = useTranslations('phoenix.intakeLink');
   const [portalUrl,  setPortalUrl]  = useState<string | null>(null);
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState<string | null>(null);
@@ -142,10 +144,10 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
           {/* Header */}
           <DialogHeader className="px-5 pt-5 pb-0">
             <DialogTitle className="flex items-center gap-2 text-[15px]">
-              📋 Intake form link
+              {t("title")}
             </DialogTitle>
             <DialogDescription className="text-[12px]">
-              Share the link or QR so <strong className="text-text-1">{patientName}</strong> can sign consents and complete intake.
+              {t.rich("subtitle", { nombre: patientName, b: (c) => <strong className="text-text-1">{c}</strong> })}
             </DialogDescription>
           </DialogHeader>
 
@@ -170,17 +172,17 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
 
             {/* URL */}
             <div>
-              <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Form link</div>
+              <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{t("formLink")}</div>
               {loading && (
                 <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2.5 text-[11px] text-text-muted">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Generating link...
+                  {t("generating")}
                 </div>
               )}
               {error && (
                 <div className="rounded-md border border-rose/30 bg-rose/5 px-3 py-2 text-[11px] text-rose flex items-center justify-between gap-2">
                   <span>{error}</span>
-                  <button type="button" onClick={() => cargarLink()} className="underline text-[10px] shrink-0">Retry</button>
+                  <button type="button" onClick={() => cargarLink()} className="underline text-[10px] shrink-0">{t("retry")}</button>
                 </div>
               )}
               {portalUrl && !loading && (
@@ -192,17 +194,17 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                     type="button"
                     onClick={copyLink}
                     className="flex items-center gap-1 px-2 py-1 rounded-md bg-bg-1 border border-border text-[10px] text-text-2 hover:border-emerald/40 hover:text-emerald transition-colors shrink-0"
-                    title="Copy link"
+                    title={t("copyLink")}
                   >
                     {copied ? <Check className="w-3 h-3 text-emerald" /> : <Copy className="w-3 h-3" />}
-                    {copied ? 'Copied' : 'Copy'}
+                    {copied ? t("copied") : t("copy")}
                   </button>
                   <a
                     href={portalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 rounded-md border border-border text-text-muted hover:text-brand-text hover:border-brand/40 transition-colors"
-                    title="Open in new tab"
+                    title={t("openTab")}
                   >
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -226,13 +228,13 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                 </div>
               )}
               <p className="text-[10px] text-text-muted text-center">
-                Patient scans to complete the form on their phone
+                {t("qrHint")}
               </p>
             </div>
 
             {/* Also send via */}
             <div className="flex items-center gap-3 rounded-md border border-border/60 bg-bg-2/20 px-3 py-2.5">
-              <span className="text-[11px] text-text-muted flex-1">Also send via</span>
+              <span className="text-[11px] text-text-muted flex-1">{t("alsoSendVia")}</span>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -240,7 +242,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   onClick={() => setSendOpen(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <MessageSquare className="w-3 h-3" /> SMS
+                  <MessageSquare className="w-3 h-3" /> {t("sms")}
                 </button>
                 <button
                   type="button"
@@ -248,15 +250,14 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   onClick={() => setSendOpen(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <Mail className="w-3 h-3" /> Email
+                  <Mail className="w-3 h-3" /> {t("email")}
                 </button>
               </div>
             </div>
 
             {recipient?.guardianRequired && (
               <p className="text-[10px] text-amber leading-relaxed -mt-2">
-                Minor with no legal guardian assigned — sending is blocked. Use the QR/link
-                on the clinic tablet, or assign the guardian on the patient record.
+                {t("guardianBlocked")}
               </p>
             )}
 
@@ -277,20 +278,20 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
               {portalUrl && !loading && (
                 confirmarRevoca ? (
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] text-amber">Old link stops working</span>
+                    <span className="text-[10px] text-amber">{t("revokeWarn")}</span>
                     <button
                       type="button"
                       onClick={() => cargarLink(true)}
                       className="px-2 py-1 rounded-md border border-rose/40 bg-rose/10 text-[10px] font-semibold text-rose hover:bg-rose/20 transition-colors"
                     >
-                      Confirm
+                      {t("confirm")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmarRevoca(false)}
                       className="text-[10px] text-text-muted hover:text-text-1 transition-colors"
                     >
-                      Cancel
+                      {t("cancel")}
                     </button>
                   </div>
                 ) : (
@@ -298,9 +299,9 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                     type="button"
                     onClick={() => setConfirmarRevoca(true)}
                     className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[10px] text-text-muted hover:border-rose/40 hover:text-rose transition-colors shrink-0"
-                    title="Issue a new link and invalidate the current one"
+                    title={t("newLinkHint")}
                   >
-                    <RefreshCw className="w-3 h-3" /> New link
+                    <RefreshCw className="w-3 h-3" /> {t("newLink")}
                   </button>
                 )
               )}
@@ -310,7 +311,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
           {/* Footer */}
           <DialogFooter className="px-5 pb-5 flex-row justify-between gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Close
+              {t("close")}
             </Button>
             <Button
               onClick={downloadQr}
@@ -318,7 +319,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
               className="flex items-center gap-1.5"
             >
               <Download className="w-3.5 h-3.5" />
-              Download QR
+              {t("downloadQr")}
             </Button>
           </DialogFooter>
 

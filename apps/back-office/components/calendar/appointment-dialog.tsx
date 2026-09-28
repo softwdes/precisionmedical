@@ -1,5 +1,5 @@
 'use client';
-import { localeApp, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica, weekdayEnClinica } from '@/lib/fechas';
+import { localeApp, primeraMayuscula, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica, weekdayEnClinica } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 
 /**
@@ -372,7 +372,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [overlapPrompt,  setOverlapPrompt]  = useState<{
     pending: PendingSubmit;
     message: string;
-    codigo: 'SLOT_CONFLICT' | 'BLOCKED_SLOT';
+    codigo: 'SLOT_CONFLICT' | 'BLOCKED_SLOT' | 'CAPACITY_WARNING';
   } | null>(null);
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
@@ -978,10 +978,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const scheduledLabel = useMemo(() => {
     if (!scheduledForIso) return null;
-    return new Date(scheduledForIso).toLocaleString(localeApp(), {
+    /* `primeraMayuscula` y no la clase `capitalize` de Tailwind: en castellano
+       esta fecha lleva dos preposiciones y `capitalize` las sube — queda
+       "Lunes, 28 De Sept De 2026, 9:00 A.M.". Ver el helper en `lib/fechas`. */
+    return primeraMayuscula(new Date(scheduledForIso).toLocaleString(localeApp(), {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-    });
+    }));
   }, [scheduledForIso]);
 
   // Desired time label (from calendar click) — formatted for display
@@ -1033,7 +1036,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const canSubmit = useMemo(() => {
     const hasCase = isEditMode ? true : (props.mode === 'case' ? !!props.caseInfo?.id : !!caseId);
     const slotOk = isEditMode ? !!scheduledForIso : (!!scheduledForIso && (visitaPasada ? retroOk : isFuture));
-    return hasCase && !!clinicId && !!providerId && slotOk && motivoOk && !saving;
+    // El provider NO entra en la condición desde el 2026-09-28: la cita puede
+    // nacer sin asignar y se resuelve en el check-in (Erick: "cita sin provider
+    // es un estado normal desde ahora"). La SEDE sí sigue siendo obligatoria —
+    // es lo que define dónde tiene que presentarse el paciente.
+    return hasCase && !!clinicId && slotOk && motivoOk && !saving;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, visitaPasada, retroOk, motivoOk, saving]);
 
@@ -1069,11 +1076,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         clinicRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
-      if (!providerId) {
-        setError(t('validationSelectDoctor'));
-        doctorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
+      // Sin provider se guarda igual: la cita queda sin asignar. El freno de
+      // acá era lo único que lo impedía.
       // Último de la cadena: es el único que se resuelve escribiendo, así que
       // primero se resuelven los que se eligen de una lista.
       if (!motivoOk) {
@@ -1166,7 +1170,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const submitAppointment = async (
     pending: PendingSubmit,
     /** Qué avisos ya aceptó la persona. Cada uno viaja con su propia bandera. */
-    permitir: { overlap?: boolean; blocked?: boolean } = {},
+    permitir: { overlap?: boolean; blocked?: boolean; overbook?: boolean } = {},
   ) => {
     setSaving(true);
     setError(null);
@@ -1178,6 +1182,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           ...pending.body,
           ...(permitir.overlap && { allowOverlap: true }),
           ...(permitir.blocked && { allowBlocked: true }),
+          ...(permitir.overbook && { allowOverbook: true }),
         }),
       });
       if (!res.ok) {
@@ -1193,8 +1198,19 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
            * 21-sep-2026). El aviso de agenda sigue mostrando `message`, que ahí
            * son las etiquetas que escribió la clínica y no se traducen.
            */
-          const esCruce = data.error !== 'BLOCKED_SLOT';
+          const esCruce = data.error === 'SLOT_CONFLICT';
           let cuerpo: string = (data.message as string | undefined) ?? '';
+          /**
+           * La franja llena. No viaja texto del servidor: viajan los DOS
+           * números, y la frase se arma acá. "A esa hora ya hay 4 pacientes y
+           * ese día atienden 3 providers" dice por qué en vez de solo que no.
+           */
+          if (data.error === 'CAPACITY_WARNING') {
+            cuerpo = t('capacityBody', {
+              ocupadas:  (data.ocupadas as number | undefined) ?? 0,
+              capacidad: (data.capacidad as number | undefined) ?? 0,
+            });
+          }
           if (esCruce && typeof data.conflictAt === 'string') {
             const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
               hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
@@ -1208,7 +1224,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           setOverlapPrompt({
             pending,
             message: cuerpo,
-            codigo:  data.error === 'BLOCKED_SLOT' ? 'BLOCKED_SLOT' : 'SLOT_CONFLICT',
+            codigo:  data.error === 'BLOCKED_SLOT'     ? 'BLOCKED_SLOT'
+                   : data.error === 'CAPACITY_WARNING' ? 'CAPACITY_WARNING'
+                   : 'SLOT_CONFLICT',
           });
           return;
         }
@@ -1808,7 +1826,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
             {citaConDesenlace ? (
               <div className="mt-1.5 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
-                <div className="flex items-center gap-2 text-text-1 text-sm font-semibold capitalize">
+                <div className="flex items-center gap-2 text-text-1 text-sm font-semibold">
                   <Check className="w-3.5 h-3.5 text-text-muted shrink-0" />
                   {scheduledLabel} <span className="text-text-muted font-normal">({duration} min)</span>
                 </div>
@@ -1887,13 +1905,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 shrink-0" />
                     <span>
-                      <strong className="capitalize">{scheduledLabel}</strong>
+                      <strong>{scheduledLabel}</strong>
                       <span className="opacity-70 font-normal"> ({duration} min)</span>
                     </span>
                   </div>
                 )}
               </div>
-            ) : !providerId || !clinicId ? (
+            /* Antes pedía sede Y provider. Ahora solo la sede: sin provider el
+               selector muestra el horario de la clínica y la hora se reserva
+               igual. Ver la nota de `providerId` en available-slots. */
+            ) : !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
                 {t('selectClinicAndDoctorHint')}
               </p>
@@ -2095,7 +2116,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <div className="space-y-0.5 text-text-2">
                 <div><strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong></div>
                 <div>{t('summaryAtClinic')} <strong className="text-text-1">{selectedClinic.name}</strong></div>
-                <div className="capitalize">📅 <strong className="text-text-1">{scheduledLabel}</strong></div>
+                <div>📅 <strong className="text-text-1">{scheduledLabel}</strong></div>
                 <div>{t('summaryDuration')} <strong className="text-text-1">{duration} min</strong> · {t('summaryType')} <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
               </div>
             </div>
@@ -2130,7 +2151,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     <ConfirmDialog
       open={!!overlapPrompt}
       variant="warning"
-      title={overlapPrompt?.codigo === 'BLOCKED_SLOT' ? t('blockedSlotTitle') : t('overlapTitle')}
+      title={overlapPrompt?.codigo === 'BLOCKED_SLOT'     ? t('blockedSlotTitle')
+           : overlapPrompt?.codigo === 'CAPACITY_WARNING' ? t('capacityTitle')
+           : t('overlapTitle')}
       description={overlapPrompt?.message ?? ''}
       confirmLabel={t('overlapConfirm')}
       cancelLabel={t('overlapCancel')}
@@ -2140,8 +2163,12 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         // La bandera que corresponde al aviso que se aceptó, no las dos: aceptar
         // el almuerzo no debería hacer pasar en silencio un cruce de citas que
         // nadie miró.
+        /* Cada aviso reintenta con SU bandera: aceptar la franja llena no
+           puede hacer pasar en silencio un cruce que nadie miró. */
         if (p) void submitAppointment(p.pending,
-          p.codigo === 'BLOCKED_SLOT' ? { blocked: true } : { overlap: true });
+          p.codigo === 'BLOCKED_SLOT'     ? { blocked: true }
+          : p.codigo === 'CAPACITY_WARNING' ? { overbook: true }
+          : { overlap: true });
       }}
       onCancel={() => setOverlapPrompt(null)}
     />

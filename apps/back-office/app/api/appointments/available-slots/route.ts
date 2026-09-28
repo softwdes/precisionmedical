@@ -44,7 +44,24 @@ const CLOSE_MIN = 18 * 60;  //  6:00 PM MT
 
 const QuerySchema = z.object({
   clinicId:        z.string().min(1),
-  providerId:      z.string().min(1),
+  /**
+   * OPCIONAL desde el 2026-09-28: la cita puede nacer sin provider y
+   * asignarse en el check-in.
+   *
+   * Sin provider esta ruta NO puede decir quien esta libre — y no lo finge.
+   * No existe una relacion provider-sede en el modelo: lo unico que el sistema
+   * sabe de "quien atiende en Provo el martes" son las citas que ya existen, y
+   * con eso un dia todavia vacio daria CERO disponibilidad, que es exactamente
+   * lo contrario de la verdad.
+   *
+   * Asi que sin provider devuelve el HORARIO DE LA CLINICA: los huecos de la
+   * jornada (08:00-18:00, L-V, con la cita terminando antes del cierre), sin
+   * descontar la agenda de nadie. Lo que se reserva es la hora, no la persona.
+   *
+   * Los avisos de agenda generales —"Cerrado", "Feriado", el almuerzo del
+   * calendario entero— SI siguen aplicando: son de la sede, no de un provider.
+   */
+  providerId:      z.string().min(1).optional(),
   fromDate:        z.string().datetime().optional(),
   toDate:          z.string().datetime().optional(),
   durationMinutes: z.coerce.number().int().min(15).max(240).default(45),
@@ -164,7 +181,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     : new Date(fromDate.getTime() + 8 * 24 * 60 * 60 * 1000); // 8 días por defecto
 
   // ─── Citas existentes del provider en el rango ─────────────────────────
-  const existingAppointments = await db.appointment.findMany({
+  //
+  // Sin provider la lista va VACIA a proposito: no hay una agenda concreta
+  // contra la cual restar. Ver la nota de `providerId` en el esquema.
+  const existingAppointments = query.providerId ? await db.appointment.findMany({
     where: {
       ...VIGENTES,
       providerId: query.providerId,
@@ -179,7 +199,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       scheduledFor:    true,
       durationMinutes: true,
     },
-  });
+  }) : [];
 
   /**
    * ─── Los bloqueos de agenda ─────────────────────────────────────────────
@@ -203,7 +223,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           OR: [{ repeatUntil: null }, { repeatUntil: { gte: fromDate } }],
         },
       ],
-      AND: [{ OR: [{ providerId: null }, { providerId: query.providerId }] }],
+      // Sin provider quedan solo los del calendario entero (los de la sede):
+      // el almuerzo de OTRO provider no bloquea una hora que todavia no es
+      // de nadie.
+      AND: [{
+        OR: query.providerId
+          ? [{ providerId: null }, { providerId: query.providerId }]
+          : [{ providerId: null }],
+      }],
     },
     select: {
       id: true, label: true, startsAt: true, durationMinutes: true,

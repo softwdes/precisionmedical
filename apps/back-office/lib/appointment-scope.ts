@@ -47,6 +47,35 @@ export async function puedeEscribirLaCita(appointmentId: string): Promise<boolea
 }
 
 /**
+ * ¿Puede esta sesión ASIGNAR una cita sin dueño a `providerId`?
+ *
+ * Es una pregunta distinta a `puedeEscribirLaCita`, y por eso vive aparte. Esa
+ * pregunta "¿es TUYA?", y una cita sin asignar no es de nadie: a un provider le
+ * daría 403 justo en el caso que hay que resolver — la cita que él quiere tomar.
+ *
+ * La regla:
+ *
+ *   · **El staff del back-office asigna a cualquiera.** Es su trabajo: el
+ *     mostrador mira quién está atendiendo hoy y reparte.
+ *   · **El provider solo se asigna A SÍ MISMO.** Puede tomar un paciente que
+ *     nadie reclamó; no puede darle trabajo a un colega ni quitárselo.
+ *
+ * La otra mitad del candado —que la cita no tenga ya dueño— NO está acá sino en
+ * el `updateMany` condicional de la ruta: es una carrera entre dos personas y se
+ * gana en la escritura, no en el chequeo previo.
+ */
+export async function puedeAsignarseLaCita(providerId: string): Promise<boolean> {
+  const user = await getSessionUser();
+  if (!user?.email) return false;
+
+  const role = await fetchDbRole(user.email);
+  if (!PORTAL_ONLY.has(role)) return true;
+
+  const provider = await getSessionProvider();
+  return !!provider && provider.id === providerId;
+}
+
+/**
  * ¿La llegada de esta cita la marcó el propio provider desde su portal?
  *
  * Es la mejor señal disponible de "hoy no hay asistente": si el doctor tuvo que

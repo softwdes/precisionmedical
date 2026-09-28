@@ -96,6 +96,23 @@ function OutcomeButtons({
   );
 }
 
+/**
+ * Una cita de hoy que todavía no tiene provider.
+ *
+ * Trae mucho menos que `MyDayAppointment` a propósito: no hay triaje, ni nota,
+ * ni desenlaces que ofrecer. Lo único que se puede hacer con ella es tomarla,
+ * y para decidir eso alcanzan la hora, el nombre y la sede.
+ */
+export interface CitaSinAsignar {
+  id: string;
+  scheduledFor: string; // ISO
+  durationMinutes: number;
+  isOnline: boolean;
+  patientName: string;
+  caseCode: string | null;
+  clinicName: string | null;
+}
+
 export interface MyDayAppointment {
   id: string;
   scheduledFor: string; // ISO
@@ -134,7 +151,11 @@ export interface MyDayAppointment {
 
 interface Props {
   doctorName: string;
+  /** El provider de la sesión — a quién se le asigna la cita que toma. */
+  providerId: string;
   appointments: MyDayAppointment[];
+  /** Las de hoy que no tienen provider, en las sedes donde él atiende. */
+  sinAsignar: CitaSinAsignar[];
   /** Notas sin cerrar del doctor — mismo criterio que la cola de abajo */
   unsignedTotal: number;
   /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
@@ -171,7 +192,8 @@ function todayKeyClient(): string {
 }
 
 export function MyDayClient({
-  doctorName, appointments, unsignedTotal, dateKey, isToday, prevDate, nextDate,
+  doctorName, providerId, appointments, sinAsignar,
+  unsignedTotal, dateKey, isToday, prevDate, nextDate,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   /**
@@ -185,6 +207,12 @@ export function MyDayClient({
   /** Las palabras de la firma nacieron en el panel de la cita; una sola copia. */
   const tc = useTranslations('phoenix.calendar');
   const router = useRouter();
+  /**
+   * La cita que se está tomando, por id. Bloquea SOLO ese botón: con dos o
+   * cuatro providers mirando la misma lista, apagar todos mientras vuelve una
+   * respuesta haría que el segundo paciente parezca no disponible.
+   */
+  const [tomando, setTomando] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
   const [isRefreshing, startRefresh] = React.useTransition();
   /**
@@ -439,6 +467,40 @@ export function MyDayClient({
       return <TagPill label={t('statusWaiting')} colorClass="bg-amber/15 text-amber border-amber/30" />;
     }
     return <TagPill label={t('statusPending')} colorClass="bg-amber/15 text-amber border-amber/30" />;
+  };
+
+  /**
+   * Tomar una cita sin dueño.
+   *
+   * No hay selector: el provider no elige entre varios, se elige a sí mismo —
+   * es lo único que puede hacer, y el servidor lo exige igual.
+   *
+   * El 409 `ALREADY_ASSIGNED` NO es un error del sistema: es que otro llegó
+   * primero. Se dice con el nombre de quien se la llevó, porque "no se pudo"
+   * dejaría al provider intentando de nuevo contra algo que ya no está.
+   */
+  const tomarLaCita = async (citaId: string) => {
+    setTomando(citaId);
+    try {
+      const res = await fetch(`/api/admin/appointments/${citaId}/assign-provider`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId }),
+      });
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        toast.info(d.takenBy ? t('takenByOther', { name: d.takenBy }) : t('takenByOtherAnon'));
+        router.refresh();
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success(t('takenOk'));
+      router.refresh();
+    } catch {
+      toast.error(t('takenError'));
+    } finally {
+      setTomando(null);
+    }
   };
 
   return (
@@ -764,6 +826,57 @@ export function MyDayClient({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/*
+        ─── Sin asignar ─────────────────────────────────────────────────────
+
+        Las citas de hoy en esta sede que todavía no tienen provider. Va ARRIBA
+        de la cola propia y no abajo: es lo único de esta pantalla que le pide
+        una decisión al provider — el resto ya es suyo y puede esperar.
+
+        Solo aparece si hay alguna. Acá sí se esconde cuando está vacía, y no
+        contradice la regla de la casa: no es un control que el provider pueda
+        usar y esté bloqueado, es una lista sin filas. Un "no hay pacientes sin
+        asignar" permanente sería ruido en la pantalla que se mira todo el día.
+      */}
+      {sinAsignar.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-amber mb-2">
+            {t('unassignedTitle', { count: sinAsignar.length })}
+          </div>
+          <div className="space-y-1.5">
+            {sinAsignar.map(c => (
+              <div
+                key={c.id}
+                className="flex items-center gap-3 flex-wrap rounded-lg border border-amber/30 bg-amber/[0.06] px-3 py-2"
+              >
+                <span className="text-sm font-bold text-text-1 tabular-nums shrink-0">
+                  {new Date(c.scheduledFor).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}
+                </span>
+                <span className="text-sm font-semibold text-text-1 truncate min-w-0 flex-1">
+                  {c.patientName}
+                  {c.caseCode && (
+                    <span className="ml-2 text-[11px] font-mono text-text-muted">
+                      #{c.caseCode.replace('PMC-', '')}
+                    </span>
+                  )}
+                </span>
+                {c.clinicName && (
+                  <span className="text-[11px] text-text-muted shrink-0">{c.clinicName}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { void tomarLaCita(c.id); }}
+                  disabled={tomando === c.id}
+                  className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md bg-amber/20 border border-amber/50 text-amber text-[11px] font-semibold hover:bg-amber/25 transition-colors disabled:opacity-50"
+                >
+                  {tomando === c.id ? t('takingInProgress') : t('takeAppointment')}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

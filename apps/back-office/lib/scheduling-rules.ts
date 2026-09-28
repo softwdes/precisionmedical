@@ -201,6 +201,80 @@ export function overlapDetails(overlaps: OverlappingAppointment[]): OverlapDetai
 }
 
 /**
+ * ¿Se está sobrecargando una franja horaria?
+ *
+ * ── Qué agujero tapa ────────────────────────────────────────────────────────
+ *
+ * Desde el 2026-09-28 la cita puede agendarse SIN provider, y ahí el chequeo de
+ * cruce no puede hacer nada: no hay agenda contra la cual chocar. Se pueden
+ * poner cinco pacientes a las 2 PM y el sistema no dice una palabra; el choque
+ * aparece cuando los cinco están en la sala.
+ *
+ * Esto es lo que queda en su lugar: no mira agendas individuales, mira CUÁNTA
+ * GENTE cabe. Si a esa hora ya hay tantos pacientes como providers atienden ese
+ * día en esa sede, el siguiente no tiene quién lo vea.
+ *
+ * ── De dónde sale la capacidad ──────────────────────────────────────────────
+ *
+ * De las citas que YA existen ese día en esa sede. No hay relación
+ * provider↔sede en el modelo, así que quiénes atienden dónde solo se sabe por
+ * lo que está agendado.
+ *
+ * Y por eso devuelve `null` cuando todavía no hay ninguna cita asignada ese
+ * día: la capacidad sería 0 y toda cita nueva parecería una sobrecarga. Un
+ * aviso que salta siempre se aprende a ignorar en dos días, y entonces no
+ * avisa de nada. Sin base para medir, no se opina.
+ *
+ * ── Avisa, no bloquea ───────────────────────────────────────────────────────
+ *
+ * Misma regla que el cruce y que los avisos de agenda (Erick, 2026-08-05):
+ * quien agenda decide. Puede haber una razón real para meter al sexto.
+ */
+export interface Sobrecarga {
+  /** Pacientes que ya ocupan esa franja, contando los que no tienen provider. */
+  ocupadas: number;
+  /** Providers distintos que atienden ese día en esa sede. */
+  capacidad: number;
+}
+
+export async function medirSobrecarga(opts: {
+  clinicId: string;
+  start: Date;
+  durationMinutes: number;
+  excludeAppointmentId?: string;
+}): Promise<Sobrecarga | null> {
+  const { clinicId, start, durationMinutes, excludeAppointmentId } = opts;
+  const end         = new Date(start.getTime() + durationMinutes * 60_000);
+  const windowStart = new Date(start.getTime() - MAX_APPOINTMENT_MINUTES * 60_000);
+
+  // El día civil de la clínica, para contar quiénes atienden.
+  const diaDesde = new Date(start); diaDesde.setUTCHours(0, 0, 0, 0);
+  const diaHasta = new Date(diaDesde.getTime() + 36 * 60 * 60_000);
+
+  const delDia = await db.appointment.findMany({
+    where: {
+      ...VIGENTES,
+      clinicId,
+      status:       { not: 'CANCELLED' },
+      scheduledFor: { gte: diaDesde, lt: diaHasta },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+    },
+    select: { scheduledFor: true, durationMinutes: true, providerId: true },
+  });
+
+  const capacidad = new Set(delDia.map(a => a.providerId).filter(Boolean)).size;
+  // Sin una sola cita con provider ese día no hay con qué medir. Ver arriba.
+  if (capacidad === 0) return null;
+
+  const ocupadas = delDia.filter(a => {
+    if (a.scheduledFor < windowStart) return false;
+    const fin = new Date(a.scheduledFor.getTime() + a.durationMinutes * 60_000);
+    return a.scheduledFor < end && fin > start;
+  }).length;
+
+  return { ocupadas, capacidad };
+}
+/**
  * Gracia para el horario que ya pasó: una hora.
  *
  * El selector de horarios puede quedar abierto un rato largo antes de que la

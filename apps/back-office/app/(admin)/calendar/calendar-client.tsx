@@ -809,6 +809,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   /** Tarjetas del grid: las de 15 min ya están apretadas y el nombre completo no
    *  entra — inicial y apellido alcanzan para distinguir. "B. Clanton" */
   const drShort = nombreProviderCorto;
+  /**
+   * El nombre que va en la tarjeta — o "Sin asignar".
+   *
+   * Desde el 2026-09-28 la cita puede nacer sin provider: se reserva la hora y
+   * quién atiende se decide en el check-in. En la tarjeta eso NO puede quedar
+   * como un renglón vacío, porque un hueco se lee como un dato que no cargó y
+   * no como el estado que es. Decirlo con todas las letras es lo que lo
+   * convierte en algo accionable: alguien tiene que asignarla.
+   */
+  const drNombreOSinAsignar = (p: { firstName: string; lastName: string } | null | undefined) =>
+    p ? drShort(p) : t('unassignedProvider');
 
   /**
    * El color de identidad de cada provider (ver `lib/provider-color`).
@@ -1950,7 +1961,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 const s = getEventStyle(appt);
                 const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                 const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
-                const drName = appt.provider ? drShort(appt.provider) : '';
+                const drName = drNombreOSinAsignar(appt.provider);
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                     className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
@@ -2052,7 +2063,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
-                            const drName = appt.provider ? drShort(appt.provider) : '';
+                            const drName = drNombreOSinAsignar(appt.provider);
                             const isDragging = draggingId === appt.id;
                             return (
                               <button key={appt.id} type="button"
@@ -2304,7 +2315,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   {cellAppts.map(appt => {
                     const s = getEventStyle(appt);
                     const visitLabel = rotuloVisita(appt.visitNumber, appt.case?.caseType);
-                    const drName = appt.provider ? drShort(appt.provider) : '';
+                    const drName = drNombreOSinAsignar(appt.provider);
                     /**
                      * El rango (`8:00–8:15`) SOLO cuando la cita ocupa más de una
                      * fila. Si entra en una sola, va la hora de inicio y nada más.
@@ -2600,7 +2611,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
                           {enElSlot.map(appt => {
                             const s = getEventStyle(appt);
-                            const drName = appt.provider ? drShort(appt.provider) : '';
+                            const drName = drNombreOSinAsignar(appt.provider);
                             return (
                               <button
                                 key={appt.id}

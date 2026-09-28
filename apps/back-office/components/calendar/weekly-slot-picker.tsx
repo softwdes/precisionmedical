@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, primeraMayuscula } from '@/lib/fechas';
 
 /**
  * WeeklySlotPicker — selector de horarios en vista semanal Lun–Vie
@@ -112,7 +112,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
 
   // Fetch slots for current week
   useEffect(() => {
-    if (!providerId || !clinicId) { setSlots([]); return; }
+    // Solo la SEDE es imprescindible. Sin provider la ruta devuelve el horario
+    // de la clínica en vez de la agenda de alguien — ver su nota de `providerId`.
+    if (!clinicId) { setSlots([]); return; }
     const controller = new AbortController();
     setLoading(true);
     setSlots([]);
@@ -140,7 +142,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           return {
             iso: s.startAt,
             label: d.toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
-            dayLabel: d.toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
+            dayLabel: primeraMayuscula(d.toLocaleDateString(localeApp(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' })),
           };
         });
         setSlots(mapped);
@@ -438,7 +440,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
         <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan flex items-center gap-2">
           <Check className="w-3.5 h-3.5 shrink-0" />
           <span>
-            <strong className="capitalize">{selectedSlot.dayLabel} · {selectedSlot.label} – {selectedSlotEndLabel}</strong>
+            <strong>{selectedSlot.dayLabel} · {selectedSlot.label} – {selectedSlotEndLabel}</strong>
             <span className="opacity-70 font-normal"> ({duration} min)</span>
           </span>
         </div>

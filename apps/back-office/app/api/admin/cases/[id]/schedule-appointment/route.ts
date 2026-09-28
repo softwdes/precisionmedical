@@ -16,11 +16,13 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
-  providerId: z.string().min(1),
+  /** Opcional desde el 2026-09-28: se asigna en el check-in. Ver el POST de
+   *  `api/admin/appointments` para el porqué. */
+  providerId: z.string().min(1).nullable().optional(),
   /** ISO date string · ej "2026-06-10T10:00:00.000Z" */
   scheduledFor: z.string().datetime({ message: 'Fecha/hora inválida (ISO 8601)' }),
   durationMinutes: z.number().int().min(15).max(240).default(30),
@@ -30,6 +32,8 @@ const InputSchema = z.object({
   allowOverlap: z.boolean().optional(),
   /** Aceptar el aviso de agenda y guardar igual. Aparte de `allowOverlap`. */
   allowBlocked: z.boolean().optional(),
+  /** Aceptar el aviso de sobrecarga de la franja. Ver el POST de appointments. */
+  allowOverbook: z.boolean().optional(),
 });
 
 export async function POST(
@@ -88,19 +92,23 @@ export async function POST(
     );
   }
 
-  // Validar que clinic y provider existan y estén activos
+  // Validar que la sede exista, y el provider SOLO si vino: la cita puede nacer
+  // sin asignar y resolverse en el check-in. Un id de provider inventado sigue
+  // siendo un error — lo que es válido es no mandar ninguno.
   const [clinic, provider] = await Promise.all([
     db.clinic.findUnique({ where: { id: parsed.clinicId }, select: { id: true, name: true } }),
-    db.provider.findUnique({
-      where: { id: parsed.providerId },
-      select: { id: true, firstName: true, lastName: true, specialty: true, status: true },
-    }),
+    parsed.providerId
+      ? db.provider.findUnique({
+          where: { id: parsed.providerId },
+          select: { id: true, firstName: true, lastName: true, specialty: true, status: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   if (!clinic) {
     return NextResponse.json({ error: 'CLINIC_NOT_FOUND' }, { status: 404 });
   }
-  if (!provider || provider.status !== 'ACTIVE') {
+  if (parsed.providerId && (!provider || provider.status !== 'ACTIVE')) {
     return NextResponse.json({ error: 'PROVIDER_NOT_FOUND_OR_INACTIVE' }, { status: 404 });
   }
 
@@ -129,7 +137,37 @@ export async function POST(
   // ─── Verificar cruce con otra cita del doctor (P1) ─────────────────────
   // Ver lib/scheduling-rules: antes esto era un findFirst sin orden que solo
   // chequeaba el cruce contra UNA candidata de la ventana.
-  if (!parsed.allowOverlap) {
+  /**
+   * ─── Sobrecarga de la franja ─────────────────────────────────────────────
+   *
+   * Solo cuando la cita va SIN provider. Con provider ya la cuida el chequeo
+   * de cruce, que es más preciso: mira una agenda concreta.
+   *
+   * Sin provider no hay agenda que mirar, así que se cuenta cuánta gente cabe:
+   * si a esa hora ya hay tantos pacientes como providers atienden ese día en
+   * esa sede, el que entra no tiene quién lo vea.
+   *
+   * Bandera propia (`allowOverbook`) y no `allowOverlap`: son dos motivos
+   * distintos y aceptar uno no puede hacer pasar el otro en silencio — el
+   * mismo criterio con el que ya conviven `allowOverlap` y `allowBlocked`.
+   */
+  if (!parsed.providerId && !parsed.allowOverbook) {
+    const carga = await medirSobrecarga({
+      clinicId:        parsed.clinicId,
+      start:           scheduledForDate,
+      durationMinutes: parsed.durationMinutes,
+    });
+    if (carga && carga.ocupadas >= carga.capacidad) {
+      return NextResponse.json({
+        error: 'CAPACITY_WARNING',
+        ocupadas:  carga.ocupadas,
+        capacidad: carga.capacidad,
+        canOverride: true,
+      }, { status: 409 });
+    }
+  }
+  // Sin provider no hay con qué chocar (ver el POST de api/admin/appointments).
+  if (!parsed.allowOverlap && parsed.providerId) {
     const overlaps = await findOverlappingAppointments({
       providerId:      parsed.providerId,
       start:           scheduledForDate,
@@ -217,9 +255,11 @@ export async function POST(
       appointmentId: result.appointment.id,
       clinicId: clinic.id,
       clinicName: clinic.name,
-      providerId: provider.id,
-      providerName: `${provider.firstName} ${provider.lastName}`,
-      providerSpecialty: provider.specialty,
+      // `null` cuando la cita nace sin asignar: en el historial eso es un dato,
+      // no un hueco — dice que se reservó el horario sin saber quién atendía.
+      providerId: provider?.id ?? null,
+      providerName: provider ? `${provider.firstName} ${provider.lastName}` : null,
+      providerSpecialty: provider?.specialty ?? null,
       scheduledFor: scheduledForDate.toISOString(),
       durationMinutes: parsed.durationMinutes,
       type: parsed.type,
@@ -248,12 +288,15 @@ export async function POST(
       type: result.appointment.type,
       status: result.appointment.status,
       clinic: { id: clinic.id, name: clinic.name },
-      provider: {
-        id: provider.id,
-        firstName: provider.firstName,
-        lastName: provider.lastName,
-        specialty: provider.specialty,
-      },
+      /** `null` = sin asignar; quién atiende se decide en el check-in. */
+      provider: provider
+        ? {
+            id: provider.id,
+            firstName: provider.firstName,
+            lastName: provider.lastName,
+            specialty: provider.specialty,
+          }
+        : null,
     },
     case: result.updatedCase,
   });

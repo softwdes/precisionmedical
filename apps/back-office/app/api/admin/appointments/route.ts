@@ -18,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
@@ -340,7 +340,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 const CreateSchema = z.object({
   caseId:          z.string(),
   clinicId:        z.string(),
-  providerId:      z.string(),
+  /**
+   * El provider es OPCIONAL desde el 2026-09-28 (Erick: *"cita sin provider es
+   * un estado normal desde ahora"*).
+   *
+   * Se agenda la fecha, la hora y la sede, y quién atiende se decide en el
+   * check-in: en Day Admission lo elige el mostrador, y en Mi Día el propio
+   * provider toma la cita. Es lo que la clínica ya hacía de hecho — reservaba el
+   * horario sin saber todavía quién iba a estar.
+   *
+   * La columna ya era nullable y había 22 citas así en producción (todas
+   * PENDING, de 2024-2025): el caso no se inaugura acá, se vuelve usable.
+   *
+   * ⚠️ Sin provider NO hay chequeo de cruce: no hay con qué chocar. Es la única
+   * garantía que se pierde y es a sabiendas.
+   */
+  providerId:      z.string().nullable().optional(),
   scheduledFor:    z.string().datetime(),
   durationMinutes: z.number().int().min(15).max(480).default(30),
   type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
@@ -371,6 +386,8 @@ const CreateSchema = z.object({
    *  · no se le avisa NADA al paciente (el candado está en `lib/recordatorio-cita`).
    */
   allowPast:       z.boolean().optional(),
+  /** Aceptar el aviso de sobrecarga de la franja. Aparte de `allowOverlap`. */
+  allowOverbook:   z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -438,15 +455,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }, { status: 400 });
   }
 
+  /**
+   * El provider puede no venir: la cita queda sin asignar y se resuelve en el
+   * check-in. Si VIENE, tiene que existir — un id inventado sigue siendo un
+   * error, no una cita sin asignar.
+   */
   const [caseRecord, clinic, provider] = await Promise.all([
     db.case.findUnique({ where: { id: parsed.caseId }, select: { id: true, patientId: true, status: true } }),
     db.clinic.findUnique({ where: { id: parsed.clinicId }, select: { id: true } }),
-    db.provider.findUnique({ where: { id: parsed.providerId }, select: { id: true } }),
+    parsed.providerId
+      ? db.provider.findUnique({ where: { id: parsed.providerId }, select: { id: true } })
+      : Promise.resolve(null),
   ]);
 
   if (!caseRecord) return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   if (!clinic)     return NextResponse.json({ error: 'CLINIC_NOT_FOUND' }, { status: 404 });
-  if (!provider)   return NextResponse.json({ error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
+  if (parsed.providerId && !provider) {
+    return NextResponse.json({ error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
+  }
 
   const SCHEDULABLE = ['NEW_REFERRAL', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED', 'INTAKE_PENDING'];
   if (!SCHEDULABLE.includes(caseRecord.status)) {
@@ -460,7 +486,41 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Ver lib/scheduling-rules: antes esto era un findFirst sin orden que solo
   // chequeaba el cruce contra UNA candidata de la ventana, así que dejaba pasar
   // cruces reales de forma intermitente.
-  if (!parsed.allowOverlap) {
+  /**
+   * ─── Sobrecarga de la franja ─────────────────────────────────────────────
+   *
+   * Solo cuando la cita va SIN provider. Con provider ya la cuida el chequeo
+   * de cruce, que es más preciso: mira una agenda concreta.
+   *
+   * Sin provider no hay agenda que mirar, así que se cuenta cuánta gente cabe:
+   * si a esa hora ya hay tantos pacientes como providers atienden ese día en
+   * esa sede, el que entra no tiene quién lo vea.
+   *
+   * Bandera propia (`allowOverbook`) y no `allowOverlap`: son dos motivos
+   * distintos y aceptar uno no puede hacer pasar el otro en silencio — el
+   * mismo criterio con el que ya conviven `allowOverlap` y `allowBlocked`.
+   */
+  if (!parsed.providerId && !parsed.allowOverbook) {
+    const carga = await medirSobrecarga({
+      clinicId:        parsed.clinicId,
+      start:           new Date(parsed.scheduledFor),
+      durationMinutes: parsed.durationMinutes,
+    });
+    if (carga && carga.ocupadas >= carga.capacidad) {
+      return NextResponse.json({
+        error: 'CAPACITY_WARNING',
+        ocupadas:  carga.ocupadas,
+        capacidad: carga.capacidad,
+        canOverride: true,
+      }, { status: 409 });
+    }
+  }
+  /**
+   * Sin provider no hay cruce que chequear: no hay agenda contra la cual chocar.
+   * Es la única garantía que se pierde al dejar la cita sin asignar, y se pierde
+   * a sabiendas — el choque, si lo hay, aparece al asignarla en el check-in.
+   */
+  if (!parsed.allowOverlap && parsed.providerId) {
     const overlaps = await findOverlappingAppointments({
       providerId:      parsed.providerId,
       start:           new Date(parsed.scheduledFor),

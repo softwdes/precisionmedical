@@ -15,7 +15,7 @@ import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/
 import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
 import { deudasDelDia } from '@/lib/deudas-del-dia';
-import { MyDayClient, type MyDayAppointment } from './my-day-client';
+import { MyDayClient, type MyDayAppointment, type CitaSinAsignar } from './my-day-client';
 import { CifoSaludoProvider } from './cifo-saludo-provider';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -93,6 +93,8 @@ export default async function DoctorMyDayPage({
         // y por 20 filas es payload que la lista no usa — la sugerencia derivada
         // del intake solo hace falta en el diálogo, que trae un caso solo.
         case: { select: { id: true, caseCode: true, ...COVERAGE_LIST_SELECT } },
+        // Para deducir en qué sede está hoy y qué citas sin dueño mostrarle.
+        clinicId: true,
         clinic: { select: { name: true } },
         /* Los SEIS vitales que evalúa `hallazgosVitales`, no cuatro.
            Antes traía solo presión, pulso y dolor, así que un O₂ de 86 o una
@@ -205,6 +207,57 @@ export default async function DoctorMyDayPage({
 
   const conCargo = new Set(facturado.filter((g) => g._count._all > 0).map((g) => g.appointmentId));
 
+  /**
+   * ─── Las citas SIN PROVIDER de hoy ──────────────────────────────────────
+   *
+   * Desde el 2026-09-28 una cita puede agendarse sin decidir quién atiende, y
+   * se resuelve en el check-in. Pero Mi Día pregunta "las citas de ESTE
+   * provider", así que una cita sin dueño no aparece en la de nadie: sin esta
+   * lista no habría nada que tomar y la función no existiría.
+   *
+   * ── De qué sede ──
+   *
+   * De donde el provider esté atendiendo ese día, deducido de sus PROPIAS
+   * citas. No hay relación provider↔sede en el modelo, así que es la única
+   * fuente: y alcanza, porque el 94% de los días un provider atiende en una
+   * sola sede (medido sobre 90 días).
+   *
+   * Si no tiene ninguna cita propia ese día no hay de dónde deducirla, y ahí
+   * se muestran las de TODAS las sedes. Es el día en que todo está sin
+   * asignar — raro, pero es justo cuando esconderlas lo dejaría mirando una
+   * pantalla vacía sin saber que hay pacientes esperándolo.
+   */
+  const sedesDelDia = [...new Set(appts.map(a => a.clinicId))];
+  const sinAsignar = await db.appointment.findMany({
+    where: {
+      ...VIGENTES,
+      providerId:   null,
+      scheduledFor: { gte: start, lt: end },
+      status:       { notIn: ['CANCELLED', 'NO_SHOW'] },
+      ...(sedesDelDia.length > 0 ? { clinicId: { in: sedesDelDia } } : {}),
+    },
+    orderBy: { scheduledFor: 'asc' },
+    select: {
+      id: true,
+      scheduledFor: true,
+      durationMinutes: true,
+      isOnline: true,
+      patient: { select: { firstName: true, lastName: true } },
+      case:    { select: { caseCode: true } },
+      clinic:  { select: { name: true } },
+    },
+  });
+
+  const citasSinAsignar: CitaSinAsignar[] = sinAsignar.map((a) => ({
+    id: a.id,
+    scheduledFor: a.scheduledFor.toISOString(),
+    durationMinutes: a.durationMinutes,
+    isOnline: a.isOnline,
+    patientName: `${a.patient.firstName} ${a.patient.lastName}`,
+    caseCode: a.case?.caseCode ?? null,
+    clinicName: a.clinic?.name ?? null,
+  }));
+
   const appointments: MyDayAppointment[] = appts.map((a) => ({
     id: a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -279,7 +332,9 @@ export default async function DoctorMyDayPage({
       {esHoy && <CifoSaludoProvider datos={saludo} />}
       <MyDayClient
         doctorName={`${provider.firstName} ${provider.lastName}`}
+        providerId={provider.id}
         appointments={appointments}
+        sinAsignar={citasSinAsignar}
         unsignedTotal={pendingNotesTotal}
         dateKey={dateKey}
         isToday={esHoy}

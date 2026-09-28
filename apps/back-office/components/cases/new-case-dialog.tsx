@@ -185,6 +185,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const router = useRouter();
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
+  const tcom = useTranslations('phoenix.common');
   const tc = useTranslations('caseWizard');
   // Navegación de semana del selector de horarios. Las claves ya existían en
   // `phoenix.calendar` (prevWeek/nextWeek) pero acá estaban escritas a mano en
@@ -675,7 +676,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // `!!caseType` es la parte nueva: sin tipo elegido no se avanza. Ver el
   // comentario del `useState` — antes venía en MVA y por eso nadie lo miraba.
   const canGoToStep3 = canGoToStep2 && !!caseType && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
-  const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
+  // El provider salió de la condición el 2026-09-28: se puede reservar la hora
+  // sin saber quién atiende, y se define en el check-in.
+  const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!slotIso));
   const canSubmit = canGoToStep4;
 
   function nextStep() {
@@ -964,7 +967,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return (
       <Dialog open={open} onOpenChange={() => { twilio.hangUp(); onOpenChange(false); }}>
         <DialogContent className="max-w-sm p-0 overflow-hidden">
-          <DialogTitle className="sr-only">Llamando</DialogTitle>
+          <DialogTitle className="sr-only">{t('callingTitle')}</DialogTitle>
           <div className="flex flex-col items-center px-6 py-8 gap-5">
             {/* Avatar con anillos animados */}
             <div className="relative flex items-center justify-center" style={{ width: 128, height: 128 }}>
@@ -995,7 +998,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 bg-emerald/15 border border-emerald/30 text-emerald hover:bg-emerald/25 transition-colors text-sm font-semibold"
               >
                 <PhoneCall className="w-4 h-4 flex-shrink-0" />
-                Contestó — abrir formulario
+                {t('answeredOpenForm')}
               </button>
             )}
 
@@ -1213,7 +1216,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 className="ml-auto flex items-center gap-1 text-[10px] text-text-muted hover:text-text-2 transition-colors shrink-0"
               >
                 <ArrowLeft className="w-3 h-3" />
-                Cambiar opción
+                {t('changeOption')}
               </button>
             )}
           </div>
@@ -1285,7 +1288,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <div className="flex flex-col sm:flex-row gap-4 items-start">
                     {success.qrDataUrl && (
                       <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
-                        <img src={success.qrDataUrl} alt="QR forms" className="w-[160px] h-[160px] block" />
+                        <img src={success.qrDataUrl} alt={t("qrAlt")} className="w-[160px] h-[160px] block" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0 space-y-2">
@@ -1742,7 +1745,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {/* Doctor */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <Label>Provider</Label>
+                      <Label>{t('providerLabel')}</Label>
                       {hasFilteredProviders && filteredProviders.length < providers.length && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
                           className="text-[10px] text-text-muted hover:text-brand-text">
@@ -1866,7 +1869,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-semibold ${emailOn ? 'text-emerald' : 'text-text-1'}`}>
-                        Email
+                        {t('email')}
                       </div>
                       {/* Se muestra el correo del DESTINATARIO real: en un menor
                           el link va al apoderado, y ver el correo del menor acá
@@ -1906,10 +1909,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-semibold ${smsOn ? 'text-cyan' : 'text-text-1'}`}>
-                        SMS
+                        {t('smsLabel')}
                       </div>
                       <div className="text-[11px] text-text-muted truncate">
-                        {contactPhone.trim() ? contactPhone.trim() : 'Sin teléfono registrado'}
+                        {contactPhone.trim() ? contactPhone.trim() : t('noPhoneOnFile')}
                         {patientIsMinor && contactPhone.trim() && (
                           <span className="text-amber"> · {t('deliveryToGuardian')}</span>
                         )}
@@ -1956,11 +1959,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <ul className="space-y-1.5 text-xs text-text-2 list-none m-0 p-0">
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Patient: <strong className="text-text-1">{firstName} {lastName}</strong></span>
+                    <span>{t("sumPatient")} <strong className="text-text-1">{firstName} {lastName}</strong></span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Case type: <strong className="text-text-1">{caseType}</strong>
+                    <span>{t("sumCaseType")} <strong className="text-text-1">{caseType}</strong>
                       {caseType === 'MVA' && lawFirm && <> · {lawFirm.label}</>}
                     </span>
                   </li>
@@ -2020,10 +2023,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
               {duplicateId && (
                 <div className="text-amber text-sm bg-amber/10 border border-amber/30 rounded-md px-3 py-2 flex flex-col gap-2">
-                  <p className="font-medium">Would you like to create the case for the existing patient instead of registering a new one?</p>
+                  <p className="font-medium">{t('dupQuestion')}</p>
                   <Button size="sm" variant="outline" className="self-start border-amber/50 text-amber hover:bg-amber/10"
                     onClick={() => { setExistingPatientId(duplicateId); setDuplicateId(null); setError(null); }}>
-                    Use existing patient
+                    {t('dupUseExisting')}
                   </Button>
                 </div>
               )}
@@ -2092,10 +2095,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {success ? (
             <>
               <Button variant="outline" onClick={() => { router.refresh(); onOpenChange(false); }} className="w-full sm:w-auto">
-                Close
+                {t('btnClose')}
               </Button>
               <Button onClick={() => { router.refresh(); onOpenChange(false); router.push(`/front-office/${success.caseId}`); }} className="w-full sm:w-auto gap-1">
-                View case <ArrowRight className="w-3.5 h-3.5" />
+{t('btnViewCase')} <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </>
           ) : (
@@ -2105,7 +2108,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 {wizardStep > 1 && (
                   <Button variant="outline" onClick={prevStep} className="flex-1 sm:flex-none sm:w-auto gap-1">
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Back</span>
+                    <span className="hidden sm:inline">{tcom("back")}</span>
                   </Button>
                 )}
                 {wizardStep === 4 && !isManual && !isSearch && (
@@ -2121,7 +2124,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {/* Right side: Next or Finalize */}
               {wizardStep < 4 ? (
                 <Button onClick={nextStep} disabled={!canNext} className="w-full sm:w-auto gap-1">
-                  Next
+                  {tcom("next")}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               ) : (

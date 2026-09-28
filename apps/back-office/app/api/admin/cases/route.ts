@@ -30,7 +30,7 @@ import {
   quienUsaEsteContacto, probableMismaPersona, type PacienteConEseContacto,
 } from '@/lib/contactos-compartidos';
 import {
-  construirNotaLlamadaInicial, llevaBufeteYPip, type Idioma,
+  construirNotaLlamadaInicial, autorNotaLlamadaInicial, llevaBufeteYPip, idiomaDelStaff, type Idioma,
 } from '@/lib/nota-llamada-inicial';
 
 /**
@@ -47,11 +47,8 @@ import {
  * inglés. La nota salía en español fijo y por eso un tester con la pantalla en
  * inglés leía el cuerpo en español.
  */
-async function idiomaDelStaffDesdeLaCookie(): Promise<Idioma> {
-  const { cookies } = await import('next/headers');
-  const store = await cookies();
-  return store.get('locale')?.value === 'es' ? 'es' : 'en';
-}
+/* Se mudó a `lib/nota-llamada-inicial.ts` cuando otras dos rutas que escriben
+   texto en la base necesitaron lo mismo. */
 
 const InputSchema = z.object({
   // Patient
@@ -173,7 +170,9 @@ const InputSchema = z.object({
   // ─── Appointment (opcional · si se agenda en la llamada) ────────────
   appointment: z.object({
     clinicId: z.string().min(1),
-    providerId: z.string().min(1),
+    /** Opcional desde el 2026-09-28: la cita puede nacer sin asignar y el
+     *  provider se elige en el check-in. Ver el POST de api/admin/appointments. */
+    providerId: z.string().min(1).nullable().optional(),
     scheduledFor: z.string().datetime(),
     durationMinutes: z.number().int().min(15).max(240).default(45),
     type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
@@ -301,7 +300,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
   // Se resuelve acá y no dentro de la transacción: `cookies()` no tiene nada que
   // ver con la DB y no hay razón para tenerlo adentro del lock.
-  const idiomaDelStaff = await idiomaDelStaffDesdeLaCookie();
+  const idioma = await idiomaDelStaff();
 
   let parsed;
   try {
@@ -527,15 +526,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ─── Validaciones cruzadas ──────────────────────────────────────────
   if (parsed.appointment) {
+    // El provider se busca SOLO si vino: la cita puede nacer sin asignar. Un id
+    // inventado sigue siendo un error; lo valido es no mandar ninguno.
     const [clinic, provider] = await Promise.all([
       db.clinic.findUnique({ where: { id: parsed.appointment.clinicId }, select: { id: true, name: true } }),
-      db.provider.findUnique({
-        where: { id: parsed.appointment.providerId },
-        select: { id: true, firstName: true, lastName: true, specialty: true, status: true },
-      }),
+      parsed.appointment.providerId
+        ? db.provider.findUnique({
+            where: { id: parsed.appointment.providerId },
+            select: { id: true, firstName: true, lastName: true, specialty: true, status: true },
+          })
+        : Promise.resolve(null),
     ]);
     if (!clinic) return NextResponse.json({ error: 'CLINIC_NOT_FOUND' }, { status: 404 });
-    if (!provider || provider.status !== 'ACTIVE') {
+    if (parsed.appointment.providerId && (!provider || provider.status !== 'ACTIVE')) {
       return NextResponse.json({ error: 'PROVIDER_NOT_FOUND_OR_INACTIVE' }, { status: 404 });
     }
     const scheduledForDate = new Date(parsed.appointment.scheduledFor);
@@ -547,7 +550,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const apptEnd     = new Date(scheduledForDate.getTime() + parsed.appointment.durationMinutes * 60 * 1000);
     const bufferStart = new Date(scheduledForDate.getTime() - 240 * 60 * 1000);
 
-    const conflict = await db.appointment.findFirst({
+    // Sin provider no hay con que chocar (ver el POST de api/admin/appointments).
+    const conflict = parsed.appointment.providerId ? await db.appointment.findFirst({
       where: {
         ...VIGENTES,
         providerId: parsed.appointment.providerId,
@@ -558,7 +562,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         id: true, scheduledFor: true, durationMinutes: true,
         patient: { select: { firstName: true, lastName: true } },
       },
-    });
+    }) : null;
 
     if (conflict) {
       const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
@@ -860,10 +864,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           insurance:           parsed.insurance,
           appointment:         parsed.appointment,
           formDelivery:        parsed.formDelivery,
-        }, idiomaDelStaff),
+        }, idioma),
         isPrivate: true,
         authorUserId: actor.actorUserId,
-        authorName: 'Front Office (llamada inicial)',
+        /* La firma va en el MISMO idioma que el cuerpo. Estaba en castellano
+           duro y quedaba una nota mitad y mitad. */
+        authorName: autorNotaLlamadaInicial(idioma),
       },
     });
 

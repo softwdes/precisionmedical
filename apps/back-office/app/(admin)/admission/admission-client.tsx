@@ -172,6 +172,77 @@ function KpiCard({
 }
 
 // ─── ApptCard ─────────────────────────────────────────────────────────────────
+/**
+ * El selector que le pone provider a una cita que no lo tiene.
+ *
+ * Es un componente propio y no props de `ApptCard` porque `ApptCard` se
+ * invoca en cinco lugares de esta pantalla: enhebrar cuatro props por todos
+ * ellos, para algo que usa una minoría de las filas, ensucia más de lo que
+ * ahorra.
+ *
+ * La lista de providers se pide UNA vez por pantalla, no una por fila: la
+ * promesa se guarda a nivel de módulo y todas las filas esperan la misma.
+ *
+ * En ámbar porque es lo único de la fila que falta resolver.
+ */
+let promesaDeProviders: Promise<Array<{ id: string; firstName: string; lastName: string }>> | null = null;
+function pedirProviders() {
+  promesaDeProviders ??= fetch('/api/admin/scheduling/resources')
+    .then(r => r.json())
+    .then(d => (d.providers ?? []) as Array<{ id: string; firstName: string; lastName: string }>)
+    .catch(() => []);
+  return promesaDeProviders;
+}
+
+function SelectorDeProvider({ appointmentId }: { appointmentId: string }): React.ReactElement {
+  const t = useTranslations('phoenix.admission');
+  const router = useRouter();
+  const toast = useToast();
+  const [providers, setProviders] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [asignando, setAsignando] = useState(false);
+
+  useEffect(() => { void pedirProviders().then(setProviders); }, []);
+
+  const asignar = async (providerId: string) => {
+    setAsignando(true);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointmentId}/assign-provider`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId }),
+      });
+      if (res.status === 409) {
+        // Otro llegó primero. No es un error del sistema: se dice quién fue.
+        const d = await res.json().catch(() => ({}));
+        toast.info(d.takenBy ? t('takenByOther', { name: d.takenBy }) : t('takenByOtherAnon'));
+        router.refresh();
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success(t('providerAssigned'));
+      router.refresh();
+    } catch {
+      toast.error(t('assignProviderError'));
+    } finally {
+      setAsignando(false);
+    }
+  };
+
+  return (
+    <select
+      value=""
+      disabled={asignando}
+      onChange={(e) => { if (e.target.value) void asignar(e.target.value); }}
+      className="h-6 px-1.5 rounded border border-amber/40 bg-amber/10 text-amber text-[11px] font-medium focus:outline-none focus:border-amber disabled:opacity-50"
+    >
+      <option value="">{asignando ? t('assigningProvider') : t('assignProvider')}</option>
+      {providers.map(p => (
+        <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+      ))}
+    </select>
+  );
+}
+
 function ApptCard({
   appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onPenalidad, onSignQr,
 }: {
@@ -440,11 +511,17 @@ function ApptCard({
               <Clock className="w-3 h-3" />
               {fmtTime(appt.scheduledFor)} · {appt.durationMinutes} min
             </span>
-            {appt.provider && (
+            {appt.provider ? (
               <span className="flex items-center gap-1">
                 <Stethoscope className="w-3 h-3" />
                 {appt.provider.lastName}
               </span>
+            ) : (
+              /* Sin provider: acá se elige quién atiende. Va en la MISMA línea
+                 donde iría el nombre —no en un diálogo aparte— porque es donde
+                 el ojo ya lo busca: la pregunta que se hace mirando la fila es
+                 "¿quién lo ve?", y la respuesta tiene que poder escribirse ahí. */
+              <SelectorDeProvider appointmentId={appt.id} />
             )}
             <span>{TYPE_LABELS[appt.type] ?? appt.type}</span>
             {appt.case?.primaryInsurance && (
@@ -916,7 +993,7 @@ export function AdmissionClient() {
                 className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Prev</span>
+                <span className="hidden sm:inline">{t("pagPrev")}</span>
               </button>
               <DatePicker
                 value={selectedDate}
@@ -930,7 +1007,7 @@ export function AdmissionClient() {
                 onClick={() => shiftDate(1)}
                 className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
               >
-                <span className="hidden sm:inline">Next</span>
+                <span className="hidden sm:inline">{t("pagNext")}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>

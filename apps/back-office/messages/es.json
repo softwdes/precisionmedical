@@ -10,7 +10,6 @@
       "firms": "Bufetes",
       "errLoadData": "Error al cargar datos",
       "cptNoteExample": "No se puede facturar junto con 97140. Requiere modifier -25 si se factura con E&M.",
-      "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email...",
       "fpTitleSent": "Email enviado",
       "fpTitle": "Restablecer contraseña",
       "fpSubSent": "Revisá tu bandeja de entrada",
@@ -36,7 +35,8 @@
       "loginSigningIn": "Iniciando sesión...",
       "loginBtnSignIn": "Iniciar sesión →",
       "loginForgot": "¿Olvidaste tu contraseña?",
-      "loginSystemsOk": "Todos los sistemas operativos"
+      "loginSystemsOk": "Todos los sistemas operativos",
+      "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email..."
     },
     "precall": {
       "phFirstName": "María",
@@ -55,7 +55,6 @@
     "security": {
       "mfaTitle": "Autenticación de dos factores (TOTP)",
       "mfaOk": "MFA configurado correctamente. Tu cuenta está protegida.",
-      "confirmRemoveMfa": "¿Eliminar la autenticación de dos factores? Tu cuenta va a quedar menos protegida.",
       "pageTitle": "Seguridad",
       "mfaSubtitle": "Protege tu cuenta con Google Authenticator, Authy, o cualquier app TOTP compatible.",
       "statusActive": "Activo",
@@ -73,20 +72,10 @@
       "errEnroll": "No se pudo iniciar la configuración.",
       "errChallenge": "No se pudo iniciar la verificación.",
       "errNetwork": "Error de conexión.",
-      "errCode": "Código inválido. Verificá tu app y volvé a intentar."
+      "errCode": "Código inválido. Verificá tu app y volvé a intentar.",
+      "confirmRemoveMfa": "¿Eliminar la autenticación de dos factores? Tu cuenta va a quedar menos protegida."
     },
     "settlement": {
-      "ledgerUpdated": "Ledger actualizado — balance $0",
-      "caseSettled": "Caso marcado como SETTLED",
-      "noteRecorded": "Nota de settlement registrada",
-      "auditSaved": "Audit log guardado",
-      "errTitle": "Error",
-      "errNotFound": "Caso no encontrado",
-      "alreadySettled": "Caso ya settlado",
-      "pageTitle": "🎯 Settlement recibido",
-      "pageSubtitle": "{bufete} envió el cheque del settlement. Aplicar al lien y cerrar el caso.",
-      "firmFallback": "Bufete",
-      "noCptDetail": "Sin detalle de CPT disponible",
       "matchesLien": "Coincide exactamente con el lien",
       "doneTitle": "Settlement procesado",
       "doneSubtitle": "Caso {caso} cerrado con éxito",
@@ -121,7 +110,18 @@
       "errAmountPositive": "El monto debe ser un número positivo.",
       "errAlreadySettled": "Este caso ya fue settlado antes.",
       "errProcess": "Error al procesar el settlement. Intentá de nuevo.",
-      "errNetwork": "Error de red. Revisá la conexión e intentá de nuevo."
+      "errNetwork": "Error de red. Revisá la conexión e intentá de nuevo.",
+      "ledgerUpdated": "Ledger actualizado — balance $0",
+      "caseSettled": "Caso marcado como SETTLED",
+      "noteRecorded": "Nota de settlement registrada",
+      "auditSaved": "Audit log guardado",
+      "errTitle": "Error",
+      "errNotFound": "Caso no encontrado",
+      "alreadySettled": "Caso ya settlado",
+      "pageTitle": "🎯 Settlement recibido",
+      "pageSubtitle": "{bufete} envió el cheque del settlement. Aplicar al lien y cerrar el caso.",
+      "firmFallback": "Bufete",
+      "noCptDetail": "Sin detalle de CPT disponible"
     },
     "camera": {
       "cancel": "Cancelar",
@@ -142,9 +142,6 @@
       "errNotFound": "Caso no encontrado",
       "errNotFoundDot": "Caso no encontrado.",
       "errSaveNote": "Error al guardar nota",
-      "firmContact": "Contacto bufete",
-      "noComms": "Aún no hay comunicaciones registradas con el bufete.",
-      "noTimeline": "No hay eventos en el timeline todavía.",
       "fieldAmountUsd": "Monto recibido (USD)",
       "fieldNotes": "Notas",
       "backToFollowUp": "Volver a Seguimiento",
@@ -164,16 +161,12 @@
       "logPaymentTitle": "💰 Registrar pago parcial",
       "logPaymentPlaceholder": "Ej: Cheque recibido de Smith & Johnson LLP…",
       "logEscalateTitle": "🚨 Escalar a Brunella",
-      "logEscalatePlaceholder": "Ej: Sin respuesta después de 3 intentos, necesita atención…"
+      "logEscalatePlaceholder": "Ej: Sin respuesta después de 3 intentos, necesita atención…",
+      "firmContact": "Contacto bufete",
+      "noComms": "Aún no hay comunicaciones registradas con el bufete.",
+      "noTimeline": "No hay eventos en el timeline todavía."
     },
     "hcfa": {
-      "noDiagnoses": "— Sin diagnósticos registrados —",
-      "noServices": "— Sin servicios registrados —",
-      "noFax": "— sin fax registrado",
-      "noEmail": "— sin email registrado",
-      "errLoad": "Error al cargar datos",
-      "errNotFound": "Caso no encontrado",
-      "errNotFoundDot": "Caso no encontrado.",
       "breadcrumbInbox": "Bandeja",
       "alreadyGenerated": "El HCFA ya fue generado para este caso. Podés regenerarlo si hace falta.",
       "previewLabel": "Vista previa · CMS-1500",
@@ -186,7 +179,14 @@
       "btnGenerating": "Generando…",
       "btnRegenerate": "HCFA generado · Regenerar",
       "btnGenerate": "📄 Generar HCFA y enviar",
-      "totalBilled": "Total facturado"
+      "totalBilled": "Total facturado",
+      "noDiagnoses": "— Sin diagnósticos registrados —",
+      "noServices": "— Sin servicios registrados —",
+      "noFax": "— sin fax registrado",
+      "noEmail": "— sin email registrado",
+      "errLoad": "Error al cargar datos",
+      "errNotFound": "Caso no encontrado",
+      "errNotFoundDot": "Caso no encontrado."
     },
     "releasesAdmin": {
       "title": "Notas de release",
@@ -203,12 +203,12 @@
       "placeholderEs": "Texto en español",
       "placeholderEn": "English — obligatorio para publicar",
       "titleNothingReady": "Ninguna entrada está lista: aprobá alguna con Guardar",
-      "titlePublishAnyway": "Se publica igual: quien tenga la app en inglés verá esas líneas en español",
       "loading": "Cargando releases…",
       "btnUnpublish": "Despublicar",
       "btnPublishUntranslated": "Publicar sin traducir",
       "btnPublish": "Publicar",
-      "publishedBy": "publicado por {nombre}"
+      "publishedBy": "publicado por {nombre}",
+      "titlePublishAnyway": "Se publica igual: quien tenga la app en inglés verá esas líneas en español"
     },
     "settlementPrint": {
       "printButton": "Imprimir / Guardar PDF",
@@ -232,16 +232,23 @@
       "groupPatients": "Pacientes",
       "groupFirms": "Bufetes",
       "groupDiagnoses": "Diagnósticos",
-      "closeSearch": "Cerrar el buscador",
       "emptyFor": "No se encontró nada para «<m>{q}</m>»",
       "groupSpecialties": "Especialidades",
       "itemSpecialty": "Especialidad",
       "groupInsurances": "Aseguradoras",
       "groupServices": "Servicios CPT",
       "kbdNavigate": "navegar",
-      "kbdOpen": "abrir"
+      "kbdOpen": "abrir",
+      "closeSearch": "Cerrar el buscador"
     },
     "scheduleAppt": {
+      "dialogTitle": "Agendar primera cita",
+      "dialogHint": "Al agendar, el estado pasa a <c>ACTIVE</c> y el caso entra al flujo clínico.",
+      "fieldClinic": "Clínica",
+      "fieldDoctor": "Doctor",
+      "fieldDate": "Fecha",
+      "fieldTime": "Hora",
+      "summaryTitle": "Resumen",
       "patientCaseLine": "Paciente <b>{paciente}</b> · caso <c>{caso}</c>.",
       "apptType": "Tipo de cita",
       "pickClinic": "Seleccionar clínica...",
@@ -262,14 +269,7 @@
       "summaryType": "Tipo:",
       "loading": "Cargando...",
       "btnSchedule": "Agendar cita",
-      "scheduling": "Agendando...",
-      "dialogTitle": "Agendar primera cita",
-      "dialogHint": "Al agendar, el estado pasa a <c>ACTIVE</c> y el caso entra al flujo clínico.",
-      "fieldClinic": "Clínica",
-      "fieldDoctor": "Doctor",
-      "fieldDate": "Fecha",
-      "fieldTime": "Hora",
-      "summaryTitle": "Resumen"
+      "scheduling": "Agendando..."
     },
     "noteTemplates": {
       "errorDelete": "No se pudo eliminar la plantilla.",
@@ -349,6 +349,10 @@
       "subtitle": "Actividad HIPAA — todas las acciones del sistema",
       "kpiTotal": "Total de eventos",
       "kpiToday": "Hoy",
+      "btnRefresh": "Actualizar",
+      "btnClearFilters": "Limpiar filtros",
+      "pagFirst": "Primera",
+      "pagLast": "Última",
       "kpiHumans": "Personas",
       "kpiSystem": "Sistema / IA",
       "searchPlaceholder": "Buscar acción, entidad, ID…",
@@ -365,11 +369,7 @@
       "colAction": "Acción",
       "colEntity": "Entidad",
       "colIp": "IP",
-      "colMetadata": "Metadata",
-      "btnRefresh": "Actualizar",
-      "btnClearFilters": "Limpiar filtros",
-      "pagFirst": "Primera",
-      "pagLast": "Última"
+      "colMetadata": "Metadata"
     },
     "confirmAppt": {
       "title": "Confirmar cita · llamada 24 h antes",
@@ -1141,6 +1141,7 @@
       "apptNoneThisDay": "No hay citas de tus clientes este día.",
       "colProviders": "Proveedores",
       "lienSignHere": "Firmar como abogado",
+      "lienOpenError": "No se pudo abrir el acuerdo.",
       "lienPrint": "Imprimir acuerdo",
       "lienLockedTitle": "Primero hay que firmar",
       "lienLockedBody": "El acuerdo se puede imprimir recién cuando lo firmes como abogado · tu firma queda estampada en el documento.",
@@ -1303,8 +1304,7 @@
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}",
-      "lienOpenError": "No se pudo abrir el acuerdo."
+      "msgYouPrefix": "Vos → {name}"
     },
     "doctor": {
       "greeting": "{name}",
@@ -1313,6 +1313,13 @@
       "kpiCompleted": "Atendidas",
       "kpiPending": "Pendientes",
       "kpiWaiting": "En espera",
+      "unassignedTitle": "Sin asignar · {count} paciente(s) esperan provider",
+      "takeAppointment": "Atenderlo yo",
+      "takingInProgress": "Tomando…",
+      "takenOk": "La cita es tuya",
+      "takenByOther": "{name} la tomó primero",
+      "takenByOtherAnon": "Otro provider la tomó primero",
+      "takenError": "No se pudo tomar la cita",
       "kpiUnsigned": "Notas sin firmar",
       "kpiDay": "Citas del día",
       "dayPrev": "Día anterior",
@@ -2383,6 +2390,10 @@
     },
     "specialties": {
       "fieldColorLabel": "Color · identificador en calendario y dashboard",
+      "actionView": "Ver",
+      "actionPermissions": "Permisos",
+      "dlgEdit": "Editar — {nombre}",
+      "phName": "Ej: Cardiología",
       "createSpecialty": "Crear especialidad",
       "labelDescription": "Descripción",
       "phDescription": "Descripción opcional de la línea de servicio…",
@@ -2430,11 +2441,7 @@
       "fieldCaseType": "Case type",
       "fieldCpt": "CPT codes sugeridos",
       "fieldCptHelp": "(separados por coma · se cargan solos al firmar la nota)",
-      "fieldActive": "Especialidad activa",
-      "actionView": "Ver",
-      "actionPermissions": "Permisos",
-      "dlgEdit": "Editar — {nombre}",
-      "phName": "Ej: Cardiología"
+      "fieldActive": "Especialidad activa"
     },
     "lawyers": {
       "title": "Bufetes",
@@ -2713,6 +2720,23 @@
       "speedAVERAGE": "🟡 Promedio (15 a 30 días)",
       "speedSLOW": "🔴 Lenta (más de 30 días)",
       "fieldName": "Nombre comercial",
+      "dlgEdit": "Editar — {nombre}",
+      "dlgNew": "Nueva aseguradora",
+      "dlgHint": "Se usa al crear un caso (autocompletado), cuando Edson verifica el PIP y cuando se envía el HCFA.",
+      "fieldCoverageType": "Tipo de cobertura",
+      "sectionClaimsContact": "Contacto de claims",
+      "fieldFax": "Fax",
+      "fieldPortal": "Portal web",
+      "sectionHcfa": "Envío de HCFA",
+      "fieldPreferredChannel": "Canal preferido",
+      "chkActive": "Aseguradora activa (recibiendo claims)",
+      "rowClaimsPhone": "Teléfono de claims",
+      "rowClaimsEmail": "Email de claims",
+      "rowClaimsFax": "Fax de claims",
+      "rowPortal": "Portal",
+      "rowHcfaChannel": "Canal de HCFA",
+      "rowAvgResponse": "Respuesta promedio",
+      "rowPreauth": "¿Requiere pre-autorización?",
       "fieldShortCode": "Código corto",
       "fieldLegalName": "Nombre legal completo",
       "fieldColor": "Color para el avatar",
@@ -2745,24 +2769,7 @@
       "columnType": "Tipo",
       "columnClaims": "Claims",
       "columnHcfa": "HCFA",
-      "columnResponse": "Avg respuesta",
-      "dlgEdit": "Editar — {nombre}",
-      "dlgNew": "Nueva aseguradora",
-      "dlgHint": "Se usa al crear un caso (autocompletado), cuando Edson verifica el PIP y cuando se envía el HCFA.",
-      "fieldCoverageType": "Tipo de cobertura",
-      "sectionClaimsContact": "Contacto de claims",
-      "fieldFax": "Fax",
-      "fieldPortal": "Portal web",
-      "sectionHcfa": "Envío de HCFA",
-      "fieldPreferredChannel": "Canal preferido",
-      "chkActive": "Aseguradora activa (recibiendo claims)",
-      "rowClaimsPhone": "Teléfono de claims",
-      "rowClaimsEmail": "Email de claims",
-      "rowClaimsFax": "Fax de claims",
-      "rowPortal": "Portal",
-      "rowHcfaChannel": "Canal de HCFA",
-      "rowAvgResponse": "Respuesta promedio",
-      "rowPreauth": "¿Requiere pre-autorización?"
+      "columnResponse": "Avg respuesta"
     },
     "services": {
       "title": "Servicios facturables",
@@ -2817,6 +2824,7 @@
       "fieldModifiers": "Modifiers permitidos",
       "fieldModifiersSub": "(coma)",
       "fieldBundlingNotes": "Notas de bundling",
+      "phInternalNotes": "Notas operativas privadas...",
       "fieldInternalNotes": "Notas internas",
       "checkboxActive": "Servicio activo",
       "checkboxInternalOnly": "Solo interno (NO facturable a aseguradora)",
@@ -2835,8 +2843,7 @@
       "validShortDesc": "La descripción corta es obligatoria",
       "validCustomPm": "Códigos CUSTOM_PM deben empezar con \"PM-\" (ej. PM-DIRECT)",
       "errorSave": "Error al guardar",
-      "errorDelete": "Error al eliminar",
-      "phInternalNotes": "Notas operativas privadas..."
+      "errorDelete": "Error al eliminar"
     },
     "diagnoses": {
       "snomedCol": "SNOMED CT (clínico)",
@@ -2899,6 +2906,10 @@
     },
     "frontOffice": {
       "defaultUserName": "Recepción",
+      "pagPrev": "← Anterior",
+      "pagNext": "Siguiente →",
+      "pagOf": "Pág. {n} / {total}",
+      "devSimulateHint": "Phase 1A dev: simula que el paciente completó el portal",
       "workspace": "Front Office · Escritorio",
       "title": "Recepción primaria",
       "subtitle": "Atendé la llamada · Capturá la derivación en 90 segundos",
@@ -2989,6 +3000,8 @@
         "incomingNote": "¿Llamada entrante?",
         "incomingNoteText": "Las llamadas entrantes se detectan automáticamente y aparecen como notificación en la esquina superior derecha · haz clic en 'Contestar' desde ahí.",
         "cancel": "Cancelar",
+        "btnContinueNoCall": "Continuar sin llamar",
+        "btnCall": "Llamar",
         "backSearch": "Buscar paciente existente",
         "backOutgoing": "Voy a llamar (saliente)",
         "backManual": "Agregar Paciente / Crear caso sin llamada",
@@ -3020,9 +3033,7 @@
         "startSearchBtn": "Continuar → Crear caso / Cita",
         "patientVerifyTitle": "Verificar paciente",
         "patientVerifyHint": "Confirma que es el paciente correcto antes de continuar.",
-        "pasteHint": "Escribí, o pegá el número con Ctrl+V",
-        "btnContinueNoCall": "Continuar sin llamar",
-        "btnCall": "Llamar"
+        "pasteHint": "Escribí, o pegá el número con Ctrl+V"
       },
       "newCase": {
         "cancelCall": "Cancelar llamada",
@@ -3215,15 +3226,35 @@
         "referrerFirmLabel": "Bufete que refirió",
         "referrerAttorneyLabel": "Abogado que refirió",
         "referrerHint": "Es quién nos mandó al paciente. Puede ser distinto del bufete que lo representa, y se puede dejar vacío y seguir.",
+        "callingTitle": "Llamando",
+        "answeredOpenForm": "Contestó — abrir formulario",
+        "changeOption": "Cambiar opción",
+        "smsLabel": "SMS",
+        "noPhoneOnFile": "Sin teléfono registrado",
+        "sumPatient": "Paciente:",
+        "sumCaseType": "Tipo de caso:",
+        "dupQuestion": "¿Querés crear el caso para el paciente que ya existe, en vez de registrar uno nuevo?",
+        "dupUseExisting": "Usar el paciente existente",
+        "qrAlt": "Código QR del formulario",
         "optionalTag": "(opcional)"
-      },
-      "pagPrev": "← Anterior",
-      "pagNext": "Siguiente →",
-      "pagOf": "Pág. {n} / {total}",
-      "devSimulateHint": "Phase 1A dev: simula que el paciente completó el portal"
+      }
     },
     "billing": {
       "colType": "Tipo",
+      "detailSubtitle": "Facturación · Brunella",
+      "btnInbox": "Bandeja",
+      "caseSummary": "📋 Resumen del caso",
+      "assessmentPrefix": "A:",
+      "total": "Total",
+      "caseActions": "🚀 Acciones del caso",
+      "btnFullLedger": "Ver ledger completo →",
+      "btnProcessSettlement": "🎯 Procesar settlement →",
+      "btnCallAttorney": "Llamar al abogado",
+      "btnEmailInsurer": "Email a la aseguradora",
+      "internalNotes": "📒 Notas internas · Brunella",
+      "notesCount": "{count, plural, one {# nota} other {# notas}}",
+      "noInternalNotes": "Todavía no hay notas internas. Agregá la primera acá arriba.",
+      "btnSettled": "Settlado ✓",
       "newInternalNote": "Escribir nueva nota interna...",
       "saveNote": "Guardar nota",
       "rowRevised": "Nota corregida — revisar el cobro",
@@ -3319,21 +3350,7 @@
       "sendToFirm": "Enviar a {firm}",
       "defaultFirm": "bufete",
       "printSavePdf": "Imprimir / Guardar PDF",
-      "caseCount": "{count} caso{count, plural, one {} other {s}}",
-      "detailSubtitle": "Facturación · Brunella",
-      "btnInbox": "Bandeja",
-      "caseSummary": "📋 Resumen del caso",
-      "assessmentPrefix": "A:",
-      "total": "Total",
-      "caseActions": "🚀 Acciones del caso",
-      "btnFullLedger": "Ver ledger completo →",
-      "btnProcessSettlement": "🎯 Procesar settlement →",
-      "btnCallAttorney": "Llamar al abogado",
-      "btnEmailInsurer": "Email a la aseguradora",
-      "internalNotes": "📒 Notas internas · Brunella",
-      "notesCount": "{count, plural, one {# nota} other {# notas}}",
-      "noInternalNotes": "Todavía no hay notas internas. Agregá la primera acá arriba.",
-      "btnSettled": "Settlado ✓"
+      "caseCount": "{count} caso{count, plural, one {} other {s}}"
     },
     "intake": {
       "loadError": "Error al cargar datos",
@@ -3443,6 +3460,8 @@
     "admission": {
       "pageTitle": "Check-in del día",
       "pageSubtitle": "Admisión · Recepción",
+      "pagPrev": "Ant.",
+      "pagNext": "Sig.",
       "searchPatient": "Buscar paciente",
       "viewAgenda": "Ver agenda",
       "kpiAppointmentsToday": "Citas hoy",
@@ -3627,6 +3646,12 @@
       "filterAll": "Todos",
       "filterNoShow": "No-shows",
       "filterCancelledSameDay": "Canceladas del día",
+      "assignProvider": "Asignar provider…",
+      "assigningProvider": "Asignando…",
+      "providerAssigned": "Provider asignado",
+      "assignProviderError": "No se pudo asignar el provider",
+      "takenByOther": "{name} la tomó primero",
+      "takenByOtherAnon": "Otro provider la tomó primero",
       "filterUnpenalized": "Sin penalidad",
       "penaltyCharged": "Penalidad cobrada",
       "sectionUnpenalized": "Sin penalidad · {count}",
@@ -4178,6 +4203,11 @@
       "insuranceVerificationPending": "Número de reclamo, póliza y detalles de beneficios disponibles después de la verificación.",
       "modalCallHandlerTitle": "Llamada inicial · quién atendió",
       "callHandlerRoleLabel": "Encargado de clínica",
+      "actionCall": "Llamar",
+      "actionEmail": "Email",
+      "frontOfficeLabel": "Front Office",
+      "rowClinic": "Clínica",
+      "auditPhase1bNote": "📜 El registro detallado de auditoría llega en la Fase 1B (necesita la tabla de auditoría de llamadas).",
       "rowChannel": "Canal",
       "channelInboundCall": "Llamada entrante del paciente",
       "rowAppointmentScheduled": "Cita agendada",
@@ -4217,10 +4247,13 @@
       "deletedRestoreError": "No se pudo restaurar la cita",
       "confirmAlreadyArrived": "El paciente ya hizo check-in: la cita no vuelve a “confirmada”. La visita sigue en la consulta del portal del provider.",
       "arrivedNextStepHint": "El paciente ya está en la clínica. La visita sigue desde Mi Día, en el portal del provider: ahí se abre la consulta y nace la nota.",
+      "unassignedProvider": "Sin asignar",
       "legendToggle": "Referencia de colores",
       "compactToggle": "Compacto",
       "compactToggleHint": "Una línea por cita: el día entero entra en pantalla",
       "reasonToggleHintCompact": "El motivo necesita el segundo renglón, que el modo compacto no dibuja",
+      "capacityTitle": "La franja puede quedar sin quién atienda",
+      "capacityBody": "A esa hora ya hay {ocupadas} paciente(s) y ese día atienden {capacidad} provider(s) en esa sede. Podés agendarla igual.",
       "overlapTitle": "Se cruza con otra cita",
       "overlapBody": "El provider ya tiene una cita a las {time} con {patient} que se cruza con este horario.",
       "overlapBodyAnon": "El provider ya tiene una cita a las {time} que se cruza con este horario.",
@@ -4328,10 +4361,7 @@
       "reopenLoading": "Reabriendo…",
       "errorReopen": "No se pudo reabrir la cita. Probá de nuevo.",
       "dupUpcomingTitle": "Este paciente ya tiene {count, plural, one {una cita} other {# citas}} más adelante",
-      "dupMore": "y {count} más",
-      "actionEmail": "Email",
-      "frontOfficeLabel": "Front Office",
-      "auditPhase1bNote": "📜 El registro detallado de auditoría llega en la Fase 1B (necesita la tabla de auditoría de llamadas)."
+      "dupMore": "y {count} más"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -4404,6 +4434,7 @@
       "caseInfo": "Información del caso",
       "edit": "Editar",
       "timeline": "Cronología",
+      "intakeOpenError": "No se pudo abrir el formulario de admisión.",
       "viewIntake": "Ver intake",
       "policyLabel": "Póliza:",
       "claimsLabel": "Reclamos:",
@@ -4506,8 +4537,7 @@
       "sectionInternalNotes": "Notas internas",
       "noteSaved": "Nota guardada",
       "notesEmpty": "Sin notas todavía.",
-      "notePrivate": "Privada",
-      "intakeOpenError": "No se pudo abrir el formulario de admisión."
+      "notePrivate": "Privada"
     },
     "patients": {
       "phFirm": "Nombre del bufete que refirió el caso médico…",
@@ -5341,6 +5371,16 @@
       "callFailedMicHint": "El navegador bloqueó el micrófono. Permitilo desde el candado en la barra de direcciones y volvé a intentar.",
       "editErrorTitle": "No se pudo guardar",
       "errorGoToGuardian": "Ir al responsable legal",
+      "qrDialogTitle": "Acceso del paciente",
+      "qrDialogHint": "Compartí este código QR o el enlace con el paciente para que complete o actualice sus datos de registro de forma segura.",
+      "qrCopyLink": "Copiar enlace",
+      "qrAlt": "Código QR",
+      "qrLinkError": "No se pudo generar el enlace.",
+      "searching": "Buscando…",
+      "viewContact": "Contacto",
+      "viewAccident": "Accidente",
+      "viewGuardian": "Responsable legal",
+      "intakePdfTitle": "Formulario de admisión",
       "btnAccept": "Entendido",
       "guardianIsContact": "El formulario de admisión y las notificaciones se envían a este correo.",
       "emailGuardianIsPrimary": "Principal: {email} (responsable legal) — ahí llega el formulario y las notificaciones",
@@ -5395,16 +5435,7 @@
       "linkContactSharedPhone": "Es un número compartido o de la clínica",
       "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
       "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
-      "photoPdfError": "No se pudo generar el PDF.",
-      "qrDialogTitle": "Acceso del paciente",
-      "qrDialogHint": "Compartí este código QR o el enlace con el paciente para que complete o actualice sus datos de registro de forma segura.",
-      "qrCopyLink": "Copiar enlace",
-      "qrAlt": "Código QR",
-      "qrLinkError": "No se pudo generar el enlace.",
-      "viewContact": "Contacto",
-      "viewAccident": "Accidente",
-      "viewGuardian": "Responsable legal",
-      "intakePdfTitle": "Formulario de admisión"
+      "photoPdfError": "No se pudo generar el PDF."
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",
@@ -5718,11 +5749,11 @@
       "cancelacionNoSalio": "No se le pudo avisar al paciente que la cita se canceló.",
       "sinTelefono": "No tiene teléfono cargado.",
       "sinEmail": "No tiene correo cargado.",
+      "sinContacto": "la ficha no tiene telefono ni correo",
       "dadoDeBaja": "Respondió STOP y se dio de baja de los mensajes.",
       "canalApagado": "El canal de aviso está apagado.",
       "falloGenerico": "El envío falló.",
-      "avisarAMano": "Avisale por teléfono.",
-      "sinContacto": "la ficha no tiene telefono ni correo"
+      "avisarAMano": "Avisale por teléfono."
     },
     "portalEnvio": {
       "errSend": "No se pudo enviar el portal",
@@ -6110,6 +6141,16 @@
         "payVisitPaymentsTooltip": "Ver los pagos ya registrados de esta visita"
       },
       "prescripciones": {
+        "fieldDrug": "Medicamento",
+        "orTypeName": "O escribí el nombre directamente:",
+        "fieldDose": "Dosis",
+        "fieldDirections": "Indicaciones",
+        "fieldQuantity": "Cantidad a dispensar",
+        "fieldRefills": "Reposiciones",
+        "fieldPrescribedBy": "Prescrito por",
+        "createLab": "Crear laboratorio",
+        "fieldProvider": "Provider",
+        "fieldLabs": "Laboratorios",
         "fieldUnit": "Unidad de dispensación",
         "fieldStartDate": "Fecha de inicio",
         "fieldAutoExpire": "Expiración automática",
@@ -6167,20 +6208,11 @@
         "colBillingType": "Tipo de facturación",
         "colDoctor": "Provider",
         "colLabs": "Laboratorios",
-        "colDiagnoses": "Diagnósticos",
-        "fieldDrug": "Medicamento",
-        "orTypeName": "O escribí el nombre directamente:",
-        "fieldDose": "Dosis",
-        "fieldDirections": "Indicaciones",
-        "fieldQuantity": "Cantidad a dispensar",
-        "fieldRefills": "Reposiciones",
-        "fieldPrescribedBy": "Prescrito por",
-        "createLab": "Crear laboratorio",
-        "fieldProvider": "Provider",
-        "fieldLabs": "Laboratorios"
+        "colDiagnoses": "Diagnósticos"
       },
       "documents": {
         "emptyTitle": "Sin documentos",
+        "uploading": "Subiendo…",
         "intakeFolderName": "Intake Form",
         "intakeName": "Formulario de admisión",
         "lienName": "Lien Agreement",
@@ -6249,8 +6281,7 @@
         "alertDownloadS3": "La descarga estará disponible cuando se configure el almacenamiento S3.",
         "alertDownloadError": "Error al generar enlace de descarga",
         "alertBulkS3": "La descarga masiva estará disponible cuando se configure el almacenamiento S3.",
-        "placeholderFolder": "Nombre de la carpeta",
-        "uploading": "Subiendo…"
+        "placeholderFolder": "Nombre de la carpeta"
       }
     },
     "settings": {
@@ -6312,7 +6343,6 @@
         "sub_REFERRALS": "Los referidos que mandan los bufetes (\"¿Tenés un referido?\"). Quien lo abre crea el caso desde el mensaje."
       },
       "labsLoading": "Cargando el catálogo de precios…",
-      "labsLoadError": "No se pudo cargar el catálogo de precios. Recargá la página.",
       "fieldColor": "Color",
       "fieldMobile": "Celular",
       "colActions": "Acciones",
@@ -6325,11 +6355,16 @@
       "dlgDeleteTitle": "Eliminar clínica",
       "dlgDeleteBody": "¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.",
       "dlgDeleteHasAppointments": "⚠ Esta clínica tiene {count, plural, one {# cita} other {# citas}} — no se podrá eliminar.",
-      "customColor": "Color personalizado"
+      "customColor": "Color personalizado",
+      "labsLoadError": "No se pudo cargar el catálogo de precios. Recargá la página."
     },
     "providers": {
       "errorDelete": "No se pudo eliminar el Provider.",
       "subtitle": "{activos} activos · {total} en total",
+      "npiInvalid": "Ese NPI no es válido. Son 10 dígitos y el último es un verificador — revisá que no falte ni sobre un número.",
+      "npiSuspicious": "Válido, pero los NPI reales empiezan en 1 o 2. Verificá que sea el correcto.",
+      "linkedEmployee": "Empleado vinculado (HR)",
+      "linkedEmployeeHint": "Solo aparecen empleados con cargo Provider no vinculados a otro perfil clínico.",
       "filterUnlinked": "Sin vínculo ({count})",
       "title": "Providers",
       "kpiTotal": "Total",
@@ -6391,11 +6426,7 @@
       "fieldScriptsure": "Id de prescriptor (ScriptSure)",
       "phScriptsure": "Ej. 10845",
       "scriptsureHint": "Lo asigna ScriptSure al dar de alta al prescriptor. Sin este número el provider no puede emitir recetas.",
-      "scriptsureSoloNumeros": "El id de ScriptSure es solo números.",
-      "npiInvalid": "Ese NPI no es válido. Son 10 dígitos y el último es un verificador — revisá que no falte ni sobre un número.",
-      "npiSuspicious": "Válido, pero los NPI reales empiezan en 1 o 2. Verificá que sea el correcto.",
-      "linkedEmployee": "Empleado vinculado (HR)",
-      "linkedEmployeeHint": "Solo aparecen empleados con cargo Provider no vinculados a otro perfil clínico."
+      "scriptsureSoloNumeros": "El id de ScriptSure es solo números."
     },
     "charges": {
       "chargesOnVisit": "{count} cargos en esta visita",
@@ -6527,12 +6558,36 @@
       "noCase": "Esta cita no tiene caso asociado.",
       "changeAria": "Cambiar la cobertura del caso"
     },
+    "intakeLink": {
+      "title": "📋 Enlace del formulario de admisión",
+      "subtitle": "Compartí el enlace o el QR para que <b>{nombre}</b> firme los consentimientos y complete la admisión.",
+      "formLink": "Enlace del formulario",
+      "generating": "Generando el enlace...",
+      "retry": "Reintentar",
+      "copyLink": "Copiar enlace",
+      "copied": "Copiado",
+      "copy": "Copiar",
+      "openTab": "Abrir en una pestaña nueva",
+      "qrHint": "El paciente lo escanea para completar el formulario en su teléfono",
+      "alsoSendVia": "Enviar además por",
+      "sms": "SMS",
+      "email": "Email",
+      "guardianBlocked": "Es menor y no tiene responsable legal asignado — el envío está bloqueado. Usá el QR o el enlace en la tablet de la clínica, o asignale el responsable en la ficha del paciente.",
+      "revokeWarn": "El enlace anterior deja de funcionar",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "newLinkHint": "Emitir un enlace nuevo e invalidar el actual",
+      "newLink": "Enlace nuevo",
+      "close": "Cerrar",
+      "downloadQr": "Descargar QR"
+    },
     "catalog": {
       "title": "Catálogo de precios",
       "subtitle": "{total} ítems · precios cash y de seguro en un solo lugar",
       "searchPlaceholder": "Buscar por nombre o código…",
       "empty": "Sin resultados con estos filtros",
       "confirmDelete": "¿Eliminar «{name}» del catálogo?",
+      "phAnySize": "cualquier talla",
       "action": {
         "new": "Nuevo ítem",
         "edit": "Editar",
@@ -6727,8 +6782,7 @@
           "DME": "Férulas"
         }
       },
-      "missingCostHint": "Falta cargar el costo real de este ítem",
-      "phAnySize": "cualquier talla"
+      "missingCostHint": "Falta cargar el costo real de este ítem"
     },
     "edsonTracking": {
       "title": "Tracking MVA",
@@ -6965,29 +7019,6 @@
       "marcaAyuda": "Esto es lo que va a leer quien lo reciba, en el saludo de CIFO.",
       "marcaSinPermiso": "No tenés permiso para cambiar esto. Lo hace recepción.",
       "marcaError": "No se pudo guardar. Probá de nuevo."
-    },
-    "intakeLink": {
-      "title": "📋 Enlace del formulario de admisión",
-      "subtitle": "Compartí el enlace o el QR para que <b>{nombre}</b> firme los consentimientos y complete la admisión.",
-      "formLink": "Enlace del formulario",
-      "generating": "Generando el enlace...",
-      "retry": "Reintentar",
-      "copyLink": "Copiar enlace",
-      "copied": "Copiado",
-      "copy": "Copiar",
-      "openTab": "Abrir en una pestaña nueva",
-      "qrHint": "El paciente lo escanea para completar el formulario en su teléfono",
-      "alsoSendVia": "Enviar además por",
-      "sms": "SMS",
-      "email": "Email",
-      "guardianBlocked": "Es menor y no tiene responsable legal asignado — el envío está bloqueado. Usá el QR o el enlace en la tablet de la clínica, o asignale el responsable en la ficha del paciente.",
-      "revokeWarn": "El enlace anterior deja de funcionar",
-      "confirm": "Confirmar",
-      "cancel": "Cancelar",
-      "newLinkHint": "Emitir un enlace nuevo e invalidar el actual",
-      "newLink": "Enlace nuevo",
-      "close": "Cerrar",
-      "downloadQr": "Descargar QR"
     }
   },
   "caseWizard": {

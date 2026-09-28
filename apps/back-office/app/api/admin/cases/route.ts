@@ -58,8 +58,22 @@ const InputSchema = z.object({
   patient: z.object({
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
-    // Para pacientes existentes el phone puede venir vacío · se ignora en el update
-    phone: z.string().max(30).default(''),
+    /**
+     * Para pacientes existentes el phone puede venir vacío · se ignora en el update.
+     *
+     * `nullish` y no `default('')` a secas: el default de zod SOLO se aplica a
+     * `undefined`, y los diálogos mandan `null` cuando el campo está en blanco
+     * (`phone.replace(/\D/g,'') || null`). Con el schema viejo eso se rechazaba
+     * con `patient.phone: Expected string, received null` y el alta entera
+     * moría con 400 — en una pantalla donde el campo NO lleva asterisco y el
+     * teléfono no es obligatorio (ver el comentario de la decisión de negocio
+     * en el handler, más abajo). Lo reportó Erick el 2026-09-28 desde el alta
+     * rápida de clínica.
+     *
+     * El `transform` deja siempre un `string` para río abajo, que es lo que
+     * esperan `quienUsaEsteContacto()` y el `|| null` del `patient.create`.
+     */
+    phone: z.string().max(30).nullish().transform(v => v ?? ''),
     email: z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
     dateOfBirth: z.string().datetime().nullable().optional(),
     preferredLanguage: z.enum(['es', 'en']).default('en'),

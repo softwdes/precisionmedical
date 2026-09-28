@@ -675,11 +675,22 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
    * dentro de la misma tabla: pedirla aparte obligaría a esperar dos
    * respuestas para dibujar un solo cuerpo.
    *
-   * `null` = no hay firma. Eso cubre dos casos a la vez —el MVA que todavía no
-   * firmó y el caso general, que no lleva lien— y en los dos la respuesta es la
-   * misma: no hay documento que ofrecer.
+   * `null` = no hay firma. **Eso ya no significa "no mostrar nada"**: si el
+   * caso lleva lien (`llevaLien`), la fila se pinta igual pero apagada — ver
+   * `lienPendiente` más abajo.
    */
   const [lien, setLien] = useState<{ firmadoEl: string; firmadoPor: string | null } | null>(null);
+  /**
+   * ¿Este caso lleva lien, firmado o no?
+   *
+   * Es lo que separa las dos ausencias que antes se veían igual: un MVA que
+   * todavía no firmó (la fila va apagada, diciendo que falta) de un caso de
+   * medicina general, que no lleva lien y donde la fila no va.
+   *
+   * Arranca en `false` y el portal legal no lo manda nunca: ahí el bufete tiene
+   * su propia vista del acuerdo y esta fila no es suya.
+   */
+  const [llevaLien, setLlevaLien] = useState(false);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   // El nombre de la raíz se resuelve al pintar, no acá: `useState` corre una vez
@@ -760,9 +771,10 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data.documents ?? []);
-      // El portal legal no lo manda (su ruta sólo devuelve `documents`), así
-      // que el `?? null` deja la fila apagada ahí sin ninguna rama extra.
+      // El portal legal no los manda (su ruta sólo devuelve `documents`), así
+      // que los defaults dejan la fila afuera ahí sin ninguna rama extra.
       setLien(data.lien ?? null);
+      setLlevaLien(data.llevaLien === true);
     } catch (e) {
       setError(e instanceof Error ? e.message : tdoc('errLoad'));
     } finally {
@@ -1619,9 +1631,7 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                   el botón de imprimir vivía adentro de un `isAttorney`. La
                   clínica lo hace firmar y era la única que no podía verlo.
 
-                  Sólo si hay firma del paciente. Sin firma no hay acuerdo que
-                  mostrar, y un caso que no es MVA no lleva lien — la ausencia de
-                  firma ya lo dice, no hace falta mirar el tipo de caso. */}
+                  Con firma: la fila abre el acuerdo. */}
               {mostrarIntake && lien && (
                 <tr
                   className="hover:bg-cyan/[0.04] group transition-colors cursor-pointer bg-cyan/[0.02]"
@@ -1660,6 +1670,49 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
                       </a>
                     </div>
                   </td>
+                </tr>
+              )}
+              {/* El LIEN que TODAVÍA NO SE FIRMÓ.
+                  Antes esta fila simplemente no existía, y desde la pantalla no
+                  había forma de distinguir "este paciente no firmó" de "esto
+                  está roto" — Erick se topó justo con eso el 2026-09-28. Son
+                  680 casos MVA sin firma (medido ese día sobre 3.074 vivos), o
+                  sea 680 expedientes donde el lien era un misterio.
+
+                  La acción bloqueada se MUESTRA y se explica; no se esconde.
+
+                  Sin `opacity-50` a propósito, aunque el estándar lo use para
+                  filas inactivas: acá lo único que hay que leer es por qué
+                  falta, y bajarle la opacidad al aviso es apagar justo el dato
+                  que la fila vino a dar. Los colores van apagados uno por uno.
+
+                  No aparece en un caso de medicina general: ese no lleva lien y
+                  ahí la ausencia SÍ es la respuesta correcta. */}
+              {mostrarIntake && !lien && llevaLien && (
+                <tr className="cursor-default" title={t('lienUnsignedHint')}>
+                  <td className="px-4 py-2.5">
+                    <FileText className="w-3.5 h-3.5 text-text-muted mx-auto" />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate text-text-muted" title={lienFileName}>
+                        {lienFileName}
+                      </span>
+                      {/* `text-amber-text` y no `text-amber`: el `amber-400`
+                          da 1.42:1 sobre blanco y en tema claro no se lee. El
+                          borde sí va con el color plano — ahí el mínimo es 3:1
+                          y lo pasa. Ver el preset de Tailwind. */}
+                      <span className="text-[9px] uppercase tracking-wider font-semibold text-amber-text border border-amber/30 rounded px-1.5 py-px flex-shrink-0">
+                        {t('lienUnsignedBadge')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs font-mono hidden sm:table-cell whitespace-nowrap">—</td>
+                  <td className="px-3 py-2.5 text-right text-text-muted text-xs hidden md:table-cell whitespace-nowrap">
+                    {t('lienUnsigned')}
+                  </td>
+                  {/* Sin acciones: no hay documento que bajar todavía. */}
+                  <td className="px-3 py-2.5" />
                 </tr>
               )}
               {items.map(item => (

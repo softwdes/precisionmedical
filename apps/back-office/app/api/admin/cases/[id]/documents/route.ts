@@ -34,7 +34,9 @@ export async function GET(
 
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    select: { id: true, deletedAt: true },
+    /* `caseType` viaja para poder mostrar el lien SIN FIRMAR — ver `llevaLien`
+       más abajo. No cuesta una consulta extra: esta ya se hacía. */
+    select: { id: true, deletedAt: true, caseType: true },
   });
   if (!caseRecord || caseRecord.deletedAt) {
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
@@ -88,10 +90,6 @@ export async function GET(
    * Sólo el HECHO de la firma y su fecha — nunca el trazo ni el texto del
    * acuerdo. Con esto alcanza para decidir si la fila se ofrece o se muestra
    * bloqueada; el documento se pide después, y sólo si lo abren.
-   *
-   * Los casos que no son MVA no llevan lien y nunca tienen firma, así que la
-   * fila no aparece sola en un caso de medicina general. No hace falta mirar
-   * el `caseType`: la ausencia de firma ya lo dice.
    */
   const firmaDelLien = await db.lienSignature.findFirst({
     where: { caseId, signerType: { in: ['PATIENT', 'GUARDIAN'] } },
@@ -104,6 +102,24 @@ export async function GET(
     lien: firmaDelLien
       ? { firmadoEl: firmaDelLien.signedAt.toISOString(), firmadoPor: firmaDelLien.signerName }
       : null,
+    /**
+     * ¿Este caso LLEVA lien, aunque todavía no esté firmado?
+     *
+     * Sin esto la fila simplemente no existía cuando no había firma, y desde la
+     * pantalla no se distinguía "este paciente todavía no firmó" de "esto está
+     * roto". Le pasó a Erick el 2026-09-28 y es la razón del campo: con el dato
+     * el tab puede mostrar la fila APAGADA y decir por qué, en vez de callarse.
+     *
+     * Medido ese día sobre 3.074 casos vivos: **680 MVA sin firma**, o sea 680
+     * expedientes donde el lien no se veía y nadie podía saber si faltaba o si
+     * fallaba. De esos, 294 ya traen la carpeta del intake del v2.
+     *
+     * Un caso de medicina general no lleva lien y acá dice `false`: ahí la
+     * ausencia SÍ es la respuesta correcta y la fila no aparece de ninguna
+     * forma. Los 9 casos GENERAL que igual tienen firma siguen mostrándola,
+     * porque eso lo decide `lien` y no este campo.
+     */
+    llevaLien: caseRecord.caseType === 'MVA',
   });
 }
 

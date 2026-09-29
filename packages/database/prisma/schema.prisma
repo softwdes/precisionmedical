@@ -4335,6 +4335,16 @@ model CallLog {
   @@map("call_logs")
 }
 
+/// Quien escribio. Hasta 2026-09-28 la tabla solo guardaba SALIENTES: no habia
+/// webhook de SMS entrante, asi que la respuesta del paciente se perdia y una
+/// "conversacion" era un monologo. Ver `api/twilio/sms-incoming`.
+enum MessageDirection {
+  /// Lo mandamos nosotros.
+  OUTBOUND
+  /// Lo escribio el paciente.
+  INBOUND
+}
+
 enum MessageChannel {
   SMS
   EMAIL
@@ -4371,6 +4381,16 @@ model MessageLog {
   channel MessageChannel
   status  MessageStatus  @default(QUEUED)
 
+  /// Saliente por defecto: todo lo que existia antes de la bandeja lo mandamos
+  /// nosotros, asi que el default ES el backfill y no hay 350 filas que tocar.
+  direction MessageDirection @default(OUTBOUND)
+
+  /// Cuando alguien del staff lo leyo. Solo aplica a los ENTRANTES: un mensaje
+  /// que mandamos nosotros no se "lee". Null en un entrante = sin abrir, y eso
+  /// es lo que cuenta el badge de la bandeja.
+  readAt       DateTime?
+  readByUserId String?
+
   toAddress   String
   fromAddress String
 
@@ -4401,6 +4421,10 @@ model MessageLog {
   @@index([caseId])
   @@index([status])
   @@index([createdAt])
+  /// La bandeja pregunta dos cosas: "entrantes sin leer" y "todo lo de este
+  /// paciente en orden". Sin estos dos, las dos son un scan completo.
+  @@index([direction, readAt])
+  @@index([patientId, createdAt])
   @@map("message_logs")
 }
 

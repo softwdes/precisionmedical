@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
-import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft } from 'lucide-react';
 import { EmptyState, FilterPill, PersonAvatar, StatusPill, TableFooter, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 
@@ -23,6 +23,7 @@ type Status = 'QUEUED' | 'SENT' | 'DELIVERED' | 'UNDELIVERED' | 'FAILED';
 type StatusFilter = 'all' | 'DELIVERED' | 'NOT_DELIVERED';
 type PeriodFilter = 0 | 1 | 7 | 30;
 type Scope = 'mine' | 'all';
+type DirFilter = 'ALL' | 'IN' | 'OUT';
 type Channel = 'SMS' | 'EMAIL';
 type ChannelFilter = Channel | 'ALL';
 
@@ -37,6 +38,9 @@ interface Row {
   createdAt: string;
   deliveredAt: string | null;
   patient: { id: string; patientCode: string | null; firstName: string; lastName: string; phone: string | null } | null;
+  direction: 'INBOUND' | 'OUTBOUND';
+  readAt: string | null;
+  fromAddress: string;
   patientMatchedByPhone: boolean;
   patientMatchCount: number;
   case: { id: string; caseCode: string } | null;
@@ -48,7 +52,7 @@ interface Response {
   messages: Row[];
   total: number;
   totalPages: number;
-  counts: { mine: number; all: number; notDelivered: number };
+  counts: { mine: number; all: number; notDelivered: number; inbound: number; unread: number };
 }
 
 function clinicDayKey(d: Date): string {
@@ -83,14 +87,60 @@ export function SmsHistoryDialog({
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(false);
   const [openBody, setOpenBody] = useState<string | null>(null);
+  const [dir, setDir]           = useState<DirFilter>('ALL');
+  /** Se incrementa para forzar una recarga cuando algo local quedo dudoso. */
+  const [recargar, setRecargar] = useState(0);
+  /** Lo tecleado. `q` es lo que ya se consultó: separarlos es lo que permite el debounce. */
+  const [texto, setTexto]       = useState('');
+  const [q, setQ]               = useState('');
+
+  /**
+   * Abrir un entrante lo marca leido.
+   *
+   * Es la accion que YA hace la persona para enterarse, asi que no hace falta
+   * un boton aparte: un "marcar como leido" separado se convierte en la cosa
+   * que nadie aprieta, y el contador queda mintiendo para siempre.
+   *
+   * Se baja el contador en pantalla sin esperar la respuesta —el badge tiene
+   * que reaccionar al clic— y si el PATCH falla se recarga, que devuelve la
+   * verdad del servidor.
+   */
+  const abrirCuerpo = useCallback((r: Row) => {
+    const cerrando = openBody === r.id;
+    setOpenBody(cerrando ? null : r.id);
+    if (cerrando || r.direction !== 'INBOUND' || r.readAt) return;
+
+    setData(prev => prev && ({
+      ...prev,
+      messages: prev.messages.map(m => m.id === r.id ? { ...m, readAt: new Date().toISOString() } : m),
+      counts: { ...prev.counts, unread: Math.max(0, prev.counts.unread - 1) },
+    }));
+
+    void fetch('/api/admin/message-logs', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [r.id] }),
+    }).catch(() => setRecargar(n => n + 1));
+  }, [openBody]);
 
   const filtered = status !== 'all' || period !== 0;
 
-  const load = useCallback(async (s: Scope, p: number, st: StatusFilter, per: PeriodFilter, ch: ChannelFilter) => {
+  /**
+   * El buscador espera 300 ms. Sin esto cada tecla es una consulta con un LIKE
+   * sobre cinco columnas, y el resultado que se pinta es el de la carrera que
+   * gane, no el de lo último que escribieron.
+   */
+  useEffect(() => {
+    const id = setTimeout(() => { setQ(texto.trim()); setPage(0); }, 300);
+    return () => clearTimeout(id);
+  }, [texto]);
+
+  const load = useCallback(async (s: Scope, p: number, st: StatusFilter, per: PeriodFilter, ch: ChannelFilter, d: DirFilter, busca: string) => {
     setLoading(true);
     setError(false);
     try {
-      const params = new URLSearchParams({ scope: s, page: String(p), size: String(PAGE_SIZE), channel: ch });
+      const params = new URLSearchParams({ scope: s, page: String(p), size: String(PAGE_SIZE), channel: ch, direction: d });
+      if (busca) params.set('q', busca);
       if (st !== 'all') params.set('status', st);
       if (per !== 0) {
         // El día se corta en la zona de la clínica, no en UTC.
@@ -109,8 +159,8 @@ export function SmsHistoryDialog({
 
   useEffect(() => {
     if (!open) return;
-    void load(scope, page, status, period, channel);
-  }, [open, scope, page, status, period, channel, load]);
+    void load(scope, page, status, period, channel, dir, q);
+  }, [open, scope, page, status, period, channel, dir, q, recargar, load]);
 
   const rows       = data?.messages ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -154,6 +204,14 @@ export function SmsHistoryDialog({
               <FilterPill key={k} active={scope === k} onClick={() => { setScope(k); setPage(0); }} label={l} count={n} />
             ))}
           </div>
+          {/* Entrantes. Va primero y con el contador de sin leer porque es lo
+              unico de esta pantalla que pide una ACCION: lo demas es consulta. */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterDirection')}</span>
+            {([['ALL', t('dirAll'), undefined], ['IN', t('dirIn'), counts?.unread], ['OUT', t('dirOut'), undefined]] as [DirFilter, string, number | undefined][]).map(([k, l, n]) => (
+              <FilterPill key={k} active={dir === k} onClick={() => { setDir(k); setPage(0); }} label={l} count={n || undefined} />
+            ))}
+          </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterChannel')}</span>
             {([['SMS', t('channelSms')], ['EMAIL', t('channelEmail')], ['ALL', t('channelAll')]] as [ChannelFilter, string][]).map(([k, l]) => (
@@ -171,6 +229,17 @@ export function SmsHistoryDialog({
               <FilterPill key={k} active={period === k} onClick={() => { setPeriod(k); setPage(0); }} label={l} />
             ))}
           </div>
+          {/* "And can we search the patient in all the messages?" — la clinica,
+              2026-09-28. Busca por nombre, codigo y numero. */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-2 pb-4">
@@ -181,7 +250,7 @@ export function SmsHistoryDialog({
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(scope, page, status, period, channel)}
+                onClick={() => void load(scope, page, status, period, channel, dir, q)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -208,8 +277,13 @@ export function SmsHistoryDialog({
                       </tr>
                     </thead>
                     <tbody>
+                      {/* Un entrante SIN LEER se resalta. El fondo lo separa del resto
+                          sin agregar una columna: la lista sigue siendo una. */}
                       {rows.map(r => (
-                        <tr key={r.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors align-top">
+                        <tr
+                          key={r.id}
+                          className={`border-b border-row-sep hover:bg-white/[0.02] transition-colors align-top ${r.direction === 'INBOUND' && !r.readAt ? 'bg-brand/[0.06]' : ''}`}
+                        >
                           <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2">
                             <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
                           </td>
@@ -222,14 +296,22 @@ export function SmsHistoryDialog({
                             )}
                           </td>
                           <td className="px-4 py-2 text-[12px] text-text-2 truncate">
-                            {r.sentByName ?? <span className="text-text-muted">—</span>}
-                            {r.sentByMe && <span className="text-text-muted"> ({t('me')})</span>}
+                            {r.direction === 'INBOUND' ? (
+                              <span className="inline-flex items-center gap-1 text-brand-text font-medium">
+                                <CornerUpLeft className="w-3 h-3" />{t('fromPatient')}
+                              </span>
+                            ) : (
+                              <>
+                                {r.sentByName ?? <span className="text-text-muted">—</span>}
+                                {r.sentByMe && <span className="text-text-muted"> ({t('me')})</span>}
+                              </>
+                            )}
                           </td>
                           <td className="px-4 py-2 text-[11px] text-text-muted whitespace-nowrap">{whenLabel(r.createdAt)}</td>
                           <td className="px-4 py-2">
                             <button
                               type="button"
-                              onClick={() => setOpenBody(openBody === r.id ? null : r.id)}
+                              onClick={() => abrirCuerpo(r)}
                               className="text-left text-[11.5px] text-text-2 hover:text-text-1 transition-colors"
                             >
                               {openBody === r.id

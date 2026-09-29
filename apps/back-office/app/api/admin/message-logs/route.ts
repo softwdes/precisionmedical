@@ -44,6 +44,17 @@ const QuerySchema = z.object({
   status: z.enum(['DELIVERED', 'QUEUED', 'SENT', 'FAILED', 'NOT_DELIVERED']).optional(),
   from:   z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   to:     z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  /**
+   * Entrantes, salientes o las dos.
+   *
+   * Hasta el 2026-09-28 no hacia falta: TODO era saliente porque no habia
+   * webhook que recibiera (ver `api/twilio/sms-incoming`). El default es ALL
+   * para que el historial sea el historial —lo que se dijo y lo que
+   * contestaron, en el mismo orden— y no dos listas que hay que cruzar.
+   */
+  direction: z.enum(['ALL', 'IN', 'OUT']).default('ALL'),
+  /** Nombre, codigo o telefono del paciente. Lo pidio la clinica por escrito. */
+  q: z.string().trim().max(80).optional(),
   page:   z.coerce.number().int().min(0).default(0),
   size:   z.coerce.number().int().min(1).max(100).default(10),
 });
@@ -94,14 +105,45 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const channelWhere: Prisma.MessageLogWhereInput =
     query.channel === 'ALL' ? {} : { channel: query.channel };
 
+  const directionWhere: Prisma.MessageLogWhereInput =
+    query.direction === 'ALL' ? {} : { direction: query.direction === 'IN' ? 'INBOUND' : 'OUTBOUND' };
+
+  /**
+   * Un ENTRANTE no tiene remitente nuestro, asi que "los mios" no aplica.
+   *
+   * Sin esta excepcion, alguien con el filtro en "Mis mensajes" —que es como
+   * queda la pantalla despues de usarla— no veria NUNCA una respuesta de un
+   * paciente, y la bandeja pareceria vacia estando llena. El scope filtra lo
+   * que YO mande; lo que entra es de la clinica, no de una persona.
+   */
+  const scopeWhere: Prisma.MessageLogWhereInput =
+    query.scope === 'mine' && myUserId && query.direction !== 'IN'
+      ? { sentByUserId: myUserId }
+      : {};
+
+  /** Busqueda por paciente: nombre, codigo, o el numero/direccion del mensaje. */
+  const searchWhere: Prisma.MessageLogWhereInput = query.q
+    ? {
+        OR: [
+          { patient: { firstName:   { contains: query.q, mode: 'insensitive' } } },
+          { patient: { lastName:    { contains: query.q, mode: 'insensitive' } } },
+          { patient: { patientCode: { contains: query.q, mode: 'insensitive' } } },
+          { toAddress:   { contains: query.q, mode: 'insensitive' } },
+          { fromAddress: { contains: query.q, mode: 'insensitive' } },
+        ],
+      }
+    : {};
+
   const where: Prisma.MessageLogWhereInput = {
     ...channelWhere,
-    ...(query.scope === 'mine' && myUserId ? { sentByUserId: myUserId } : {}),
+    ...directionWhere,
+    ...scopeWhere,
+    ...searchWhere,
     ...statusWhere,
     ...(query.from || query.to ? { createdAt } : {}),
   };
 
-  const [rows, total, mineCount, allCount, notDeliveredCount] = await Promise.all([
+  const [rows, total, mineCount, allCount, notDeliveredCount, inboundCount, unreadCount] = await Promise.all([
     db.messageLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -114,6 +156,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         errorCode: true, errorMessage: true,
         sentByUserId: true, sentByName: true,
         deliveredAt: true, createdAt: true,
+        direction: true, readAt: true, fromAddress: true,
         patient: { select: { id: true, patientCode: true, firstName: true, lastName: true, phone: true } },
         case:    { select: { id: true, caseCode: true } },
       },
@@ -122,6 +165,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     db.messageLog.count({ where: { ...channelWhere, ...(myUserId ? { sentByUserId: myUserId } : { id: '' }) } }),
     db.messageLog.count({ where: channelWhere }),
     db.messageLog.count({ where: { ...channelWhere, status: { in: [...NOT_DELIVERED] } } }),
+    db.messageLog.count({ where: { ...channelWhere, direction: 'INBOUND' } }),
+    // Sin scope ni busqueda a proposito: un badge que cambia al filtrar no es
+    // un badge, es otra columna de la tabla.
+    db.messageLog.count({ where: { direction: 'INBOUND', readAt: null } }),
   ]);
 
   // Mismo reconocimiento que el historial de llamadas: un SMS a un número que
@@ -191,6 +238,40 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     size: query.size,
     total,
     totalPages: Math.max(1, Math.ceil(total / query.size)),
-    counts: { mine: mineCount, all: allCount, notDelivered: notDeliveredCount },
+    counts: { mine: mineCount, all: allCount, notDelivered: notDeliveredCount, inbound: inboundCount, unread: unreadCount },
   });
+}
+
+/**
+ * PATCH /api/admin/message-logs — marcar entrantes como leídos.
+ *
+ * Solo tiene sentido para los ENTRANTES: un mensaje que mandamos nosotros no se
+ * "lee". Por eso el `where` lleva `direction: 'INBOUND'` — sin eso, un id
+ * equivocado marcaría un saliente y el dato quedaría diciendo algo que no
+ * significa nada.
+ *
+ * `updateMany` y no `update`: marcar como leído lo que ya estaba leído no es un
+ * error, es el segundo clic de alguien. Y `readAt: null` en el filtro hace que
+ * el PRIMERO que lo abre quede registrado, no el último.
+ */
+export async function PATCH(req: NextRequest): Promise<NextResponse> {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+  const actor = await resolveActor(req.headers);
+
+  let ids: string[];
+  try {
+    const cuerpo = await req.json();
+    ids = z.array(z.string()).min(1).max(200).parse(cuerpo?.ids);
+  } catch {
+    return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 });
+  }
+
+  const res = await db.messageLog.updateMany({
+    where: { id: { in: ids }, direction: 'INBOUND', readAt: null },
+    data:  { readAt: new Date(), readByUserId: actor.actorUserId ?? null },
+  });
+
+  return NextResponse.json({ ok: true, marcados: res.count });
 }

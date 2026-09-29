@@ -8,7 +8,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { db as prisma } from '@precision-medical/database';
+import { db as prisma, VIGENTES } from '@precision-medical/database';
 import { PatientDetailClient } from '@/app/(admin)/patients/[id]/patient-detail-client';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { saldoDeMostrador } from '@/lib/saldo-de-mostrador';
@@ -87,7 +87,9 @@ export default async function DoctorPatientDetailPage({
   const [saldo, proximaCita] = await Promise.all([
     saldoDeMostrador(id),
     prisma.appointment.findFirst({
-      where: { patientId: id, scheduledFor: { gte: new Date() }, status: { not: 'CANCELLED' } },
+      /* `...VIGENTES` para no mostrar una cita eliminada — misma ficha y mismo
+         arreglo que `/patients/[id]`, ver el comentario de allá. */
+      where: { ...VIGENTES, patientId: id, scheduledFor: { gte: new Date() }, status: { not: 'CANCELLED' } },
       orderBy: { scheduledFor: 'asc' },
       select: { id: true, scheduledFor: true, clinic: { select: { name: true } } },
     }),

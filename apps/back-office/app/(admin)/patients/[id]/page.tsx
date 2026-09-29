@@ -11,7 +11,7 @@
  */
 
 import { notFound } from 'next/navigation';
-import { db as prisma } from '@precision-medical/database';
+import { db as prisma, VIGENTES } from '@precision-medical/database';
 // El `include` de abajo trae TODOS los escalares y varios llegan cifrados de la
 // migración del v2 — se veían como `e:bC43szK6BQNR7fphLRXO…` en la ficha y, peor,
 // en el diálogo de edición que escribe sobre ellos. `decryptScalars` cubre el
@@ -92,6 +92,12 @@ export default async function PatientDetailPage({
     saldoDeMostrador(id),
     prisma.appointment.findFirst({
       where: {
+        /* Eliminar una cita NO borra la fila, la marca — y sin esto el chip de
+           "próxima cita" seguía mostrando una cita borrada. El calendario ya la
+           excluía, así que la ficha contradecía a la agenda: Erick agendó a un
+           paciente el 8-oct, borró la del 1-oct, y la ficha siguió diciendo
+           1-oct (2026-09-29). Ver `citas-vigentes.ts`. */
+        ...VIGENTES,
         patientId: id,
         scheduledFor: { gte: new Date() },
         status: { not: 'CANCELLED' },

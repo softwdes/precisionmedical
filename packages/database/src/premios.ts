@@ -242,3 +242,128 @@ export function mesDe(fecha: Date, zona = 'America/Denver'): string {
   const m = parts.find((p) => p.type === 'month')?.value;
   return `${y}-${m}-01`;
 }
+
+// ─── Verificación: lo declarado contra lo que el sistema tiene ───────────────
+
+/** Una fila de `reward_evidence` (`prisma/sql/20260929b-premios-evidencia.sql`). */
+export interface RewardEvidence {
+  entryId: string;
+  duplicates: number;
+  apptsOnDay: Array<{ status: string; clinic: string | null }>;
+  membership: { plan: string; start: string | null; inLastCut: boolean } | null;
+  patientCreatedAt: string | null;
+  referralSource: string | null;
+  firstVisit: { at: string; bySelf: boolean } | null;
+  apptsCreatedBySelf: number;
+  reschedulesBySelf: number;
+  cancelledInMonth: number;
+  lastVisitBefore: string | null;
+  servicesOnDay: Array<{ name: string; by: string | null }>;
+}
+
+export type Tono = 'ok' | 'warn' | 'bad' | 'info';
+export interface Senal { tone: Tono; key: string; params?: Record<string, string | number> }
+export type Veredicto = 'match' | 'review' | 'mismatch' | 'noData';
+
+/** Meses sin venir a partir de los cuales una vuelta cuenta como reactivación. */
+export const MESES_PARA_REACTIVACION = 3;
+
+/** Las columnas `timestamp` vuelven sin zona: son UTC. */
+function utc(ts: string): Date {
+  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : `${ts}Z`);
+}
+
+/**
+ * Qué dice el sistema de un registro pendiente. NO aprueba ni rechaza: arma
+ * señales para que el Admin decida con datos. Las claves se traducen en la
+ * pantalla (`rewards.evidence.*`), porque el servidor no sabe el idioma.
+ *
+ * Solo mira lo que el sistema de verdad registra. Reseñas, bugs, ventas de la
+ * tienda, eventos, trabajo LM e inventario no dejan rastro en la base: ahí la
+ * señal es "sin dato" y se pide comprobante.
+ */
+export function evaluarEvidencia(
+  entry: { categoryCode: string; patientId: string | null; occurredOn: string },
+  ev: RewardEvidence | null,
+  mes: string,
+): { verdict: Veredicto; signals: Senal[] } {
+  const s: Senal[] = [];
+  if (!ev) return { verdict: 'noData', signals: [{ tone: 'info', key: 'unavailable' }] };
+  const inicioMes = utc(`${mes.slice(0, 7)}-01T00:00:00`);
+  const dia = (ts: string) => utc(ts).toISOString().slice(0, 10);
+  const enElMes = (ts: string) => dia(ts).slice(0, 7) === mes.slice(0, 7);
+
+  if (ev.duplicates > 0) s.push({ tone: 'bad', key: 'duplicate', params: { n: ev.duplicates } });
+
+  if (entry.patientId) {
+    if (ev.apptsOnDay.length) {
+      const a = ev.apptsOnDay[0]!;
+      s.push({ tone: 'ok', key: 'apptOnDay', params: { status: a.status, clinic: a.clinic ?? '—' } });
+    } else {
+      s.push({ tone: 'warn', key: 'noApptOnDay' });
+    }
+  }
+
+  switch (entry.categoryCode) {
+    case 'C01': {
+      const m = ev.membership;
+      if (!m) s.push({ tone: 'warn', key: 'noMembership' });
+      else if (m.start && enElMes(m.start)) s.push({ tone: 'ok', key: 'membershipNew', params: { plan: m.plan, date: dia(m.start) } });
+      else s.push({ tone: 'warn', key: 'membershipOld', params: { plan: m.plan, date: m.start ? dia(m.start) : '—' } });
+      break;
+    }
+    case 'C02': {
+      if (!ev.firstVisit) s.push({ tone: 'warn', key: 'noVisits' });
+      else if (enElMes(ev.firstVisit.at)) s.push({ tone: 'ok', key: 'firstVisitInMonth', params: { date: dia(ev.firstVisit.at) } });
+      else s.push({ tone: 'bad', key: 'notNewPatient', params: { date: dia(ev.firstVisit.at) } });
+      break;
+    }
+    case 'C03': {
+      if (ev.patientCreatedAt && enElMes(ev.patientCreatedAt)) s.push({ tone: 'ok', key: 'createdInMonth', params: { date: dia(ev.patientCreatedAt) } });
+      else if (ev.patientCreatedAt) s.push({ tone: 'warn', key: 'createdBefore', params: { date: dia(ev.patientCreatedAt) } });
+      if (ev.referralSource) s.push({ tone: 'info', key: 'referralSource', params: { source: ev.referralSource } });
+      if (ev.firstVisit?.bySelf) s.push({ tone: 'ok', key: 'firstApptBySelf' });
+      break;
+    }
+    case 'C04': {
+      if (ev.reschedulesBySelf > 0) s.push({ tone: 'ok', key: 'rescheduledBySelf', params: { n: ev.reschedulesBySelf } });
+      else s.push({ tone: 'bad', key: 'noReschedule' });
+      if (ev.cancelledInMonth > 0) s.push({ tone: 'warn', key: 'cancelledAnyway', params: { n: ev.cancelledInMonth } });
+      break;
+    }
+    case 'C05': {
+      if (!ev.lastVisitBefore) {
+        s.push({ tone: 'warn', key: 'noPrevVisit' });
+      } else {
+        const ult = utc(ev.lastVisitBefore);
+        const meses = (inicioMes.getUTCFullYear() - ult.getUTCFullYear()) * 12 + (inicioMes.getUTCMonth() - ult.getUTCMonth());
+        s.push({
+          tone: meses >= MESES_PARA_REACTIVACION ? 'ok' : 'bad',
+          key: meses >= MESES_PARA_REACTIVACION ? 'dormant' : 'notDormant',
+          params: { months: meses, date: dia(ev.lastVisitBefore), min: MESES_PARA_REACTIVACION },
+        });
+      }
+      s.push(ev.apptsCreatedBySelf > 0
+        ? { tone: 'ok', key: 'apptBySelf', params: { n: ev.apptsCreatedBySelf } }
+        : { tone: 'warn', key: 'noApptBySelf' });
+      break;
+    }
+    case 'C07': {
+      if (ev.servicesOnDay.length) {
+        s.push({ tone: 'info', key: 'chargedOnDay', params: { list: ev.servicesOnDay.map((x) => x.name).slice(0, 4).join(', ') } });
+      } else {
+        s.push({ tone: 'warn', key: 'noChargeOnDay' });
+      }
+      break;
+    }
+    default:
+      s.push({ tone: 'info', key: 'noSystemData' });
+  }
+
+  const hay = (t: Tono) => s.some((x) => x.tone === t);
+  const verdict: Veredicto = hay('bad') ? 'mismatch'
+    : hay('warn') ? 'review'
+    : hay('ok') ? 'match'
+    : 'noData';
+  return { verdict, signals: s };
+}

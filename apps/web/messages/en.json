@@ -2162,6 +2162,52 @@
       "ATTORNEY_MVA": "Attorney / MVA",
       "EXTERNAL_REFERRAL": "External referral",
       "ONLINE_BOOKING": "Online booking"
+    },
+    "evidence": {
+      "title": "The system says",
+      "verdict": {
+        "match": "Matches",
+        "review": "Review",
+        "mismatch": "Doesn’t match",
+        "noData": "No data: ask for proof"
+      },
+      "status": {
+        "SCHEDULED": "scheduled",
+        "CONFIRMED": "confirmed",
+        "CHECKED_IN": "checked in",
+        "IN_PROGRESS": "in visit",
+        "COMPLETED": "seen",
+        "CANCELLED": "cancelled",
+        "NO_SHOW": "no-show",
+        "PENDING": "pending"
+      },
+      "signal": {
+        "unavailable": "The system couldn’t be checked; verify it by hand",
+        "duplicate": "{n, plural, one {There is another identical entry this month} other {There are # identical entries this month}}",
+        "apptOnDay": "Had an appointment that day ({status}, {clinic})",
+        "noApptOnDay": "The patient had no appointment that day",
+        "noMembership": "Not in the memberships file (the weekly CSV may not include it yet)",
+        "membershipNew": "{plan} membership since {date}",
+        "membershipOld": "Already had a {plan} membership since {date}",
+        "noVisits": "The patient has no appointments",
+        "firstVisitInMonth": "First visit on {date}: new patient",
+        "notNewPatient": "Not new: first visit was on {date}",
+        "createdInMonth": "Registered on {date}",
+        "createdBefore": "Already in the system since {date}",
+        "referralSource": "Source on their record: {source}",
+        "firstApptBySelf": "Their first appointment was booked by whoever logged this",
+        "rescheduledBySelf": "{n, plural, one {Rescheduled # appointment for this patient this month} other {Rescheduled # appointments for this patient this month}}",
+        "noReschedule": "Didn’t reschedule any appointment for this patient this month",
+        "cancelledAnyway": "{n, plural, one {Still has # cancelled appointment this month} other {Still has # cancelled appointments this month}}",
+        "noPrevVisit": "No attended visits before this month",
+        "dormant": "Last visit on {date}: {months} months away",
+        "notDormant": "Came in {months} months ago ({date}); a reactivation needs {min}",
+        "apptBySelf": "{n, plural, one {Booked # appointment for them this month} other {Booked # appointments for them this month}}",
+        "noApptBySelf": "Didn’t book any appointment for them this month",
+        "chargedOnDay": "Charged that day: {list}",
+        "noChargeOnDay": "Nothing charged to this patient that day",
+        "noSystemData": "This isn’t recorded in the system"
+      }
     }
   }
 }

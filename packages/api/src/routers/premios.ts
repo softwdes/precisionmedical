@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { createClientWithCredentials } from '@precision-medical/auth';
 import {
-  calcularPeriodo, METAS_POR_DEFECTO, type GoalKind, type ProgressRow, type RewardGoal,
+  calcularPeriodo, METAS_POR_DEFECTO, type GoalKind, type ProgressRow, type RewardGoal, type RewardEvidence,
 } from '@precision-medical/database/premios';
 import { router, adminProcedure } from '../trpc';
 
@@ -274,10 +274,15 @@ export const premiosRouter = router({
       }>;
       const userIds = [...new Set(rows.map((r) => r.userId))];
       const patIds = [...new Set(rows.map((r) => r.patientId).filter((x): x is string => !!x))];
-      const [us, ps] = await Promise.all([
+      const [us, ps, ev] = await Promise.all([
         userIds.length ? db.from('users').select('id, firstName, lastName').in('id', userIds) : Promise.resolve({ data: [] }),
         patIds.length ? db.from('patients').select('id, patientCode, firstName, lastName').in('id', patIds) : Promise.resolve({ data: [] }),
+        // Lo que el sistema sabe de cada registro, para comparar con lo declarado.
+        // Si la fn falla, la cola se muestra igual, sin la comparación: verificar
+        // a mano sigue siendo posible y no puede quedar bloqueado por esto.
+        rows.length ? db.rpc('reward_evidence', { p_period_id: input.periodId }) : Promise.resolve({ data: [], error: null }),
       ]);
+      const evPor = new Map(((ev.error ? [] : ev.data ?? []) as unknown as RewardEvidence[]).map((x) => [x.entryId, x]));
       const uPor = new Map(((us.data ?? []) as Array<{ id: string; firstName: string; lastName: string }>).map((u) => [u.id, u]));
       // Parte de la data migrada sigue cifrada (`e:…`) y el Admin no descifra:
       // en ese caso se muestra solo el código, que es lo que identifica al paciente.
@@ -288,6 +293,7 @@ export const premiosRouter = router({
         ...r,
         userName: nombre(uPor.get(r.userId)),
         patient: r.patientId ? (pPor.get(r.patientId) ?? { code: null, name: '' }) : null,
+        evidence: evPor.get(r.id) ?? null,
       }));
     }),
 

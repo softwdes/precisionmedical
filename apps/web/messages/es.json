@@ -2162,6 +2162,52 @@
       "ATTORNEY_MVA": "Abogado / MVA",
       "EXTERNAL_REFERRAL": "Referido externo",
       "ONLINE_BOOKING": "Reserva online"
+    },
+    "evidence": {
+      "title": "El sistema dice",
+      "verdict": {
+        "match": "Coincide",
+        "review": "Revisar",
+        "mismatch": "No coincide",
+        "noData": "Sin dato: pedir comprobante"
+      },
+      "status": {
+        "SCHEDULED": "agendada",
+        "CONFIRMED": "confirmada",
+        "CHECKED_IN": "con check-in",
+        "IN_PROGRESS": "en consulta",
+        "COMPLETED": "atendida",
+        "CANCELLED": "cancelada",
+        "NO_SHOW": "no vino",
+        "PENDING": "pendiente"
+      },
+      "signal": {
+        "unavailable": "No se pudo consultar el sistema; verifícalo a mano",
+        "duplicate": "{n, plural, one {Hay otro registro igual este mes} other {Hay # registros iguales este mes}}",
+        "apptOnDay": "Tuvo cita ese día ({status}, {clinic})",
+        "noApptOnDay": "El paciente no tuvo cita ese día",
+        "noMembership": "No aparece en el archivo de membresías (puede que el CSV semanal todavía no lo traiga)",
+        "membershipNew": "Membresía {plan} desde el {date}",
+        "membershipOld": "Ya tenía membresía {plan} desde el {date}",
+        "noVisits": "El paciente no tiene citas",
+        "firstVisitInMonth": "Primera visita el {date}: es nuevo",
+        "notNewPatient": "No es nuevo: su primera visita fue el {date}",
+        "createdInMonth": "Se dio de alta el {date}",
+        "createdBefore": "Ya estaba en el sistema desde el {date}",
+        "referralSource": "Fuente cargada en su ficha: {source}",
+        "firstApptBySelf": "Su primera cita la agendó quien lo declara",
+        "rescheduledBySelf": "{n, plural, one {Reprogramó # cita de este paciente este mes} other {Reprogramó # citas de este paciente este mes}}",
+        "noReschedule": "No reprogramó ninguna cita de este paciente este mes",
+        "cancelledAnyway": "{n, plural, one {Igual tiene # cita cancelada este mes} other {Igual tiene # citas canceladas este mes}}",
+        "noPrevVisit": "No tiene visitas atendidas antes de este mes",
+        "dormant": "Última visita el {date}: {months} meses sin venir",
+        "notDormant": "Vino hace {months} meses (el {date}); para reactivación hacen falta {min}",
+        "apptBySelf": "{n, plural, one {Le agendó # cita este mes} other {Le agendó # citas este mes}}",
+        "noApptBySelf": "No le agendó ninguna cita este mes",
+        "chargedOnDay": "Cobrado ese día: {list}",
+        "noChargeOnDay": "No hay nada cobrado a este paciente ese día",
+        "noSystemData": "Esto no queda registrado en el sistema"
+      }
     }
   }
 }

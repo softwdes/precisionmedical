@@ -12,14 +12,14 @@
  * el mismo `calcularPeriodo` que "Mis premios" del back-office.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   Check, ChevronLeft, ChevronRight, Coins, Loader2, Plus, Target, Trash2, TrendingUp, Trophy, Users, X,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
-import type { RewardGoal, GoalKind } from '@precision-medical/database/premios';
+import { evaluarEvidencia, type RewardGoal, type GoalKind, type RewardEvidence, type Senal, type Veredicto } from '@precision-medical/database/premios';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 import { api } from '@/lib/trpc/client';
@@ -86,7 +86,7 @@ export function PremiosClient({ tab, month }: { tab: PremiosTab; month: string }
       ) : !overview.data.period ? (
         <div className="rounded-lg bg-bg-2/30 p-6 text-center text-sm text-text-3">{t('notOpenYet')}</div>
       ) : tab === 'verificar' ? (
-        <VerificarView periodId={overview.data.period.id} categories={overview.data.categories as Category[]} onChanged={() => void overview.refetch()} />
+        <VerificarView periodId={overview.data.period.id} month={month} categories={overview.data.categories as Category[]} onChanged={() => void overview.refetch()} />
       ) : (
         <TableroView data={overview.data} money={money} />
       )}
@@ -317,8 +317,8 @@ function MesView({ data, month, money, onSaved }: {
 
 // ─── Verificar ───────────────────────────────────────────────────────────────
 
-function VerificarView({ periodId, categories, onChanged }: {
-  periodId: string; categories: Category[]; onChanged: () => void;
+function VerificarView({ periodId, month, categories, onChanged }: {
+  periodId: string; month: string; categories: Category[]; onChanged: () => void;
 }): React.ReactElement {
   const t = useTranslations('rewards');
   const locale = useLocale();
@@ -371,8 +371,11 @@ function VerificarView({ periodId, categories, onChanged }: {
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={9} className="px-4 py-8 text-center text-text-3 text-sm">{t('nothingPending')}</td></tr>
-            ) : rows.map((r) => (
-              <tr key={r.id} className="border-b border-row-sep last:border-0 align-top">
+            ) : rows.map((r) => {
+              const { verdict, signals } = evaluarEvidencia(r, r.evidence as RewardEvidence | null, month);
+              return (
+              <Fragment key={r.id}>
+              <tr className="align-top">
                 <td className="px-4 py-2 font-semibold text-text-1 whitespace-nowrap">{r.userName}</td>
                 <td className="px-4 py-2 text-text-2 whitespace-nowrap tabular-nums">{fecha(r.occurredOn)}</td>
                 <td className="px-4 py-2 text-text-1">{nombreCat(r.categoryCode)}</td>
@@ -411,12 +414,61 @@ function VerificarView({ periodId, categories, onChanged }: {
                   )}
                 </td>
               </tr>
-            ))}
+              <EvidenciaRow verdict={verdict} signals={signals} />
+              </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
       <p className="text-[11px] text-text-3">{t('verifyExplain')}</p>
     </div>
+  );
+}
+
+/**
+ * La comparación de un registro contra el sistema: el veredicto y, al lado,
+ * cada dato que lo sostiene. Va en una fila propia debajo del registro para que
+ * se lea junto a lo declarado, sin abrir nada.
+ */
+function EvidenciaRow({ verdict, signals }: { verdict: Veredicto; signals: Senal[] }): React.ReactElement {
+  const t = useTranslations('rewards.evidence');
+  const locale = useLocale();
+  const pill: Record<Veredicto, string> = {
+    match: 'bg-emerald/15 text-emerald-text border-emerald/30',
+    review: 'bg-amber/15 text-amber-text border-amber/30',
+    mismatch: 'bg-rose/15 text-rose-text border-rose/30',
+    noData: 'bg-bg-2 text-text-3 border-border',
+  };
+  const dot: Record<Senal['tone'], string> = { ok: 'bg-emerald', warn: 'bg-amber', bad: 'bg-rose', info: 'bg-text-3' };
+  const texto = (x: Senal) => {
+    const clave = `signal.${x.key}`;
+    const params = { ...x.params };
+    if (typeof params.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
+      params.date = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+        .format(new Date(`${params.date}T00:00:00Z`));
+    }
+    if (x.key === 'apptOnDay' && typeof params.status === 'string') {
+      const st = `status.${params.status}`;
+      params.status = t.has(st) ? t(st) : params.status;
+    }
+    return t.has(clave) ? t(clave, params) : x.key;
+  };
+  return (
+    <tr className="border-b border-row-sep last:border-0">
+      <td colSpan={9} className="px-4 pb-3 pt-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md bg-bg-2/40 px-3 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('title')}</span>
+          <span className={cn('rounded-full border px-2 py-0.5 text-[10.5px] font-semibold', pill[verdict])}>{t(`verdict.${verdict}`)}</span>
+          {signals.map((x, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5 text-[11.5px] text-text-2">
+              <span className={cn('h-1.5 w-1.5 rounded-full', dot[x.tone])} />
+              {texto(x)}
+            </span>
+          ))}
+        </div>
+      </td>
+    </tr>
   );
 }
 

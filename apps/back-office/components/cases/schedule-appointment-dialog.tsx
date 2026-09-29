@@ -187,7 +187,9 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clinicId,
-          providerId,
+          // `|| null`: "sin provider" es ausencia, no un id en blanco. Ver la nota
+          // de `providerId` en el POST de api/admin/appointments.
+          providerId: providerId || null,
           scheduledFor: scheduledForIso,
           durationMinutes: duration,
           type,

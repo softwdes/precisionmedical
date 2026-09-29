@@ -66,6 +66,18 @@ const KNOWN = new Set([
   'DUPLICATE_PATIENT',
   'EMAIL_TAKEN',
   // Agenda
+  /**
+   * Los cuatro de abajo salieron de una sola pantalla muda: al intentar
+   * registrar una visita pasada sin provider (Erick, 28-sep-2026) el cartel
+   * decia solo "no se pudo completar la accion". El motivo VIAJABA en la
+   * respuesta; lo que faltaba era esta lista. Un codigo que la ruta emite y
+   * la lista no conoce es una pantalla que no puede explicar lo que pasa.
+   */
+  'REASON_REQUIRED',
+  'CASE_NOT_FOUND',
+  'CLINIC_NOT_FOUND',
+  'PROVIDER_NOT_FOUND',
+  'INTERNAL_ERROR',
   'DATE_IN_PAST',
   'INVALID_DATE',
   'WEEKEND_NOT_ALLOWED',

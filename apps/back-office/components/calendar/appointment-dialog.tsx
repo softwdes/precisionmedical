@@ -1153,7 +1153,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       body: {
         caseId: targetCaseId,
         clinicId,
-        providerId,
+        // `|| null` y no la cadena vacía: "sin provider" es ausencia, no un id
+        // en blanco. El servidor ya lo normaliza, pero el cuerpo que sale de acá
+        // tiene que decir la verdad por sí solo.
+        providerId: providerId || null,
         scheduledFor: scheduledForIso,
         durationMinutes: duration,
         type,

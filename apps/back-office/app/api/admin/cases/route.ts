@@ -172,7 +172,16 @@ const InputSchema = z.object({
     clinicId: z.string().min(1),
     /** Opcional desde el 2026-09-28: la cita puede nacer sin asignar y el
      *  provider se elige en el check-in. Ver el POST de api/admin/appointments. */
-    providerId: z.string().min(1).nullable().optional(),
+    /**
+     * El string VACÍO se normaliza a null antes de validar: el diálogo de alta
+     * arranca en `useState('')` y "sin provider" viajaba como `""`, que con
+     * `.min(1)` se rechazaba como dato mal cargado. Ver la nota larga en el POST
+     * de api/admin/appointments.
+     */
+    providerId: z.preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+      z.string().min(1).nullable().optional(),
+    ),
     scheduledFor: z.string().datetime(),
     durationMinutes: z.number().int().min(15).max(240).default(45),
     type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
@@ -283,7 +292,31 @@ const InputSchema = z.object({
   }).optional(),
 });
 
+/**
+ * La red que faltaba: una excepción tiene que salir como `INTERNAL_ERROR`.
+ *
+ * Sin esto, cualquier falla no prevista sale como un 500 pelado, SIN campo
+ * `error`. El cliente traduce por código, no encuentra ninguno, y muestra el
+ * genérico "no se pudo completar la acción" — que no dice nada y no deja
+ * rastro para soporte.
+ *
+ * Pasó de verdad el 28-sep-2026: un `providerId` vacío reventaba contra la
+ * clave foránea y la pantalla se quedaba muda. El GET de este módulo ya tenía
+ * su catch desde siempre; los POST que GUARDAN, no.
+ *
+ * El `console.error` es lo único que ve soporte: el detalle de la excepción no
+ * viaja al cliente a propósito — puede traer nombres de pacientes.
+ */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  try {
+    return await altaDePacienteYCaso(req);
+  } catch (err) {
+    console.error('[POST /api/admin/cases]', err);
+    return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });
+  }
+}
+
+async function altaDePacienteYCaso(req: NextRequest): Promise<NextResponse> {
   /**
    * Dar de alta paciente + caso. Esta ruta no verificaba NADA, y hasta hoy el
    * único cerco era que el botón viviera en una pantalla de mostrador.

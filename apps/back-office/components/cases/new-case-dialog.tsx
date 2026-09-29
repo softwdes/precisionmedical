@@ -791,7 +791,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           } : null,
           appointment: scheduleNow && slotIso ? {
             clinicId,
-            providerId,
+            // `|| null`: "sin provider" es ausencia, no un id en blanco. Ver la nota
+            // de `providerId` en el POST de api/admin/appointments.
+            providerId: providerId || null,
             scheduledFor: slotIso,
             durationMinutes: duration,
             type: caseType === 'MVA' ? 'AUTO_ACCIDENT' : 'FAMILY_PRACTICE',

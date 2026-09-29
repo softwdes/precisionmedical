@@ -443,7 +443,12 @@
       "srvNOT_INACTIVE": "The patient is not inactive.",
       "srvTARGET_DELETED": "The referrer that remains cannot be a deleted one.",
       "srvINVALID_CODE_PREFIX": "Custom codes must start with “{prefijo}”.",
-      "srvMEMBER_NOT_IN_FIRM": "You can only assign members of your own firm."
+      "srvMEMBER_NOT_IN_FIRM": "You can only assign members of your own firm.",
+      "srvREASON_REQUIRED": "Reason for visit is required.",
+      "srvCASE_NOT_FOUND": "The patient's case could not be found. Close this window and open it again.",
+      "srvCLINIC_NOT_FOUND": "That clinic could not be found.",
+      "srvPROVIDER_NOT_FOUND": "That provider could not be found.",
+      "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening."
     },
     "push": {
       "msgNuevo": "New message",

@@ -22,7 +22,22 @@ const InputSchema = z.object({
   clinicId: z.string().min(1),
   /** Opcional desde el 2026-09-28: se asigna en el check-in. Ver el POST de
    *  `api/admin/appointments` para el porqué. */
-  providerId: z.string().min(1).nullable().optional(),
+  /**
+   * El string VACIO se normaliza a null antes de validar.
+   *
+   * Los tres diálogos que crean citas arrancan el estado en `useState('')`, así
+   * que "sin provider" viajaba como `providerId: ""`. Sin esto, `""` pasaba la
+   * validación, llegaba entero al `create` y Prisma reventaba contra la clave
+   * foránea: la pantalla mostraba "no se pudo completar la acción" y nada más,
+   * porque un 500 no trae código de error que traducir.
+   *
+   * Un parámetro VACÍO no es un parámetro AUSENTE — el mismo error que tenía el
+   * selector de horarios el 28-sep-2026, encontrado el mismo día.
+   */
+  providerId: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    z.string().min(1).nullable().optional(),
+  ),
   /** ISO date string · ej "2026-06-10T10:00:00.000Z" */
   scheduledFor: z.string().datetime({ message: 'Fecha/hora inválida (ISO 8601)' }),
   durationMinutes: z.number().int().min(15).max(240).default(30),
@@ -36,7 +51,34 @@ const InputSchema = z.object({
   allowOverbook: z.boolean().optional(),
 });
 
+/**
+ * La red que faltaba: una excepción tiene que salir como `INTERNAL_ERROR`.
+ *
+ * Sin esto, cualquier falla no prevista sale como un 500 pelado, SIN campo
+ * `error`. El cliente traduce por código, no encuentra ninguno, y muestra el
+ * genérico "no se pudo completar la acción" — que no dice nada y no deja
+ * rastro para soporte.
+ *
+ * Pasó de verdad el 28-sep-2026: un `providerId` vacío reventaba contra la
+ * clave foránea y la pantalla se quedaba muda. El GET de este módulo ya tenía
+ * su catch desde siempre; los POST que GUARDAN, no.
+ *
+ * El `console.error` es lo único que ve soporte: el detalle de la excepción no
+ * viaja al cliente a propósito — puede traer nombres de pacientes.
+ */
 export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  try {
+    return await agendarDesdeElCaso(req, ctx);
+  } catch (err) {
+    console.error('[POST /api/admin/cases/[id]/schedule-appointment]', err);
+    return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });
+  }
+}
+
+async function agendarDesdeElCaso(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {

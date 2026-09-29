@@ -1264,7 +1264,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setSuccess({
         scheduledFor: data.appointment.scheduledFor,
         clinicName:   data.appointment.clinic.name,
-        providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
+        // La cita GUARDADA puede no tener provider: se asigna en el check-in. Sin
+        // esta guarda el cartel de éxito reventaba leyendo `firstName` de null, y
+        // como el error salía DESPUÉS de guardar, la cita quedaba creada y la
+        // pantalla decía que había fallado — el camino directo a duplicarla.
+        providerName: data.appointment.provider
+          ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+          : t('unassignedProvider'),
       });
       // El recordatorio al paciente. El server lo espera con `await` —en vez de
       // dispararlo y seguir— justamente para que recepción pueda verlo acá.

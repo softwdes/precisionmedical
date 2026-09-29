@@ -205,7 +205,13 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         appointmentId: data.appointment.id,
         scheduledFor: data.appointment.scheduledFor,
         clinicName: data.appointment.clinic.name,
-        providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
+        // La cita GUARDADA puede no tener provider: se asigna en el check-in. Sin
+        // esta guarda el cartel de éxito reventaba leyendo `firstName` de null, y
+        // como el error salía DESPUÉS de guardar, la cita quedaba creada y la
+        // pantalla decía que había fallado — el camino directo a duplicarla.
+        providerName: data.appointment.provider
+          ? `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+          : t('unassignedProvider'),
       });
 
       // Si el recordatorio al paciente no salió, se dice. La ruta lo devuelve

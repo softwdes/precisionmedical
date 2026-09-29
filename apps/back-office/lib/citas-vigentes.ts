@@ -65,6 +65,8 @@ export async function porQueNoSePuedeEliminar(
     select: {
       status: true,
       checkedInAt: true,
+      admittedAt: true,
+      checkedOutAt: true,
       attendanceSignedAt: true,
       cancelledSameDay: true,
       visitNote: { select: { id: true } },
@@ -72,7 +74,32 @@ export async function porQueNoSePuedeEliminar(
   });
   if (!cita) return null; // no existe: que el endpoint responda 404
 
-  if (ESTADOS_CON_DESENLACE.has(cita.status)) return 'ESTADO';
+  /**
+   * La visita RETROACTIVA es la excepción, y sin esto quedaba presa.
+   *
+   * Una visita que ya ocurrió nace `COMPLETED` (ver el POST de appointments),
+   * así que caía en el desenlace y NO se podía eliminar nunca. Justo la que más
+   * falta hace poder borrar: se carga a mano, a veces meses después, y el
+   * dedazo es el motivo por el que existe el botón.
+   *
+   * Peor todavía, el cartel mandaba a corregirla "desde Admisión" — y una
+   * visita retroactiva NUNCA pasa por Admisión: no tiene sellos de reloj. El
+   * consejo era un callejón sin salida.
+   *
+   * `checkedInAt`, `admittedAt` y `checkedOutAt` en null es la firma exacta de
+   * "se cargó a mano y nunca pasó por la clínica": el alta retroactiva no los
+   * inventa a propósito. Si alguno tiene hora, la visita ocurrió de verdad y
+   * sigue protegida.
+   *
+   * Los demás candados quedan intactos: nota, cargos, cobros y firma se siguen
+   * chequeando más abajo. Erick lo encontró el 28-sep-2026 intentando borrar su
+   * propia cita de prueba.
+   */
+  const nuncaPasoPorLaClinica =
+    cita.status === 'COMPLETED'
+    && !cita.checkedInAt && !cita.admittedAt && !cita.checkedOutAt;
+
+  if (ESTADOS_CON_DESENLACE.has(cita.status) && !nuncaPasoPorLaClinica) return 'ESTADO';
   // La cancelación del MISMO DÍA conserva servicios y admite penalidad: es
   // plata en juego, no un registro sobrante (ver `cancelledSameDay`).
   if (cita.cancelledSameDay)      return 'PENALIDAD';

@@ -42,6 +42,8 @@ interface Row {
   patient: { id: string; patientCode: string | null; firstName: string; lastName: string; phone: string | null } | null;
   direction: 'INBOUND' | 'OUTBOUND';
   readAt: string | null;
+  /** El numero del paciente, ya resuelto segun la direccion. Lo manda la API. */
+  contraparte: string;
   fromAddress: string;
   patientMatchedByPhone: boolean;
   patientMatchCount: number;
@@ -440,7 +442,15 @@ function Recipient({ row, unknownLabel, mostrarCanal }: {
    * un correo legible — devuelve el resultado de tratar sus dígitos como un
    * número.
    */
-  const destino = row.channel === 'EMAIL' ? row.toAddress : formatUsPhone(row.toAddress);
+  /**
+   * Se muestra el numero del PACIENTE, no el destino.
+   *
+   * En un entrante el destino somos nosotros, asi que mostrar `toAddress`
+   * ponia el numero de la clinica en la columna donde se busca al paciente.
+   * La API ya resuelve de que lado esta — aca no se repite la regla.
+   */
+  const otroLado = row.contraparte ?? row.toAddress;
+  const destino = row.channel === 'EMAIL' ? otroLado : formatUsPhone(otroLado);
 
   const marca = mostrarCanal
     ? <Mail className="w-3 h-3 shrink-0 text-text-muted" aria-hidden />

@@ -193,8 +193,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // correo, y pasarla por `phoneKey` da una clave sin sentido que puede
   // engancharse con la de otro paciente. Preferible no reconocer a nadie que
   // ponerle a un correo el nombre equivocado.
+  /**
+   * El numero del PACIENTE, que no siempre es el destino.
+   *
+   * En un saliente el paciente esta en `toAddress`; en un ENTRANTE esta en
+   * `fromAddress` y el `toAddress` somos nosotros. Usar siempre el destino
+   * hacia que un mensaje entrante se mostrara como si fuera para el numero de
+   * la clinica — que es exactamente lo que reporto Pamela el 2026-09-29 al
+   * ver el primer mensaje que entro.
+   */
+  const ladoDelPaciente = (r: { direction: string; toAddress: string; fromAddress: string }) =>
+    r.direction === 'INBOUND' ? r.fromAddress : r.toAddress;
+
   const byPhoneKey = await findPatientsByPhoneKeys(
-    rows.filter(r => !r.patient && r.channel === 'SMS').map(r => phoneKey(r.toAddress)),
+    rows.filter(r => !r.patient && r.channel === 'SMS').map(r => phoneKey(ladoDelPaciente(r))),
   );
 
   // Nombre de quien lo mandó, si la fila no lo tiene denormalizado.
@@ -219,7 +231,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const messages = rows.map((r) => {
     const matched  = r.patient || r.channel !== 'SMS'
       ? null
-      : byPhoneKey.get(phoneKey(r.toAddress)) ?? null;
+      : byPhoneKey.get(phoneKey(ladoDelPaciente(r))) ?? null;
     const resolved = r.patient ?? matched?.[0] ?? null;
     return {
       id: r.id,
@@ -232,6 +244,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       errorMessage: r.errorMessage,
       createdAt: r.createdAt.toISOString(),
       deliveredAt: r.deliveredAt?.toISOString() ?? null,
+      /**
+       * Estos tres los pedia el `select` y este mapeo los tiraba, asi que la
+       * pantalla recibia `direction: undefined`: la fila entrante no se
+       * resaltaba y la columna decia "—" en vez de "Paciente". Declarar el
+       * campo en la consulta no es declararlo en la respuesta.
+       */
+      direction: r.direction,
+      readAt: r.readAt?.toISOString() ?? null,
+      fromAddress: r.fromAddress,
+      /** El numero del paciente, ya resuelto por direccion — la pantalla no repite la regla. */
+      contraparte: ladoDelPaciente(r),
       patient: resolved ? {
         id: resolved.id,
         patientCode: resolved.patientCode,

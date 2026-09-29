@@ -5864,7 +5864,7 @@
       "statusFailed": "Falló",
       "statusSent": "Enviado",
       "statusQueued": "En cola",
-      "colTo": "Para",
+      "colTo": "Paciente",
       "colStatus": "Entrega",
       "colSentBy": "Enviado por",
       "colWhen": "Cuándo",

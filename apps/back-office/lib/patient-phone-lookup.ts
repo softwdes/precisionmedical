@@ -43,11 +43,29 @@ export async function findPatientsByPhoneKeys(
   const byKey = new Map<string, PatientPhoneMatch[]>();
   if (wanted.length === 0) return byKey;
 
+  /**
+   * ⚠️ El patron es `[^0-9]` y NO `\D`. No es estilo: es que `\D`
+   * NO FUNCIONA.
+   *
+   * Esto es una plantilla de JavaScript, y ahi `\D` no es una secuencia de
+   * escape valida: JS la cocina a la letra `D` antes de que Prisma la vea. Lo
+   * que llegaba a Postgres era `regexp_replace(phone, 'D', '', 'g')`, que
+   * borra la letra D y deja los parentesis y los guiones.
+   *
+   * Resultado: **esta funcion devolvia 0 para TODOS los numeros**, incluso
+   * buscando a un paciente por su propio telefono exacto. Sin error, sin
+   * excepcion — una lista vacia se lee igual que "no hay nadie con ese numero".
+   *
+   * Estuvo asi desde que se escribio. Se descubrio el 2026-09-29, cuando el
+   * primer SMS entrante de un paciente quedo SIN VINCULAR: la llamada entrante
+   * tampoco vinculaba a nadie y nadie lo habia notado, porque el sintoma es que
+   * el sistema dice "no registrado" y eso parece un dato, no una falla.
+   */
   const matches = await db.$queryRaw<PatientPhoneMatch[]>`
     SELECT id, "patientCode", "firstName", "lastName", phone, phone2
     FROM patients
-    WHERE right(regexp_replace(coalesce(phone,  ''), '\D', '', 'g'), 10) = ANY(${wanted}::text[])
-       OR right(regexp_replace(coalesce(phone2, ''), '\D', '', 'g'), 10) = ANY(${wanted}::text[])
+    WHERE right(regexp_replace(coalesce(phone,  ''), '[^0-9]', '', 'g'), 10) = ANY(${wanted}::text[])
+       OR right(regexp_replace(coalesce(phone2, ''), '[^0-9]', '', 'g'), 10) = ANY(${wanted}::text[])
     ORDER BY "createdAt" DESC
   `;
 

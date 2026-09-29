@@ -1743,7 +1743,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <div ref={doctorRef}>
               <Label htmlFor="appt-provider">
                 <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                {t('fieldDoctor')} <span className="text-rose">*</span>
+                {/* Sin asterisco: el provider dejó de ser obligatorio el
+                    28-sep-2026. Dejarlo marcado como requerido contradice a la
+                    pantalla, que sí deja guardar sin él. */}
+                {t('fieldDoctor')}
               </Label>
 
               <DoctorCombobox

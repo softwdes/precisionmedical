@@ -130,7 +130,19 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     // salía vacío — se leía como "el doctor no atiende ese día". 60 cubre de sobra
     // el máximo real de un día: con la jornada de 08:00 a 18:00 y citas de 15 min
     // son 40 slots.
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
+    /**
+     * `providerId` solo va si TIENE valor.
+     *
+     * Sin esto, `URLSearchParams` manda `providerId=` (vacío), el esquema de la
+     * ruta lo valida con `.min(1)` y responde 400: la tira salía con un guion en
+     * los cinco días y parecía que el provider no atiende nunca. Un parámetro
+     * VACÍO no es lo mismo que un parámetro AUSENTE, y la ruta distingue los dos
+     * casos a propósito — el ausente es el que pide el horario de la clínica.
+     *
+     * Erick lo vio en el primer intento de agendar sin provider (28-sep-2026).
+     */
+    const params   = new URLSearchParams({ clinicId, fromDate, toDate, durationMinutes: String(duration), limitPerDay: '60' });
+    if (providerId) params.set('providerId', providerId);
     if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId);
 
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui-phoenix';
 import { fechaCorta } from '@/lib/fechas';
 import { RegistrarLogroDialog } from './registrar-logro-dialog';
+import { PistaDelPremio } from './pista-del-premio';
 
 interface Entry {
   id: string;
@@ -139,6 +140,8 @@ export function MisPremiosClient(): React.ReactElement {
           </Button>
         ) : undefined}
       />
+
+      <PistaDelPremio me={me} goals={d.goals} shareCents={d.shareCents} labelMeta={labelMeta} money={money} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard

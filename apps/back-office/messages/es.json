@@ -7205,6 +7205,21 @@
         "ATTORNEY_MVA": "Abogado / MVA",
         "EXTERNAL_REFERRAL": "Referido externo",
         "ONLINE_BOOKING": "Reserva online"
+      },
+      "track": {
+        "title": "Tu carrera al premio",
+        "subtitle": "Cada meta que cumples adelanta tu caballo {amount}",
+        "subtitleManager": "Tu caballo avanza con el promedio de tu equipo",
+        "earned": "Vas en",
+        "goalFull": "Premio completo",
+        "start": "Salida",
+        "finish": "Meta",
+        "missing": "Te faltan {amount} para llegar",
+        "missingGoals": "{n, plural, one {# meta por cumplir} other {# metas por cumplir}}",
+        "done": "¡Llegaste al premio completo!",
+        "doneSub": "Cumpliste las {n} metas del mes.",
+        "doneSubManager": "Todo tu equipo cumplió sus metas.",
+        "aria": "Llevas {earned} de {total}"
       }
     }
   },

@@ -7205,6 +7205,21 @@
         "ATTORNEY_MVA": "Attorney / MVA",
         "EXTERNAL_REFERRAL": "External referral",
         "ONLINE_BOOKING": "Online booking"
+      },
+      "track": {
+        "title": "Your race to the reward",
+        "subtitle": "Every goal you meet moves your horse {amount} ahead",
+        "subtitleManager": "Your horse moves with your team’s average",
+        "earned": "You’re at",
+        "goalFull": "Full reward",
+        "start": "Start",
+        "finish": "Finish",
+        "missing": "{amount} to go",
+        "missingGoals": "{n, plural, one {# goal left} other {# goals left}}",
+        "done": "You reached the full reward!",
+        "doneSub": "You met all {n} goals this month.",
+        "doneSubManager": "Your whole team met their goals.",
+        "aria": "You have {earned} of {total}"
       }
     }
   },

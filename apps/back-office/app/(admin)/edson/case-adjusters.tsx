@@ -18,7 +18,7 @@
 import { useState, useEffect, useCallback, useImperativeHandle, useRef, type Ref } from 'react';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
-import { Plus, X, Mail, Phone, Printer, Loader2, MapPin } from 'lucide-react';
+import { Plus, X, Mail, Phone, Printer, Loader2, MapPin, Trash2 } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import { localeApp } from '@/lib/fechas';
 import { CopyLine } from './case-managers';
@@ -198,7 +198,7 @@ interface AdjusterDelCatalogo {
  * dejaba la lista vacía en el 83% de los casos.
  */
 function CatalogoAdjusters({
-  carrierId, onPick, saving, onCrear,
+  carrierId, onPick, saving, onCrear, onBorrar,
 }: {
   carrierId: string | null;
   onPick: (a: AdjusterDelCatalogo) => void;
@@ -216,6 +216,19 @@ function CatalogoAdjusters({
    * adjuster. O sea que el riesgo real es chico y ya tiene freno.
    */
   onCrear?: (nombre: string) => void;
+  /**
+   * Borrar del CATALOGO al que se dio de alta por error.
+   *
+   * Existe porque el alta desde acá es de un clic y equivocarse cuesta lo mismo
+   * — Erick creo "test" probando el 2026-09-28 y no tenia como sacarlo. Sin
+   * esto, cada prueba queda para siempre en una lista que usan todos.
+   *
+   * NO es lo mismo que quitar al ajustador del caso, que ya existia arriba: eso
+   * deshace una asignacion, esto saca a la persona del catalogo. La ruta se
+   * niega si tiene casos vivos, asi que esto solo puede borrar lo que no usa
+   * nadie.
+   */
+  onBorrar?: (a: AdjusterDelCatalogo, error: string) => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const [q, setQ] = useState('');
@@ -223,11 +236,32 @@ function CatalogoAdjusters({
   const [cargando, setCargando] = useState(true);
   /** Fila resaltada: con flechas se mueve y con Enter se elige. */
   const [hi, setHi] = useState(0);
+  /** Se incrementa para volver a pedir la lista sin cambiar la busqueda. */
+  const [refrescar, setRefrescar] = useState(0);
+  const serverError = useServerError();
   const inputRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
 
   // Debounce, por lo mismo que el buscador de la grilla: sin esto cada tecla
   // dispara una consulta.
+  /**
+   * Borra del catalogo al que se creo por error, y refresca la lista.
+   *
+   * Vive ACA y no en el padre porque la lista es de este componente: el padre
+   * no tiene como volver a pedirla. `onBorrar` queda solo para avisarle.
+   *
+   * El borrado es LOGICO y el alta revive por nombre, asi que equivocarse se
+   * deshace volviendo a crear el mismo. Y si tiene casos vivos la ruta se niega
+   * con ADJUSTER_IN_USE, que ahora el cliente sabe redactar.
+   */
+  async function borrar(a: AdjusterDelCatalogo) {
+    if (!window.confirm(t("adjusterDeleteAsk", { name: a.name }))) return;
+    const res = await fetch(`/api/admin/adjusters?id=${encodeURIComponent(a.id)}`, { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) { onBorrar?.(a, serverError(json as ServerErrorBody, t("errSave"))); return; }
+    setRefrescar(n => n + 1);
+  }
+
   useEffect(() => {
     let vivo = true;
     const id = setTimeout(async () => {
@@ -242,7 +276,7 @@ function CatalogoAdjusters({
       } finally { if (vivo) setCargando(false); }
     }, q ? 300 : 0);
     return () => { vivo = false; clearTimeout(id); };
-  }, [q, carrierId]);
+  }, [q, carrierId, refrescar]);
 
   // El foco arranca en el buscador: se abre y se escribe, sin un clic de más.
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -305,26 +339,46 @@ function CatalogoAdjusters({
             // otra compañía sea una decisión y no un descuido.
             const esDelCaso = !!carrierId && a.insuranceCarrier?.id === carrierId;
             return (
-              <button
+              /* Un <div> y no un <button>: el de borrar va ADENTRO de la fila y
+                 un boton dentro de otro no es HTML valido — el navegador lo
+                 desarma y el clic de adentro se pierde. */
+              <div
                 key={a.id}
-                type="button"
-                disabled={saving}
                 data-hi={i === hi ? '1' : undefined}
                 onMouseEnter={() => setHi(i)}
-                onClick={() => onPick(a)}
-                className={'w-full text-left px-2.5 py-1.5 border-b border-row-sep last:border-0 disabled:opacity-50 flex items-baseline gap-2 '
+                className={'group/adj flex items-baseline gap-2 border-b border-row-sep last:border-0 '
                   + (i === hi ? 'bg-brand/15' : 'hover:bg-white/[0.02]')}
               >
-                <span className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => onPick(a)}
+                  className="min-w-0 flex-1 text-left px-2.5 py-1.5 disabled:opacity-50"
+                >
                   <span className="block text-[12.5px] text-text-1 truncate">{a.name}</span>
                   <span className="block text-[11px] text-text-muted truncate">
                     {withExt(a.phone, a.extension) ?? '—'}
                   </span>
-                </span>
+                </button>
                 <span className={`shrink-0 text-[10px] ${esDelCaso ? 'text-brand-text font-semibold' : 'text-text-muted'}`}>
                   {a.insuranceCarrier?.name ?? '—'}
                 </span>
-              </button>
+                {/* Aparece al pasar por encima: borrar del catalogo compartido
+                    no puede estar siempre a la vista al lado de un clic que se
+                    usa cien veces por dia. */}
+                {onBorrar && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void borrar(a)}
+                    title={t('adjusterDelete')}
+                    aria-label={t('adjusterDelete')}
+                    className="shrink-0 mr-1.5 p-1 rounded text-text-muted opacity-0 group-hover/adj:opacity-100 focus:opacity-100 hover:text-rose hover:bg-rose/10"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -398,6 +452,30 @@ export function AdjustersPopover({
    * está bien que quede: es un dato válido del catálogo, y al reintentar ya
    * aparece en la lista en vez de crearse dos veces.
    */
+  /**
+   * Telefono de EE.UU. mientras se escribe: (801) 555-1234.
+   *
+   * Antes el campo aceptaba cualquier cosa y de cualquier largo: 15 digitos,
+   * puntos, guiones, lo que sea. Erick el 2026-09-28: "me deja poner mas
+   * numeros y si pongo puntos o guiones tambien deberia controlar ello".
+   *
+   * Se queda con los DIGITOS y descarta el resto, asi pegar "801.555.1234" o
+   * "801-555-1234" desde un correo del bufete funciona igual. El 1 de larga
+   * distancia al principio se tira: 11 digitos que empiezan con 1 son el mismo
+   * numero.
+   *
+   * Corta en 10. No es una validacion que rechaza —eso frena a quien esta
+   * escribiendo— sino un formato que se aplica solo.
+   */
+  function formatearTelefono(v: string): string {
+    let d = v.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+    d = d.slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+
   async function crearYAsignar() {
     if (!alta) return;
     if (!alta.carrier) { setError(t('adjusterCreateNeedsCarrier')); return; }
@@ -431,6 +509,31 @@ export function AdjustersPopover({
    * Edson puede poner al segundo, que es el caso que él mismo describió
    * ("Kenneth Kelly or Patricia Leon"). Se cierra con Escape o clic afuera.
    */
+  /**
+   * Quitar al ajustador DEL CASO desde el panel.
+   *
+   * El panel ya dejaba asignar pero no desasignar: para sacar a uno habia que
+   * abrir el modal, que es donde vivia el unico boton. Erick lo reporto el
+   * 2026-09-28 con un "Erick Test" que se le habia colado: "no hay como
+   * quitarlo".
+   *
+   * No confundir con borrar del CATALOGO (el tacho en la lista de abajo): esto
+   * deshace la asignacion y la persona sigue existiendo para los demas casos.
+   */
+  async function quitar(assignmentId: string) {
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/adjusters?id=${encodeURIComponent(assignmentId)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(serverError(json as ServerErrorBody, t('errSave')));
+        return;
+      }
+      await reload();
+      onChanged?.();
+    } finally { setSaving(false); }
+  }
+
   async function asignar(adjusterId: string) {
     setSaving(true); setError('');
     try {
@@ -466,7 +569,7 @@ export function AdjustersPopover({
           <div className="text-[10px] uppercase tracking-wider font-semibold text-amber">
             {t('groupAdjusters')}
           </div>
-          {current.map(a => <AdjusterCard key={a.id} a={a} />)}
+          {current.map(a => <AdjusterCard key={a.id} a={a} onRemove={() => void quitar(a.id)} />)}
         </>
       )}
 
@@ -529,13 +632,16 @@ export function AdjustersPopover({
           <div className="flex gap-2">
             <input
               value={alta.phone}
-              onChange={(e) => setAlta({ ...alta, phone: e.target.value })}
+              onChange={(e) => setAlta({ ...alta, phone: formatearTelefono(e.target.value) })}
+              inputMode="tel"
               placeholder={t('adjusterCreatePhone')}
               className="flex-1 min-w-0 bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
             />
             <input
               value={alta.extension}
-              onChange={(e) => setAlta({ ...alta, extension: e.target.value })}
+              // Solo digitos y hasta 6: una extension es un numero interno, no texto.
+              onChange={(e) => setAlta({ ...alta, extension: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+              inputMode="numeric"
               placeholder={t('adjusterCreateExt')}
               className="w-16 shrink-0 bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
             />
@@ -559,6 +665,7 @@ export function AdjustersPopover({
           carrierId={carrier?.id ?? null}
           onPick={(a) => void asignar(a.id)}
           saving={saving}
+          onBorrar={(_adj, msg) => setError(msg)}
           onCrear={(nombre) => setAlta({
             nombre,
             phone: '',
@@ -648,7 +755,19 @@ export function AdjustersSection({
     finally { setSaving(false); }
   }
 
-  async function assign() {
+  /**
+   * Devuelve `true` solo si QUEDO GUARDADO.
+   *
+   * Antes devolvia `void` y `flush` hacia `await assign(); return true;` —o sea
+   * que un fallo del servidor terminaba con el modal cerrandose igual y el
+   * error escrito en una pantalla que ya no estaba. Erick, 2026-09-28: "lo
+   * escribes, das guardar y no guarda nada".
+   *
+   * Es el MISMO bug que `case-managers.tsx` tenia y que se arreglo el 26. Ahi
+   * lo encontre porque lo reportaron; aca sobrevivio porque nadie lo uso. Si
+   * aparece un tercer `flush`, esto ya es un patron y conviene un helper.
+   */
+  async function assign(): Promise<boolean> {
     setSaving(true); setError('');
     try {
       const body = { name: name.trim(), phone: phone.trim() || null, extension: ext.trim() || null,
@@ -661,12 +780,13 @@ export function AdjustersSection({
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         setError(serverError(json as ServerErrorBody, t('errSave')));
-        return;
+        return false;
       }
       setAdding(false); setName(''); setPhone(''); setExt(''); setFax(''); setEmail('');
       await reload();
       onChanged?.();
-    } catch { setError(t('errSave')); }
+      return true;
+    } catch { setError(t('errSave')); return false; }
     finally { setSaving(false); }
   }
 
@@ -680,7 +800,18 @@ export function AdjustersSection({
   useImperativeHandle(handleRef, () => ({
     // Devuelve si se puede seguir: el pie del modal se detiene con `false`.
     // Acá no hay campo que pueda fallar la validación, así que siempre sigue.
-    flush: async () => { if (adding && name.trim()) await assign(); return true; },
+    flush: async () => {
+      if (!adding) return true;
+      if (name.trim()) return assign();
+      /*
+        * Escribio el telefono o el correo pero no el nombre. Antes esto caia en
+        * el `return true` y se perdia sin decir nada — el mismo descarte
+        * silencioso que tenia Case Managers.
+        */
+      const algoEscrito = !!(phone.trim() || ext.trim() || fax.trim() || email.trim());
+      if (algoEscrito) { setError(t('adjusterNameRequired')); return false; }
+      return true;
+    },
   }));
 
   const fmt = (d: string) =>

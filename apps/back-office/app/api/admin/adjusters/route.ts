@@ -318,6 +318,28 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const before = await db.insuranceAdjuster.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
+  /*
+   * No se borra uno que este EN USO.
+   *
+   * El catalogo es compartido: borrar a un ajustador asignado a 30 casos se los
+   * deja sin nadie a quien llamar, y como la fila del caso apunta por FK a una
+   * persona ahora borrada, la columna queda vacia sin decir por que. Es la
+   * misma forma del bug que ya tuvimos con el INNER JOIN.
+   *
+   * Esto existe para deshacer un alta EQUIVOCADA —Erick creo "test" probando el
+   * 2026-09-28— y ese caso siempre tiene cero asignaciones vivas o una sola, la
+   * que se quita primero desde el mismo panel.
+   */
+  const enUso = await db.caseAdjuster.count({
+    where: { adjusterId: id, removedAt: null },
+  });
+  if (enUso > 0) {
+    return NextResponse.json(
+      { error: 'ADJUSTER_IN_USE', params: { count: enUso } },
+      { status: 409 },
+    );
+  }
+
   const deleted = await db.insuranceAdjuster.update({
     where: { id },
     data: { deletedAt: new Date(), status: 'INACTIVE' },

@@ -448,7 +448,9 @@
       "srvCASE_NOT_FOUND": "The patient's case could not be found. Close this window and open it again.",
       "srvCLINIC_NOT_FOUND": "That clinic could not be found.",
       "srvPROVIDER_NOT_FOUND": "That provider could not be found.",
-      "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening."
+      "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening.",
+      "srvADJUSTER_IN_USE": "Cannot delete: this adjuster is assigned to {count} case(s). Remove them first.",
+      "srvADJUSTER_NOT_FOUND": "That adjuster no longer exists."
     },
     "push": {
       "msgNuevo": "New message",
@@ -6974,7 +6976,10 @@
       "adjusterCreateNeedsCarrier": "Pick the carrier from the list — the catalog needs it.",
       "adjusterCreateFailed": "Could not add to the catalog.",
       "caseTypeFu": "MVA F/U",
-      "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it."
+      "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it.",
+      "adjusterNameRequired": "An adjuster needs a name.",
+      "adjusterDeleteAsk": "Delete “{name}” from the shared catalog?",
+      "adjusterDelete": "Delete from catalog"
     },
     "online": {
       "badge": "Online visit",

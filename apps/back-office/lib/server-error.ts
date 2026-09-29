@@ -94,6 +94,10 @@ const KNOWN = new Set([
   'NOT_INACTIVE',
   // Catálogos y archivos
   'CARRIER_NOT_FOUND',
+  // Faltaban: la ruta de adjusters los emite desde siempre y el cliente caia al
+  // generico "no se pudo completar la accion", que no dice nada.
+  'ADJUSTER_NOT_FOUND',
+  'ADJUSTER_IN_USE',
   'FOLDER_NOT_EMPTY',
   'HAS_APPOINTMENTS',
   'TARGET_DELETED',

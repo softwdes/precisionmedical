@@ -1163,9 +1163,14 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                recepcion, el tooltip lo dice: no es lo mismo que
                                Edson lo haya confirmado. */
                             title={esSoloUnaPista(row) ? t('caseTypeFuNote') : t('caseTypeHint')}
-                            /* Mismo gesto que provider: doble clic y la lista entera. */
+                            /*
+                              * Un SOLO clic. El doble clic lo habia pedido Edson
+                              * dos veces —venia de un Excel, donde asi se edita—
+                              * y Erick lo dio vuelta el 2026-09-28 despues de
+                              * usarlo: "quitemosle el doble clic, que sea solo un
+                              * clic". Gana quien lo usa todos los dias.
+                              */
                             abreConLaLista
-                            abreConDobleClic
                             readOnly={archived}
                             onSave={next => cambiarTipo(row, next)}
                           />
@@ -1271,8 +1276,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                    * ver a los demás.
                                    */
                                   abreConLaLista
-                                  /* Doble clic, como en el Excel del que viene. */
-                                  abreConDobleClic
+                                  /* Un solo clic desde el 2026-09-28 — ver la celda de Tipo. */
                                   /*
                                    * Solo de la lista: acá no hay texto libre.
                                    * El provider es una ficha real con NPI, y un
@@ -1424,11 +1428,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                * abriendo: si no, la celda quedaba sin forma de
                                * abrirse sin mouse.
                                */
-                              onClick={(e) => {
-                                if (e.detail !== 0) return;
-                                openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget);
-                              }}
-                              onDoubleClick={(e) => openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget)}
+                              // Un solo clic. Antes el `e.detail !== 0` dejaba pasar
+                              // SOLO el teclado y el mouse tenia que hacer doble.
+                              onClick={(e) => openPanel(setAdjustersFor, row.caseId, adjustersFor, e.currentTarget)}
                               title={t('adjustersOpen')}
                               className="text-left max-w-[150px] flex items-center gap-1.5 hover:text-text-1 select-none"
                             >

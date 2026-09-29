@@ -2279,7 +2279,13 @@
       "snpSaveEmpty": "Esta sección está vacía, no hay nada que guardar.",
       "snpSaveConfirm": "Guardar snippet",
       "snpSaveCancel": "Cancelar",
-      "snpSaveError": "No se pudo guardar el snippet. Intentá de nuevo."
+      "snpSaveError": "No se pudo guardar el snippet. Intentá de nuevo.",
+      "caseOpenVisit": "Abrir la visita",
+      "caseReopenAction": "Reabrir para corregir",
+      "caseReopenFbExpired": "La ventana de 48 h se venció mientras tenías esta pantalla abierta. Lo que falte se agrega con un addendum.",
+      "caseReopenFbNotYours": "Solo puede reabrirla quien la firmó, o un super administrador.",
+      "caseReopenFbAlready": "Esta nota ya se reabrió una vez. Lo que falte se agrega con un addendum.",
+      "caseReopenFbError": "No se pudo reabrir la nota. Intentá de nuevo."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

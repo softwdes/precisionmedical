@@ -34,7 +34,10 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronRight, Loader2, Printer, Lock, Plus, FilePlus2, Clock } from 'lucide-react';
+import {
+  ChevronDown, ChevronRight, Loader2, Printer, Lock, Plus, FilePlus2, Clock,
+  Unlock, Stethoscope,
+} from 'lucide-react';
 import { AgregarAddendumDialog } from './agregar-addendum-dialog';
 import { TagPill } from '@/components/ui-phoenix';
 import { safeHtml, hasText } from '@/lib/safe-html';
@@ -85,6 +88,51 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
   const [printId, setPrintId] = React.useState<string | null>(null);
   /** Cita cuya nota está recibiendo un addendum. `null` = diálogo cerrado. */
   const [addendumPara, setAddendumPara] = React.useState<string | null>(null);
+  /** Cita que se está reabriendo. Apaga el botón mientras viaja el pedido. */
+  const [reabriendo, setReabriendo] = React.useState<string | null>(null);
+  /** El rechazo, pegado a SU nota: la lista puede tener varias. */
+  const [errorReabrir, setErrorReabrir] = React.useState<{ appointmentId: string; mensaje: string } | null>(null);
+
+  /**
+   * Reabre y LLEVA a la consulta, en un solo movimiento.
+   *
+   * La navegación no es un extra: reabrir convierte una nota firmada en
+   * editable, y dejar a la persona en el expediente —donde el cuerpo es solo
+   * lectura— sería desfirmar un registro clínico y no darle dónde corregirlo.
+   *
+   * Se usa `window.location` y no el router: la consulta es una pantalla pesada
+   * que arranca de cero y tiene que leer la nota YA reabierta. Un push del
+   * cliente podría servirla desde la caché con el estado anterior — que es
+   * exactamente el bug del "la nota se veía vacía" del 23-sep.
+   */
+  const reabrir = async (appointmentId: string): Promise<void> => {
+    setReabriendo(appointmentId);
+    setErrorReabrir(null);
+    try {
+      const res = await fetch(`/api/admin/visit-notes/${appointmentId}/reopen`, { method: 'POST' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}) as { motivo?: string });
+        /* Los motivos que el servidor distingue se dicen con su nombre; el resto
+           cae en el genérico. Que la pantalla se haya adelantado y ofrecido el
+           botón igual es posible: la ventana pudo vencer entre la carga y el
+           clic. */
+        setErrorReabrir({
+          appointmentId,
+          mensaje:
+            d.motivo === 'ventana-vencida' ? t('caseReopenFbExpired')
+            : d.motivo === 'no-es-suya'    ? t('caseReopenFbNotYours')
+            : d.motivo === 'ya-reabierta'  ? t('caseReopenFbAlready')
+            : t('caseReopenFbError'),
+        });
+        return;
+      }
+      window.location.href = `/doctor/consultation/${appointmentId}`;
+    } catch {
+      setErrorReabrir({ appointmentId, mensaje: t('caseReopenFbError') });
+    } finally {
+      setReabriendo(null);
+    }
+  };
 
   /**
    * La carga, en una función propia: además del montaje la necesita el diálogo
@@ -216,17 +264,48 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
                     ve que "desapareció" y no sabe si se rompió algo. Fue
                     literalmente la pregunta de Devin. */}
                 {n.ventanaCorreccion && (
-                  <div className={`mt-3 rounded-md px-3 py-2 text-[11px] flex items-start gap-1.5 ${
+                  <div className={`mt-3 rounded-md px-3 py-2 text-[11px] ${
                     n.ventanaCorreccion.abierta
                       ? 'bg-bg-2/40 text-text-muted'
                       : 'border border-amber/30 bg-amber/10 text-amber'
                   }`}>
-                    <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
-                    <span>
-                      {n.ventanaCorreccion.abierta
-                        ? t('caseReopenOpen', { date: fechaCorta(n.ventanaCorreccion.venceEn) })
-                        : t('caseReopenClosed', { date: fechaCorta(n.ventanaCorreccion.venceEn) })}
-                    </span>
+                    <div className="flex items-start gap-1.5">
+                      <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
+                      <span>
+                        {n.ventanaCorreccion.abierta
+                          ? t('caseReopenOpen', { date: fechaCorta(n.ventanaCorreccion.venceEn) })
+                          : t('caseReopenClosed', { date: fechaCorta(n.ventanaCorreccion.venceEn) })}
+                      </span>
+                    </div>
+
+                    {/* EL BOTÓN, acá mismo. Antes esta línea decía "se hace desde
+                        la consulta" y ahí terminaba: Devin fue a buscarla y no la
+                        encontró, ni por el calendario (2026-09-29). Una
+                        instrucción que no se puede seguir es peor que no decir
+                        nada.
+
+                        Reabre Y NAVEGA. Dejarlo en el expediente sin llevarlo a
+                        la consulta sería lo peor de los dos mundos: la nota
+                        firmada queda editable y la persona sin dónde editarla. */}
+                    {n.puedeReabrir && (
+                      <button
+                        type="button"
+                        disabled={reabriendo !== null}
+                        onClick={() => void reabrir(n.appointmentId)}
+                        className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-violet-text hover:underline disabled:opacity-50"
+                      >
+                        {reabriendo === n.appointmentId
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Unlock className="w-3.5 h-3.5" />}
+                        {t('caseReopenAction')}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {errorReabrir?.appointmentId === n.appointmentId && (
+                  <div className="mt-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
+                    {errorReabrir.mensaje}
                   </div>
                 )}
 
@@ -282,15 +361,40 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
                   </div>
                 )}
 
-                {n.status === 'SIGNED' && (
-                  <button
-                    type="button"
-                    onClick={() => setPrintId(n.appointmentId)}
-                    className="inline-flex items-center gap-1.5 mt-3 text-[11.5px] font-semibold text-violet hover:underline"
-                  >
-                    <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
-                  </button>
-                )}
+                <div className="flex items-center gap-4 flex-wrap mt-3">
+                  {/* LA PUERTA A LA CONSULTA, que no existía en ningún lado para
+                      una nota ya firmada.
+
+                      A la consulta se entraba por dos lados: Mi Día del día de
+                      la visita —hay que saber la fecha— y la cola de notas sin
+                      cerrar, que EXCLUYE las firmadas. O sea que para una nota
+                      firmada no había ninguna lista que la ofreciera. El
+                      calendario del doctor reusa el del admin y abre el panel de
+                      la cita, que tampoco lleva.
+
+                      Va SIEMPRE, no solo dentro de la ventana: la consulta es
+                      también donde se ven los cargos, los labs y las recetas de
+                      esa visita. Y solo para el dueño (`esMiVisita`), porque la
+                      consulta filtra por provider y a otro le daría 404. */}
+                  {n.esMiVisita && (
+                    <a
+                      href={`/doctor/consultation/${n.appointmentId}`}
+                      className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-violet-text hover:underline"
+                    >
+                      <Stethoscope className="w-3.5 h-3.5" /> {t('caseOpenVisit')}
+                    </a>
+                  )}
+
+                  {n.status === 'SIGNED' && (
+                    <button
+                      type="button"
+                      onClick={() => setPrintId(n.appointmentId)}
+                      className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-violet hover:underline"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

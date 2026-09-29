@@ -76,6 +76,29 @@ export interface CaseVisitNote {
    * `null` cuando no aplica: la nota no está firmada, o ya se reabrió.
    */
   ventanaCorreccion: { abierta: boolean; venceEn: string } | null;
+  /**
+   * ¿Esta persona puede ABRIR la consulta de esta visita?
+   *
+   * La consulta filtra por `providerId: provider.id` — solo las visitas propias.
+   * Sin este dato la pantalla dibujaría un enlace que a un admin le da 404.
+   *
+   * Existe porque el cartel de la ventana decía "se hace desde la consulta de
+   * esa visita" y Devin no encontraba cómo llegar (2026-09-29): *"I don't see a
+   * way to access that consultation. Even looking back on the calendar it's not
+   * there."* Tenía razón — a la consulta se entra por Mi Día del día de la
+   * visita, o por la cola de notas sin cerrar, que EXCLUYE las firmadas, que son
+   * justo las que se pueden reabrir. Una instrucción que no se puede seguir es
+   * peor que no decir nada.
+   */
+  esMiVisita: boolean;
+  /**
+   * ¿Y puede reabrirla desde acá?
+   *
+   * Sale del MISMO `evaluarReapertura` que aplica la ruta que reabre, preguntado
+   * con el usuario real — no con la ventana a secas. Si la pantalla lo dedujera
+   * sola, dibujaría el botón con una regla mientras el servidor aplica otra.
+   */
+  puedeReabrir: boolean;
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
@@ -140,6 +163,17 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const esAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const miCorreo = user.email.toLowerCase();
 
+  /**
+   * El id con el que se compara `signedById`. Se busca por correo y de la MISMA
+   * forma que la ruta que reabre: si acá se resolviera distinto, el botón y el
+   * servidor discreparían sobre de quién es la firma.
+   */
+  const dbUser = await db.user.findFirst({
+    where: { email: { equals: user.email, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  const ahora = new Date();
+
   const notes: CaseVisitNote[] = rows.map((n) => ({
     appointmentId: n.appointment.id,
     scheduledFor: n.appointment.scheduledFor.toISOString(),
@@ -149,23 +183,30 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       signedAt: a.signedAt.toISOString(), signedByName: a.signedByName,
     })),
     /**
-     * Se calcula con `evaluarReapertura`, el MISMO helper que usa la ruta que
-     * reabre. Recalcular acá las 48 h a mano sería tener la regla escrita en
-     * dos lugares: el día que cambie, la pantalla del caso mentiría.
+     * UNA sola llamada a `evaluarReapertura` —el MISMO helper que aplica la ruta
+     * que reabre— y de ella salen las dos cosas: el estado de la VENTANA (para
+     * el cartel, que es información de la nota y no de quien mira) y si ESTA
+     * persona puede reabrirla (para el botón).
      *
-     * Se pregunta con el usuario REAL, y de la respuesta se usa solo el
-     * vencimiento: lo que esta línea informa es el estado de la VENTANA, no si
-     * esta persona en particular puede reabrir.
+     * Antes se preguntaba con `signedById: null` porque solo hacía falta el
+     * vencimiento. Ahora que hay botón hay que preguntar de verdad: con el id
+     * del usuario y su rol, igual que el servidor.
      */
-    ventanaCorreccion: (() => {
-      if (n.status !== 'SIGNED' || !n.signedAt || n.reopenedAt) return null;
+    ...(() => {
       const v = evaluarReapertura(
-        { status: n.status, signedAt: n.signedAt, signedById: null, reopenedAt: n.reopenedAt },
-        null, null, new Date(),
+        { status: n.status, signedAt: n.signedAt, signedById: n.signedById, reopenedAt: n.reopenedAt },
+        dbUser?.id ?? null, role, ahora,
       );
-      if (!v.venceEn) return null;
-      return { abierta: v.motivo !== 'ventana-vencida', venceEn: v.venceEn.toISOString() };
+      return {
+        ventanaCorreccion: v.venceEn
+          ? { abierta: v.motivo !== 'ventana-vencida', venceEn: v.venceEn.toISOString() }
+          : null,
+        puedeReabrir: v.puede,
+      };
     })(),
+    /* La consulta es del provider de la cita y de nadie más: el enlace se ofrece
+       solo a quien le va a abrir. Un admin lo tocaría y se comería un 404. */
+    esMiVisita: n.appointment.provider?.email?.toLowerCase() === miCorreo,
     ...(() => {
       const suya = n.appointment.provider?.email?.toLowerCase() === miCorreo;
       if (n.status !== 'SIGNED') return { puedeAgregarAddendum: false, motivoSinAddendum: 'sin-firmar' as const };

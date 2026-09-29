@@ -13,9 +13,30 @@
  * archivo, no veinte llamadas repartidas.
  */
 
-function escapeHtml(s: string): string {
+/**
+ * Escapa para insertar como texto, RESPETANDO las entidades que ya venían.
+ *
+ * El `&` solo se escapa cuando NO abre una entidad válida. Un `&` suelto sigue
+ * saliendo `&amp;`; un `&nbsp;` que ya estaba se deja pasar y el navegador lo
+ * dibuja como el espacio que es.
+ *
+ * ── Por qué ────────────────────────────────────────────────────────────────
+ *
+ * Devin reportó "extra letters" en un addendum (2026-09-29): en pantalla se leía
+ * `Testing Addendum after 48-hour&nbsp; window&nbsp;`. No eran letras — era el
+ * código de un espacio dibujándose literal, porque acá se escapaba su `&`.
+ *
+ * Cae en esta rama cualquier texto SIN etiquetas, que es lo normal cuando se
+ * escribe una línea corta y no se aprieta Enter: el editor no envuelve en <p>
+ * pero sí convierte los espacios finales en `&nbsp;`. O sea que no era un
+ * problema del addendum: le pasaba a cualquier sección de nota en ese estado.
+ *
+ * Sigue siendo seguro: `<` y `>` se escapan igual, así que por acá no puede
+ * entrar ninguna etiqueta. Lo único que sobrevive son entidades, que son inertes.
+ */
+function escapeHtmlConservandoEntidades(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
+    .replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#\d{1,7}|#[xX][0-9a-fA-F]{1,6});)/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
@@ -27,7 +48,7 @@ export function safeHtml(raw: string | null | undefined): string {
   // Texto pelado (notas viejas del v2, o pegado sin formato) → un párrafo, con
   // los saltos de línea respetados.
   const looksHtml = /<\/?(p|div|br|ul|ol|li|h[1-6]|strong|b|em|i|u|blockquote|a|span)\b/i.test(raw);
-  if (!looksHtml) return `<p>${escapeHtml(raw).replace(/\n/g, '<br/>')}</p>`;
+  if (!looksHtml) return `<p>${escapeHtmlConservandoEntidades(raw).replace(/\n/g, '<br/>')}</p>`;
   return raw
     // Casillas y blancos de los snippets (ver rich-text-editor.tsx): en la nota
     // son <input> reales; para imprimir y para el historial se dibujan como

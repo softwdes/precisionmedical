@@ -2279,7 +2279,13 @@
       "snpSaveEmpty": "This section is empty — there is nothing to save.",
       "snpSaveConfirm": "Save snippet",
       "snpSaveCancel": "Cancel",
-      "snpSaveError": "The snippet couldn't be saved. Please try again."
+      "snpSaveError": "The snippet couldn't be saved. Please try again.",
+      "caseOpenVisit": "Open the visit",
+      "caseReopenAction": "Reopen to correct",
+      "caseReopenFbExpired": "The 48-hour window expired while this screen was open. Anything missing is added with an addendum.",
+      "caseReopenFbNotYours": "Only the provider who signed it, or a super administrator, can reopen it.",
+      "caseReopenFbAlready": "This note has already been reopened once. Anything missing is added with an addendum.",
+      "caseReopenFbError": "The note couldn't be reopened. Please try again."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

@@ -213,6 +213,30 @@ export function correoUsable(email: string | null | undefined): string | null {
   const limpio = email?.trim();
   if (!limpio) return null;
   if (limpio.toLowerCase().endsWith(DOMINIO_SIN_CORREO)) return null;
+  /**
+   * La MISMA regla que aplica `sendEmail` antes de mandar (`EMAIL_RE`).
+   *
+   * Estaba en un solo lado y tarde: una dirección imposible pasaba por acá
+   * como "tiene correo", el código tomaba el camino del correo y recién
+   * abajo moría con `INVALID_TO`. Para el recordatorio de 24 h, que va SOLO
+   * por correo, eso es un paciente que no recibe nada mientras el sistema
+   * cree tener por dónde avisarle.
+   *
+   * Medido el 2026-09-29 corriendo esta misma función sobre los 5.787
+   * pacientes: **15** tienen una dirección que no es una dirección. Cuatro con
+   * un espacio adentro (`jorgeayalarangel@gmail .com`), diez a las que les
+   * falta el punto del dominio (`hotmailcom`, `@gmail`, `@gmai`) y una sin
+   * arroba (`fairest80msn.com`). Son dedazos de carga, no direcciones raras.
+   *
+   * Un `LIKE` de SQL encontraba solo 11: los cuatro del espacio aparecieron
+   * al correr la función de verdad. Ninguno tiene cita futura hoy, así que
+   * esto no está lastimando a nadie ahora mismo — muerde cuando se los agende.
+   *
+   * Rechazarlas acá hace que el aviso responda `SIN_EMAIL`, que es la verdad,
+   * y que recepción lo vea y llame. NO se corrigen solas: adivinar el dominio
+   * mandaría la cita de un paciente a la casilla de un desconocido.
+   */
+  if (!EMAIL_RE.test(limpio)) return null;
   return limpio;
 }
 

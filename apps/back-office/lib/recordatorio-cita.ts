@@ -33,13 +33,13 @@ import { db, isMinor } from '@precision-medical/database';
 import { sendSms } from '@/lib/sms';
 import { sendEmail, correoUsable } from '@/lib/email';
 import {
-  buildAppointmentReminderSms, buildAppointmentReminderEmail,
+  buildAppointmentReminderEmail,
   buildAppointmentRescheduleEmail, buildAppointmentCancelledEmail,
-  buildAppointmentRescheduleSms,
   correoDeCitaTexto, correoDeCitaHtml,
   idiomaDelPaciente, type DatosDeCita, type CorreoDeCita,
 } from '@/lib/portal-message';
 import { fechaParaSms, horaParaSms, fechaSolaParaCorreo } from '@/lib/fechas';
+import { armarSmsDeLaBase } from '@/lib/plantillas-sms-db';
 import { horarioYaPaso } from '@/lib/scheduling-rules';
 
 /** Minutos antes de la cita a los que se le pide llegar. */
@@ -215,7 +215,28 @@ export async function enviarRecordatorioDeCita(args: {
     // y si hay que nombrar al paciente — todo resuelto por el cargador
     // compartido, el mismo que usan el recordatorio de 24 h y el de
     // reprogramación. Acá vivía una segunda copia de esas cuatro reglas.
-    const body = buildAppointmentReminderSms(cita.datos);
+    /**
+     * El texto sale del catalogo de plantillas, que la clinica puede editar.
+     *
+     * Mientras nadie edite nada rinde EXACTAMENTE lo mismo que la funcion
+     * que estaba acá: hay una prueba que compara las dos en 52 combinaciones
+     * (idioma x paciente nombrado x direccion x telefono x telemedicina x
+     * enlace) y las 52 dan identico. Ver `lib/plantillas-sms.ts`.
+     */
+    const d = cita.datos;
+    const body = await armarSmsDeLaBase({
+      clave: d.enLinea ? 'cita_alta_online' : 'cita_alta',
+      lang:  d.lang,
+      valores: {
+        paciente:    d.nombrePaciente,
+        fecha:       d.cuando,
+        sede:        d.clinica,
+        direccion:   d.direccion,
+        horaLlegada: d.horaLlegada,
+        telefono:    d.telefono,
+        enlace:      d.enlace,
+      },
+    });
 
     const res = await sendSms({
       to: cita.telefono,
@@ -389,11 +410,22 @@ export async function avisarReprogramacion(args: {
     if (!cita.telefono) {
       smsMotivo = 'SIN_TELEFONO';
     } else {
-      const body = buildAppointmentRescheduleSms({
-        ...cita.datos,
-        // El canal es el TELÉFONO: se nombra al paciente según `sharesPhone`,
-        // que es lo que `cita.datos.nombrePaciente` ya trae resuelto.
-        cuandoAntes,
+      const d = cita.datos;
+      // El canal es el TELÉFONO: se nombra al paciente según `sharesPhone`,
+      // que es lo que `cita.datos.nombrePaciente` ya trae resuelto.
+      const body = await armarSmsDeLaBase({
+        clave: d.enLinea ? 'cita_cambio_online' : 'cita_cambio',
+        lang:  d.lang,
+        valores: {
+          paciente:      d.nombrePaciente,
+          fecha:         d.cuando,
+          fechaAnterior: cuandoAntes,
+          sede:          d.clinica,
+          direccion:     d.direccion,
+          horaLlegada:   d.horaLlegada,
+          telefono:      d.telefono,
+          enlace:        d.enlace,
+        },
       });
       const res = await sendSms({
         to: cita.telefono,

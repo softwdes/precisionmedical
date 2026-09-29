@@ -202,7 +202,11 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   // Comunicaciones: el historial de llamadas y el de SMS solo se abren desde la
   // lista de Patients (`CallHistoryDialog` / `SmsHistoryDialog`). Son el registro
   // de con quién se habló y qué se le mandó — no es un lookup compartido.
-  ['patients',  /^\/api\/admin\/(call-logs|message-logs)(\/|$)/, 'all'],
+  // `sms-templates` va con ellos y no aparte: el editor de plantillas se abre
+  // desde la MISMA pantalla, con el engranaje del historial. Separarlo en su
+  // propio modulo seria que alguien pueda ver los mensajes y no el texto que
+  // los genera, y esa distincion no la pidio nadie.
+  ['patients',  /^\/api\/admin\/(call-logs|message-logs|sms-templates)(\/|$)/, 'all'],
   // Solo la COLECCIÓN (la agenda del día de Admisión). Los subrecursos quedan
   // fuera a propósito: `[id]/check-in` lo llama el panel de cita del Calendario
   // y `[id]/admit` / `[id]/triage` el portal médico y la consulta.

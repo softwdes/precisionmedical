@@ -12,9 +12,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
-import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft, Settings, ArrowLeft } from 'lucide-react';
 import { EmptyState, FilterPill, PersonAvatar, StatusPill, TableFooter, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
+import { PatientThreadDialog, type PacienteDelHilo } from './patient-thread-dialog';
+import { SmsTemplatesEditor } from './sms-templates-editor';
 
 const CLINIC_TZ = 'America/Denver';
 const PAGE_SIZE = 10;
@@ -90,6 +92,11 @@ export function SmsHistoryDialog({
   const [dir, setDir]           = useState<DirFilter>('ALL');
   /** Se incrementa para forzar una recarga cuando algo local quedo dudoso. */
   const [recargar, setRecargar] = useState(0);
+  /** El paciente cuya conversacion se esta mirando. */
+  const [hilo, setHilo] = useState<PacienteDelHilo | null>(null);
+  /** El editor de plantillas reemplaza la lista DENTRO del mismo dialogo.
+      Un tercer modal encima robaria el foco — ya paso con el buscador de cargos. */
+  const [editando, setEditando] = useState(false);
   /** Lo tecleado. `q` es lo que ya se consultó: separarlos es lo que permite el debounce. */
   const [texto, setTexto]       = useState('');
   const [q, setQ]               = useState('');
@@ -189,14 +196,24 @@ export function SmsHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 shrink-0">
-          <DialogTitle className="text-text-1 flex items-center gap-2 text-base">
-            <MessageSquare className="w-4 h-4 text-brand-text" />
-            {t('title')}
+          <DialogTitle className="text-text-1 flex items-center justify-between gap-2 text-base">
+            <span className="flex items-center gap-2">
+              {editando ? <Settings className="w-4 h-4 text-brand-text" /> : <MessageSquare className="w-4 h-4 text-brand-text" />}
+              {editando ? t('tplTitle') : t('title')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setEditando(v => !v)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-text-2 text-[11px] font-medium hover:border-brand hover:text-brand-text transition-colors mr-6"
+            >
+              {editando ? <><ArrowLeft className="w-3 h-3" />{t('tplBack')}</> : <><Settings className="w-3 h-3" />{t('tplOpen')}</>}
+            </button>
           </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs">{t('subtitle')}</DialogDescription>
+          <DialogDescription className="text-text-muted text-xs">{editando ? t('tplSubtitle') : t('subtitle')}</DialogDescription>
         </DialogHeader>
 
         {/* Filtros — pills, no un formulario: son decisiones rápidas */}
+        {!editando && (
         <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterWho')}</span>
@@ -241,9 +258,12 @@ export function SmsHistoryDialog({
             />
           </div>
         </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-2 pb-4">
-          {loading && !data ? (
+          {editando ? (
+            <SmsTemplatesEditor />
+          ) : loading && !data ? (
             <SmsSkeleton />
           ) : error ? (
             <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose flex items-center justify-between gap-3 flex-wrap">
@@ -285,7 +305,20 @@ export function SmsHistoryDialog({
                           className={`border-b border-row-sep hover:bg-white/[0.02] transition-colors align-top ${r.direction === 'INBOUND' && !r.readAt ? 'bg-brand/[0.06]' : ''}`}
                         >
                           <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2">
-                            <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
+                            {/* El nombre abre la conversacion. Es el gesto que ya
+                                intentan hacer: el nombre se lee como un link. */}
+                            {r.patient ? (
+                              <button
+                                type="button"
+                                onClick={() => setHilo(r.patient)}
+                                className="text-left w-full hover:opacity-80 transition-opacity"
+                                title={t('openThread')}
+                              >
+                                <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
+                              </button>
+                            ) : (
+                              <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
+                            )}
                           </td>
                           <td className="px-4 py-2">
                             <StatusPill state={statusState(r.status)} label={statusLabel(r.status)} />
@@ -379,6 +412,14 @@ export function SmsHistoryDialog({
           )}
         </div>
       </DialogContent>
+
+      {/* La conversacion de un paciente, encima de la lista. Anidar dialogos
+          ya se hace en el wizard de caso nuevo con este mismo primitivo. */}
+      <PatientThreadDialog
+        patient={hilo}
+        onOpenChange={(o) => { if (!o) setHilo(null); }}
+        onEnviado={() => setRecargar(n => n + 1)}
+      />
     </Dialog>
   );
 }

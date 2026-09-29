@@ -4338,6 +4338,32 @@ model CallLog {
 /// Quien escribio. Hasta 2026-09-28 la tabla solo guardaba SALIENTES: no habia
 /// webhook de SMS entrante, asi que la respuesta del paciente se perdia y una
 /// "conversacion" era un monologo. Ver `api/twilio/sms-incoming`.
+/// El texto EDITADO de un mensaje automatico. Una fila por (clave, idioma).
+///
+/// Ausencia = el original. El texto por defecto vive en el codigo
+/// (`lib/plantillas-sms.ts`), asi que "restaurar el original" es BORRAR la
+/// fila, no copiar un texto de vuelta. Eso evita el problema clasico de estas
+/// tablas: una copia del default que se queda vieja el dia que el codigo
+/// cambia, y nadie se entera porque la pantalla muestra la copia.
+model SmsTemplate {
+  id String @id @default(cuid())
+
+  /// Una de `CLAVES_PLANTILLA`. No es enum de Prisma a proposito: agregar un
+  /// mensaje nuevo no deberia necesitar una migracion.
+  key  String
+  lang String
+
+  /// El cuerpo con sus variables. El cierre legal (HELP/STOP) NO esta aca: lo
+  /// pega el codigo y por eso no se puede borrar desde la pantalla.
+  body String
+
+  updatedAt       DateTime @updatedAt
+  updatedByUserId String?
+
+  @@unique([key, lang])
+  @@map("sms_templates")
+}
+
 enum MessageDirection {
   /// Lo mandamos nosotros.
   OUTBOUND

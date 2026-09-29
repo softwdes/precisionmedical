@@ -53,6 +53,15 @@ const QuerySchema = z.object({
    * contestaron, en el mismo orden— y no dos listas que hay que cruzar.
    */
   direction: z.enum(['ALL', 'IN', 'OUT']).default('ALL'),
+  /**
+   * El HILO de un paciente: todos sus mensajes, en los dos sentidos.
+   *
+   * Cuando viene, manda sobre el resto de los filtros de la pantalla. Abrir
+   * la conversacion de alguien y que aparezca recortada por el "Hoy" o el
+   * "Solo SMS" que habia puesto antes es la forma mas rapida de creer que
+   * faltan mensajes.
+   */
+  patientId: z.string().optional(),
   /** Nombre, codigo o telefono del paciente. Lo pidio la clinica por escrito. */
   q: z.string().trim().max(80).optional(),
   page:   z.coerce.number().int().min(0).default(0),
@@ -134,19 +143,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       }
     : {};
 
-  const where: Prisma.MessageLogWhereInput = {
-    ...channelWhere,
-    ...directionWhere,
-    ...scopeWhere,
-    ...searchWhere,
-    ...statusWhere,
-    ...(query.from || query.to ? { createdAt } : {}),
-  };
+  /**
+   * El hilo IGNORA los demas filtros a proposito (ver el schema). Se arma
+   * aparte y reemplaza al `where` entero, no se suma.
+   */
+  const where: Prisma.MessageLogWhereInput = query.patientId
+    ? { patientId: query.patientId }
+    : {
+        ...channelWhere,
+        ...directionWhere,
+        ...scopeWhere,
+        ...searchWhere,
+        ...statusWhere,
+        ...(query.from || query.to ? { createdAt } : {}),
+      };
 
   const [rows, total, mineCount, allCount, notDeliveredCount, inboundCount, unreadCount] = await Promise.all([
     db.messageLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: query.patientId ? 'asc' : 'desc' },
       skip: query.page * query.size,
       take: query.size,
       select: {

@@ -136,6 +136,21 @@
   --shadow-card-hover:
     0 1px 0 rgba(255,255,255,0.06) inset,
     0 16px 48px rgba(0,0,0,0.40);
+
+  /**
+   * Los controles NATIVOS del navegador también son oscuros.
+   *
+   * El tema claro declaraba `color-scheme: light` y el oscuro no declaraba nada,
+   * así que el navegador asumía claro: la lista desplegada de un `<select>`, las
+   * barras de scroll y los selectores de fecha salían color crema dentro de una
+   * app negra. Erick lo vio en "Assign provider..." de Day Admission el
+   * 28-sep-2026 — el desplegable se abría claro y con letra ámbar encima.
+   *
+   * Va acá y no en cada control: el navegador dibuja esas piezas y lo único que
+   * escucha es esta propiedad. Un arreglo por componente tendría que repetirse
+   * en cada `<select>` y no alcanzaría igual a las barras de scroll.
+   */
+  color-scheme: dark;
 }
 
 [data-theme='light'] {

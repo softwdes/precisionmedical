@@ -33,6 +33,28 @@
  * **labs**, que tienen su propio circuito y sus propios campos; el enlace a ese
  * tab se queda a la vista para eso.
  *
+ * ── Lo que lleva cada línea de seguro ───────────────────────────────────────
+ *
+ * Pedido de Devin (2026-09-29): *"Add 'Modifiers' to CPT codes… Also linking
+ * Diagnoses to CPT codes"*. Las dos cosas son casillas del CMS-1500, no adornos:
+ * sin el **25** un E/M junto a un procedimiento se paga una sola vez, sin el
+ * **95** una telemedicina se rechaza, y sin punteros de diagnóstico el claim
+ * afirma que los once diagnósticos de la nota justifican los tres CPT.
+ *
+ * Van en un detalle que se despliega por línea, con los modificadores puestos
+ * visibles en la fila cerrada —"99214-25", como se lee un claim— porque son la
+ * diferencia entre cobrar y que rechacen.
+ *
+ * La CANTIDAD viajó con ellos: el JSON indexa por código, así que dos
+ * aplicaciones del mismo inyectable se perdían. **El `fee` es el total de la
+ * línea, no el unitario** (casilla 24F), y por eso subir la cantidad no obligó a
+ * tocar las cinco pantallas que suman cargos — ver `lib/charges.ts`.
+ *
+ * Lo que este cambio NO hace: llevar estos datos al HCFA. Ese formulario saca
+ * sus líneas de `visit_service_codes`, una tabla que la nota no escribe —medido
+ * el 2026-09-29: las 7 notas firmadas en el sistema nuevo tienen 0 filas ahí—.
+ * Es un puente que falta y que se decidió atender aparte.
+ *
  * ── NO es parte del documento firmado ───────────────────────────────────────
  *
  * Y por eso se dibuja separado del cuerpo. Lo que se firma son las seis
@@ -58,7 +80,9 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, X, Loader2, Briefcase, AlertTriangle } from 'lucide-react';
+import {
+  Plus, X, Loader2, Briefcase, AlertTriangle, ChevronDown, ChevronRight, Minus,
+} from 'lucide-react';
 import { ChargePickerDialog, precioDeCargo, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { mapaDeCargos } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -67,9 +91,36 @@ export interface PlannedService {
   id: string;
   code: string;
   description: string;
+  /** El cargo de LA LÍNEA, ya multiplicado por `units`. Ver `lib/charges.ts`. */
   fee?: number;
   category?: string;
+  /** Modificadores CPT en orden, hasta 4 (casilla 24D del CMS-1500). */
+  modifiers?: string[];
+  /** ICD-10 que justifican la línea (24E). Ausente = todos los de la nota. */
+  dx?: string[];
+  /** Unidades (24G). Ausente = 1. */
+  units?: number;
 }
+
+/** Un diagnóstico de la nota, en lo mínimo que hace falta para vincularlo. */
+export interface DxDeLaNota {
+  icd10Code: string | null;
+  icd10Label: string | null;
+}
+
+/**
+ * Los que se ofrecen de un clic, en el orden en que se usan acá.
+ *
+ * NO salen del catálogo a propósito: `service_codes.modifiersAllowed` está
+ * cargado en 30 códigos de 408, y el 99214 —el más facturado, 2.248 usos— lo
+ * tiene vacío. Leerlo de ahí le habría dejado a Devin la lista en blanco justo
+ * en el código donde pidió el 25 y el 95. El campo libre siempre está.
+ */
+const SUGERIDOS = ['25', '59', '95', '50', 'RT', 'LT'] as const;
+
+/** Mayúsculas y sin el guión con el que algunos vienen del v2 ("-25" → "25"). */
+const normalizarModificador = (s: string): string =>
+  s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2);
 
 /** Fila real de `appointment_services` — lo que paga el paciente. */
 interface CargoEfectivo {
@@ -91,6 +142,15 @@ export interface NoteChargesProps {
   coverage: CoverageDTO;
   /** Los CPT que ya tiene la visita, del payload del server. */
   initial: PlannedService[];
+  /**
+   * Los diagnósticos que la nota tiene AHORA, para poder vincularlos a cada CPT.
+   *
+   * Vienen del editor —que es quien los tiene en estado— y no de una consulta
+   * propia: mientras se escribe la nota hay diagnósticos agregados que todavía
+   * no se guardaron, y vincular contra la versión del server ofrecería una lista
+   * vieja en la pantalla donde se acaban de agregar.
+   */
+  diagnosticos?: DxDeLaNota[];
   /** Llevar al tab de Servicios (férulas y labs). */
   onVerServicios?: () => void;
   /** Avisa al padre que la lista de CPT cambió, para refrescar lo que dependa. */
@@ -110,7 +170,8 @@ const money = (n: number | undefined): string =>
   typeof n === 'number' ? `$${n.toFixed(2)}` : '—';
 
 export function NoteCharges({
-  appointmentId, caseId, coverage, initial, onVerServicios, onChanged, onCuenta,
+  appointmentId, caseId, coverage, initial, diagnosticos = [],
+  onVerServicios, onChanged, onCuenta,
 }: NoteChargesProps): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const tc = useTranslations('phoenix.charges');
@@ -119,6 +180,21 @@ export function NoteCharges({
   const [guardando, setGuardando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pickerAbierto, setPickerAbierto] = React.useState(false);
+  /** Código del CPT con el detalle abierto. Uno a la vez: la lista es corta. */
+  const [abierto, setAbierto] = React.useState<string | null>(null);
+  /** Lo que se está tipeando en el campo de modificador, por código de CPT. */
+  const [borradorMod, setBorradorMod] = React.useState<Record<string, string>>({});
+
+  /** Los ICD-10 de la nota, sin los vacíos: es contra estos que se vincula. */
+  const codigosDx = React.useMemo(
+    () => diagnosticos.map((d) => d.icd10Code).filter((c): c is string => !!c),
+    [diagnosticos],
+  );
+  const etiquetaDx = React.useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of diagnosticos) if (d.icd10Code) m.set(d.icd10Code, d.icd10Label ?? '');
+    return m;
+  }, [diagnosticos]);
 
   /**
    * El server es la fuente: si el tab de Servicios agregó algo, esto tiene que
@@ -251,6 +327,64 @@ export function NoteCharges({
     void guardar(next, items);
   };
 
+  /**
+   * Cambia UNA línea y guarda. Todo lo de abajo —modificadores, diagnósticos,
+   * cantidad— pasa por acá, para que haya un solo lugar donde la lista se
+   * reescribe y un solo lugar que llame a `guardar`.
+   */
+  const actualizar = (code: string, cambios: Partial<PlannedService>): void => {
+    const next = items.map((x) => (x.code === code ? { ...x, ...cambios } : x));
+    setItems(next);
+    void guardar(next, items);
+  };
+
+  /** Agrega o quita un modificador de la línea. Hasta 4, sin repetir. */
+  const alternarModificador = (x: PlannedService, crudo: string): void => {
+    const mod = normalizarModificador(crudo);
+    if (mod.length !== 2) return;
+    const actuales = x.modifiers ?? [];
+    const next = actuales.includes(mod)
+      ? actuales.filter((m) => m !== mod)
+      : [...actuales, mod].slice(0, 4);
+    // Lista vacía se guarda como ausente: un `[]` en el JSON no dice nada que la
+    // falta del campo no diga, y las 6.493 citas viejas no lo tienen.
+    actualizar(x.code, { modifiers: next.length > 0 ? next : undefined });
+  };
+
+  /**
+   * Marca o desmarca un diagnóstico en la línea.
+   *
+   * `dx` ausente significa "todos", así que desmarcar el primero materializa la
+   * lista completa menos ese. Y si se vuelven a marcar todos, se borra el campo
+   * en vez de guardar la lista entera: así la línea sigue a la nota cuando
+   * alguien agregue un diagnóstico más tarde, que es el default que pidió Erick.
+   */
+  const alternarDx = (x: PlannedService, icd: string): void => {
+    const actuales = x.dx ?? codigosDx;
+    const next = actuales.includes(icd)
+      ? actuales.filter((c) => c !== icd)
+      : [...actuales, icd];
+    const todos = codigosDx.length > 0 && codigosDx.every((c) => next.includes(c));
+    actualizar(x.code, { dx: todos ? undefined : next });
+  };
+
+  /**
+   * Cambia las unidades y ajusta el cargo de la línea en la misma proporción.
+   *
+   * El precio por unidad se DERIVA del cargo actual (`fee / units`) en vez de
+   * volver a leer el catálogo: el fee es editable a mano y quien factura lo
+   * ajusta: recalcularlo desde el tarifario le pisaría el ajuste cada vez que
+   * alguien toca la cantidad.
+   */
+  const cambiarCantidad = (x: PlannedService, cantidad: number): void => {
+    const n = Math.max(1, Math.min(99, cantidad));
+    const unitario = (x.fee ?? 0) / (x.units ?? 1);
+    actualizar(x.code, {
+      units: n > 1 ? n : undefined,
+      fee: Math.round(unitario * n * 100) / 100,
+    });
+  };
+
   /** Anular, no borrar: el cargo pasó y queda en la auditoría. */
   const anular = async (id: string): Promise<void> => {
     setGuardando(true);
@@ -371,21 +505,224 @@ export function NoteCharges({
           </div>
         ) : (
           <div className="space-y-1">
-            {items.map((x) => (
-              <div key={x.code} className="rounded-md bg-bg-2/40 px-3 py-2 flex items-center gap-2">
-                <span className="font-mono text-[11.5px] text-violet-text shrink-0">{x.code}</span>
-                <span className="text-[12px] text-text-1 flex-1 min-w-0 truncate">{x.description}</span>
-                <span className="text-[12px] text-text-2 tabular-nums shrink-0">{money(x.fee)}</span>
-                <button
-                  type="button"
-                  onClick={() => quitar(x.code)}
-                  aria-label={t('chgRemove')}
-                  className="shrink-0 text-text-muted hover:text-rose transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+            {items.map((x) => {
+              const mods = x.modifiers ?? [];
+              const unidades = x.units ?? 1;
+              /* `dx` ausente = todos los de la nota. Y se INTERSECTA con los que
+                 la nota tiene ahora: si un diagnóstico se borró después de
+                 vincularlo, el puntero que quedó no debe contarse ni dibujarse. */
+              const vinculados = (x.dx ?? codigosDx).filter((c) => codigosDx.includes(c));
+              const todosLosDx = vinculados.length === codigosDx.length;
+              const desplegado = abierto === x.code;
+
+              return (
+                <div key={x.code} className="rounded-md bg-bg-2/40">
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    <span className="font-mono text-[11.5px] text-violet-text shrink-0">{x.code}</span>
+
+                    {/* Los modificadores van PEGADOS al código, como se leen en
+                        un claim ("99214-25"), y no escondidos en el detalle:
+                        son la diferencia entre que la línea se pague o se
+                        rechace, así que tienen que verse sin abrir nada. */}
+                    {mods.map((m) => (
+                      <span
+                        key={m}
+                        className="font-mono text-[10px] px-1 py-px rounded bg-violet/15 text-violet-text shrink-0"
+                      >
+                        {m}
+                      </span>
+                    ))}
+
+                    <span className="text-[12px] text-text-1 flex-1 min-w-0 truncate">
+                      {x.description}
+                      {unidades > 1 && <span className="text-text-muted"> ×{unidades}</span>}
+                    </span>
+
+                    {/* Cuántos diagnósticos justifican la línea. Solo cuando NO
+                        son todos: el default no merece un cartel en cada fila. */}
+                    {codigosDx.length > 0 && !todosLosDx && (
+                      <span className="text-[10px] px-1.5 py-px rounded bg-bg-2 text-text-muted shrink-0 tabular-nums">
+                        {t('chgDxCount', { n: vinculados.length, total: codigosDx.length })}
+                      </span>
+                    )}
+
+                    <span className="text-[12px] text-text-2 tabular-nums shrink-0">{money(x.fee)}</span>
+
+                    <button
+                      type="button"
+                      onClick={() => setAbierto(desplegado ? null : x.code)}
+                      aria-expanded={desplegado}
+                      aria-label={t('chgDetail')}
+                      className="shrink-0 text-text-muted hover:text-text-1 transition-colors"
+                    >
+                      {desplegado ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => quitar(x.code)}
+                      aria-label={t('chgRemove')}
+                      className="shrink-0 text-text-muted hover:text-rose transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {desplegado && (
+                    <div className="px-3 pb-3 pt-1 space-y-3 border-t border-row-sep">
+                      {/* ── Modificadores ─────────────────────────────────── */}
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                          {t('chgModifiers')}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {SUGERIDOS.map((m) => {
+                            const puesto = mods.includes(m);
+                            /* Los 4 son el límite de la casilla 24D. Cuando
+                               están llenos, el botón que NO está puesto se
+                               apaga en vez de desaparecer: así se ve que la
+                               opción existe y por qué no se puede. */
+                            const lleno = mods.length >= 4 && !puesto;
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                disabled={lleno || guardando}
+                                onClick={() => alternarModificador(x, m)}
+                                className={`font-mono text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                                  puesto
+                                    ? 'border-violet/40 bg-violet/15 text-violet-text'
+                                    : 'border-row-sep text-text-muted hover:text-text-1 disabled:opacity-40 disabled:hover:text-text-muted'
+                                }`}
+                              >
+                                {m}
+                              </button>
+                            );
+                          })}
+
+                          {/* Y el que no está en la lista corta. Hay ~90
+                              modificadores vigentes; ofrecer los seis de uso
+                              diario y dejar escribir el resto es más rápido que
+                              un desplegable de noventa. */}
+                          <input
+                            value={borradorMod[x.code] ?? ''}
+                            onChange={(e) => setBorradorMod((p) => ({ ...p, [x.code]: normalizarModificador(e.target.value) }))}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter') return;
+                              e.preventDefault();
+                              alternarModificador(x, borradorMod[x.code] ?? '');
+                              setBorradorMod((p) => ({ ...p, [x.code]: '' }));
+                            }}
+                            onBlur={() => {
+                              const v = borradorMod[x.code] ?? '';
+                              if (v.length === 2) alternarModificador(x, v);
+                              setBorradorMod((p) => ({ ...p, [x.code]: '' }));
+                            }}
+                            maxLength={2}
+                            disabled={mods.length >= 4 || guardando}
+                            placeholder={t('chgModifierOther')}
+                            aria-label={t('chgModifierOther')}
+                            className="w-20 font-mono text-[11px] px-2 py-0.5 rounded border border-row-sep bg-bg-1 text-text-1 placeholder:text-text-muted disabled:opacity-40"
+                          />
+
+                          {/* Los que se escribieron a mano se pueden sacar. Los
+                              sugeridos ya se apagan con su propio botón. */}
+                          {mods.filter((m) => !SUGERIDOS.includes(m as typeof SUGERIDOS[number])).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              disabled={guardando}
+                              onClick={() => alternarModificador(x, m)}
+                              className="font-mono text-[11px] px-2 py-0.5 rounded border border-violet/40 bg-violet/15 text-violet-text flex items-center gap-1"
+                            >
+                              {m} <X className="w-2.5 h-2.5" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── Cantidad ──────────────────────────────────────── */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                          {t('chgQty')}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={unidades <= 1 || guardando}
+                            onClick={() => cambiarCantidad(x, unidades - 1)}
+                            aria-label={t('chgQtyLess')}
+                            className="w-5 h-5 rounded border border-row-sep text-text-muted hover:text-text-1 disabled:opacity-40 flex items-center justify-center"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-[12px] text-text-1 tabular-nums w-6 text-center">{unidades}</span>
+                          <button
+                            type="button"
+                            disabled={unidades >= 99 || guardando}
+                            onClick={() => cambiarCantidad(x, unidades + 1)}
+                            aria-label={t('chgQtyMore')}
+                            className="w-5 h-5 rounded border border-row-sep text-text-muted hover:text-text-1 disabled:opacity-40 flex items-center justify-center"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                        {unidades > 1 && (
+                          <span className="text-[11px] text-text-muted">{t('chgQtyHint')}</span>
+                        )}
+                      </div>
+
+                      {/* ── Diagnósticos vinculados ───────────────────────── */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                            {t('chgDx')}
+                          </span>
+                          {todosLosDx && codigosDx.length > 0 && (
+                            <span className="text-[10.5px] text-text-muted">{t('chgDxAll')}</span>
+                          )}
+                        </div>
+                        {codigosDx.length === 0 ? (
+                          /* Sin diagnósticos en la nota no hay nada que vincular.
+                             Se dice dónde se agregan en vez de mostrar un hueco. */
+                          <div className="text-[11px] text-text-muted">{t('chgDxEmpty')}</div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {codigosDx.map((icd) => {
+                              const puesto = vinculados.includes(icd);
+                              return (
+                                <button
+                                  key={icd}
+                                  type="button"
+                                  disabled={guardando}
+                                  onClick={() => alternarDx(x, icd)}
+                                  title={etiquetaDx.get(icd) ?? icd}
+                                  className={`font-mono text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                                    puesto
+                                      ? 'border-cyan/40 bg-cyan/15 text-cyan'
+                                      : 'border-row-sep text-text-muted hover:text-text-1'
+                                  }`}
+                                >
+                                  {icd}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Desvincular TODOS deja la línea sin justificación
+                            clínica, que es un rechazo seguro. Se avisa en vez de
+                            impedirlo: puede ser un paso intermedio mientras se
+                            elige otro. */}
+                        {codigosDx.length > 0 && vinculados.length === 0 && (
+                          <div className="text-[11px] text-amber flex items-start gap-1.5">
+                            <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" /> {t('chgDxNone')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {/* Los de efectivo, marcados: quien cobra tiene que ver de un vistazo
                 cuáles se le piden al paciente hoy. El punto ámbar hace ese
                 trabajo sin agregarle una fila de encabezado a una lista corta. */}

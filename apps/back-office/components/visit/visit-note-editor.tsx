@@ -117,8 +117,14 @@ interface Props {
    * cobertura, caso y navegación a Servicios, y este archivo ya tiene 1.400
    * líneas. El editor decide DÓNDE va; quién lo monta decide QUÉ es — y por eso
    * Day Admission puede pasar el suyo o ninguno.
+   *
+   * Puede ser una FUNCIÓN de los diagnósticos actuales. Hizo falta para vincular
+   * diagnósticos a cada CPT (Devin, 2026-09-29): el editor es el único que tiene
+   * la lista viva —con lo recién agregado y todavía sin guardar— y el bloque de
+   * cargos se monta afuera. Pasarla como argumento evita que los cargos tengan
+   * que ir a buscar al server una versión más vieja que la que está en pantalla.
    */
-  bloqueCargos?: React.ReactNode;
+  bloqueCargos?: React.ReactNode | ((dx: NoteDx[]) => React.ReactNode);
   /**
    * Los medicamentos ACTIVOS del paciente, para la conciliación.
    *
@@ -1750,7 +1756,7 @@ export const VisitNoteEditor = React.forwardRef<VisitNoteEditorHandle, Props>(fu
         </div>
       </div>
 
-      {bloqueCargos}
+      {typeof bloqueCargos === 'function' ? bloqueCargos(dx) : bloqueCargos}
 
       {/* ── Addenda ──────────────────────────────────────────────────────────
           Van DESPUÉS de los diagnósticos, al pie, porque es su lugar en el

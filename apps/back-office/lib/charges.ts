@@ -55,9 +55,62 @@ export interface PlannedService {
   id: string;
   code: string;
   description: string;
+  /**
+   * EL CARGO DE LA LÍNEA, no el precio unitario.
+   *
+   * Es lo que va en la casilla 24F del CMS-1500 y lo que `sync-billing` escribe
+   * como `totalCost`. Con `units: 2` este número ya viene multiplicado — por eso
+   * agregar la cantidad no obligó a tocar ninguna de las cinco pantallas que
+   * suman cargos, y por eso el fee editable a mano sigue mandando sobre el
+   * cálculo: quien factura ajusta el monto de la línea, no el del ítem.
+   */
   fee: number;
   category: string;
+  /**
+   * MODIFICADORES CPT, en orden (casilla 24D). Hasta 4, que es lo que admite el
+   * formulario.
+   *
+   * Pedido de Devin (2026-09-29): el **25** cuando el E/M va junto a un
+   * procedimiento, el **95** cuando la visita fue por telemedicina. Sin ellos el
+   * pagador rechaza la línea o paga una sola de las dos.
+   *
+   * Se guarda texto libre de 2 caracteres y NO una opción de una lista cerrada:
+   * el catálogo tiene `modifiersAllowed` cargado en 30 códigos de 408, y el
+   * 99214 —2.248 usos, el más facturado de la clínica, y justo el que lleva el
+   * 25 y el 95— lo tiene vacío. Una lista cerrada le habría dejado a Devin sin
+   * opciones en el código que más usa.
+   */
+  modifiers?: string[];
+  /**
+   * LOS DIAGNÓSTICOS QUE JUSTIFICAN ESTA LÍNEA, por código ICD-10 (casilla 24E).
+   *
+   * `undefined` significa **todos los de la nota**, y es el default: así trabaja
+   * el v2 (su casilla "All Diagnosis" nace tildada) y así ninguna nota queda
+   * peor que hoy por no haberlo tocado. En cuanto alguien desmarca uno se
+   * materializa la lista explícita; si vuelve a marcarlos todos, regresa a
+   * `undefined` y sigue otra vez a la nota.
+   *
+   * Se referencia por CÓDIGO y no por id de fila a propósito: al guardar, la
+   * nota BORRA y recrea sus diagnósticos (`deleteMany` + `createMany` en
+   * `visit-notes/[appointmentId]`), así que esos ids cambian en cada guardado.
+   * Un puntero por id habría quedado colgado al primer autoguardado.
+   */
+  dx?: string[];
+  /**
+   * Unidades (casilla 24G). Ausente = 1.
+   *
+   * Dos aplicaciones del mismo inyectable son dos unidades de una línea, no dos
+   * líneas: el JSON indexa por código y la segunda se perdía.
+   */
+  units?: number;
 }
+
+/**
+ * Lo que vale una línea. Existe para que nadie multiplique por `units` de nuevo:
+ * `fee` YA es el total de la línea. Un helper que devuelve `fee` parece de más
+ * hasta que alguien lee `units` en la fila de al lado y "corrige" la suma.
+ */
+export const totalDeLinea = (s: Pick<PlannedService, 'fee'>): number => s.fee ?? 0;
 
 /**
  * Lo que devuelve el picker de cargos, en forma estructural para no acoplar este

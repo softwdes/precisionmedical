@@ -761,19 +761,23 @@ export function ConsultationClient({
                 /* Los ACTIVOS, no todos: conciliar es revisar lo que el paciente
                    está tomando hoy, no su historia de medicación. */
                 medicamentosActivos={patientContext.history.medications.filter((m) => m.status === 'IN_USE')}
-                bloqueCargos={
+                bloqueCargos={(dx) => (
                   <NoteCharges
                     appointmentId={a.id}
                     caseId={a.caseId ?? null}
                     coverage={a.coverage}
                     initial={cargosDeLaVisita}
+                    /* Los diagnósticos de la nota EN VIVO, para vincularlos a
+                       cada CPT. Llegan por argumento desde el editor: es el
+                       único que los tiene con lo que se acaba de tipear. */
+                    diagnosticos={dx}
                     onVerServicios={() => setTab('services')}
                     /* El Resumen del paso 4 lee los CPT del payload del SERVER: sin
                        esto, se agrega un cargo acá y la salida sigue diciendo que faltan. */
                     onChanged={() => router.refresh()}
                     onCuenta={setCuentaCargos}
                   />
-                }
+                )}
                 mergeData={mergeDataFromPatient(patientContext)}
                 onSaveExit={() => router.push(destinoAlSalir)}
               />

@@ -2285,7 +2285,19 @@
       "caseReopenFbExpired": "La ventana de 48 h se venció mientras tenías esta pantalla abierta. Lo que falte se agrega con un addendum.",
       "caseReopenFbNotYours": "Solo puede reabrirla quien la firmó, o un super administrador.",
       "caseReopenFbAlready": "Esta nota ya se reabrió una vez. Lo que falte se agrega con un addendum.",
-      "caseReopenFbError": "No se pudo reabrir la nota. Intentá de nuevo."
+      "caseReopenFbError": "No se pudo reabrir la nota. Intentá de nuevo.",
+      "chgDetail": "Modificadores, cantidad y diagnósticos",
+      "chgModifiers": "Modificadores",
+      "chgModifierOther": "Otro",
+      "chgQty": "Cantidad",
+      "chgQtyLess": "Una unidad menos",
+      "chgQtyMore": "Una unidad más",
+      "chgQtyHint": "El monto se ajustó a la cantidad.",
+      "chgDx": "Diagnósticos",
+      "chgDxAll": "Todos los de la nota",
+      "chgDxCount": "{n} de {total} dx",
+      "chgDxNone": "Sin ningún diagnóstico vinculado, el pagador no tiene con qué justificar esta línea.",
+      "chgDxEmpty": "Esta nota todavía no tiene diagnósticos. Se agregan en la sección de arriba."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

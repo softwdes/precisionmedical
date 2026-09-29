@@ -30,12 +30,35 @@ export async function GET(
   return NextResponse.json(appt);
 }
 
+/**
+ * Una línea de cargo de seguro. Los tres campos del final son del CMS-1500 y
+ * llegaron con el pedido de Devin (2026-09-29); ver `lib/charges.ts` para qué
+ * significa cada uno y por qué `fee` es el total de la línea y no el unitario.
+ *
+ * Son OPCIONALES y eso no es dejadez: hay 6.493 citas con cargos ya guardados
+ * sin estos campos. Exigirlos haría que el primer PATCH sobre cualquiera de
+ * ellas —cambiar el fee, quitar un código— rebotara con un 400.
+ *
+ * Ojo con el `.object()` pelado: zod DESCARTA lo que no esté declarado acá. Si
+ * un campo nuevo no se agrega a este esquema, la pantalla lo manda, el server
+ * responde 200 y el dato se pierde en silencio.
+ */
 const PlannedServiceSchema = z.object({
   id:          z.string(),
   code:        z.string(),
   description: z.string(),
   fee:         z.number(),
   category:    z.string(),
+  /**
+   * Hasta 4 (lo que admite la casilla 24D), de 2 caracteres alfanuméricos: `25`,
+   * `59`, `95`, `RT`, `KX`. Se normalizan en el cliente —mayúsculas y sin el
+   * guión con el que algunos están cargados en el catálogo— y acá se vuelve a
+   * exigir, porque el PATCH también lo llama el panel de la cita.
+   */
+  modifiers:   z.array(z.string().regex(/^[A-Z0-9]{2}$/)).max(4).optional(),
+  /** Códigos ICD-10 vinculados. Ausente = todos los de la nota. */
+  dx:          z.array(z.string().min(1).max(10)).max(12).optional(),
+  units:       z.number().int().min(1).max(99).optional(),
 });
 
 const PatchSchema = z.object({

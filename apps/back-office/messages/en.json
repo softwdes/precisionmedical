@@ -2285,7 +2285,19 @@
       "caseReopenFbExpired": "The 48-hour window expired while this screen was open. Anything missing is added with an addendum.",
       "caseReopenFbNotYours": "Only the provider who signed it, or a super administrator, can reopen it.",
       "caseReopenFbAlready": "This note has already been reopened once. Anything missing is added with an addendum.",
-      "caseReopenFbError": "The note couldn't be reopened. Please try again."
+      "caseReopenFbError": "The note couldn't be reopened. Please try again.",
+      "chgDetail": "Modifiers, quantity and diagnoses",
+      "chgModifiers": "Modifiers",
+      "chgModifierOther": "Other",
+      "chgQty": "Quantity",
+      "chgQtyLess": "One unit less",
+      "chgQtyMore": "One unit more",
+      "chgQtyHint": "The amount was adjusted to the quantity.",
+      "chgDx": "Diagnoses",
+      "chgDxAll": "All of the note",
+      "chgDxCount": "{n} of {total} dx",
+      "chgDxNone": "With no diagnosis linked, the payer has nothing to justify this line with.",
+      "chgDxEmpty": "This note has no diagnoses yet. They are added in the section above."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

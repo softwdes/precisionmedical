@@ -1472,7 +1472,6 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 caseId={row.caseId}
                                 rect={anchorRect}
                                 onClose={() => setAdjustersFor(null)}
-                                onAdd={() => { setEditingFocus('adjusters'); setEditing(row); }}
                                 // Al asignar desde el panel, la celda y su badge
                                 // tienen que repintarse sin recargar la página.
                                 onChanged={() => void load()}

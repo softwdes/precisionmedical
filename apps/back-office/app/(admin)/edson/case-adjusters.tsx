@@ -391,14 +391,13 @@ function CatalogoAdjusters({
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function AdjustersPopover({
-  caseId, rect, onClose, onAdd, onChanged,
+  caseId, rect, onClose, onChanged,
 }: {
   caseId: string;
   /** Rectangulo del boton que lo abrio — ver `AnchoredPanel`. */
   rect: AnchorRect;
   onClose: () => void;
   /** Abre el modal, para escribir a alguien que no está en el catálogo. */
-  onAdd: () => void;
   /** Para que la grilla repinte la celda cuando se asigna desde acá. */
   onChanged?: () => void;
 }) {
@@ -687,15 +686,18 @@ export function AdjustersPopover({
         </div>
       )}
 
-      {/* El que no está en el catálogo se escribe en el modal, que tiene sitio
-          para teléfono, extensión, fax y correo. */}
-      <button
-        type="button"
-        onClick={() => { onClose(); onAdd(); }}
-        className="text-[11px] text-text-muted hover:text-text-1 underline underline-offset-2"
-      >
-        {t('adjusterNotInList')}
-      </button>
+      {/*
+        * Aca habia un "Not in the list — type it by hand" que cerraba el panel y
+        * abria el modal. Erick lo saco el 2026-09-28: "no sirve, esta demas".
+        *
+        * Y tenia razon: arriba ya esta "Add X to the catalog", que hace lo mismo
+        * SIN salir del panel y ademas deja a la persona disponible para los
+        * proximos casos. Dos caminos al mismo sitio, uno peor, y el peor era el
+        * que ademas cambiaba de pantalla.
+        *
+        * El formulario a mano del MODAL sigue existiendo y es el unico que
+        * admite un ajustador SIN aseguradora — el alta del catalogo la exige.
+        */}
     </AnchoredPanel>
   );
 }

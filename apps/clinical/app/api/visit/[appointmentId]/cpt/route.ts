@@ -182,11 +182,26 @@ export async function POST(
     if (!body.cptId) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
 
     // Verify belongs to this appointment's visit note
+    /*
+     * Los identificadores VAN ENTRE COMILLAS. Postgres pliega a minúscula todo
+     * identificador sin comillas, así que `vsc.visit_note_id` no puede matchear
+     * la columna `visitNoteId` — esta consulta tiraba
+     * `column vsc.visit_note_id does not exist` y el borrado de un CPT
+     * respondía 500. Comprobado contra la base el 2026-09-29: así fallaba y con
+     * comillas devuelve la fila.
+     *
+     * `tsc` NO VE ESTO: el archivo compila perfecto. Lo mismo que se arregló en
+     * las seis rutas de facturación y en las dos de Seguimiento (`5a7c12a1`);
+     * ésta se había quedado afuera porque vive en `apps/clinical`.
+     *
+     * El alias de SALIDA sí va en snake_case a propósito: es el nombre con el
+     * que lo lee el TypeScript de abajo (`existing.cpt_code`).
+     */
     const [existing] = await db.$queryRaw<{ cpt_code: string }[]>`
-      SELECT vsc.cpt_code
+      SELECT vsc."cptCode" AS cpt_code
       FROM   visit_service_codes vsc
-      JOIN   visit_notes vn ON vn.id = vsc.visit_note_id
-      WHERE  vsc.id = ${body.cptId} AND vn.appointment_id = ${appointmentId}
+      JOIN   visit_notes vn ON vn."id" = vsc."visitNoteId"
+      WHERE  vsc."id" = ${body.cptId} AND vn."appointmentId" = ${appointmentId}
     `;
     if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 

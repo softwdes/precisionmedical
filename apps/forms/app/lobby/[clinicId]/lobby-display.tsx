@@ -86,8 +86,15 @@ function initials(display: string): string {
   return display.replace(/[^A-Z]/g, '').slice(0, 2);
 }
 
-/** Los tres modos del cartel: castellano, inglés, o los dos juntos. */
-type Lang = 'es' | 'en' | 'both';
+/**
+ * Los dos idiomas del cartel.
+ *
+ * Hubo un tercer modo, `both`, que pintaba las dos lenguas juntas separadas por
+ * `·` — y era el default. Erick lo sacó el 2026-09-29 mirando el cartel: con
+ * todo duplicado las filas se leen a la mitad de distancia, que es justo lo que
+ * un cartel de sala de espera no puede permitirse. Queda ES o EN, y se elige.
+ */
+type Lang = 'es' | 'en';
 
 // ─── Clock component ──────────────────────────────────────────────────────────
 /**
@@ -119,8 +126,7 @@ function LiveClock({ lang }: { lang: Lang }) {
     return () => clearInterval(id);
   }, []);
 
-  /* Una fecha por idioma, con el mismo criterio que `tx`: en "both" van las
-     dos, separadas por `·`, como el resto del cartel. */
+  /* Una fecha por idioma, con el mismo criterio que `tx`. */
   const fecha = (locale: string) => {
     const s = new Date().toLocaleDateString(locale, {
       weekday: 'short',
@@ -145,12 +151,12 @@ function LiveClock({ lang }: { lang: Lang }) {
 }
 
 // ─── i18n helper ─────────────────────────────────────────────────────────────
-function tx(lang: 'es' | 'en' | 'both', es: string, en: string) {
-  return lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
+function tx(lang: Lang, es: string, en: string) {
+  return lang === 'es' ? es : en;
 }
 
 // ─── "Ahora llamando" banner ──────────────────────────────────────────────────
-function NowCallingBanner({ data, lang }: { data: NowCalling; lang: 'es' | 'en' | 'both' }) {
+function NowCallingBanner({ data, lang }: { data: NowCalling; lang: Lang }) {
   const isConsult = data.destination === 'consultation';
 
   return (
@@ -198,7 +204,7 @@ function NowCallingBanner({ data, lang }: { data: NowCalling; lang: 'es' | 'en' 
 }
 
 // ─── Consultation card (large TV card) ───────────────────────────────────────
-function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: 'es' | 'en' | 'both' }) {
+function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: Lang }) {
   const color = avatarColor(apt.display);
   const ini   = initials(apt.display);
 
@@ -254,7 +260,7 @@ function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: 'es' | 'en
 }
 
 // ─── Triage row ───────────────────────────────────────────────────────────────
-function TriageRow({ apt, lang }: { apt: LobbyPatient; lang: 'es' | 'en' | 'both' }) {
+function TriageRow({ apt, lang }: { apt: LobbyPatient; lang: Lang }) {
   const color = '#F59E0B'; // amber — triage accent
   const ini   = initials(apt.display);
 
@@ -363,9 +369,9 @@ function WaitRow({ apt, index }: { apt: WaitingPatient; index: number }) {
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ emoji, es, en, count, color, lang }: {
   emoji: string; es: string; en: string;
-  count: number; color: string; lang: 'es' | 'en' | 'both';
+  count: number; color: string; lang: Lang;
 }) {
-  const label = lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
+  const label = tx(lang, es, en);
   return (
     <div style={{
       display:       'flex',
@@ -400,11 +406,12 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
   const [data,    setData]    = useState<LobbyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
-  const [lang,    setLang]    = useState<'es' | 'en' | 'both'>('both');
+  /* Arranca en inglés: es el idioma de casi todos los pacientes —22 de 5.726
+     tienen español registrado— y el que ve quien no toca el selector. */
+  const [lang,    setLang]    = useState<Lang>('en');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const t = (es: string, en: string) =>
-    lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
+  const t = (es: string, en: string) => tx(lang, es, en);
 
   const poll = useCallback(async () => {
     try {
@@ -516,7 +523,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
 
           {/* Lang switcher */}
           <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
-            {(['es', 'both', 'en'] as const).map(l => (
+            {(['es', 'en'] as const).map(l => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
@@ -532,7 +539,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                   transition: 'background 0.2s, color 0.2s',
                 }}
               >
-                {l === 'both' ? 'ES·EN' : l.toUpperCase()}
+                {l.toUpperCase()}
               </button>
             ))}
           </div>

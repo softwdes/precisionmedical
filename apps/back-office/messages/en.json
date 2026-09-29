@@ -5824,7 +5824,7 @@
       "replyPlaceholder": "Write a message to the patient…",
       "send": "Send",
       "segments": "{chars} characters · {n} segment(s)",
-      "unicodeWarning": "accents or emoji ({chars}) make it cost more than double",
+      "unicodeWarning": "long encoding ({chars}) — it breaks every 70 characters instead of 160",
       "sendError": "The message could not be sent",
       "outsideHours": "Outside clinic hours (8:00–18:00). Send it during the day, or call.",
       "optedOut": "This patient replied STOP. The carrier blocks our messages — call them.",
@@ -5872,7 +5872,8 @@
       "paginationNav": "SMS history pagination",
       "pageInfo": "Page {page} of {total}",
       "prevPage": "Previous page",
-      "nextPage": "Next page"
+      "nextPage": "Next page",
+      "icons": "Icons"
     },
     "calls": {
       "payModalTitle": "Case payment",

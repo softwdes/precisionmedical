@@ -5824,7 +5824,7 @@
       "replyPlaceholder": "Escribile un mensaje al paciente…",
       "send": "Enviar",
       "segments": "{chars} caracteres · {n} segmento(s)",
-      "unicodeWarning": "las tildes o emojis ({chars}) hacen que cueste más del doble",
+      "unicodeWarning": "codificación larga ({chars}) — corta cada 70 caracteres en vez de 160",
       "sendError": "No se pudo enviar el mensaje",
       "outsideHours": "Fuera del horario de atención (8:00–18:00). Mandalo durante el día, o llamá.",
       "optedOut": "Este paciente respondió STOP. El operador bloquea nuestros mensajes — hay que llamarlo.",
@@ -5872,7 +5872,8 @@
       "paginationNav": "Paginación del historial de SMS",
       "pageInfo": "Página {page} de {total}",
       "prevPage": "Página anterior",
-      "nextPage": "Página siguiente"
+      "nextPage": "Página siguiente",
+      "icons": "Iconos"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

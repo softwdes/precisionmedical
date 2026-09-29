@@ -16,10 +16,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from '@precision/ui';
-import { Send, AlertTriangle, Loader2 } from 'lucide-react';
+import { Send, AlertTriangle, Loader2, Smile } from 'lucide-react';
 import { PersonAvatar, StatusPill, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 import { segmentosSms } from '@/lib/sms-segmentos';
+
+/**
+ * Los iconos que ofrece la caja de respuesta. Pedido de Reagan (2026-09-29).
+ *
+ * Una lista CORTA y a mano, no una libreria de emojis: las librerias pesan
+ * cientos de kB para elegir entre mil caritas, y en una respuesta de clinica
+ * se usan siempre los mismos cinco. Estos son los que dicen algo en este
+ * contexto — confirmar, hora, fecha, llamar, donde — mas los tres de cortesia.
+ *
+ * ⚠️ Cada uno pasa el SMS a UCS-2, donde el segmento cae de 160 a 70
+ * caracteres. En un mensaje corto no cuesta nada; en uno de ~74 lo parte en
+ * dos. Por eso el contador de al lado los detecta y avisa en el momento, en
+ * vez de prohibirlos: la decision es de quien escribe, con el precio a la vista.
+ */
+const ICONOS = ['✅', '⏰', '📅', '📞', '📍', '🙂', '👍', '🙏', '⚠️'] as const;
 
 const CLINIC_TZ = 'America/Denver';
 
@@ -57,6 +72,8 @@ export function PatientThreadDialog({
   const [enviando, setEnviando] = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const finRef = useRef<HTMLDivElement | null>(null);
+  const cajaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [iconosAbiertos, setIconosAbiertos] = useState(false);
 
   const patientId = patient?.id ?? null;
 
@@ -83,6 +100,26 @@ export function PatientThreadDialog({
 
   // El chat arranca abajo: lo último es lo que importa.
   useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes]);
+
+  /**
+   * Inserta en el CURSOR, no al final.
+   *
+   * Pegarlo siempre al final obliga a escribir el mensaje, poner el icono y
+   * despues moverlo a mano — que es exactamente el trabajo que el boton venia
+   * a ahorrar. El foco vuelve a la caja para poder seguir escribiendo.
+   */
+  const insertarIcono = (icono: string) => {
+    const caja = cajaRef.current;
+    if (!caja) { setTexto((t) => t + icono); return; }
+    const ini = caja.selectionStart ?? texto.length;
+    const fin = caja.selectionEnd ?? ini;
+    setTexto(texto.slice(0, ini) + icono + texto.slice(fin));
+    requestAnimationFrame(() => {
+      caja.focus();
+      const pos = ini + icono.length;
+      caja.setSelectionRange(pos, pos);
+    });
+  };
 
   const medida = segmentosSms(texto);
 
@@ -185,7 +222,22 @@ export function PatientThreadDialog({
               <span>{error}</span>
             </div>
           )}
+          {iconosAbiertos && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {ICONOS.map((ic) => (
+                <button
+                  key={ic}
+                  type="button"
+                  onClick={() => insertarIcono(ic)}
+                  className="w-7 h-7 rounded-md text-base leading-none hover:bg-bg-2 transition-colors"
+                >
+                  {ic}
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
+            ref={cajaRef}
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder={t('replyPlaceholder')}
@@ -195,13 +247,24 @@ export function PatientThreadDialog({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* El contador es de SEGMENTOS, no de caracteres: un solo acento
                 parte el mensaje de 153 a 67 y ahí está el costo real. */}
-            <div className="text-[11px] text-text-muted">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIconosAbiertos(v => !v)}
+                title={t('icons')}
+                aria-label={t('icons')}
+                className={`w-7 h-7 rounded-md inline-flex items-center justify-center transition-colors ${iconosAbiertos ? 'bg-brand/15 text-brand-text' : 'text-text-muted hover:bg-bg-2'}`}
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+              <div className="text-[11px] text-text-muted">
               {t('segments', { n: medida.segmentos, chars: texto.length })}
               {!medida.gsm && (
                 <span className="text-amber ml-1.5">
                   · {t('unicodeWarning', { chars: medida.culpables.slice(0, 3).join(' ') })}
                 </span>
               )}
+              </div>
             </div>
             <Button onClick={() => void enviar()} disabled={!texto.trim() || enviando} className="gap-1.5">
               {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}

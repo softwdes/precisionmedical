@@ -19,7 +19,9 @@ import {
   Check, ChevronLeft, ChevronRight, Coins, Loader2, Plus, Target, Trash2, TrendingUp, Trophy, Users, X,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
-import { evaluarEvidencia, type RewardGoal, type GoalKind, type RewardEvidence, type Senal, type Veredicto } from '@precision-medical/database/premios';
+import {
+  evaluarEvidencia, METRICAS, type RewardGoal, type GoalKind, type MetricKey, type RewardEvidence, type Senal, type Veredicto,
+} from '@precision-medical/database/premios';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 import { api } from '@/lib/trpc/client';
@@ -28,8 +30,11 @@ import { KpiCard } from '../metricas/metricas-shared';
 export type PremiosTab = 'mes' | 'verificar' | 'tablero';
 
 interface Category { code: string; nameEs: string; nameEn: string; pointsNew: number; pointsExisting: number; tracksSource: boolean; requiresPatient: boolean }
-interface GoalDraft { kind: GoalKind; categoryCode: string | null; onlyNew: boolean; target: number; labelEs: string; labelEn: string }
-interface PartDraft { userId: string; kind: 'STAFF' | 'MANAGER' }
+interface GoalDraft {
+  kind: GoalKind; categoryCode: string | null; metric: MetricKey | null; roleKey: string | null;
+  onlyNew: boolean; target: number; labelEs: string; labelEn: string;
+}
+interface PartDraft { userId: string; kind: 'STAFF' | 'MANAGER'; roleKey: string | null }
 
 function mesSiguiente(mes: string, delta: number): string {
   const [y, m] = mes.split('-').map(Number) as [number, number];
@@ -37,8 +42,9 @@ function mesSiguiente(mes: string, delta: number): string {
 }
 
 /** Qué cuenta una meta, como una sola clave para el selector. */
-function claveMeta(g: Pick<GoalDraft, 'kind' | 'categoryCode' | 'onlyNew'>): string {
+function claveMeta(g: Pick<GoalDraft, 'kind' | 'categoryCode' | 'onlyNew' | 'metric'>): string {
   if (g.kind === 'CATEGORY') return `${g.categoryCode}${g.onlyNew ? ':new' : ''}`;
+  if (g.kind === 'METRIC') return `M:${g.metric}`;
   return g.kind;
 }
 
@@ -112,15 +118,15 @@ function MesView({ data, month, money, onSaved }: {
     if (data.period) {
       return {
         pool: String(data.period.poolAmount),
-        parts: data.participants.map((p) => ({ userId: p.userId, kind: p.kind })) as PartDraft[],
-        goals: (data.goals as RewardGoal[]).map(({ kind, categoryCode, onlyNew, target, labelEs, labelEn }) => ({ kind, categoryCode, onlyNew, target, labelEs, labelEn })),
+        parts: data.participants.map((p) => ({ userId: p.userId, kind: p.kind, roleKey: p.roleKey ?? null })) as PartDraft[],
+        goals: (data.goals as RewardGoal[]).map(({ kind, categoryCode, metric, roleKey, onlyNew, target, labelEs, labelEn }) => ({ kind, categoryCode, metric: metric ?? null, roleKey: roleKey ?? null, onlyNew, target, labelEs, labelEn })),
       };
     }
     const prop = data.proposal!;
     return {
       pool: prop.poolAmount !== null ? String(prop.poolAmount) : '',
-      parts: prop.participants.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF' })) as PartDraft[],
-      goals: prop.goals.map(({ kind, categoryCode, onlyNew, target, labelEs, labelEn }) => ({ kind, categoryCode, onlyNew, target, labelEs, labelEn })),
+      parts: prop.participants.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey ?? null })) as PartDraft[],
+      goals: prop.goals.map(({ kind, categoryCode, metric, roleKey, onlyNew, target, labelEs, labelEn }) => ({ kind, categoryCode, metric: metric ?? null, roleKey: roleKey ?? null, onlyNew, target, labelEs, labelEn })),
     };
   }, [data]);
 
@@ -135,13 +141,20 @@ function MesView({ data, month, money, onSaved }: {
   const poolNum = Number(pool);
   const share = parts.length > 0 && poolNum > 0 ? Math.round((poolNum * 100) / parts.length) : 0;
 
-  // Opciones de "qué cuenta": cada categoría, membresías solo NEW, llamadas y uso.
+  // Qué puede contar una meta: solo lo que el sistema mide SOLO (Erick, 2026-09-29).
+  // Las categorías manuales ya no se ofrecen; si un mes viejo tiene una, se sigue
+  // mostrando tal cual (ver la opción extra del select).
   const opciones = [
-    ...categories.map((c) => ({ key: c.code, kind: 'CATEGORY' as const, categoryCode: c.code, onlyNew: false, es: c.nameEs, en: c.nameEn })),
-    { key: 'C01:new', kind: 'CATEGORY' as const, categoryCode: 'C01', onlyNew: true, es: 'Membresías nuevas', en: 'New memberships' },
-    { key: 'CALLS', kind: 'CALLS' as const, categoryCode: null, onlyNew: false, es: 'Llamadas', en: 'Calls' },
-    { key: 'USAGE', kind: 'USAGE' as const, categoryCode: null, onlyNew: false, es: 'Uso del sistema', en: 'System usage' },
+    ...(Object.keys(METRICAS) as MetricKey[]).filter((k) => !METRICAS[k].comingSoon).map((k) => ({
+      key: `M:${k}`, kind: 'METRIC' as const, categoryCode: null, metric: k, onlyNew: false, es: METRICAS[k].es, en: METRICAS[k].en,
+    })),
+    { key: 'USAGE', kind: 'USAGE' as const, categoryCode: null, metric: null, onlyNew: false, es: 'Uso del sistema', en: 'System usage' },
   ];
+  const proximamente = (Object.keys(METRICAS) as MetricKey[]).filter((k) => METRICAS[k].comingSoon && METRICAS[k].points > 0);
+  // Los roles que ya se usan en el mes, para elegirlos rápido.
+  const roles = [...new Set([...parts.map((p) => p.roleKey), ...goals.map((g) => g.roleKey)].filter((x): x is string => !!x))].sort();
+  // Cuántas metas tiene cada uno según su rol: define cuánto vale cada meta suya.
+  const metasDe = (roleKey: string | null) => goals.filter((g) => !g.roleKey || g.roleKey === roleKey).length;
 
   const errores: string[] = [];
   if (!(poolNum > 0)) errores.push(t('errPool'));
@@ -192,9 +205,17 @@ function MesView({ data, month, money, onSaved }: {
             {parts.length === 0 && <span className="text-xs text-text-3">{t('noParticipants')}</span>}
             <ul className="flex flex-col gap-1.5">
               {parts.map((p) => (
-                <li key={p.userId} className="flex items-center justify-between gap-2 rounded-md bg-bg-2/40 px-3 py-1.5">
-                  <span className="text-sm text-text-1 truncate">{nombres.get(p.userId) ?? '…'}</span>
+                <li key={p.userId} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-bg-2/40 px-3 py-1.5">
+                  <span className="min-w-0 flex-1 text-sm text-text-1 truncate">{nombres.get(p.userId) ?? '…'}</span>
                   <span className="flex items-center gap-1.5 shrink-0">
+                    {p.kind === 'STAFF' && (
+                      <input
+                        id={`premios-rol-${p.userId}`} list="premios-roles" value={p.roleKey ?? ''} disabled={cerrado}
+                        placeholder={t('roleAll')} maxLength={40} aria-label={t('role')}
+                        onChange={(e) => setParts((xs) => xs.map((x) => x.userId === p.userId ? { ...x, roleKey: e.target.value.trim() ? e.target.value : null } : x))}
+                        className="w-24 rounded-md border border-border bg-bg-1 px-1.5 py-0.5 text-[11px] text-text-1"
+                      />
+                    )}
                     <button
                       type="button" disabled={cerrado}
                       onClick={() => setParts((xs) => xs.map((x) => x.userId === p.userId ? { ...x, kind: x.kind === 'MANAGER' ? 'STAFF' : 'MANAGER' } : x))}
@@ -227,7 +248,7 @@ function MesView({ data, month, money, onSaved }: {
                 </select>
                 <button
                   type="button" disabled={!addUser}
-                  onClick={() => { setParts((xs) => [...xs, { userId: addUser, kind: 'STAFF' }]); setAddUser(''); }}
+                  onClick={() => { setParts((xs) => [...xs, { userId: addUser, kind: 'STAFF', roleKey: null }]); setAddUser(''); }}
                   className="rounded-md border border-border px-3 text-sm text-text-1 disabled:opacity-40 hover:bg-bg-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -236,6 +257,8 @@ function MesView({ data, month, money, onSaved }: {
             )}
           </div>
 
+          <datalist id="premios-roles">{roles.map((r) => <option key={r} value={r} />)}</datalist>
+          <p className="text-[11px] text-text-3">{t('roleExplain')}</p>
           <div className="flex items-center justify-between rounded-md bg-bg-2/40 px-3 py-2">
             <span className="text-xs text-text-3">{t('sharePerPerson')}</span>
             <span className="text-lg font-bold text-text-1 tabular-nums">{money(share)}</span>
@@ -248,7 +271,8 @@ function MesView({ data, month, money, onSaved }: {
               <Target className="w-4 h-4 text-brand-text" /> {t('goalsOfMonth', { n: goals.length })}
             </h2>
             <span className="text-[11px] text-text-3">
-              {goals.length > 0 && share > 0 ? t('eachGoalWorth', { amount: money(Math.round(share / goals.length)) }) : null}
+              {goals.length > 0 && share > 0 && roles.length === 0 ? t('eachGoalWorth', { amount: money(Math.round(share / goals.length)) }) : null}
+              {goals.length > 0 && share > 0 && roles.length > 0 ? t('eachGoalWorthByRole', { list: [null, ...roles].map((r) => `${r ?? t('roleAll')}: ${money(Math.round(share / Math.max(1, metasDe(r))))}`).join(' · ') }) : null}
             </span>
           </div>
           <ul className="flex flex-col gap-1.5">
@@ -260,7 +284,7 @@ function MesView({ data, month, money, onSaved }: {
                   onChange={(e) => {
                     const o = opciones.find((x) => x.key === e.target.value);
                     if (!o) return;
-                    setGoals((xs) => xs.map((x, j) => j === i ? { ...x, kind: o.kind, categoryCode: o.categoryCode, onlyNew: o.onlyNew, labelEs: o.es, labelEn: o.en } : x));
+                    setGoals((xs) => xs.map((x, j) => j === i ? { ...x, kind: o.kind, categoryCode: o.categoryCode, metric: o.metric, onlyNew: o.onlyNew, labelEs: o.es, labelEn: o.en } : x));
                   }}
                   className="flex-1 min-w-0 rounded-md border border-border bg-bg-1 px-2 py-1 text-sm text-text-1"
                 >
@@ -268,7 +292,20 @@ function MesView({ data, month, money, onSaved }: {
                   {opciones.map((o) => (
                     <option key={o.key} value={o.key}>{locale === 'en' ? o.en : o.es}</option>
                   ))}
+                  {proximamente.map((k) => (
+                    <option key={k} value={`soon:${k}`} disabled>{`${locale === 'en' ? METRICAS[k].en : METRICAS[k].es} · ${t('comingSoon')}`}</option>
+                  ))}
                 </select>
+                {roles.length > 0 && (
+                <select
+                  id={`premios-goal-role-${i}`} value={g.roleKey ?? ''} disabled={cerrado} aria-label={t('appliesTo')}
+                  onChange={(e) => setGoals((xs) => xs.map((x, j) => j === i ? { ...x, roleKey: e.target.value || null } : x))}
+                  className="w-28 rounded-md border border-border bg-bg-1 px-1.5 py-1 text-xs text-text-1"
+                >
+                  <option value="">{t('roleAll')}</option>
+                  {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                )}
                 <input
                   id={`premios-goal-target-${i}`} type="number" min={1} value={g.target} disabled={cerrado}
                   onChange={(e) => setGoals((xs) => xs.map((x, j) => j === i ? { ...x, target: Math.max(1, Number(e.target.value) || 1) } : x))}
@@ -288,7 +325,7 @@ function MesView({ data, month, money, onSaved }: {
           {!cerrado && goals.length < 12 && (
             <button
               type="button"
-              onClick={() => setGoals((xs) => [...xs, { kind: 'CATEGORY', categoryCode: 'C06', onlyNew: false, target: 1, labelEs: 'Reseña 5 estrellas', labelEn: '5-Star Review' }])}
+              onClick={() => setGoals((xs) => [...xs, { kind: 'METRIC', categoryCode: null, metric: 'CHECKINS', roleKey: null, onlyNew: false, target: 10, labelEs: METRICAS.CHECKINS.es, labelEn: METRICAS.CHECKINS.en }])}
               className="self-start inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-text-1 hover:bg-bg-2"
             >
               <Plus className="w-3.5 h-3.5" /> {t('addGoal')}
@@ -487,7 +524,11 @@ function TableroView({ data, money }: { data: Overview; money: (c: number) => st
         <KpiCard icon={Coins} label={t('kpiPool')} value={money(s.poolCents)} sub={t('kpiPoolSub', { n: data.participants.length, share: money(s.shareCents) })} color="bg-brand/10 text-brand-text" />
         <KpiCard icon={Target} label={t('kpiGoalsHit')} value={`${s.staffHits} / ${s.staffTotal}`} sub={t('kpiGoalsHitSub')} color="bg-emerald/10 text-emerald-text" />
         <KpiCard icon={TrendingUp} label={t('kpiToPay')} value={money(s.paidCents)} sub={t('kpiToPaySub', { amount: money(s.returnedCents) })} color="bg-emerald/10 text-emerald-text" />
-        <KpiCard icon={Trophy} label={t('kpiPending')} value={data.pendingCount} sub={t('kpiPendingSub')} color="bg-amber/10 text-amber-text" />
+        <KpiCard
+          icon={Trophy} label={t('kpiTeamPoints')}
+          value={new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'es', { maximumFractionDigits: 1 }).format(data.participants.reduce((sum, p) => sum + (p.kind === 'STAFF' ? p.result.points : 0), 0))}
+          sub={t('kpiTeamPointsSub')} color="bg-amber/10 text-amber-text"
+        />
       </div>
 
       <div className="overflow-x-auto rounded-lg bg-bg-2/30">
@@ -507,10 +548,13 @@ function TableroView({ data, money }: { data: Overview; money: (c: number) => st
                 <td className="px-4 py-2 font-semibold text-text-1 whitespace-nowrap sticky left-0 bg-bg-1">
                   {p.kind === 'MANAGER' && <span className="mr-1.5 rounded-full bg-violet/15 px-1.5 py-0.5 text-[10px] font-semibold text-violet-text">{t('kindManager')}</span>}
                   {p.name}
+                  {p.roleKey && <span className="ml-1.5 text-[10px] font-normal text-text-3">{p.roleKey}</span>}
                 </td>
                 {p.kind === 'MANAGER' ? (
                   <td colSpan={goals.length} className="px-3 py-2 text-[12px] text-text-3">{t('managerRow', { hits: s.staffHits, total: s.staffTotal })}</td>
-                ) : p.result.goals.map((r) => (
+                ) : goals.map((g) => p.result.goals.find((x) => x.goalId === g.id) ?? { goalId: g.id, actual: -1, target: g.target, hit: false }).map((r) => r.actual < 0 ? (
+                  <td key={r.goalId} className="px-2 py-2 text-center text-text-3">—</td>
+                ) : (
                   <td key={r.goalId} className="px-2 py-2 text-center">
                     <span className={cn('inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
                       r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}>{r.actual}/{r.target}</span>

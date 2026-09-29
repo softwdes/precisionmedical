@@ -30,7 +30,13 @@ function mesActual(): string {
     .format(new Date()).slice(0, 7);
 }
 
-const TABS: PremiosTab[] = ['mes', 'verificar', 'tablero'];
+/**
+ * Verificar ya no va en las pestañas: las metas son automáticas (Erick, 2026-09-29)
+ * y no hay registros manuales que aprobar uno por uno. La vista sigue por URL
+ * para los registros viejos; a fin de mes se aprueba con el reporte del Tablero.
+ */
+const TABS: PremiosTab[] = ['mes', 'tablero'];
+const TODAS: PremiosTab[] = ['mes', 'verificar', 'tablero'];
 
 export default async function PremiosPage({
   searchParams,
@@ -41,7 +47,7 @@ export default async function PremiosPage({
   const t = await getTranslations('rewards');
   const params = await searchParams;
   const pedido = typeof params.tab === 'string' ? params.tab : '';
-  const tab: PremiosTab = (TABS as string[]).includes(pedido) ? (pedido as PremiosTab) : 'mes';
+  const tab: PremiosTab = (TODAS as string[]).includes(pedido) ? (pedido as PremiosTab) : 'mes';
   const mesParam = typeof params.mes === 'string' && /^\d{4}-\d{2}$/.test(params.mes) ? params.mes : mesActual();
 
   const tabs = TABS.map((k) => ({

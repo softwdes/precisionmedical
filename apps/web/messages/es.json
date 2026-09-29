@@ -2104,7 +2104,7 @@
     "target": "Objetivo",
     "usageUnit": "pts",
     "addGoal": "Agregar meta",
-    "usageExplain": "Uso del sistema: 1 pt cada 10 min activos + 1 pt cada 5 acciones, con tope de 10 pts por día. Llamadas: hoy no hay llamadas registradas en el sistema, así que esa meta no se podría cumplir.",
+    "usageExplain": "Todas las metas se cuentan solas con lo que cada uno hace en el sistema: nadie registra nada. Uso del sistema: 1 pt cada 10 min activos + 1 pt cada 5 acciones, con tope de 10 pts por día. Las membresías llegan con el sistema de membresías.",
     "errPool": "Falta la bolsa",
     "errParticipants": "Hacen falta al menos 2 participantes, uno de staff",
     "errOneManager": "Solo puede haber una manager",
@@ -2141,7 +2141,7 @@
     "kpiPending": "Por verificar",
     "kpiPendingSub": "no cuentan todavía",
     "managerRow": "Promedio del equipo: {hits} de {total} metas",
-    "boardExplain": "Es lo que se pagaría si el mes cerrara hoy. Los registros sin verificar no cuentan.",
+    "boardExplain": "Es lo que se pagaría si el mes cerrara hoy. Todo se cuenta solo con lo que cada uno hace en el sistema; a fin de mes el Admin revisa este tablero y aprueba.",
     "errors": {
       "SAVE_FAILED": "No se pudo guardar. Prueba de nuevo.",
       "PERIOD_CLOSED": "El mes ya está cerrado.",
@@ -2208,6 +2208,14 @@
         "noChargeOnDay": "No hay nada cobrado a este paciente ese día",
         "noSystemData": "Esto no queda registrado en el sistema"
       }
-    }
+    },
+    "role": "Rol",
+    "roleAll": "Todos",
+    "appliesTo": "Aplica a",
+    "roleExplain": "Rol (opcional): una meta con rol solo cuenta para quien tiene ese rol. Sin rol, la meta es de todos. La parte es la misma para todos; lo que cambia es cuántas metas tiene cada uno.",
+    "comingSoon": "próximamente",
+    "eachGoalWorthByRole": "Cada meta vale: {list}",
+    "kpiTeamPoints": "Puntos del equipo",
+    "kpiTeamPointsSub": "los suma el sistema solo"
   }
 }

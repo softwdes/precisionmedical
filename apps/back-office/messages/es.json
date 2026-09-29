@@ -7220,8 +7220,13 @@
         "done": "¡Llegaste al premio completo!",
         "doneSub": "Cumpliste las {n} metas del mes.",
         "doneSubManager": "Todo tu equipo cumplió sus metas.",
-        "aria": "Llevas {earned} de {total}"
-      }
+        "aria": "Llevas {earned} de {total}",
+        "points": "Puntos",
+        "ptsShort": "pts"
+      },
+      "kpiPointsAuto": "los suma el sistema",
+      "comingSoon": "Próximamente",
+      "comingSoonHint": "Llega con el sistema de membresías; este mes todavía no suma."
     }
   },
   "caseWizard": {

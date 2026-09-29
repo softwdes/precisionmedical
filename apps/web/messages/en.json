@@ -2104,7 +2104,7 @@
     "target": "Target",
     "usageUnit": "pts",
     "addGoal": "Add goal",
-    "usageExplain": "System usage: 1 pt per 10 active minutes + 1 pt per 5 actions, capped at 10 pts per day. Calls: there are no calls recorded in the system today, so that goal couldn’t be met.",
+    "usageExplain": "Every goal is counted automatically from what each person does in the system: nobody logs anything. System usage: 1 pt per 10 active minutes + 1 pt per 5 actions, capped at 10 pts per day. Memberships arrive with the memberships system.",
     "errPool": "The pool is missing",
     "errParticipants": "At least 2 participants are needed, one of them staff",
     "errOneManager": "There can only be one manager",
@@ -2141,7 +2141,7 @@
     "kpiPending": "To verify",
     "kpiPendingSub": "not counted yet",
     "managerRow": "Team average: {hits} of {total} goals",
-    "boardExplain": "This is what would be paid if the month closed today. Unverified entries don’t count.",
+    "boardExplain": "This is what would be paid if the month closed today. Everything is counted from what each person does in the system; at month end the Admin reviews this board and approves.",
     "errors": {
       "SAVE_FAILED": "It couldn’t be saved. Try again.",
       "PERIOD_CLOSED": "The month is already closed.",
@@ -2208,6 +2208,14 @@
         "noChargeOnDay": "Nothing charged to this patient that day",
         "noSystemData": "This isn’t recorded in the system"
       }
-    }
+    },
+    "role": "Role",
+    "roleAll": "Everyone",
+    "appliesTo": "Applies to",
+    "roleExplain": "Role (optional): a goal with a role only counts for people with that role. Without a role, the goal is for everyone. The share is the same for all; what changes is how many goals each person has.",
+    "comingSoon": "coming soon",
+    "eachGoalWorthByRole": "Each goal is worth: {list}",
+    "kpiTeamPoints": "Team points",
+    "kpiTeamPointsSub": "added by the system"
   }
 }

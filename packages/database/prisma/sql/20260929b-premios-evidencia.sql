@@ -104,10 +104,11 @@ SELECT coalesce(jsonb_agg(jsonb_build_object(
       AND ci."scheduledFor" >= per.t_from AND ci."scheduledFor" < per.t_to
   ),
 
-  -- Para reactivaciones: la última visita atendida ANTES del mes.
+  -- Para reactivaciones: la última visita ANTES del mes. Visita = cita no cancelada ni
+  -- no-show: las migradas del v2 quedaron en PENDING, no en COMPLETED.
   'lastVisitBefore', (
     SELECT max(ci."scheduledFor") FROM citas ci, per
-    WHERE ci."patientId" = e."patientId" AND ci.status = 'COMPLETED' AND ci."scheduledFor" < per.t_from
+    WHERE ci."patientId" = e."patientId" AND ci.status NOT IN ('CANCELLED', 'NO_SHOW') AND ci."scheduledFor" < per.t_from
   ),
 
   -- Lo que se le cobró al paciente ese día (servicios de sus citas del día).

@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { createClientWithCredentials } from '@precision-medical/auth';
 import {
-  calcularPeriodo, METAS_POR_DEFECTO, type GoalKind, type ProgressRow, type RewardGoal, type RewardEvidence,
+  calcularPeriodo, METAS_POR_DEFECTO, METRICAS, type GoalKind, type MetricKey, type ProgressRow, type RewardGoal, type RewardEvidence,
 } from '@precision-medical/database/premios';
 import { router, adminProcedure } from '../trpc';
 
@@ -61,19 +61,22 @@ async function idClinicaDe(db: Db, email: string | null | undefined): Promise<st
 }
 
 interface GoalRow {
-  id: string; sortOrder: number; kind: string; categoryCode: string | null;
-  onlyNew: boolean; target: number; labelEs: string; labelEn: string;
+  id: string; sortOrder: number; kind: string; categoryCode: string | null; metric: string | null;
+  roleKey: string | null; onlyNew: boolean; target: number; labelEs: string; labelEn: string;
 }
 
 async function metasDelPeriodo(db: Db, periodId: string): Promise<RewardGoal[]> {
   const { data, error } = await db.from('reward_goals').select('*').eq('periodId', periodId).order('sortOrder');
   if (error) falla(error.message);
-  return ((data ?? []) as GoalRow[]).map((g) => ({ ...g, kind: g.kind as GoalKind }));
+  return ((data ?? []) as GoalRow[]).map((g) => ({ ...g, kind: g.kind as GoalKind, metric: g.metric as MetricKey | null }));
 }
 
 const GoalInput = z.object({
-  kind: z.enum(['CATEGORY', 'CALLS', 'USAGE']),
+  kind: z.enum(['CATEGORY', 'CALLS', 'USAGE', 'METRIC']),
   categoryCode: z.string().nullish(),
+  metric: z.enum(Object.keys(METRICAS) as [MetricKey, ...MetricKey[]]).nullish(),
+  // Rol al que aplica la meta; vacío = a todos.
+  roleKey: z.string().trim().max(40).nullish(),
   onlyNew: z.boolean().default(false),
   target: z.number().int().min(1).max(100000),
   labelEs: z.string().trim().min(1).max(80),
@@ -109,13 +112,16 @@ export const premiosRouter = router({
           .eq('month', aPrimerDia(mesAnterior(input.month))).maybeSingle();
         let goals: Array<Omit<RewardGoal, 'id'>> = METAS_POR_DEFECTO;
         let poolAmount: number | null = null;
-        let participants: Array<{ userId: string; kind: string }> = [];
+        let participants: Array<{ userId: string; kind: string; roleKey?: string | null }> = [];
         if (prev.data) {
           const prevGoals = await metasDelPeriodo(db, (prev.data as { id: string }).id);
-          if (prevGoals.length) goals = prevGoals.map(({ id: _id, ...g }) => g);
+          // Las metas manuales (categorías) ya no se usan: un mes viejo que las tenga
+          // no se copia, y se proponen las automáticas por defecto. Copiar solo las
+          // automáticas dejaría un mes con una o dos metas sueltas.
+          if (prevGoals.length && prevGoals.every((g) => g.kind !== 'CATEGORY')) goals = prevGoals.map(({ id: _id, ...g }) => g);
           poolAmount = Number((prev.data as { poolAmount: number | string }).poolAmount);
-          const pp = await db.from('reward_participants').select('userId, kind').eq('periodId', (prev.data as { id: string }).id);
-          participants = (pp.data ?? []) as Array<{ userId: string; kind: string }>;
+          const pp = await db.from('reward_participants').select('userId, kind, roleKey').eq('periodId', (prev.data as { id: string }).id);
+          participants = (pp.data ?? []) as Array<{ userId: string; kind: string; roleKey?: string | null }>;
         }
         return {
           month: input.month, period: null, categories,
@@ -126,13 +132,13 @@ export const premiosRouter = router({
 
       const [goals, partRes, progRes, pendRes] = await Promise.all([
         metasDelPeriodo(db, period.id),
-        db.from('reward_participants').select('userId, kind').eq('periodId', period.id),
+        db.from('reward_participants').select('userId, kind, roleKey').eq('periodId', period.id),
         db.rpc('reward_progress', { p_period_id: period.id }),
         db.from('reward_entries').select('id', { count: 'exact', head: true }).eq('periodId', period.id).eq('status', 'PENDING'),
       ]);
       if (partRes.error) falla(partRes.error.message);
       if (progRes.error) falla(progRes.error.message);
-      const parts = (partRes.data ?? []) as Array<{ userId: string; kind: string }>;
+      const parts = (partRes.data ?? []) as Array<{ userId: string; kind: string; roleKey: string | null }>;
 
       const usersRes = parts.length
         ? await db.from('users').select('id, firstName, lastName').in('id', parts.map((p) => p.userId))
@@ -142,7 +148,7 @@ export const premiosRouter = router({
       const calc = calcularPeriodo({
         poolAmount: period.poolAmount,
         goals,
-        participants: parts.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF' })),
+        participants: parts.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey })),
         progress: (progRes.data ?? []) as unknown as ProgressRow[],
       });
 
@@ -153,7 +159,7 @@ export const premiosRouter = router({
         proposal: null,
         goals,
         participants: calc.participants
-          .map((r) => ({ userId: r.userId, name: nombre(porId.get(r.userId)), kind: r.kind, result: r }))
+          .map((r) => ({ userId: r.userId, name: nombre(porId.get(r.userId)), kind: r.kind, roleKey: r.roleKey, result: r }))
           .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'STAFF' ? -1 : 1)),
         summary: {
           shareCents: calc.shareCents, poolCents: calc.poolCents, paidCents: calc.paidCents,
@@ -189,7 +195,10 @@ export const premiosRouter = router({
     .input(z.object({
       month: Mes,
       poolAmount: z.number().min(0).max(1_000_000),
-      participants: z.array(z.object({ userId: z.string().min(1), kind: z.enum(['STAFF', 'MANAGER']) })).min(2).max(60),
+      participants: z.array(z.object({
+        userId: z.string().min(1), kind: z.enum(['STAFF', 'MANAGER']),
+        roleKey: z.string().trim().max(40).nullish(),
+      })).min(2).max(60),
       goals: z.array(GoalInput).min(1).max(12),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -204,6 +213,9 @@ export const premiosRouter = router({
       }
       for (const g of input.goals) {
         if ((g.kind === 'CATEGORY') !== !!g.categoryCode) throw new TRPCError({ code: 'BAD_REQUEST', message: 'GOAL_CATEGORY_MISMATCH' });
+        if ((g.kind === 'METRIC') !== !!g.metric) throw new TRPCError({ code: 'BAD_REQUEST', message: 'GOAL_CATEGORY_MISMATCH' });
+        // Lo "próximamente" se muestra, pero todavía no puede ser una meta.
+        if (g.metric && METRICAS[g.metric].comingSoon) throw new TRPCError({ code: 'BAD_REQUEST', message: 'METRIC_COMING_SOON' });
       }
 
       const actorId = await idClinicaDe(db, ctx.user.email);
@@ -237,7 +249,7 @@ export const premiosRouter = router({
         if (del.error) falla(del.error.message);
       }
       const up = await db.from('reward_participants').upsert(
-        input.participants.map((p) => ({ id: randomUUID(), periodId, userId: p.userId, kind: p.kind })),
+        input.participants.map((p) => ({ id: randomUUID(), periodId, userId: p.userId, kind: p.kind, roleKey: p.roleKey || null })),
         { onConflict: 'periodId,userId', ignoreDuplicates: false },
       );
       // El upsert con id nuevo pisa el id de la fila existente: da igual, nadie
@@ -250,6 +262,8 @@ export const premiosRouter = router({
       const insG = await db.from('reward_goals').insert(input.goals.map((g, i) => ({
         id: randomUUID(), periodId, sortOrder: i + 1, kind: g.kind,
         categoryCode: g.kind === 'CATEGORY' ? g.categoryCode : null,
+        metric: g.kind === 'METRIC' ? g.metric : null,
+        roleKey: g.roleKey || null,
         onlyNew: g.kind === 'CATEGORY' ? g.onlyNew : false,
         target: g.target, labelEs: g.labelEs, labelEn: g.labelEn,
       })));

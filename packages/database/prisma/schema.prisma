@@ -5158,6 +5158,8 @@ model RewardParticipant {
   userId       String
   /// STAFF | MANAGER
   kind         String   @default("STAFF")
+  /// Rol para las metas por rol; null = recibe solo las metas sin rol
+  roleKey      String?
   shareAmount  Decimal? @db.Decimal(10, 2)
   goalsHit     Int?
   goalsTotal   Int?
@@ -5189,9 +5191,13 @@ model RewardGoal {
   id           String  @id @default(cuid())
   periodId     String
   sortOrder    Int
-  /// CATEGORY | CALLS | USAGE
+  /// CATEGORY | CALLS | USAGE | METRIC
   kind         String
   categoryCode String?
+  /// Con kind METRIC: la métrica automática (ver src/premios.ts → METRICAS)
+  metric       String?
+  /// Rol al que aplica; null = a todos
+  roleKey      String?
   onlyNew      Boolean @default(false)
   target       Int
   labelEs      String

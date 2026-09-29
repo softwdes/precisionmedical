@@ -16,7 +16,7 @@
 import { cache } from 'react';
 import { db, VIGENTES, AppointmentStatus } from '@precision-medical/database';
 import {
-  calcularPeriodo, mesDe, type ProgressRow, type RewardGoal, type GoalKind,
+  calcularPeriodo, mesDe, type ProgressRow, type RewardGoal, type GoalKind, type MetricKey,
   type ParticipantResult,
 } from '@precision-medical/database/premios';
 import { decryptFieldOrOriginal as dec } from './decrypt';
@@ -74,10 +74,10 @@ async function progresoDelPeriodo(periodId: string): Promise<ProgressRow[]> {
 }
 
 function metasDe(goals: Array<{
-  id: string; sortOrder: number; kind: string; categoryCode: string | null;
-  onlyNew: boolean; target: number; labelEs: string; labelEn: string;
+  id: string; sortOrder: number; kind: string; categoryCode: string | null; metric: string | null;
+  roleKey: string | null; onlyNew: boolean; target: number; labelEs: string; labelEn: string;
 }>): RewardGoal[] {
-  return goals.map((g) => ({ ...g, kind: g.kind as GoalKind }));
+  return goals.map((g) => ({ ...g, kind: g.kind as GoalKind, metric: g.metric as MetricKey | null }));
 }
 
 function nombreDe(u: { firstName: string; lastName: string } | undefined): string {
@@ -115,7 +115,7 @@ export async function misPremios(userId: string): Promise<MisPremios | null> {
 
   const [goals, participants, progress, entries] = await Promise.all([
     db.rewardGoal.findMany({ where: { periodId: period.id }, orderBy: { sortOrder: 'asc' } }),
-    db.rewardParticipant.findMany({ where: { periodId: period.id }, select: { userId: true, kind: true } }),
+    db.rewardParticipant.findMany({ where: { periodId: period.id }, select: { userId: true, kind: true, roleKey: true } }),
     progresoDelPeriodo(period.id),
     db.rewardEntry.findMany({
       where: { periodId: period.id, userId },
@@ -128,7 +128,7 @@ export async function misPremios(userId: string): Promise<MisPremios | null> {
   const calc = calcularPeriodo({
     poolAmount: period.poolAmount.toString(),
     goals: metas,
-    participants: participants.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF' })),
+    participants: participants.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey })),
     progress,
   });
   const me = calc.participants.find((p) => p.userId === userId);

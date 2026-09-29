@@ -7220,8 +7220,13 @@
         "done": "You reached the full reward!",
         "doneSub": "You met all {n} goals this month.",
         "doneSubManager": "Your whole team met their goals.",
-        "aria": "You have {earned} of {total}"
-      }
+        "aria": "You have {earned} of {total}",
+        "points": "Points",
+        "ptsShort": "pts"
+      },
+      "kpiPointsAuto": "added by the system",
+      "comingSoon": "Coming soon",
+      "comingSoonHint": "Arrives with the memberships system; it doesn’t count yet this month."
     }
   },
   "caseWizard": {

@@ -11,16 +11,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Coins, Plus, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
+import { Coins, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
 import { Button, cn } from '@precision/ui';
 import {
-  USO_TOPE_DIARIO, type ParticipantResult, type RewardCategory, type RewardGoal,
+  METRICAS, USO_TOPE_DIARIO, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
 } from '@precision-medical/database/premios';
 import {
   DataTable, EmptyState, IconAction, KpiCard, PageHeader, Skeleton, StatusPill, TagPill, useToast,
 } from '@/components/ui-phoenix';
 import { fechaCorta } from '@/lib/fechas';
-import { RegistrarLogroDialog } from './registrar-logro-dialog';
 import { PistaDelPremio } from './pista-del-premio';
 
 interface Entry {
@@ -61,7 +60,6 @@ export function MisPremiosClient(): React.ReactElement {
   const locale = useLocale();
   const toast = useToast();
   const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' });
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -117,7 +115,12 @@ export function MisPremiosClient(): React.ReactElement {
   const me = d.me;
   const esManager = me.kind === 'MANAGER';
   const porMeta = Math.round(d.shareCents / Math.max(1, me.goalsTotal));
-  const faltan = d.goals.filter((g, i) => !me.goals[i]?.hit).map(labelMeta);
+  const resDe = (id: string) => me.goals.find((r) => r.goalId === id);
+  // Metas por rol: cada uno ve solo las suyas; la manager ve todas las del equipo.
+  const misMetas = esManager ? d.goals : d.goals.filter((g) => !!resDe(g.id));
+  const faltan = misMetas.filter((g) => !resDe(g.id)?.hit).map(labelMeta);
+  // Las métricas que todavía no suman (membresías): se anuncian, no se miden.
+  const proximamente = (Object.keys(METRICAS) as MetricKey[]).filter((k) => METRICAS[k].comingSoon && METRICAS[k].points > 0);
   const abierto = d.status === 'OPEN';
   const nombreCat = (code: string) => {
     const c = d.categories.find((x) => x.code === code);
@@ -134,14 +137,9 @@ export function MisPremiosClient(): React.ReactElement {
           </span>
         }
         subtitle={esManager ? `${mesTexto(d.month)} · ${t('managerExplain')}` : mesTexto(d.month)}
-        action={abierto ? (
-          <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4" /> {t('newEntry')}
-          </Button>
-        ) : undefined}
       />
 
-      <PistaDelPremio me={me} goals={d.goals} shareCents={d.shareCents} labelMeta={labelMeta} money={money} />
+      <PistaDelPremio me={me} goals={misMetas} shareCents={d.shareCents} labelMeta={labelMeta} money={money} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
@@ -154,7 +152,7 @@ export function MisPremiosClient(): React.ReactElement {
           <KpiCard
             label={t('teamProgress')}
             value={`${Math.round(me.progress * 1000) / 10}%`}
-            sub={t('teamProgressSub', { hits: (d.team ?? []).reduce((s, m) => s + m.result.goalsHit, 0), total: (d.team ?? []).length * me.goalsTotal })}
+            sub={t('teamProgressSub', { hits: (d.team ?? []).reduce((s, m) => s + m.result.goalsHit, 0), total: (d.team ?? []).reduce((s, m) => s + m.result.goalsTotal, 0) })}
             icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text"
           />
         ) : (
@@ -175,7 +173,7 @@ export function MisPremiosClient(): React.ReactElement {
         <KpiCard
           label={t('kpiPoints')}
           value={me.points}
-          sub={t('kpiPointsSub', { n: me.pending })}
+          sub={t('kpiPointsAuto')}
           icon={Trophy} iconBg="bg-amber/10" iconColor="text-amber-text"
         />
       </div>
@@ -189,8 +187,8 @@ export function MisPremiosClient(): React.ReactElement {
             <span className="text-[11px] text-text-muted">{t('goalEach', { amount: money(porMeta) })}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {d.goals.map((g, i) => {
-              const r = me.goals[i];
+            {misMetas.map((g) => {
+              const r = resDe(g.id);
               const actual = r?.actual ?? 0;
               const hit = !!r?.hit;
               const pct = Math.min(100, Math.round((actual / g.target) * 100));
@@ -209,10 +207,19 @@ export function MisPremiosClient(): React.ReactElement {
                     <div className={cn('h-full rounded-full', hit ? 'bg-emerald' : 'bg-amber')} style={{ width: `${pct}%` }} />
                   </div>
                   {g.kind === 'USAGE' && <span className="text-[10.5px] text-text-muted">{t('goalUsageHint', { cap: USO_TOPE_DIARIO })}</span>}
-                  {g.kind === 'CALLS' && <span className="text-[10.5px] text-text-muted">{t('goalAuto')}</span>}
+                  {(g.kind === 'CALLS' || g.kind === 'METRIC') && <span className="text-[10.5px] text-text-muted">{t('goalAuto')}</span>}
                 </div>
               );
             })}
+            {proximamente.map((k) => (
+              <div key={k} className="rounded-md p-3 flex flex-col gap-1.5 bg-bg-2/20 border border-dashed border-border-strong">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold text-text-2">{locale === 'en' ? METRICAS[k].en : METRICAS[k].es}</span>
+                  <StatusPill state="neutral" label={t('comingSoon')} />
+                </div>
+                <span className="text-[10.5px] text-text-muted">{t('comingSoonHint')}</span>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -235,14 +242,19 @@ export function MisPremiosClient(): React.ReactElement {
                 {d.team.map((m) => (
                   <DataTable.Row key={m.userId}>
                     <DataTable.Td sticky="left" className="font-semibold">{m.name}</DataTable.Td>
-                    {m.result.goals.map((r) => (
-                      <DataTable.Td key={r.goalId} align="center">
-                        <span className={cn(
-                          'inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                          r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text',
-                        )}>{r.actual}/{r.target}</span>
-                      </DataTable.Td>
-                    ))}
+                    {d.goals.map((g) => {
+                      const r = m.result.goals.find((x) => x.goalId === g.id);
+                      return (
+                        <DataTable.Td key={g.id} align="center">
+                          {r ? (
+                            <span className={cn(
+                              'inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                              r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text',
+                            )}>{r.actual}/{r.target}</span>
+                          ) : <span className="text-text-muted">—</span>}
+                        </DataTable.Td>
+                      );
+                    })}
                     <DataTable.Td align="right" sticky="right" className="tabular-nums">{m.result.goalsHit}/{m.result.goalsTotal}</DataTable.Td>
                   </DataTable.Row>
                 ))}
@@ -252,6 +264,7 @@ export function MisPremiosClient(): React.ReactElement {
         </DataTable.Card>
       )}
 
+      {d.entries.length > 0 && (
       <DataTable.Card>
         <div className="px-5 pt-4 pb-2">
           <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider inline-flex items-center gap-2">
@@ -307,14 +320,7 @@ export function MisPremiosClient(): React.ReactElement {
           </DataTable.Table>
         </DataTable.Scroll>
       </DataTable.Card>
-
-      <RegistrarLogroDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        categories={d.categories}
-        month={d.month}
-        onSaved={() => void cargar()}
-      />
+      )}
     </div>
   );
 }

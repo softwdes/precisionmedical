@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Flag, Trophy } from 'lucide-react';
 import { cn } from '@precision/ui';
 import type { ParticipantResult, RewardGoal } from '@precision-medical/database/premios';
@@ -37,6 +37,9 @@ const LARGADA_MS = 1400;
 
 export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Props): React.ReactElement {
   const t = useTranslations('phoenix.rewards.track');
+  const locale = useLocale();
+  // Los pesos tienen medios puntos (confirmar una cita vale 0.5).
+  const pts = (n: number) => new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'es', { maximumFractionDigits: 1 }).format(n);
   const esManager = me.kind === 'MANAGER';
   const total = Math.max(1, me.goalsTotal);
   const pct = Math.max(0, Math.min(100, me.progress * 100));
@@ -44,7 +47,8 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Prop
   const faltaCents = Math.max(0, shareCents - me.payoutCents);
   const porMeta = Math.round(shareCents / total);
   const pendientes = esManager ? [] : goals
-    .map((g, i) => ({ g, r: me.goals[i] }))
+    // Por id y no por posición: con metas por rol, `me.goals` trae solo las suyas.
+    .map((g) => ({ g, r: me.goals.find((x) => x.goalId === g.id) }))
     .filter((x) => x.r && !x.r.hit);
 
   // La largada: arranca en la salida y corre hasta su lugar al montar.
@@ -71,7 +75,11 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Prop
             {esManager ? t('subtitleManager') : t('subtitle', { amount: money(porMeta) })}
           </p>
         </div>
-        <div className="flex items-end gap-5">
+        <div className="flex items-end gap-5 flex-wrap">
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('points')}</div>
+            <div className="text-2xl font-bold text-amber-text tabular-nums leading-tight">{pts(me.points)}</div>
+          </div>
           <div className="text-right">
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('earned')}</div>
             <div className="text-2xl font-bold text-emerald-text tabular-nums leading-tight">{money(me.payoutCents)}</div>
@@ -135,7 +143,7 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Prop
             {/* Al llegar se esconde: el monto ya está arriba y el globito pisaría el trofeo. */}
             {!llego && (
               <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald px-1.5 py-0.5 text-[10.5px] font-bold text-white tabular-nums shadow-sm">
-                {money(me.payoutCents)}
+                {money(me.payoutCents)} · {pts(me.points)} {t('ptsShort')}
                 <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-emerald" />
               </div>
             )}

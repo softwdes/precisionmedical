@@ -69,13 +69,64 @@ export function puntosDelRegistro(
   return isNewPatient ? cat.pointsNew : cat.pointsExisting;
 }
 
-export type GoalKind = 'CATEGORY' | 'CALLS' | 'USAGE';
+export type GoalKind = 'CATEGORY' | 'CALLS' | 'USAGE' | 'METRIC';
+
+/**
+ * Lo que el sistema cuenta SOLO (Erick, 2026-09-29: las metas salen del
+ * sistema, nadie registra a mano). La definición exacta de cada una está en
+ * `prisma/sql/20260929c-premios-automaticas.sql`; todas cuentan resultados o
+ * pacientes distintos, no clics.
+ */
+export type MetricKey =
+  | 'APPTS_BOOKED' | 'NEW_CASES' | 'SAVED_APPTS' | 'REACTIVATIONS' | 'MEMBERSHIPS' | 'MEMBERSHIPS_NEW'
+  | 'SMS_PATIENTS' | 'FORM_LINKS' | 'CHECKINS' | 'DOCUMENTS' | 'CONFIRMATIONS';
+
+/**
+ * El catálogo de métricas: nombre en los dos idiomas (se copia a la meta al
+ * elegirla) y el peso en puntos.
+ *
+ * Los pesos son por ESFUERZO y VALOR de cada acción, no por lo fácil que es
+ * repetirla: traer una membresía o reactivar a alguien vale más que mandar un
+ * link. Los puntos NO deciden la plata (la deciden las metas); se muestran en
+ * el caballo y en el tablero. `comingSoon`: se muestra, pero todavía no se
+ * puede elegir como meta (las membresías esperan el sistema de membresías).
+ */
+export const METRICAS: Record<MetricKey, { es: string; en: string; points: number; comingSoon?: boolean }> = {
+  MEMBERSHIPS:     { es: 'Membresías',              en: 'Memberships',            points: 10, comingSoon: true },
+  MEMBERSHIPS_NEW: { es: 'Membresías nuevas',       en: 'New memberships',        points: 0,  comingSoon: true },
+  REACTIVATIONS:   { es: 'Reactivaciones',          en: 'Reactivations',          points: 6 },
+  NEW_CASES:       { es: 'Pacientes nuevos',        en: 'New patients',           points: 5 },
+  SAVED_APPTS:     { es: 'Citas salvadas',          en: 'Saved appointments',     points: 3 },
+  APPTS_BOOKED:    { es: 'Citas agendadas',         en: 'Appointments booked',    points: 2 },
+  CHECKINS:        { es: 'Check-ins',               en: 'Check-ins',              points: 2 },
+  SMS_PATIENTS:    { es: 'SMS a pacientes',         en: 'Patients texted',        points: 1 },
+  FORM_LINKS:      { es: 'Links de formulario',     en: 'Form links sent',        points: 1 },
+  DOCUMENTS:       { es: 'Documentos subidos',      en: 'Documents uploaded',     points: 1 },
+  CONFIRMATIONS:   { es: 'Citas confirmadas',       en: 'Appointments confirmed', points: 0.5 },
+};
+
+/** Puntos que el sistema da solo, con los pesos de `METRICAS`. */
+export function puntosAutomaticos(metrics: Partial<Record<MetricKey, number>> | undefined): number {
+  if (!metrics) return 0;
+  let total = 0;
+  for (const [k, v] of Object.entries(metrics) as Array<[MetricKey, number]>) {
+    const def = METRICAS[k];
+    // Las métricas "próximamente" todavía no suman: tampoco en puntos.
+    if (!def || def.comingSoon) continue;
+    total += (v ?? 0) * def.points;
+  }
+  return Math.round(total * 10) / 10;
+}
 
 export interface RewardGoal {
   id: string;
   sortOrder: number;
   kind: GoalKind;
   categoryCode: string | null;
+  /** Con kind METRIC: qué métrica cuenta. */
+  metric?: MetricKey | null;
+  /** A qué rol aplica. `null` = a todos. */
+  roleKey?: string | null;
   onlyNew: boolean;
   target: number;
   labelEs: string;
@@ -90,6 +141,12 @@ export interface ProgressRow {
   calls: number;
   usagePoints: number;
   usageDays: number;
+  metrics?: Partial<Record<MetricKey, number>>;
+}
+
+/** ¿Esta meta le toca a este participante? Sin rol en la meta, le toca a todos. */
+export function metaAplica(goal: Pick<RewardGoal, 'roleKey'>, roleKey: string | null | undefined): boolean {
+  return !goal.roleKey || goal.roleKey === (roleKey ?? null);
 }
 
 export interface GoalResult {
@@ -102,6 +159,8 @@ export interface GoalResult {
 export interface ParticipantResult {
   userId: string;
   kind: 'STAFF' | 'MANAGER';
+  roleKey: string | null;
+  /** Solo las metas que le tocan (por rol), en el orden del mes. */
   goals: GoalResult[];
   goalsHit: number;
   goalsTotal: number;
@@ -129,6 +188,7 @@ export function avanceDeMeta(goal: RewardGoal, row: ProgressRow | undefined): nu
   if (!row) return 0;
   if (goal.kind === 'CALLS') return row.calls;
   if (goal.kind === 'USAGE') return row.usagePoints;
+  if (goal.kind === 'METRIC') return goal.metric ? (row.metrics?.[goal.metric] ?? 0) : 0;
   const e = row.entries.find((x) => x.categoryCode === goal.categoryCode);
   if (!e) return 0;
   return goal.onlyNew ? e.verifiedNew : e.verified;
@@ -149,43 +209,52 @@ export function aCentavos(monto: number | string): number {
  *
  * `participants` trae a TODOS (staff y manager). Si no hay nadie de staff, la
  * manager queda en 0: no hay equipo del que sacar un promedio.
+ *
+ * Metas por rol: cada uno se mide solo contra las metas que le tocan, y su
+ * avance es cumplidas ÷ las SUYAS. La parte es la misma para todos. La manager
+ * cobra con el avance del staff sumado (metas cumplidas ÷ metas posibles), que
+ * con roles de distinta cantidad de metas es el promedio justo: pesa cada meta,
+ * no cada persona.
  */
 export function calcularPeriodo(input: {
   poolAmount: number | string;
   goals: RewardGoal[];
-  participants: Array<{ userId: string; kind: 'STAFF' | 'MANAGER' }>;
+  participants: Array<{ userId: string; kind: 'STAFF' | 'MANAGER'; roleKey?: string | null }>;
   progress: ProgressRow[];
 }): PeriodResult {
   const poolCents = aCentavos(input.poolAmount);
   const goals = [...input.goals].sort((a, b) => a.sortOrder - b.sortOrder);
   const n = input.participants.length;
-  const total = goals.length;
   const porUsuario = new Map(input.progress.map((r) => [r.userId, r]));
 
   const base = input.participants.map((p) => {
     const row = porUsuario.get(p.userId);
-    const res = goals.map((g) => {
+    const suyas = goals.filter((g) => metaAplica(g, p.roleKey));
+    const res = suyas.map((g) => {
       const actual = avanceDeMeta(g, row);
       return { goalId: g.id, actual, target: g.target, hit: actual >= g.target };
     });
     return {
       p, row, res,
+      total: suyas.length,
       hits: res.filter((r) => r.hit).length,
-      points: (row?.entries ?? []).reduce((s, e) => s + e.points, 0),
+      points: (row?.entries ?? []).reduce((s, e) => s + e.points, 0) + puntosAutomaticos(row?.metrics),
     };
   });
 
   const staff = base.filter((b) => b.p.kind === 'STAFF');
   const staffHits = staff.reduce((s, b) => s + b.hits, 0);
-  const staffTotal = staff.length * total;
+  const staffTotal = staff.reduce((s, b) => s + b.total, 0);
 
   const participants: ParticipantResult[] = base.map((b) => {
     let payoutCents = 0;
     let progress = 0;
-    if (n > 0 && total > 0) {
+    if (n > 0) {
       if (b.p.kind === 'STAFF') {
-        progress = b.hits / total;
-        payoutCents = redondearFraccion(poolCents * b.hits, n * total);
+        if (b.total > 0) {
+          progress = b.hits / b.total;
+          payoutCents = redondearFraccion(poolCents * b.hits, n * b.total);
+        }
       } else if (staffTotal > 0) {
         progress = staffHits / staffTotal;
         payoutCents = redondearFraccion(poolCents * staffHits, n * staffTotal);
@@ -194,9 +263,10 @@ export function calcularPeriodo(input: {
     return {
       userId: b.p.userId,
       kind: b.p.kind,
+      roleKey: b.p.roleKey ?? null,
       goals: b.res,
       goalsHit: b.hits,
-      goalsTotal: total,
+      goalsTotal: b.total,
       progress,
       points: b.points,
       pending: b.row?.pending ?? 0,
@@ -218,21 +288,25 @@ export function calcularPeriodo(input: {
 }
 
 /**
- * Las 8 metas con las que abre un mes cuando no hay uno anterior para copiar:
- * la hoja "Personal Monthly Goals" del Excel + la Carrera. La 7ª todavía no
- * está decidida (Llamadas o Suplementos); va Suplementos porque `call_logs`
- * está vacía (medido el 2026-09-29) y una meta de llamadas no se podría cumplir.
- * El Admin la cambia al abrir el mes.
+ * Las metas con las que abre un mes cuando no hay uno anterior para copiar.
+ * Todas automáticas (Erick, 2026-09-29): los objetivos de Recepción que aprobó,
+ * más el uso del sistema. Las membresías quedan "próximamente".
+ *
+ * Referencia de septiembre (1 al 29, medido): Pamela 133 citas, 41 casos, 29
+ * salvadas, 27 reactivaciones, 72 SMS, 30 links; Reagin 60 / 21 / 9 / 15 / 34 / 14.
  */
+const metaAuto = (sortOrder: number, metric: MetricKey, target: number): Omit<RewardGoal, 'id'> => ({
+  sortOrder, kind: 'METRIC', categoryCode: null, metric, roleKey: null, onlyNew: false, target,
+  labelEs: METRICAS[metric].es, labelEn: METRICAS[metric].en,
+});
 export const METAS_POR_DEFECTO: Array<Omit<RewardGoal, 'id'>> = [
-  { sortOrder: 1, kind: 'CATEGORY', categoryCode: 'C01', onlyNew: true,  target: 2,  labelEs: 'Membresías nuevas', labelEn: 'New memberships' },
-  { sortOrder: 2, kind: 'CATEGORY', categoryCode: 'C01', onlyNew: false, target: 3,  labelEs: 'Membresías total',  labelEn: 'Total memberships' },
-  { sortOrder: 3, kind: 'CATEGORY', categoryCode: 'C06', onlyNew: false, target: 5,  labelEs: 'Reseñas',           labelEn: 'Reviews' },
-  { sortOrder: 4, kind: 'CATEGORY', categoryCode: 'C04', onlyNew: false, target: 4,  labelEs: 'Citas salvadas',    labelEn: 'Cancellation saves' },
-  { sortOrder: 5, kind: 'CATEGORY', categoryCode: 'C05', onlyNew: false, target: 3,  labelEs: 'Reactivaciones',    labelEn: 'Reactivations' },
-  { sortOrder: 6, kind: 'CATEGORY', categoryCode: 'C07', onlyNew: false, target: 5,  labelEs: 'Ventas de suplementos', labelEn: 'Supplement sales' },
-  { sortOrder: 7, kind: 'CATEGORY', categoryCode: 'C09', onlyNew: false, target: 1,  labelEs: 'Bug resuelto',      labelEn: 'Resolved bug' },
-  { sortOrder: 8, kind: 'USAGE',    categoryCode: null,  onlyNew: false, target: 80, labelEs: 'Uso del sistema',   labelEn: 'System usage' },
+  metaAuto(1, 'APPTS_BOOKED', 40),
+  metaAuto(2, 'NEW_CASES', 10),
+  metaAuto(3, 'SAVED_APPTS', 5),
+  metaAuto(4, 'REACTIVATIONS', 2),
+  metaAuto(5, 'SMS_PATIENTS', 20),
+  metaAuto(6, 'FORM_LINKS', 10),
+  { sortOrder: 7, kind: 'USAGE', categoryCode: null, metric: null, roleKey: null, onlyNew: false, target: 80, labelEs: 'Uso del sistema', labelEn: 'System usage' },
 ];
 
 /** Primer día del mes de la clínica para una fecha (YYYY-MM-01). */

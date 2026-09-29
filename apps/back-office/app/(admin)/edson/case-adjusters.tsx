@@ -475,6 +475,55 @@ export function AdjustersPopover({
     return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   }
 
+  /**
+   * Dar de alta la ASEGURADORA que no esta en el catalogo, sin salir de aca.
+   *
+   * Un ajustador cuelga obligatoriamente de una aseguradora, asi que cuando la
+   * compania no esta el alta de la persona se muere ahi. Erick, 2026-09-29:
+   * Edson quiso agregar a alguien de "Travelers Insurance" y de verdad no
+   * estaba entre las 237 vivas.
+   *
+   * Va contra `quick-create` y NO contra el catalogo: esa ruta esta cerrada por
+   * `settings`, que Edson no tiene, y le daria un FORBIDDEN despues de teclear
+   * todo. Es el mismo reparto que ya se hizo con los bufetes.
+   *
+   * Tres respuestas que importan:
+   *  · DUPLICATE_NAME  — ya existe: se USA esa en vez de dejarlo en un callejon.
+   *  · SIMILAR_CARRIER — hay parecidas: se pregunta UNA vez y se reintenta
+   *    confirmando. Sin esto el catalogo junta "Travelers", "Travelers Ins" y
+   *    "Travelers Insurance" como tres empresas, que es como estan hoy los
+   *    bufetes.
+   *  · ok — queda elegida al toque, para no hacerlo buscar lo que acaba de crear.
+   */
+  async function crearCarrier(nombre: string, confirmar = false): Promise<void> {
+    if (!alta) return;
+    setSaving(true); setError('');
+    try {
+      const res = await fetch('/api/admin/insurances/quick-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nombre, confirmarParecido: confirmar }),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok && json?.error === 'DUPLICATE_NAME' && json?.carrierId) {
+        setAlta({ ...alta, carrier: { id: json.carrierId, label: json.params?.name ?? nombre } });
+        setCarrierQ('');
+        return;
+      }
+      if (!res.ok && json?.error === 'SIMILAR_CARRIER') {
+        if (window.confirm(t('carrierSimilarAsk', { names: json.params?.names ?? '' }))) {
+          await crearCarrier(nombre, true);
+        }
+        return;
+      }
+      if (!res.ok) { setError(serverError(json as ServerErrorBody, t('errSave'))); return; }
+
+      setAlta({ ...alta, carrier: { id: json.carrier.id, label: json.carrier.name } });
+      setCarrierQ('');
+    } finally { setSaving(false); }
+  }
+
   async function crearYAsignar() {
     if (!alta) return;
     if (!alta.carrier) { setError(t('adjusterCreateNeedsCarrier')); return; }
@@ -611,6 +660,19 @@ export function AdjustersPopover({
                 placeholder={t('adjusterCreateCarrier')}
                 className="w-full bg-bg-1 rounded px-2 py-1 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
               />
+              {/* No esta en el catalogo: se ofrece sumarla, con lo ya tecleado.
+                  Pegado al buscador y solo cuando la busqueda no encontro nada —
+                  en cualquier otro momento seria una invitacion a duplicar. */}
+              {carrierOpts.length === 0 && carrierQ.trim().length >= 2 && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void crearCarrier(carrierQ.trim())}
+                  className="mt-1 text-[11.5px] text-brand-text hover:underline underline-offset-2 font-medium disabled:opacity-50"
+                >
+                  {t('carrierCreate', { nombre: carrierQ.trim() })}
+                </button>
+              )}
               {carrierOpts.length > 0 && (
                 <div className="mt-1 max-h-28 overflow-y-auto rounded bg-bg-1">
                   {carrierOpts.map((c) => (

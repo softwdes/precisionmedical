@@ -452,7 +452,8 @@
       "srvCLINIC_NOT_FOUND": "No se encontró esa clínica.",
       "srvPROVIDER_NOT_FOUND": "No se encontró ese provider.",
       "srvINTERNAL_ERROR": "Algo falló de nuestro lado. Probá de nuevo y avisá si sigue pasando.",
-      "srvPATIENT_SAME_DAY": "Este paciente ya tiene una cita hoy a las {hora} con {provider}. ¿Agendar igual?"
+      "srvPATIENT_SAME_DAY": "Este paciente ya tiene una cita hoy a las {hora} con {provider}. ¿Agendar igual?",
+      "srvSIMILAR_CARRIER": "Ya hay aseguradoras parecidas en el catálogo."
     },
     "push": {
       "msgNuevo": "Nuevo mensaje",
@@ -7045,7 +7046,9 @@
       "adjusterCreateNeedsCarrier": "Elegí la aseguradora de la lista: el catálogo la necesita.",
       "adjusterCreateFailed": "No se pudo agregar al catálogo.",
       "caseTypeFu": "MVA F/U",
-      "caseTypeFuNote": "Recepción anotó un control en esta cita. Confirmalo o cambialo."
+      "caseTypeFuNote": "Recepción anotó un control en esta cita. Confirmalo o cambialo.",
+      "carrierCreate": "Agregar “{nombre}” al catálogo",
+      "carrierSimilarAsk": "El catálogo ya tiene: {names}. ¿Crear una nueva igual?"
     },
     "online": {
       "badge": "Cita online",

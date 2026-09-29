@@ -124,7 +124,7 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['dashboard', /^\/api\/cifo(\/|$)/,             'all'],
   ['billing',   /^\/api\/admin\/billing(\/|$)/,    'all'],
   ['settings',  /^\/api\/admin\/audit-logs(\/|$)/, 'all'],
-  ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances|clinics|employees)(\/|$)/, 'write'],
+  ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances(?!\/quick-create$)|clinics|employees)(\/|$)/, 'write'],
 
   /**
    * ── Settings, pestaña por pestaña (2026-09-14) ─────────────────────────────
@@ -161,7 +161,7 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['settings:clinicas',       /^\/api\/admin\/clinics(\/|$)/,                  'write'],
   ['settings:especialidades', /^\/api\/admin\/specialties(\/|$)/,              'write'],
   ['settings:doctores',       /^\/api\/admin\/(providers|employees)(\/|$)/,    'write'],
-  ['settings:aseguradoras',   /^\/api\/admin\/insurances(\/|$)/,               'write'],
+  ['settings:aseguradoras',   /^\/api\/admin\/insurances(?!\/quick-create$)(\/|$)/,               'write'],
   ['settings:ajustadores',    /^\/api\/admin\/adjusters(\/|$)/,                'write'],
   ['settings:servicios',      /^\/api\/admin\/(services|service-codes)(\/|$)/, 'write'],
   ['settings:releases',       /^\/api\/admin\/releases(\/|$)/,                 'all'],
@@ -199,6 +199,21 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
   // MODULE_ROUTES, donde ese par también viaja junto.
   ['edson',     /^\/api\/admin\/(edson|intake)(\/|$)/, 'all'],
+  /*
+   * Dar de alta una ASEGURADORA desde el panel de ajustador.
+   *
+   * Mismo criterio que `lawyers/quick-create`: crear mientras trabajo no es
+   * administrar el catalogo. Un ajustador cuelga OBLIGATORIAMENTE de una
+   * aseguradora, asi que sin esto Edson no puede dar de alta a la persona
+   * cuando la compania no esta en la lista — le paso el 2026-09-29 con
+   * Travelers, que de verdad no estaba en las 237 vivas.
+   *
+   * ⚠️ Esta linea NO alcanza sola. `apiGuardModules` junta TODAS las reglas
+   * que matchean y bloquea si alguna esta apagada, asi que las dos reglas de
+   * `settings` llevan un `(?!\/quick-create$)`. Las TRES van juntas o el 403
+   * vuelve igual, que es el error que ya se cometio una vez con bufetes.
+   */
+  ['edson',     /^\/api\/admin\/insurances\/quick-create$/, 'write'],
   // Comunicaciones: el historial de llamadas y el de SMS solo se abren desde la
   // lista de Patients (`CallHistoryDialog` / `SmsHistoryDialog`). Son el registro
   // de con quién se habló y qué se le mandó — no es un lookup compartido.

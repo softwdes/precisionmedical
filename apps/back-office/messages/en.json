@@ -452,7 +452,8 @@
       "srvCLINIC_NOT_FOUND": "That clinic could not be found.",
       "srvPROVIDER_NOT_FOUND": "That provider could not be found.",
       "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening.",
-      "srvPATIENT_SAME_DAY": "This patient already has an appointment today at {hora} with {provider}. Schedule anyway?"
+      "srvPATIENT_SAME_DAY": "This patient already has an appointment today at {hora} with {provider}. Schedule anyway?",
+      "srvSIMILAR_CARRIER": "There are similar carriers already in the catalog."
     },
     "push": {
       "msgNuevo": "New message",
@@ -7045,7 +7046,9 @@
       "adjusterCreateNeedsCarrier": "Pick the carrier from the list — the catalog needs it.",
       "adjusterCreateFailed": "Could not add to the catalog.",
       "caseTypeFu": "MVA F/U",
-      "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it."
+      "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it.",
+      "carrierCreate": "Add “{nombre}” to the catalog",
+      "carrierSimilarAsk": "The catalog already has: {names}. Create a new one anyway?"
     },
     "online": {
       "badge": "Online visit",

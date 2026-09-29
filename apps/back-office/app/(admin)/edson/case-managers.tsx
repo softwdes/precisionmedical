@@ -301,7 +301,6 @@ export function ManagersSection({
    * `flush`.
    */
   const [firstMal, setFirstMal] = useState(false);
-  const [lastMal,  setLastMal]  = useState(false);
 
   const assignedIds = new Set(current.map(m => m.lawyer?.id).filter(Boolean));
   const available   = firmMembers.filter(m => !assignedIds.has(m.id));
@@ -363,7 +362,7 @@ export function ManagersSection({
         return false;
       }
       setAdding(false); setPickId(''); setFirst(''); setLast(''); setEmail(''); setPhone('');
-      setEmailMal(false); setFirstMal(false); setLastMal(false);
+      setEmailMal(false); setFirstMal(false);
       await reload();
       onChanged?.();
       return true;
@@ -388,7 +387,7 @@ export function ManagersSection({
     flush: async () => {
       if (adding && mode === 'pick' && pickId) return assign();
       if (adding && mode === 'new') {
-        if (firstName.trim() && lastName.trim()) return assign();
+        if (firstName.trim()) return assign();
         /*
           * Hay algo escrito pero INCOMPLETO. Antes esto caia en el `return true`
           * de abajo —"no habia nada pendiente"— y el modal guardaba el caso,
@@ -407,10 +406,10 @@ export function ManagersSection({
           */
         const algoEscrito = !!(firstName.trim() || lastName.trim() || email.trim() || phone.trim());
         if (algoEscrito) {
-          const faltan: string[] = [];
-          if (!firstName.trim()) { setFirstMal(true); faltan.push(t('managerFirstName')); }
-          if (!lastName.trim())  { setLastMal(true);  faltan.push(t('managerLastName')); }
-          setError(t('managerCheckFields', { fields: faltan.join(', ') }));
+          // Solo el nombre. El apellido dejo de ser obligatorio el 2026-09-28
+          // y esta guarda quedo pidiendo un campo que ya no hace falta.
+          setFirstMal(true);
+          setError(t('managerCheckFields', { fields: t('managerFirstName') }));
           return false;
         }
       }
@@ -506,13 +505,7 @@ export function ManagersSection({
               </div>
               <div>
                 <Label htmlFor="cm-last">{t('managerLastName')}</Label>
-                <Input
-                  id="cm-last"
-                  value={lastName}
-                  onChange={e => { setLast(e.target.value); if (lastMal) setLastMal(false); }}
-                  aria-invalid={lastMal || undefined}
-                  className={lastMal ? '!border-rose focus:!border-rose' : undefined}
-                />
+                <Input id="cm-last" value={lastName} onChange={e => setLast(e.target.value)} />
               </div>
               <div>
                 <Label htmlFor="cm-email">{t('managerEmail')}</Label>
@@ -554,7 +547,7 @@ export function ManagersSection({
           <div className="flex gap-2">
             <Button
               onClick={() => void assign()}
-              disabled={saving || (mode === 'pick' ? !pickId : !firstName.trim() || !lastName.trim())}
+              disabled={saving || (mode === 'pick' ? !pickId : !firstName.trim())}
             >
               {saving ? '…' : t('managerAdd')}
             </Button>

@@ -30,7 +30,16 @@ const AssignSchema = z.union([
   z.object({ lawyerId: z.string().min(1), notes: z.string().max(1000).nullable().optional() }),
   z.object({
     firstName: z.string().trim().min(1).max(100),
-    lastName: z.string().trim().min(1).max(100),
+    /*
+     * El apellido es OPCIONAL. Los bufetes a veces no lo dan —es politica de
+     * ellos, no un descuido de quien carga— y exigirlo no mejoraba el dato:
+     * hacia que la persona no se cargara. Erick, 2026-09-28.
+     *
+     * No rompe nada aguas abajo: `name` se arma con un `.trim()`, no hay
+     * columna de apellido para los escritos a mano, y nadie deshace el nombre.
+     * Quien distingue a dos personas aca es el correo o el telefono.
+     */
+    lastName: z.string().trim().max(100).optional(),
     email: z.string().email().max(200).nullable().optional().or(z.literal('').transform(() => null)),
     phone: z.string().max(50).nullable().optional(),
     memberRole: z.enum(['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'])
@@ -126,7 +135,7 @@ export async function POST(
     saved = await db.caseManager.create({
       data: {
         caseId: id,
-        name: `${parsed.firstName} ${parsed.lastName}`.trim(),
+        name: `${parsed.firstName} ${parsed.lastName ?? ''}`.trim(),
         email: parsed.email ?? null,
         phone: parsed.phone ?? null,
         role: parsed.memberRole,

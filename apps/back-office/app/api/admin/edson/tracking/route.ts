@@ -174,6 +174,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
    * Va en `where` —junto a clínica y provider— y no en la vista, así los
    * contadores de las tres pestañas hablan del mismo recorte que la tabla.
    */
+  /**
+   * Rango explícito, que GANA sobre el horizonte de días.
+   *
+   * `dias` siempre cuenta hacia atrás desde hoy, así que no puede expresar "el
+   * mes pasado" ni "del 1 al 15". Con el abanico que hay —de octubre 2023 a
+   * octubre 2026, 1.058 filas repartidas parejo entre 23 y 50 por mes— el salto
+   * entre "últimos 90 días" (113 filas) y "todo el historial" (1.058) era todo
+   * lo que había en el medio.
+   *
+   * Se valida CONTRA UN PATRON y ademas se comprueba que la fecha exista: un
+   * `new Date('2026-02-31')` no tira error, se corre al 3 de marzo. Sin ese
+   * segundo chequeo, una fecha imposible filtraría por un día distinto al que
+   * pidieron sin decir nada.
+   */
+  const fechaValida = (v: string | null): string | null => {
+    if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    const d = new Date(`${v}T00:00:00Z`);
+    // `toISOString` devuelve la fecha normalizada: si no coincide con lo que
+    // mandaron, el día no existe (31 de febrero, 30 de febrero…).
+    return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v ? null : v;
+  };
+  const desde = fechaValida(sp.get('desde'));
+  const hasta = fechaValida(sp.get('hasta'));
+
   const DIAS_VALIDOS = [30, 60, 90, 180];
   const diasParam = sp.get('dias') ?? '';
   const dias: number | null =
@@ -245,7 +269,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // `Prisma.raw` acá es seguro y es la única forma: un intervalo no se puede
   // parametrizar. El valor no sale del pedido sino de `DIAS_VALIDOS`, que son
   // cuatro enteros escritos arriba — lo mismo que ya se hace con `SORT_COLUMNS`.
-  if (dias !== null) {
+  /*
+   * El rango le gana al horizonte: si vienen fechas, `dias` no se aplica. Son
+   * dos formas de contestar la misma pregunta y aplicar las dos daría la
+   * intersección, que no es lo que pidió nadie.
+   *
+   * Se compara la fecha EN HORA DE CLINICA, no el instante crudo. El valor
+   * guardado es UTC: las 17:00 de Denver son las 23:00 UTC del MISMO día, pero
+   * las 18:00 ya son las 00:00 del SIGUIENTE, así que comparar crudo mueve esas
+   * citas un día y las saca del mes que el usuario pidió.
+   *
+   * Medido el 2026-09-28, y el número me corrigió a mí: **301 de 8.584 citas
+   * (3,5%) caen en otro día** según cómo se compare, y la más tardía de la base
+   * es a las 19:00. Pero al probarlo sobre septiembre de 2026 dieron CERO
+   * diferencias, porque las primeras visitas MVA de ese mes terminan a las
+   * 17:00. O sea: la trampa es real y no se ve hasta que se ve. La conversión
+   * es gratis y es la misma que ya usa `SORT_BY_DAY`.
+   *
+   * `::date` sobre la columna impide usar un índice, pero esta tabla tiene
+   * 1.058 filas y el orden de la consulta ya hacía esa misma cuenta.
+   */
+  const enHoraDeClinica = Prisma.sql`(fa."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE ${CLINIC_TZ})::date`;
+  if (desde || hasta) {
+    if (desde) where.push(Prisma.sql`${enHoraDeClinica} >= ${desde}::date`);
+    if (hasta) where.push(Prisma.sql`${enHoraDeClinica} <= ${hasta}::date`);
+  } else if (dias !== null) {
     where.push(Prisma.sql`fa."scheduledFor" >= NOW() - (${Prisma.raw(String(dias))} * INTERVAL '1 day')`);
   }
 

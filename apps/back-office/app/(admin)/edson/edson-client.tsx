@@ -272,6 +272,24 @@ function esSoloUnaPista(row: Row): boolean {
   return row.followUpOverride === null && row.noteHintsFollowUp;
 }
 
+/**
+ * Primer y último día del mes en curso, EN HORA DE CLINICA.
+ *
+ * Con `new Date().getMonth()` a secas, alguien que mire desde otra zona el
+ * día 1 a las 00:30 veria el mes anterior. La clave del día sale de
+ * `en-CA` con `timeZone`, que devuelve YYYY-MM-DD ya en Denver.
+ *
+ * El último día se calcula como "día 0 del mes siguiente", que es como se pide
+ * el fin de mes sin tabla de 28/30/31 ni casos de año bisiesto.
+ */
+function mesEnCurso(): { desde: string; hasta: string } {
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: DENVER });
+  const [a, m] = hoy.split('-').map(Number) as [number, number];
+  const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  const dd = (n: number) => String(n).padStart(2, '0');
+  return { desde: `${a}-${dd(m)}-01`, hasta: `${a}-${dd(m)}-${dd(ultimo)}` };
+}
+
 function Empty() { return <span className="text-text-muted italic">—</span>; }
 
 // ─── Componente ──────────────────────────────────────────────────────────────
@@ -300,7 +318,27 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
    * el día que le quede corto, sin esperar un deploy. El motivo del recorte y
    * por qué 90 están medidos en la API.
    */
-  const [dias, setDias] = useState('90');
+  /**
+   * El horizonte, ahora por MESES y no por "últimos N días".
+   *
+   *   'mes'    el mes en curso (default)
+   *   'elegir' un mes cualquiera, con un `input type="month"`
+   *   'rango'  dos fechas a mano
+   *   'todo'   todo el historial
+   *
+   * Los cuatro se traducen a `desde`/`hasta` menos 'todo', que no recorta.
+   *
+   * Erick saco los presets de 30/60/90/180 el 2026-09-28: "no le sirve". Vale
+   * anotar lo que se pierde, porque estaba fundado — el default de 90 dias
+   * existia porque perseguir un PIP o un adjuster lleva semanas, y la pantalla
+   * abria con 112 filas. Con 'mes' abre con 5. Si Edson dice que se le escapa
+   * trabajo vivo, el arreglo NO es volver a los dias: es que el default sea el
+   * mes en curso MAS el anterior, que se expresa con el mismo mecanismo.
+   */
+  const [dias, setDias] = useState('mes');
+  const [mes, setMes] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [carrierId, setCarrierId]   = useState('');
   const [flag, setFlag]             = useState('');
   const [page, setPage]             = useState(1);
@@ -355,7 +393,34 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       if (apptStatus) sp.set('apptStatus', apptStatus);
       // Siempre se manda, incluso el default: si no, el back tiene que adivinar
       // si el cliente no lo mandó o si pidió el historial entero.
-      sp.set('dias', dias);
+      /*
+        * 'mes' y 'rango' NO mandan `dias`: mandan fechas. La ruta le da
+        * prioridad al rango si llega, pero mandar los dos seria pedirle la
+        * intersección de dos recortes distintos, que no es lo que nadie quiso.
+        */
+      if (dias === 'mes') {
+        const m = mesEnCurso();
+        sp.set('desde', m.desde); sp.set('hasta', m.hasta);
+      } else if (dias === 'elegir') {
+        // 'YYYY-MM' -> el mes entero. El ultimo dia es "dia 0 del mes que
+        // sigue", que evita la tabla de 28/30/31 y los bisiestos.
+        if (mes) {
+          const [a, m] = mes.split('-').map(Number) as [number, number];
+          const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
+          sp.set('desde', `${mes}-01`);
+          sp.set('hasta', `${mes}-${String(ultimo).padStart(2, '0')}`);
+        } else {
+          sp.set('dias', 'todo');   // sin mes elegido no se vacia la tabla
+        }
+      } else if (dias === 'rango') {
+        if (desde) sp.set('desde', desde);
+        if (hasta) sp.set('hasta', hasta);
+        // Sin ninguna de las dos, 'rango' no recorta nada: se cae a todo el
+        // historial en vez de mostrar una tabla vacia sin explicacion.
+        if (!desde && !hasta) sp.set('dias', 'todo');
+      } else {
+        sp.set('dias', dias);
+      }
       if (carrierId)  sp.set('carrierId', carrierId);
       if (flag)       sp.set('flag', flag);
       // La grilla se lee siempre por fecha de cita, más reciente primero —
@@ -372,13 +437,14 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
       setTotal(json.total ?? 0);
     } catch { setError(t('errLoad')); }
     finally { setLoading(false); }
-  }, [page, vista, q, clinicId, providerId, apptStatus, carrierId, flag, dias, t]);
+  }, [page, vista, q, clinicId, providerId, apptStatus, carrierId, flag, dias, mes, desde, hasta, t]);
 
   useEffect(() => { void load(); }, [load]);
 
   // El horizonte cuenta como filtro solo cuando NO es el default: si no, el
   // botón de limpiar estaría siempre encendido sin nada que limpiar.
-  const anyFilter = !!(q || clinicId || providerId || apptStatus || carrierId || flag) || dias !== '90';
+  // 'mes' es el default ahora, asi que no cuenta como filtro puesto.
+  const anyFilter = !!(q || clinicId || providerId || apptStatus || carrierId || flag) || dias !== 'mes' || !!desde || !!hasta || !!mes;
   function clearFilters() {
     setQLive(''); setQ(''); setClinicId(''); setProviderId('');
     setApptStatus(''); setCarrierId(''); setFlag(''); setDias('90'); setPage(1);
@@ -713,11 +779,52 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
           * Los demás filtran adentro de eso.
           */}
         <select value={dias} onChange={e => { setDias(e.target.value); setPage(1); }} className={selectCls}>
-          {['30', '60', '90', '180'].map(d => (
-            <option key={d} value={d}>{t('horizonDays', { n: d })}</option>
-          ))}
+          <option value="mes">{t('horizonMonth')}</option>
+          <option value="elegir">{t('horizonPickMonth')}</option>
+          <option value="rango">{t('horizonRange')}</option>
+          {/*
+            * 'todo' se queda aunque Erick solo pidio los meses: es la unica
+            * forma de ver las 1.058 filas, y sacarla dejaria datos sin ninguna
+            * puerta de entrada. No estorba, es una linea de la lista.
+            */}
           <option value="todo">{t('horizonAll')}</option>
         </select>
+        {dias === 'elegir' && (
+          <input
+            type="month" lang="en-US" value={mes}
+            onChange={e => { setMes(e.target.value); setPage(1); }}
+            title={t('horizonPickMonth')} aria-label={t('horizonPickMonth')}
+            className={selectCls}
+          />
+        )}
+        {/*
+          * Los dos campos SOLO cuando hacen falta.
+          *
+          * La barra ya tiene seis controles; dos mas siempre visibles la hacen
+          * envolver en pantallas angostas, que es la queja de ancho de siempre.
+          * Asi el caso frecuente —la lista— no paga nada.
+          *
+          * `type="date"` nativo y no el `DatePicker` de ui-phoenix: ese es de UNA
+          * fecha y no hace rangos, y el nativo ya trae el calendario del sistema.
+          * Es lo mismo que usa la pantalla de audit-logs, que es la otra tabla
+          * con filtro de fechas.
+          */}
+        {dias === 'rango' && (
+          <>
+            <input
+              type="date" lang="en-US" value={desde} max={hasta || undefined}
+              onChange={e => { setDesde(e.target.value); setPage(1); }}
+              title={t('horizonFrom')} aria-label={t('horizonFrom')}
+              className={selectCls}
+            />
+            <input
+              type="date" lang="en-US" value={hasta} min={desde || undefined}
+              onChange={e => { setHasta(e.target.value); setPage(1); }}
+              title={t('horizonTo')} aria-label={t('horizonTo')}
+              className={selectCls}
+            />
+          </>
+        )}
         <select value={clinicId} onChange={e => { setClinicId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allClinics')}</option>
           {clinics.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

@@ -166,6 +166,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
      */
     const patientIds = [...new Set(appointments.map(a => a.patientId))];
     const visitCountsByCaseAndAppt: Record<string, number> = {};
+    /** Casos que Edson marco como control recurrente. Ver donde se llena, abajo. */
+    const marcadosRecurrentes = new Set<string>();
 
     if (patientIds.length > 0) {
       /*
@@ -195,6 +197,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       /** El accidente al que pertenece una cita. Sin caso, cuenta sola. */
       const claveDe = (a: { caseId: string | null; patientId: string }) =>
         a.caseId ? (claveDelCaso.get(a.caseId) ?? `caso:${a.caseId}`) : `sincaso:${a.patientId}`;
+
+      /*
+       * La marca manual de Edson ("MVA F/U"), que GANA sobre el conteo.
+       *
+       * El conteo de abajo responde "¿vino antes?" mirando el historial. Cuando
+       * el historial no alcanza —y no alcanza: el 54% de los casos MVA no tiene
+       * `accidentDate`, asi que no se puede distinguir un control de un
+       * accidente nuevo— decide la persona que mira la fila.
+       *
+       * Una sola consulta por tanda, no una por cita: son a lo sumo tantas filas
+       * como casos haya en la semana que se esta mirando.
+       *
+       * Solo interesa `true`. `false` significa "Edson dice que SI es primera
+       * visita", que es lo mismo que haria el conteo, y `null` es "no lo miro".
+       */
+      const caseIds = [...new Set(appointments.map(a => a.caseId).filter((x): x is string => !!x))];
+      if (caseIds.length > 0) {
+        const marcas = await db.caseTracking.findMany({
+          where:  { caseId: { in: caseIds }, followUpOverride: true },
+          select: { caseId: true },
+        });
+        for (const m of marcas) marcadosRecurrentes.add(m.caseId);
+      }
 
       const priorCounts = await db.appointment.groupBy({
         by: ['caseId'],
@@ -285,7 +310,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       noteStatus:      appt.visitNote?.status ?? null,
       isOnline:        appt.isOnline,
       meetingUrl:      appt.meetingUrl,
-      visitNumber:     visitCountsByCaseAndAppt[appt.id] ?? 0,
+      /*
+       * 0 = nunca vino antes, y de ahi salen el 🆕, el resplandor de la tarjeta
+       * y el contador de primeras visitas.
+       *
+       * El `Math.max(1, ...)` es la marca de Edson: si el dijo que esta fila es
+       * un control recurrente, la cita NO puede ser una primera visita, aunque
+       * el historial no tenga con que probarlo. Se fuerza a 1 —"ya hubo una
+       * antes"— y no a un numero inventado: lo unico que esta pantalla pregunta
+       * es si vale cero o no.
+       *
+       * Pedido de Erick el 2026-09-28: marcar MVA F/U en la grilla tiene que
+       * quitar el NEW aca. Si el dato solo viviera en la grilla de Edson, las
+       * dos pantallas se contradecirian igual que antes.
+       */
+      visitNumber:     appt.caseId && marcadosRecurrentes.has(appt.caseId)
+        ? Math.max(1, visitCountsByCaseAndAppt[appt.id] ?? 0)
+        : visitCountsByCaseAndAppt[appt.id] ?? 0,
       patient: {
         id:          appt.patient.id,
         firstName:   appt.patient.firstName,
@@ -355,7 +396,22 @@ const CreateSchema = z.object({
    * ⚠️ Sin provider NO hay chequeo de cruce: no hay con qué chocar. Es la única
    * garantía que se pierde y es a sabiendas.
    */
-  providerId:      z.string().nullable().optional(),
+  /**
+   * El string VACIO se normaliza a null antes de validar.
+   *
+   * Los tres diálogos que crean citas arrancan el estado en `useState('')`, así
+   * que "sin provider" viajaba como `providerId: ""`. Sin esto, `""` pasaba la
+   * validación, llegaba entero al `create` y Prisma reventaba contra la clave
+   * foránea: la pantalla mostraba "no se pudo completar la acción" y nada más,
+   * porque un 500 no trae código de error que traducir.
+   *
+   * Un parámetro VACÍO no es un parámetro AUSENTE — el mismo error que tenía el
+   * selector de horarios el 28-sep-2026, encontrado el mismo día.
+   */
+  providerId: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    z.string().min(1).nullable().optional(),
+  ),
   scheduledFor:    z.string().datetime(),
   durationMinutes: z.number().int().min(15).max(480).default(30),
   type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
@@ -390,7 +446,31 @@ const CreateSchema = z.object({
   allowOverbook:   z.boolean().optional(),
 });
 
+/**
+ * La red que faltaba: una excepción tiene que salir como `INTERNAL_ERROR`.
+ *
+ * Sin esto, cualquier falla no prevista sale como un 500 pelado, SIN campo
+ * `error`. El cliente traduce por código, no encuentra ninguno, y muestra el
+ * genérico "no se pudo completar la acción" — que no dice nada y no deja
+ * rastro para soporte.
+ *
+ * Pasó de verdad el 28-sep-2026: un `providerId` vacío reventaba contra la
+ * clave foránea y la pantalla se quedaba muda. El GET de este módulo ya tenía
+ * su catch desde siempre; los POST que GUARDAN, no.
+ *
+ * El `console.error` es lo único que ve soporte: el detalle de la excepción no
+ * viaja al cliente a propósito — puede traer nombres de pacientes.
+ */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  try {
+    return await crearCita(req);
+  } catch (err) {
+    console.error('[POST /api/admin/appointments]', err);
+    return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });
+  }
+}
+
+async function crearCita(req: NextRequest): Promise<NextResponse> {
   const actor = await resolveActor(req.headers);
 
   let parsed: z.infer<typeof CreateSchema>;

@@ -71,7 +71,10 @@ const COL_XL = 'hidden xl:table-cell';   // Ajustador · Observaciones · Archiv
  * 16px de padding de la celda. Es el minimo que no corta y no roba espacio a las
  * columnas que si llevan texto largo.
  */
-const COL_TIPO = 'hidden sm:table-cell min-w-[46px] w-[46px] whitespace-nowrap';
+// 58px y no 46: "MVA F/U" no entra en 46 con el padding de la celda. Son 12px
+// mas sobre 14 columnas, y el ancho es lo unico que Edson mide — si molesta, lo
+// que se achica es esto, no el nombre del paciente.
+const COL_TIPO = 'hidden sm:table-cell min-w-[58px] w-[58px] whitespace-nowrap';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -82,11 +85,28 @@ const COL_TIPO = 'hidden sm:table-cell min-w-[46px] w-[46px] whitespace-nowrap';
  * `WORKERS_COMP` y `NURSING_HOME` existen en el enum pero esa ruta no los toma,
  * y ofrecer una opcion que el backend rechaza es peor que no ofrecerla.
  */
-const TIPOS_DE_CASO = ['MVA', 'GENERAL'] as const;
+/**
+ * Lo que ofrece la celda de Tipo. OJO: no es el enum de `cases.caseType`.
+ *
+ * 'MVA_FU' NO es un tipo de caso — el enum de la base es
+ * MVA / GENERAL / WORKERS_COMP / NURSING_HOME, y de el cuelgan el precio, el
+ * lien y la facturacion. "Es un control recurrente" es una propiedad de la
+ * VISITA, y se guarda aparte, en `case_tracking.followUpOverride`.
+ *
+ * Van juntos en un solo control porque para Edson son una sola pregunta —"¿que
+ * es esta fila?"— y porque la columna mide 58px: dos selectores no entran. Pero
+ * al guardar se separan en dos escrituras a dos tablas distintas. Ver
+ * `cambiarTipo`.
+ */
+const TIPOS_DE_CASO = ['MVA', 'MVA_FU', 'GENERAL'] as const;
 
 interface Row {
   caseId: string;
   caseCode: string;
+  /** Lo que dijo EDSON: true = control recurrente, false = primera visita, null = no lo reviso. */
+  followUpOverride: boolean | null;
+  /** La PISTA: recepcion escribio "MVA F/U 2 WEEKS" en la nota de esa cita. Sugiere, no decide. */
+  noteHintsFollowUp: boolean;
   /** 'MVA' | 'GENERAL'. Hoy siempre MVA: la vista filtra por eso. */
   caseType: string;
   patient: { id: string; firstName: string; lastName: string; dateOfBirth: string | null; phone: string | null; phone2: string | null };
@@ -233,6 +253,23 @@ function fmtDayHeader(d: string): string {
 /** Clave de agrupación: el día calendario en la zona de la clínica. */
 function dayKey(d: string): string {
   return new Date(d).toLocaleDateString('en-CA', { timeZone: DENVER });
+}
+
+/**
+ * ¿Esta fila se muestra como control recurrente?
+ *
+ * Gana lo que dijo Edson; si no dijo nada, vale la pista de recepcion. El `??`
+ * es deliberado y no un `||`: `false` significa "Edson lo reviso y SI es
+ * primera visita", y tiene que ganarle a la nota. Con `||` ese caso se perderia
+ * y la nota volveria a mandar.
+ */
+function esRecurrente(row: Row): boolean {
+  return row.followUpOverride ?? row.noteHintsFollowUp;
+}
+
+/** La pista todavia sin confirmar: lo dice la nota y Edson no la miro. */
+function esSoloUnaPista(row: Row): boolean {
+  return row.followUpOverride === null && row.noteHintsFollowUp;
 }
 
 function Empty() { return <span className="text-text-muted italic">—</span>; }
@@ -457,14 +494,53 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
     row: Row, elegido: { id: string | null; text: string | null },
   ): Promise<boolean> {
     if (elegido.text || !elegido.id) { setError(t('caseTypeOnlyFromList')); return false; }
-    if (elegido.id === row.caseType) return true;
+
+    /*
+      * Una sola celda, DOS tablas. Es la parte delicada de esto.
+      *
+      * 'MVA' y 'GM' son el tipo del CASO (`cases.caseType`), del que cuelgan el
+      * precio, el lien y la facturacion. 'MVA F/U' NO es un tipo de caso: es
+      * "esta visita es un control", y vive en `case_tracking.followUpOverride`.
+      *
+      * Asi que el id elegido se parte en dos antes de escribir:
+      */
+    const tipoDeCaso = elegido.id === 'GENERAL' ? 'GENERAL' : 'MVA';
+    /*
+      * Y el tercer estado importa. Elegir 'MVA' escribe `false`, NO `null`:
+      * null significa "nadie lo reviso" y elegir MVA a mano ES revisarlo. Sin
+      * esa distincion, confirmar que una fila SI es primera visita no se podria
+      * expresar, y la pista de la nota de recepcion volveria a ganar en el
+      * proximo refresco — el usuario corregiria lo mismo para siempre.
+      */
+    const recurrente = elegido.id === 'GENERAL' ? undefined : elegido.id === 'MVA_FU';
+
+    const cambiaTipo = tipoDeCaso !== row.caseType;
+    const cambiaFu   = recurrente !== undefined && recurrente !== row.followUpOverride;
+    if (!cambiaTipo && !cambiaFu) return true;
+
     try {
-      const res = await fetch(`/api/admin/cases/${row.caseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseType: elegido.id }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
+      /*
+        * Secuencial y no en paralelo: si la segunda falla, la primera ya se
+        * guardo y `load()` deja la grilla mostrando lo que de verdad quedo en la
+        * base. Con un `Promise.all` y una sola falla, la pantalla no sabria
+        * cual de las dos escribio.
+        */
+      if (cambiaTipo) {
+        const res = await fetch(`/api/admin/cases/${row.caseId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseType: tipoDeCaso }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+      }
+      if (cambiaFu) {
+        const res = await fetch(`/api/admin/cases/${row.caseId}/tracking`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ followUpOverride: recurrente }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+      }
       await load();
       return true;
     } catch {
@@ -964,12 +1040,22 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                         </DataTable.Td>
                         <DataTable.Td className={COL_TIPO + ' !text-[10px]'}>
                           <InlineCombo
-                            value={row.caseType === 'GENERAL' ? t('caseTypeGm') : t('caseTypeMva')}
+                            value={
+                              row.caseType === 'GENERAL' ? t('caseTypeGm')
+                              : esRecurrente(row)        ? t('caseTypeFu')
+                              :                            t('caseTypeMva')
+                            }
                             options={TIPOS_DE_CASO.map(v => ({
-                              id: v, name: v === 'GENERAL' ? t('caseTypeGm') : t('caseTypeMva'),
+                              id: v,
+                              name: v === 'GENERAL' ? t('caseTypeGm')
+                                  : v === 'MVA_FU'  ? t('caseTypeFu')
+                                  :                   t('caseTypeMva'),
                             }))}
                             emptyHint={t('caseTypePick')}
-                            title={t('caseTypeHint')}
+                            /* Cuando lo unico que lo sostiene es la nota de
+                               recepcion, el tooltip lo dice: no es lo mismo que
+                               Edson lo haya confirmado. */
+                            title={esSoloUnaPista(row) ? t('caseTypeFuNote') : t('caseTypeHint')}
                             /* Mismo gesto que provider: doble clic y la lista entera. */
                             abreConLaLista
                             abreConDobleClic
@@ -992,6 +1078,36 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             */}
                           <div className="whitespace-nowrap">
                             <span className="text-text-2">{fmtTime(row.appointment.scheduledFor)}</span>
+                            {/*
+                              * Que la fila DIGA "Cancelada", no solo que lo pinte.
+                              *
+                              * Hasta hoy una cita cancelada se comunicaba con tres
+                              * cosas mudas: el nombre tachado, el fondo de color y
+                              * el enum crudo ("CANCELLED") en un tooltip. Para
+                              * leerla habia que saberse la leyenda de colores o
+                              * pasar el mouse por la franja. Erick pidio la palabra
+                              * el 2026-09-28: "esas bien que se muestren, pero que
+                              * diga cancelado".
+                              *
+                              * Va PEGADA A LA HORA y no en columna propia porque la
+                              * hora es justo el dato que dejo de ser cierto cuando
+                              * la cita no ocurrio. Y no cuesta nada: reusa la linea
+                              * que ya existe, asi que la fila no crece ni a lo alto
+                              * ni a lo ancho — que es lo unico que Edson mira.
+                              *
+                              * El texto sale del namespace del CALENDARIO, igual
+                              * que el selector de estados de arriba: si aca dijera
+                              * "Anulada" y alla "Cancelada", serian dos palabras
+                              * para lo mismo. Cero claves nuevas.
+                              */}
+                            {(status === 'CANCELLED' || status === 'NO_SHOW') && (
+                              <span
+                                className="ml-1 px-1 rounded text-[8.5px] font-semibold align-middle"
+                                style={{ background: vis.background, color: 'var(--text-1)' }}
+                              >
+                                {tcal(status === 'CANCELLED' ? 'statusCancelled' : 'statusNoShow')}
+                              </span>
+                            )}
                             {row.appointment.clinicName && (
                               /* `leading-none`: sin esto el nombre de la clinica
                                  pinta 9.5px de letra en 20px de alto, porque el

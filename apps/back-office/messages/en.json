@@ -4203,10 +4203,8 @@
       "insuranceVerificationPending": "Claim number, policy and benefit details available after verification.",
       "modalCallHandlerTitle": "Initial call · who handled it",
       "callHandlerRoleLabel": "Clinic staff",
-      "actionCall": "Call",
       "actionEmail": "Email",
       "frontOfficeLabel": "Front Office",
-      "rowClinic": "Clinic",
       "auditPhase1bNote": "📜 Detailed audit log available in Phase 1B (requires call audit table).",
       "rowChannel": "Channel",
       "channelInboundCall": "Inbound patient call",
@@ -5376,7 +5374,6 @@
       "qrCopyLink": "Copy link",
       "qrAlt": "QR code",
       "qrLinkError": "Could not generate the link.",
-      "searching": "Searching…",
       "viewContact": "Contact",
       "viewAccident": "Accident",
       "viewGuardian": "Legal guardian",
@@ -6960,7 +6957,9 @@
       "adjusterCreateExt": "Ext.",
       "adjusterCreateSave": "Add and assign",
       "adjusterCreateNeedsCarrier": "Pick the carrier from the list — the catalog needs it.",
-      "adjusterCreateFailed": "Could not add to the catalog."
+      "adjusterCreateFailed": "Could not add to the catalog.",
+      "caseTypeFu": "MVA F/U",
+      "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it."
     },
     "online": {
       "badge": "Online visit",

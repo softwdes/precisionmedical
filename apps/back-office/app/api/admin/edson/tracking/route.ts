@@ -81,6 +81,10 @@ const VISITA_MVA_ANTERIOR = Prisma.sql`
       AND c2."id"        <> c."id"
       AND c2."caseType"  = 'MVA'
       AND c2."deletedAt" IS NULL
+      -- El CASO ya se filtraba por borrado; la CITA no. Una cita eliminada
+      -- alcanzaba para marcar "ya venia en tratamiento" y sacar la fila de la
+      -- pestaña principal, que es donde Edson trabaja.
+      AND a2."deletedAt" IS NULL
       AND a2."scheduledFor" < fa."scheduledFor"
       AND a2."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
       /*
@@ -113,8 +117,27 @@ const VISITA_MVA_ANTERIOR = Prisma.sql`
     LIMIT 1
   ) prev ON TRUE`;
 
-/** Hay visita anterior ⇒ esta no es la primera. */
-const YA_VENIA_EN_TRATAMIENTO = Prisma.sql`prev."scheduledFor" IS NOT NULL`;
+/**
+ * ¿Esta fila es un control recurrente y no una primera visita?
+ *
+ * Gana lo que dijo EDSON (`followUpOverride`), y solo si no dijo nada se cae a
+ * la deduccion de arriba. El orden importa: la deduccion hoy devuelve CERO de
+ * 1.058 porque exige `accidentDate` y falta en el 54% de los casos, asi que sin
+ * la marca manual esta pregunta no la contesta nadie.
+ *
+ * Por que la marca manual y no una deduccion mejor: lo medi el 2026-09-28.
+ * Aflojar la regla hasta la del calendario —"¿vino antes?"— marcaria 5
+ * admisiones NUEVAS como controles y no acertaria ninguna, porque de los 28
+ * candidatos 5 son otro accidente, 0 son el mismo y 23 son indecidibles por
+ * falta de fecha. Cuando el sistema no puede saber, decide la persona; es el
+ * mismo criterio que MVA vs GM.
+ *
+ * ⚠️ La PISTA de recepcion (la nota "MVA F/U 2 WEEKS") NO entra aca a proposito.
+ * Esto decide en que PESTAÑA cae la fila, y un texto libre no puede mover filas
+ * de lugar: se sugiere en la columna y Edson confirma con un clic. Ver
+ * `note_hints_follow_up` en el SELECT.
+ */
+const YA_VENIA_EN_TRATAMIENTO = Prisma.sql`COALESCE(ct."followUpOverride", prev."scheduledFor" IS NOT NULL)`;
 
 const MAX_SIZE = 100;
 
@@ -271,10 +294,34 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
      * NO_SHOW no entra en esto. El que no vino SI tuvo su primera visita, y ese
      * dia es el dato.
      */
+    /*
+     * deletedAt IS NULL — sin esto la fila puede mostrar una cita BORRADA.
+     *
+     * Erick lo encontro el 2026-09-28 con Alejandro Ochoa (MVA-3391): el
+     * calendario decia 4:30 PM con Barry Clanton y el tracking 3:30 PM con
+     * David Miller. Parecia un corrimiento de zona horaria de una hora —lo
+     * persegui por ahi y me equivoque— pero eran DOS CITAS distintas: la de
+     * las 3:30 estaba eliminada y seguia ganando el ORDER BY por ser mas
+     * temprano. La hora de menos fue casualidad, no un desfase.
+     *
+     * El sintoma delator era el PROVIDER, que tambien cambiaba. Ninguna zona
+     * horaria cambia de medico: cuando dos campos discrepan a la vez, no son
+     * el mismo registro visto distinto, son dos registros.
+     *
+     * Medido ese dia: 1 caso de 1.116. Chico, pero el agujero es permanente —
+     * cada reprogramacion que borra y recrea deja un fantasma que puede ganar,
+     * y gana justo cuando la cita vieja era mas temprano, que es lo habitual.
+     *
+     * VIGENTES = deletedAt IS NULL. El borrado logico solo protege a quien se
+     * acuerda de filtrarlo, y aca no se filtraba en NINGUNA de las tres
+     * subconsultas que tocan appointments.
+     */
     JOIN LATERAL (
-      SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId", a."createdByName"
+      SELECT a."id", a."scheduledFor", a."status", a."clinicId", a."providerId", a."createdByName",
+             a."notes"
       FROM appointments a
       WHERE a."caseId" = c."id"
+        AND a."deletedAt" IS NULL
       ORDER BY (a."status" = 'CANCELLED') ASC, a."scheduledFor" ASC
       LIMIT 1
     ) fa ON TRUE
@@ -287,6 +334,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     JOIN LATERAL (
       SELECT a."status" FROM appointments a
       WHERE a."caseId" = c."id"
+        AND a."deletedAt" IS NULL   -- una cita borrada no puede pintar la fila
       ORDER BY a."scheduledFor" DESC
       LIMIT 1
     ) la ON TRUE
@@ -343,6 +391,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       c."id"            AS case_id,
       c."caseCode"      AS case_code,
       c."caseType"::text AS case_type,
+      ct."followUpOverride" AS follow_up_override,
+      -- La pista de recepcion, calculada al vuelo y NO guardada: vive en la nota
+      -- de la cita, que es donde la escribieron. Si la corrigen, la grilla se
+      -- entera sola. 761 de 3.985 citas MVA dicen F/U; en 23 casos la nota esta
+      -- en la cita que esta grilla muestra.
+      (fa."notes" ~* '(^|[^a-z])(f/u|f-u|follow.?up)') AS note_hints_follow_up,
       c."accidentDate"  AS case_accident_date,
       p."id"            AS patient_id,
       p."firstName"     AS patient_first,
@@ -493,6 +547,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        * porque el dia que la vista deje de estar clavada a MVA el dato ya esta.
        */
       caseType: r.case_type,
+      /**
+       * Control recurrente en vez de primera visita. Dos campos, no uno:
+       *
+       *  · `followUpOverride` es lo que dijo Edson. null = no lo reviso.
+       *  · `noteHintsFollowUp` es la PISTA: la nota de recepcion en esa cita
+       *    dice "MVA F/U 2 WEEKS". Sugiere, no decide.
+       *
+       * Viajan separados a proposito. Si se fusionaran en un booleano, la celda
+       * no podria distinguir "Edson lo marco" de "lo dice la nota y falta que
+       * alguien lo confirme", que es justo la diferencia que hace de esto una
+       * cola de trabajo y no un adorno.
+       */
+      followUpOverride:  r.follow_up_override,
+      noteHintsFollowUp: r.note_hints_follow_up,
       patient: {
         id:        r.patient_id,
         firstName: r.patient_first,

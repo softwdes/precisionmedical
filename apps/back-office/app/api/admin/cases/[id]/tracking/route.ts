@@ -24,9 +24,22 @@ const InputSchema = z.object({
    * paciente en su formulario firmado.
    */
   chiroReferral: z.string().max(200).nullable().optional(),
+  /**
+   * "MVA F/U": esta fila es un control recurrente, no una primera visita.
+   *
+   * `nullable` a proposito y no un booleano pelado: null significa "nadie lo
+   * reviso" y es DISTINTO de false ("lo revise y si es primera visita"). Sin esa
+   * diferencia, la grilla no puede separar lo pendiente de lo resuelto.
+   *
+   * Ver `CaseTracking.followUpOverride` y el .sql 20260928-visita-recurrente:
+   * no se deduce porque el 54% de los casos MVA no tiene `accidentDate`, y
+   * aflojar la regla marcaria 5 admisiones nuevas como controles.
+   */
+  followUpOverride: z.boolean().nullable().optional(),
 }).refine(
-  (v) => v.completed !== undefined || v.archived !== undefined || v.chiroReferral !== undefined,
-  { message: 'Mandá al menos uno: completed, archived o chiroReferral' },
+  (v) => v.completed !== undefined || v.archived !== undefined
+      || v.chiroReferral !== undefined || v.followUpOverride !== undefined,
+  { message: 'Mandá al menos uno: completed, archived, chiroReferral o followUpOverride' },
 );
 
 export async function GET(
@@ -104,6 +117,10 @@ export async function PATCH(
             : null,
         }
       : {}),
+    // `?? null` y no `|| null`: false es un valor valido acá y `||` lo tiraria.
+    ...(parsed.followUpOverride !== undefined
+      ? { followUpOverride: parsed.followUpOverride ?? null }
+      : {}),
   };
 
   const before = await db.caseTracking.findUnique({ where: { caseId: id } });
@@ -118,7 +135,9 @@ export async function PATCH(
     actorType: actor.actorType,
     actorUserId: actor.actorUserId,
     actorRole: actor.actorRole,
-    action: parsed.chiroReferral !== undefined
+    action: parsed.followUpOverride !== undefined
+      ? 'UPDATE_CASE_FOLLOW_UP'
+      : parsed.chiroReferral !== undefined
       ? 'UPDATE_CASE_CHIRO_REFERRAL'
       : parsed.archived !== undefined
         ? (parsed.archived ? 'ARCHIVE_CASE_TRACKING' : 'UNARCHIVE_CASE_TRACKING')

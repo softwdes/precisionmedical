@@ -4203,10 +4203,8 @@
       "insuranceVerificationPending": "Número de reclamo, póliza y detalles de beneficios disponibles después de la verificación.",
       "modalCallHandlerTitle": "Llamada inicial · quién atendió",
       "callHandlerRoleLabel": "Encargado de clínica",
-      "actionCall": "Llamar",
       "actionEmail": "Email",
       "frontOfficeLabel": "Front Office",
-      "rowClinic": "Clínica",
       "auditPhase1bNote": "📜 El registro detallado de auditoría llega en la Fase 1B (necesita la tabla de auditoría de llamadas).",
       "rowChannel": "Canal",
       "channelInboundCall": "Llamada entrante del paciente",
@@ -5376,7 +5374,6 @@
       "qrCopyLink": "Copiar enlace",
       "qrAlt": "Código QR",
       "qrLinkError": "No se pudo generar el enlace.",
-      "searching": "Buscando…",
       "viewContact": "Contacto",
       "viewAccident": "Accidente",
       "viewGuardian": "Responsable legal",
@@ -6960,7 +6957,9 @@
       "adjusterCreateExt": "Ext.",
       "adjusterCreateSave": "Agregar y asignar",
       "adjusterCreateNeedsCarrier": "Elegí la aseguradora de la lista: el catálogo la necesita.",
-      "adjusterCreateFailed": "No se pudo agregar al catálogo."
+      "adjusterCreateFailed": "No se pudo agregar al catálogo.",
+      "caseTypeFu": "MVA F/U",
+      "caseTypeFuNote": "Recepción anotó un control en esta cita. Confirmalo o cambialo."
     },
     "online": {
       "badge": "Cita online",

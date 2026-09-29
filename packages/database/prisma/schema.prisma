@@ -3581,12 +3581,29 @@ model CaseTracking {
   referralPartnerId String?
   referralPartner   ReferralPartner? @relation(fields: [referralPartnerId], references: [id])
 
+  /// "MVA F/U": esta fila NO es una primera visita, es un control recurrente.
+  ///
+  /// NULLABLE a proposito, tres estados: NULL = nadie lo reviso y vale la pista
+  /// que deja recepcion en `appointments.notes` ("MVA F/U 2 WEEKS", 761 citas);
+  /// true = Edson dice que es un control; false = Edson dice que SI es primera
+  /// visita, aunque la nota diga otra cosa. Con un booleano NOT NULL no se
+  /// distingue "no revisado" de "revisado y es primera", que es justo lo que
+  /// hace util una cola de trabajo.
+  ///
+  /// NO se deduce. La vista ya lo intenta (`VISITA_MVA_ANTERIOR`) y encuentra
+  /// cero, porque exige `accidentDate` y falta en 602 de 1.116 casos MVA.
+  /// Medido el 2026-09-28: deducirlo como hace el calendario marcaria 5
+  /// admisiones NUEVAS como controles y no acertaria ninguna. Ver el .sql
+  /// 20260928-visita-recurrente.
+  followUpOverride Boolean?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([completedAt])
   @@index([archivedAt])
   @@index([referralPartnerId])
+  @@index([followUpOverride])
   @@map("case_tracking")
 }
 

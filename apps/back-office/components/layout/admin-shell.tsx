@@ -35,6 +35,8 @@ interface AdminShellProps {
   canAuditNotes?: boolean;
   /** Capacidad "pedidos de bufetes": agrega ese menú al final del back-office. Opt-in. */
   canSeeFirmRequests?: boolean;
+  /** Participa de los Premios del Staff este mes: agrega "Mis premios" al menú. */
+  canSeeRewards?: boolean;
   /**
    * Capacidad de CIFO: pone su botón en la barra para volver a abrir el saludo.
    *
@@ -62,6 +64,7 @@ export function AdminShell({
   canViewAsDoctor = false,
   canAuditNotes = false,
   canSeeFirmRequests = false,
+  canSeeRewards = false,
   canAskCifo = false,
   sidebarBelowNav = null,
   sidebarBadges = null,
@@ -100,6 +103,7 @@ export function AdminShell({
             canViewAsDoctor={canViewAsDoctor}
             canAuditNotes={canAuditNotes}
             canSeeFirmRequests={canSeeFirmRequests}
+            canSeeRewards={canSeeRewards}
             belowNav={sidebarBelowNav}
             badges={sidebarBadges}
           />

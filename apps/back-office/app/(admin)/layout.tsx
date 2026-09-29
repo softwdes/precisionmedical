@@ -7,6 +7,7 @@ import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { canSeeFirmRequests } from '@/lib/firm-requests-access';
 import { canAskCifo } from '@/lib/cifo-access';
+import { canSeeRewards } from '@/lib/premios';
 import { getSessionUser } from '@/lib/session';
 
 // Back-Office · Admin layout
@@ -79,6 +80,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let puedeVerPedidos = false;
   /** Habilita el botón de CIFO en la barra — ver `admin-shell.tsx`. */
   let puedePreguntarCifo = false;
+  /** "Mis premios" en el menú. Fuera del `try`: `canSeeRewards` nunca tira
+   *  (devuelve false ante cualquier error) y no depende de la ficha. */
+  const verPremios = canSeeRewards();
 
   try {
     const admin = createAdminClient();
@@ -138,6 +142,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userEmail={user.email ?? ''}
         allowedModules={allowedModules}
         canSeeFirmRequests={puedeVerPedidos}
+        canSeeRewards={await verPremios}
         canAskCifo={puedePreguntarCifo}
       >
         {children}

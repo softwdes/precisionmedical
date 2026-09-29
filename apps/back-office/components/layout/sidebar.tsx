@@ -25,6 +25,7 @@ import {
   Mail,
   UserPlus,
   HandCoins,
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 import { MESSAGES_BADGE_EVENT } from '@/lib/messaging-events';
@@ -125,6 +126,15 @@ const FIRM_REQUESTS_ITEM: NavItem = {
   href: '/firm-requests', icon: Scale, labelKey: 'firmRequests',
 };
 
+/**
+ * Premios del Staff (2026-09-29). Por capacidad y no por `moduleKey`: no es un
+ * permiso del rol sino si la persona participa del mes que corre, y eso lo
+ * decide el Admin al armar el mes (`canSeeRewards` en `lib/premios.ts`).
+ */
+const REWARDS_ITEM: NavItem = {
+  href: '/mis-premios', icon: Trophy, labelKey: 'rewards',
+};
+
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
 const DOCTOR_SECTIONS: NavSection[] = [
   {
@@ -193,6 +203,8 @@ interface SidebarProps {
   canAuditNotes?: boolean;
   /** Capacidad "pedidos de bufetes" — agrega ese menú al final del back-office. Opt-in. */
   canSeeFirmRequests?: boolean;
+  /** Participa de los Premios del Staff este mes — agrega "Mis premios". */
+  canSeeRewards?: boolean;
   /** Bloque libre entre el menú y el footer. Lo usa el Portal Legal para la
    *  tarjeta de oficina; se oculta con la barra colapsada, donde no hay ancho. */
   belowNav?: React.ReactNode;
@@ -200,7 +212,7 @@ interface SidebarProps {
   badges?: Record<string, number> | null;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, canSeeFirmRequests = false, belowNav = null, badges = null }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null, canViewAsDoctor = false, canAuditNotes = false, canSeeFirmRequests = false, canSeeRewards = false, belowNav = null, badges = null }: SidebarProps): React.ReactElement {
   /*
    * Colapsada, la barra se abre sola al pasar el mouse y se vuelve a cerrar al
    * salir — como Gmail. El boton de la barra superior es lo que la FIJA abierta.
@@ -259,6 +271,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
     : isAttorney
       ? []
       : [
+          ...(canSeeRewards ? [REWARDS_ITEM] : []),
           ...(canSeeFirmRequests ? [FIRM_REQUESTS_ITEM] : []),
           ...(canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : []),
         ];

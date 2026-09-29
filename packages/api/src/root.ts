@@ -20,6 +20,7 @@ import { aiAgentsRouter } from './routers/ai-agents';
 import { freelancersRouter } from './routers/freelancers';
 import { clinicsRouter } from './routers/clinics';
 import { observabilityRouter } from './routers/observability';
+import { premiosRouter } from './routers/premios';
 
 export const appRouter = router({
   users: usersRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   freelancers: freelancersRouter,
   clinics: clinicsRouter,
   observability: observabilityRouter,
+  premios: premiosRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -5128,3 +5128,103 @@ model ProviderTimeBlock {
   @@index([startsAt])
   @@map("provider_time_blocks")
 }
+
+// ─── Premios del Staff (2026-09-29) ─────────────────────────────────────────
+//
+// Reemplaza el Excel de incentivos mensuales. Las tablas se crean con
+// `prisma/sql/20260929-premios.sql` (NO con db push) y el avance lo arma la fn
+// `reward_progress`; el cálculo del pago vive en `src/premios.ts`, compartido
+// con el Admin. Sin relaciones declaradas a propósito: agregarlas obliga a
+// tocar `User`, `Patient` y `Clinic`, y ningún query de acá las necesita.
+
+model RewardPeriod {
+  id              String    @id @default(cuid())
+  month           DateTime  @unique @db.Date
+  poolAmount      Decimal   @db.Decimal(10, 2)
+  /// OPEN | CLOSED
+  status          String    @default("OPEN")
+  closedAt        DateTime?
+  closedByUserId  String?
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("reward_periods")
+}
+
+model RewardParticipant {
+  id           String   @id @default(cuid())
+  periodId     String
+  userId       String
+  /// STAFF | MANAGER
+  kind         String   @default("STAFF")
+  shareAmount  Decimal? @db.Decimal(10, 2)
+  goalsHit     Int?
+  goalsTotal   Int?
+  progressPct  Decimal? @db.Decimal(7, 4)
+  payoutAmount Decimal? @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+
+  @@unique([periodId, userId])
+  @@index([userId])
+  @@map("reward_participants")
+}
+
+model RewardCategory {
+  code            String   @id
+  nameEs          String
+  nameEn          String
+  pointsNew       Int      @default(0)
+  pointsExisting  Int      @default(0)
+  tracksSource    Boolean  @default(false)
+  requiresPatient Boolean  @default(false)
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  updatedAt       DateTime @default(now())
+
+  @@map("reward_categories")
+}
+
+model RewardGoal {
+  id           String  @id @default(cuid())
+  periodId     String
+  sortOrder    Int
+  /// CATEGORY | CALLS | USAGE
+  kind         String
+  categoryCode String?
+  onlyNew      Boolean @default(false)
+  target       Int
+  labelEs      String
+  labelEn      String
+
+  @@unique([periodId, sortOrder])
+  @@map("reward_goals")
+}
+
+model RewardEntry {
+  id               String    @id @default(cuid())
+  periodId         String
+  userId           String
+  categoryCode     String
+  occurredOn       DateTime  @db.Date
+  patientId        String?
+  clinicId         String?
+  source           String?
+  isNewPatient     Boolean?
+  points           Int       @default(0)
+  notes            String?
+  /// PENDING | VERIFIED | REJECTED
+  status           String    @default("PENDING")
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  rejectReason     String?
+  /// MANUAL | AUTO
+  origin           String    @default("MANUAL")
+  originRef        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([periodId, userId])
+  @@index([periodId, status])
+  @@map("reward_entries")
+}

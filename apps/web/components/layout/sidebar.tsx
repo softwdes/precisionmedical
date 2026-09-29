@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   Lock,
   Mail,
+  Trophy,
 } from 'lucide-react';
 import { useRole, useGrants } from '@/contexts/role-context';
 import { can, type Role, type LmModule } from '@/lib/permissions';
@@ -56,6 +57,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
     { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees'), module: 'empleados' },
     { key: 'finanzas',  href: '/dashboard/finanzas',  icon: Banknote,  label: t('nav.finance'),   module: 'finanzas'  },
     { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas' },
+    // Premios del Staff (2026-09-29). Mismo permiso que Métricas para el menú;
+    // la página y el router exigen además SUPER_ADMIN / ADMIN (son montos de nómina).
+    { key: 'premios',   href: '/dashboard/premios',   icon: Trophy,    label: t('nav.rewards'),   module: 'metricas' },
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [

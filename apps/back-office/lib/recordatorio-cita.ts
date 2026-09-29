@@ -1,5 +1,6 @@
 /**
- * El recordatorio de la cita por SMS, al momento de agendarla.
+ * Los avisos de la cita al paciente: al agendarla, el día antes, al moverla y al
+ * cancelarla. Nació siendo solo el primero — de ahí el nombre del archivo.
  *
  * Pedido de la clínica, de una prueba real: "I just did a test with creating a
  * new patient and an appointment and I got the text to fill out the paperwork
@@ -9,14 +10,25 @@
  * ── Alcance ─────────────────────────────────────────────────────────────────
  *
  * 2026-09-14 — SOLO al agendar, por SMS.
- * 2026-09-18 — Erick suma los otros dos, los DOS por correo y no por SMS:
+ * 2026-09-18 — Erick suma los otros tres, los tres por correo y no por SMS.
+ * 2026-09-28 — la reprogramación pasa a salir por LOS DOS canales:
  *
- *   | cuándo              | canal  | quién lo dispara            |
- *   |---------------------|--------|-----------------------------|
- *   | al agendar          | SMS    | las 3 rutas que crean citas |
- *   | 24 h antes          | correo | el cron `recordatorio-cita` |
- *   | al reprogramar      | correo | el PATCH de la cita         |
- *   | al cancelar         | correo | el PATCH de la cita         |
+ *   | cuándo              | canal       | quién lo dispara            |
+ *   |---------------------|-------------|-----------------------------|
+ *   | al agendar          | SMS         | las 3 rutas que crean citas |
+ *   | 24 h antes          | correo      | el cron `recordatorio-cita` |
+ *   | al reprogramar      | SMS+correo  | el PATCH de la cita         |
+ *   | al cancelar         | correo      | el PATCH de la cita         |
+ *
+ * Por qué la reprogramación es la excepción: **el mensaje que hay que corregir
+ * está en el SMS**. El alta avisa por ahí, así que mandar la fecha nueva solo
+ * por correo deja la vieja intacta en el teléfono, que es donde el paciente la
+ * va a mirar. Medido antes del cambio: 23 movimientos de fecha posteriores a un
+ * SMS entregado y 11 pacientes sosteniendo la fecha vieja. El SMS va PRIMERO y
+ * con `await`, por eso mismo.
+ *
+ * Lo que motivaba la regla del 18-sep —no duplicar el SMS del alta— sigue
+ * valiendo para los otros tres, y por eso los otros tres no cambiaron.
  *
  * El del día antes **ya no lo manda solo la herramienta externa**: la de afuera
  * sigue con su SMS y el nuestro sale por correo, así que no se pisan — son dos

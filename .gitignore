@@ -86,6 +86,20 @@ Migracion/
 respaldo-*/
 *.ndjson
 
+# Y CUALQUIER .csv, esté donde esté.
+#
+# `Migracion/` tapa los 86 export del v2, pero sólo por carpeta: un CSV escrito
+# en la raíz, en `scripts/` o al lado de una ruta queda expuesto. Pasó el
+# 2026-09-29 — una sesión generó un volcado con nombres, correos y teléfonos de
+# pacientes y lo dejó un rato en la raíz del repo. Se sacó a tiempo y ningún
+# .csv se commiteó NUNCA (verificado con `git log --all --diff-filter=A`), pero
+# el agujero seguía abierto.
+#
+# Va en patrón global a propósito: el que quiera subir un CSV legítimo —una
+# fixture, un catálogo— que lo haga con `git add -f` y decida a conciencia. El
+# default seguro es no publicar datos de pacientes.
+*.csv
+
 # Salidas de los scripts de migración: llevan datos de pacientes o del staff.
 # `inventario.json` guarda 2 valores de MUESTRA por columna — o sea correos y
 # nombres reales—; los id-maps son la tabla de equivalencias v2↔v3.

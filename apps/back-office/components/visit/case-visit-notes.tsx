@@ -17,13 +17,25 @@
  * borrador es parte del registro de esa visita, y verlo le recuerda al doctor lo
  * que dejó sin cerrar.
  *
- * Solo lectura para todos. Una nota cerrada es inmutable (solo un Super Admin la
- * anula) y una abierta se edita donde se escribe, en la consulta.
+ * El CUERPO es solo lectura para todos. Una nota cerrada es inmutable (solo un
+ * Super Admin la anula) y una abierta se edita donde se escribe, en la consulta.
+ *
+ * El ADDENDUM es la excepción, y no rompe esa regla: no toca el cuerpo, se
+ * agrega al pie firmado y fechado aparte, con el nombre de quien lo escribe. Se
+ * ofrece acá porque acá es donde la gente lo busca — Devin abrió el caso, fue a
+ * la nota y no encontró dónde (2026-09-29). Mandarlo a otra pantalla era
+ * esconder una acción que el servidor sí le permite.
+ *
+ * Los addenda que ya existen se MUESTRAN siempre, se pueda agregar o no.
+ * Faltaban, y esa era la falla más seria de esta pantalla: quien venía a leer
+ * una visita corregida veía la versión sin la corrección, en un archivo que
+ * parecía completo.
  */
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronRight, Loader2, Printer, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Printer, Lock, Plus, FilePlus2, Clock } from 'lucide-react';
+import { AgregarAddendumDialog } from './agregar-addendum-dialog';
 import { TagPill } from '@/components/ui-phoenix';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import type { CaseVisitNote } from '@/app/api/admin/cases/[id]/visit-notes/route';
@@ -42,6 +54,13 @@ const SECTIONS: Array<{ key: keyof CaseVisitNote; labelKey: string }> = [
   { key: 'assessment', labelKey: 'sec_EVALUACIONES' },
   { key: 'plan', labelKey: 'sec_PLAN' },
 ];
+
+/** La fecha como la escribe el resto de esta pantalla. */
+const fechaCorta = (iso: string): string =>
+  new Date(iso).toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+    timeZone: 'America/Denver',
+  });
 
 export function CaseVisitNotes({ caseId, visitaEnfocada }: {
   caseId: string;
@@ -64,20 +83,26 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
   const [openId, setOpenId] = React.useState<string | null>(visitaEnfocada ?? null);
   /** Cita cuya hoja imprimible se está mirando. Es una lista: guarda cuál. */
   const [printId, setPrintId] = React.useState<string | null>(null);
+  /** Cita cuya nota está recibiendo un addendum. `null` = diálogo cerrado. */
+  const [addendumPara, setAddendumPara] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const res = await fetch(`/api/admin/cases/${caseId}/visit-notes`);
-        const d = (await res.json()) as { notes?: CaseVisitNote[] };
-        if (alive) setNotes(d.notes ?? []);
-      } catch {
-        if (alive) setNotes([]);
-      }
-    })();
-    return () => { alive = false; };
+  /**
+   * La carga, en una función propia: además del montaje la necesita el diálogo
+   * de addendum, que al firmar tiene que volver a pedir la lista para que el
+   * texto recién agregado aparezca en el documento.
+   */
+  const cargar = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/visit-notes`);
+      const d = (await res.json()) as { notes?: CaseVisitNote[] };
+      setNotes(d.notes ?? []);
+    } catch {
+      // Se deja lo último bueno; si nunca hubo nada, lista vacía.
+      setNotes((prev) => prev ?? []);
+    }
   }, [caseId]);
+
+  React.useEffect(() => { void cargar(); }, [cargar]);
 
   /**
    * El modal no se desmonta al cambiar de visita dentro del mismo caso, así que
@@ -185,6 +210,78 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
                   </div>
                 )}
 
+                {/* LA VENTANA DE CORRECCIÓN, dicha en la pantalla donde se
+                    pregunta. El botón de reabrir vive en la consulta y se va
+                    solo a las 48 h; sin esta línea, quien viene al expediente
+                    ve que "desapareció" y no sabe si se rompió algo. Fue
+                    literalmente la pregunta de Devin. */}
+                {n.ventanaCorreccion && (
+                  <div className={`mt-3 rounded-md px-3 py-2 text-[11px] flex items-start gap-1.5 ${
+                    n.ventanaCorreccion.abierta
+                      ? 'bg-bg-2/40 text-text-muted'
+                      : 'border border-amber/30 bg-amber/10 text-amber'
+                  }`}>
+                    <Clock className="w-3.5 h-3.5 shrink-0 mt-px" />
+                    <span>
+                      {n.ventanaCorreccion.abierta
+                        ? t('caseReopenOpen', { date: fechaCorta(n.ventanaCorreccion.venceEn) })
+                        : t('caseReopenClosed', { date: fechaCorta(n.ventanaCorreccion.venceEn) })}
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Addenda ────────────────────────────────────────────────
+                    Lo agregado después de firmar. Va al pie, que es su lugar en
+                    el documento. */}
+                {(n.addenda.length > 0 || n.puedeAgregarAddendum) && (
+                  <div className="mt-3 pt-3 border-t border-row-sep space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                        {t('caseAddenda')}
+                      </span>
+                      {n.puedeAgregarAddendum && (
+                        <button
+                          type="button"
+                          onClick={() => setAddendumPara(n.appointmentId)}
+                          className="text-[11px] font-semibold text-violet-text hover:underline flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" /> {t('caseAddendumAdd')}
+                        </button>
+                      )}
+                    </div>
+
+                    {n.addenda.map((ad) => (
+                      <div key={ad.id} className="rounded-md bg-bg-2/40 px-3 py-2.5">
+                        <div className="text-[10px] uppercase tracking-wider font-semibold text-violet-text">
+                          {t('caseAddendumNumber', { n: ad.numero })}
+                        </div>
+                        <div className="text-[10.5px] text-text-muted mt-0.5">
+                          {t('caseAddendumSignedBy', {
+                            name: ad.signedByName ?? '—',
+                            date: new Date(ad.signedAt).toLocaleString(undefined, {
+                              day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+                              timeZone: 'America/Denver',
+                            }),
+                          })}
+                        </div>
+                        <div
+                          className="text-[12.5px] text-text-2 leading-relaxed mt-1.5 [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-5"
+                          dangerouslySetInnerHTML={{ __html: safeHtml(ad.texto) }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Por qué NO se puede, cuando la nota está firmada y es de otro
+                    provider. Se dice en vez de no mostrar nada: un pie mudo no
+                    distingue "la función no existe" de "no es para vos". */}
+                {n.status === 'SIGNED' && n.motivoSinAddendum === 'no-es-suya' && n.addenda.length === 0 && (
+                  <div className="mt-3 pt-3 border-t border-row-sep text-[11px] text-text-muted flex items-start gap-1.5">
+                    <FilePlus2 className="w-3.5 h-3.5 shrink-0 mt-px" /> {t('caseAddendumNotYours')}
+                  </div>
+                )}
+
                 {n.status === 'SIGNED' && (
                   <button
                     type="button"
@@ -201,6 +298,14 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
       })}
 
       <VisitNotePrintDialog appointmentId={printId} onClose={() => setPrintId(null)} />
+
+      {/* Al firmarlo se recarga la lista: el addendum recién escrito tiene que
+          aparecer en el documento, no después de recargar la página. */}
+      <AgregarAddendumDialog
+        appointmentId={addendumPara}
+        onClose={() => setAddendumPara(null)}
+        onFirmado={() => { setAddendumPara(null); void cargar(); }}
+      />
     </div>
   );
 }

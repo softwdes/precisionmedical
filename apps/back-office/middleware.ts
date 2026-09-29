@@ -247,6 +247,14 @@ const TWILIO_WEBHOOKS = new Set([
   '/api/twilio/incoming',
   '/api/twilio/call-status',
   '/api/twilio/sms-status',
+  // ⚠️ Esta faltaba y el sintoma fue mudo: el 2026-09-29 Twilio recibia los SMS
+  // entrantes, nos los reenviaba, y el middleware devolvia 307 al login. El
+  // mensaje del paciente se perdia sin error en ningun lado — ni en nuestra base
+  // ni en el log de errores de Twilio, porque un 307 no es un fallo.
+  //
+  // Se diagnostico comparando: `sms-status` daba 405 (la ruta existe) y
+  // `sms-incoming` daba 307. Esa diferencia es el test para la proxima vez.
+  '/api/twilio/sms-incoming',
 ]);
 
 /** Módulo que gobierna esta request de API, o null si no está gobernada. */

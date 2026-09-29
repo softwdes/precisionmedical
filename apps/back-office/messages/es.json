@@ -36,7 +36,8 @@
       "loginBtnSignIn": "Iniciar sesión →",
       "loginForgot": "¿Olvidaste tu contraseña?",
       "loginSystemsOk": "Todos los sistemas operativos",
-      "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email..."
+      "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email...",
+      "errLoadHistory": "No se pudo cargar el historial médico."
     },
     "precall": {
       "phFirstName": "María",
@@ -3707,7 +3708,8 @@
       "docDrugHistory": "Historial de farmacia",
       "docDrugHistoryOk": "El paciente autorizó consultar la red de farmacias",
       "docDrugHistoryPending": "Sin preguntar. Con su permiso, el provider ve lo que toma recetado por otros médicos",
-      "docDrugHistoryAsk": "Registrar el permiso"
+      "docDrugHistoryAsk": "Registrar el permiso",
+      "backToCurrentStep": "← Volver al paso actual"
     },
     "dashboard": {
       "novedadEtiqueta": "Nueva versión",
@@ -4382,7 +4384,12 @@
       "reopenLoading": "Reabriendo…",
       "errorReopen": "No se pudo reabrir la cita. Probá de nuevo.",
       "dupUpcomingTitle": "Este paciente ya tiene {count, plural, one {una cita} other {# citas}} más adelante",
-      "dupMore": "y {count} más"
+      "dupMore": "y {count} más",
+      "callConnecting": "Conectando…",
+      "callMute": "Silenciar",
+      "callUnmute": "Quitar silencio",
+      "callHangUp": "Colgar",
+      "apptDetailTitle": "Detalle de la cita"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -5455,7 +5462,9 @@
       "linkContactSharedPhone": "Es un número compartido o de la clínica",
       "linkContactSharedPhoneHint": "No hay parentesco: lo usan personas sin relación. Se crea la ficha sin vincular y queda registrado que se revisó.",
       "linkContactEmailNoCoincidence": "Una casilla de correo es de una persona: no hay una tercera opción. Si de verdad no tienen relación, corregí el correo antes de crear la ficha — si no, a este paciente le van a llegar los mensajes del otro.",
-      "photoPdfError": "No se pudo generar el PDF."
+      "photoPdfError": "No se pudo generar el PDF.",
+      "phZip": "Ej: 84606",
+      "phEmployer": "Ej: Acme Corp"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",
@@ -6553,7 +6562,8 @@
       "emptyTitle": "Sin cargos todavía",
       "emptyHint": "Agregá servicios de seguro o de efectivo — las dos listas están en el mismo buscador.",
       "errAlreadyPaid": "No se puede quitar: ya se cobraron {amount}. Anulá el pago en Pagar → historial y volvé a intentar.",
-      "errRemoveFailed": "No se pudo quitar el cargo. Intentá de nuevo."
+      "errRemoveFailed": "No se pudo quitar el cargo. Intentá de nuevo.",
+      "removeService": "Quitar servicio"
     },
     "pendingNotes": {
       "title": "Notas sin cerrar",

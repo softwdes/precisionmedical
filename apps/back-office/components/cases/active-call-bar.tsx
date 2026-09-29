@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Mic, MicOff, PhoneOff, Loader2 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
@@ -22,6 +23,7 @@ function fmtElapsed(sec: number) {
 export function ActiveCallBar({
   status, patientName, phone, elapsed, muted, onMuteToggle, onHangUp,
 }: ActiveCallBarProps) {
+  const t = useTranslations('phoenix.calendar');
   const connecting = status === 'connecting';
 
   return (
@@ -46,7 +48,7 @@ export function ActiveCallBar({
       </div>
 
       {connecting ? (
-        <span className="text-[11px] text-amber flex-shrink-0">Conectando…</span>
+        <span className="text-[11px] text-amber flex-shrink-0">{t("callConnecting")}</span>
       ) : (
         <span className="font-mono text-[13px] font-semibold tabular-nums text-emerald flex-shrink-0">
           {fmtElapsed(elapsed)}
@@ -58,7 +60,7 @@ export function ActiveCallBar({
           type="button"
           onClick={onMuteToggle}
           disabled={connecting}
-          title={muted ? 'Quitar silencio' : 'Silenciar'}
+          title={muted ? t("callUnmute") : t("callMute")}
           className={cn(
             'flex items-center justify-center w-7 h-7 rounded-md transition-colors',
             muted
@@ -73,11 +75,11 @@ export function ActiveCallBar({
         <button
           type="button"
           onClick={onHangUp}
-          title="Colgar"
+          title={t("callHangUp")}
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-rose/15 border border-rose/30 text-rose hover:bg-rose/25 transition-colors text-[12px] font-semibold"
         >
           <PhoneOff className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Colgar</span>
+          <span>{t("callHangUp")}</span>
         </button>
       </div>
     </div>

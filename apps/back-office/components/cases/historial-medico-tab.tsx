@@ -42,7 +42,7 @@ export function HistorialMedicoTab({ patientId }: Props) {
   if (!patient) {
     return (
       <div className="text-center py-20 text-text-muted text-sm">
-        No se pudo cargar el historial médico.
+        {tm("errLoadHistory")}
       </div>
     );
   }

@@ -635,7 +635,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                   placeholder={form.addressState ? t('placeholderSelectCity') : t('placeholderSelectStateFirst')}
                   disabled={!form.addressState}
                 />
-                <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={set('addressZip')} placeholder="e.g. 90210" />
+                <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={set('addressZip')} placeholder={t("phZip")} />
               </div>
 
               <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
@@ -671,7 +671,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label={t('fieldEmployer')}  value={form.employer}          onChange={set('employer')}          placeholder="e.g. Acme Corp" />
+                <FormField.Input label={t('fieldEmployer')}  value={form.employer}          onChange={set('employer')}          placeholder={t("phEmployer")} />
                 <FormField.Input label={t('fieldPharmacy')}  value={form.preferredPharmacy} onChange={set('preferredPharmacy')} placeholder={t('fieldPharmacy')} />
               </div>
 

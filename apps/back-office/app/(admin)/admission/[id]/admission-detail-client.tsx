@@ -582,7 +582,7 @@ export function AdmissionDetailClient({
               onClick={() => setViewStep(null)}
               className="ml-auto text-[11px] text-text-muted hover:text-text-1 border border-border rounded px-2 py-0.5 transition-colors"
             >
-              ← Back to current step
+              {t("backToCurrentStep")}
             </button>
           </div>
         )}

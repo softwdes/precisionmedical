@@ -36,7 +36,8 @@
       "loginBtnSignIn": "Sign in →",
       "loginForgot": "Forgot your password?",
       "loginSystemsOk": "All systems operational",
-      "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…"
+      "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…",
+      "errLoadHistory": "The medical history could not be loaded."
     },
     "precall": {
       "phFirstName": "Maria",
@@ -3707,7 +3708,8 @@
       "docDrugHistory": "Pharmacy history",
       "docDrugHistoryOk": "Patient authorized querying the pharmacy network",
       "docDrugHistoryPending": "Not asked yet. With their consent, the provider sees what they take from other providers",
-      "docDrugHistoryAsk": "Record the consent"
+      "docDrugHistoryAsk": "Record the consent",
+      "backToCurrentStep": "← Back to current step"
     },
     "dashboard": {
       "novedadEtiqueta": "New version",
@@ -4382,7 +4384,12 @@
       "reopenLoading": "Reopening…",
       "errorReopen": "The appointment could not be reopened. Try again.",
       "dupUpcomingTitle": "This patient already has {count, plural, one {an appointment} other {# appointments}} coming up",
-      "dupMore": "and {count} more"
+      "dupMore": "and {count} more",
+      "callConnecting": "Connecting…",
+      "callMute": "Mute",
+      "callUnmute": "Unmute",
+      "callHangUp": "Hang up",
+      "apptDetailTitle": "Appointment detail"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5455,7 +5462,9 @@
       "linkContactSharedPhone": "It is a shared or clinic phone",
       "linkContactSharedPhoneHint": "Not a family tie: unrelated people use it. The record is created without a link, and the review is logged.",
       "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
-      "photoPdfError": "The PDF could not be generated."
+      "photoPdfError": "The PDF could not be generated.",
+      "phZip": "e.g. 90210",
+      "phEmployer": "e.g. Acme Corp"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",
@@ -6553,7 +6562,8 @@
       "emptyTitle": "No charges yet",
       "emptyHint": "Add insurance or cash services — both lists live in the same search.",
       "errAlreadyPaid": "Can't remove it: {amount} was already collected. Cancel the payment under Pay → history and try again.",
-      "errRemoveFailed": "The charge could not be removed. Try again."
+      "errRemoveFailed": "The charge could not be removed. Try again.",
+      "removeService": "Remove service"
     },
     "pendingNotes": {
       "title": "Notes not closed",

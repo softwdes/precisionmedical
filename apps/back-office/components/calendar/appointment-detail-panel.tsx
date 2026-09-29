@@ -1677,7 +1677,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       <ConfirmDialog
         open={confirmDeleteSvc !== null}
         variant="danger"
-        title="Remove service"
+        title={tc("removeService")}
         description="Are you sure you want to remove this service from the appointment? This action cannot be undone."
         confirmLabel="Remove"
         cancelLabel="Cancel"
@@ -1828,7 +1828,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     // sin desmontar el componente: al volver reaparece con todo su estado.
     <Dialog open={!suspended} onOpenChange={(v) => { if (!v && !suspended) { twilio.hangUp(); onClose(); } }}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
-        <DialogTitle className="sr-only">Appointment detail</DialogTitle>
+        <DialogTitle className="sr-only">{t("apptDetailTitle")}</DialogTitle>
         {panelContent}
       </DialogContent>
     </Dialog>

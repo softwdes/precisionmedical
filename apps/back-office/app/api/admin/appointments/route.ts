@@ -600,6 +600,68 @@ async function crearCita(req: NextRequest): Promise<NextResponse> {
    * Es la única garantía que se pierde al dejar la cita sin asignar, y se pierde
    * a sabiendas — el choque, si lo hay, aparece al asignarla en el check-in.
    */
+  /**
+   * ── El MISMO PACIENTE dos veces el MISMO DIA ───────────────────────────────
+   *
+   * El chequeo de abajo mira la agenda del PROVIDER. Nadie miraba al paciente,
+   * asi que agendarlo dos veces el mismo dia con providers distintos no
+   * disparaba un solo aviso.
+   *
+   * Asi nacieron las duplicadas del 22-sep: el 16-sep alguien agendo a tres
+   * hermanos con Barry Clanton y una hora despues los volvio a agendar con
+   * David Miller, una hora mas temprano. Edson las persiguio durante dias
+   * creyendo que la hora del Seguimiento estaba mal — y no lo estaba: la vista
+   * muestra la PRIMERA cita del caso, y la primera era la duplicada.
+   *
+   * ── Por que AVISA y no BLOQUEA ─────────────────────────────────────────────
+   *
+   * Medido el 2026-09-29 sobre toda la tabla: hay 119 pares de citas vivas del
+   * mismo paciente el mismo dia, y 97 son del MISMO caso — dos visitas
+   * legitimas, doctor y terapia. Bloquear romperia eso.
+   *
+   * El patron sospechoso es angosto: provider DISTINTO el mismo dia, 5 pares en
+   * toda la base, y 3 de esos 5 son estas duplicadas. Por eso avisa solo cuando
+   * el provider es otro, y deja seguir con `allowOverlap`, igual que el choque
+   * de agenda.
+   *
+   * El codigo es PATIENT_SAME_DAY y viaja con los datos para que la pantalla
+   * pueda decir a que hora y con quien, no solo "ya tiene una".
+   */
+  if (!parsed.allowOverlap && caseRecord.patientId) {
+    const inicio = new Date(parsed.scheduledFor);
+    // El dia en hora de CLINICA, no en UTC: una cita de las 18:00 de Denver ya
+    // es del dia siguiente en UTC y se escaparia del rango.
+    const diaClinica = inicio.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+    const mismasDelDia = await db.$queryRaw<Array<{
+      id: string; hora: string; provider: string | null;
+    }>>`
+      SELECT a."id",
+             to_char(a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver', 'HH12:MI AM') AS hora,
+             NULLIF(TRIM(CONCAT(COALESCE(pr."firstName", ''), ' ', COALESCE(pr."lastName", ''))), '') AS provider
+        FROM appointments a
+        LEFT JOIN providers pr ON pr."id" = a."providerId"
+       WHERE a."patientId" = ${caseRecord.patientId}
+         AND a."deletedAt" IS NULL
+         AND a."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
+         AND (a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver')::date = ${diaClinica}::date
+         AND a."providerId" IS DISTINCT FROM ${parsed.providerId ?? null}
+       ORDER BY a."scheduledFor"
+       LIMIT 1
+    `;
+    if (mismasDelDia.length > 0) {
+      const otra = mismasDelDia[0]!;
+      return NextResponse.json(
+        {
+          error: 'PATIENT_SAME_DAY',
+          params: { hora: otra.hora, provider: otra.provider ?? '—' },
+          conflictAppointmentId: otra.id,
+          canOverride: true,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   if (!parsed.allowOverlap && parsed.providerId) {
     const overlaps = await findOverlappingAppointments({
       providerId:      parsed.providerId,

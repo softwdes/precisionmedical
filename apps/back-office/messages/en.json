@@ -451,7 +451,8 @@
       "srvCASE_NOT_FOUND": "The patient's case could not be found. Close this window and open it again.",
       "srvCLINIC_NOT_FOUND": "That clinic could not be found.",
       "srvPROVIDER_NOT_FOUND": "That provider could not be found.",
-      "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening."
+      "srvINTERNAL_ERROR": "Something failed on our end. Try again, and report it if it keeps happening.",
+      "srvPATIENT_SAME_DAY": "This patient already has an appointment today at {hora} with {provider}. Schedule anyway?"
     },
     "push": {
       "msgNuevo": "New message",

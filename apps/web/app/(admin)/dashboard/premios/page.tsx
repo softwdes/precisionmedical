@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
 import { ModuleTabs } from '@/components/module-tabs';
+import { api } from '@/lib/trpc/server';
 import { PremiosClient, type PremiosTab } from './premios-client';
 
 /**
@@ -48,7 +49,10 @@ export default async function PremiosPage({
   const params = await searchParams;
   const pedido = typeof params.tab === 'string' ? params.tab : '';
   const tab: PremiosTab = (TODAS as string[]).includes(pedido) ? (pedido as PremiosTab) : 'mes';
-  const mesParam = typeof params.mes === 'string' && /^\d{4}-\d{2}$/.test(params.mes) ? params.mes : mesActual();
+  // Sin mes en la URL: el que se está armando (si hay uno abierto posterior) o el actual.
+  const mesParam = typeof params.mes === 'string' && /^\d{4}-\d{2}$/.test(params.mes)
+    ? params.mes
+    : (await api.premios.defaultMonth({ current: mesActual() }).catch(() => ({ month: mesActual() }))).month;
 
   const tabs = TABS.map((k) => ({
     key: k,

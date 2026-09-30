@@ -85,6 +85,26 @@ const GoalInput = z.object({
 
 export const premiosRouter = router({
   /**
+   * El mes con el que abre la pantalla cuando la URL no dice cuál.
+   *
+   * Si ya hay un mes ABIERTO posterior al actual, se abre ESE: se arma octubre
+   * antes del 1 y la pantalla tiene que mostrar lo que se está armando, no el mes
+   * que termina. El 30-sep (todavía septiembre en Utah) la pantalla abría en
+   * septiembre, y ahí se cargó por error a toda la gente de octubre.
+   * Si no hay ninguno posterior, abre el mes actual.
+   */
+  defaultMonth: adminProcedure
+    .input(z.object({ current: Mes }))
+    .query(async ({ input }) => {
+      const db = clinica();
+      const { data } = await db.from('reward_periods').select('month')
+        .eq('status', 'OPEN').gt('month', aPrimerDia(input.current))
+        .order('month', { ascending: false }).limit(1);
+      const prox = (data?.[0] as { month: string } | undefined)?.month;
+      return { month: prox ? prox.slice(0, 7) : input.current };
+    }),
+
+  /**
    * Todo lo que necesitan las pestañas Mes y Tablero para un mes: el período
    * (si existe), sus metas y participantes con el cálculo ya hecho, el
    * catálogo, y —si el mes todavía no existe— las metas del mes anterior para

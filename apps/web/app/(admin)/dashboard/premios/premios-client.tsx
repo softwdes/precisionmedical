@@ -214,6 +214,9 @@ function MesView({ data, month, money, onSaved }: {
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-3">{t('participants')}</span>
             {parts.length === 0 && <span className="text-xs text-text-3">{t('noParticipants')}</span>}
+            {!cerrado && (parts.length < 2 || !parts.some((p) => p.kind === 'STAFF')) && (
+              <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[12px] text-amber-text">{t('needMorePeople')}</div>
+            )}
             <ul className="flex flex-col gap-1.5">
               {parts.map((p) => (
                 <li key={p.userId} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-bg-2/40 px-3 py-1.5">
@@ -249,21 +252,21 @@ function MesView({ data, month, money, onSaved }: {
             {!cerrado && (
               <div className="flex gap-2">
                 <select
-                  id="premios-add-user" value={addUser} onChange={(e) => setAddUser(e.target.value)}
-                  className="flex-1 min-w-0 rounded-md border border-border bg-bg-1 px-2 py-1.5 text-sm text-text-1"
+                  id="premios-add-user" value={addUser}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    // Se agrega al elegirlo: no hay un segundo paso que se pueda pasar por alto.
+                    setParts((xs) => (xs.some((x) => x.userId === id) ? xs : [...xs, { userId: id, kind: 'STAFF', roleKey: null }]));
+                    setAddUser('');
+                  }}
+                  className="flex-1 min-w-0 rounded-md border border-brand/40 bg-bg-1 px-2 py-1.5 text-sm text-text-1"
                 >
                   <option value="">{t('addParticipant')}</option>
                   {(candidates.data ?? []).filter((c) => !parts.some((p) => p.userId === c.id)).map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <button
-                  type="button" disabled={!addUser}
-                  onClick={() => { setParts((xs) => [...xs, { userId: addUser, kind: 'STAFF', roleKey: null }]); setAddUser(''); }}
-                  className="rounded-md border border-border px-3 text-sm text-text-1 disabled:opacity-40 hover:bg-bg-2"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
             )}
           </div>

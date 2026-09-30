@@ -2216,6 +2216,7 @@
     "comingSoon": "coming soon",
     "eachGoalWorthByRole": "Each goal is worth: {list}",
     "kpiTeamPoints": "Team points",
-    "kpiTeamPointsSub": "added by the system"
+    "kpiTeamPointsSub": "added by the system",
+    "needMorePeople": "To save you need at least 2 participants (one of them staff). Pick each name in the list below: it’s added right away. Then tap Save changes."
   }
 }

@@ -2216,6 +2216,7 @@
     "comingSoon": "próximamente",
     "eachGoalWorthByRole": "Cada meta vale: {list}",
     "kpiTeamPoints": "Puntos del equipo",
-    "kpiTeamPointsSub": "los suma el sistema solo"
+    "kpiTeamPointsSub": "los suma el sistema solo",
+    "needMorePeople": "Para guardar hacen falta al menos 2 participantes (una de staff). Elige cada nombre en la lista de abajo: se agrega al instante. Después toca Guardar cambios."
   }
 }

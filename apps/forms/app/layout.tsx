@@ -55,7 +55,9 @@ export const viewport: Viewport = {
  * se caiga a la mitad.
  *
  * El 30-sep una paciente llenó el formulario entero y no pudo pasar del paso de
- * consentimientos. Lo intentó diez veces. En su captura se ve la causa: los
+ * consentimientos. Ella dijo que lo intentó diez veces; el audit le cuenta
+ * **50 guardados de paso** contra un promedio de 10 y un máximo de 27 entre los
+ * que SÍ terminaron. En su captura se ve la causa: los
  * botones de idioma decían **"IN" / "IS"** en vez de "EN" / "ES", y el logo
  * "P.M" en vez de "PM". Nosotros no escribimos eso en ningún lado — se lo
  * escribió **el traductor automático de Chrome**.

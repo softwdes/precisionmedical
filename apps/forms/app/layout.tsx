@@ -50,9 +50,41 @@ export const viewport: Viewport = {
   themeColor: '#06B6D4',
 };
 
+/**
+ * ⚠️ `translate="no"` NO es una preferencia: es lo que evita que el formulario
+ * se caiga a la mitad.
+ *
+ * El 30-sep una paciente llenó el formulario entero y no pudo pasar del paso de
+ * consentimientos. Lo intentó diez veces. En su captura se ve la causa: los
+ * botones de idioma decían **"IN" / "IS"** en vez de "EN" / "ES", y el logo
+ * "P.M" en vez de "PM". Nosotros no escribimos eso en ningún lado — se lo
+ * escribió **el traductor automático de Chrome**.
+ *
+ * Con `<html lang="en-US">` fijo, el teléfono de un paciente hispanohablante ve
+ * una página "en inglés" y la traduce solo. Al traducir, reemplaza los nodos de
+ * texto del DOM por otros nuevos; React sigue apuntando a los viejos y la
+ * primera vez que intenta actualizarlos tira
+ * `NotFoundError: Failed to execute 'removeChild' on 'Node'`. Eso sube al
+ * error boundary y el paciente ve "Something went wrong". Recargar no ayuda:
+ * vuelve a traducir y vuelve a romper.
+ *
+ * Por eso pega justo en los pasos con más movimiento —consentimientos, con sus
+ * casillas y su firma—: cada cambio de estado toca un nodo que ya no existe.
+ *
+ * Y la traducción del navegador acá no hace falta: el formulario **ya tiene su
+ * propio selector ES/EN**, y el paciente elige el idioma en la primera pantalla.
+ *
+ * Los tres juntos, que es lo que respetan los distintos navegadores:
+ *  · `translate="no"` en el `<html>` — el estándar HTML.
+ *  · `class="notranslate"` — lo que mira Google Translate.
+ *  · `<meta name="google" content="notranslate">` — la barra de traducción.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" translate="no" className="notranslate" suppressHydrationWarning>
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
       <body className={font.className} suppressHydrationWarning>
         {children}
         <SWRegister />

@@ -30,6 +30,8 @@
  */
 
 /** Storage vive en el proyecto Phoenix (kiqlh…) — vars dedicadas con fallback legacy. */
+import { heicAJpeg } from '@precision-medical/database/heic';
+
 const SUPABASE_URL = (process.env.SUPABASE_STORAGE_URL
   ?? process.env.SUPABASE_URL
   ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!;
@@ -110,81 +112,14 @@ export const MAX_BYTES = 10 * 1024 * 1024;
 export const MAX_BYTES_PDF = 4 * 1024 * 1024;
 
 
-/**
- * Las fotos del iPhone vienen en HEIC, y el navegador no las sabe dibujar.
+/*
+ * La conversión de HEIC vive en `@precision-medical/database/heic`, NO acá.
  *
- * ── Qué pasaba ─────────────────────────────────────────────────────────────
- *
- * La pantalla de archivos convierte TODO a JPEG antes de subir —por eso hay
- * 3.325 `.jpg` en la base— pero lo hace dibujando el archivo en un `<canvas>`,
- * y un HEIC no se puede dibujar. La conversión tiraba, el `catch` subía el
- * original, y el archivo quedaba guardado e ilegible: la ficha mostraba "A
- * photo is on file, but it could not be loaded" para siempre.
- *
- * Le pasó a Stephanie Poulson el 29-sep-2026: sus CUATRO fotos —selfie,
- * licencia y las dos caras del ID— entraron en HEIC y ninguna se podía ver.
- * Eran las únicas 4 `.heic` de toda la base.
- *
- * ── Por qué acá y no en el navegador ───────────────────────────────────────
- *
- * Porque es el único punto por el que pasan las dos vías de subida (la ficha
- * del paciente y la del caso), y porque el decodificador pesa: meterlo en el
- * bundle le cargaría megas a una pantalla que la clínica abre todo el día.
- *
- * ── Por qué `heic-convert` y no `sharp` ────────────────────────────────────
- *
- * `sharp` declara `heif` como formato de entrada, pero su binario **no trae el
- * decodificador de HEVC** —el que usa Apple— por patentes. Probado contra el
- * archivo real de Stephanie: `source: bad seek to 1300346`. `heic-convert` trae
- * libde265 en WASM y sí lo lee: los cuatro archivos convirtieron, en 2,3–3,1 s.
- *
- * ── Por qué pasa DESPUÉS por sharp ─────────────────────────────────────────
- *
- * Porque el JPEG que sale del decodificador es más grande que el HEIC de
- * entrada (2,2 MB → 2,0 MB en el caso chico; HEIC comprime mejor). Sin
- * redimensionar, cada foto quedaría pesando el doble que una subida normal. Se
- * achica al mismo criterio que usa el navegador: 1600 px de lado máximo y
- * calidad 85.
- *
- * ── El formato se decide por los BYTES ─────────────────────────────────────
- *
- * Nunca por la extensión ni por el `Content-Type`: en este proyecto los dos
- * mienten (ver la trampa del WebP con nombre `.jpg`). Un HEIC empieza con un
- * `ftyp` cuya marca es `heic`, `heix`, `hevc`, `hevx`, `mif1` o `msf1`.
+ * Estuvo un rato en este archivo y eso fue el bug: la foto de identidad entra
+ * por DOS puertas —esta, que usa recepción, y el formulario de admisión, que
+ * usa el paciente desde su teléfono— y arreglar sólo una dejó el problema
+ * igual de vivo. Una sola función, las dos puertas.
  */
-function esHeic(b: Buffer): boolean {
-  if (b.length < 12) return false;
-  if (b.subarray(4, 8).toString('latin1') !== 'ftyp') return false;
-  return ['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1']
-    .includes(b.subarray(8, 12).toString('latin1'));
-}
-
-/**
- * HEIC → JPEG. Devuelve `null` si no era HEIC o si no se pudo convertir.
- *
- * Falla CERRADO a propósito: si devolviera el original ante un error, volvería
- * el archivo ilegible guardado para siempre, que es justo lo que esto arregla.
- */
-async function heicAJpeg(bytes: ArrayBuffer): Promise<Buffer | null> {
-  const crudo = Buffer.from(bytes);
-  if (!esHeic(crudo)) return null;
-  try {
-    const convert = (await import('heic-convert')).default;
-    const jpeg = await convert({ buffer: crudo, format: 'JPEG', quality: 0.9 });
-    const sharp = (await import('sharp')).default;
-    return await sharp(Buffer.from(jpeg))
-      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-  } catch (e) {
-    console.error('[intake-photos] no se pudo convertir el HEIC', {
-      bytes: crudo.byteLength,
-      marca: crudo.subarray(4, 12).toString('latin1'),
-      error: e instanceof Error ? e.message : String(e),
-    });
-    return null;
-  }
-}
 
 export interface FotoValida {
   ok: true;

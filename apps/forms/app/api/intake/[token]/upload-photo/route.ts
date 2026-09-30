@@ -21,6 +21,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { heicAJpeg } from '@precision-medical/database/heic';
 import { db, writeAuditLog, archivarFotoDeIdentidad, esSlotFoto } from '@precision-medical/database';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
 
@@ -137,19 +138,45 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   await ensureBucket();
 
-  const path = `${rec.id}/${photoType}.${ext}`;
+  /*
+   * El HEIC del iPhone se convierte ANTES de guardarse.
+   *
+   * Esta es la puerta por la que sube EL PACIENTE, desde su propio teléfono, y
+   * es la que más HEIC va a ver: el que llena el formulario en el celular no
+   * tiene por qué saber que Apple guarda en un formato que el navegador no
+   * dibuja. Sin esto el archivo quedaba guardado e ilegible para siempre —le
+   * pasó a Stephanie Poulson con sus cuatro fotos el 30-sep-2026, y el arreglo
+   * del back-office no la cubría porque ella no sube por ahí.
+   *
+   * Se decide por los BYTES: el `Content-Type` que manda el cliente miente.
+   */
+  let bytes: ArrayBuffer | Buffer = await file.arrayBuffer();
+  let tipoFinal = tipo;
+  let extFinal  = ext;
 
-  const bytes     = await file.arrayBuffer();
+  const comoJpeg = await heicAJpeg(bytes);
+  if (comoJpeg) {
+    bytes     = comoJpeg;
+    tipoFinal = 'image/jpeg';
+    extFinal  = 'jpg';
+  } else if (ext === 'heic' || ext === 'heif') {
+    /* Era HEIC y no se pudo convertir: se RECHAZA. Guardarlo dejaría otra foto
+       que nadie puede ver, que es el bug que esto cierra. */
+    return NextResponse.json({ error: 'HEIC_NO_CONVERTIBLE' }, { status: 400 });
+  }
+
+  const path = `${rec.id}/${photoType}.${extFinal}`;
+
   const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
     method: 'POST',
     headers: {
       Authorization:   `Bearer ${SERVICE_KEY}`,
       apikey:          SERVICE_KEY,
       // El tipo VALIDADO, no el que declaró el cliente.
-      'Content-Type':  tipo,
+      'Content-Type':  tipoFinal,
       'x-upsert':      'true',
     },
-    body: bytes,
+    body: bytes as BodyInit,
   });
 
   if (!uploadRes.ok) {

@@ -9,7 +9,8 @@
     "./age": "./src/age.ts",
     "./relations": "./src/relations.ts",
     "./release-notes": "./src/release-notes.ts",
-    "./premios": "./src/premios.ts"
+    "./premios": "./src/premios.ts",
+    "./heic": "./src/heic.ts"
   },
   "scripts": {
     "db:generate": "prisma generate",
@@ -26,13 +27,16 @@
   "dependencies": {
     "@precision/release": "workspace:*",
     "@prisma/client": "^5.20.0",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@precision-medical/tsconfig": "workspace:*",
     "@types/node": "^22.19.17",
     "prisma": "^5.20.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "@types/heic-convert": "^2.1.1"
   }
 }

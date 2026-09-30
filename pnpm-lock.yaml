@@ -644,13 +644,22 @@ importers:
       '@prisma/client':
         specifier: ^5.20.0
         version: 5.22.0(prisma@5.22.0)
+      heic-convert:
+        specifier: ^2.1.0
+        version: 2.1.0
       pg:
         specifier: ^8.21.0
         version: 8.21.0
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
     devDependencies:
       '@precision-medical/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/heic-convert':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@types/node':
         specifier: ^22.19.17
         version: 22.19.17

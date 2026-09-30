@@ -135,7 +135,18 @@ function MesView({ data, month, money, onSaved }: {
   const [goals, setGoals] = useState<GoalDraft[]>(inicial.goals);
   const [addUser, setAddUser] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  useEffect(() => { setPool(inicial.pool); setParts(inicial.parts); setGoals(inicial.goals); setMsg(null); }, [inicial]);
+  /**
+   * Cuándo se recarga el formulario con lo guardado: al cambiar de mes, al abrir
+   * uno nuevo y DESPUÉS DE GUARDAR (el guardado siempre mueve `updatedAt`).
+   *
+   * Antes dependía de `inicial`, que cambia con CADA refetch de la consulta, y
+   * react-query refetchea al volver el foco a la ventana. Resultado: el admin
+   * quitaba o agregaba participantes, cambiaba de pestaña y al volver la lista
+   * se reponía sola con lo guardado. Parecía que "no guardaba" (bug reportado por
+   * Erick el 30-sep); en realidad se borraba lo editado antes de guardar.
+   */
+  const version = `${month}|${data.period?.id ?? 'nuevo'}|${(data.period as { updatedAt?: string } | null)?.updatedAt ?? ''}`;
+  useEffect(() => { setPool(inicial.pool); setParts(inicial.parts); setGoals(inicial.goals); }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nombres = new Map((candidates.data ?? []).map((c) => [c.id, c.name]));
   const poolNum = Number(pool);

@@ -10,7 +10,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@precision/version": "workspace:*",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@precision-medical/agente": "workspace:*",
     "@precision-medical/auth": "workspace:*",
@@ -19,6 +18,7 @@
     "@precision-medical/observability": "workspace:*",
     "@precision/release": "workspace:*",
     "@precision/ui": "workspace:*",
+    "@precision/version": "workspace:*",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^8.55.0",
     "@serwist/next": "^9.5.11",
@@ -27,6 +27,7 @@
     "@types/qrcode": "^1.5.6",
     "bwip-js": "^4.11.4",
     "cmdk": "^1.1.1",
+    "heic-convert": "^2.1.0",
     "lucide-react": "^0.452.0",
     "next": "^15.0.3",
     "next-intl": "^3.21.1",
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@precision-medical/tailwind-config": "workspace:*",
     "@precision-medical/tsconfig": "workspace:*",
+    "@types/heic-convert": "^2.1.1",
     "@types/node": "^22.7.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

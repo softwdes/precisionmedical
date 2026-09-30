@@ -136,7 +136,8 @@
       "capture": "Capture",
       "errNoCase": "This patient has no active case.",
       "errUpload": "Upload failed. Try again.",
-      "errConnection": "Connection error."
+      "errConnection": "Connection error.",
+      "errHeic": "This iPhone photo could not be read. Use the Camera button, or on the iPhone set Settings → Camera → Formats → Most Compatible and upload it again."
     },
     "seguimiento": {
       "errLoad": "The data could not be loaded",

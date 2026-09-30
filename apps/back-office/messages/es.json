@@ -136,7 +136,8 @@
       "capture": "Capturar",
       "errNoCase": "Paciente sin caso activo.",
       "errUpload": "Error al subir. Intentá de nuevo.",
-      "errConnection": "Error de conexión."
+      "errConnection": "Error de conexión.",
+      "errHeic": "No se pudo leer esta foto del iPhone. Sacala con el botón Cámara, o en el iPhone poné Ajustes → Cámara → Formatos → Más compatible y volvé a subirla."
     },
     "seguimiento": {
       "errLoad": "Error al cargar datos",

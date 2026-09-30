@@ -109,6 +109,83 @@ export const MAX_BYTES = 10 * 1024 * 1024;
  */
 export const MAX_BYTES_PDF = 4 * 1024 * 1024;
 
+
+/**
+ * Las fotos del iPhone vienen en HEIC, y el navegador no las sabe dibujar.
+ *
+ * ── Qué pasaba ─────────────────────────────────────────────────────────────
+ *
+ * La pantalla de archivos convierte TODO a JPEG antes de subir —por eso hay
+ * 3.325 `.jpg` en la base— pero lo hace dibujando el archivo en un `<canvas>`,
+ * y un HEIC no se puede dibujar. La conversión tiraba, el `catch` subía el
+ * original, y el archivo quedaba guardado e ilegible: la ficha mostraba "A
+ * photo is on file, but it could not be loaded" para siempre.
+ *
+ * Le pasó a Stephanie Poulson el 29-sep-2026: sus CUATRO fotos —selfie,
+ * licencia y las dos caras del ID— entraron en HEIC y ninguna se podía ver.
+ * Eran las únicas 4 `.heic` de toda la base.
+ *
+ * ── Por qué acá y no en el navegador ───────────────────────────────────────
+ *
+ * Porque es el único punto por el que pasan las dos vías de subida (la ficha
+ * del paciente y la del caso), y porque el decodificador pesa: meterlo en el
+ * bundle le cargaría megas a una pantalla que la clínica abre todo el día.
+ *
+ * ── Por qué `heic-convert` y no `sharp` ────────────────────────────────────
+ *
+ * `sharp` declara `heif` como formato de entrada, pero su binario **no trae el
+ * decodificador de HEVC** —el que usa Apple— por patentes. Probado contra el
+ * archivo real de Stephanie: `source: bad seek to 1300346`. `heic-convert` trae
+ * libde265 en WASM y sí lo lee: los cuatro archivos convirtieron, en 2,3–3,1 s.
+ *
+ * ── Por qué pasa DESPUÉS por sharp ─────────────────────────────────────────
+ *
+ * Porque el JPEG que sale del decodificador es más grande que el HEIC de
+ * entrada (2,2 MB → 2,0 MB en el caso chico; HEIC comprime mejor). Sin
+ * redimensionar, cada foto quedaría pesando el doble que una subida normal. Se
+ * achica al mismo criterio que usa el navegador: 1600 px de lado máximo y
+ * calidad 85.
+ *
+ * ── El formato se decide por los BYTES ─────────────────────────────────────
+ *
+ * Nunca por la extensión ni por el `Content-Type`: en este proyecto los dos
+ * mienten (ver la trampa del WebP con nombre `.jpg`). Un HEIC empieza con un
+ * `ftyp` cuya marca es `heic`, `heix`, `hevc`, `hevx`, `mif1` o `msf1`.
+ */
+function esHeic(b: Buffer): boolean {
+  if (b.length < 12) return false;
+  if (b.subarray(4, 8).toString('latin1') !== 'ftyp') return false;
+  return ['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1']
+    .includes(b.subarray(8, 12).toString('latin1'));
+}
+
+/**
+ * HEIC → JPEG. Devuelve `null` si no era HEIC o si no se pudo convertir.
+ *
+ * Falla CERRADO a propósito: si devolviera el original ante un error, volvería
+ * el archivo ilegible guardado para siempre, que es justo lo que esto arregla.
+ */
+async function heicAJpeg(bytes: ArrayBuffer): Promise<Buffer | null> {
+  const crudo = Buffer.from(bytes);
+  if (!esHeic(crudo)) return null;
+  try {
+    const convert = (await import('heic-convert')).default;
+    const jpeg = await convert({ buffer: crudo, format: 'JPEG', quality: 0.9 });
+    const sharp = (await import('sharp')).default;
+    return await sharp(Buffer.from(jpeg))
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+  } catch (e) {
+    console.error('[intake-photos] no se pudo convertir el HEIC', {
+      bytes: crudo.byteLength,
+      marca: crudo.subarray(4, 12).toString('latin1'),
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
+}
+
 export interface FotoValida {
   ok: true;
   /** Ya estrechado a `PhotoType` — quien llama no vuelve a castear. */
@@ -120,7 +197,7 @@ export interface FotoValida {
 
 export type ValidacionFoto =
   | FotoValida
-  | { ok: false; error: 'MISSING_FIELDS' | 'INVALID_TYPE' | 'INVALID_FILE_TYPE' | 'FILE_TOO_LARGE' };
+  | { ok: false; error: 'MISSING_FIELDS' | 'INVALID_TYPE' | 'INVALID_FILE_TYPE' | 'FILE_TOO_LARGE' | 'HEIC_NO_CONVERTIBLE' };
 
 /**
  * Valida el par (archivo, photoType) del `FormData` y devuelve los bytes.
@@ -142,12 +219,33 @@ export async function validarFoto(
     return { ok: false, error: 'FILE_TOO_LARGE' };
   }
 
+  const bytes = await file.arrayBuffer();
+
+  /*
+   * El HEIC del iPhone se convierte ACÁ, antes de guardarse — ver `heicAJpeg`.
+   * A partir de este punto nadie más se entera: para el bucket, la ficha, el
+   * PDF y el portal legal es un JPEG como cualquier otro.
+   *
+   * Se mira por los BYTES y no por el `Content-Type`, así que también agarra un
+   * HEIC que llegue declarado como otra cosa.
+   */
+  const comoJpeg = await heicAJpeg(bytes);
+  if (comoJpeg) {
+    return { ok: true, photoType, tipo: 'image/jpeg', ext: 'jpg', bytes: comoJpeg.buffer.slice(comoJpeg.byteOffset, comoJpeg.byteOffset + comoJpeg.byteLength) as ArrayBuffer };
+  }
+
+  /*
+   * Era HEIC por el `Content-Type` y NO se pudo convertir: se rechaza. Guardarlo
+   * dejaría otra foto ilegible en la ficha, que es el bug que esto cierra.
+   */
+  if (ext === 'heic' || ext === 'heif') return { ok: false, error: 'HEIC_NO_CONVERTIBLE' };
+
   return {
     ok: true,
     photoType,
     tipo:  file.type.toLowerCase(),
     ext,
-    bytes: await file.arrayBuffer(),
+    bytes,
   };
 }
 

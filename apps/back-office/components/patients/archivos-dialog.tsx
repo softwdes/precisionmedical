@@ -606,7 +606,13 @@ export function ArchivosDialog({
       } else {
         setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
         const detail = (json as { error?: string }).error ?? '';
-        setErrors(p => ({ ...p, [photoKey]: detail === 'NO_CASE_FOUND' ? tCam('errNoCase') : tCam('errUpload') }));
+        /* El HEIC que no se pudo convertir lleva su propio mensaje: decir
+           "error al subir" mandaría a recepción a reintentar con el mismo
+           archivo, que va a fallar igual. Hay que decirle QUÉ hacer. */
+        setErrors(p => ({ ...p, [photoKey]:
+          detail === 'NO_CASE_FOUND'        ? tCam('errNoCase')
+          : detail === 'HEIC_NO_CONVERTIBLE' ? tCam('errHeic')
+          : tCam('errUpload') }));
         URL.revokeObjectURL(blobUrl);
       }
     } catch {

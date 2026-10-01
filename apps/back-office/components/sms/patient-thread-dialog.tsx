@@ -16,10 +16,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from '@precision/ui';
-import { Send, AlertTriangle, Loader2, Smile } from 'lucide-react';
+import { Send, AlertTriangle, Loader2, Smile, Eye } from 'lucide-react';
 import { PersonAvatar, StatusPill, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 import { segmentosSms } from '@/lib/sms-segmentos';
+import { claveDeConversacion } from '@/lib/presencia-sms';
+import { usePresenciaSms } from '@/lib/use-presencia-sms';
 
 /**
  * Los iconos que ofrece la caja de respuesta. Pedido de Reagan (2026-09-29).
@@ -76,6 +78,16 @@ export function PatientThreadDialog({
   const [iconosAbiertos, setIconosAbiertos] = useState(false);
 
   const patientId = patient?.id ?? null;
+
+  /**
+   * Quien MAS esta mirando esta conversacion ahora mismo.
+   *
+   * Avisa, no bloquea: la caja de respuesta sigue habilitada. Lo que resuelve
+   * es el caso real —dos personas de recepcion contestandole lo mismo al
+   * mismo paciente— y para eso alcanza con que se vean.
+   */
+  const claveConv = patient ? claveDeConversacion({ patientId: patient.id, numero: patient.phone }) : null;
+  const otrosMirando = usePresenciaSms(claveConv);
 
   const cargar = useCallback(async (id: string) => {
     setCargando(true);
@@ -216,6 +228,18 @@ export function PatientThreadDialog({
         </div>
 
         <div className="border-t border-border px-4 sm:px-6 py-3 shrink-0 space-y-2">
+          {/* Ambar y no rojo: es un dato para tener en cuenta, no un error ni
+              algo que impida seguir. La caja de abajo queda habilitada. */}
+          {otrosMirando.length > 0 && (
+            <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+              <Eye className="w-3.5 h-3.5 shrink-0 mt-px" />
+              <span>
+                {otrosMirando.length === 1
+                  ? t('alsoViewing', { nombre: otrosMirando[0]?.nombre ?? t('someone') })
+                  : t('alsoViewingMany', { n: otrosMirando.length })}
+              </span>
+            </div>
+          )}
           {error && (
             <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />

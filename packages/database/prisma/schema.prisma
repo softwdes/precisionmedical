@@ -1087,6 +1087,31 @@ model ScriptSureSession {
 /// arma un `<Client>` por cada fila fresca. Una fila vieja significa que esa
 /// persona cerró la pestaña o se quedó sin red, y marcarle el `<Client>` solo
 /// haría esperar al paciente contra un cliente muerto.
+/// Quien esta MIRANDO una conversacion de SMS con un paciente, ahora.
+///
+/// Pedido de Erick (2026-10-01): que si dos personas abren el mismo mensaje,
+/// la segunda lo sepa. **Avisa, no bloquea** — bloquear convierte un aviso util
+/// en una pelea por el candado, y el caso comun (dos personas mirando, una
+/// contesta) no necesita exclusion.
+///
+/// Mismo patron que `CallAgentPresence`: latido del navegador + TTL. La
+/// diferencia esta en el TTL, y es a proposito — ver `PRESENCIA_SMS_TTL_MS`.
+model SmsConversationPresence {
+  /// `pac:<id>` o `tel:<10 digitos>` — la misma clave que `lib/conversaciones-sms.ts`.
+  clave String
+
+  userId   String
+  /// Denormalizado para mostrar "Pamela esta viendo esto" sin un join mas.
+  userName String?
+
+  lastSeenAt DateTime @updatedAt
+
+  @@id([clave, userId])
+  /// La consulta siempre es "quien esta en ESTA conversacion y sigue vivo".
+  @@index([clave, lastSeenAt])
+  @@map("sms_conversation_presence")
+}
+
 model CallAgentPresence {
   /// userId de Supabase — el mismo que va a `CallLog.agentUserId`.
   userId String @id

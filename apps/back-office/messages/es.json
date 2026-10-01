@@ -5932,7 +5932,10 @@
       "msgCount": "{n} mensajes",
       "justNow": "recién",
       "agoMin": "hace {n} min",
-      "agoHour": "hace {n} h"
+      "agoHour": "hace {n} h",
+      "alsoViewing": "{nombre} también está viendo esta conversación ahora.",
+      "alsoViewingMany": "Otras {n} personas están viendo esta conversación ahora.",
+      "someone": "Otra persona"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

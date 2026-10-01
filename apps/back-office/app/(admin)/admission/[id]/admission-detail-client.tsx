@@ -167,7 +167,6 @@ export function AdmissionDetailClient({
   }>>([]);
   const [billingLoaded, setBillingLoaded] = useState(false);
   const [confirm1,  setConfirm1]  = useState(false);
-  const [confirm2,  setConfirm2]  = useState(false);
   /**
    * Espejo de solo lectura del formulario de vitales.
    *
@@ -206,7 +205,6 @@ export function AdmissionDetailClient({
     // `key={appointmentId}` y arranca del triaje que trae la respuesta, así que
     // los valores de un paciente no pueden filtrarse al siguiente.
     setConfirm1(false);
-    setConfirm2(false);
     try {
       const res  = await fetch(`/api/admin/admission/${appointmentId}`);
       const data = await res.json();
@@ -300,7 +298,10 @@ export function AdmissionDetailClient({
    * es el que evita mandar a alguien a la sala por accidente.
    */
   const sinVitalesPorVideo = d.isOnline ?? false;
-  const canAdmit = (confirm1 || sinVitalesPorVideo) && confirm2 && consentsOk && !isAlreadyInRoom;
+  // Ni los consentimientos ni los vitales bloquean: el doctor puede pedir la firma
+  // después de la consulta, y el paciente ya está en el cuarto desde el check-in.
+  // Erick 2026-10-01. Lo pendiente se avisa en ámbar, no detrás de un candado.
+  const canAdmit = !isAlreadyInRoom;
 
   // Los vitales quedan SIEMPRE editables (decisión de Erick 2026-07-29): en la
   // clínica el encargado corrige después de que el paciente pasó a sala y no
@@ -600,16 +601,16 @@ export function AdmissionDetailClient({
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-rose/30 bg-rose/5 p-3 flex items-center gap-3 flex-wrap">
-              <div className="w-8 h-8 rounded-full bg-rose/15 flex items-center justify-center text-sm flex-shrink-0">🚫</div>
+            <div className="rounded-lg border border-amber/30 bg-amber/5 p-3 flex items-center gap-3 flex-wrap">
+              <div className="w-8 h-8 rounded-full bg-amber/15 flex items-center justify-center text-sm flex-shrink-0">⚠️</div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-rose text-[13px]">{t('gateBlockedTitle')}</div>
+                <div className="font-bold text-amber text-[13px]">{t('gateBlockedTitle')}</div>
                 <div className="text-[11px] text-text-2 mt-0.5">{t('gateBlockedSub')}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setPortalOpen(true)}
-                className="px-3 py-1.5 bg-rose text-white text-[11px] font-semibold rounded-md shrink-0 hover:bg-rose/90 transition-colors"
+                className="px-3 py-1.5 bg-amber text-white text-[11px] font-semibold rounded-md shrink-0 hover:bg-amber/90 transition-colors"
               >
                 ✉ {t('resendFormBtn')}
               </button>
@@ -862,12 +863,6 @@ export function AdmissionDetailClient({
                     onToggle: sinVitalesPorVideo ? undefined : () => setConfirm1(v => !v),
                     label: sinVitalesPorVideo ? t('confirmVitalsOnline') : t('confirmVitalsSaved'),
                   },
-                  {
-                    id: 'c2',
-                    checked: confirm2,
-                    onToggle: () => setConfirm2(v => !v),
-                    label: sinVitalesPorVideo ? t('confirmPatientReadyOnline') : t('confirmPatientReady'),
-                  },
                 ].map(item => (
                   <label
                     key={item.id}
@@ -898,7 +893,7 @@ export function AdmissionDetailClient({
                 ))}
 
                 {!consentsOk && (
-                  <div className="rounded-md border border-rose/30 bg-rose/5 p-2.5 text-[11px] text-rose flex items-start gap-1.5 mt-1">
+                  <div className="rounded-md border border-amber/30 bg-amber/5 p-2.5 text-[11px] text-amber flex items-start gap-1.5 mt-1">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>{t('alertCannotSend')}</span>
                   </div>

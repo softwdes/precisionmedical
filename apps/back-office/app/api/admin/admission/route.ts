@@ -162,7 +162,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const where = {
       scheduledFor: { gte: from, lte: to },
-      deletedAt:    undefined as undefined,
       ...(clinicId ? { clinicId } : {}),
       // Las canceladas CON AVISO liberaron la agenda y no dejan nada pendiente:
       // no entran. Las del MISMO DÍA sí — consumieron el horario y admiten
@@ -176,7 +175,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     };
 
     const appts = await db.appointment.findMany({
-      where: { ...VIGENTES, ...where },
+      /**
+       * `VIGENTES` va ÚLTIMO, y no primero.
+       *
+       * Estaba escrito `{ ...VIGENTES, ...where }` y dentro de `where` vivía un
+       * `deletedAt: undefined`. El segundo spread PISA al primero, y para Prisma
+       * `undefined` no es "null": es "no filtres por esta columna". O sea que el
+       * filtro estaba escrito, se leía en el código, y no hacía nada.
+       *
+       * Medido el 2026-10-01: la cola del día traía 19 citas y 4 estaban
+       * ELIMINADAS — Aunika Arias de las 8:00 entre ellas. Recepción veía gente
+       * que el calendario ya no muestra.
+       *
+       * Poniéndolo al final, ninguna clave de `where` puede volver a anularlo.
+       * Un grep de `VIGENTES` daba verde en este archivo: por eso el orden
+       * importa más que la presencia.
+       */
+      where: { ...where, ...VIGENTES },
       include: APPT_INCLUDE,
       orderBy: { scheduledFor: 'asc' },
     });

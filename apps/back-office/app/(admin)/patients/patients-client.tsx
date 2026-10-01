@@ -1556,22 +1556,41 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // carga de la lista de pacientes.
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
   /**
-   * Arranca abierto si se llego por el item SMS del menu (`?sms=1`).
+   * El historial de SMS, que se abre desde el item SMS del menu (`?sms=1`).
    *
-   * El historial es un DIALOGO, no una pagina, y la clinica pidio llegar
-   * desde el menu. En vez de convertirlo en pagina —que duplicaria la vista y
-   * abriria la puerta a que las dos se desincronicen— el item del menu apunta
-   * aca con el parametro y la pantalla se abre sola. Para quien lo usa es
-   * indistinguible de una pagina propia.
+   * Es un DIALOGO y no una pagina: convertirlo duplicaria la vista y abriria la
+   * puerta a que las dos se desincronicen. El item del menu apunta aca con el
+   * parametro y la pantalla se abre sola; para quien lo usa es indistinguible.
    */
-  const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(searchParamsHook.get('sms') === '1');
+  const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(false);
+  /** Si ya se abrio alguna vez. Ver el comentario del efecto de limpieza. */
+  const smsYaSeAbrio = useRef(false);
 
   /**
-   * Al cerrar se limpia el parametro: si se queda en la URL, volver con el
-   * boton de atras del navegador reabre el dialogo y parece que no cerro.
+   * Abre cuando APARECE el parametro, no solo al montar.
+   *
+   * Con `useState(param === "1")` el valor se lee una sola vez, y volver a
+   * clickear SMS en el menu con la pantalla ya montada no reabria nada: el
+   * estado inicial ya habia pasado.
    */
   useEffect(() => {
-    if (smsHistoryOpen || searchParamsHook.get('sms') !== '1') return;
+    if (searchParamsHook.get('sms') !== '1') return;
+    smsYaSeAbrio.current = true;
+    setSmsHistoryOpen(true);
+  }, [searchParamsHook]);
+
+  /**
+   * Al CERRAR se limpia el parametro: si se queda en la URL, volver con el
+   * boton de atras reabre el dialogo y parece que no cerro.
+   *
+   * ⚠️ `smsYaSeAbrio` no es un detalle. Sin esa guarda, este efecto corre ANTES
+   * de que el dialogo llegue a abrirse —el estado arranca en false— y borra el
+   * parametro que lo iba a abrir. Resultado: el item del menu no abria nada,
+   * nunca. Un "deshacer" que se adelanta al "hacer".
+   */
+  useEffect(() => {
+    if (smsHistoryOpen || !smsYaSeAbrio.current) return;
+    if (searchParamsHook.get('sms') !== '1') return;
     const url = new URL(window.location.href);
     url.searchParams.delete('sms');
     window.history.replaceState(null, '', url.pathname + url.search);

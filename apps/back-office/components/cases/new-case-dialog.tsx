@@ -429,7 +429,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
-    setProviderId(''); setSlotIso(null); setDuration(45); setShowAllProviders(false);
+    // El reset al abrir le gana al `useState`: el inicial corre UNA vez en la
+    // vida del componente, esto corre cada vez que se abre el diálogo. Tenía 45
+    // y por eso el default nuevo no se veía (Erick, 2026-10-01).
+    setProviderId(''); setSlotIso(null); setDuration(DURACION_CITA_POR_DEFECTO); setShowAllProviders(false);
     setCitaDelCalendario(null);
     setFormDelivery({ email: true, sms: true });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);

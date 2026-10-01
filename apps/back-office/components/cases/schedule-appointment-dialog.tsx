@@ -132,7 +132,8 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
     setProviderId('');
     setDate('');
     setTime('');
-    setDuration(30);
+    // Ver la nota del mismo reset en new-case-dialog: esto le gana al `useState`.
+    setDuration(DURACION_CITA_POR_DEFECTO);
     setType('AUTO_ACCIDENT');
     setNotes('');
 

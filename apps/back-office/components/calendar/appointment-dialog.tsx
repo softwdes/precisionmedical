@@ -599,8 +599,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setVisitaPasada(false);
       setFechaPasada('');
       setHoraPasada('');
-      setDuration(15);
-      lastValidDuration.current = 15;
+      setDuration(DURACION_CITA_POR_DEFECTO);
+      lastValidDuration.current = DURACION_CITA_POR_DEFECTO;
       setType(props.defaultType ?? 'AUTO_ACCIDENT');
       setNotes('');
       setIsOnline(false);

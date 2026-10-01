@@ -14,8 +14,11 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db, writeAuditLog, type Prisma } from '@precision-medical/database';
+import { resolveActor } from '@/lib/actor';
 import { checkPatientStaff } from '@/lib/patient-access';
-import { contarPendientes, listarConversaciones } from '@/lib/conversaciones-sms';
+import { contarPendientes, listarConversaciones, mensajesDeConversacion } from '@/lib/conversaciones-sms';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +27,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (acceso.deny) return acceso.deny;
 
   const { searchParams } = new URL(req.url);
+  /**
+   * Con `?clave=` devuelve UNA conversación con sus mensajes, en vez de la
+   * lista. Es lo que abre el hilo — y funciona con `tel:` igual que con
+   * `pac:`, que es todo el punto del cambio.
+   */
+  const clave = searchParams.get('clave');
+  if (clave) {
+    return NextResponse.json({ mensajes: await mensajesDeConversacion(clave) });
+  }
+
   const soloPendientes = searchParams.get('pendientes') === '1';
   const q = searchParams.get('q')?.trim() || undefined;
 
@@ -38,4 +51,68 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   ]);
 
   return NextResponse.json({ conversaciones, pendientes });
+}
+
+/**
+ * PUT — decir a QUÉ paciente pertenece una conversación sin vincular.
+ *
+ * Cuando el número coincide con varios —lo normal acá: las familias comparten
+ * línea— el sistema no elige. Lo elige una persona, una vez, y queda guardado:
+ * se escribe el `patientId` en TODOS los mensajes de ese número, así el hilo
+ * aparece desde entonces en la ficha del paciente y el próximo mensaje que
+ * entre ya llega resuelto.
+ *
+ * ⚠️ Esto mete mensajes en la ficha clínica de alguien, así que queda en el
+ * audit log con el número y la cantidad de filas tocadas. Si se eligió mal,
+ * tiene que poder responderse quién lo hizo.
+ */
+const Asignar = z.object({
+  /** `tel:<10 digitos>` — una conversación ya vinculada no se reasigna acá. */
+  clave: z.string().startsWith('tel:'),
+  patientId: z.string().min(1),
+});
+
+export async function PUT(req: NextRequest): Promise<NextResponse> {
+  const acceso = await checkPatientStaff({ admin: true });
+  if (acceso.deny) return acceso.deny;
+
+  let datos;
+  try {
+    datos = Asignar.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 });
+  }
+
+  const digitos = datos.clave.slice(4);
+  const paciente = await db.patient.findUnique({
+    where: { id: datos.patientId },
+    select: { id: true, firstName: true, lastName: true },
+  });
+  if (!paciente) return NextResponse.json({ error: 'PACIENTE_NO_ENCONTRADO' }, { status: 404 });
+
+  const res = await db.messageLog.updateMany({
+    where: {
+      channel: 'SMS',
+      patientId: null,
+      OR: [{ toAddress: { endsWith: digitos } }, { fromAddress: { endsWith: digitos } }],
+    },
+    data: { patientId: paciente.id },
+  });
+
+  const actor = await resolveActor(req.headers);
+  await writeAuditLog(db, {
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
+    action:      'ASSIGN_SMS_CONVERSATION',
+    entityType:  'patients',
+    entityId:    paciente.id,
+    ipAddress:   actor.ipAddress,
+    userAgent:   actor.userAgent,
+    // El NÚMERO y cuántos mensajes se movieron. El texto no: ya está en
+    // `message_logs` y duplicar PHI duplica lo que hay que proteger.
+    metadata: { numero: digitos, mensajes: res.count } as Prisma.JsonValue,
+  });
+
+  return NextResponse.json({ ok: true, mensajes: res.count });
 }

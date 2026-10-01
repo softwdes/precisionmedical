@@ -29,6 +29,7 @@ interface Conversacion {
   ultimo: { body: string; createdAt: string; deEntrada: boolean; sinLeer: boolean };
   total: number;
   pendiente: boolean;
+  candidatos: Array<{ id: string; nombre: string }>;
 }
 
 export function ConversacionesPendientes({
@@ -102,15 +103,17 @@ export function ConversacionesPendientes({
           <button
             key={c.clave}
             type="button"
+            /* Se abre SIEMPRE, con paciente o sin él: la conversación es con un
+               número. Antes esta fila estaba deshabilitada y la única forma de
+               leer esos mensajes era entrar desde Pacientes. */
             onClick={() => onAbrir({
-              id: c.patientId ?? '',
-              firstName: nom || c.numero,
-              lastName: resto.join(' '),
-              phone: c.numero,
+              clave: c.clave,
+              id: c.patientId,
+              nombre: c.nombre,
+              numero: c.numero,
+              candidatos: c.candidatos,
             })}
-            disabled={!c.patientId}
-            title={c.patientId ? undefined : t('actionableUnknown')}
-            className="w-full text-left flex items-start gap-3 px-3 py-2.5 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full text-left flex items-start gap-3 px-3 py-2.5 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors"
           >
             <PersonAvatar firstName={nom || '?'} lastName={resto.join(' ')} size={8} />
             <div className="flex-1 min-w-0">
@@ -125,7 +128,11 @@ export function ConversacionesPendientes({
               </div>
               <p className="text-[12px] text-text-2 truncate mt-0.5">{c.ultimo.body}</p>
               {!c.patientId && (
-                <p className="text-[10px] text-amber mt-0.5">{t('actionableUnknown')}</p>
+                <p className="text-[10px] text-amber mt-0.5">
+                  {c.candidatos.length > 0
+                    ? t('actionableAmbiguous', { n: c.candidatos.length })
+                    : t('actionableNoPatient')}
+                </p>
               )}
             </div>
           </button>

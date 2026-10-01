@@ -50,11 +50,19 @@ interface Mensaje {
   errorCode: number | null;
 }
 
+/**
+ * Una CONVERSACION, que es con un numero. El paciente es un dato que
+ * resolvemos cuando podemos, no un requisito para abrirla (Erick, 2026-10-01).
+ */
 export interface PacienteDelHilo {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
+  /** `pac:<id>` o `tel:<10 digitos>`. */
+  clave: string;
+  /** `null` cuando el numero coincide con varias fichas, o con ninguna. */
+  id: string | null;
+  nombre: string | null;
+  numero: string;
+  /** Los que comparten ese numero. Vacio cuando ya esta resuelto. */
+  candidatos?: Array<{ id: string; nombre: string }>;
 }
 
 export function PatientThreadDialog({
@@ -76,6 +84,33 @@ export function PatientThreadDialog({
   const finRef = useRef<HTMLDivElement | null>(null);
   const cajaRef = useRef<HTMLTextAreaElement | null>(null);
   const [iconosAbiertos, setIconosAbiertos] = useState(false);
+  const [asignando, setAsignando] = useState(false);
+
+  /**
+   * Decir a que paciente pertenece esta conversacion.
+   *
+   * Se guarda en TODOS los mensajes de ese numero, no solo en el que esta a la
+   * vista: la gracia es que el hilo aparezca en la ficha y que el proximo
+   * mensaje entre ya resuelto. Una eleccion, una vez.
+   */
+  const asignar = async (patientId: string) => {
+    if (!patient || asignando) return;
+    setAsignando(true);
+    try {
+      const res = await fetch('/api/admin/message-logs/conversaciones', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clave: patient.clave, patientId }),
+      });
+      if (!res.ok) { setError(t('assignError')); return; }
+      onEnviado?.();     // la lista de atras tiene que re-resolver el nombre
+      onOpenChange(false);
+    } catch {
+      setError(t('assignError'));
+    } finally {
+      setAsignando(false);
+    }
+  };
 
   const patientId = patient?.id ?? null;
 
@@ -86,16 +121,17 @@ export function PatientThreadDialog({
    * es el caso real —dos personas de recepcion contestandole lo mismo al
    * mismo paciente— y para eso alcanza con que se vean.
    */
-  const claveConv = patient ? claveDeConversacion({ patientId: patient.id, numero: patient.phone }) : null;
+  const claveConv = patient?.clave ?? null;
   const otrosMirando = usePresenciaSms(claveConv);
 
-  const cargar = useCallback(async (id: string) => {
+  const cargar = useCallback(async (clave: string) => {
     setCargando(true);
     try {
-      const res = await fetch(`/api/admin/message-logs?patientId=${id}&size=100`);
+      // Por CLAVE y no por paciente: asi funciona tambien con `tel:`.
+      const res = await fetch(`/api/admin/message-logs/conversaciones?clave=${encodeURIComponent(clave)}`);
       if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json() as { messages?: Mensaje[] };
-      setMensajes(data.messages ?? []);
+      const data = await res.json() as { mensajes?: Mensaje[] };
+      setMensajes(data.mensajes ?? []);
     } catch {
       setError(t('threadLoadError'));
     } finally {
@@ -104,11 +140,11 @@ export function PatientThreadDialog({
   }, [t]);
 
   useEffect(() => {
-    if (!patientId) return;
+    if (!claveConv) return;
     setTexto('');
     setError(null);
-    void cargar(patientId);
-  }, [patientId, cargar]);
+    void cargar(claveConv);
+  }, [claveConv, cargar]);
 
   // El chat arranca abajo: lo último es lo que importa.
   useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes]);
@@ -136,14 +172,16 @@ export function PatientThreadDialog({
   const medida = segmentosSms(texto);
 
   const enviar = async () => {
-    if (!patientId || !texto.trim() || enviando) return;
+    if (!patient || !texto.trim() || enviando) return;
     setEnviando(true);
     setError(null);
     try {
       const res = await fetch('/api/admin/message-logs/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId, body: texto.trim() }),
+        // Sin paciente va el NUMERO: el servidor usa la ficha cuando hay una
+        // y el numero cuando no. Ver la ruta de envio.
+        body: JSON.stringify({ patientId, numero: patient.numero, body: texto.trim() }),
       });
       const data = await res.json().catch(() => ({})) as { error?: string };
 
@@ -161,7 +199,7 @@ export function PatientThreadDialog({
       }
 
       setTexto('');
-      await cargar(patientId);
+      await cargar(claveConv!);
       onEnviado?.();
     } catch {
       setError(t('sendError'));
@@ -180,13 +218,36 @@ export function PatientThreadDialog({
       <DialogContent className="max-w-2xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
         <DialogHeader className="px-4 sm:px-6 pt-4 pb-3 shrink-0">
           <DialogTitle className="text-text-1 flex items-center gap-2 text-base">
-            {patient && <PersonAvatar firstName={patient.firstName} lastName={patient.lastName} size={8} />}
-            {patient?.firstName} {patient?.lastName}
+            {patient && <PersonAvatar firstName={patient.nombre ?? '?'} lastName="" size={8} />}
+            {patient?.nombre ?? (patient ? formatUsPhone(patient.numero) : '')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
-            {patient?.phone ? formatUsPhone(patient.phone) : t('noPhone')}
+            {patient?.nombre ? formatUsPhone(patient.numero) : t('unassignedThread')}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Varios pacientes comparten este numero. El sistema NO elige —meter un
+            mensaje en la ficha clinica equivocada es peor que no meterlo— pero
+            tampoco deja la conversacion muerta: se puede leer, responder, y
+            decidir de quien es. */}
+        {patient && !patient.id && (patient.candidatos?.length ?? 0) > 0 && (
+          <div className="mx-4 sm:mx-6 rounded-md border border-amber/30 bg-amber/10 px-3 py-2.5 shrink-0">
+            <p className="text-[11px] text-amber">{t('assignAsk', { n: patient.candidatos!.length })}</p>
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              {patient.candidatos!.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => void asignar(c.id)}
+                  disabled={asignando}
+                  className="px-2 py-1 rounded-md border border-amber/40 text-[11px] text-amber hover:bg-amber/15 disabled:opacity-50 transition-colors"
+                >
+                  {c.nombre}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-2.5">
           {cargando && mensajes.length === 0 ? (

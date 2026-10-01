@@ -5936,7 +5936,12 @@
       "agoHour": "{n} h ago",
       "alsoViewing": "{nombre} is also looking at this conversation right now.",
       "alsoViewingMany": "{n} other people are looking at this conversation right now.",
-      "someone": "Someone else"
+      "someone": "Someone else",
+      "actionableAmbiguous": "{n} patients share this number — open it to pick one",
+      "actionableNoPatient": "Not a patient — you can still read and reply",
+      "assignAsk": "{n} patients share this number. Who is this conversation with?",
+      "assignError": "Could not link the conversation",
+      "unassignedThread": "Not linked to a patient yet"
     },
     "calls": {
       "payModalTitle": "Case payment",

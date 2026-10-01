@@ -43,7 +43,16 @@ const HORA_DESDE = 8;
 const HORA_HASTA = 18;
 
 const Entrada = z.object({
-  patientId: z.string().min(1),
+  /**
+   * El paciente, cuando se sabe quién es. `null` es un caso REAL y no un
+   * error: un número que coincide con varias fichas —las familias comparten
+   * línea— o alguien que no es paciente de nadie. Hoy ya hay una
+   * conversación así, y el día que la clínica use solo este sistema van a
+   * escribir abogados, ajustadores y farmacias.
+   */
+  patientId: z.string().min(1).nullable().default(null),
+  /** Obligatorio cuando no hay paciente: es el único destino que queda. */
+  numero: z.string().min(7).max(20).optional(),
   /**
    * 800 caracteres ≈ 6 segmentos. No es un límite técnico —Twilio parte solo—
    * sino el punto donde un SMS dejó de ser un SMS: si hace falta más, es una
@@ -68,22 +77,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const paciente = await db.patient.findUnique({
+  const paciente = datos.patientId ? await db.patient.findUnique({
     where: { id: datos.patientId },
     select: {
       id: true, firstName: true, lastName: true, phone: true, dateOfBirth: true,
       guardianPatient: { select: { firstName: true, lastName: true, phone: true } },
     },
-  });
-  if (!paciente) return NextResponse.json({ error: 'PACIENTE_NO_ENCONTRADO' }, { status: 404 });
+  }) : null;
+  if (datos.patientId && !paciente) {
+    return NextResponse.json({ error: 'PACIENTE_NO_ENCONTRADO' }, { status: 404 });
+  }
 
   /**
    * A quién se le escribe. Misma regla que los avisos de cita: si es menor y
    * tiene apoderado, el mensaje va al apoderado — al menor no le sirve de nada
    * y además no es quien decide.
    */
-  const apoderado = isMinor(paciente.dateOfBirth) ? paciente.guardianPatient : null;
-  const telefono  = (apoderado?.phone ?? paciente.phone)?.trim();
+  const apoderado = paciente && isMinor(paciente.dateOfBirth) ? paciente.guardianPatient : null;
+  /**
+   * Sin paciente, el destino es el número de la conversación. Con paciente,
+   * manda su ficha —o la del apoderado— y NO lo que venga del navegador: si
+   * el cliente pudiera elegir el destino de un mensaje atado a una ficha
+   * clínica, cualquiera podría mandarle el historial de alguien a su propio
+   * teléfono.
+   */
+  const telefono = paciente
+    ? (apoderado?.phone ?? paciente.phone)?.trim()
+    : datos.numero?.trim();
   if (!telefono) return NextResponse.json({ error: 'SIN_TELEFONO' }, { status: 409 });
 
   // Se dio de baja: Twilio lo rechazaría igual, pero un 21610 después de
@@ -113,7 +133,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const res = await sendSms({
     to: telefono,
     body: datos.body,
-    patientId:    paciente.id,
+    patientId:    paciente?.id ?? null,
     sentByUserId: actor.actorUserId ?? null,
     sentByName:   actor.actorName ?? null,
   });
@@ -132,7 +152,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     actorRole:   actor.actorRole,
     action:      'SEND_PATIENT_SMS',
     entityType:  'patients',
-    entityId:    paciente.id,
+    entityId:    paciente?.id ?? '(sin paciente)',
     ipAddress:   actor.ipAddress,
     userAgent:   actor.userAgent,
     metadata:    {

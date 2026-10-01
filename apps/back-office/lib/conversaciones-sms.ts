@@ -32,6 +32,7 @@
 
 import { db, type Prisma } from '@precision-medical/database';
 import { phoneKey } from '@/lib/phone';
+import { findPatientsByPhoneKeys } from '@/lib/patient-phone-lookup';
 
 /** El último mensaje de una conversación, que es lo que define su estado. */
 export interface Conversacion {
@@ -51,6 +52,16 @@ export interface Conversacion {
   total: number;
   /** La última palabra es del paciente: alguien tiene que contestar. */
   pendiente: boolean;
+  /**
+   * Los pacientes que comparten ese número, cuando no se pudo elegir uno.
+   *
+   * Vacío cuando `patientId` está resuelto. Con dos o más, la pantalla los
+   * ofrece para que decida una persona: acá las familias que comparten línea
+   * son lo normal —117 números pertenecen a 263 pacientes, medido— así que
+   * "no coincide con ningún paciente" era casi siempre falso. Coincidía con
+   * varios, que es otra cosa.
+   */
+  candidatos: Array<{ id: string; nombre: string }>;
 }
 
 /**
@@ -156,9 +167,83 @@ export async function listarConversaciones(opts: {
       total: 1,
       // La última palabra es del paciente — ver el encabezado.
       pendiente: deEntrada,
+      candidatos: [],
     });
   }
 
   const todas = [...porClave.values()];
-  return opts.soloPendientes ? todas.filter((c) => c.pendiente) : todas;
+  const salida = opts.soloPendientes ? todas.filter((c) => c.pendiente) : todas;
+
+  /**
+   * Para las que no tienen paciente, buscar quién comparte ese número.
+   *
+   * En UNA consulta para todas: una por conversación serían 170 viajes a la
+   * base cada vez que se abre la pantalla. Se hace al final y solo sobre las
+   * que se van a devolver.
+   */
+  const sinPaciente = salida.filter((c) => !c.patientId);
+  if (sinPaciente.length > 0) {
+    const porNumero = await findPatientsByPhoneKeys(sinPaciente.map((c) => phoneKey(c.numero)));
+    for (const c of sinPaciente) {
+      const halla = porNumero.get(phoneKey(c.numero)) ?? [];
+      c.candidatos = halla.map((p) => ({ id: p.id, nombre: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() }));
+      // Uno solo no es ambiguo: se resuelve acá y la pantalla lo muestra con
+      // su nombre, igual que si hubiera venido vinculado desde el webhook.
+      if (c.candidatos.length === 1) {
+        c.patientId = c.candidatos[0]!.id;
+        c.nombre    = c.candidatos[0]!.nombre;
+        c.candidatos = [];
+      }
+    }
+  }
+
+  return salida;
+}
+
+/**
+ * Los mensajes de UNA conversación, en orden, estén o no vinculados.
+ *
+ * Se busca por la CLAVE y no por paciente, que es el cambio de fondo pedido por
+ * Erick el 2026-10-01: la conversación es con un NÚMERO, y el paciente es un
+ * dato que resolvemos cuando podemos, no un requisito para abrirla.
+ *
+ * Eso destraba tres casos que antes quedaban muertos en pantalla:
+ *  · el número que coincide con VARIOS pacientes (familias que comparten línea,
+ *    que acá son 117 números sobre 263 pacientes)
+ *  · el que no coincide con ninguno — hoy ya hay una conversación así
+ *  · y el futuro en que escriban abogados, ajustadores o farmacias, que no son
+ *    pacientes de nadie y aun así hay que poder contestarles
+ *
+ * Los números del lado del paciente están TODOS en E.164 (`+1XXXXXXXXXX`),
+ * verificado sobre los envíos reales: `sendSms` normaliza antes de guardar. Por
+ * eso alcanza con comparar los últimos 10 dígitos.
+ */
+export async function mensajesDeConversacion(clave: string): Promise<Array<{
+  id: string; direction: string; status: string; body: string;
+  createdAt: string; sentByName: string | null; errorCode: number | null;
+}>> {
+  const esPaciente = clave.startsWith('pac:');
+  const valor = clave.slice(4);
+
+  const where: Prisma.MessageLogWhereInput = esPaciente
+    ? { patientId: valor }
+    : {
+        channel: 'SMS',
+        OR: [
+          { toAddress:   { endsWith: valor } },
+          { fromAddress: { endsWith: valor } },
+        ],
+      };
+
+  const filas = await db.messageLog.findMany({
+    where,
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+    select: {
+      id: true, direction: true, status: true, body: true,
+      createdAt: true, sentByName: true, errorCode: true,
+    },
+  });
+
+  return filas.map((f) => ({ ...f, createdAt: f.createdAt.toISOString() }));
 }

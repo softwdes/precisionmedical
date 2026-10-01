@@ -5936,7 +5936,12 @@
       "agoHour": "hace {n} h",
       "alsoViewing": "{nombre} también está viendo esta conversación ahora.",
       "alsoViewingMany": "Otras {n} personas están viendo esta conversación ahora.",
-      "someone": "Otra persona"
+      "someone": "Otra persona",
+      "actionableAmbiguous": "{n} pacientes comparten este número — abrilo para elegir",
+      "actionableNoPatient": "No es paciente — igual se puede leer y responder",
+      "assignAsk": "{n} pacientes comparten este número. ¿De quién es esta conversación?",
+      "assignError": "No se pudo vincular la conversación",
+      "unassignedThread": "Todavía sin paciente asignado"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

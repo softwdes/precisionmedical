@@ -346,7 +346,12 @@ export function SmsHistoryDialog({
                             {r.patient ? (
                               <button
                                 type="button"
-                                onClick={() => setHilo(r.patient)}
+                                onClick={() => setHilo({
+                                  clave: r.patient ? `pac:${r.patient.id}` : `tel:${r.contraparte.replace(/[^0-9]/g, '').slice(-10)}`,
+                                  id: r.patient?.id ?? null,
+                                  nombre: r.patient ? `${r.patient.firstName} ${r.patient.lastName}`.trim() : null,
+                                  numero: r.contraparte,
+                                })}
                                 className="text-left w-full hover:opacity-80 transition-opacity"
                                 title={t('openThread')}
                               >

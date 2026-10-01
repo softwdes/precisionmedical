@@ -113,11 +113,16 @@ export function SmsHistoryPanel({ onTitulo }: {
       Un tercer modal encima robaria el foco — ya paso con el buscador de cargos. */
   const [editando, setEditando] = useState(false);
   /**
-   * `pendientes` es la pestana Actionable: conversaciones esperando respuesta.
-   * Arranca en `pendientes` cuando hay alguna, porque es lo unico de esta
-   * pantalla que pide hacer algo — el resto es consulta.
+   * Arranca en `pendientes`, que ademas va PRIMERA (Erick, 2026-10-01).
+   *
+   * Es lo unico de esta pantalla que pide hacer algo; el resto es consulta.
+   * Vacia no es un estado malo: dice "no hay nadie esperando", que es una
+   * respuesta util y no un error.
+   *
+   * ⚠️ Antes el comentario decia esto y el codigo arrancaba en `todos`. El
+   * comentario mentia, que es peor que no tenerlo.
    */
-  const [vista, setVista] = useState<'todos' | 'pendientes'>('todos');
+  const [vista, setVista] = useState<'todos' | 'pendientes'>('pendientes');
   /** Lo tecleado. `q` es lo que ya se consultó: separarlos es lo que permite el debounce. */
   const [texto, setTexto]       = useState('');
   const [q, setQ]               = useState('');
@@ -230,7 +235,7 @@ export function SmsHistoryPanel({ onTitulo }: {
             se mira; los filtros de abajo recortan la que ya se eligio. */}
         {!editando && (
           <div className="flex items-center gap-1.5 px-4 sm:px-6 pt-3 border-b border-border">
-            {([['todos', t('tabAll')], ['pendientes', t('tabActionable')]] as const).map(([k, l]) => (
+            {([['pendientes', t('tabActionable')], ['todos', t('tabAll')]] as const).map(([k, l]) => (
               <button
                 key={k}
                 type="button"

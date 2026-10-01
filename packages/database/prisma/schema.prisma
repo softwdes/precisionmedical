@@ -1176,6 +1176,30 @@ model Appointment {
   /// El CUANDO no va aca: la cancelacion ya queda con su fecha en el AuditLog.
   cancelledSameDay Boolean @default(false)
 
+  /// ── Seguimiento del NO-SHOW ──────────────────────────────────────────────
+  ///
+  /// Beatriz llevaba esto en un Excel: a quién se llamó después de que faltara,
+  /// cuándo, y qué dijo. Pedido el 2026-10-01.
+  ///
+  /// Va en la CITA y no en el caso: un paciente con tres no-shows necesita tres
+  /// anotaciones, no una. En `case_tracking` sólo entraría la última y se
+  /// perdería el historial, que es lo que el Excel guardaba.
+  ///
+  /// NO hay un campo "volvió a agendar": eso se CALCULA mirando si el paciente
+  /// tiene una cita posterior. Guardarlo sería copiar un dato que se
+  /// desincroniza en cuanto alguien reprograma.
+  ///
+  /// El contacto SÍ se guarda porque no hay de dónde deducirlo — medido el
+  /// 2026-10-01: `call_logs` tiene 0 filas y sólo 12 de 94 no-shows recibieron
+  /// algún mensaje. Deducirlo diría "no contactado" en 82 de 94 casos.
+  followUpContactedAt     DateTime?
+  followUpContactedById   String?
+  /// Denormalizado, mismo criterio que `CaseTracking.completedByName`: la lista
+  /// muestra "Beatriz T." sin join a `users` en cada fila.
+  followUpContactedByName String?
+  /// Qué dijo el paciente. Es la celda de texto libre del Excel.
+  followUpNote            String?
+
   // Telemedicine / online consultation toggle (FEATURE-006)
   isOnline   Boolean @default(false)
   meetingUrl String? // optional video link (Zoom, Teams, etc.)

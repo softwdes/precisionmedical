@@ -708,10 +708,39 @@ export function AdmissionClient() {
     patient: { id: string; firstName: string; lastName: string };
     clinic: { id: string; name: string } | null;
     case: { id: string; caseCode: string; caseType: string } | null;
+    /* ── Seguimiento del no-show (Beatriz, 2026-10-01) ────────────────────── */
+    conCargo: boolean;
+    contacto: { cuando: string; quien: string | null; nota: string | null } | null;
+    reagendo: { id: string; scheduledFor: string; status: string } | null;
   };
   const [pendientes, setPendientes] = useState<PenalidadPendiente[]>([]);
+  /** La fila cuya nota se está escribiendo. null = ninguna abierta. */
+  const [notaDe, setNotaDe] = useState<string | null>(null);
+  const [notaTexto, setNotaTexto] = useState('');
   const [masViejas, setMasViejas]   = useState(0);
   const DIAS_ATRAS = 30;
+
+  /**
+   * Marcar que se contactó al paciente después de que faltara.
+   *
+   * Es lo que Beatriz anotaba en el Excel. Se guarda QUIÉN y CUÁNDO del lado del
+   * servidor —no se le pide al usuario— porque es lo único que el sistema sabe
+   * mejor que la persona.
+   *
+   * Vuelve a cargar la lista en vez de tocar el estado local: la fila cambia de
+   * aspecto y además puede cambiar de lugar si alguien ordena por esto.
+   */
+  async function marcarContacto(p: PenalidadPendiente, contactado: boolean, nota?: string) {
+    const res = await fetch(`/api/admin/appointments/${p.id}/follow-up`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactado, ...(nota !== undefined ? { nota } : {}) }),
+    });
+    if (!res.ok) return;
+    setNotaDe(null);
+    setNotaTexto('');
+    await cargarPendientes();
+  }
   const [cargosActuales, setCargosActuales] = useState<PlannedService[]>([]);
 
   /** Los cargos de EFECTIVO ya puestos en esta cita. Sin esto el picker no
@@ -1373,14 +1402,103 @@ export function AdmissionClient() {
                                 label={p.status === 'NO_SHOW' ? t('statusNoShow') : t('statusCancelledSameDay')}
                                 state={p.status === 'NO_SHOW' ? 'danger' : 'warning'}
                               />
-                              <button
-                                type="button"
-                                onClick={() => void asentarPenalidad(p)}
-                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose hover:bg-rose/20 focus:outline-none focus:ring-1 focus:ring-rose"
-                              >
-                                <AlertTriangle className="w-2.5 h-2.5" />
-                                {t('missingPenalty')}
-                              </button>
+                              {/* La penalidad pasa a ser UNA columna, no el filtro
+                                  de la lista: un no-show ya cobrado igual hay que
+                                  llamarlo. Antes esas filas no llegaban — eran 23
+                                  de 57 en la ventana, el 40% de la gente que
+                                  Beatriz tiene que perseguir. */}
+                              {p.conCargo ? (
+                                <span className="text-[9px] text-text-muted">{t('penaltyCharged')}</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void asentarPenalidad(p)}
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-rose/30 bg-rose/10 text-rose hover:bg-rose/20 focus:outline-none focus:ring-1 focus:ring-rose"
+                                >
+                                  <AlertTriangle className="w-2.5 h-2.5" />
+                                  {t('missingPenalty')}
+                                </button>
+                              )}
+
+                              {/* ¿Volvió a agendar? CALCULADO, nadie lo marca.
+                                  Y dice más que el Excel, que solo tenía sí/no:
+                                  muestra la fecha, y avisa si esa cita también
+                                  se cayó. */}
+                              {p.reagendo ? (
+                                <span className={'text-[9px] ' + (
+                                  p.reagendo.status === 'CANCELLED' || p.reagendo.status === 'NO_SHOW'
+                                    ? 'text-amber' : 'text-emerald'
+                                )}>
+                                  {t('rebooked', {
+                                    fecha: new Date(p.reagendo.scheduledFor).toLocaleDateString(localeApp(), {
+                                      month: 'short', day: 'numeric', timeZone: 'America/Denver',
+                                    }),
+                                  })}
+                                  {(p.reagendo.status === 'CANCELLED' || p.reagendo.status === 'NO_SHOW')
+                                    && ' · ' + t('rebookedFellThrough')}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-rose">{t('notRebooked')}</span>
+                              )}
+
+                              {/* ¿Lo contactamos? MANUAL: no hay de dónde deducirlo
+                                  —call_logs está vacío— y deducirlo diría "no" en
+                                  82 de 94 casos aunque los hayan llamado a todos. */}
+                              {p.contacto ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void marcarContacto(p, false)}
+                                  title={p.contacto.quien
+                                    ? t('contactedBy', { quien: p.contacto.quien })
+                                    : undefined}
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald/20"
+                                >
+                                  ✓ {t('contacted')}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void marcarContacto(p, true)}
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-border text-text-muted hover:text-text-1 hover:border-text-muted"
+                                >
+                                  {t('markContacted')}
+                                </button>
+                              )}
+
+                              {/* La nota: lo que dijo el paciente. Es la celda de
+                                  texto libre del Excel. Se abre a pedido para no
+                                  meterle un campo a cada fila de una lista que se
+                                  lee de un vistazo. */}
+                              {notaDe === p.id ? (
+                                <span className="flex items-center gap-1 basis-full mt-1">
+                                  <input
+                                    autoFocus
+                                    value={notaTexto}
+                                    onChange={e => setNotaTexto(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') void marcarContacto(p, true, notaTexto);
+                                      if (e.key === 'Escape') { setNotaDe(null); setNotaTexto(''); }
+                                    }}
+                                    placeholder={t('contactNotePh')}
+                                    className="flex-1 min-w-0 bg-bg-1 rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:ring-1 focus:ring-brand"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => void marcarContacto(p, true, notaTexto)}
+                                    className="text-[10px] text-brand-text hover:underline shrink-0"
+                                  >
+                                    {t('contactNoteSave')}
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => { setNotaDe(p.id); setNotaTexto(p.contacto?.nota ?? ''); }}
+                                  className="text-[9px] text-text-muted hover:text-text-1 underline underline-offset-2 truncate max-w-[220px]"
+                                >
+                                  {p.contacto?.nota || t('addContactNote')}
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>

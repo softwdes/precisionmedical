@@ -3732,7 +3732,16 @@
       "docDrugHistoryOk": "El paciente autorizó consultar la red de farmacias",
       "docDrugHistoryPending": "Sin preguntar. Con su permiso, el provider ve lo que toma recetado por otros médicos",
       "docDrugHistoryAsk": "Registrar el permiso",
-      "backToCurrentStep": "← Volver al paso actual"
+      "backToCurrentStep": "← Volver al paso actual",
+      "rebooked": "Reagendó {fecha}",
+      "rebookedFellThrough": "se cayó",
+      "notRebooked": "No reagendó",
+      "contacted": "Contactado",
+      "markContacted": "Marcar contactado",
+      "contactedBy": "Contactado por {quien}",
+      "addContactNote": "+ nota",
+      "contactNotePh": "¿Qué dijo el paciente?",
+      "contactNoteSave": "Guardar"
     },
     "dashboard": {
       "novedadEtiqueta": "Nueva versión",

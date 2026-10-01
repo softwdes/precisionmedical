@@ -58,6 +58,25 @@ export interface PenalidadPendiente {
   patient: { id: string; firstName: string; lastName: string };
   clinic: { id: string; name: string } | null;
   case: { id: string; caseCode: string; caseType: string } | null;
+
+  /**
+   * ── Seguimiento del no-show (pedido de Beatriz, 2026-10-01) ───────────────
+   *
+   * Llevaba en un Excel a quién se llamó después de faltar y si volvió a
+   * agendar. Estos tres campos son esa hoja.
+   */
+
+  /** La penalidad YA está cobrada. Antes estas filas no llegaban — ver abajo. */
+  conCargo: boolean;
+  /** Cuándo se contactó al paciente, y quién. `null` = nadie lo marcó. */
+  contacto: { cuando: string; quien: string | null; nota: string | null } | null;
+  /**
+   * La PRÓXIMA cita del paciente después de esta, si la hay.
+   *
+   * Calculado, no guardado: copiar un "volvió a agendar" se desincroniza en
+   * cuanto alguien reprograma. Y dice MÁS que el Excel, que solo tenía sí/no.
+   */
+  reagendo: { id: string; scheduledFor: string; status: string } | null;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -92,6 +111,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       orderBy: { scheduledFor: 'desc' },
       select: {
         id: true, scheduledFor: true, status: true, cancelledSameDay: true,
+        patientId: true,
+        followUpContactedAt: true, followUpContactedByName: true, followUpNote: true,
         patient: { select: { id: true, firstName: true, lastName: true } },
         clinic:  { select: { id: true, name: true } },
         case:    { select: { id: true, caseCode: true, caseType: true } },
@@ -125,8 +146,49 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       )
     : new Set<string>();
 
+  /*
+   * ── La PRÓXIMA cita de cada paciente, en UNA consulta ────────────────────
+   *
+   * Responde "¿volvió a agendar?" sin guardar nada. Se piden todas las citas
+   * futuras de los pacientes de la lista y después se cruza en memoria: una
+   * consulta por fila serían 57 viajes a la base para pintar una columna.
+   */
+  const siguientes = candidatos.length
+    ? await db.appointment.findMany({
+        where: {
+          ...VIGENTES,
+          patientId: { in: [...new Set(candidatos.map(a => a.patientId))] },
+          scheduledFor: { gt: desde },
+          /*
+           * SIN filtrar por estado, a proposito.
+           *
+           * La pregunta de Beatriz es "¿agendo una nueva cita?", no "¿sigue en
+           * pie?". Una que reagendo y volvio a cancelar SI agendo — y es justo
+           * la que mas necesita ver. Por eso viaja tambien el estado: la lista
+           * puede decir "reagendo el 15-oct" o "reagendo el 15-oct, cancelada".
+           *
+           * Medido el 2026-10-01 sobre la ventana de 30 dias: 7 reagendaron
+           * algo y 6 tienen esa cita viva. La diferencia es una persona, y es
+           * exactamente la que se perderia.
+           */
+        },
+        orderBy: { scheduledFor: 'asc' },
+        select: { id: true, patientId: true, scheduledFor: true, status: true },
+      })
+    : [];
+
   const items: PenalidadPendiente[] = candidatos
-    .filter(a => !conCargo.has(a.id))
+    /*
+     * ⚠️ YA NO se filtran las que tienen cargo.
+     *
+     * Antes esta lista era "penalidades pendientes" y escondía las ya cobradas.
+     * Para el SEGUIMIENTO eso es un agujero: un no-show cobrado igual hay que
+     * llamarlo y ver si vuelve. Medido el 2026-10-01: de 57 desenlaces en la
+     * ventana, 23 ya tenían cargo — o sea que Beatriz no veía al 40% de la
+     * gente que tiene que perseguir.
+     *
+     * La penalidad pasa a ser una COLUMNA (conCargo) en vez de un filtro.
+     */
     .map(a => ({
       id:               a.id,
       scheduledFor:     a.scheduledFor.toISOString(),
@@ -136,6 +198,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       patient:          a.patient,
       clinic:           a.clinic,
       case:             a.case,
+      conCargo:         conCargo.has(a.id),
+      contacto:         a.followUpContactedAt
+        ? {
+            cuando: a.followUpContactedAt.toISOString(),
+            quien:  a.followUpContactedByName,
+            nota:   a.followUpNote,
+          }
+        : null,
+      // La primera POSTERIOR a la que se perdió, no la primera de la tanda.
+      reagendo: (() => {
+        const s = siguientes.find(
+          x => x.patientId === a.patientId && x.scheduledFor > a.scheduledFor,
+        );
+        return s ? { id: s.id, scheduledFor: s.scheduledFor.toISOString(), status: s.status } : null;
+      })(),
     }));
 
   return NextResponse.json({

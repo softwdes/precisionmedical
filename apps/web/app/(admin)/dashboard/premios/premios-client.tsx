@@ -170,7 +170,6 @@ function MesView({ data, month, money, onSaved }: {
   const errores: string[] = [];
   if (!(poolNum > 0)) errores.push(t('errPool'));
   if (parts.filter((p) => p.kind === 'STAFF').length < 1 || parts.length < 2) errores.push(t('errParticipants'));
-  if (parts.filter((p) => p.kind === 'MANAGER').length > 1) errores.push(t('errOneManager'));
   if (goals.length < 1) errores.push(t('errGoals'));
 
   async function guardar(): Promise<void> {

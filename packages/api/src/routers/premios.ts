@@ -225,9 +225,8 @@ export const premiosRouter = router({
       const db = clinica();
       const ids = input.participants.map((p) => p.userId);
       if (new Set(ids).size !== ids.length) throw new TRPCError({ code: 'BAD_REQUEST', message: 'DUPLICATE_PARTICIPANT' });
-      if (input.participants.filter((p) => p.kind === 'MANAGER').length > 1) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'ONE_MANAGER_MAX' });
-      }
+      // Puede haber más de una manager (Erick, 30-sep: Beatriz y Roger). Cada una
+      // cobra su parte según el promedio del staff; `calcularPeriodo` ya lo resuelve.
       if (!input.participants.some((p) => p.kind === 'STAFF')) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'STAFF_REQUIRED' });
       }

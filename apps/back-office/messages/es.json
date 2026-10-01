@@ -5234,7 +5234,8 @@
           "listaEsperada": "No se pudo guardar: formato inesperado.",
           "sinPermiso": "Tu rol no puede editar el historial médico.",
           "sesionVencida": "La sesión venció. Volvé a entrar.",
-          "inesperado": "No se pudo guardar. Intentá de nuevo."
+          "inesperado": "No se pudo guardar. Intentá de nuevo.",
+          "conflictoRevision": "Eso contradice lo registrado. Primero quitá los registros."
         },
         "sub": {
           "saving": "Guardando…",
@@ -7290,6 +7291,25 @@
       "prevApprovedHint": "se paga con el bono del mes",
       "prevInReviewHint": "el Admin está revisando el mes; el monto puede ajustarse",
       "adjustmentsTitle": "Ajustes del Admin"
+    },
+    "revision": {
+      "allergiesLabel": "Alergias",
+      "medsLabel": "Medicinas actuales",
+      "nkaBox": "Sin alergias conocidas (NKA)",
+      "noMedsBox": "No toma medicinas",
+      "confirmed": "Confirmado por {by} · {date}",
+      "confirmedLegacy": "Confirmado: sin alergias conocidas",
+      "confirmedMedsLegacy": "Confirmado: no toma medicinas",
+      "declared": "El paciente dijo que no tiene en su formulario — confirmar para dejarlo registrado",
+      "unreviewed": "Sin revisar — preguntarle al paciente",
+      "confirm": "Confirmar",
+      "undo": "Deshacer",
+      "hasAllergies": "Tiene alergias registradas",
+      "hasMeds": "Tiene medicinas activas registradas",
+      "alertAllergies": "Alergias sin revisar",
+      "alertMeds": "Medicinas sin revisar",
+      "saving": "Guardando…",
+      "conflict": "Eso contradice lo que hay registrado: primero quitá los registros."
     }
   },
   "caseWizard": {

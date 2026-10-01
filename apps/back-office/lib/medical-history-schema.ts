@@ -115,6 +115,9 @@ const SECCIONES = {
     selfRating: z.number().int().min(1).max(10).nullable().optional(),
   }).strict() },
   allergies: { valor: largo },
+  // "Confirmado: no tiene" — ver lib/revision-historial. `null` la desmarca.
+  noKnownAllergies:     { valor: z.object({ at: corto, by: corto.optional() }).strict().nullable() },
+  noCurrentMedications: { valor: z.object({ at: corto, by: corto.optional() }).strict().nullable() },
   problems: { fila: condicion, max: 200 },
   history: { fila: condicion, max: 200 },
   medications: { fila: medicamento, max: 300 },

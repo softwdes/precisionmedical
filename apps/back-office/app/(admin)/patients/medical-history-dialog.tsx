@@ -15,6 +15,8 @@ import {
 } from '@precision/ui';
 import { PersonAvatar, TagPill, useToast, FloatingPanel } from '@/components/ui-phoenix';
 import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
+import { estadoAlergias, estadoMedicinas } from '@/lib/revision-historial';
+import { RevisionHistorial, type RevisionGuardada } from '@/components/visit/revision-historial';
 
 /** Hoy en YYYY-MM-DD — tope de los campos de fecha clínica (nada del futuro). */
 const HOY = new Date().toISOString().slice(0, 10);
@@ -29,6 +31,9 @@ export type MedicalHistoryData = {
   };
   healthInfo?:       { goals?: string; selfRating?: number | null };
   allergies?:        string;
+  /** Confirmado por el personal que NO tiene. `null` = desmarcado. Ver lib/revision-historial. */
+  noKnownAllergies?:     { at: string; by?: string } | null;
+  noCurrentMedications?: { at: string; by?: string } | null;
   problems?:         Array<{ id: string; condition: string; diagnosedAt?: string; status?: string; comments?: string }>;
   history?:          Array<{ id: string; condition: string; diagnosedAt?: string; status?: string; comments?: string }>;
   medications?:      Array<{
@@ -2688,9 +2693,22 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
 
   const [mh, setMh] = useState<MedicalHistoryData>(() => (patient.medicalHistory ?? {}) as MedicalHistoryData);
   const onSaved = (patch: Partial<MedicalHistoryData>) => {
-    setMh(prev => ({ ...prev, ...patch }));
+    setMh(prev => {
+      const next = { ...prev, ...patch };
+      // El servidor desmarca "no tiene" cuando se carga un dato (ver
+      // updateMedicalHistory); se repite acá para no mostrar la casilla vieja.
+      if ((next.allergies ?? '').trim()) next.noKnownAllergies = null;
+      if ((next.medications ?? []).some(m => m.status !== 'HISTORY')) next.noCurrentMedications = null;
+      return next;
+    });
     onChanged?.();
   };
+  const onRevision = (r: RevisionGuardada) => {
+    setMh(prev => ({ ...prev, ...r }));
+    onChanged?.();
+  };
+  const estadoAl  = estadoAlergias(mh);
+  const estadoMed = estadoMedicinas(mh);
   // Los MEDICAL siguen en el JSON del caso; el de auto se movio a su propia
   // tabla y se pide aparte, si no esta seccion dejaria de mostrarlo.
   const medicalIns = ((patient.latestCase?.consentsData as Record<string, unknown> | null)
@@ -2836,7 +2854,9 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
 
             {/* Allergies */}
             <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn onEdit={() => setEditAllergies(true)} defaultOpen={false}>
-              <EmptyState text={mh.allergies ?? t('mh.noAllergies')} />
+              {(mh.allergies ?? '').trim()
+                ? <EmptyState text={mh.allergies!} />
+                : <RevisionHistorial tipo="alergias" patientId={patient.id} estado={estadoAl} sello={mh.noKnownAllergies ?? null} onSaved={onRevision} />}
             </SideSection>
 
             {/* Problems list (sidebar) */}
@@ -2854,7 +2874,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                 ? mh.medications!.map(m => (
                     <div key={m.id} className="text-[11px] text-text-2 border-b border-row-sep py-1 last:border-0">{m.name}</div>
                   ))
-                : <EmptyState text={t('mh.noMedications')} />}
+                : <RevisionHistorial tipo="medicinas" patientId={patient.id} estado={estadoMed} sello={mh.noCurrentMedications ?? null} onSaved={onRevision} />}
             </SideSection>
 
             {/* Surgeries */}
@@ -3042,6 +3062,12 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
               onAdd={() => setAddMedication(true)}
               addLabel={t('mh.add')}
             >
+              {/* "Nadie preguntó" ≠ "no toma nada": la casilla es lo que lo distingue. */}
+              {estadoMed !== 'TIENE' && (
+                <div className="mb-3">
+                  <RevisionHistorial tipo="medicinas" patientId={patient.id} estado={estadoMed} sello={mh.noCurrentMedications ?? null} onSaved={onRevision} />
+                </div>
+              )}
               <TableShell
                 headers={[t('mh.medName'), t('mh.medDose'), t('mh.medInstructions'), t('mh.medPrescribedBy'), t('mh.actions')]}
                 totalLabel={t('mh.totalRecords')}

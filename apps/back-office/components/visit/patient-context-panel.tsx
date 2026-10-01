@@ -39,6 +39,8 @@ import {
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { useMedicalHistoryDialog } from '@/components/patients/medical-history-button';
 import type { PatientContext } from '@/lib/patient-context';
+import { estadoAlergias, estadoMedicinas } from '@/lib/revision-historial';
+import { RevisionHistorial, type RevisionGuardada } from './revision-historial';
 
 export type { PatientContext };
 
@@ -151,6 +153,20 @@ export function PatientContextPanel({
   const age = edad(p.dateOfBirth);
   const { abrir, dialogo } = useMedicalHistoryDialog(p.id);
   /**
+   * Las casillas "no tiene" (lib/revision-historial). El estado viene calculado
+   * en `history.revision`; tras confirmar una acá se pisa con lo que devolvió el
+   * servidor, para no esperar a que el padre recargue.
+   */
+  const [rev, setRev] = React.useState<RevisionGuardada | null>(null);
+  const estadoAlergias_ = rev
+    ? estadoAlergias({ allergies: p.history.allergies, noKnownAllergies: rev.noKnownAllergies }, p.history.allergiesDeclared)
+    : p.history.revision.alergias;
+  const estadoMedicinas_ = rev
+    ? estadoMedicinas({ medications: p.history.medications, noCurrentMedications: rev.noCurrentMedications })
+    : p.history.revision.medicinas;
+  const selloAlergias = rev ? rev.noKnownAllergies : p.history.revision.alergiasSello;
+  const selloMedicinas = rev ? rev.noCurrentMedications : p.history.revision.medicinasSello;
+  /**
    * Las seis secciones del historial comparten el mismo destino: la ficha
    * completa. Deep-link a la sección exacta pediría tocar el diálogo de 2.800
    * líneas; abrirlo ya resuelve el problema que Devin reportó, que era no tener
@@ -172,8 +188,6 @@ export function PatientContextPanel({
    */
   const alergiasFicha = h.allergies?.trim() ?? '';
   const alergiasDeclaradas = h.allergiesDeclared?.text?.trim() ?? '';
-  /** El paciente contestó que NO tiene alergias: es una confirmación, no un hueco. */
-  const negadaPorPaciente = !!h.allergiesDeclared && !h.allergiesDeclared.has;
 
   /**
    * El aviso de la cabecera plegada en mobile. Incluye lo declarado por el
@@ -303,9 +317,9 @@ export function PatientContextPanel({
       */}
       <Section title={t('ctxAllergies')} icon={Activity} {...editarFicha}>
         {!alergiasFicha && !alergiasDeclaradas ? (
-          // Sin nada cargado. Si el paciente contestó que NO tiene, eso es una
-          // confirmación y no un hueco de información — se dice cuál de las dos.
-          <EmptyNote text={negadaPorPaciente ? t('ctxAllergiesDenied') : t('ctxNoAllergies')} />
+          // Sin nada cargado: "no tiene" y "nadie preguntó" son cosas opuestas y
+          // antes las dos decían "sin alergias conocidas". La casilla las separa.
+          <RevisionHistorial tipo="alergias" patientId={p.id} estado={estadoAlergias_} sello={selloAlergias} onSaved={setRev} readOnly={!editable} />
         ) : (
           <div className="space-y-1.5">
             {alergiasFicha && (
@@ -345,7 +359,9 @@ export function PatientContextPanel({
 
       {/* Medicamentos activos */}
       <Section title={t('ctxMedications')} icon={Pill} count={activeMeds.length} {...editarFicha}>
-        {activeMeds.length === 0 ? <EmptyNote text={t('ctxNoMedications')} /> : (
+        {activeMeds.length === 0 ? (
+          <RevisionHistorial tipo="medicinas" patientId={p.id} estado={estadoMedicinas_} sello={selloMedicinas} onSaved={setRev} readOnly={!editable} />
+        ) : (
           <div className="space-y-1">
             {activeMeds.map((m, i) => (
               <div key={m.id ?? i} className="rounded-md bg-bg-2/40 px-3 py-2">

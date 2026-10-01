@@ -38,6 +38,7 @@ import {
 } from '@/components/visit/triage-vitals-form';
 import { DrugHistoryConsentDialog } from '@/components/visit/drug-history-consent-dialog';
 import { DoctorStepPanel } from './doctor-step-panel';
+import { RevisionHistorial } from '@/components/visit/revision-historial';
 import { nombreProviderO, nombreProviderONull } from '@/lib/provider-name';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -148,6 +149,7 @@ export function AdmissionDetailClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations('phoenix.admission');
+  const tRev = useTranslations('phoenix.revision');
   const [detail,    setDetail]    = useState<ApptDetail | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [admitting, setAdmitting] = useState(false);
@@ -327,8 +329,12 @@ export function AdmissionDetailClient({
     if (ficha) partes.push(ficha);
     if (declarada) partes.push(`${t('infoAllergiesDeclared')}: ${declarada}`);
     if (partes.length > 0) return partes.join(' · ');
-    // El paciente contestó que no tiene: es una confirmación, no un dato que falta.
-    return decl && !decl.has ? t('infoAllergiesDenied') : t('infoNoAllergies');
+    // Sin nada cargado: "no tiene" y "nadie preguntó" no son lo mismo. Antes las
+    // dos decían "sin alergias" y la MA no podía distinguirlas.
+    const rv = d.patientContext?.history.revision.alergias;
+    if (rv === 'CONFIRMADO_NO_TIENE') return t('infoNoAllergies');
+    if (decl && !decl.has) return t('infoAllergiesDenied');
+    return tRev('alertAllergies');
   })();
 
   const overallState: StatusState = isAlreadyInRoom ? 'success' : consentsOk ? 'success' : 'warning';
@@ -626,9 +632,31 @@ export function AdmissionDetailClient({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {docItems.map((item, i) => (
-                <ChecklistCard key={i} done={item.done} label={item.label} meta={item.meta} />
+                // Con `{...item}` viajan también `accion`/`accionLabel`: el mapa los
+                // dejaba afuera y el botón de pedir el permiso de farmacia nunca se dibujaba.
+                <ChecklistCard key={i} {...item} />
               ))}
             </div>
+            {/* "No tiene" vs "nadie preguntó": la MA lo pregunta acá, con el paciente delante.
+                Si ya hay alergias o medicinas cargadas la casilla no aplica y no se dibuja. */}
+            {d.patientContext && (d.patientContext.history.revision.alergias !== 'TIENE' || d.patientContext.history.revision.medicinas !== 'TIENE') && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <RevisionHistorial
+                  tipo="alergias"
+                  patientId={d.patient.id}
+                  estado={d.patientContext.history.revision.alergias}
+                  sello={d.patientContext.history.revision.alergiasSello}
+                  onSaved={() => { void syncDetail(); }}
+                />
+                <RevisionHistorial
+                  tipo="medicinas"
+                  patientId={d.patient.id}
+                  estado={d.patientContext.history.revision.medicinas}
+                  sello={d.patientContext.history.revision.medicinasSello}
+                  onSaved={() => { void syncDetail(); }}
+                />
+              </div>
+            )}
           </div>
         )}
 

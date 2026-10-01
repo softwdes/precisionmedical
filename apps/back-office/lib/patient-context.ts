@@ -16,6 +16,7 @@ import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { nombreProviderONull } from './provider-name';
 import { conDetalleDeReceta, type MedicationConDetalle } from './medication-details';
 import { fotosConRespaldo } from './fotos-identidad';
+import { estadoAlergias, estadoMedicinas, type EstadoRevision } from './revision-historial';
 
 // ─── El tipo que consume el panel ─────────────────────────────────────────────
 
@@ -72,6 +73,16 @@ export interface PatientContext {
      * confirmación, no una ausencia de dato — por eso se distingue).
      */
     allergiesDeclared: { has: boolean; text: string | null } | null;
+    /**
+     * "No tiene" vs "nadie preguntó" — ver lib/revision-historial. Calculado acá,
+     * una sola vez, para que todas las pantallas respondan lo mismo.
+     */
+    revision: {
+      alergias: EstadoRevision;
+      medicinas: EstadoRevision;
+      alergiasSello: { at: string; by?: string } | null;
+      medicinasSello: { at: string; by?: string } | null;
+    };
     problems: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
     /**
      * Con el detalle de la receta pegado cuando la entrada salió de ScriptSure
@@ -95,12 +106,14 @@ export interface PatientContext {
 /** El historial clínico como lo guarda `Patient.medicalHistory` (JSON). */
 interface MedicalHistoryJson {
   allergies?: string;
+  noKnownAllergies?: { at: string; by?: string } | null;
+  noCurrentMedications?: { at: string; by?: string } | null;
   problems?: PatientContext['history']['problems'];
   medications?: PatientContext['history']['medications'];
   surgeries?: PatientContext['history']['surgeries'];
   familyHistory?: PatientContext['history']['familyHistory'];
   socialHistory?: PatientContext['history']['socialHistory'];
-  visitInfo?: { referredBy?: string };
+  visitInfo?: { referredBy?: string; noCurrentMeds?: boolean };
 }
 
 // ─── Fragmentos de select ─────────────────────────────────────────────────────
@@ -227,6 +240,14 @@ export function buildPatientContext(
             text: c.intakeSubmission.allergies?.trim() || null,
           }
         : null,
+      revision: {
+        alergias: estadoAlergias(mh, c?.intakeSubmission
+          ? { has: c.intakeSubmission.hasAllergies, text: c.intakeSubmission.allergies?.trim() || null }
+          : null),
+        medicinas: estadoMedicinas(mh as Parameters<typeof estadoMedicinas>[0]),
+        alergiasSello: mh.noKnownAllergies ?? null,
+        medicinasSello: mh.noCurrentMedications ?? null,
+      },
       problems: mh.problems ?? [],
       medications: mh.medications ?? [],
       surgeries: mh.surgeries ?? [],

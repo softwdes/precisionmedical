@@ -5234,7 +5234,8 @@
           "listaEsperada": "Couldn't save: unexpected format.",
           "sinPermiso": "Your role can't edit the medical history.",
           "sesionVencida": "Your session expired. Please sign in again.",
-          "inesperado": "Couldn't save. Please try again."
+          "inesperado": "Couldn't save. Please try again.",
+          "conflictoRevision": "This conflicts with what is on file. Remove the entries first."
         },
         "sub": {
           "saving": "Saving…",
@@ -7290,6 +7291,25 @@
       "prevApprovedHint": "paid with the monthly bonus",
       "prevInReviewHint": "the Admin is reviewing the month; the amount may be adjusted",
       "adjustmentsTitle": "Admin adjustments"
+    },
+    "revision": {
+      "allergiesLabel": "Allergies",
+      "medsLabel": "Current medications",
+      "nkaBox": "No known allergies (NKA)",
+      "noMedsBox": "Takes no medications",
+      "confirmed": "Confirmed by {by} · {date}",
+      "confirmedLegacy": "Confirmed: no known allergies",
+      "confirmedMedsLegacy": "Confirmed: takes no medications",
+      "declared": "The patient said they have none on their form — confirm to record it",
+      "unreviewed": "Not reviewed yet — ask the patient",
+      "confirm": "Confirm",
+      "undo": "Undo",
+      "hasAllergies": "Has allergies on file",
+      "hasMeds": "Has active medications on file",
+      "alertAllergies": "Allergies not reviewed",
+      "alertMeds": "Medications not reviewed",
+      "saving": "Saving…",
+      "conflict": "This conflicts with what is on file: remove the entries first."
     }
   },
   "caseWizard": {

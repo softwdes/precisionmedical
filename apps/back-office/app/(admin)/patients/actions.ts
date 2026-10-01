@@ -91,7 +91,11 @@ const PUEDEN_EDITAR_HISTORIAL: readonly UserRole[] = [
 export async function updateMedicalHistory(
   patientId: string,
   patch: Partial<MedicalHistoryData>,
-): Promise<{ ok: boolean; code?: CodigoValidacion | 'sinPermiso' | 'sesionVencida' | 'inesperado'; max?: number }> {
+): Promise<{
+  ok: boolean; code?: CodigoValidacion | 'sinPermiso' | 'sesionVencida' | 'conflictoRevision' | 'inesperado'; max?: number;
+  /** Cómo quedaron las dos casillas "no tiene" tras guardar (el servidor puede haberlas desmarcado). */
+  revision?: { noKnownAllergies: { at: string; by?: string } | null; noCurrentMedications: { at: string; by?: string } | null };
+}> {
   try {
     /**
      * Quién es, antes de escribir.
@@ -153,7 +157,38 @@ export async function updateMedicalHistory(
       return { ok: false, code: revisado.code, max: revisado.max };
     }
 
-    const updated  = { ...current, ...revisado.data };
+    /**
+     * Las casillas "no tiene" (lib/revision-historial) las gobierna el SERVIDOR:
+     *  · el sello (quién y cuándo) sale de la sesión, no de lo que mande el cliente;
+     *  · no se puede afirmar "no tiene" y a la vez cargar una alergia o una
+     *    medicina activa — es una contradicción en la ficha;
+     *  · cargar una alergia o medicina activa desmarca la casilla sola, porque
+     *    una casilla que dice "no tiene" junto a una lista con datos es un dato
+     *    falso que alguien va a leer.
+     */
+    const datos = { ...revisado.data } as Record<string, unknown>;
+    const sello = {
+      at: new Date().toISOString(),
+      by: `${dbUser.firstName ?? ''} ${dbUser.lastName ?? ''}`.trim() || user.email,
+    };
+    const alergiaFinal = String(('allergies' in datos ? datos.allergies : current.allergies) ?? '').trim();
+    const medsFinal = ('medications' in datos ? datos.medications : current.medications) as Array<{ status?: string }> | undefined;
+    const hayMedActiva = (medsFinal ?? []).some(m => m.status !== 'HISTORY');
+
+    if (datos.noKnownAllergies) {
+      if (alergiaFinal) return { ok: false, code: 'conflictoRevision' };
+      datos.noKnownAllergies = sello;
+    } else if (alergiaFinal && current.noKnownAllergies && !('noKnownAllergies' in datos)) {
+      datos.noKnownAllergies = null;
+    }
+    if (datos.noCurrentMedications) {
+      if (hayMedActiva) return { ok: false, code: 'conflictoRevision' };
+      datos.noCurrentMedications = sello;
+    } else if (hayMedActiva && current.noCurrentMedications && !('noCurrentMedications' in datos)) {
+      datos.noCurrentMedications = null;
+    }
+
+    const updated  = { ...current, ...datos };
 
     await db.patient.update({
       where: { id: patientId },
@@ -168,11 +203,17 @@ export async function updateMedicalHistory(
       actorRole:   actor.actorRole,
       entityType:  'patients',
       entityId:    patientId,
-      metadata:    { fields: Object.keys(revisado.data) },
+      metadata:    { fields: Object.keys(datos) },
     });
 
     revalidatePath('/patients');
-    return { ok: true };
+    return {
+      ok: true,
+      revision: {
+        noKnownAllergies:     (updated.noKnownAllergies ?? null) as { at: string; by?: string } | null,
+        noCurrentMedications: (updated.noCurrentMedications ?? null) as { at: string; by?: string } | null,
+      },
+    };
   } catch (err) {
     // `String(err)` iba al toast del usuario: podia incluir el mensaje crudo de
     // Prisma. Queda en el log; al usuario le llega un codigo.

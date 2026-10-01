@@ -23,7 +23,8 @@ import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { createClientWithCredentials } from '@precision-medical/auth';
 import {
-  calcularPeriodo, METAS_POR_DEFECTO, METRICAS, type GoalKind, type MetricKey, type ProgressRow, type RewardGoal, type RewardEvidence,
+  calcularPeriodo, mesTerminado, METAS_POR_DEFECTO, METRICAS,
+  type FrozenResult, type GoalKind, type MetricKey, type ProgressRow, type RewardAdjustment, type RewardGoal, type RewardEvidence,
 } from '@precision-medical/database/premios';
 import { router, adminProcedure } from '../trpc';
 
@@ -69,6 +70,50 @@ async function metasDelPeriodo(db: Db, periodId: string): Promise<RewardGoal[]> 
   const { data, error } = await db.from('reward_goals').select('*').eq('periodId', periodId).order('sortOrder');
   if (error) falla(error.message);
   return ((data ?? []) as GoalRow[]).map((g) => ({ ...g, kind: g.kind as GoalKind, metric: g.metric as MetricKey | null }));
+}
+
+interface PartRow {
+  userId: string; kind: string; roleKey: string | null;
+  approvedAt: string | null; frozenResult: FrozenResult | null;
+}
+
+/**
+ * El mes calculado: metas, participantes (con lo congelado de quien ya está
+ * aprobado), ajustes del Admin y el resultado. Lo usan el Tablero y la
+ * aprobación: lo que se aprueba es exactamente lo que el Admin está viendo.
+ */
+async function calcularMes(db: Db, period: { id: string; poolAmount: number | string }) {
+  const [goals, partRes, progRes, adjRes] = await Promise.all([
+    metasDelPeriodo(db, period.id),
+    db.from('reward_participants').select('userId, kind, roleKey, approvedAt, frozenResult').eq('periodId', period.id),
+    db.rpc('reward_progress', { p_period_id: period.id }),
+    db.from('reward_adjustments').select('id, userId, goalId, delta, reason, createdAt').eq('periodId', period.id).order('createdAt'),
+  ]);
+  if (partRes.error) falla(partRes.error.message);
+  if (progRes.error) falla(progRes.error.message);
+  if (adjRes.error) falla(adjRes.error.message);
+  const parts = (partRes.data ?? []) as PartRow[];
+  const adjustments = (adjRes.data ?? []) as Array<RewardAdjustment & { createdAt: string }>;
+  const calc = calcularPeriodo({
+    poolAmount: period.poolAmount,
+    goals,
+    participants: parts.map((p) => ({
+      userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey,
+      frozenResult: p.approvedAt ? p.frozenResult : null,
+    })),
+    progress: (progRes.data ?? []) as unknown as ProgressRow[],
+    adjustments,
+  });
+  return { goals, parts, adjustments, calc };
+}
+
+async function periodoAbierto(db: Db, periodId: string) {
+  const { data, error } = await db.from('reward_periods').select('id, month, status, poolAmount').eq('id', periodId).maybeSingle();
+  if (error) falla(error.message);
+  const p = data as { id: string; month: string; status: string; poolAmount: number | string } | null;
+  if (!p) throw new TRPCError({ code: 'NOT_FOUND', message: 'NOT_FOUND' });
+  if (p.status !== 'OPEN') throw new TRPCError({ code: 'CONFLICT', message: 'PERIOD_CLOSED' });
+  return p;
 }
 
 const GoalInput = z.object({
@@ -150,27 +195,15 @@ export const premiosRouter = router({
         };
       }
 
-      const [goals, partRes, progRes, pendRes] = await Promise.all([
-        metasDelPeriodo(db, period.id),
-        db.from('reward_participants').select('userId, kind, roleKey').eq('periodId', period.id),
-        db.rpc('reward_progress', { p_period_id: period.id }),
+      const [{ goals, parts, adjustments, calc }, pendRes] = await Promise.all([
+        calcularMes(db, period),
         db.from('reward_entries').select('id', { count: 'exact', head: true }).eq('periodId', period.id).eq('status', 'PENDING'),
       ]);
-      if (partRes.error) falla(partRes.error.message);
-      if (progRes.error) falla(progRes.error.message);
-      const parts = (partRes.data ?? []) as Array<{ userId: string; kind: string; roleKey: string | null }>;
 
       const usersRes = parts.length
         ? await db.from('users').select('id, firstName, lastName').in('id', parts.map((p) => p.userId))
         : { data: [], error: null };
       const porId = new Map(((usersRes.data ?? []) as Array<{ id: string; firstName: string; lastName: string }>).map((u) => [u.id, u]));
-
-      const calc = calcularPeriodo({
-        poolAmount: period.poolAmount,
-        goals,
-        participants: parts.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey })),
-        progress: (progRes.data ?? []) as unknown as ProgressRow[],
-      });
 
       return {
         month: input.month,
@@ -179,14 +212,125 @@ export const premiosRouter = router({
         proposal: null,
         goals,
         participants: calc.participants
-          .map((r) => ({ userId: r.userId, name: nombre(porId.get(r.userId)), kind: r.kind, roleKey: r.roleKey, result: r }))
+          .map((r) => ({
+            userId: r.userId, name: nombre(porId.get(r.userId)), kind: r.kind, roleKey: r.roleKey, result: r,
+            approvedAt: parts.find((p) => p.userId === r.userId)?.approvedAt ?? null,
+          }))
           .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'STAFF' ? -1 : 1)),
         summary: {
           shareCents: calc.shareCents, poolCents: calc.poolCents, paidCents: calc.paidCents,
           returnedCents: calc.returnedCents, staffHits: calc.staffHits, staffTotal: calc.staffTotal,
         },
         pendingCount: pendRes.count ?? 0,
+        adjustments,
+        /** Recién terminado el mes se puede aprobar (en Utah). */
+        monthEnded: mesTerminado(period.month),
       };
+    }),
+
+  /**
+   * Ajustar una meta de alguien en la revisión: +/− sobre lo que contó el
+   * sistema, con motivo (el empleado lo ve). Solo a quien todavía no está
+   * aprobado: lo aprobado no se mueve.
+   */
+  adjust: adminProcedure
+    .input(z.object({
+      periodId: z.string().min(1), userId: z.string().min(1), goalId: z.string().min(1),
+      delta: z.number().int().min(-1000).max(1000).refine((d) => d !== 0),
+      reason: z.string().trim().min(3).max(200),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = clinica();
+      await periodoAbierto(db, input.periodId);
+      const part = await db.from('reward_participants').select('approvedAt').eq('periodId', input.periodId).eq('userId', input.userId).maybeSingle();
+      if (!part.data) throw new TRPCError({ code: 'NOT_FOUND', message: 'NOT_FOUND' });
+      if ((part.data as { approvedAt: string | null }).approvedAt) throw new TRPCError({ code: 'CONFLICT', message: 'ALREADY_APPROVED' });
+      const actorId = await idClinicaDe(db, ctx.user.email);
+      const ins = await db.from('reward_adjustments').insert({
+        id: randomUUID(), periodId: input.periodId, userId: input.userId, goalId: input.goalId,
+        delta: input.delta, reason: input.reason, createdByUserId: actorId, createdAt: new Date().toISOString(),
+      });
+      if (ins.error) falla(ins.error.message);
+      return { ok: true };
+    }),
+
+  /** Quitar un ajuste (mientras la persona no esté aprobada). */
+  removeAdjustment: adminProcedure
+    .input(z.object({ adjustmentId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = clinica();
+      const adj = await db.from('reward_adjustments').select('periodId, userId').eq('id', input.adjustmentId).maybeSingle();
+      if (!adj.data) throw new TRPCError({ code: 'NOT_FOUND', message: 'NOT_FOUND' });
+      const a = adj.data as { periodId: string; userId: string };
+      await periodoAbierto(db, a.periodId);
+      const part = await db.from('reward_participants').select('approvedAt').eq('periodId', a.periodId).eq('userId', a.userId).maybeSingle();
+      if ((part.data as { approvedAt: string | null } | null)?.approvedAt) throw new TRPCError({ code: 'CONFLICT', message: 'ALREADY_APPROVED' });
+      const del = await db.from('reward_adjustments').delete().eq('id', input.adjustmentId);
+      if (del.error) falla(del.error.message);
+      return { ok: true };
+    }),
+
+  /**
+   * Aprobar a una o varias personas (o a todas). Congela su resultado tal como
+   * se ve en el Tablero. Reglas:
+   *   · solo con el mes terminado (lo que hagan hasta el último día cuenta);
+   *   · los supervisores, después de todo el staff: su monto sale del staff;
+   *   · con todos aprobados, el mes se cierra.
+   */
+  approve: adminProcedure
+    .input(z.object({ periodId: z.string().min(1), userIds: z.array(z.string().min(1)).min(1).max(60) }))
+    .mutation(async ({ ctx, input }) => {
+      const db = clinica();
+      const period = await periodoAbierto(db, input.periodId);
+      if (!mesTerminado(period.month)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'MONTH_NOT_ENDED' });
+      const { parts, calc } = await calcularMes(db, period);
+      const pedidos = new Set(input.userIds);
+      const staffPendiente = parts.filter((p) => p.kind !== 'MANAGER' && !p.approvedAt && !pedidos.has(p.userId));
+      const pideSupervisor = parts.some((p) => p.kind === 'MANAGER' && pedidos.has(p.userId));
+      if (pideSupervisor && staffPendiente.length) throw new TRPCError({ code: 'BAD_REQUEST', message: 'STAFF_FIRST' });
+
+      const actorId = await idClinicaDe(db, ctx.user.email);
+      const ahora = new Date().toISOString();
+      for (const r of calc.participants) {
+        if (!pedidos.has(r.userId) || r.approved) continue;
+        const { approved: _a, ...frozen } = r;
+        const up = await db.from('reward_participants').update({
+          approvedAt: ahora, approvedByUserId: actorId, frozenResult: frozen,
+          shareAmount: calc.shareCents / 100, goalsHit: r.goalsHit, goalsTotal: r.goalsTotal,
+          progressPct: Math.round(r.progress * 10000) / 10000, payoutAmount: r.payoutCents / 100,
+        }).eq('periodId', period.id).eq('userId', r.userId).is('approvedAt', null);
+        if (up.error) falla(up.error.message);
+      }
+
+      // ¿Quedó todo aprobado? Se cierra el mes.
+      const quedan = await db.from('reward_participants').select('userId', { count: 'exact', head: true }).eq('periodId', period.id).is('approvedAt', null);
+      if ((quedan.count ?? 1) === 0) {
+        const cl = await db.from('reward_periods').update({ status: 'CLOSED', closedAt: ahora, closedByUserId: actorId, updatedAt: ahora }).eq('id', period.id);
+        if (cl.error) falla(cl.error.message);
+        return { ok: true, closed: true };
+      }
+      return { ok: true, closed: false };
+    }),
+
+  /**
+   * Deshacer una aprobación (mientras el mes no esté cerrado). Si es de staff,
+   * se deshacen también los supervisores: su monto dependía de ese resultado.
+   */
+  unapprove: adminProcedure
+    .input(z.object({ periodId: z.string().min(1), userId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = clinica();
+      await periodoAbierto(db, input.periodId);
+      const p = await db.from('reward_participants').select('kind').eq('periodId', input.periodId).eq('userId', input.userId).maybeSingle();
+      if (!p.data) throw new TRPCError({ code: 'NOT_FOUND', message: 'NOT_FOUND' });
+      const limpiar = { approvedAt: null, approvedByUserId: null, frozenResult: null, shareAmount: null, goalsHit: null, goalsTotal: null, progressPct: null, payoutAmount: null };
+      const r1 = await db.from('reward_participants').update(limpiar).eq('periodId', input.periodId).eq('userId', input.userId);
+      if (r1.error) falla(r1.error.message);
+      if ((p.data as { kind: string }).kind !== 'MANAGER') {
+        const r2 = await db.from('reward_participants').update(limpiar).eq('periodId', input.periodId).eq('kind', 'MANAGER');
+        if (r2.error) falla(r2.error.message);
+      }
+      return { ok: true };
     }),
 
   /** La gente que se puede sumar a un mes: usuarios activos de la clínica. */

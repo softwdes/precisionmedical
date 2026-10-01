@@ -5165,6 +5165,10 @@ model RewardParticipant {
   goalsTotal   Int?
   progressPct  Decimal? @db.Decimal(7, 4)
   payoutAmount Decimal? @db.Decimal(10, 2)
+  /// Aprobación del Admin (2026-10-01): congela el resultado de esta persona
+  approvedAt       DateTime?
+  approvedByUserId String?
+  frozenResult     Json?
   createdAt    DateTime @default(now())
 
   @@unique([periodId, userId])
@@ -5233,4 +5237,20 @@ model RewardEntry {
   @@index([periodId, userId])
   @@index([periodId, status])
   @@map("reward_entries")
+}
+
+/// Ajuste del Admin en la revisión del mes: +/− sobre lo que contó el sistema en
+/// UNA meta de UNA persona, siempre con motivo (sql 20261001-premios-aprobacion).
+model RewardAdjustment {
+  id              String   @id @default(cuid())
+  periodId        String
+  userId          String
+  goalId          String
+  delta           Int
+  reason          String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@index([periodId, userId])
+  @@map("reward_adjustments")
 }

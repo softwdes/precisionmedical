@@ -16,7 +16,7 @@
 import { cache } from 'react';
 import { db, VIGENTES, AppointmentStatus } from '@precision-medical/database';
 import {
-  calcularPeriodo, mesDe, type ProgressRow, type RewardGoal, type GoalKind, type MetricKey,
+  calcularPeriodo, mesDe, type FrozenResult, type ProgressRow, type RewardGoal, type GoalKind, type MetricKey,
   type ParticipantResult,
 } from '@precision-medical/database/premios';
 import { decryptFieldOrOriginal as dec } from './decrypt';
@@ -50,14 +50,35 @@ export const participacionActual = cache(async (userId: string) => {
   return { period, participant };
 });
 
-/** ¿Va "Mis premios" en el menú? Solo para quien participa este mes. */
+/** El mes de la clínica anterior al actual, `YYYY-MM-01`. */
+export function mesAnterior(): string {
+  const [y, m] = mesActual().split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10);
+}
+
+/**
+ * La participación en el mes ANTERIOR. Hace falta porque el mes se aprueba
+ * después de terminar: el resultado de octubre se revisa y se aprueba en
+ * noviembre, y "Mis premios" tiene que mostrarlo ("En revisión" → "Aprobado").
+ */
+export const participacionAnterior = cache(async (userId: string) => {
+  const period = await db.rewardPeriod.findUnique({ where: { month: fechaDeMes(mesAnterior()) } });
+  if (!period) return null;
+  const participant = await db.rewardParticipant.findUnique({
+    where: { periodId_userId: { periodId: period.id, userId } },
+  });
+  if (!participant) return null;
+  return { period, participant };
+});
+
+/** ¿Va "Mis premios" en el menú? Para quien participa este mes o el anterior. */
 export const canSeeRewards = cache(async (): Promise<boolean> => {
   try {
     const user = await getSessionUser();
     if (!user?.email) return false;
     const dbUser = await getDbUserByEmail(user.email);
     if (!dbUser) return false;
-    return (await participacionActual(dbUser.id)) !== null;
+    return (await participacionActual(dbUser.id)) !== null || (await participacionAnterior(dbUser.id)) !== null;
   } catch {
     // Ante la duda no se muestra: el menú no puede tirar el layout entero.
     return false;
@@ -87,6 +108,10 @@ function nombreDe(u: { firstName: string; lastName: string } | undefined): strin
 export interface MisPremios {
   month: string;
   status: string;
+  /** Aprobado por el Admin: el monto ya no se mueve. */
+  approved: boolean;
+  /** Ajustes del Admin sobre sus metas, con el motivo. */
+  adjustments: Array<{ goalId: string; delta: number; reason: string }>;
   poolCents: number;
   shareCents: number;
   participantsCount: number;
@@ -108,28 +133,40 @@ export interface MisPremios {
   team: Array<{ userId: string; name: string; result: ParticipantResult }> | null;
 }
 
-export async function misPremios(userId: string): Promise<MisPremios | null> {
-  const part = await participacionActual(userId);
+/**
+ * "Mis premios" de un mes: el actual por defecto, o `'anterior'` para el que
+ * está en revisión o ya aprobado.
+ */
+export async function misPremios(userId: string, cual: 'actual' | 'anterior' = 'actual'): Promise<MisPremios | null> {
+  const part = cual === 'actual' ? await participacionActual(userId) : await participacionAnterior(userId);
   if (!part) return null;
   const { period, participant } = part;
 
-  const [goals, participants, progress, entries] = await Promise.all([
+  const [goals, participants, progress, entries, adjustments] = await Promise.all([
     db.rewardGoal.findMany({ where: { periodId: period.id }, orderBy: { sortOrder: 'asc' } }),
-    db.rewardParticipant.findMany({ where: { periodId: period.id }, select: { userId: true, kind: true, roleKey: true } }),
+    db.rewardParticipant.findMany({
+      where: { periodId: period.id },
+      select: { userId: true, kind: true, roleKey: true, approvedAt: true, frozenResult: true },
+    }),
     progresoDelPeriodo(period.id),
     db.rewardEntry.findMany({
       where: { periodId: period.id, userId },
       orderBy: [{ occurredOn: 'desc' }, { createdAt: 'desc' }],
       take: 200,
     }),
+    db.rewardAdjustment.findMany({ where: { periodId: period.id }, orderBy: { createdAt: 'asc' } }),
   ]);
 
   const metas = metasDe(goals);
   const calc = calcularPeriodo({
     poolAmount: period.poolAmount.toString(),
     goals: metas,
-    participants: participants.map((p) => ({ userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey })),
+    participants: participants.map((p) => ({
+      userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey,
+      frozenResult: p.approvedAt ? (p.frozenResult as unknown as FrozenResult | null) : null,
+    })),
     progress,
+    adjustments,
   });
   const me = calc.participants.find((p) => p.userId === userId);
   if (!me) return null;
@@ -162,6 +199,8 @@ export async function misPremios(userId: string): Promise<MisPremios | null> {
   return {
     month: period.month.toISOString().slice(0, 10),
     status: period.status,
+    approved: me.approved,
+    adjustments: adjustments.filter((a) => a.userId === userId).map((a) => ({ goalId: a.goalId, delta: a.delta, reason: a.reason })),
     poolCents: calc.poolCents,
     shareCents: calc.shareCents,
     participantsCount: participants.length,

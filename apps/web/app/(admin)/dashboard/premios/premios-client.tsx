@@ -94,7 +94,7 @@ export function PremiosClient({ tab, month }: { tab: PremiosTab; month: string }
       ) : tab === 'verificar' ? (
         <VerificarView periodId={overview.data.period.id} month={month} categories={overview.data.categories as Category[]} onChanged={() => void overview.refetch()} />
       ) : (
-        <TableroView data={overview.data} money={money} />
+        <TableroView data={overview.data} money={money} onChanged={() => void overview.refetch()} />
       )}
     </div>
   );
@@ -524,65 +524,253 @@ function EvidenciaRow({ verdict, signals }: { verdict: Veredicto; signals: Senal
 
 // ─── Tablero ─────────────────────────────────────────────────────────────────
 
-function TableroView({ data, money }: { data: Overview; money: (c: number) => string }): React.ReactElement {
+function TableroView({ data, money, onChanged }: { data: Overview; money: (c: number) => string; onChanged: () => void }): React.ReactElement {
   const t = useTranslations('rewards');
   const locale = useLocale();
   const s = data.summary!;
   const goals = data.goals as RewardGoal[];
   const label = (g: RewardGoal) => (locale === 'en' ? g.labelEn : g.labelEs);
+  const periodId = data.period!.id;
+  const cerrado = data.period!.status === 'CLOSED';
+  const terminado = !!data.monthEnded;
+  const approve = api.premios.approve.useMutation();
+  const unapprove = api.premios.unapprove.useMutation();
+  const adjust = api.premios.adjust.useMutation();
+  const removeAdj = api.premios.removeAdjustment.useMutation();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [ajustando, setAjustando] = useState<string | null>(null);
+  const [adjGoal, setAdjGoal] = useState('');
+  const [adjDelta, setAdjDelta] = useState('');
+  const [adjReason, setAdjReason] = useState('');
+
+  const staff = data.participants.filter((p) => p.kind === 'STAFF');
+  const staffPendiente = staff.filter((p) => !p.result.approved);
+  const pendientes = data.participants.filter((p) => !p.result.approved);
+  const nombre = (id: string) => data.participants.find((p) => p.userId === id)?.name ?? '—';
+  const goalLabel = (id: string) => { const g = goals.find((x) => x.id === id); return g ? label(g) : '—'; };
+
+  const error = (e: unknown) => {
+    const clave = `errors.${e instanceof Error ? e.message : ''}`;
+    setMsg({ ok: false, text: t.has(clave) ? t(clave) : t('errors.SAVE_FAILED') });
+  };
+  async function aprobar(userIds: string[]): Promise<void> {
+    setMsg(null);
+    try {
+      const r = await approve.mutateAsync({ periodId, userIds });
+      setMsg({ ok: true, text: r.closed ? t('closedNow') : t('approvedOk', { n: userIds.length }) });
+      onChanged();
+    } catch (e) { error(e); }
+  }
+  async function deshacer(userId: string): Promise<void> {
+    setMsg(null);
+    try { await unapprove.mutateAsync({ periodId, userId }); onChanged(); } catch (e) { error(e); }
+  }
+  async function guardarAjuste(userId: string): Promise<void> {
+    setMsg(null);
+    try {
+      await adjust.mutateAsync({ periodId, userId, goalId: adjGoal, delta: Number(adjDelta), reason: adjReason.trim() });
+      setAjustando(null); setAdjGoal(''); setAdjDelta(''); setAdjReason('');
+      onChanged();
+    } catch (e) { error(e); }
+  }
+
+  /** La planilla para la nómina. `;` porque Excel en Windows de la clínica separa con punto y coma. */
+  function descargarPlanilla(): void {
+    const filas = [[t('csvEmployee'), t('csvType'), t('csvRole'), t('csvGoals'), t('csvPct'), t('csvAmount'), t('csvStatus')]];
+    for (const p of data.participants) {
+      filas.push([
+        p.name,
+        p.kind === 'MANAGER' ? t('kindManager') : t('kindStaff'),
+        p.roleKey ?? '',
+        p.kind === 'MANAGER' ? '' : `${p.result.goalsHit}/${p.result.goalsTotal}`,
+        `${Math.round(p.result.progress * 1000) / 10}%`,
+        (p.result.payoutCents / 100).toFixed(2),
+        p.result.approved ? t('statusApproved') : t('statusPending'),
+      ]);
+    }
+    filas.push([t('csvTotal'), '', '', '', '', (s.paidCents / 100).toFixed(2), '']);
+    const csv = '﻿' + filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `premios-${data.month}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const ocupado = approve.isPending || unapprove.isPending || adjust.isPending || removeAdj.isPending;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={Coins} label={t('kpiPool')} value={money(s.poolCents)} sub={t('kpiPoolSub', { n: data.participants.length, share: money(s.shareCents) })} color="bg-brand/10 text-brand-text" />
         <KpiCard icon={Target} label={t('kpiGoalsHit')} value={`${s.staffHits} / ${s.staffTotal}`} sub={t('kpiGoalsHitSub')} color="bg-emerald/10 text-emerald-text" />
-        <KpiCard icon={TrendingUp} label={t('kpiToPay')} value={money(s.paidCents)} sub={t('kpiToPaySub', { amount: money(s.returnedCents) })} color="bg-emerald/10 text-emerald-text" />
+        <KpiCard icon={TrendingUp} label={cerrado ? t('kpiApprovedTotal') : t('kpiToPay')} value={money(s.paidCents)} sub={t('kpiToPaySub', { amount: money(s.returnedCents) })} color="bg-emerald/10 text-emerald-text" />
         <KpiCard
-          icon={Trophy} label={t('kpiTeamPoints')}
-          value={new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'es', { maximumFractionDigits: 1 }).format(data.participants.reduce((sum, p) => sum + (p.kind === 'STAFF' ? p.result.points : 0), 0))}
-          sub={t('kpiTeamPointsSub')} color="bg-amber/10 text-amber-text"
+          icon={Check} label={t('kpiApproved')}
+          value={`${data.participants.length - pendientes.length} / ${data.participants.length}`}
+          sub={cerrado ? t('kpiApprovedClosed') : terminado ? t('kpiApprovedReview') : t('kpiApprovedRunning')}
+          color="bg-violet/10 text-violet-text"
         />
       </div>
 
+      {/* Estado del mes y acciones de bloque. El botón se MUESTRA siempre; si no se puede, dice por qué. */}
+      <div className={cn('flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md border px-3 py-2',
+        cerrado ? 'border-emerald/30 bg-emerald/10' : terminado ? 'border-amber/30 bg-amber/10' : 'border-border bg-bg-2/40')}>
+        <span className={cn('text-[12.5px]', cerrado ? 'text-emerald-text' : terminado ? 'text-amber-text' : 'text-text-2')}>
+          {cerrado ? t('stateClosed') : terminado ? t('stateReview') : t('stateRunning')}
+        </span>
+        <span className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={descargarPlanilla}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-text-1 hover:bg-bg-2">
+            {cerrado ? t('downloadPayroll') : t('downloadDraft')}
+          </button>
+          {!cerrado && (
+            <button
+              type="button" disabled={!terminado || ocupado || staffPendiente.length === 0}
+              onClick={() => void aprobar(staffPendiente.map((p) => p.userId))}
+              title={!terminado ? t('approveAfterMonth') : undefined}
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald/20 px-3 py-1.5 text-xs font-semibold text-emerald-text disabled:opacity-40"
+            >
+              <Check className="w-3.5 h-3.5" /> {t('approveAllStaff', { n: staffPendiente.length })}
+            </button>
+          )}
+          {!cerrado && (
+            <button
+              type="button" disabled={!terminado || ocupado || staffPendiente.length > 0 || pendientes.length === 0}
+              onClick={() => void aprobar(pendientes.map((p) => p.userId))}
+              title={!terminado ? t('approveAfterMonth') : staffPendiente.length > 0 ? t('supervisorsAfterStaff') : undefined}
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              {t('approveAndClose')}
+            </button>
+          )}
+        </span>
+      </div>
+      {!cerrado && !terminado && <p className="-mt-2 text-[11px] text-text-3">{t('approveAfterMonth')}</p>}
+      {!cerrado && terminado && staffPendiente.length > 0 && <p className="-mt-2 text-[11px] text-text-3">{t('supervisorsAfterStaff')}</p>}
+      {msg && <div className={cn('rounded-md border px-3 py-2 text-xs', msg.ok ? 'border-emerald/30 bg-emerald/10 text-emerald-text' : 'border-rose/30 bg-rose/10 text-rose-text')}>{msg.text}</div>}
+
       <div className="overflow-x-auto rounded-lg bg-bg-2/30">
-        <table className="w-full text-sm" style={{ minWidth: `${360 + goals.length * 90}px` }}>
+        <table className="w-full text-sm" style={{ minWidth: `${560 + goals.length * 90}px` }}>
           <thead>
             <tr className="border-b border-row-sep bg-bg-2 text-text-3 text-[10px] uppercase tracking-wider">
               <th className="px-4 py-2.5 text-left sticky left-0 bg-bg-2">{t('colParticipant')}</th>
-              {goals.map((g) => <th key={g.id} className="px-2 py-2.5 text-center">{label(g)}</th>)}
+              {goals.map((g) => <th key={g.id} className="px-2 py-2.5 text-center">{label(g)}{g.roleKey ? <span className="block normal-case font-normal text-text-3">{g.roleKey}</span> : null}</th>)}
               <th className="px-3 py-2.5 text-right">{t('colGoals')}</th>
               <th className="px-3 py-2.5 text-right">{t('colPoints')}</th>
-              <th className="px-4 py-2.5 text-right">{t('colPayout')}</th>
+              <th className="px-3 py-2.5 text-right">{t('colPayout')}</th>
+              <th className="px-3 py-2.5 text-left">{t('colStatus')}</th>
+              <th className="px-3 py-2.5 text-right"><span className="sr-only">{t('colActions')}</span></th>
             </tr>
           </thead>
           <tbody>
-            {data.participants.map((p) => (
-              <tr key={p.userId} className={cn('border-b border-row-sep last:border-0', p.kind === 'MANAGER' && 'bg-violet/[0.06]')}>
-                <td className="px-4 py-2 font-semibold text-text-1 whitespace-nowrap sticky left-0 bg-bg-1">
-                  {p.kind === 'MANAGER' && <span className="mr-1.5 rounded-full bg-violet/15 px-1.5 py-0.5 text-[10px] font-semibold text-violet-text">{t('kindManager')}</span>}
-                  {p.name}
-                  {p.roleKey && <span className="ml-1.5 text-[10px] font-normal text-text-3">{p.roleKey}</span>}
-                </td>
-                {p.kind === 'MANAGER' ? (
-                  <td colSpan={goals.length} className="px-3 py-2 text-[12px] text-text-3">{t('managerRow', { hits: s.staffHits, total: s.staffTotal })}</td>
-                ) : goals.map((g) => p.result.goals.find((x) => x.goalId === g.id) ?? { goalId: g.id, actual: -1, target: g.target, hit: false }).map((r) => r.actual < 0 ? (
-                  <td key={r.goalId} className="px-2 py-2 text-center text-text-3">—</td>
-                ) : (
-                  <td key={r.goalId} className="px-2 py-2 text-center">
-                    <span className={cn('inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                      r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}>{r.actual}/{r.target}</span>
-                  </td>
-                ))}
-                <td className="px-3 py-2 text-right tabular-nums text-text-1">
-                  {p.kind === 'MANAGER' ? `${Math.round(p.result.progress * 1000) / 10}%` : `${p.result.goalsHit}/${p.result.goalsTotal}`}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-text-2">{p.kind === 'MANAGER' ? '—' : p.result.points}</td>
-                <td className="px-4 py-2 text-right tabular-nums font-semibold text-text-1">{money(p.result.payoutCents)}</td>
-              </tr>
-            ))}
+            {data.participants.map((p) => {
+              const aprobado = p.result.approved;
+              const esSup = p.kind === 'MANAGER';
+              return (
+                <Fragment key={p.userId}>
+                  <tr className={cn('border-b border-row-sep last:border-0', esSup && 'bg-violet/[0.06]')}>
+                    <td className="px-4 py-2 font-semibold text-text-1 whitespace-nowrap sticky left-0 bg-bg-1">
+                      {esSup && <span className="mr-1.5 rounded-full bg-violet/15 px-1.5 py-0.5 text-[10px] font-semibold text-violet-text">{t('kindManager')}</span>}
+                      {p.name}
+                      {p.roleKey && <span className="ml-1.5 text-[10px] font-normal text-text-3">{p.roleKey}</span>}
+                    </td>
+                    {esSup ? (
+                      <td colSpan={goals.length} className="px-3 py-2 text-[12px] text-text-3">{t('managerRow', { hits: s.staffHits, total: s.staffTotal })}</td>
+                    ) : goals.map((g) => {
+                      const r = p.result.goals.find((x) => x.goalId === g.id);
+                      if (!r) return <td key={g.id} className="px-2 py-2 text-center text-text-3">—</td>;
+                      return (
+                        <td key={g.id} className="px-2 py-2 text-center">
+                          <span className={cn('inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                            r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}>{r.actual}/{r.target}</span>
+                          {r.adjusted ? <span className="block text-[10px] text-violet-text tabular-nums">{t('adjustedBy', { n: r.adjusted > 0 ? `+${r.adjusted}` : String(r.adjusted) })}</span> : null}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-2 text-right tabular-nums text-text-1">
+                      {esSup ? `${Math.round(p.result.progress * 1000) / 10}%` : `${p.result.goalsHit}/${p.result.goalsTotal}`}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-text-2">{esSup ? '—' : p.result.points}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-text-1">{money(p.result.payoutCents)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {aprobado
+                        ? <span className="rounded-full bg-emerald/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-text">{t('statusApproved')}</span>
+                        : <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[10.5px] font-semibold text-amber-text">{t('statusPending')}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      {!cerrado && (aprobado ? (
+                        <button type="button" disabled={ocupado} onClick={() => void deshacer(p.userId)}
+                          className="rounded-md px-2 py-1 text-xs font-semibold text-text-2 hover:bg-bg-2 disabled:opacity-40">{t('undoApprove')}</button>
+                      ) : (
+                        <span className="inline-flex gap-1.5">
+                          {!esSup && (
+                            <button type="button" disabled={ocupado} onClick={() => { setAjustando(ajustando === p.userId ? null : p.userId); setAdjGoal(p.result.goals[0]?.goalId ?? ''); setAdjDelta(''); setAdjReason(''); }}
+                              className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-text-1 hover:bg-bg-2 disabled:opacity-40">{t('adjust')}</button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!terminado || ocupado || (esSup && staffPendiente.length > 0)}
+                            title={!terminado ? t('approveAfterMonth') : esSup && staffPendiente.length > 0 ? t('supervisorsAfterStaff') : undefined}
+                            onClick={() => void aprobar([p.userId])}
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald/15 px-2 py-1 text-xs font-semibold text-emerald-text disabled:opacity-40"
+                          ><Check className="w-3.5 h-3.5" /> {t('approve')}</button>
+                        </span>
+                      ))}
+                    </td>
+                  </tr>
+                  {ajustando === p.userId && (
+                    <tr className="border-b border-row-sep">
+                      <td colSpan={goals.length + 6} className="px-4 py-2 bg-bg-2/40">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="text-text-2">{t('adjustTitle', { name: p.name })}</span>
+                          <select id={`premios-adj-goal-${p.userId}`} value={adjGoal} onChange={(e) => setAdjGoal(e.target.value)}
+                            className="rounded-md border border-border bg-bg-1 px-2 py-1 text-xs text-text-1">
+                            {p.result.goals.map((r) => <option key={r.goalId} value={r.goalId}>{goalLabel(r.goalId)} ({r.actual}/{r.target})</option>)}
+                          </select>
+                          <input id={`premios-adj-delta-${p.userId}`} type="number" value={adjDelta} onChange={(e) => setAdjDelta(e.target.value)}
+                            placeholder={t('adjustDeltaPh')} className="w-24 rounded-md border border-border bg-bg-1 px-2 py-1 text-xs text-text-1 tabular-nums" />
+                          <input id={`premios-adj-reason-${p.userId}`} value={adjReason} onChange={(e) => setAdjReason(e.target.value)} maxLength={200}
+                            placeholder={t('adjustReasonPh')} className="flex-1 min-w-[12rem] rounded-md border border-border bg-bg-1 px-2 py-1 text-xs text-text-1" />
+                          <button type="button"
+                            disabled={ocupado || !adjGoal || !Number(adjDelta) || !Number.isInteger(Number(adjDelta)) || adjReason.trim().length < 3}
+                            onClick={() => void guardarAjuste(p.userId)}
+                            className="rounded-md bg-brand px-3 py-1 text-xs font-semibold text-white disabled:opacity-40">{t('adjustSave')}</button>
+                          <button type="button" onClick={() => setAjustando(null)} className="rounded p-1 text-text-3" aria-label={t('cancel')}><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                        <p className="mt-1 text-[11px] text-text-3">{t('adjustHint')}</p>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {(data.adjustments ?? []).length > 0 && (
+        <section className="rounded-lg bg-bg-2/30 p-4">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t('adjustmentsTitle')}</h3>
+          <ul className="flex flex-col gap-1.5">
+            {(data.adjustments ?? []).map((a) => {
+              const aprobado = data.participants.find((p) => p.userId === a.userId)?.result.approved;
+              return (
+                <li key={a.id} className="flex items-center justify-between gap-2 rounded-md bg-bg-2/40 px-3 py-1.5 text-[12px]">
+                  <span className="min-w-0 text-text-1">
+                    <b>{nombre(a.userId)}</b> · {goalLabel(a.goalId)} · <span className="tabular-nums text-violet-text">{a.delta > 0 ? `+${a.delta}` : a.delta}</span>
+                    <span className="text-text-3"> — {a.reason}</span>
+                  </span>
+                  {!cerrado && !aprobado && (
+                    <button type="button" disabled={ocupado}
+                      onClick={() => void removeAdj.mutateAsync({ adjustmentId: a.id }).then(onChanged).catch(error)}
+                      className="shrink-0 rounded p-1 text-text-3 hover:text-rose-text" aria-label={t('remove')}><Trash2 className="w-3.5 h-3.5" /></button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       <p className="text-[11px] text-text-3">{t('boardExplain')}</p>
     </div>
   );

@@ -16,14 +16,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!actor.actorUserId) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
   try {
-    const [data, categories] = await Promise.all([
+    const [data, anterior, categories] = await Promise.all([
       misPremios(actor.actorUserId),
+      // El mes anterior: se aprueba después de terminar, y tiene que verse "En revisión" / "Aprobado".
+      misPremios(actor.actorUserId, 'anterior'),
       db.rewardCategory.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }),
     ]);
-    if (!data) return NextResponse.json({ participating: false });
+    const previous = anterior ? {
+      month: anterior.month, approved: anterior.approved, payoutCents: anterior.me.payoutCents,
+      goalsHit: anterior.me.goalsHit, goalsTotal: anterior.me.goalsTotal, kind: anterior.me.kind, progress: anterior.me.progress,
+    } : null;
+    if (!data) return NextResponse.json({ participating: false, previous });
     return NextResponse.json({
       participating: true,
       ...data,
+      previous,
       categories: categories.map((c) => ({
         code: c.code, nameEs: c.nameEs, nameEn: c.nameEn,
         pointsNew: c.pointsNew, pointsExisting: c.pointsExisting,

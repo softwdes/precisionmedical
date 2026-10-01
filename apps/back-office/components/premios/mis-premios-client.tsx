@@ -35,10 +35,19 @@ interface Entry {
   origin: 'MANUAL' | 'AUTO';
 }
 
+/** El mes anterior: se aprueba después de terminar ("En revisión" → "Aprobado"). */
+interface Previous {
+  month: string; approved: boolean; payoutCents: number;
+  goalsHit: number; goalsTotal: number; kind: 'STAFF' | 'MANAGER'; progress: number;
+}
+
 interface Data {
   participating: true;
   month: string;
   status: string;
+  approved: boolean;
+  adjustments: Array<{ goalId: string; delta: number; reason: string }>;
+  previous: Previous | null;
   poolCents: number;
   shareCents: number;
   participantsCount: number;
@@ -52,7 +61,7 @@ interface Data {
 type Estado =
   | { tipo: 'cargando' }
   | { tipo: 'error' }
-  | { tipo: 'fuera' }
+  | { tipo: 'fuera'; previous: Previous | null }
   | { tipo: 'listo'; data: Data };
 
 export function MisPremiosClient(): React.ReactElement {
@@ -65,8 +74,8 @@ export function MisPremiosClient(): React.ReactElement {
     try {
       const res = await fetch('/api/premios/mio', { cache: 'no-store' });
       if (!res.ok) { setEstado({ tipo: 'error' }); return; }
-      const body = (await res.json()) as Data | { participating: false };
-      setEstado(body.participating ? { tipo: 'listo', data: body } : { tipo: 'fuera' });
+      const body = (await res.json()) as Data | { participating: false; previous: Previous | null };
+      setEstado(body.participating ? { tipo: 'listo', data: body } : { tipo: 'fuera', previous: body.previous ?? null });
     } catch {
       setEstado({ tipo: 'error' });
     }
@@ -80,6 +89,24 @@ export function MisPremiosClient(): React.ReactElement {
     new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es', { month: 'long', year: 'numeric', timeZone: 'UTC' })
       .format(new Date(`${mes}T00:00:00Z`));
   const labelMeta = (g: RewardGoal) => (locale === 'en' ? g.labelEn : g.labelEs);
+
+  const MesAnterior = ({ p }: { p: Previous }) => (
+    <div className={cn('rounded-md border px-4 py-3 flex flex-wrap items-center justify-between gap-2',
+      p.approved ? 'border-emerald/30 bg-emerald/10' : 'border-amber/30 bg-amber/10')}>
+      <div className="min-w-0">
+        <div className={cn('text-[10px] uppercase tracking-wider font-semibold', p.approved ? 'text-emerald-text' : 'text-amber-text')}>
+          {mesTexto(p.month)} · {p.approved ? t('prevApproved') : t('prevInReview')}
+        </div>
+        <div className="text-[12.5px] text-text-2">
+          {p.kind === 'MANAGER'
+            ? t('prevTeam', { pct: Math.round(p.progress * 1000) / 10 })
+            : t('prevGoals', { hit: p.goalsHit, total: p.goalsTotal })}
+          {' · '}{p.approved ? t('prevApprovedHint') : t('prevInReviewHint')}
+        </div>
+      </div>
+      <div className={cn('text-2xl font-bold tabular-nums', p.approved ? 'text-emerald-text' : 'text-amber-text')}>{money(p.payoutCents)}</div>
+    </div>
+  );
 
   async function borrar(id: string): Promise<void> {
     const res = await fetch(`/api/premios/registros/${id}`, { method: 'DELETE' });
@@ -108,7 +135,12 @@ export function MisPremiosClient(): React.ReactElement {
     );
   }
   if (estado.tipo === 'fuera') {
-    return <EmptyState.Rich icon={Trophy} title={t('notParticipatingTitle')} subtitle={t('notParticipatingSub')} />;
+    return (
+      <div className="flex flex-col gap-4">
+        {estado.previous && <MesAnterior p={estado.previous} />}
+        <EmptyState.Rich icon={Trophy} title={t('notParticipatingTitle')} subtitle={t('notParticipatingSub')} />
+      </div>
+    );
   }
 
   const d = estado.data;
@@ -139,7 +171,24 @@ export function MisPremiosClient(): React.ReactElement {
         subtitle={esManager ? `${mesTexto(d.month)} · ${t('managerExplain')}` : mesTexto(d.month)}
       />
 
-      <PistaDelPremio me={me} goals={misMetas} shareCents={d.shareCents} labelMeta={labelMeta} money={money} />
+      {d.previous && <MesAnterior p={d.previous} />}
+
+      <PistaDelPremio me={me} goals={misMetas} shareCents={d.shareCents} labelMeta={labelMeta} money={money} approved={d.approved} />
+
+      {d.adjustments.length > 0 && (
+        <div className="rounded-md border border-violet/30 bg-violet/10 px-3 py-2 text-[12px] text-text-1 flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-violet-text">{t('adjustmentsTitle')}</span>
+          {d.adjustments.map((a, i) => {
+            const g = d.goals.find((x) => x.id === a.goalId);
+            return (
+              <span key={i}>
+                <b>{g ? labelMeta(g) : '—'}</b> <span className="tabular-nums text-violet-text">{a.delta > 0 ? `+${a.delta}` : a.delta}</span>
+                <span className="text-text-muted"> — {a.reason}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
@@ -164,9 +213,9 @@ export function MisPremiosClient(): React.ReactElement {
           />
         )}
         <KpiCard
-          label={t('kpiEarning')}
+          label={d.approved ? t('kpiApproved') : t('kpiEarning')}
           value={money(me.payoutCents)}
-          sub={t('kpiEarningSub')}
+          sub={d.approved ? t('kpiApprovedSub') : t('kpiEarningSub')}
           color="text-emerald-text"
           icon={TrendingUp} iconBg="bg-emerald/10" iconColor="text-emerald-text"
         />

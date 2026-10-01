@@ -158,9 +158,21 @@ export function metaAplica(goal: Pick<RewardGoal, 'roleKey'>, roleKey: string | 
 
 export interface GoalResult {
   goalId: string;
+  /** Lo que contó el sistema + los ajustes del Admin (nunca menos de 0). */
   actual: number;
   target: number;
   hit: boolean;
+  /** Suma de los ajustes del Admin en esta meta (0 = ninguno). */
+  adjusted?: number;
+}
+
+/** Un ajuste del Admin en la revisión del mes (+/− sobre UNA meta de UNA persona). */
+export interface RewardAdjustment {
+  id: string;
+  userId: string;
+  goalId: string;
+  delta: number;
+  reason: string;
 }
 
 export interface ParticipantResult {
@@ -177,7 +189,12 @@ export interface ParticipantResult {
   pending: number;
   usagePoints: number;
   payoutCents: number;
+  /** Aprobado por el Admin: el resultado está congelado y ya no se mueve. */
+  approved: boolean;
 }
+
+/** Lo que se guarda en `reward_participants.frozenResult` al aprobar. */
+export type FrozenResult = Omit<ParticipantResult, 'approved'>;
 
 export interface PeriodResult {
   shareCents: number;
@@ -226,26 +243,41 @@ export function aCentavos(monto: number | string): number {
 export function calcularPeriodo(input: {
   poolAmount: number | string;
   goals: RewardGoal[];
-  participants: Array<{ userId: string; kind: 'STAFF' | 'MANAGER'; roleKey?: string | null }>;
+  participants: Array<{
+    userId: string; kind: 'STAFF' | 'MANAGER'; roleKey?: string | null;
+    /** Si ya está aprobado: su resultado congelado, que se usa tal cual. */
+    frozenResult?: FrozenResult | null;
+  }>;
   progress: ProgressRow[];
+  /** Ajustes del Admin en la revisión. Solo afectan a quien NO está aprobado. */
+  adjustments?: Array<Pick<RewardAdjustment, 'userId' | 'goalId' | 'delta'>>;
 }): PeriodResult {
   const poolCents = aCentavos(input.poolAmount);
   const goals = [...input.goals].sort((a, b) => a.sortOrder - b.sortOrder);
   const n = input.participants.length;
   const porUsuario = new Map(input.progress.map((r) => [r.userId, r]));
+  const ajuste = (userId: string, goalId: string) =>
+    (input.adjustments ?? []).filter((a) => a.userId === userId && a.goalId === goalId).reduce((s, a) => s + a.delta, 0);
 
   const base = input.participants.map((p) => {
+    // Aprobado: lo congelado manda. Ni la actividad nueva ni un ajuste lo mueven.
+    if (p.frozenResult) {
+      const fr = p.frozenResult;
+      return { p, row: porUsuario.get(p.userId), res: fr.goals, total: fr.goalsTotal, hits: fr.goalsHit, points: fr.points, frozen: fr };
+    }
     const row = porUsuario.get(p.userId);
     const suyas = goals.filter((g) => metaAplica(g, p.roleKey));
     const res = suyas.map((g) => {
-      const actual = avanceDeMeta(g, row);
-      return { goalId: g.id, actual, target: g.target, hit: actual >= g.target };
+      const adj = ajuste(p.userId, g.id);
+      const actual = Math.max(0, avanceDeMeta(g, row) + adj);
+      return { goalId: g.id, actual, target: g.target, hit: actual >= g.target, ...(adj ? { adjusted: adj } : {}) };
     });
     return {
       p, row, res,
       total: suyas.length,
       hits: res.filter((r) => r.hit).length,
       points: (row?.entries ?? []).reduce((s, e) => s + e.points, 0) + puntosAutomaticos(row?.metrics),
+      frozen: null as FrozenResult | null,
     };
   });
 
@@ -254,6 +286,7 @@ export function calcularPeriodo(input: {
   const staffTotal = staff.reduce((s, b) => s + b.total, 0);
 
   const participants: ParticipantResult[] = base.map((b) => {
+    if (b.frozen) return { ...b.frozen, approved: true };
     let payoutCents = 0;
     let progress = 0;
     if (n > 0) {
@@ -279,6 +312,7 @@ export function calcularPeriodo(input: {
       pending: b.row?.pending ?? 0,
       usagePoints: b.row?.usagePoints ?? 0,
       payoutCents,
+      approved: false,
     };
   });
 
@@ -315,6 +349,14 @@ export const METAS_POR_DEFECTO: Array<Omit<RewardGoal, 'id'>> = [
   metaAuto(6, 'FORM_LINKS', 10),
   { sortOrder: 7, kind: 'USAGE', categoryCode: null, metric: null, roleKey: null, onlyNew: false, target: 80, labelEs: 'Uso del sistema', labelEn: 'System usage' },
 ];
+
+/**
+ * ¿Ya terminó el mes en la clínica? Se aprueba recién al terminar: antes, lo que
+ * hagan en los días que faltan todavía tiene que contar.
+ */
+export function mesTerminado(mes: string, ahora = new Date(), zona = 'America/Denver'): boolean {
+  return mesDe(ahora, zona) > `${mes.slice(0, 7)}-01`;
+}
 
 /** Primer día del mes de la clínica para una fecha (YYYY-MM-01). */
 export function mesDe(fecha: Date, zona = 'America/Denver'): string {

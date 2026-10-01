@@ -7135,8 +7135,8 @@
       "kpiGoals": "Goals met",
       "kpiGoalsMissing": "Missing: {list}",
       "kpiGoalsAll": "You met every goal",
-      "kpiEarning": "Earning so far",
-      "kpiEarningSub": "if the month closed today",
+      "kpiEarning": "To be earned",
+      "kpiEarningSub": "if the month closed today · confirmed when the Admin approves it",
       "kpiPoints": "Points",
       "kpiPointsSub": "{n, plural, =0 {nothing to verify} one {# entry to verify} other {# entries to verify}}",
       "teamProgress": "Team progress",
@@ -7233,7 +7233,7 @@
         "title": "Your race to the reward",
         "subtitle": "Every goal you meet moves your horse {amount} ahead",
         "subtitleManager": "Your horse moves with your team’s average",
-        "earned": "You’re at",
+        "earned": "To be earned",
         "goalFull": "Full reward",
         "start": "Start",
         "finish": "Finish",
@@ -7244,11 +7244,21 @@
         "doneSubManager": "Your whole team met their goals.",
         "aria": "You have {earned} of {total}",
         "points": "Points",
-        "ptsShort": "pts"
+        "ptsShort": "pts",
+        "approved": "Approved"
       },
       "kpiPointsAuto": "added by the system",
       "comingSoon": "Coming soon",
-      "comingSoonHint": "Arrives with the memberships system; it doesn’t count yet this month."
+      "comingSoonHint": "Arrives with the memberships system; it doesn’t count yet this month.",
+      "kpiApproved": "Approved",
+      "kpiApprovedSub": "approved by the Admin · paid with the monthly bonus",
+      "prevApproved": "Approved",
+      "prevInReview": "Under review",
+      "prevGoals": "{hit} of {total} goals",
+      "prevTeam": "Team at {pct}%",
+      "prevApprovedHint": "paid with the monthly bonus",
+      "prevInReviewHint": "the Admin is reviewing the month; the amount may be adjusted",
+      "adjustmentsTitle": "Admin adjustments"
     }
   },
   "caseWizard": {

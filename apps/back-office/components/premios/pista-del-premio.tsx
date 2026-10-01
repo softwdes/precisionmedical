@@ -30,12 +30,14 @@ interface Props {
   shareCents: number;
   labelMeta: (g: RewardGoal) => string;
   money: (cents: number) => string;
+  /** Aprobado por el Admin: el monto ya es fijo. Antes, es "por ganar". */
+  approved?: boolean;
 }
 
 /** Lo que tarda la largada. Igual que la Carrera, para que se sientan parientes. */
 const LARGADA_MS = 1400;
 
-export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Props): React.ReactElement {
+export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approved = false }: Props): React.ReactElement {
   const t = useTranslations('phoenix.rewards.track');
   const locale = useLocale();
   // Los pesos tienen medios puntos (confirmar una cita vale 0.5).
@@ -81,7 +83,7 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money }: Prop
             <div className="text-2xl font-bold text-amber-text tabular-nums leading-tight">{pts(me.points)}</div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('earned')}</div>
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{approved ? t('approved') : t('earned')}</div>
             <div className="text-2xl font-bold text-emerald-text tabular-nums leading-tight">{money(me.payoutCents)}</div>
           </div>
           <div className="text-right">

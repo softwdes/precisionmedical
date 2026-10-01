@@ -194,7 +194,21 @@ const MODULE_API_ROUTES: ApiGuard[] = [
    * médico y crear externos no es parte de atender pacientes.
    */
   ['patients',  /^\/api\/admin\/lawyers\/quick-create$/,          'write'],
-  ['externals', /^\/api\/admin\/lawyers(?!\/quick-create$)(\/|$)/, 'write'],
+  /*
+   * Dar de alta un ABOGADO dentro de un bufete, desde el campo Attorney del
+   * caso en la pantalla de Edson.
+   *
+   * Va con `edson` y no con `patients` como la de arriba: esa crea BUFETES
+   * desde el alta de caso, esta crea PERSONAS desde el seguimiento. Atarlas
+   * al mismo modulo le daria a una pantalla permisos de la otra.
+   *
+   * ⚠️ No alcanza con esta linea: la regla de `externals` sobre /lawyers lleva
+   * la exclusion AMPLIADA a `(?!\/quick-create(-member)?$)`. apiGuardModules
+   * junta todas las reglas que matchean y bloquea si alguna esta apagada.
+   * Van juntas o el 403 vuelve igual — ya paso una vez con los bufetes.
+   */
+  ['edson',     /^\/api\/admin\/lawyers\/quick-create-member$/,  'write'],
+  ['externals', /^\/api\/admin\/lawyers(?!\/quick-create(-member)?$)(\/|$)/, 'write'],
   // Datos de Edson: los consumen `/edson` y `/intake`, y nada más. El menú de
   // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
   // MODULE_ROUTES, donde ese par también viaja junto.

@@ -7084,7 +7084,8 @@
       "caseTypeFu": "MVA F/U",
       "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it.",
       "carrierCreate": "Add “{nombre}” to the catalog",
-      "carrierSimilarAsk": "The catalog already has: {names}. Create a new one anyway?"
+      "carrierSimilarAsk": "The catalog already has: {names}. Create a new one anyway?",
+      "attorneyAddToFirm": "Add “{nombre}” to {bufete}"
     },
     "online": {
       "badge": "Online visit",

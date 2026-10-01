@@ -7084,7 +7084,8 @@
       "caseTypeFu": "MVA F/U",
       "caseTypeFuNote": "Recepción anotó un control en esta cita. Confirmalo o cambialo.",
       "carrierCreate": "Agregar “{nombre}” al catálogo",
-      "carrierSimilarAsk": "El catálogo ya tiene: {names}. ¿Crear una nueva igual?"
+      "carrierSimilarAsk": "El catálogo ya tiene: {names}. ¿Crear una nueva igual?",
+      "attorneyAddToFirm": "Agregar “{nombre}” a {bufete}"
     },
     "online": {
       "badge": "Cita online",

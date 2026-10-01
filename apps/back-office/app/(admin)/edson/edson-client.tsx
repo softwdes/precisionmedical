@@ -2088,6 +2088,53 @@ function TrackingDialog({
     * y un nombre suelto no pueden convivir en el mismo caso.
     */
   const [attorneyRaw, setAttorneyRaw] = useState<string>(row.attorneyId ? '' : (row.attorneyName ?? ''));
+  const [altaAbogado, setAltaAbogado] = useState(false);
+
+  /**
+   * Dar de alta al abogado DENTRO del bufete, sin salir del modal.
+   *
+   * El buscador filtra por bufete, asi que si el bufete no tiene a nadie
+   * cargado la lista esta vacia siempre. Medido el 2026-10-01: de 26 bufetes
+   * con casos, 12 no tienen una sola persona — 47 casos en los que elegir
+   * abogado es literalmente imposible. Edson lo venia pidiendo hace semanas.
+   *
+   * El texto libre que ya habia (`attorneyRaw`) resolvia el sintoma: anotaba el
+   * nombre en ESTE caso y nada mas. Esto lo deja en el catalogo, asi que el
+   * proximo caso del mismo bufete ya lo encuentra.
+   *
+   * Dos respuestas que importan: si ya existe por correo o por nombre en ese
+   * bufete, la ruta devuelve el id y se USA ese en vez de crear un gemelo.
+   */
+  async function crearAbogado(nombreCompleto: string) {
+    if (!lawFirm) return;
+    const partes = nombreCompleto.trim().split(/\s+/);
+    // El PRIMER token es el nombre y el resto el apellido: "Todd Livingston" y
+    // tambien "Maria del Carmen Perez" quedan razonables. El apellido es
+    // opcional en la ruta, asi que un solo token tambien entra.
+    const firstName = partes[0] ?? '';
+    const lastName  = partes.slice(1).join(' ');
+    setAltaAbogado(true);
+    try {
+      const res = await fetch('/api/admin/lawyers/quick-create-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentFirmId: lawFirm.id, firstName, lastName, memberRole: 'ATTORNEY' }),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      // Ya estaba: se usa al que hay en vez de dejar al usuario sin salida.
+      if (!res.ok && json?.lawyerId) {
+        setAttorney({ id: json.lawyerId, label: json.params?.name ?? nombreCompleto });
+        setAttorneyRaw('');
+        return;
+      }
+      if (!res.ok) { setError(t('errSave')); return; }
+
+      const l = json.lawyer;
+      setAttorney({ id: l.id, label: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() });
+      setAttorneyRaw('');
+    } finally { setAltaAbogado(false); }
+  }
   const [attorney, setAttorney] = useState<AutoResult | null>(
     row.attorneyId ? { id: row.attorneyId, label: row.attorneyName ?? '—' } : null,
   );
@@ -2294,13 +2341,26 @@ function TrackingDialog({
                       * sesiones mezclado adentro, y tocarlo arrastraria lo ajeno.
                       */
                     renderEmpty={(q, close) => q.length < 2 ? null : (
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-[12px] hover:bg-brand/10"
-                        onClick={() => { setAttorney(null); setAttorneyRaw(q); close(); }}
-                      >
-                        {t('attorneyFreeText')} — <span className="font-semibold">{q}</span>
-                      </button>
+                      <div>
+                        {/* PRIMERO sumarlo al bufete: es lo que sirve para el
+                            proximo caso. El texto libre queda debajo, como
+                            salida para cuando de verdad no se sabe quien es. */}
+                        <button
+                          type="button"
+                          disabled={altaAbogado}
+                          className="w-full text-left px-3 py-2 text-[12px] text-brand-text font-medium hover:bg-brand/10 disabled:opacity-50"
+                          onClick={() => { void crearAbogado(q); close(); }}
+                        >
+                          {t('attorneyAddToFirm', { nombre: q, bufete: lawFirm.label })}
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[11.5px] text-text-muted hover:bg-white/[0.02]"
+                          onClick={() => { setAttorney(null); setAttorneyRaw(q); close(); }}
+                        >
+                          {t('attorneyFreeText')} — <span className="font-semibold">{q}</span>
+                        </button>
+                      </div>
                     )}
                   />
                   {/* Lo escrito a mano se VE y se puede sacar: sin esto queda

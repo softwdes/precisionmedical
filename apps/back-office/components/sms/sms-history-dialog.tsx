@@ -71,9 +71,21 @@ function statusState(s: Status) {
   return 'warning' as const;
 }
 
-export function SmsHistoryDialog({
-  open, onOpenChange,
-}: { open: boolean; onOpenChange: (open: boolean) => void }) {
+/**
+ * El historial de SMS, SIN envoltorio.
+ *
+ * Se monta en dos lugares y es el mismo componente, no dos copias: la seccion
+ * `/sms` del menu y el dialogo que abre el boton de Pacientes. Dos pantallas
+ * con el mismo contenido terminan desincronizadas — la de Pacientes ya lo
+ * estuvo con el buscador de cargos.
+ *
+ * No trae titulo: lo pone quien lo monta, porque una seccion usa `PageHeader`
+ * y un dialogo necesita `DialogTitle` para que el lector de pantalla lo anuncie.
+ */
+export function SmsHistoryPanel({ onTitulo }: {
+  /** Avisa al contenedor si se esta editando plantillas, para el titulo. */
+  onTitulo?: (editando: boolean) => void;
+}) {
   const t      = useTranslations('phoenix.sms');
   const locale = useLocale();
 
@@ -202,24 +214,17 @@ export function SmsHistoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 shrink-0">
-          <DialogTitle className="text-text-1 flex items-center justify-between gap-2 text-base">
-            <span className="flex items-center gap-2">
-              {editando ? <Settings className="w-4 h-4 text-brand-text" /> : <MessageSquare className="w-4 h-4 text-brand-text" />}
-              {editando ? t('tplTitle') : t('title')}
-            </span>
-            <button
-              type="button"
-              onClick={() => setEditando(v => !v)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-text-2 text-[11px] font-medium hover:border-brand hover:text-brand-text transition-colors mr-6"
-            >
-              {editando ? <><ArrowLeft className="w-3 h-3" />{t('tplBack')}</> : <><Settings className="w-3 h-3" />{t('tplOpen')}</>}
-            </button>
-          </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs">{editando ? t('tplSubtitle') : t('subtitle')}</DialogDescription>
-        </DialogHeader>
+    <>
+      {/* Solo el engranaje. El TITULO lo pone quien monta este panel. */}
+      <div className="flex items-center justify-end px-4 sm:px-6 pt-3 shrink-0">
+        <button
+          type="button"
+          onClick={() => { const v = !editando; setEditando(v); onTitulo?.(v); }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-text-2 text-[11px] font-medium hover:border-brand hover:text-brand-text transition-colors"
+        >
+          {editando ? <><ArrowLeft className="w-3 h-3" />{t('tplBack')}</> : <><Settings className="w-3 h-3" />{t('tplOpen')}</>}
+        </button>
+      </div>
 
         {/* Las dos pestanas. Van ARRIBA de los filtros porque eligen QUE lista
             se mira; los filtros de abajo recortan la que ya se eligio. */}
@@ -452,16 +457,14 @@ export function SmsHistoryDialog({
             </>
           )}
         </div>
-      </DialogContent>
-
-      {/* La conversacion de un paciente, encima de la lista. Anidar dialogos
-          ya se hace en el wizard de caso nuevo con este mismo primitivo. */}
+      {/* El hilo del paciente. Se monta ACA adentro para que viaje con el
+          panel: en la seccion y en el dialogo funciona igual. */}
       <PatientThreadDialog
         patient={hilo}
         onOpenChange={(o) => { if (!o) setHilo(null); }}
         onEnviado={() => setRecargar(n => n + 1)}
       />
-    </Dialog>
+    </>
   );
 }
 
@@ -469,6 +472,35 @@ export function SmsHistoryDialog({
  * A quién se le mandó. Con paciente reconocido: nombre + código. Sin reconocer:
  * el número en ámbar — mismo criterio que el historial de llamadas.
  */
+/**
+ * El mismo panel, dentro de un dialogo. Lo usa el boton de Pacientes.
+ *
+ * No duplica nada: es `SmsHistoryPanel` con el envoltorio que un dialogo
+ * necesita, incluido el `DialogTitle` que Radix exige para anunciarlo.
+ */
+export function SmsHistoryDialog({ open, onOpenChange }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useTranslations('phoenix.sms');
+  const [editando, setEditando] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl p-0 overflow-hidden max-h-[92vh] flex flex-col">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-0 shrink-0">
+          <DialogTitle className="text-text-1 flex items-center gap-2 text-base">
+            {editando ? <Settings className="w-4 h-4 text-brand-text" /> : <MessageSquare className="w-4 h-4 text-brand-text" />}
+            {editando ? t('tplTitle') : t('title')}
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs">{editando ? t('tplSubtitle') : t('subtitle')}</DialogDescription>
+        </DialogHeader>
+        <SmsHistoryPanel onTitulo={setEditando} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Recipient({ row, unknownLabel, mostrarCanal }: {
   row: Row;
   unknownLabel: string;

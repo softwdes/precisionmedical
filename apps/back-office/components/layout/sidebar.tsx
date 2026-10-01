@@ -78,7 +78,7 @@ const SECTIONS: NavSection[] = [
       // pantalla a la que se llegaba por el boton de adentro, y quien ve
       // pacientes ve sus mensajes. El badge cuenta CONVERSACIONES que esperan
       // respuesta, no mensajes sin leer — ver `lib/conversaciones-sms.ts`.
-      { href: '/patients?sms=1', icon: MessageSquare, labelKey: 'smsHistory',   moduleKey: 'patients', badgeKey: 'sms' },
+      { href: '/sms',        icon: MessageSquare,  labelKey: 'smsHistory',      moduleKey: 'patients', badgeKey: 'sms' },
       { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar', moduleKey: 'calendar'  },
       { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission', moduleKey: 'admission' },
       { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers', moduleKey: 'externals' },

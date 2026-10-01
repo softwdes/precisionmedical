@@ -54,7 +54,10 @@ const PERMS_CACHE_SECONDS = 60;
 // Mapa ruta → módulo del back-office (checks por rol en roles_config)
 const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
   ['dashboard', /^\/dashboard/],
-  ['patients',  /^\/(patients|front-office)/], // detalle de caso cuenta como Patients
+  // `/sms` entra con Pacientes: es la misma pantalla que abre el boton de esa
+  // lista, montada como seccion propia. Un modulo aparte significaria que
+  // alguien pueda ver la ficha de un paciente y no lo que se le escribio.
+  ['patients',  /^\/(patients|front-office|sms)/], // detalle de caso cuenta como Patients
   ['calendar',  /^\/calendar/],
   ['admission', /^\/admission/],
   ['externals', /^\/admin\/lawyers/],

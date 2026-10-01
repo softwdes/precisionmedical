@@ -79,7 +79,9 @@ export type GoalKind = 'CATEGORY' | 'CALLS' | 'USAGE' | 'METRIC';
  */
 export type MetricKey =
   | 'APPTS_BOOKED' | 'NEW_CASES' | 'SAVED_APPTS' | 'REACTIVATIONS' | 'MEMBERSHIPS' | 'MEMBERSHIPS_NEW'
-  | 'SMS_PATIENTS' | 'FORM_LINKS' | 'CHECKINS' | 'DOCUMENTS' | 'CONFIRMATIONS';
+  | 'SMS_PATIENTS' | 'FORM_LINKS' | 'CHECKINS' | 'DOCUMENTS' | 'CONFIRMATIONS'
+  // De provider (2026-09-30): ver prisma/sql/20260930-premios-metricas-provider.sql.
+  | 'NOTES_SIGNED' | 'CONSULTS_DONE' | 'LAB_ORDERS';
 
 /**
  * El catálogo de métricas: nombre en los dos idiomas (se copia a la meta al
@@ -103,6 +105,11 @@ export const METRICAS: Record<MetricKey, { es: string; en: string; points: numbe
   FORM_LINKS:      { es: 'Links de formulario',     en: 'Form links sent',        points: 1 },
   DOCUMENTS:       { es: 'Documentos subidos',      en: 'Documents uploaded',     points: 1 },
   CONFIRMATIONS:   { es: 'Citas confirmadas',       en: 'Appointments confirmed', points: 0.5 },
+  // De provider. Una nota firmada o una consulta terminada pesa como una cita
+  // salvada: es el trabajo central del rol, no un trámite.
+  NOTES_SIGNED:    { es: 'Notas firmadas',          en: 'Notes signed',           points: 3 },
+  CONSULTS_DONE:   { es: 'Consultas terminadas',    en: 'Visits completed',       points: 3 },
+  LAB_ORDERS:      { es: 'Órdenes de laboratorio',  en: 'Lab orders',             points: 2 },
 };
 
 /** Puntos que el sistema da solo, con los pesos de `METRICAS`. */

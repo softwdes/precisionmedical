@@ -370,7 +370,34 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       FROM appointments a
       WHERE a."caseId" = c."id"
         AND a."deletedAt" IS NULL
-      ORDER BY (a."status" = 'CANCELLED') ASC, a."scheduledFor" ASC
+      /*
+        * ── La fila se ancla a la primera cita QUE OCURRIO ──────────────────
+        *
+        * Antes era (CANCELLED al final, despues la mas temprana), o sea que un
+        * NO_SHOW ganaba si era el primero. El comentario de entonces decia "el
+        * que no vino SI tuvo su primera visita, y ese dia es el dato".
+        *
+        * Erick lo dio vuelta el 2026-10-01 con un caso concreto: Yaneira
+        * Gonzalez (MVA-3278) falto el 27-ago y vino el 3-sep. Edson miro el
+        * 3-sep buscando los MVA nuevos del dia y el caso no estaba — vivia bajo
+        * el 27. Su reporte: "September 3 there was one new MVA that isn't
+        * showing in the tracking". Tenia razon: el MVA nuevo entro el dia que la
+        * paciente llego, no el dia que falto.
+        *
+        * La regla nueva: gana la primera que OCURRIO; si ninguna ocurrio, la
+        * primera agendada. Esa segunda mitad importa tanto como la primera —
+        * el que falto y NUNCA volvio tiene que seguir apareciendo en el dia que
+        * falto, o desaparece de la cola de Edson, que es a quien mas hay que
+        * perseguir.
+        *
+        * Medido antes de cambiarlo: de 1.068 casos MVA, 7 empiezan con no-show.
+        * De esos, 4 vinieron despues en OTRO dia —esos 4 se mueven— y 3 nunca
+        * volvieron, que se quedan donde estaban.
+        *
+        * El orden se lee: primero las que ocurrieron, dentro de eso la mas
+        * temprana; y si no hay ninguna, la mas temprana de las que no ocurrieron.
+        */
+      ORDER BY (a."status"::text IN ('CANCELLED', 'NO_SHOW')) ASC, a."scheduledFor" ASC
       LIMIT 1
     ) fa ON TRUE
     /*

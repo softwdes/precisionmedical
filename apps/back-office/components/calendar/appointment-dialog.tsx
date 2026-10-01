@@ -1,6 +1,7 @@
 'use client';
 import { localeApp, primeraMayuscula, fechaCalendario, instanteEnClinica, claveDia, minutosDelDiaEnClinica, weekdayEnClinica } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 
 /**
  * AppointmentDialog — B.10 Unificado
@@ -326,7 +327,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [clinicId,      setClinicId]      = useState('');
   const [providerId,    setProviderId]    = useState('');
   const [slotIso,       setSlotIso]       = useState<string | null>(null);
-  const [duration,      setDuration]      = useState(15);
+  const [duration,      setDuration]      = useState(DURACION_CITA_POR_DEFECTO);
   const [type,          setType]          = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes,         setNotes]         = useState('');
   const [isOnline,      setIsOnline]      = useState(false);

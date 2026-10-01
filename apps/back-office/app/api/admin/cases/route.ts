@@ -24,6 +24,7 @@ import {
   db, writeAuditLog, Prisma, nextCaseCode, nextPatientCode,
   casePrefixFor, resolveGuardian, GuardianIsSelfError, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 import { checkPatientStaff } from '@/lib/patient-access';
 import {
@@ -183,7 +184,7 @@ const InputSchema = z.object({
       z.string().min(1).nullable().optional(),
     ),
     scheduledFor: z.string().datetime(),
-    durationMinutes: z.number().int().min(15).max(240).default(45),
+    durationMinutes: z.number().int().min(15).max(240).default(DURACION_CITA_POR_DEFECTO),
     type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
     notes: z.string().max(1000).nullable().optional(),
   }).nullable().optional(),

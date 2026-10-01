@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
@@ -413,7 +414,7 @@ const CreateSchema = z.object({
     z.string().min(1).nullable().optional(),
   ),
   scheduledFor:    z.string().datetime(),
-  durationMinutes: z.number().int().min(15).max(480).default(30),
+  durationMinutes: z.number().int().min(15).max(480).default(DURACION_CITA_POR_DEFECTO),
   type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
   notes:           z.string().max(2000).optional(),
   isOnline:        z.boolean().default(false),

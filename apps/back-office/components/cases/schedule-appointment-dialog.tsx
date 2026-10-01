@@ -1,6 +1,7 @@
 'use client';
 import { localeApp, primeraMayuscula } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -109,7 +110,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
   const [providerId, setProviderId] = useState('');
   const [date, setDate] = useState('');         // YYYY-MM-DD
   const [time, setTime] = useState('');         // HH:MM
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(DURACION_CITA_POR_DEFECTO);
   const [type, setType] = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes, setNotes] = useState('');
 

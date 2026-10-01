@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
@@ -40,7 +41,7 @@ const InputSchema = z.object({
   ),
   /** ISO date string · ej "2026-06-10T10:00:00.000Z" */
   scheduledFor: z.string().datetime({ message: 'Fecha/hora inválida (ISO 8601)' }),
-  durationMinutes: z.number().int().min(15).max(240).default(30),
+  durationMinutes: z.number().int().min(15).max(240).default(DURACION_CITA_POR_DEFECTO),
   type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
   notes: z.string().max(2000).optional(),
   /** Ver PatchSchema en appointments/[id]/route.ts: el cruce avisa y deja decidir. */

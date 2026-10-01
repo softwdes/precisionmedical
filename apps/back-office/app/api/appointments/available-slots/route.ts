@@ -25,6 +25,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, VIGENTES } from '@precision-medical/database';
 import { isWeekendInDenver , blocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 
 const TIMEZONE = 'America/Denver';
 
@@ -64,7 +65,13 @@ const QuerySchema = z.object({
   providerId:      z.string().min(1).optional(),
   fromDate:        z.string().datetime().optional(),
   toDate:          z.string().datetime().optional(),
-  durationMinutes: z.coerce.number().int().min(15).max(240).default(45),
+  /**
+   * El default importa menos que en las otras rutas —el selector siempre manda
+   * la duración— pero tenía 45 y las demás 30 o 15: un llamador que la omita
+   * recibía la grilla de OTRA duración. Con el techo de las 18:00, 45 ofrece
+   * menos huecos que 15 y corta antes al final del día.
+   */
+  durationMinutes: z.coerce.number().int().min(15).max(240).default(DURACION_CITA_POR_DEFECTO),
   limit:           z.coerce.number().int().min(1).max(200).default(12),
   /**
    * Techo POR DÍA en vez de por respuesta. Lo usan los selectores semanales.

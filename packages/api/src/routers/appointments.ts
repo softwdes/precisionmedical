@@ -46,7 +46,17 @@ export const appointmentsRouter = router({
       clinicId: z.string(),
       providerId: z.string().optional(),
       scheduledFor: z.string(),
-      durationMinutes: z.number().int().min(15).default(30),
+      /**
+       * 15, igual que el resto del sistema (Erick, 2026-10-01).
+       *
+       * El valor canónico vive en `apps/back-office/lib/duracion-cita.ts` y acá
+       * está a mano porque un paquete no puede depender de una app. Si cambia
+       * allá, cambiar acá: es el único que no lo importa.
+       *
+       * Hoy ningún llamador usa este router — no se le encontró uso en las apps —
+       * pero se corrige igual para que no quede un tercer valor esperando.
+       */
+      durationMinutes: z.number().int().min(15).default(15),
       type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP', 'CONSULTATION']),
       notes: z.string().optional(),
     }))

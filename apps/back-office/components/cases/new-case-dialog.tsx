@@ -1,6 +1,7 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
+import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
@@ -354,7 +355,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [clinicId, setClinicId]       = useState(clinics[0]?.id ?? '');
   const [providerId, setProviderId]   = useState('');
   const [slotIso, setSlotIso]         = useState<string | null>(null);
-  const [duration, setDuration]       = useState(45);
+  const [duration, setDuration]       = useState(DURACION_CITA_POR_DEFECTO);
   const [showAllProviders, setShowAllProviders] = useState(false);
   /**
    * La cita que llegó del CALENDARIO, partida en día y hora.

@@ -8,6 +8,7 @@ import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog
 import { canSeeFirmRequests } from '@/lib/firm-requests-access';
 import { canAskCifo } from '@/lib/cifo-access';
 import { canSeeRewards } from '@/lib/premios';
+import { contarPendientes } from '@/lib/conversaciones-sms';
 import { getSessionUser } from '@/lib/session';
 
 // Back-Office · Admin layout
@@ -84,6 +85,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
    *  (devuelve false ante cualquier error) y no depende de la ficha. */
   const verPremios = canSeeRewards();
 
+  /**
+   * El badge rojo de SMS: conversaciones donde el paciente escribió último.
+   *
+   * Se resuelve acá, en el servidor, y no con una consulta del navegador: es
+   * un `count` agrupado y el layout ya es asíncrono, así que no agrega ni una
+   * petición. Se actualiza en cada navegación, que para una cola de trabajo
+   * alcanza — nadie mira el menú esperando que cambie solo.
+   *
+   * Nunca tumba el layout: si la consulta falla, el menú sale sin badge.
+   */
+  const smsPendientes = contarPendientes().catch(() => 0);
+
   try {
     const admin = createAdminClient();
     const [fichaRes, verPedidos, preguntarCifo] = await Promise.all([
@@ -144,6 +157,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         canSeeFirmRequests={puedeVerPedidos}
         canSeeRewards={await verPremios}
         canAskCifo={puedePreguntarCifo}
+        sidebarBadges={{ sms: await smsPendientes }}
       >
         {children}
       </AdminShell>

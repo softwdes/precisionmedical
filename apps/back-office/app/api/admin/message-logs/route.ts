@@ -17,6 +17,7 @@ import { getSessionUser } from '@/lib/session';
 import { resolveActor } from '@/lib/actor';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { phoneKey } from '@/lib/phone';
+import { contarPendientes } from '@/lib/conversaciones-sms';
 import { findPatientsByPhoneKeys } from '@/lib/patient-phone-lookup';
 
 export const dynamic = 'force-dynamic';
@@ -158,7 +159,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ...(query.from || query.to ? { createdAt } : {}),
       };
 
-  const [rows, total, mineCount, allCount, notDeliveredCount, inboundCount, unreadCount] = await Promise.all([
+  const [rows, total, mineCount, allCount, notDeliveredCount, inboundCount, unreadCount, pendientesCount] = await Promise.all([
     db.messageLog.findMany({
       where,
       orderBy: { createdAt: query.patientId ? 'asc' : 'desc' },
@@ -184,6 +185,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Sin scope ni busqueda a proposito: un badge que cambia al filtrar no es
     // un badge, es otra columna de la tabla.
     db.messageLog.count({ where: { direction: 'INBOUND', readAt: null } }),
+    // Conversaciones esperando respuesta. NO es `unread`: ese cuenta mensajes y
+    // cuenta de mas (6 contra 3, medido el 2026-10-01). Ver `lib/conversaciones-sms.ts`.
+    contarPendientes(),
   ]);
 
   // Mismo reconocimiento que el historial de llamadas: un SMS a un número que
@@ -276,7 +280,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     size: query.size,
     total,
     totalPages: Math.max(1, Math.ceil(total / query.size)),
-    counts: { mine: mineCount, all: allCount, notDelivered: notDeliveredCount, inbound: inboundCount, unread: unreadCount },
+    counts: { mine: mineCount, all: allCount, notDelivered: notDeliveredCount, inbound: inboundCount, unread: unreadCount, pendientes: pendientesCount },
   });
 }
 

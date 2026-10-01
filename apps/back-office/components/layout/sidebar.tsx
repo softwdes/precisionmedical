@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { VERSION } from '@precision/version';
 import { InsigniaVersion } from '@precision/release/insignia';
 import {
+  MessageSquare,
   Settings,
   Briefcase,
   BarChart3,
@@ -46,6 +47,14 @@ interface NavItem {
   /** Llave del módulo en roles_config.pm_clinic_modules (checks por rol) */
   moduleKey?: string;
   /**
+   * De dónde sale el número del badge, cuando NO es el `moduleKey`.
+   *
+   * SMS comparte el permiso de Pacientes —quien ve pacientes ve sus
+   * mensajes— pero no su contador: con una sola clave, el badge de mensajes
+   * pendientes aparecería también sobre Pacientes, que no cuenta nada.
+   */
+  badgeKey?: string;
+  /**
    * Menú "paraguas": se ve si se ve ALGUNA de estas llaves. Lo usa Configuración
    * del portal médico, que agrupa ítems con llaves propias (`doctor:templates`,
    * `doctor:catalog`) ya guardadas en fichas reales — una llave nueva para el
@@ -65,6 +74,11 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',       moduleKey: 'dashboard' },
       { href: '/patients',   icon: Users,          labelKey: 'patients',        moduleKey: 'patients'  },
+      // SMS va pegado a Pacientes y con su mismo `moduleKey`: es la misma
+      // pantalla a la que se llegaba por el boton de adentro, y quien ve
+      // pacientes ve sus mensajes. El badge cuenta CONVERSACIONES que esperan
+      // respuesta, no mensajes sin leer — ver `lib/conversaciones-sms.ts`.
+      { href: '/patients?sms=1', icon: MessageSquare, labelKey: 'smsHistory',   moduleKey: 'patients', badgeKey: 'sms' },
       { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar', moduleKey: 'calendar'  },
       { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission', moduleKey: 'admission' },
       { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers', moduleKey: 'externals' },
@@ -402,7 +416,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
                   collapsed={compact}
                   accent={isDoctor ? 'violet' : 'brand'}
                   highlight={item.highlight}
-                  badge={item.moduleKey ? badgesVivos?.[item.moduleKey] ?? 0 : 0}
+                  badge={badgesVivos?.[item.badgeKey ?? item.moduleKey ?? ''] ?? 0}
                 />
               ))}
             </ul>

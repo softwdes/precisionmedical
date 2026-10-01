@@ -1555,7 +1555,27 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // contador era un cero permanente y su fetch un viaje al servidor por cada
   // carga de la lista de pacientes.
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
-  const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(false);
+  /**
+   * Arranca abierto si se llego por el item SMS del menu (`?sms=1`).
+   *
+   * El historial es un DIALOGO, no una pagina, y la clinica pidio llegar
+   * desde el menu. En vez de convertirlo en pagina —que duplicaria la vista y
+   * abriria la puerta a que las dos se desincronicen— el item del menu apunta
+   * aca con el parametro y la pantalla se abre sola. Para quien lo usa es
+   * indistinguible de una pagina propia.
+   */
+  const [smsHistoryOpen,  setSmsHistoryOpen]  = useState(searchParamsHook.get('sms') === '1');
+
+  /**
+   * Al cerrar se limpia el parametro: si se queda en la URL, volver con el
+   * boton de atras del navegador reabre el dialogo y parece que no cerro.
+   */
+  useEffect(() => {
+    if (smsHistoryOpen || searchParamsHook.get('sms') !== '1') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('sms');
+    window.history.replaceState(null, '', url.pathname + url.search);
+  }, [smsHistoryOpen, searchParamsHook]);
   const [carreraOpen,     setCarreraOpen]     = useState(false);
 
   // ─── Precios (visor de mostrador, solo lectura) ─────────────────────────

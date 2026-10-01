@@ -706,7 +706,8 @@
       "attorneyReferrals": "Refer a client",
       "messages": "Messages",
       "firmRequests": "Firm requests",
-      "rewards": "My rewards"
+      "rewards": "My rewards",
+      "smsHistory": "SMS"
     },
     "pageTitles": {
       "collections": "Finances",
@@ -5922,7 +5923,16 @@
       "pageInfo": "Page {page} of {total}",
       "prevPage": "Previous page",
       "nextPage": "Next page",
-      "icons": "Icons"
+      "icons": "Icons",
+      "tabAll": "All",
+      "tabActionable": "Actionable",
+      "actionableEmptyTitle": "Nothing waiting",
+      "actionableEmptyHint": "Every patient who wrote has been answered.",
+      "actionableUnknown": "Number not matched to a patient — open it from the All tab",
+      "msgCount": "{n} messages",
+      "justNow": "just now",
+      "agoMin": "{n} min ago",
+      "agoHour": "{n} h ago"
     },
     "calls": {
       "payModalTitle": "Case payment",

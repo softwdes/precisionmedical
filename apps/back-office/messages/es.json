@@ -706,7 +706,8 @@
       "attorneyReferrals": "Referir un cliente",
       "messages": "Mensajes",
       "firmRequests": "Pedidos de bufetes",
-      "rewards": "Mis premios"
+      "rewards": "Mis premios",
+      "smsHistory": "SMS"
     },
     "pageTitles": {
       "collections": "Finanzas",
@@ -5922,7 +5923,16 @@
       "pageInfo": "Página {page} de {total}",
       "prevPage": "Página anterior",
       "nextPage": "Página siguiente",
-      "icons": "Iconos"
+      "icons": "Iconos",
+      "tabAll": "Todos",
+      "tabActionable": "Por responder",
+      "actionableEmptyTitle": "No hay nadie esperando",
+      "actionableEmptyHint": "Todos los pacientes que escribieron ya tienen respuesta.",
+      "actionableUnknown": "El número no coincide con ningún paciente — abrilo desde Todos",
+      "msgCount": "{n} mensajes",
+      "justNow": "recién",
+      "agoMin": "hace {n} min",
+      "agoHour": "hace {n} h"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

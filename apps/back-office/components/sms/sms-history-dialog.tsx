@@ -17,6 +17,7 @@ import { EmptyState, FilterPill, PersonAvatar, StatusPill, TableFooter, Skeleton
 import { formatUsPhone } from '@/lib/phone';
 import { PatientThreadDialog, type PacienteDelHilo } from './patient-thread-dialog';
 import { SmsTemplatesEditor } from './sms-templates-editor';
+import { ConversacionesPendientes } from './conversaciones-pendientes';
 
 const CLINIC_TZ = 'America/Denver';
 const PAGE_SIZE = 10;
@@ -56,7 +57,7 @@ interface Response {
   messages: Row[];
   total: number;
   totalPages: number;
-  counts: { mine: number; all: number; notDelivered: number; inbound: number; unread: number };
+  counts: { mine: number; all: number; notDelivered: number; inbound: number; unread: number; pendientes: number };
 }
 
 function clinicDayKey(d: Date): string {
@@ -99,6 +100,12 @@ export function SmsHistoryDialog({
   /** El editor de plantillas reemplaza la lista DENTRO del mismo dialogo.
       Un tercer modal encima robaria el foco — ya paso con el buscador de cargos. */
   const [editando, setEditando] = useState(false);
+  /**
+   * `pendientes` es la pestana Actionable: conversaciones esperando respuesta.
+   * Arranca en `pendientes` cuando hay alguna, porque es lo unico de esta
+   * pantalla que pide hacer algo — el resto es consulta.
+   */
+  const [vista, setVista] = useState<'todos' | 'pendientes'>('todos');
   /** Lo tecleado. `q` es lo que ya se consultó: separarlos es lo que permite el debounce. */
   const [texto, setTexto]       = useState('');
   const [q, setQ]               = useState('');
@@ -214,8 +221,30 @@ export function SmsHistoryDialog({
           <DialogDescription className="text-text-muted text-xs">{editando ? t('tplSubtitle') : t('subtitle')}</DialogDescription>
         </DialogHeader>
 
-        {/* Filtros — pills, no un formulario: son decisiones rápidas */}
+        {/* Las dos pestanas. Van ARRIBA de los filtros porque eligen QUE lista
+            se mira; los filtros de abajo recortan la que ya se eligio. */}
         {!editando && (
+          <div className="flex items-center gap-1.5 px-4 sm:px-6 pt-3 border-b border-border">
+            {([['todos', t('tabAll')], ['pendientes', t('tabActionable')]] as const).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setVista(k)}
+                className={`px-3 py-2 text-[12.5px] font-medium border-b-2 -mb-px transition-colors ${vista === k ? 'border-brand text-brand-text' : 'border-transparent text-text-2 hover:text-text-1'}`}
+              >
+                {l}
+                {k === 'pendientes' && (counts?.pendientes ?? 0) > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose/15 text-rose text-[10px] font-semibold">
+                    {counts?.pendientes}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Filtros — pills, no un formulario: son decisiones rápidas */}
+        {!editando && vista === 'todos' && (
         <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterWho')}</span>
@@ -265,6 +294,11 @@ export function SmsHistoryDialog({
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-2 pb-4">
           {editando ? (
             <SmsTemplatesEditor />
+          ) : vista === 'pendientes' ? (
+            <ConversacionesPendientes
+              onAbrir={(p) => setHilo(p)}
+              recargar={recargar}
+            />
           ) : loading && !data ? (
             <SmsSkeleton />
           ) : error ? (

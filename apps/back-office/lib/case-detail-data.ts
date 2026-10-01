@@ -151,6 +151,31 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
           type: true,
         },
       },
+      /**
+       * El seguro de AUTO, que vive en su propia tabla desde que se promovió
+       * fuera del JSON (`CaseAutoInsurance`).
+       *
+       * Faltaba acá, y por eso la portada decía "sin aseguradora primaria" en
+       * **230 casos que tenían el seguro cargado**: las dos fuentes que miraba
+       * —`primaryInsuranceId` y los declarados— excluyen el de auto a propósito
+       * (`segurosMedicosDeclarados` filtra `insType === 'MEDICAL'`). Medido el
+       * 2026-10-01 a partir del caso de Veronica Contreras.
+       *
+       * Es el mismo callejón que describe `seguro-declarado.ts`: el dato se
+       * mudó de lugar y la pantalla que lo mostraba no se enteró.
+       */
+      autoInsurance: {
+        select: {
+          policyId: true,
+          lossDate: true,
+          pipAvailable: true,
+          claimNum: true,
+          carrierNameRaw: true,
+          carrier: {
+            select: { id: true, name: true, shortCode: true, color: true, type: true },
+          },
+        },
+      },
       specialty: {
         select: { id: true, name: true, color: true, workflowType: true },
       },
@@ -283,6 +308,30 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
       attorney: caseRecord.attorney,
       primaryInsurance: caseRecord.primaryInsurance,
       secondaryInsurance: caseRecord.secondaryInsurance,
+      /**
+       * El de auto va con `lossDate` ya serializada: el resto de `caseInfo`
+       * viaja así y la tarjeta solo la formatea.
+       *
+       * ⚠️ Las fechas anteriores a 1900 se descartan acá. **Son 65 de 269**
+       * (medido el 2026-10-01) y TODAS son el mismo `0001-01-01`: basura que
+       * dejó la migración del v2, no una fecha que alguien cargó. Sin este
+       * filtro la tarjeta anunciaba un accidente el 1 de enero del año 1.
+       *
+       * No se reemplazan por `Case.accidentDate` —que 57 de esas 65 sí tienen—
+       * porque `lossDate` es, por schema, un *override* de ese campo: la fecha
+       * del accidente ya se muestra en su propia fila de la portada, y repetirla
+       * acá como si fuera un dato del seguro sería inventar una confirmación que
+       * nadie dio.
+       */
+      autoInsurance: caseRecord.autoInsurance
+        ? {
+            ...caseRecord.autoInsurance,
+            lossDate:
+              caseRecord.autoInsurance.lossDate && caseRecord.autoInsurance.lossDate.getUTCFullYear() >= 1900
+                ? caseRecord.autoInsurance.lossDate.toISOString()
+                : null,
+          }
+        : null,
       /**
        * El seguro que DECLARÓ el paciente en su formulario.
        *

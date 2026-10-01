@@ -4597,7 +4597,15 @@
       "sectionInternalNotes": "Notas internas",
       "noteSaved": "Nota guardada",
       "notesEmpty": "Sin notas todavía.",
-      "notePrivate": "Privada"
+      "notePrivate": "Privada",
+      "autoCarrierMissing": "Aseguradora sin registrar",
+      "autoLossLabel": "Fecha del accidente:",
+      "autoClaimLabel": "Reclamo:",
+      "autoPipLabel": "PIP disponible:",
+      "autoPipYes": "Sí",
+      "autoPipNo": "No",
+      "autoPipNa": "No aplica",
+      "autoPipUnknown": "Sin averiguar"
     },
     "patients": {
       "phFirm": "Nombre del bufete que refirió el caso médico…",

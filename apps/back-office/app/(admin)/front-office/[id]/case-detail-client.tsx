@@ -202,6 +202,21 @@ interface CaseInfo {
     color: string;
     type: string;
   } | null;
+  /**
+   * El seguro de AUTO del caso — el PIP, que en un MVA es el que paga primero.
+   *
+   * Vive en su propia tabla y por eso faltaba: esta sección se llama "PIP + Med
+   * Pay" y no leía el PIP. Opcional porque no todas las superficies que arman
+   * este objeto lo mandan.
+   */
+  autoInsurance?: {
+    policyId: string | null;
+    lossDate: string | null;
+    pipAvailable: string;
+    claimNum: string | null;
+    carrierNameRaw: string | null;
+    carrier: { id: string; name: string; shortCode: string; color: string; type: string } | null;
+  } | null;
   specialty: {
     id: string;
     name: string;
@@ -1426,6 +1441,26 @@ function etiquetaTipoSeguro(tipo: string, t: (k: string) => string): string | nu
   }
 }
 
+/**
+ * Si hay PIP disponible en el seguro de auto.
+ *
+ * `UNKNOWN` se MUESTRA en vez de omitirse: es el valor por defecto de la
+ * columna, o sea "nadie preguntó todavía", y eso es justamente lo que recepción
+ * tiene que ver para ir a averiguarlo. Omitirlo dejaría la tarjeta igual que si
+ * el dato estuviera confirmado.
+ *
+ * `NOT_APPLICABLE` existe porque no todo caso con seguro de auto tiene PIP —
+ * fuera de Florida, o pólizas que no lo incluyen.
+ */
+function etiquetaPip(valor: string, t: (k: string) => string): string {
+  switch (valor) {
+    case 'YES':            return t('autoPipYes');
+    case 'NO':             return t('autoPipNo');
+    case 'NOT_APPLICABLE': return t('autoPipNa');
+    default:               return t('autoPipUnknown');
+  }
+}
+
 
 
 /**
@@ -1476,12 +1511,74 @@ function SegurosDelCaso({ caseInfo, isAttorney, onEnlazar }: {
   */
   const sueltas = declarados.filter(d => d !== polizaPrimaria && d !== polizaSecundaria);
 
-  if (!caseInfo.primaryInsurance && declarados.length === 0) {
+  const auto = caseInfo.autoInsurance ?? null;
+
+  /**
+   * El nombre de la aseguradora de auto: la enlazada, o lo que se escribió a
+   * mano. Si no hay ninguna de las dos, tarjeta gris.
+   *
+   * ⚠️ **NO se hereda la primaria del caso**, aunque el schema diga que
+   * `carrierId` vacío significa "es la misma que la del caso". Se probó contra
+   * las 5 filas reales en esa situación (2026-10-01) y la herencia miente en
+   * casi todas: `workers comp`, `Selet Health`, `Select Health`, `Progress`,
+   * `Geico` — las tres primeras no son seguros de auto, y salían con el sello
+   * PIP al lado. Un nombre equivocado en la tarjeta del PIP manda a cobrarle al
+   * seguro que no es; la tarjeta gris solo dice que falta un dato.
+   *
+   * Es el mismo criterio con el que `buscarCarrier` se niega a enlazar por
+   * coincidencia parcial: ante la duda, no se adivina.
+   */
+  const autoNombre = auto?.carrier?.name ?? auto?.carrierNameRaw ?? null;
+
+  if (!caseInfo.primaryInsurance && declarados.length === 0 && !auto) {
     return <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>;
   }
 
   return (
     <div className="space-y-3">
+      {/*
+        El seguro de AUTO va PRIMERO (decisión de Erick, 2026-10-01): en un caso
+        de accidente el PIP es el que paga antes que ningún otro, así que es lo
+        primero que necesita ver quien cobra.
+
+        Hasta hoy no se mostraba en ninguna parte de esta sección —que se llama
+        "PIP + Med Pay"— porque el dato se mudó a su propia tabla y la consulta
+        del detalle no lo seguía. Eran 230 casos con la sección vacía teniendo el
+        seguro cargado.
+      */}
+      {auto && (
+        <div className={autoNombre
+          ? 'rounded-md border border-cyan/40 bg-cyan/10 p-3'
+          : 'rounded-md border border-border bg-white/5 p-3'}>
+          <div className="flex items-center gap-3">
+            {auto.carrier && <EntityAvatar code={auto.carrier.shortCode} color={auto.carrier.color} />}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`font-semibold text-sm ${autoNombre ? 'text-text-1' : 'text-text-muted italic'}`}>
+                  {autoNombre ?? t('autoCarrierMissing')}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px">
+                  PIP
+                </span>
+              </div>
+              <div className="text-text-muted text-[11px]">{t('insTypePip')}</div>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1 text-xs">
+            {auto.lossDate && (
+              <div><span className="text-text-muted">{t('autoLossLabel')}</span> <span className="text-text-1">{fechaCalendario(auto.lossDate)}</span></div>
+            )}
+            {auto.policyId && (
+              <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{auto.policyId}</code></div>
+            )}
+            {auto.claimNum && (
+              <div><span className="text-text-muted">{t('autoClaimLabel')}</span> <code className="text-text-1 font-mono">{auto.claimNum}</code></div>
+            )}
+            <div><span className="text-text-muted">{t('autoPipLabel')}</span> <span className="text-text-1">{etiquetaPip(auto.pipAvailable, t)}</span></div>
+          </div>
+        </div>
+      )}
+
       {caseInfo.primaryInsurance && (
         <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
           <div className="flex items-center gap-3">

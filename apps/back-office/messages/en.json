@@ -4597,7 +4597,15 @@
       "sectionInternalNotes": "Internal notes",
       "noteSaved": "Note saved",
       "notesEmpty": "No notes yet.",
-      "notePrivate": "Private"
+      "notePrivate": "Private",
+      "autoCarrierMissing": "Insurer not on record",
+      "autoLossLabel": "Date of loss:",
+      "autoClaimLabel": "Claim:",
+      "autoPipLabel": "PIP available:",
+      "autoPipYes": "Yes",
+      "autoPipNo": "No",
+      "autoPipNa": "Not applicable",
+      "autoPipUnknown": "Not checked yet"
     },
     "patients": {
       "phFirm": "Name of the firm that referred the medical case…",

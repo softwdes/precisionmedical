@@ -39,6 +39,7 @@ import { ManagersPopover, ManagersSection, type SectionHandle } from './case-man
 import { type AnchorRect } from './anchored-panel';
 import { InlineText, InlineCombo } from './inline-edit';
 import { DatePicker } from '@/components/ui-phoenix/date-picker';
+import { HoverPreview } from '@/components/ui-phoenix/hover-preview';
 import { AdjustersPopover, AdjustersSection } from './case-adjusters';
 import { apptVisual, apptRowBg, APPT_COLORS, MVA_FIRST_GLOW } from '@/lib/appointment-colors';
 
@@ -1320,7 +1321,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             */}
                           <div className="relative flex items-center gap-1.5 w-full max-w-[170px]">
                             <span className="flex-1 min-w-0">
+                            <Vistazo texto={row.attorneyName ?? row.firmName} titulo={t('colAttorney')}>
                             <InlineCombo
+                              ancho="max-w-full"
                               value={row.attorneyName ?? row.firmName}
                               options={lawyers}
                               readOnly={archived}
@@ -1333,6 +1336,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                                 { attorneyId: next.id, attorneyNameRaw: next.text },
                               )}
                             />
+                            </Vistazo>
                             </span>
                             <button
                               type="button"
@@ -1379,7 +1383,9 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                             * formulario: la respuesta firmada del paciente no se
                             * pisa. La grilla ya muestra COALESCE(esto, el JSON).
                             */}
+                          <Vistazo texto={row.chiropractor} titulo={t('editChiro')}>
                           <InlineCombo
+                            ancho="max-w-[150px]"
                             value={row.chiropractor}
                             options={chiroOptions.map(n => ({ id: n, name: n }))}
                             readOnly={archived}
@@ -1392,9 +1398,12 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               { chiroReferral: next.id ?? next.text },
                             )}
                           />
+                          </Vistazo>
                         </DataTable.Td>
                         <DataTable.Td className={COL_MD}>
+                          <Vistazo texto={row.carrierName} titulo={t('colCarrier')}>
                           <InlineCombo
+                            ancho="max-w-[150px]"
                             value={row.carrierName}
                             options={carriers.map(c => ({ id: c.id, name: c.name }))}
                             readOnly={archived}
@@ -1406,6 +1415,31 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                               { carrierId: next.id, carrierNameRaw: next.text },
                             )}
                           />
+                          </Vistazo>
+                          {/*
+                            * El comentario del seguro, de vuelta a la vista.
+                            *
+                            * En agosto se saco de la grilla como banda de aviso
+                            * y estuvo bien: ocupaba un renglon en TODAS las
+                            * filas y la mitad repetia otra columna. Pero el dato
+                            * no estaba muerto. Medido el 2026-10-01: 95 casos
+                            * tienen comentario y todos fueron tocados en los
+                            * ultimos 60 dias — "No claim yet. Policy Number
+                            * 2032889619", "844-292-8615 ex. 536". La gente lo
+                            * escribe y despues no lo ve.
+                            *
+                            * Lo que cambia respecto de la banda: va como segundo
+                            * renglon de ESTA celda, no como franja de la fila, y
+                            * solo donde hay algo escrito — de las 57 filas del
+                            * mes en curso lo tienen 3. El resto no crece.
+                            */}
+                          {row.insComments && (
+                            <Vistazo texto={row.insComments} titulo={t('insComments')}>
+                              <span className="block max-w-[150px] text-[9.5px] leading-none text-text-muted truncate mt-0.5">
+                                {row.insComments}
+                              </span>
+                            </Vistazo>
+                          )}
                         </DataTable.Td>
                         <DataTable.Td className={COL_SM}>
                           <InlineText
@@ -1748,9 +1782,47 @@ function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCy
   );
 }
 
+/**
+ * Vistazo — el texto completo al pasar el mouse, como en Google Sheets.
+ *
+ * Lo pidio Edson el 2026-10-01, con esas palabras: "as I hover over with the
+ * mouse, it would show me the content just like the google sheets". Las celdas
+ * de esta grilla cortan —tienen que cortar, son catorce columnas— y hasta hoy
+ * el unico modo de leer lo cortado era abrir el modal del caso.
+ *
+ * Solo envuelve cuando el texto NO ENTRA. Una tarjeta flotante sobre cada
+ * celda corta de la fila es ruido, y ademas taparia la celda de al lado cada
+ * vez que el cursor cruza la tabla para llegar a otro lado.
+ *
+ * El umbral son dos renglones del ancho real de estas columnas (~150px a 11px
+ * dan unos 23 caracteres por renglon). Se queda corto a proposito: que sobre
+ * tarjeta es molesto, que falte es volver al problema.
+ *
+ * HoverPreview sanea lo que recibe (safeHtml), asi que el texto pelado de
+ * una celda entra sin escaparlo a mano y los saltos de linea se respetan.
+ */
+const CABE_SIN_CORTAR = 46;
+
+function Vistazo({ texto, titulo, children }: {
+  texto: string | null | undefined;
+  titulo?: string;
+  children: React.ReactNode;
+}) {
+  if (!texto || texto.length <= CABE_SIN_CORTAR) return <>{children}</>;
+  return (
+    <HoverPreview html={texto} title={titulo} width={360} maxHeight={240}>
+      {children}
+    </HoverPreview>
+  );
+}
+
 function Txt({ v }: { v: string | null }) {
   if (!v) return <Empty />;
-  return <span className="text-text-2 truncate block max-w-[160px]" title={v}>{v}</span>;
+  return (
+    <Vistazo texto={v}>
+      <span className="text-text-2 truncate block max-w-[160px]" title={v}>{v}</span>
+    </Vistazo>
+  );
 }
 
 // ─── Celda de observaciones ──────────────────────────────────────────────────

@@ -138,7 +138,7 @@ export function InlineText({
  */
 export function InlineCombo({
   value, options, onSave, readOnly, title, emptyHint,
-  abreConLaLista = false, abreConDobleClic = false,
+  abreConLaLista = false, abreConDobleClic = false, ancho,
 }: {
   value: string | null;
   options: { id: string; name: string }[];
@@ -171,6 +171,25 @@ export function InlineCombo({
    * dice la nota de arriba del archivo.
    */
   abreConDobleClic?: boolean;
+  /**
+   * Tope de ancho de la celda, como clase (ej. 'max-w-[150px]'), y con el
+   * texto cortado a DOS RENGLONES en vez de uno.
+   *
+   * Sin tope, la columna de la tabla se estira hasta donde llegue el valor mas
+   * largo y empuja a las otras trece. Edson lo reporto el 2026-10-01 con la
+   * aseguradora: hay valores de 112 caracteres —notas de cobertura metidas en
+   * el campo del nombre— y una sola fila le desarma la pantalla. Lo que pidio
+   * textual es lo que hace en el Excel: "si hago Ctrl + Enter, pongo la
+   * informacion debajo para ahorrar espacio en la columna en vez de estirarla".
+   *
+   * Dos renglones y no uno porque con el tope puesto, un solo renglon corta
+   * demasiado pronto para que el valor se reconozca. Y crecen SOLO las filas
+   * que lo necesitan: el resto sigue en su alto de siempre.
+   *
+   * El texto completo se lee igual al pasar el mouse — ver `Vistazo` en
+   * `edson-client.tsx`.
+   */
+  ancho?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState('');
@@ -222,7 +241,9 @@ export function InlineCombo({
   }
 
   if (readOnly) {
-    return value ? <span className="text-text-2 truncate block">{value}</span> : <Empty />;
+    return value
+      ? <span className={'text-text-2' + (ancho ? ` ${ancho} line-clamp-2` : ' truncate block')}>{value}</span>
+      : <Empty />;
   }
 
   return (
@@ -239,7 +260,7 @@ export function InlineCombo({
          */
         onClick={e => { if (abreConDobleClic && e.detail !== 0) return; open(e.currentTarget); }}
         onDoubleClick={e => { if (abreConDobleClic) open(e.currentTarget); }}
-        className={TRIGGER_CLS + ' truncate block' + (value ? ' text-text-2' : '')
+        className={TRIGGER_CLS + (ancho ? ` ${ancho} line-clamp-2` : ' truncate block') + (value ? ' text-text-2' : '')
           + (editing ? ' invisible' : '')
           // Sin esto el doble clic selecciona la palabra antes de abrir y queda
           // el texto resaltado en azul debajo del panel.

@@ -8,6 +8,26 @@
  *
  * El animate-shimmer está definido en packages/tailwind-config/preset.ts y
  * usa un gradient lineal que se mueve de -200% a 200% en 1.5s.
+ *
+ * ⚠️ Este archivo concatena el className a mano, así que una utilidad que ya
+ * esté acá GANA sobre la que mande el que llama, pase lo que pase: las dos
+ * clases caen en el mismo elemento con la misma especificidad y decide el
+ * orden de la hoja compilada, no el orden del atributo. Para pisar una hay que
+ * mandarla con `!` (`!rounded-none`, `!p-0`).
+ *
+ * Costó encontrarlo: el 2026-10-01 había 12 call sites con la clase escrita y
+ * sin efecto en pantalla — 6 `rounded-none` sobre el `rounded-md` de Box, 4
+ * `p-0` sobre el `p-5` de Card (que es el peor: el punto de esas cards es
+ * contener una tabla a ras del borde, y salían con 20px de marco), y 2
+ * `rounded` sueltos. Sobrevivieron porque son pantallas de carga: el error
+ * dura lo que dura el spinner y nadie llega a mirarlo.
+ *
+ * Por qué NO está resuelto con `cn()`, que sería lo correcto: `twMerge` deja
+ * ganar al que llama, y `Circle` se apoya justamente en lo contrario — pasa
+ * `rounded-full` y hay 13 call sites que encima le mandan `rounded-md`, que
+ * hoy es una clase muerta y con `cn()` pasaría a ganar, dejando 13 círculos
+ * cuadrados. Migrar a `cn()` exige limpiar esos 13 primero. Está medido pero
+ * no hecho.
  */
 
 import * as React from 'react';

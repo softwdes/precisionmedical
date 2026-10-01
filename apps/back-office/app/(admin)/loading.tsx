@@ -43,7 +43,7 @@ export default function AdminLoading() {
       </div>
 
       {/* DataTable skeleton */}
-      <Skeleton.Card className="p-0 overflow-hidden">
+      <Skeleton.Card className="!p-0 overflow-hidden">
         <div className="border-b border-border bg-bg-2/50 px-5 py-3 flex items-center gap-4">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-3 w-32" />

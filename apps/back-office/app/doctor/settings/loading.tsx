@@ -21,9 +21,9 @@ export default function SettingsLoading(): React.ReactElement {
         <Skeleton className="h-9 w-28" />
       </div>
       <div className="rounded-lg bg-bg-1 overflow-hidden">
-        <Skeleton className="h-9 w-full rounded-none" />
+        <Skeleton className="h-9 w-full !rounded-none" />
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-none mt-px" />
+          <Skeleton key={i} className="h-10 w-full !rounded-none mt-px" />
         ))}
       </div>
     </div>

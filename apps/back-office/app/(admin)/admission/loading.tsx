@@ -36,7 +36,7 @@ export default function AdmissionLoading() {
       </div>
 
       {/* Appointment rows skeleton */}
-      <Skeleton.Card className="!p-0 overflow-hidden">
+      <Skeleton.Card className="p-0 overflow-hidden">
         {/* Group header */}
         <div className="px-4 py-2.5 border-b border-border bg-bg-2/50 flex items-center gap-2">
           <Skeleton className="h-2.5 w-2.5 rounded-full" />

@@ -35,9 +35,9 @@ export function NotesSkeleton(): React.ReactElement {
             <Skeleton className="h-9 w-[180px]" />
           </div>
         </div>
-        <Skeleton className="h-9 w-full !rounded-none" />
+        <Skeleton className="h-9 w-full rounded-none" />
         {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full !rounded-none mt-px" />
+          <Skeleton key={i} className="h-12 w-full rounded-none mt-px" />
         ))}
       </div>
     </div>

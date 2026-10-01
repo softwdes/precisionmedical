@@ -23,12 +23,12 @@ export default function PatientsLoading() {
 
       {/* Tabs skeleton */}
       <div className="flex items-center gap-1 border-b border-border">
-        <Skeleton className="h-8 w-20 !rounded-none" />
-        <Skeleton className="h-8 w-24 !rounded-none" />
+        <Skeleton className="h-8 w-20 rounded-none" />
+        <Skeleton className="h-8 w-24 rounded-none" />
       </div>
 
       {/* Table skeleton */}
-      <Skeleton.Card className="!p-0 overflow-hidden">
+      <Skeleton.Card className="p-0 overflow-hidden">
         {/* Header row */}
         <div className="border-b border-border bg-bg-2/50 px-4 py-3 flex items-center gap-4">
           <Skeleton className="h-3 w-28" />
@@ -50,7 +50,7 @@ export default function PatientsLoading() {
               <Skeleton className="h-3 w-52" />
             </div>
             <Skeleton className="h-5 w-14 rounded-md hidden sm:block" />
-            <Skeleton className="h-5 w-6 !rounded" />
+            <Skeleton className="h-5 w-6 rounded" />
             <div className="flex gap-1">
               <Skeleton.Circle size={7} className="rounded-md" />
               <Skeleton.Circle size={7} className="rounded-md" />

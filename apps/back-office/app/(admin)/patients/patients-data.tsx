@@ -33,7 +33,7 @@ import { selfiesDePacientes } from '@/lib/fotos-identidad';
 /** Skeleton del Suspense boundary — compartido por /patients y /doctor/patients */
 export function PatientsTableSkeleton() {
   return (
-    <Skeleton.Card className="!p-0 overflow-hidden mt-1">
+    <Skeleton.Card className="p-0 overflow-hidden mt-1">
       <div className="border-b border-border bg-bg-2/50 px-4 py-3 flex items-center gap-4">
         <Skeleton className="h-9 flex-1 min-w-[180px] max-w-sm" />
         <div className="flex-1" />
@@ -52,7 +52,7 @@ export function PatientsTableSkeleton() {
             <Skeleton className="h-3 w-52" />
           </div>
           <Skeleton className="h-5 w-14 rounded-md hidden sm:block" />
-          <Skeleton className="h-5 w-6 !rounded" />
+          <Skeleton className="h-5 w-6 rounded" />
           <div className="flex gap-1">
             <Skeleton.Circle size={7} className="rounded-md" />
             <Skeleton.Circle size={7} className="rounded-md" />

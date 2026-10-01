@@ -134,6 +134,11 @@ const FIRM_REQUESTS_ITEM: NavItem = {
 const REWARDS_ITEM: NavItem = {
   href: '/mis-premios', icon: Trophy, labelKey: 'rewards',
 };
+/** El mismo, dentro del portal médico: el middleware manda a los doctores a
+ *  /doctor/*, así que la pantalla vive también ahí. */
+const DOCTOR_REWARDS_ITEM: NavItem = {
+  href: '/doctor/mis-premios', icon: Trophy, labelKey: 'rewards',
+};
 
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
 const DOCTOR_SECTIONS: NavSection[] = [
@@ -267,7 +272,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   // Uno por portal, y no se cruzan: Notas clínicas es del médico administrador y
   // vive en el PORTAL; la puerta al portal es del staff y vive en el back-office.
   const extras = isDoctor
-    ? (canAuditNotes ? [NOTES_AUDIT_ITEM] : [])
+    ? [...(canSeeRewards ? [DOCTOR_REWARDS_ITEM] : []), ...(canAuditNotes ? [NOTES_AUDIT_ITEM] : [])]
     : isAttorney
       ? []
       : [

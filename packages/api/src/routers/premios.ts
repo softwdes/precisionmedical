@@ -195,8 +195,9 @@ export const premiosRouter = router({
     const { data, error } = await db.from('users')
       .select('id, firstName, lastName, role')
       .is('deletedAt', null)
-      // Sin providers: los premios son del staff del back-office.
-      .not('role', 'in', '("LAWYER","AUDITOR_AI","DOCTOR","PROVIDER")')
+      // Los doctores entran (Erick, 30-sep: Devin participa como staff); los
+      // abogados, el auditor de IA y los proveedores externos, no.
+      .not('role', 'in', '("LAWYER","AUDITOR_AI","PROVIDER")')
       .order('firstName');
     if (error) falla(error.message);
     return ((data ?? []) as Array<{ id: string; firstName: string; lastName: string; role: string }>)

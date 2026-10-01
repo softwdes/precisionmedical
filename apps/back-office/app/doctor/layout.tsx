@@ -7,6 +7,7 @@ import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { ReleaseNotesDialog } from '@/components/ui-phoenix/release-notes-dialog';
 import { getSessionProvider, getDoctorViewInfo, getDoctorMenus } from '@/lib/get-session-provider';
 import { canAuditNotes } from '@/lib/notes-audit-access';
+import { canSeeRewards } from '@/lib/premios';
 import { getSessionUser } from '@/lib/session';
 import { NavigationProgressProvider } from '@/components/layout/navigation-progress';
 import { DoctorViewBar } from './doctor-view-bar';
@@ -22,7 +23,7 @@ import { DoctorViewBar } from './doctor-view-bar';
 export default async function DoctorLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
   // Ambas están memorizadas por request (lib/session.ts) — el usuario se
   // resuelve una sola vez para todo el árbol, no una por componente.
-  const [user, provider, viewInfo, t, puedeAuditarNotas, menusPortal] = await Promise.all([
+  const [user, provider, viewInfo, t, puedeAuditarNotas, menusPortal, verPremios] = await Promise.all([
     getSessionUser(),
     getSessionProvider(),
     getDoctorViewInfo(),
@@ -35,6 +36,10 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
     // `clinicModules`). null = los ve todos, que es el default de un provider
     // recién creado: nadie tiene que configurarle nada para que entre.
     getDoctorMenus(),
+    // "Mis premios": un provider también puede participar de los Premios del
+    // Staff (Erick, 30-sep: Devin). Mismo criterio que el back-office: lo ve
+    // quien participa del mes que corre. Nunca tira: ante error, false.
+    canSeeRewards(),
   ]);
   if (!user) redirect('/login');
 
@@ -92,6 +97,7 @@ export default async function DoctorLayout({ children }: { children: ReactNode }
         userInitials={initials}
         userEmail={provider.email}
         canAuditNotes={puedeAuditarNotas}
+        canSeeRewards={verPremios}
         allowedModules={menusPortal}
       >
         {/* La barra sale con la CAPACIDAD, no con la suplantación: quien puede

@@ -1360,6 +1360,10 @@ function AddMedicationDialog({
               onSelect={(_, label) => setDrugName(label)}
               searchPlaceholder={t('mh.sub.search')}
               emptyText={t('mh.sub.noResults')}
+              // El catálogo `drugs` es chico y es una AYUDA, no un portero: lo que
+              // el paciente toma (fluoxetina, metformina…) no tiene por qué estar.
+              // `name` es texto libre en el esquema, así que se puede cargar lo tecleado.
+              libreLabel={q => t('mh.sub.useTyped', { q })}
             />
             <p className="text-[11px] text-text-muted">
               {drugName ? drugName : t('mh.sub.selectMedicationHint')}

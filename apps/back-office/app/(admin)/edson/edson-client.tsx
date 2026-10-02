@@ -371,7 +371,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chir
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [editing, setEditing] = useState<Row | null>(null);
-  const [editingFocus, setEditingFocus] = useState<'managers' | 'adjusters' | null>(null);
+  const [editingFocus, setEditingFocus] = useState<'managers' | 'adjusters' | 'legal' | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   /** Caso cuyo popover de encargados esta abierto. */
   const [managersFor, setManagersFor] = useState<string | null>(null);
@@ -1545,6 +1545,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chir
                                 attorneyEmail={row.attorneyEmail}
                                 onClose={() => setManagersFor(null)}
                                 onAdd={() => { setEditingFocus('managers'); setEditing(row); }}
+                                onEditLegal={() => { setEditingFocus('legal'); setEditing(row); }}
                               />
                             )}
                           </div>
@@ -2281,7 +2282,7 @@ function TrackingDialog({
   row: Row;
   carriers: { id: string; name: string }[];
   /** Seccion a la que saltar al abrir, cuando se llega desde un popover. */
-  focus?: 'managers' | 'adjusters' | null;
+  focus?: 'managers' | 'adjusters' | 'legal' | null;
   onClose: () => void;
   onSaved: () => void;
   /**
@@ -2300,6 +2301,7 @@ function TrackingDialog({
   const [pip, setPip]             = useState<Pip>(row.pipAvailable);
   const [chiropractor, setChiro]  = useState(row.chiropractor ?? '');
   const [insComments, setInsComments] = useState(row.insComments ?? '');
+  const legalRef     = useRef<HTMLDivElement>(null);
   const managersRef  = useRef<HTMLDivElement>(null);
   const adjustersRef = useRef<HTMLDivElement>(null);
   // Handles para que "Guardar cambios" confirme lo que quedo escrito en esas
@@ -2319,7 +2321,9 @@ function TrackingDialog({
   useEffect(() => {
     // Acotado no hay a donde scrollear: la seccion es lo unico que se ve.
     if (!focus || !expanded) return;
-    const target = focus === 'managers' ? managersRef : adjustersRef;
+    const target = focus === 'legal'    ? legalRef
+                 : focus === 'managers' ? managersRef
+                 : adjustersRef;
     const id = setTimeout(() => {
       target.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }, 120);
@@ -2567,8 +2571,18 @@ function TrackingDialog({
               {t('showWholeCase')}
             </button>
           )}
-          {expanded && (<>
-          <div className="text-amber text-[10.5px] uppercase tracking-wider font-semibold">{t('groupLegal')}</div>
+          {/*
+            * El bloque Legal tambien se puede abrir ACOTADO, igual que los
+            * encargados y los adjusters.
+            *
+            * Es el destino del boton "Agregar abogado" del popover. Sin esto,
+            * ese boton tendria que abrir el caso entero y Edson volveria a
+            * caer en la pantalla de la que viene diciendo que no encuentra
+            * nada — el modal completo es justo lo que lo perdio las dos veces
+            * anteriores.
+            */}
+          {(expanded || focus === 'legal') && (<>
+          <div ref={legalRef} className="text-amber text-[10.5px] uppercase tracking-wider font-semibold">{t('groupLegal')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>{t('fieldFirm')}</Label>
@@ -2647,10 +2661,19 @@ function TrackingDialog({
               )}
             </div>
           </div>
+          {/*
+            * El quiropractico vive en el bloque Legal pero NO entra en el
+            * acotado: quien llega por "Agregar abogado" vino a eso. Mostrarle
+            * un campo mas con "Guardar cambios" al pie devuelve el problema
+            * que el acotado resolvio — un boton que dice guardar sobre un
+            * formulario del que solo se mira un pedazo.
+            */}
+          {expanded && (
           <div>
             <Label htmlFor="tr-chiro">{t('fieldChiropractor')}</Label>
             <Input id="tr-chiro" value={chiropractor} onChange={e => setChiro(e.target.value)} />
           </div>
+          )}
 
           {/*
             * Los encargados van DENTRO del bloque Legal: son la gente del

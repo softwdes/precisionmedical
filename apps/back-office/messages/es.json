@@ -7079,7 +7079,7 @@
       "insCommentsPh": "¡PIP AGOTADO! El caso va por lien del abogado.",
       "copyLienEmails": "Copiar {count, plural, one {# email} other {# emails}}",
       "colCreatedBy": "Creada por",
-      "managersOpen": "Encargados — clic para ver y agregar",
+      "managersOpen": "Abogado y encargados — clic para ver y agregar",
       "adjustersOpen": "Adjusters — clic para ver y agregar",
       "notesOpen": "Clic para leerlo completo",
       "createdByShort": "por {name}",
@@ -7109,7 +7109,9 @@
       "carrierCreate": "Agregar “{nombre}” al catálogo",
       "carrierSimilarAsk": "El catálogo ya tiene: {names}. ¿Crear una nueva igual?",
       "attorneyAddToFirm": "Agregar “{nombre}” a {bufete}",
-      "firmAddNew": "Agregar bufete “{nombre}”"
+      "firmAddNew": "Agregar bufete “{nombre}”",
+      "attorneyAdd": "Agregar abogado",
+      "firmAdd": "Agregar bufete"
     },
     "online": {
       "badge": "Cita online",

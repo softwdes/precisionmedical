@@ -18,7 +18,7 @@
 import { useState, useEffect, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
-import { Copy, Check, Plus, X, Mail, Phone, UserRound, Loader2 } from 'lucide-react';
+import { Copy, Check, Plus, X, Mail, Phone, Pencil, UserRound, Loader2 } from 'lucide-react';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
 import { localeApp } from '@/lib/fechas';
 import { AnchoredPanel, type AnchorRect } from './anchored-panel';
@@ -183,7 +183,7 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, attorneyEmail, firmName, rect, onClose, onAdd,
+  caseId, attorneyName, attorneyEmail, firmName, rect, onClose, onAdd, onEditLegal,
 }: {
   caseId: string;
   /** Rectangulo del boton que lo abrio — ver `AnchoredPanel`. */
@@ -194,6 +194,8 @@ export function ManagersPopover({
   onClose: () => void;
   /** Abre el modal en la sección de encargados. */
   onAdd: () => void;
+  /** Abre el modal en el bloque Legal: bufete y abogado. */
+  onEditLegal: () => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, loading } = useManagers(caseId);
@@ -208,10 +210,76 @@ export function ManagersPopover({
 
   return (
     <AnchoredPanel rect={rect} width={280} onClose={onClose}>
+      {/*
+        * El encabezado es el BUFETE, no el abogado.
+        *
+        * Antes decía `attorneyName ?? firmName`, así que cuando había abogado
+        * el bufete se leía chiquito debajo y cuando no, el bufete ocupaba el
+        * renglón del abogado — el mismo valor en dos roles distintos según la
+        * fila. Ahora el bufete titula siempre y el abogado tiene su sección,
+        * que es lo que de verdad son: el bufete es el lugar y el abogado una
+        * de las personas que trabajan ahí, igual que los encargados.
+        */}
       <div>
-        <div className="text-text-1 text-[13px] font-semibold">{attorneyName ?? firmName ?? '—'}</div>
-        {firmName && attorneyName && <div className="text-text-muted text-[11px]">{firmName}</div>}
+        <div className="text-text-1 text-[13px] font-semibold">{firmName ?? '—'}</div>
       </div>
+
+      {/*
+        * Sección ATTORNEY, hermana de CASE MANAGERS.
+        *
+        * Es el pedido de Edson del 2026-10-01, y es el tercer intento: primero
+        * le dimos el modal, después la celda. Las dos veces funcionaba y las
+        * dos veces no lo encontró, porque EL PANEL QUE ÉL ABRE decía
+        * "CASE MANAGERS" y el abogado estaba de título, como texto muerto.
+        * Textual: "he enters and doesn't see it".
+        *
+        * Dos clases de persona, dos secciones iguales, cada una con su botón.
+        * El abogado va PRIMERO porque es el que define el caso: el encargado
+        * puede rotar, el abogado es con quien se firma.
+        */}
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-amber pt-1">
+        {t('fieldAttorney')}
+      </div>
+
+      {attorneyName ? (
+        <div className="rounded-md bg-bg-2/40 px-3 py-2">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-text-1 text-[13px] font-medium truncate">{attorneyName}</div>
+              <div className="text-text-muted text-[10.5px] uppercase tracking-wider">
+                {t('fieldAttorney')}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { onClose(); onEditLegal(); }}
+              title={t('editAttorney')}
+              className="shrink-0 p-1 rounded text-text-muted hover:text-text-1 hover:bg-white/[0.04]"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {attorneyEmail && (
+            <div className="mt-1 space-y-0.5">
+              <CopyLine icon={<Mail className="w-3 h-3" />} value={attorneyEmail} href={`mailto:${attorneyEmail}`} />
+            </div>
+          )}
+        </div>
+      ) : (
+        /*
+          * Sin bufete el rótulo cambia, porque el abogado NO se puede agregar
+          * todavía: la persona se crea dentro de un bufete. Decir "agregar
+          * abogado" y que el modal pida primero el bufete es volver a hacerle
+          * perder un clic averiguando por qué.
+          */
+        <button
+          type="button"
+          onClick={() => { onClose(); onEditLegal(); }}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-[12px] text-text-2 hover:text-text-1 hover:border-brand"
+        >
+          <Plus className="w-3 h-3" /> {firmName ? t('attorneyAdd') : t('firmAdd')}
+        </button>
+      )}
 
       <div className="text-[10px] uppercase tracking-wider font-semibold text-amber pt-1">
         {t('groupManagers')}

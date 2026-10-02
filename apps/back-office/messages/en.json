@@ -7079,7 +7079,7 @@
       "insCommentsPh": "PIP EXHAUSTED! Case goes under attorney lien.",
       "copyLienEmails": "Copy {count, plural, one {# email} other {# emails}}",
       "colCreatedBy": "Created by",
-      "managersOpen": "Case managers — click to see and add",
+      "managersOpen": "Attorney and case managers — click to see and add",
       "adjustersOpen": "Adjusters — click to see and add",
       "notesOpen": "Click to read the whole thing",
       "createdByShort": "by {name}",
@@ -7109,7 +7109,9 @@
       "carrierCreate": "Add “{nombre}” to the catalog",
       "carrierSimilarAsk": "The catalog already has: {names}. Create a new one anyway?",
       "attorneyAddToFirm": "Add “{nombre}” to {bufete}",
-      "firmAddNew": "Add law firm “{nombre}”"
+      "firmAddNew": "Add law firm “{nombre}”",
+      "attorneyAdd": "Add attorney",
+      "firmAdd": "Add law firm"
     },
     "online": {
       "badge": "Online visit",

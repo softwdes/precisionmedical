@@ -804,7 +804,9 @@
       "verPagos": "Open payments",
       "verFreelancers": "Open freelancers",
       "verBilleteras": "Open wallets"
-    }
+    },
+    "sinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
+    "sinClave": "The provider rejected the key. It needs to be checked in the environment."
   },
   "notifications": {
     "title": "Notifications",

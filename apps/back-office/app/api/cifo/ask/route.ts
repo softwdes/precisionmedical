@@ -22,6 +22,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { getSessionUser } from '@/lib/session';
 import { canAskCifo } from '@/lib/cifo-access';
 import { preguntarACifoStream, type CifoAnswer } from '@/lib/cifo/agent';
+import { causaDelFallo } from '@precision-medical/agente';
 import { alcanceDe } from '@/lib/cifo/alcance';
 import { resolveActor } from '@/lib/actor';
 
@@ -85,7 +86,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       } catch (err) {
         // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
         console.error('[cifo] fallo la consulta', err);
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error' }) + '\n'));
+        // La CAUSA sí viaja: es un código cerrado que no lleva nada del prompt,
+        // y es lo que permite decirle a la persona si reintentar sirve de algo.
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', causa: causaDelFallo(err) }) + '\n'));
       } finally {
         controller.close();
 

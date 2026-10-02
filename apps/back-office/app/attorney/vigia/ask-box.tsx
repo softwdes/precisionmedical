@@ -107,14 +107,21 @@ export function AskBox({ sugerencias, alcance, configurado }: {
             | { type: 'delta'; text: string }
             | { type: 'reset' }
             | { type: 'done'; answer: Answer }
-            | { type: 'error' };
+            | { type: 'error'; causa?: 'sin_saldo' | 'sin_clave' | 'falla' };
 
           if (ev.type === 'delta') setParcial((p) => p + ev.text);
           else if (ev.type === 'step') setPasos((ps) => [...ps, ev.step]);
           // Era un preámbulo antes de pedir una herramienta: no es la respuesta.
           else if (ev.type === 'reset') setParcial('');
           else if (ev.type === 'done') setRes(ev.answer);
-          else if (ev.type === 'error') setError(t('vigiaError'));
+          // Lo que no se arregla reintentando se dice distinto: con la cuenta
+          // sin saldo, "probá de nuevo" manda a golpear una puerta cerrada.
+          // `causa` es opcional: un servidor viejo cae en el texto de siempre.
+          else if (ev.type === 'error') setError(t(
+            ev.causa === 'sin_saldo' ? 'vigiaSinSaldo'
+              : ev.causa === 'sin_clave' ? 'vigiaSinClave'
+              : 'vigiaError',
+          ));
         }
       }
     } catch {

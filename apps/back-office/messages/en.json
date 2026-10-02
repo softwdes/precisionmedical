@@ -1318,7 +1318,9 @@
       "msgUnarchived": "Back in the inbox.",
       "msgSentPending": "No reply yet",
       "msgSentAnswered": "Answered",
-      "msgYouPrefix": "You → {name}"
+      "msgYouPrefix": "You → {name}",
+      "vigiaSinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
+      "vigiaSinClave": "The provider rejected the key. Let the clinic know."
     },
     "doctor": {
       "greeting": "{name}",
@@ -3922,7 +3924,9 @@
       "actionIntakeCompletedDev": "Intake completed (dev)",
       "actionAppointmentConfirmed": "Appointment confirmed",
       "actionAppointmentScheduled": "Appointment scheduled",
-      "actionNoteAdded": "Note added"
+      "actionNoteAdded": "Note added",
+      "cifoSinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
+      "cifoSinClave": "The provider rejected the key. Let IT know."
     },
     "calendar": {
       "weekdays": {

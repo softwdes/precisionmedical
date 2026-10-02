@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient, createServerClient } from '@precision-medical/auth';
-import { preguntar, type RespuestaAgente } from '@precision-medical/agente';
+import { preguntar, causaDelFallo, type RespuestaAgente } from '@precision-medical/agente';
 import { CIFO_ADMIN } from '@/lib/cifo/agente';
 import { puedePreguntarACifo } from '@/lib/cifo/acceso';
 import { getCurrentUserRole } from '@/lib/auth/get-role';
@@ -92,7 +92,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       } catch (err) {
         // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
         console.error('[cifo-admin] falló la consulta', err);
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error' }) + '\n'));
+        // La CAUSA sí viaja: código cerrado, sin nada del prompt adentro.
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', causa: causaDelFallo(err) }) + '\n'));
       } finally {
         controller.close();
 

@@ -46,8 +46,20 @@ export interface EstadoAgente {
   pasos: PasoVista[];
   /** La respuesta final, con sus botones. */
   res: RespuestaVista | null;
-  /** `'config'` = falta la clave del proveedor; `'falla'` = cualquier otra cosa. */
-  error: 'config' | 'falla' | null;
+  /**
+   * Por qué no hay respuesta.
+   *
+   *   · `config`     — falta la clave en el entorno (lo decide el servidor, 503)
+   *   · `sin_saldo`  — la cuenta del proveedor se quedó sin crédito
+   *   · `sin_clave`  — la clave existe pero el proveedor la rechaza
+   *   · `falla`      — cualquier otra cosa, y acá SÍ sirve reintentar
+   *
+   * Los tres primeros se separan de `falla` por una razón concreta: con uno de
+   * esos, reintentar no puede funcionar. Decir "probá de nuevo en un momento"
+   * para todo hacía que la clínica reintentara contra una cuenta sin saldo y
+   * creyera que el agente está roto.
+   */
+  error: 'config' | 'sin_saldo' | 'sin_clave' | 'falla' | null;
 }
 
 const INICIAL: EstadoAgente = {
@@ -109,7 +121,7 @@ export function usePreguntar(endpoint: string): EstadoAgente & {
             | { type: 'delta'; text: string }
             | { type: 'reset' }
             | { type: 'done'; answer: RespuestaVista }
-            | { type: 'error' };
+            | { type: 'error'; causa?: 'sin_saldo' | 'sin_clave' | 'falla' };
           try {
             ev = JSON.parse(linea);
           } catch {
@@ -122,7 +134,9 @@ export function usePreguntar(endpoint: string): EstadoAgente & {
           // Era un preámbulo antes de pedir una herramienta: no es la respuesta.
           else if (ev.type === 'reset') setEstado((s) => ({ ...s, parcial: '' }));
           else if (ev.type === 'done') setEstado((s) => ({ ...s, res: ev.answer }));
-          else if (ev.type === 'error') setEstado((s) => ({ ...s, error: 'falla' }));
+          // `causa` es opcional a propósito: un servidor viejo que mande el
+          // evento pelado sigue funcionando y cae en `falla`, como antes.
+          else if (ev.type === 'error') setEstado((s) => ({ ...s, error: ev.causa ?? 'falla' }));
         }
       }
     } catch {

@@ -17,6 +17,7 @@ import { getSessionLawyer, canViewAsLawyer } from '@/lib/get-session-lawyer';
 import { getSessionUser } from '@/lib/session';
 import { canSeeVigia } from '@/lib/attorney-portal';
 import { preguntarAVigiaStream, type VigiaAnswer } from '@/lib/vigia/agent';
+import { causaDelFallo } from '@precision-medical/agente';
 import { resolveActor } from '@/lib/actor';
 
 // El lazo puede encadenar varias llamadas al modelo; el default de Vercel es corto.
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       } catch (err) {
         // El detalle del proveedor no va al cliente: puede traer trozos del prompt.
         console.error('[vigia] fallo la consulta', err);
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error' }) + '\n'));
+        // La CAUSA sí viaja: código cerrado, sin nada del prompt adentro.
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', causa: causaDelFallo(err) }) + '\n'));
       } finally {
         controller.close();
 

@@ -234,7 +234,13 @@ export function CifoBox({ configurado, casoEjemplo }: {
 
             {error && (
               <p className="text-[13px] text-rose">
-                {error === 'config' ? t('cifoNotConfigured') : t('cifoError')}
+                {/* Lo que no se arregla reintentando se dice distinto: con la
+                    cuenta sin saldo, "probá de nuevo" manda a golpear una
+                    puerta cerrada y deja creyendo que el agente está roto. */}
+                {error === 'config' ? t('cifoNotConfigured')
+                  : error === 'sin_saldo' ? t('cifoSinSaldo')
+                  : error === 'sin_clave' ? t('cifoSinClave')
+                  : t('cifoError')}
               </p>
             )}
 

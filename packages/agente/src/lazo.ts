@@ -142,6 +142,17 @@ export async function* preguntar<A>(
     const corriendo = client.chat.completions.stream({
       model: def.modelo,
       messages,
+      /**
+       * Sin esto la respuesta NO trae el consumo.
+       *
+       * En streaming la API omite el bloque `usage` salvo que se lo pidas, así
+       * que `res.usage` venía `undefined` y el `?? 0` de abajo lo tapaba sin un
+       * solo error. Resultado: las 23 preguntas que hubo quedaron registradas
+       * con **0 tokens**, y no había forma de saber cuánto gasta el agente —
+       * justo cuando hizo falta saberlo (Erick, 2026-10-02: "nos quedamos sin
+       * créditos"). El contador estaba, pero contaba cero.
+       */
+      stream_options: { include_usage: true },
       // Sin herramientas no se manda el campo: la API rechaza un array vacío.
       ...(especs.length > 0 ? { tools: especs } : {}),
     });
@@ -242,6 +253,69 @@ export async function preguntarUnaVez<A>(
   }
   if (!ultima) throw new Error(`el agente ${def.nombre} no produjo respuesta`);
   return ultima;
+}
+
+/**
+ * Por qué falló, en los términos que le importan a quien está mirando.
+ *
+ * `falla` es el cajón de lo transitorio: reintentar tiene sentido.
+ * `sin_saldo` y `sin_clave` NO: por más que reintente, no va a andar.
+ */
+export type CausaFallo = 'sin_saldo' | 'sin_clave' | 'falla';
+
+/**
+ * Traduce el error del proveedor a una causa.
+ *
+ * ── Por qué existe ─────────────────────────────────────────────────────────
+ *
+ * Porque sin esto la pantalla decía *"No pude responder. Probá de nuevo en un
+ * momento"* para TODO, incluido quedarse sin saldo. Y eso es mentira con
+ * consecuencia: invita a reintentar algo que no puede funcionar, y la clínica
+ * queda creyendo que el agente está fallando cuando lo que hay que hacer es
+ * cargar la cuenta. Erick se quedó sin créditos el 2026-10-02 y el sistema no
+ * se lo dijo.
+ *
+ * Vive acá —el único archivo que conoce al proveedor— y no en cada ruta, para
+ * que las tres apps clasifiquen igual. Si mañana se cambia de proveedor, los
+ * códigos cambian en un solo lugar.
+ *
+ * Se mira el error ANTES que el `status`: un 429 puede ser falta de saldo (que
+ * no se arregla reintentando) o un límite de velocidad (que sí). Tratarlos
+ * igual manda a cargar la tarjeta a quien solo tenía que esperar diez segundos.
+ *
+ * ⚠️ **El `type` manda sobre el `code`, y eso está MEDIDO.** La primera versión
+ * de esta función miraba `code === 'insufficient_quota'` y habría fallado: con
+ * la cuenta vacía de verdad, el 2026-10-02, el proveedor devolvió
+ *
+ *     status 429 · type "insufficient_quota" · code "credit_balance_exhausted"
+ *
+ * O sea que `insufficient_quota` es el TYPE, no el code. El `type` es la
+ * familia y es estable; el `code` es el motivo puntual y el proveedor lo cambia
+ * sin avisar (`credit_balance_exhausted` no figura en su documentación). Por eso
+ * se decide por el type, y los codes conocidos quedan como red de abajo.
+ *
+ * Si alguna vez hay que tocar esto, la forma de saber la verdad es pedirle algo
+ * a la API con la cuenta en el estado que se quiere clasificar y mirar lo que
+ * contesta. Adivinar el código del proveedor es cómo nació este bug.
+ */
+export function causaDelFallo(err: unknown): CausaFallo {
+  const e = err as {
+    status?: number; code?: string; type?: string;
+    error?: { code?: string; type?: string };
+  } | null;
+  // El SDK expone los campos sueltos; una respuesta cruda los trae en `error`.
+  const code = e?.code ?? e?.error?.code;
+  const type = e?.type ?? e?.error?.type;
+
+  if (type === 'insufficient_quota') return 'sin_saldo';
+  if (code === 'credit_balance_exhausted'
+    || code === 'insufficient_quota'
+    || code === 'billing_hard_limit_reached') return 'sin_saldo';
+
+  if (type === 'invalid_request_error' && code === 'invalid_api_key') return 'sin_clave';
+  if (code === 'invalid_api_key' || e?.status === 401) return 'sin_clave';
+
+  return 'falla';
 }
 
 export type { AccionAgente, DefinicionAgente, EventoAgente, PasoAgente, RespuestaAgente };

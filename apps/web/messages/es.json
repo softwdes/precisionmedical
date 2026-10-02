@@ -804,7 +804,9 @@
       "verPagos": "Ver los pagos",
       "verFreelancers": "Ver freelancers",
       "verBilleteras": "Ver billeteras"
-    }
+    },
+    "sinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
+    "sinClave": "El proveedor rechazó la clave. Hay que revisarla en el entorno."
   },
   "notifications": {
     "title": "Notificaciones",

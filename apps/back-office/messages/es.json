@@ -1318,7 +1318,9 @@
       "msgUnarchived": "Devuelto a la bandeja.",
       "msgSentPending": "Sin respuesta",
       "msgSentAnswered": "Respondido",
-      "msgYouPrefix": "Vos → {name}"
+      "msgYouPrefix": "Vos → {name}",
+      "vigiaSinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
+      "vigiaSinClave": "El proveedor rechazó la clave. Avisale a la clínica."
     },
     "doctor": {
       "greeting": "{name}",
@@ -3922,7 +3924,9 @@
       "actionIntakeCompletedDev": "Intake completado (dev)",
       "actionAppointmentConfirmed": "Cita confirmada",
       "actionAppointmentScheduled": "Cita agendada",
-      "actionNoteAdded": "Nota agregada"
+      "actionNoteAdded": "Nota agregada",
+      "cifoSinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
+      "cifoSinClave": "El proveedor rechazó la clave. Avisale a sistemas."
     },
     "calendar": {
       "weekdays": {

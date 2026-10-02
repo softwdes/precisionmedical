@@ -92,8 +92,14 @@ export function CifoBox({ configurado }: {
       {/* La respuesta, debajo de la caja. Aparece solo cuando hay algo. */}
       {(cargando || res || error) && (
         <div className="rounded-lg bg-bg-1 p-5 space-y-3">
+          {/* Lo que no se arregla reintentando se dice distinto: con la cuenta
+              sin saldo, "probá de nuevo" manda a golpear una puerta cerrada. */}
           {error && (
-            <p className="text-[13px] text-rose">{t('error')}</p>
+            <p className="text-[13px] text-rose">
+              {error === 'sin_saldo' ? t('sinSaldo')
+                : error === 'sin_clave' ? t('sinClave')
+                : t('error')}
+            </p>
           )}
 
           {texto_visible && (

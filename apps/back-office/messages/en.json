@@ -2301,7 +2301,9 @@
       "chgDxAll": "All of the note",
       "chgDxCount": "{n} of {total} dx",
       "chgDxNone": "With no diagnosis linked, the payer has nothing to justify this line with.",
-      "chgDxEmpty": "This note has no diagnoses yet. They are added in the section above."
+      "chgDxEmpty": "This note has no diagnoses yet. They are added in the section above.",
+      "rxCheckStatus": "Check status",
+      "rxCheckStatusHint": "What you see is the status at the moment it was sent. The pharmacy can answer several minutes later, so if it just went out, wait a bit and check again."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

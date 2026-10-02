@@ -23,7 +23,7 @@ import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import {
   ShieldCheck, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin, RotateCcw,
-  TriangleAlert, History, Download, ClipboardCheck,
+  TriangleAlert, History, Download, ClipboardCheck, RefreshCw,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { RxPatientSummary } from './rx-patient-summary';
@@ -258,6 +258,30 @@ export function RxIntegrationStatus({
     setRefillingId(null);
   }
 
+  /**
+   * Volver a preguntarle a ScriptSure en qué quedó cada receta.
+   *
+   * Hace falta porque lo que guardamos es el estado del INSTANTE en que se
+   * cerró el widget, y la farmacia contesta después — medido: el aviso de
+   * entrega tardó 13 minutos, y una receta que figuraba enviada estaba en error
+   * 12 minutos más tarde. Sin esto, una receta que falló se queda en "enviada"
+   * para siempre y el mostrador la canta como entregada con el paciente
+   * esperando en la farmacia.
+   *
+   * Mientras el webhook no esté registrado en el entorno real, esta es la ÚNICA
+   * forma de enterarse. Y la dispara una persona, nunca un temporizador: las
+   * reglas de uso de DAW prohíben el polling y lo auditan.
+   */
+  async function reconsultar(): Promise<void> {
+    setSyncing(true);
+    try {
+      await fetch(`/api/admin/scriptsure/sync/${appointmentId}`, { method: 'POST' });
+    } catch { /* la lista queda como estaba; se puede reintentar */ }
+    await loadPrescriptions();
+    setSyncing(false);
+    startTransition(() => { router.refresh(); });
+  }
+
   function closeWidget(): void {
     const wasDrugList = active === 'drug-list';
     setActive(null);
@@ -385,10 +409,24 @@ export function RxIntegrationStatus({
                 <Send className="w-4 h-4 text-violet-text shrink-0" />
                 <span>{t('rxSentTitle')}</span>
                 {sent.length > 0 && <span className="text-text-muted font-normal">· {sent.length}</span>}
+                <button
+                  type="button"
+                  onClick={() => void reconsultar()}
+                  disabled={syncing}
+                  className="ml-auto inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[11px] font-semibold text-violet-text bg-violet/10 hover:bg-violet/20 disabled:opacity-50 transition-colors"
+                >
+                  {syncing
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <RefreshCw className="w-3 h-3" />}
+                  {t('rxCheckStatus')}
+                </button>
               </DialogTitle>
             </DialogHeader>
 
             <div className="overflow-y-auto p-5 space-y-5">
+              {/* Apretar el botón al instante no prueba nada: la farmacia
+                  contesta minutos después. Es medición nuestra, no suposición. */}
+              <p className="text-[11px] text-text-muted leading-relaxed">{t('rxCheckStatusHint')}</p>
               {sent.length === 0 ? (
                 <div className="py-8 text-center">
                   <Send className="w-8 h-8 text-text-muted mx-auto mb-3" />

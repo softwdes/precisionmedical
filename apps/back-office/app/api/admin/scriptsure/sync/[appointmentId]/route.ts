@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
-import { fetchScriptSureDrugHistory } from '@/lib/scriptsure-client';
+import { fetchScriptSureDrugHistory, ScriptSureUserNotFoundError } from '@/lib/scriptsure-client';
 import { mapRawRx, persistPrescription } from '@/lib/scriptsure-prescriptions';
 
 /**
@@ -37,17 +37,34 @@ export async function POST(
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
   // Sin paciente en ScriptSure no hay nada que traer (no se creó todavía)
-  if (!appt.patient.scriptsurePatientId || !appt.provider.scriptsureUserId) {
-    return NextResponse.json({ ok: true, synced: 0, reason: 'NOT_ONBOARDED' });
+  if (!appt.patient.scriptsurePatientId) {
+    return NextResponse.json({ ok: true, synced: 0, reason: 'PACIENTE_SIN_ALTA' });
   }
 
   let raws: Array<Record<string, unknown>>;
   try {
+    /**
+     * Entra con la cuenta de QUIEN CONSULTA, no con la del médico de la cita.
+     *
+     * Antes usaba `appt.provider.email` y además exigía que ese médico tuviera
+     * `scriptsureUserId`. Las dos cosas estaban mal:
+     *
+     *  · Es la misma suplantación que se sacó de la ruta del widget el
+     *    2026-09-16 — acá no firma nada, pero abrir sesión como otro no tiene
+     *    por qué hacerse si quien pregunta tiene su propia cuenta.
+     *  · El id del prescriptor **no se usa en esta llamada**: el historial va
+     *    por paciente y no pasa por `setPracticePrescriber`. Exigirlo dejaba el
+     *    botón "Consultar estado" sin hacer nada, en silencio, para los cuatro
+     *    providers que Erick decidió no dar de alta (2026-10-01).
+     */
     raws = await fetchScriptSureDrugHistory(
-      appt.provider.email,
+      access.actor.email,
       Number(appt.patient.scriptsurePatientId),
     );
   } catch (err) {
+    if (err instanceof ScriptSureUserNotFoundError) {
+      return NextResponse.json({ ok: true, synced: 0, reason: 'NO_SCRIPTSURE_USER' });
+    }
     return NextResponse.json(
       { error: 'SCRIPTSURE_ERROR', message: (err as Error).message },
       { status: 502 },

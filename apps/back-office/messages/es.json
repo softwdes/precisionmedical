@@ -2301,7 +2301,9 @@
       "chgDxAll": "Todos los de la nota",
       "chgDxCount": "{n} de {total} dx",
       "chgDxNone": "Sin ningún diagnóstico vinculado, el pagador no tiene con qué justificar esta línea.",
-      "chgDxEmpty": "Esta nota todavía no tiene diagnósticos. Se agregan en la sección de arriba."
+      "chgDxEmpty": "Esta nota todavía no tiene diagnósticos. Se agregan en la sección de arriba.",
+      "rxCheckStatus": "Consultar estado",
+      "rxCheckStatusHint": "El estado que ves es el del momento en que se envió. La farmacia puede contestar varios minutos después, así que si acaba de salir, esperá un rato y volvé a consultar."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

@@ -3,8 +3,28 @@ import { db } from '@precision-medical/database';
 
 /**
  * Cliente ScriptSure / DAW Systems (D4 — prescripción electrónica).
- * Solo staging por ahora — hosts de producción se agregan recién al certificar
- * (ver [[scriptsure-daw-integration]] en memoria).
+ *
+ * ── LOS DOS ENTORNOS ────────────────────────────────────────────────────────
+ *
+ * Hasta el 2026-09-30 esto era staging y nada más: `hosts()` devolvía las
+ * constantes sin condicional, y los hosts de producción directamente no existían
+ * en el archivo. Era la regla de Erick del 4-ago —nada toca producción hasta que
+ * él lo pida— implementada como imposibilidad, no como advertencia.
+ *
+ * Erick lo levantó: la clínica ya tiene el entorno real, con sus providers y sus
+ * asistentes dados de alta. Pero el default NO cambia: sin `SCRIPTSURE_ENV` esto
+ * sigue apuntando a pruebas. Pasar a real es poner una variable, y volver atrás
+ * es sacarla — no un deploy ni un revert.
+ *
+ * ── LO QUE NO ALCANZA CON CAMBIAR EL HOST ───────────────────────────────────
+ *
+ * Los IDs guardados en NUESTRA base son de staging y **no significan lo mismo
+ * allá**: `clinics.scriptsurePracticeId` (hoy 6907 en seis clínicas),
+ * `providers.scriptsureUserId` y `patients.scriptsurePatientId`. Un id de
+ * práctica que allá existe y es de OTRA clínica no da error: manda la receta al
+ * lugar equivocado. Por eso al cambiar de entorno esos tres campos se vacían y
+ * se vuelven a cargar con los valores reales — ver el aviso de `assertIdDeEste
+ * Entorno` más abajo.
  */
 
 const HOSTS = {
@@ -14,10 +34,47 @@ const HOSTS = {
     frontend: 'https://ssu.scriptsure.com',
     frontendPlatform: 'https://spu.scriptsure.com',
   },
+  /** Confirmados en la página Go-Live de DAW. Ver [[scriptsure-daw-integration]]. */
+  production: {
+    backendPlatform: 'https://ppa.scriptsure.com',
+    backendScriptSure: 'https://psa.scriptsure.com',
+    frontend: 'https://app.scriptsure.com',
+    frontendPlatform: 'https://manage.scriptsure.com',
+  },
 } as const;
 
+export type ScriptSureEnv = keyof typeof HOSTS;
+
+/**
+ * Qué entorno está activo. `staging` salvo que se diga lo contrario EXPLÍCITAMENTE.
+ *
+ * Solo el valor exacto `production` cambia de entorno. Un typo, una variable
+ * vacía o un `prod` a medias caen en pruebas — que es el lado seguro del error:
+ * lo peor que pasa es que una receta de verdad no salga, no que una de prueba
+ * llegue a una farmacia real.
+ */
+export function scriptsureEnv(): ScriptSureEnv {
+  return process.env.SCRIPTSURE_ENV === 'production' ? 'production' : 'staging';
+}
+
+/**
+ * Le pega a cada error el entorno y el host con el que habló.
+ *
+ * Sin esto, su `401 no application credential found` es un jeroglífico: hay que
+ * ir a buscar una tabla de traducción para enterarse de que significa "le
+ * pegaste a STAGING". Esa traducción costó una hora el 1-oct y otra el 2-oct,
+ * las dos veces con la variable de entorno puesta a ojo y sin surtir efecto.
+ *
+ * El error tiene que decir con quién habló, porque es justo el dato que el
+ * mensaje de ellos no trae y el único que distingue "la credencial está mal" de
+ * "le estás hablando al entorno equivocado".
+ */
+function conEntorno(mensaje: string): string {
+  return `${mensaje} [entorno: ${scriptsureEnv()} · ${hosts().backendPlatform}]`;
+}
+
 function hosts() {
-  return HOSTS.staging;
+  return HOSTS[scriptsureEnv()];
 }
 
 function apiKey(): string {
@@ -58,7 +115,7 @@ interface ScriptSureLoginResponse {
  */
 export class ScriptSureUserNotFoundError extends Error {
   constructor(public readonly loginEmail: string, public readonly detalle: string) {
-    super(`ScriptSure no reconoce a ${loginEmail}: ${detalle}`);
+    super(`ScriptSure (${scriptsureEnv()}) no reconoce a ${loginEmail}: ${detalle}`);
     this.name = 'ScriptSureUserNotFoundError';
   }
 }
@@ -82,18 +139,29 @@ async function login(loginEmail: string): Promise<string> {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     /**
-     * Desde que cada persona entra con SU cuenta, "no te conozco" es un caso
-     * normal y no un error del sistema: significa que a esa persona todavía no
-     * la dieron de alta en ScriptSure. Se distingue para que la pantalla diga
-     * eso y no un error genérico.
+     * ── "No te conozco a VOS" no es lo mismo que "no me conozco a MÍ" ────────
      *
-     * El texto crudo viaja igual: si alguna vez el 401 fuese por nuestras
-     * credenciales de vendor y no por el usuario, queda a la vista.
+     * Desde que cada persona entra con SU cuenta, que ScriptSure no reconozca
+     * al usuario es un caso normal: todavía no lo dieron de alta. La pantalla
+     * lo dice con esas palabras y se resuelve pidiendo el alta.
+     *
+     * Pero el MISMO 401 lo devuelven cuando el que no existe es nuestro
+     * apiKey —`no application credential found` / `no vendor credential
+     * found`—, y eso significa algo completamente distinto: **le estamos
+     * hablando al entorno equivocado**, o las credenciales no son las de ese
+     * entorno. Decirle "no tenés cuenta" a alguien en ese caso es mandarlo a
+     * pedir un alta que ya tiene, mientras el problema real es una variable de
+     * configuración.
+     *
+     * Pasó de verdad el 2026-10-02: la pantalla de Recetas falló para Barry
+     * —que SÍ está dado de alta, id 68895— porque el deploy estaba apuntando a
+     * staging. Por eso ahora se mira el texto, no solo el código.
      */
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
+    const esProblemaDeCredencial = /credential/i.test(text);
+    if (!esProblemaDeCredencial && (res.status === 401 || res.status === 403 || res.status === 404)) {
       throw new ScriptSureUserNotFoundError(loginEmail, `${res.status}: ${text}`.slice(0, 300));
     }
-    throw new Error(`ScriptSure login falló (${res.status}): ${text}`);
+    throw new Error(conEntorno(`ScriptSure login falló (${res.status}): ${text}`));
   }
 
   const data = (await res.json()) as ScriptSureLoginResponse;
@@ -173,6 +241,30 @@ async function llamarConSesion(
 }
 
 /**
+ * Un id de ScriptSure que falta tiene que FRENAR, no viajar.
+ *
+ * Las rutas resuelven estos ids con `Number(...)` sobre una columna que puede
+ * estar vacía: `Number(null)` da **0** y `Number(undefined)` da **NaN**, y los
+ * dos se serializaban en el JSON sin que nada avisara. El error volvía como un
+ * rechazo genérico de ScriptSure, que manda a buscar al lado equivocado.
+ *
+ * Importa especialmente ahora. Al pasar al entorno real hay que vaciar los ids
+ * de staging y volver a cargarlos: durante ese rato las columnas están en null,
+ * y lo que no puede pasar es que una receta salga con `practiceId: 0`.
+ *
+ * Va acá y no en cada ruta —`lib/scriptsure-client` es el único camino a la API—
+ * para que ninguna pantalla nueva se olvide del chequeo.
+ */
+function exigirId(campo: 'practiceId' | 'prescriberId', valor: number): void {
+  if (!Number.isInteger(valor) || valor <= 0) {
+    throw new Error(
+      `ScriptSure: ${campo} inválido (${String(valor)}) en el entorno "${scriptsureEnv()}". ` +
+      'Falta cargarlo: el de la clínica está en su ficha y el del prescriptor en la del provider.',
+    );
+  }
+}
+
+/**
  * Set Practice & Prescriber — obligatorio antes de cualquier otra llamada de
  * paciente/receta, y hay que repetirlo cada vez que cambia el prescriptor.
  */
@@ -181,6 +273,9 @@ export async function setPracticePrescriber(
   practiceId: number,
   prescriberId: number,
 ): Promise<void> {
+  exigirId('practiceId', practiceId);
+  exigirId('prescriberId', prescriberId);
+
   const res = await llamarConSesion(loginEmail, (token) => fetch(
     `${hosts().backendPlatform}/v3/user/practice/prescriber?sessiontoken=${token}`,
     {
@@ -192,7 +287,7 @@ export async function setPracticePrescriber(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`ScriptSure set practice/prescriber falló (${res.status}): ${text}`);
+    throw new Error(conEntorno(`ScriptSure set practice/prescriber falló (${res.status}): ${text}`));
   }
 
   await db.scriptSureSession.update({
@@ -335,7 +430,7 @@ async function createScriptSurePatient(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`ScriptSure create patient falló (${res.status}): ${text}`);
+    throw new Error(conEntorno(`ScriptSure create patient falló (${res.status}): ${text}`));
   }
 
   const data = (await res.json()) as { savedPatientObj?: { patientId?: number } };
@@ -687,7 +782,7 @@ export async function fetchScriptSureDrugHistory(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`ScriptSure drug history falló (${res.status}): ${text.slice(0, 200)}`);
+    throw new Error(conEntorno(`ScriptSure drug history falló (${res.status}): ${text.slice(0, 200)}`));
   }
 
   const data: unknown = await res.json();

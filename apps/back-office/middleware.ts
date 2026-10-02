@@ -211,7 +211,22 @@ const MODULE_API_ROUTES: ApiGuard[] = [
    * Van juntas o el 403 vuelve igual — ya paso una vez con los bufetes.
    */
   ['edson',     /^\/api\/admin\/lawyers\/quick-create-member$/,  'write'],
-  ['externals', /^\/api\/admin\/lawyers(?!\/quick-create(-member)?$)(\/|$)/, 'write'],
+  /*
+   * Dar de alta un BUFETE desde la misma celda, para los casos que no tienen
+   * ninguno. Sin bufete no hay dónde colgar al abogado: la ruta de arriba
+   * exige uno que ya exista.
+   *
+   * Va con `edson` por el mismo corte que la de arriba, y NO se reusó
+   * `lawyers/quick-create` —que hace lo mismo— justamente por esta lista:
+   * atar las dos pantallas a un solo path obligaría a tener los DOS módulos y
+   * recepción perdería el alta de bufete del wizard de caso.
+   *
+   * ⚠️ Vale igual que para la de arriba: la exclusión de `externals` tiene que
+   * nombrarla, o esa regla la cierra y el 403 vuelve. Las dos líneas van
+   * juntas o no va ninguna.
+   */
+  ['edson',     /^\/api\/admin\/lawyers\/quick-create-firm$/,    'write'],
+  ['externals', /^\/api\/admin\/lawyers(?!\/quick-create(-member|-firm)?$)(\/|$)/, 'write'],
   // Datos de Edson: los consumen `/edson` y `/intake`, y nada más. El menú de
   // `/intake` se retiró pero sus rutas siguen vivas — mismo criterio que
   // MODULE_ROUTES, donde ese par también viaja junto.

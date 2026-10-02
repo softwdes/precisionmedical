@@ -138,7 +138,7 @@ export function InlineText({
  */
 export function InlineCombo({
   value, options, onSave, readOnly, title, emptyHint,
-  abreConLaLista = false, abreConDobleClic = false, ancho,
+  abreConLaLista = false, abreConDobleClic = false, ancho, alCrear,
 }: {
   value: string | null;
   options: { id: string; name: string }[];
@@ -190,10 +190,31 @@ export function InlineCombo({
    * `edson-client.tsx`.
    */
   ancho?: string;
+  /**
+   * Dar de alta en el CATALOGO lo que se escribio, cuando la busqueda no
+   * encontro nada.
+   *
+   * Sin esto la celda solo ofrece texto libre, que resuelve el sintoma —queda
+   * anotado en ESTE caso— y nada mas: el proximo caso del mismo bufete vuelve
+   * a no encontrarlo. Es exactamente el reclamo de Edson, "I can't add an
+   * attorney": de 26 bufetes con casos, 12 no tienen una sola persona cargada
+   * (medido el 2026-10-01), asi que la lista le salia vacia y no habia forma
+   * de llenarla desde la grilla.
+   *
+   * `crear` devuelve la fila nueva ya guardada en el catalogo, o `null` si no
+   * se pudo. La celda se queda con ese `id`, asi que el valor nace vinculado y
+   * no como texto suelto.
+   */
+  alCrear?: {
+    /** Rotulo del boton, ej. `Agregar "Todd Livingston" a Claggett & Sykes`. */
+    etiqueta: (q: string) => string;
+    crear: (q: string) => Promise<{ id: string; name: string } | null>;
+  };
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState('');
   const [saving, setSaving]   = useState(false);
+  const [creando, setCreando] = useState(false);
   const [rect, setRect]       = useState<AnchorRect | null>(null);
   const [hi, setHi]           = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -238,6 +259,25 @@ export function InlineCombo({
     // y otro suelto, y el filtro por aseguradora dejaria de encontrar al segundo.
     const exact = options.find(o => o.name.toLowerCase() === text.toLowerCase());
     void commit(exact ? { id: exact.id, text: null } : { id: null, text });
+  }
+
+  /**
+   * Alta en el catalogo + guardado en el caso, en un solo gesto.
+   *
+   * Son DOS escrituras y la segunda puede fallar: si pasa, la persona queda
+   * creada igual y el caso sin ella. Es el mal menor —el catalogo es lo que
+   * costaba, y reintentar es volver a elegirla, que ahora si aparece— pero por
+   * eso no se cierra el panel a mano: lo cierra `commit` solo si guardo.
+   */
+  async function crear() {
+    if (!alCrear) return;
+    const text = draft.trim();
+    if (text.length < 2) return;
+    setCreando(true);
+    try {
+      const nuevo = await alCrear.crear(text);
+      if (nuevo) await commit({ id: nuevo.id, text: null });
+    } finally { setCreando(false); }
   }
 
   if (readOnly) {
@@ -318,7 +358,28 @@ export function InlineCombo({
               </button>
             ))}
             {q && matches.length === 0 && (
-              <div className="px-2 py-1 text-[11px] text-text-muted italic">{emptyHint}</div>
+              <>
+                {/*
+                  * El alta va ARRIBA del texto libre y no al reves: lo que
+                  * sirve para el proximo caso es que la persona quede en el
+                  * catalogo. El texto libre sigue existiendo —Enter lo guarda
+                  * igual— como salida para cuando de verdad no se sabe quien
+                  * es, pero deja de ser la UNICA.
+                  */}
+                {alCrear && q.length >= 2 && (
+                  <button
+                    type="button"
+                    disabled={creando}
+                    onMouseDown={e => { e.preventDefault(); void crear(); }}
+                    className="w-full text-left px-2 py-1 text-[11px] rounded font-medium text-brand-text hover:bg-brand/10 disabled:opacity-50"
+                  >
+                    {creando
+                      ? <Loader2 className="w-3 h-3 animate-spin inline" />
+                      : alCrear.etiqueta(draft.trim())}
+                  </button>
+                )}
+                <div className="px-2 py-1 text-[11px] text-text-muted italic">{emptyHint}</div>
+              </>
             )}
           </div>
 

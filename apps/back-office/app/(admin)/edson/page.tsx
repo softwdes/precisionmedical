@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function EdsonPage() {
-  const [clinics, providers, carriers, lawyers, chiros] = await Promise.all([
+  const [clinics, providers, carriers, lawyers, firms, chiros] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, color: true },
@@ -52,6 +52,24 @@ export default async function EdsonPage() {
       where: { deletedAt: null, firstName: { not: null } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true },
+    }),
+    /*
+     * Los BUFETES, que son la otra mitad de la columna Attorney: la celda
+     * muestra `attorneyName ?? firmName`, así que en la mayoría de las filas lo
+     * que se lee es el bufete.
+     *
+     * Hacen falta acá porque un caso SIN bufete no tiene dónde colgar al
+     * abogado —`quick-create-member` exige uno existente— y eran 86 casos en la
+     * cola el 2026-10-01. Con esto la celda primero resuelve el bufete y recién
+     * después ofrece la persona.
+     *
+     * Son 26 y entran enteros en el selector; no hace falta el recorte que sí
+     * se le hace a las aseguradoras.
+     */
+    db.lawyer.findMany({
+      where: { deletedAt: null, entityType: 'FIRM' },
+      orderBy: { firmName: 'asc' },
+      select: { id: true, firmName: true },
     }),
     /*
      * Sugerencias del quiropractico. Desde el 2026-09-20 SI hay catalogo
@@ -83,6 +101,7 @@ export default async function EdsonPage() {
         id: l.id,
         name: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim(),
       }))}
+      firms={firms.map((f) => ({ id: f.id, name: f.firmName ?? '—' }))}
       chiroOptions={chiros.map((c) => c.name)}
     />
   );

@@ -7104,7 +7104,8 @@
       "caseTypeFuNote": "Reception wrote a follow-up on this appointment. Confirm it or change it.",
       "carrierCreate": "Add “{nombre}” to the catalog",
       "carrierSimilarAsk": "The catalog already has: {names}. Create a new one anyway?",
-      "attorneyAddToFirm": "Add “{nombre}” to {bufete}"
+      "attorneyAddToFirm": "Add “{nombre}” to {bufete}",
+      "firmAddNew": "Add law firm “{nombre}”"
     },
     "online": {
       "badge": "Online visit",

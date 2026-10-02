@@ -17,7 +17,7 @@
  * Ver docs/plan-vista-edson.md
  */
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -180,6 +180,8 @@ interface Props {
   providers: { id: string; name: string }[];
   carriers:  { id: string; name: string; shortCode: string; color: string }[];
   lawyers:   { id: string; name: string }[];
+  /** Bufetes. La celda Attorney los pide cuando el caso todavía no tiene uno. */
+  firms:     { id: string; name: string }[];
   /** Sugerencias de quiropractico: lo ya usado, no un catalogo. */
   chiroOptions: string[];
 }
@@ -295,13 +297,30 @@ function Empty() { return <span className="text-text-muted italic">—</span>; }
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOptions }: Props) {
+export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chiroOptions }: Props) {
   const serverError = useServerError();
   const t    = useTranslations('phoenix.edsonTracking');
   const tc   = useTranslations('phoenix.common');
   // Las etiquetas de estado y de la leyenda se comparten con el calendario.
   const tcal = useTranslations('phoenix.calendar');
   const router = useRouter();
+
+  /**
+   * Abogados dados de alta en esta sesión desde una celda.
+   *
+   * `lawyers` lo arma el server component y no se vuelve a pedir, así que sin
+   * esto el que acaba de crearse no aparecería en las demás filas hasta
+   * recargar — y el optimista de la fila que lo creó mostraría un guion,
+   * porque el nombre se busca en el catálogo.
+   */
+  const [nuevosAbogados, setNuevosAbogados] = useState<{ id: string; name: string }[]>([]);
+  /** Lo mismo para los bufetes dados de alta desde la celda. */
+  const [nuevosBufetes, setNuevosBufetes] = useState<{ id: string; name: string }[]>([]);
+  // Se funden por id: las rutas de alta devuelven al que YA existía cuando el
+  // nombre se repite, y en la próxima carga el mismo llega por los dos lados.
+  // Dos opciones con el mismo `id` rompen las keys de la lista.
+  const catalogoAbogados = useMemo(() => fundir(lawyers, nuevosAbogados), [lawyers, nuevosAbogados]);
+  const catalogoBufetes  = useMemo(() => fundir(firms,   nuevosBufetes),  [firms,   nuevosBufetes]);
 
   const [vista, setVista] = useState<Vista>('seguimiento');
   // Casi toda la pantalla solo necesita saber si se está mirando lo archivado
@@ -613,6 +632,86 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
     } catch {
       setError(t('saveFailed'));
       return false;
+    }
+  }
+
+  /**
+   * Alta de un abogado en el bufete del caso, desde la celda.
+   *
+   * La ruta es la misma que usa el modal (`quick-create-member`): crea la
+   * PERSONA dentro de un bufete que ya existe y la deja en el catálogo, que es
+   * lo que hace que el próximo caso de ese bufete ya la encuentre. Si ya
+   * estaba —por correo o por nombre— la ruta devuelve el id que hay en vez de
+   * crear un gemelo, y se usa ese.
+   *
+   * El catálogo de abogados llega del server component y acá no se vuelve a
+   * pedir: el recién creado se suma a `nuevosAbogados` para que aparezca en la
+   * lista del resto de las filas sin recargar la página. En la próxima carga
+   * entra por el camino normal y `catalogoAbogados` lo deduplica por id.
+   */
+  async function altaAbogado(nombre: string, parentFirmId: string) {
+    // El PRIMER token es el nombre y el resto el apellido — mismo criterio que
+    // el modal, para que las dos puertas carguen igual.
+    const partes = nombre.trim().split(/\s+/);
+    try {
+      const res  = await fetch('/api/admin/lawyers/quick-create-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentFirmId,
+          firstName: partes[0] ?? '',
+          lastName: partes.slice(1).join(' '),
+          memberRole: 'ATTORNEY',
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      // Ya existía: se usa al que hay en vez de dejar a Edson sin salida.
+      if (!res.ok && json?.lawyerId) {
+        const yaEstaba = { id: json.lawyerId as string, name: (json.params?.name as string) ?? nombre.trim() };
+        setNuevosAbogados(prev => [...prev, yaEstaba]);
+        return yaEstaba;
+      }
+      if (!res.ok) { setError(t('saveFailed')); return null; }
+
+      const l = json.lawyer as { id: string; firstName: string | null; lastName: string | null };
+      const alta = { id: l.id, name: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() };
+      setNuevosAbogados(prev => [...prev, alta]);
+      return alta;
+    } catch {
+      setError(t('saveFailed'));
+      return null;
+    }
+  }
+
+  /**
+   * Alta de un bufete desde la celda, para los casos que no tienen ninguno.
+   *
+   * Eran 86 en la cola el 2026-10-01, y sin bufete el alta de abogado no se
+   * puede ni ofrecer: la persona se crea DENTRO de un bufete. El catálogo tiene
+   * 26, así que elegir de la lista tampoco alcanzaba.
+   *
+   * Si el nombre ya existe la ruta devuelve ese —sin distinguir mayúsculas— y
+   * responde 200 con `existed`. Para la celda es el mismo caso feliz: lo que
+   * Edson pidió es que el caso quede en ese bufete, y queda.
+   */
+  async function altaBufete(nombre: string) {
+    try {
+      const res  = await fetch('/api/admin/lawyers/quick-create-firm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firmName: nombre.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(t('saveFailed')); return null; }
+
+      const f = json.firm as { id: string; firmName: string | null };
+      const alta = { id: f.id, name: f.firmName ?? nombre.trim() };
+      setNuevosBufetes(prev => [...prev, alta]);
+      return alta;
+    } catch {
+      setError(t('saveFailed'));
+      return null;
     }
   }
 
@@ -1322,20 +1421,93 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, chiroOption
                           <div className="relative flex items-center gap-1.5 w-full max-w-[170px]">
                             <span className="flex-1 min-w-0">
                             <Vistazo texto={row.attorneyName ?? row.firmName} titulo={t('colAttorney')}>
+                            {/*
+                              * La celda tiene DOS modos, y cuál corre lo decide
+                              * el caso: si ya tiene bufete, se edita el ABOGADO;
+                              * si no, lo primero que falta es el BUFETE.
+                              *
+                              * No es un rodeo, es el modelo: la persona vive
+                              * dentro de un bufete (`parentFirmId`), así que sin
+                              * bufete no hay dónde darla de alta. Y la columna
+                              * ya mostraba las dos cosas —`attorneyName ??
+                              * firmName`—, así que el segundo modo edita lo que
+                              * esa celda venía mostrando y no un dato nuevo.
+                              *
+                              * Medido el 2026-10-01 sobre la cola de Edson: 103
+                              * casos con bufete y sin abogado, y 86 sin bufete.
+                              * Con un solo modo, los 86 quedaban afuera.
+                              */}
+                            {row.lawFirmId ? (
                             <InlineCombo
                               ancho="max-w-full"
                               value={row.attorneyName ?? row.firmName}
-                              options={lawyers}
+                              options={catalogoAbogados}
                               readOnly={archived}
                               title={t('editAttorney')}
                               emptyHint={t('attorneyFreeText')}
+                              /*
+                                * Dar de alta al abogado SIN salir de la celda.
+                                *
+                                * Es el pedido de Edson tal cual lo dijo: "I
+                                * can't add an attorney". La salida ya existía
+                                * —la ruta `quick-create-member` y su botón—
+                                * pero solo dentro del modal, y encima detrás
+                                * de "ver el caso entero". Edson trabaja en la
+                                * grilla y entra por el badge de encargados,
+                                * así que nunca la vio. La función es la misma;
+                                * lo que cambia es dónde está.
+                                */
+                              alCrear={archived ? undefined : {
+                                etiqueta: (q: string) => t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
+                                crear: (q: string) => altaAbogado(q, row.lawFirmId as string),
+                              }}
                               onSave={next => saveTo(
                                 `/api/admin/cases/${row.caseId}/update-legal-insurance`,
                                 row.caseId,
-                                { attorneyName: next.id ? (lawyers.find(l => l.id === next.id)?.name ?? null) : next.text },
+                                { attorneyName: next.id ? (catalogoAbogados.find(l => l.id === next.id)?.name ?? null) : next.text },
                                 { attorneyId: next.id, attorneyNameRaw: next.text },
                               )}
                             />
+                            ) : (
+                            <InlineCombo
+                              ancho="max-w-full"
+                              value={null}
+                              options={catalogoBufetes}
+                              readOnly={archived}
+                              title={t('fieldFirm')}
+                              emptyHint={t('fieldFirmPlaceholder')}
+                              alCrear={archived ? undefined : {
+                                etiqueta: (q: string) => t('firmAddNew', { nombre: q }),
+                                crear: altaBufete,
+                              }}
+                              /*
+                                * Acá NO hay texto libre que valga: el bufete es
+                                * un vínculo (`lawFirmId`) y escribirlo suelto no
+                                * tiene dónde guardarse. Por eso se manda `id` y
+                                * nada más — si Edson escribe un nombre que no
+                                * está, el camino es el botón de alta, que lo
+                                * deja en el catálogo y sirve para los otros
+                                * casos del mismo bufete.
+                                *
+                                * Un `id` nulo limpia el bufete, que es como se
+                                * deshace un error — pero SOLO con el campo
+                                * vacío. Con texto escrito que no coincide, se
+                                * devuelve `false`: el panel queda abierto con
+                                * el botón de alta a la vista. Guardar ahí un
+                                * `lawFirmId: null` habría borrado el bufete
+                                * justo cuando Edson estaba tratando de ponerlo.
+                                */
+                              onSave={next => next.text ? Promise.resolve(false) : saveTo(
+                                `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                row.caseId,
+                                {
+                                  lawFirmId: next.id,
+                                  firmName: next.id ? (catalogoBufetes.find(f => f.id === next.id)?.name ?? null) : null,
+                                },
+                                { lawFirmId: next.id },
+                              )}
+                            />
+                            )}
                             </Vistazo>
                             </span>
                             <button
@@ -1802,6 +1974,23 @@ function PipChip({ row, readOnly, onCycle }: { row: Row; readOnly: boolean; onCy
  * una celda entra sin escaparlo a mano y los saltos de linea se respetan.
  */
 const CABE_SIN_CORTAR = 46;
+
+/**
+ * Catálogo del server + lo dado de alta en esta sesión, sin repetidos por id.
+ *
+ * El `id` repetido no es hipotético: las rutas de alta rápida devuelven la fila
+ * que YA existía cuando el nombre coincide, así que el mismo bufete puede
+ * entrar dos veces si Edson lo escribe en dos filas distintas. Dos opciones con
+ * la misma key rompen la lista del combo.
+ */
+function fundir(
+  delServer: { id: string; name: string }[],
+  nuevos: { id: string; name: string }[],
+): { id: string; name: string }[] {
+  const porId = new Map(delServer.map(o => [o.id, o]));
+  for (const o of nuevos) if (!porId.has(o.id)) porId.set(o.id, o);
+  return [...porId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function Vistazo({ texto, titulo, children }: {
   texto: string | null | undefined;

@@ -139,16 +139,21 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-    // 2 — Queda registrado el intento, sea bueno o malo. Sin await: el
-    //     contador no puede demorar la entrada de nadie.
-    void fetch('/api/auth/lockout', {
+    // 2 — Queda registrado el intento
+    // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
+    // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
+    // un viaje de más solo cuando la contraseña estuvo mal.
+    const marca = fetch('/api/auth/lockout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, success: !authError }),
     });
+    if (!authError) { void marca; }
 
     if (authError) {
-      setError(t.invalidCredentials);
+      const r = await marca.then(x => x.json()).catch(() => ({})) as
+        { restantes?: number; locked?: boolean };
+      setError(r.locked ? t.accountLocked : r.restantes === 1 ? t.lastAttempt : t.invalidCredentials);
       setLoading(false);
       return;
     }

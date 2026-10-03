@@ -96,7 +96,8 @@
       "errNetwork": "No se pudo conectar. Revisá tu conexión.",
       "errNetworkShort": "No se pudo conectar.",
       "errMfaStart": "No se pudo iniciar la verificación en dos pasos.",
-      "errMfaInvalid": "El código no es válido. Probá de nuevo."
+      "errMfaInvalid": "El código no es válido. Probá de nuevo.",
+      "lastAttempt": "Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana."
     },
     "noAccess": {
       "title": "Sin acceso",

@@ -982,7 +982,11 @@
     },
     "editUser": "Editar usuario",
     "saveChanges": "Guardar cambios",
-    "deleteUser": "Eliminar usuario"
+    "deleteUser": "Eliminar usuario",
+    "locked": "Bloqueada",
+    "unlock": "Desbloquear",
+    "unlockHint": "Levanta el candado de 3 intentos fallidos. Queda registrado quién lo hizo.",
+    "unlockDone": "Cuenta desbloqueada"
   },
   "payments": {
     "title": "Pagos de Salarios",

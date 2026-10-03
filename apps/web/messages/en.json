@@ -982,7 +982,11 @@
     },
     "editUser": "Edit user",
     "saveChanges": "Save changes",
-    "deleteUser": "Delete user"
+    "deleteUser": "Delete user",
+    "locked": "Locked",
+    "unlock": "Unlock",
+    "unlockHint": "Lifts the lock from 3 failed attempts. It is recorded who did it.",
+    "unlockDone": "Account unlocked"
   },
   "payments": {
     "title": "Salary Payments",

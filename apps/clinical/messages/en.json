@@ -34,7 +34,8 @@
       "errNetwork": "Connection error. Please check your network.",
       "errMfaChallenge": "Could not start the MFA challenge.",
       "errInvalidCode": "Invalid code. Please try again.",
-      "errConnection": "Connection error."
+      "errConnection": "Connection error.",
+      "lastAttempt": "⚠️ Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "errors": {
       "noAccess": "No access",

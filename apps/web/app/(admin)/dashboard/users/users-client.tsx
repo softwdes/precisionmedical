@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2, Eye, KeyRound, Mail, ShieldCheck, Check, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, KeyRound, Mail, ShieldCheck, Check, Loader2, LockOpen } from 'lucide-react';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { toast } from 'sonner';
 import { RolesTab } from './roles-tab';
@@ -26,6 +26,53 @@ import type { AppRouter } from '@precision-medical/api';
 
 type UsersListOutput = inferRouterOutputs<AppRouter>['users']['list'];
 type UserRow = UsersListOutput['users'][number];
+
+/**
+ * La cuenta trabada, con su salida.
+ *
+ * Desde el 2026-10-03 son 3 contraseñas erradas y la cuenta queda cerrada hasta
+ * la medianoche — en las CINCO apps, porque el contador es uno solo. Hasta que
+ * existió este botón no había forma de levantarlo: alguien que se trababa a las
+ * 8 de la mañana perdía el día entero.
+ *
+ * Solo aparece si la cuenta está trabada AHORA. Un botón de "desbloquear"
+ * permanente sobre cuentas sanas sería ruido en una tabla que ya tiene cinco
+ * acciones por fila.
+ */
+function CandadoCuenta({ user, onDesbloqueado }: { user: UserRow; onDesbloqueado: () => void }) {
+  const t = useTranslations();
+  const [soltando, setSoltando] = useState(false);
+  const hasta = (user as { lockedUntil?: string | null }).lockedUntil;
+  if (!hasta || new Date(hasta) <= new Date()) return null;
+
+  const desbloquear = async (): Promise<void> => {
+    setSoltando(true);
+    try {
+      const res = await fetch(`/api/users/${user.id}/unlock`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? 'Error');
+      toast.success(t('users.unlockDone'));
+      onDesbloqueado();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error');
+    } finally { setSoltando(false); }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <Badge variant="destructive">{t('users.locked')}</Badge>
+      <button
+        type="button"
+        onClick={() => void desbloquear()}
+        disabled={soltando}
+        title={t('users.unlockHint')}
+        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-tiny text-text-3 hover:text-text-1 hover:bg-surface disabled:opacity-50"
+      >
+        {soltando ? <Loader2 className="h-3 w-3 animate-spin" /> : <LockOpen className="h-3 w-3" />}
+        {t('users.unlock')}
+      </button>
+    </div>
+  );
+}
 
 type NotificationData = {
   initials: string;
@@ -426,6 +473,7 @@ export function UsersClient({
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                           <RoleBadge dbRole={user.role as string} />
                           <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status as keyof typeof STATUS_LABELS] ?? user.status}</Badge>
+                          <CandadoCuenta user={user} onDesbloqueado={() => void refetch()} />
                         </div>
                         <p className="text-[10px] text-text-muted mt-1">
                           {ROLE_META[dbRoleToRole(user.role as string)].accesos}
@@ -490,6 +538,7 @@ export function UsersClient({
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status as keyof typeof STATUS_LABELS] ?? user.status}</Badge>
+                          <CandadoCuenta user={user} onDesbloqueado={() => void refetch()} />
                         </TableCell>
                         <TableCell className="text-text-3 text-small">
                           {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES') : '—'}

@@ -96,7 +96,8 @@
       "errNetwork": "Connection error. Please check your network.",
       "errNetworkShort": "Connection error.",
       "errMfaStart": "Could not start the MFA challenge.",
-      "errMfaInvalid": "Invalid code. Please try again."
+      "errMfaInvalid": "Invalid code. Please try again.",
+      "lastAttempt": "Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "noAccess": {
       "title": "No access",

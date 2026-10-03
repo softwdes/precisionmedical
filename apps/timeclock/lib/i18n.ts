@@ -14,6 +14,7 @@ interface Dict {
   sessionExpired: string;
   invalidCredentials: string;
   accountLocked: string;
+  lastAttempt: string;
   signingIn: string;
   signIn: string;
   systemOnline: string;
@@ -164,6 +165,7 @@ const dict: Record<Locale, Dict> = {
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     invalidCredentials: 'Email o contraseña incorrectos',
     accountLocked: 'Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar mañana.',
+    lastAttempt: 'Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana.',
     signingIn: 'Ingresando...',
     signIn: 'Ingresar',
     systemOnline: 'Sistema operativo',
@@ -305,6 +307,7 @@ const dict: Record<Locale, Dict> = {
     sessionExpired: 'Your session expired. Sign in again.',
     invalidCredentials: 'Incorrect email or password',
     accountLocked: 'Account locked after 3 failed attempts. You can sign in again tomorrow.',
+    lastAttempt: 'Incorrect password. You have 1 attempt left before the account locks until tomorrow.',
     signingIn: 'Signing in...',
     signIn: 'Sign in',
     systemOnline: 'System online',

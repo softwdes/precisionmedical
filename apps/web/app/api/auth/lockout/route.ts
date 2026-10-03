@@ -45,8 +45,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!body.email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
   const ip = ipDelPedido(req);
-  if (body.success) await recordSuccessfulLogin(body.email, ip);
-  else await recordFailedAttempt(body.email, ip);
+  if (body.success) {
+    await recordSuccessfulLogin(body.email, ip);
+    return NextResponse.json({ ok: true });
+  }
 
-  return NextResponse.json({ ok: true });
+  // El resultado vuelve a la pantalla para que pueda AVISAR cuántos intentos
+  // quedan. Antes era un `{ ok: true }` mudo y por eso nadie se enteraba de
+  // que iba por el segundo de tres.
+  return NextResponse.json({ ok: true, ...(await recordFailedAttempt(body.email, ip)) });
 }

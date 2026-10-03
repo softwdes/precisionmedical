@@ -241,9 +241,43 @@ export async function checkLockout(email: string): Promise<LockoutStatus> {
   return { locked: false };
 }
 
-export async function recordFailedAttempt(email: string, ipAddress?: string): Promise<void> {
+/**
+ * El resultado de un intento fallido, para que la pantalla pueda AVISAR.
+ *
+ * Existe porque el candado sorprendía: todas las pantallas decían "contraseña
+ * incorrecta" y ninguna decía cuántos intentos quedaban. Erick lo vivió el
+ * 2026-10-03 probándolo — llegó a 2 de 3 sin enterarse, y el tercero le costaba
+ * el día entero.
+ *
+ * Y el contador es UNO para las cinco apps, así que el que gasta dos intentos
+ * en el reloj a la mañana puede quedarse afuera en el back-office a la tarde
+ * sin haber visto nunca un aviso.
+ */
+export interface ResultadoIntento {
+  /** Cuántos lleva acumulados. */
+  intentos: number;
+  /** Cuántos le quedan antes de que se cierre. 0 = ya se cerró. */
+  restantes: number;
+  locked: boolean;
+  lockedUntil?: Date;
+}
+
+/**
+ * ⚠️ Esto revela si un correo existe.
+ *
+ * A una cuenta real le contesta "te queda 1 intento"; a un correo inventado, el
+ * resultado neutro de abajo. Quien pruebe correos puede distinguirlos.
+ *
+ * Se acepta a sabiendas: son ~30 cuentas de personal conocido, el mensaje de
+ * "cuenta bloqueada" ya revelaba lo mismo desde antes, y la alternativa —que la
+ * gente se quede afuera un día sin aviso— es peor para una clínica. Si algún
+ * día esto se abre a pacientes, hay que volver sobre esta decisión.
+ */
+const NEUTRO: ResultadoIntento = { intentos: 0, restantes: MAX_ATTEMPTS, locked: false };
+
+export async function recordFailedAttempt(email: string, ipAddress?: string): Promise<ResultadoIntento> {
   const user = await buscarUsuario(email);
-  if (!user) return; // Correo desconocido — no se delata si existe o no.
+  if (!user) return NEUTRO; // Correo desconocido — no se delata si existe o no.
 
   const cuenta = (user.failedLoginAttempts ?? 0) + 1;
   const cerrar = cuenta >= MAX_ATTEMPTS;
@@ -269,6 +303,50 @@ export async function recordFailedAttempt(email: string, ipAddress?: string): Pr
       ...(cerrar && { lockedUntil: lockedUntil?.toISOString() }),
     },
   });
+
+  return {
+    intentos:  cuenta,
+    restantes: Math.max(0, MAX_ATTEMPTS - cuenta),
+    locked:    cerrar,
+    ...(cerrar && lockedUntil ? { lockedUntil } : {}),
+  };
+}
+
+/**
+ * Desbloquear a mano. Lo usa un administrador desde la ficha del usuario.
+ *
+ * Es la pieza que faltaba para que la política sea operable. Hasta hoy la única
+ * salida de un candado era esperar a la medianoche o acertar la contraseña —
+ * imposible si justamente no te la acordás—, así que alguien que se trababa a
+ * las 8 de la mañana perdía el día entero.
+ *
+ * Queda asentado QUIÉN desbloqueó a quién: por eso pide el id del que ejecuta
+ * la acción y no se puede llamar sin él.
+ */
+export async function unlockAccount(
+  email: string,
+  actorUserId: string,
+  ipAddress?: string,
+): Promise<boolean> {
+  const user = await buscarUsuario(email);
+  if (!user) return false;
+
+  await actualizarUsuario(user.id, {
+    failedLoginAttempts: 0,
+    lockedUntil:         null,
+    lastFailedAttemptAt: null,
+  });
+
+  await auditar({
+    actorUserId,
+    action:     'ACCOUNT_UNLOCKED',
+    entityType: 'user',
+    entityId:   user.id,
+    ipAddress,
+    metadata: { email, intentosPrevios: user.failedLoginAttempts ?? 0, estabaBloqueadoHasta: user.lockedUntil },
+  });
+
+  return true;
 }
 
 /**

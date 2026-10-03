@@ -122,7 +122,7 @@ export const usersRouter = router({
 
       let query = supabaseAdmin
         .from('users')
-        .select('id, email, firstName, lastName, avatarUrl, role, status, phone, lastLoginAt, createdAt, clinicModules', { count: 'exact' })
+        .select('id, email, firstName, lastName, avatarUrl, role, status, phone, lastLoginAt, createdAt, clinicModules, lockedUntil', { count: 'exact' })
         .is('deletedAt', null)
         .range(from, to)
         .order('createdAt', { ascending: false });
@@ -148,7 +148,7 @@ export const usersRouter = router({
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
         .from('users')
-        .select('id, email, firstName, lastName, avatarUrl, phone, role, status, preferredLocale, preferredTheme, mfaEnabled, lastLoginAt, lastLoginIp, createdAt, updatedAt')
+        .select('id, email, firstName, lastName, avatarUrl, phone, role, status, preferredLocale, preferredTheme, mfaEnabled, lastLoginAt, lastLoginIp, createdAt, updatedAt, lockedUntil')
         .eq('id', input.id)
         .single();
 

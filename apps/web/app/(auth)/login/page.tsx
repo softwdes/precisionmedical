@@ -104,15 +104,26 @@ export default function LoginPage(): React.ReactElement {
 
       const {error:ae}=await createBrowserClient().auth.signInWithPassword({email,password});
 
-      // 2 — Queda registrado el intento, bueno o malo. Sin await: el contador
-      //     no puede demorar la entrada de nadie.
-      void fetch('/api/auth/lockout', {
+      // 2 — Queda registrado el intento
+      // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
+      // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
+      // un viaje de más solo cuando la contraseña estuvo mal.
+      const marca = fetch('/api/auth/lockout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email, success: !ae }),
       });
+      if (!ae) { void marca; }
 
-      if (ae){setError('Invalid credentials. Please try again.');return;}
+      if (ae) {
+        const r = await marca.then(x => x.json()).catch(() => ({})) as
+          { restantes?: number; locked?: boolean };
+        setError(
+          r.locked      ? 'Account locked after 3 failed attempts. You can sign in again tomorrow.'
+          : r.restantes === 1 ? 'Incorrect password. You have 1 attempt left before the account locks until tomorrow.'
+          :                     'Invalid credentials. Please try again.');
+        return;
+      }
       rememberMe?localStorage.setItem('pm_remember_me','true'):localStorage.removeItem('pm_remember_me');
       // Reset el contador del SessionGuard de 12h. Sin esto un timestamp
       // viejo de una sesion expulsada externamente (cookie/JWT vencido)

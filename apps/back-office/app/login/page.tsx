@@ -158,15 +158,22 @@ export default function LoginPage(): React.ReactElement {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-      // 3 — Record attempt (fire-and-forget — don't block UX)
-      void fetch('/api/auth/lockout', {
+      // 3 — Queda registrado el intento
+      // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
+      // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
+      // un viaje de más solo cuando la contraseña estuvo mal.
+      const marca = fetch('/api/auth/lockout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email, success: !authError }),
       });
+      if (!authError) { void marca; }
 
       if (authError) {
-        setError('Incorrect email or password.');
+        const r = await marca.then(x => x.json()).catch(() => ({})) as
+          { restantes?: number; locked?: boolean; lockedUntil?: string };
+        if (r.locked && r.lockedUntil) { setLockedUntil(new Date(r.lockedUntil)); return; }
+        setError(r.restantes === 1 ? tm('loginLastAttempt') : 'Incorrect email or password.');
         return;
       }
 

@@ -37,7 +37,8 @@
       "loginForgot": "¿Olvidaste tu contraseña?",
       "loginSystemsOk": "Todos los sistemas operativos",
       "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email...",
-      "errLoadHistory": "No se pudo cargar el historial médico."
+      "errLoadHistory": "No se pudo cargar el historial médico.",
+      "loginLastAttempt": "Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana."
     },
     "precall": {
       "phFirstName": "María",

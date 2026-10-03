@@ -37,7 +37,8 @@
       "loginForgot": "Forgot your password?",
       "loginSystemsOk": "All systems operational",
       "attorneyConfirmedHint": "Confirmed they represent the case · replied by email…",
-      "errLoadHistory": "The medical history could not be loaded."
+      "errLoadHistory": "The medical history could not be loaded.",
+      "loginLastAttempt": "Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "precall": {
       "phFirstName": "Maria",

@@ -9,7 +9,7 @@
  * plata, solo las formatea.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Coins, RefreshCw, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
 import { Button, cn } from '@precision/ui';
@@ -76,12 +76,19 @@ export function MisPremiosClient(): React.ReactElement {
   const [actualizado, setActualizado] = useState<number | null>(null);
   const [refrescando, setRefrescando] = useState(false);
   const [ahora, setAhora] = useState(() => Date.now());
+  // Un pedido a la vez, y cuándo salió el último: el evento de "volví a la pestaña"
+  // puede dispararse muchas veces seguidas, y sin esto cada uno era un pedido más.
+  const enCurso = useRef(false);
+  const ultimo = useRef(0);
 
   /**
    * `enVivo`: la recarga de fondo. Si falla, se queda lo que ya se ve —un corte
    * de red no tiene que borrar la pantalla—; el próximo intento lo resuelve.
    */
   const cargar = useCallback(async (enVivo = false) => {
+    if (enCurso.current) return;
+    enCurso.current = true;
+    ultimo.current = Date.now();
     if (enVivo) setRefrescando(true);
     try {
       const res = await fetch('/api/premios/mio', { cache: 'no-store' });
@@ -92,6 +99,7 @@ export function MisPremiosClient(): React.ReactElement {
     } catch {
       if (!enVivo) setEstado({ tipo: 'error' });
     } finally {
+      enCurso.current = false;
       if (enVivo) setRefrescando(false);
     }
   }, []);
@@ -104,7 +112,11 @@ export function MisPremiosClient(): React.ReactElement {
     const visible = () => document.visibilityState === 'visible';
     const tic = setInterval(() => { setAhora(Date.now()); if (visible()) void cargar(true); }, REFRESCO_MS);
     const reloj = setInterval(() => setAhora(Date.now()), 30_000);
-    const alVolver = () => { if (visible()) { setAhora(Date.now()); void cargar(true); } };
+    const alVolver = () => {
+      if (!visible()) return;
+      setAhora(Date.now());
+      if (Date.now() - ultimo.current > 60_000) void cargar(true);
+    };
     document.addEventListener('visibilitychange', alVolver);
     return () => { clearInterval(tic); clearInterval(reloj); document.removeEventListener('visibilitychange', alVolver); };
   }, [cargar]);

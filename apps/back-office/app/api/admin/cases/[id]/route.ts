@@ -57,6 +57,17 @@ const PatchSchema = z.object({
   signatureExempt:  z.boolean().optional(),
   lawFirmId:        z.string().nullable().optional(),
   attorneyId:       z.string().nullable().optional(),
+  /**
+   * Abogado escrito a mano, para cuando no está en el catálogo del bufete.
+   *
+   * Faltaba, y el síntoma era mudo: zod sin `.strict()` DESCARTA las claves que
+   * no declara, así que el modal mandaba el nombre, la ruta respondía 200 y el
+   * dato no se guardaba nunca. Nada fallaba — ni la pantalla, ni el log.
+   * La ruta hermana (`update-legal-insurance`, la que usa la grilla) sí lo
+   * acepta desde siempre, así que el mismo campo andaba por una puerta y por la
+   * otra no.
+   */
+  attorneyNameRaw:  z.string().max(200).nullable().optional(),
   paralegalId:      z.string().nullable().optional(),
   legalAssistantId: z.string().nullable().optional(),
   specialtyId:      z.string().nullable().optional(),
@@ -85,6 +96,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
 
   const { accidentDate, chiropractor, lawFirmLabel, consents, legalAssistantId, ...rest } = parsed.data;
   const data: Record<string, unknown> = { ...rest };
+
+  /*
+   * Elegir del catálogo BORRA el texto libre, igual que en
+   * `update-legal-insurance`. Son excluyentes: la grilla lee
+   * `COALESCE(nombre del catálogo, attorneyNameRaw)`, así que dejar el viejo
+   * no se ve —lo tapa el del catálogo— pero queda un nombre contradictorio
+   * guardado en el caso esperando a que alguien saque el vínculo.
+   */
+  if (rest.attorneyId) data.attorneyNameRaw = null;
 
   /**
    * El asistente legal ya NO es una columna: viven en `case_legal_assistants`,

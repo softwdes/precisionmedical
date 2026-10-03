@@ -2456,6 +2456,26 @@ function TrackingDialog({
     return () => { cancelled = true; };
   }, [lawFirm?.id]);
 
+  /**
+   * Lo que cambió del bloque Legal, listo para `PATCH /cases/:id`.
+   *
+   * Está afuera de `save()` porque lo usan sus DOS salidas —la acotada y la
+   * completa— y tenerlo escrito una sola vez es lo que evita que vuelvan a
+   * divergir, que es exactamente como nació el bug de arriba.
+   */
+  function patchLegal(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    if ((row.lawFirmId ?? null) !== (lawFirm?.id ?? null)) p.lawFirmId = lawFirm?.id ?? null;
+    if ((row.attorneyId ?? null) !== (attorney?.id ?? null)) p.attorneyId = attorney?.id ?? null;
+    // Solo viaja si NO hay uno del catalogo: la ruta le da prioridad al id y
+    // mandar los dos deja el nombre suelto en un campo que ella misma borra.
+    const rawOriginal = row.attorneyId ? '' : (row.attorneyName ?? '');
+    if (!attorney && rawOriginal !== attorneyRaw) {
+      p.attorneyNameRaw = attorneyRaw.trim() || null;
+    }
+    return p;
+  }
+
   async function save() {
     setSaving(true); setError('');
     try {
@@ -2477,8 +2497,37 @@ function TrackingDialog({
        * Si siguiera de largo, mandaria el seguro, la fecha de perdida y el PIP
        * con los valores que cargo el estado al abrir — pisando en silencio
        * cualquier cambio que se haya hecho desde la grilla mientras tanto.
+       *
+       * ── Legal es la EXCEPCION, y cuesta una rotura entenderlo ────────────
+       *
+       * Encargados y adjusters se guardan solos: sus secciones tienen `flush()`
+       * y para cuando se llega aca ya escribieron. Por eso salir sin mandar
+       * nada era correcto.
+       *
+       * El bloque Legal NO tiene seccion propia: el bufete y el abogado son
+       * estado suelto que escribe el `casePatch` de mas abajo, o sea DESPUES
+       * de este return. Al sumar `focus === 'legal'` (2026-10-02) esa
+       * diferencia se me paso: Edson elegia el abogado, pulsaba "Guardar
+       * cambios" y no salia una sola llamada — lo reporto el mismo dia.
+       *
+       * Se manda el patch del caso y NADA mas: el seguro sigue sin viajar,
+       * que es justo lo que este corte protege.
        */
-      if (!expanded) { onSaved(); return; }
+      if (!expanded) {
+        if (focus === 'legal') {
+          const soloLegal = patchLegal();
+          if (Object.keys(soloLegal).length > 0) {
+            const r = await fetch(`/api/admin/cases/${row.caseId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(soloLegal),
+            });
+            if (!r.ok) { setError(t('errSave')); return; }
+          }
+        }
+        onSaved();
+        return;
+      }
 
       const r1 = await fetch(`/api/admin/cases/${row.caseId}/auto-insurance`, {
         method: 'PATCH',
@@ -2496,16 +2545,8 @@ function TrackingDialog({
       // El quiropractico, el bufete y el abogado viven en el caso, no en el
       // seguro — y se mandan en UN solo PATCH para no dejar el caso a medias si
       // la segunda llamada falla.
-      const casePatch: Record<string, unknown> = {};
+      const casePatch: Record<string, unknown> = { ...patchLegal() };
       if ((row.chiropractor ?? '') !== chiropractor) casePatch.chiropractor = chiropractor.trim() || null;
-      if ((row.lawFirmId ?? null) !== (lawFirm?.id ?? null)) casePatch.lawFirmId = lawFirm?.id ?? null;
-      if ((row.attorneyId ?? null) !== (attorney?.id ?? null)) casePatch.attorneyId = attorney?.id ?? null;
-      // Solo viaja si NO hay uno del catalogo: la ruta le da prioridad al id y
-      // mandar los dos deja el nombre suelto en un campo que ella misma borra.
-      const rawOriginal = row.attorneyId ? '' : (row.attorneyName ?? '');
-      if (!attorney && rawOriginal !== attorneyRaw) {
-        casePatch.attorneyNameRaw = attorneyRaw.trim() || null;
-      }
       if (Object.keys(casePatch).length > 0) {
         const r2 = await fetch(`/api/admin/cases/${row.caseId}`, {
           method: 'PATCH',

@@ -53,6 +53,32 @@ export function PrescriptionsClient({ isAdmin = false, puedeElegirDoctor = false
   // reusara la misma URL, React no vuelve a montarlo y la bandeja queda vieja.
   const [recarga, setRecarga] = React.useState(0);
 
+  /**
+   * Alto de la caja del widget, MEDIDO contra la ventana.
+   *
+   * `getBoundingClientRect().top` es relativo al viewport, así que
+   * `innerHeight - top` es exactamente el espacio que queda hasta abajo, sin
+   * que haga falta saber cuánto mide el encabezado ni que el shell lo exponga.
+   * Se vuelve a medir al cambiar el tamaño de la ventana.
+   *
+   * `null` hasta la primera medición: mientras tanto manda la clase `h-[70vh]`,
+   * que era el valor anterior. Así no hay un salto de caja vacía al montar.
+   */
+  const cajaRef = React.useRef<HTMLDivElement>(null);
+  const [alto, setAlto] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const medir = (): void => {
+      const top = cajaRef.current?.getBoundingClientRect().top;
+      if (top === undefined) return;
+      // 16px de aire abajo: pegar el marco al borde de la ventana se ve cortado.
+      setAlto(Math.max(420, Math.round(window.innerHeight - top - 16)));
+    };
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, []);
+
   React.useEffect(() => {
     let vigente = true;
     setEstado('loading');
@@ -115,9 +141,21 @@ export function PrescriptionsClient({ isAdmin = false, puedeElegirDoctor = false
         </button>
       </div>
 
-      {/* Alto fijo en viewport, no calculado contra el header: el shell no expone
-          su altura y un calc() adivinado deja franjas o scroll doble. */}
-      <div className="min-h-[70vh] h-[70vh] rounded-lg bg-bg-1 overflow-hidden flex flex-col">
+      {/* El alto se MIDE, no se adivina.
+          Antes era `70vh` fijo, con el motivo escrito: el shell no expone su
+          altura y un `calc()` con un número inventado deja franjas o scroll
+          doble. El motivo era bueno; la salida, corta — con la bandeja real
+          entraban DOS filas y abajo quedaba media pantalla vacía (Erick,
+          2026-10-02).
+          Medir el borde superior de esta caja y restarlo de la ventana no
+          adivina nada: no depende de cuánto mida el encabezado, ni de que el
+          shell lo exponga, y se reacomoda al cambiar el tamaño. El piso de
+          420 px es para que en un teléfono no colapse. */}
+      <div
+        ref={cajaRef}
+        style={alto ? { height: alto } : undefined}
+        className="min-h-[420px] h-[70vh] rounded-lg bg-bg-1 overflow-hidden flex flex-col"
+      >
         {estado === 'loading' && (
           <div className="flex-1 flex items-center justify-center gap-2 text-text-muted text-[12.5px]">
             <Loader2 className="w-4 h-4 animate-spin" />

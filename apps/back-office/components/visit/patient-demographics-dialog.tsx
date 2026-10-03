@@ -59,13 +59,19 @@ interface Props {
   appointmentId: string;
   /** Lo que reportó el 422 — se resalta en el formulario. */
   faltantes: CampoFaltante[];
+  /**
+   * Por qué se abrió. `muy-larga` NO es un campo que falte: la calle está
+   * cargada pero ScriptSure no la acepta porque pasa de 35 caracteres. Decir
+   * "falta la dirección" en ese caso manda a buscar algo que ya está.
+   */
+  motivo?: 'faltan' | 'muy-larga';
   onCancel: () => void;
   /** Datos guardados: quien llama reintenta el widget que se había trabado. */
   onSaved: () => void;
 }
 
 export function PatientDemographicsDialog({
-  open, appointmentId, faltantes, onCancel, onSaved,
+  open, appointmentId, faltantes, motivo = 'faltan', onCancel, onSaved,
 }: Props): React.ReactElement | null {
   const t = useTranslations('phoenix.doctor');
   const [datos, setDatos] = React.useState<Datos>(VACIO);
@@ -157,7 +163,9 @@ export function PatientDemographicsDialog({
         </DialogHeader>
 
         <div className="px-5 py-4 overflow-y-auto space-y-3">
-          <p className="text-[12.5px] text-text-2 leading-relaxed">{t('demogHint')}</p>
+          <p className="text-[12.5px] text-text-2 leading-relaxed">
+            {t(motivo === 'muy-larga' ? 'demogHintLarga' : 'demogHint')}
+          </p>
 
           {/* A quién se le está editando. Va arriba de los campos a propósito:
               es la confirmación de que esto no le escribe a otra ficha. */}

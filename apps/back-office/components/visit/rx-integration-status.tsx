@@ -155,6 +155,7 @@ export function RxIntegrationStatus({
   /** Widget que quedó esperando que se completen los datos del paciente (422). */
   const [demogPara, setDemogPara] = React.useState<WidgetKind | null>(null);
   const [faltantes, setFaltantes] = React.useState<CampoFaltante[]>([]);
+  const [motivoDemog, setMotivoDemog] = React.useState<'faltan' | 'muy-larga'>('faltan');
 
   const loadPrescriptions = React.useCallback(async () => {
     try {
@@ -208,6 +209,7 @@ export function RxIntegrationStatus({
          */
         setActive(null);
         setFaltantes((body?.missingFields ?? []) as CampoFaltante[]);
+        setMotivoDemog(body?.error === 'PATIENT_ADDRESS_TOO_LONG' ? 'muy-larga' : 'faltan');
         setDemogPara(widget);
         return;
       }
@@ -503,6 +505,7 @@ export function RxIntegrationStatus({
         open={!!demogPara}
         appointmentId={appointmentId}
         faltantes={faltantes}
+        motivo={motivoDemog}
         onCancel={() => setDemogPara(null)}
         onSaved={() => {
           const widget = demogPara;

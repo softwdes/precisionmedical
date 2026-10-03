@@ -353,8 +353,51 @@ export interface ScriptSurePatientInput {
  * los campos que SÍ tenés, no los vuelve opcionales). Mucha data migrada del
  * v2 no tiene calle — ver [[scriptsure-daw-integration]].
  */
+/**
+ * Tope de la calle en producción. Lo dijo ScriptSure con todas las letras:
+ * `"Address line 1 cannot be greater than 35 characters"`. Acá había un 40
+ * —tomado de su documentación de staging— y por eso rebotaban recetas.
+ */
+const MAX_ADDRESS_LINE = 35;
+
+/**
+ * Abreviaturas postales, que es lo que su certificación MANDA hacer en vez de
+ * cortar. Solo palabras completas, para no destrozar un nombre propio: `STREET`
+ * se vuelve `ST`, pero `STREETER` queda intacto.
+ */
+const ABREVIATURAS: ReadonlyArray<[RegExp, string]> = [
+  [/\bNORTH\b/gi, 'N'], [/\bSOUTH\b/gi, 'S'], [/\bEAST\b/gi, 'E'], [/\bWEST\b/gi, 'W'],
+  [/\bNORTHEAST\b/gi, 'NE'], [/\bNORTHWEST\b/gi, 'NW'],
+  [/\bSOUTHEAST\b/gi, 'SE'], [/\bSOUTHWEST\b/gi, 'SW'],
+  [/\bSTREET\b/gi, 'ST'], [/\bAVENUE\b/gi, 'AVE'], [/\bBOULEVARD\b/gi, 'BLVD'],
+  [/\bDRIVE\b/gi, 'DR'], [/\bROAD\b/gi, 'RD'], [/\bLANE\b/gi, 'LN'],
+  [/\bCOURT\b/gi, 'CT'], [/\bPLACE\b/gi, 'PL'], [/\bCIRCLE\b/gi, 'CIR'],
+  [/\bPARKWAY\b/gi, 'PKWY'], [/\bHIGHWAY\b/gi, 'HWY'], [/\bTERRACE\b/gi, 'TER'],
+  [/\bAPARTMENT\b/gi, 'APT'], [/\bSUITE\b/gi, 'STE'], [/\bBUILDING\b/gi, 'BLDG'],
+];
+
+/**
+ * Abrevia y limpia ruido. **NO corta**: si no entra, no entra.
+ *
+ * Las dos limpiezas salieron de mirar las 10 calles reales que no entraban:
+ *  · `\s+` y no `\s{2,}`: una traía un **salto de línea** adentro
+ *    (`"80 E Loafer Dr\nWoodland Hills UT 84653"`), que se iba tal cual en el
+ *    JSON hacia la red de farmacias.
+ *  · la coma final: `"2230 N University Pkwy BLDG 5 Ste A,"` son 36 y entra
+ *    con solo sacarle la coma del final. Es puntuación suelta, no contenido.
+ */
+export function abreviarDireccion(linea: string): string {
+  let out = linea.replace(/\s+/g, ' ').trim();
+  for (const [re, abbr] of ABREVIATURAS) out = out.replace(re, abbr);
+  return out.replace(/\s{2,}/g, ' ').replace(/[,;.]+$/, '').trim();
+}
+
 export class ScriptSurePatientDataError extends Error {
-  constructor(public readonly missingFields: string[]) {
+  constructor(
+    public readonly missingFields: string[],
+    /** Código explícito cuando el campo no FALTA sino que no sirve como está. */
+    private readonly codigoExplicito?: 'PATIENT_ADDRESS_TOO_LONG',
+  ) {
     super(`Al paciente le faltan campos obligatorios para ScriptSure: ${missingFields.join(', ')}`);
     this.name = 'ScriptSurePatientDataError';
   }
@@ -365,7 +408,8 @@ export class ScriptSurePatientDataError extends Error {
    * cuando lo que falta es el teléfono es el mismo error que este arreglo vino
    * a corregir, una capa más abajo.
    */
-  get code(): 'PATIENT_MISSING_PHONE' | 'PATIENT_MISSING_ADDRESS' {
+  get code(): 'PATIENT_MISSING_PHONE' | 'PATIENT_MISSING_ADDRESS' | 'PATIENT_ADDRESS_TOO_LONG' {
+    if (this.codigoExplicito) return this.codigoExplicito;
     return this.missingFields.length === 1 && this.missingFields[0] === 'phone'
       ? 'PATIENT_MISSING_PHONE'
       : 'PATIENT_MISSING_ADDRESS';
@@ -403,6 +447,32 @@ async function createScriptSurePatient(
   if (!cell) missingFields.push('phone');
   if (missingFields.length > 0) throw new ScriptSurePatientDataError(missingFields);
 
+  /**
+   * La calle: ABREVIAR, nunca truncar.
+   *
+   * Acá había un `slice(0, 40)` silencioso, con dos cosas mal. El tope real de
+   * producción es **35** —lo dijo ella misma: `"Address line 1 cannot be greater
+   * than 35 characters"` (2026-10-02)— y, sobre todo, **truncar está prohibido
+   * por su certificación de SureScripts**: hay que abreviar preservando el
+   * sentido, "sin excepciones". Cortar a lo bruto convertía
+   * `"862 S Pheasant Run Dr, Orem, Utah 84058"` en una dirección inventada.
+   *
+   * Medido ese día: de 998 pacientes con calle cargada, **10** pasan de 35.
+   * Son pocos, pero a esos diez no se les puede recetar en absoluto. Y a varios
+   * los salva una sola abreviatura: `"1344 NORTH CANYON RD 3205 CHIPMAN HALL"`
+   * son 38 y con `NORTH → N` quedan 34.
+   *
+   * Si ni abreviando entra, **no se manda nada**: se devuelve como dato a
+   * corregir y la pantalla ofrece arreglarlo ahí mismo. Es lo correcto, porque
+   * los casos que sobran son calles que traen la ciudad y el ZIP metidos
+   * adentro —y contradiciendo a los campos de al lado—, y adivinar cuál de las
+   * dos direcciones es la buena no lo puede hacer el código.
+   */
+  const calle = abreviarDireccion(patient.addressLine1!);
+  if (calle.length > MAX_ADDRESS_LINE) {
+    throw new ScriptSurePatientDataError(['addressLine1'], 'PATIENT_ADDRESS_TOO_LONG');
+  }
+
   const payload: Record<string, unknown> = {
     preferredCommunicationId: 0,
     consent: true,
@@ -413,7 +483,7 @@ async function createScriptSurePatient(
     lastName: asciiName(patient.lastName),
     dob: patient.dob.toISOString().slice(0, 10),
     gender: (patient.sex && GENDER_MAP[patient.sex]) || 'U',
-    addressLine1: patient.addressLine1!.slice(0, 40),
+    addressLine1: calle,
     city: patient.addressCity,
     state: toStateCode(patient.addressState!),
     zip: patient.addressZip!.replace(/[^0-9]/g, '').slice(0, 9),

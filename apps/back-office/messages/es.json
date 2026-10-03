@@ -7320,7 +7320,10 @@
       "prevApprovedHint": "se paga con el bono del mes",
       "prevInReviewHint": "el Admin está revisando el mes; el monto puede ajustarse",
       "adjustmentsTitle": "Ajustes del Admin",
-      "managerExplainMixed": "50% por tus metas + 50% por el promedio de tu equipo"
+      "managerExplainMixed": "50% por tus metas + 50% por el promedio de tu equipo",
+      "updatedNow": "En vivo · actualizado recién",
+      "updatedAgo": "En vivo · actualizado hace {n} min",
+      "refresh": "Actualizar ahora"
     },
     "revision": {
       "allergiesLabel": "Alergias",

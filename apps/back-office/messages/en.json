@@ -7320,7 +7320,10 @@
       "prevApprovedHint": "paid with the monthly bonus",
       "prevInReviewHint": "the Admin is reviewing the month; the amount may be adjusted",
       "adjustmentsTitle": "Admin adjustments",
-      "managerExplainMixed": "50% from your goals + 50% from your team’s average"
+      "managerExplainMixed": "50% from your goals + 50% from your team’s average",
+      "updatedNow": "Live · just updated",
+      "updatedAgo": "Live · updated {n} min ago",
+      "refresh": "Refresh now"
     },
     "revision": {
       "allergiesLabel": "Allergies",

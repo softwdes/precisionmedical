@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Coins, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
+import { Coins, RefreshCw, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
 import { Button, cn } from '@precision/ui';
 import {
   METRICAS, USO_TOPE_DIARIO, columnasDeMetas, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
@@ -64,24 +64,51 @@ type Estado =
   | { tipo: 'fuera'; previous: Previous | null }
   | { tipo: 'listo'; data: Data };
 
+/** Cada cuánto se recalcula sola la pantalla abierta. */
+const REFRESCO_MS = 90_000;
+
 export function MisPremiosClient(): React.ReactElement {
   const t = useTranslations('phoenix.rewards');
   const locale = useLocale();
   const toast = useToast();
   const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' });
+  // En vivo (Erick, 2026-10-03): la pantalla se recalcula sola mientras está abierta.
+  const [actualizado, setActualizado] = useState<number | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
+  const [ahora, setAhora] = useState(() => Date.now());
 
-  const cargar = useCallback(async () => {
+  /**
+   * `enVivo`: la recarga de fondo. Si falla, se queda lo que ya se ve —un corte
+   * de red no tiene que borrar la pantalla—; el próximo intento lo resuelve.
+   */
+  const cargar = useCallback(async (enVivo = false) => {
+    if (enVivo) setRefrescando(true);
     try {
       const res = await fetch('/api/premios/mio', { cache: 'no-store' });
-      if (!res.ok) { setEstado({ tipo: 'error' }); return; }
+      if (!res.ok) { if (!enVivo) setEstado({ tipo: 'error' }); return; }
       const body = (await res.json()) as Data | { participating: false; previous: Previous | null };
       setEstado(body.participating ? { tipo: 'listo', data: body } : { tipo: 'fuera', previous: body.previous ?? null });
+      setActualizado(Date.now());
     } catch {
-      setEstado({ tipo: 'error' });
+      if (!enVivo) setEstado({ tipo: 'error' });
+    } finally {
+      if (enVivo) setRefrescando(false);
     }
   }, []);
 
   useEffect(() => { void cargar(); }, [cargar]);
+
+  // Cada 90 s con la pestaña a la vista, y al volver a ella si pasó más de un
+  // minuto. Con la pestaña escondida no se pide nada: nadie lo está mirando.
+  useEffect(() => {
+    const visible = () => document.visibilityState === 'visible';
+    const tic = setInterval(() => { setAhora(Date.now()); if (visible()) void cargar(true); }, REFRESCO_MS);
+    const reloj = setInterval(() => setAhora(Date.now()), 30_000);
+    const alVolver = () => { if (visible()) { setAhora(Date.now()); void cargar(true); } };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { clearInterval(tic); clearInterval(reloj); document.removeEventListener('visibilitychange', alVolver); };
+  }, [cargar]);
+  const haceMin = actualizado ? Math.max(0, Math.floor((ahora - actualizado) / 60_000)) : 0;
 
   const money = (cents: number) =>
     new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'es-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -173,6 +200,20 @@ export function MisPremiosClient(): React.ReactElement {
           </span>
         }
         subtitle={esManager ? `${mesTexto(d.month)} · ${mixto ? t('managerExplainMixed') : t('managerExplain')}` : mesTexto(d.month)}
+        action={abierto ? (
+          <button
+            type="button" onClick={() => void cargar(true)} disabled={refrescando}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-text-muted hover:text-text-1 hover:bg-bg-2 disabled:opacity-60"
+            aria-label={t('refresh')}
+          >
+            <span className="relative flex h-1.5 w-1.5" aria-hidden>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald opacity-60 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald" />
+            </span>
+            {haceMin === 0 ? t('updatedNow') : t('updatedAgo', { n: haceMin })}
+            <RefreshCw className={cn('w-3 h-3', refrescando && 'motion-safe:animate-spin')} />
+          </button>
+        ) : undefined}
       />
 
       {d.previous && <MesAnterior p={d.previous} />}

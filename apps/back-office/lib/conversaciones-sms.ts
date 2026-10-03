@@ -22,6 +22,24 @@
  *  · **cuenta conversaciones, no mensajes** — un paciente que manda cuatro
  *    seguidos (pasó el 30-sep) es UNA cosa pendiente, no cuatro.
  *
+ * ── Y el que no necesita respuesta ─────────────────────────────────────────
+ *
+ * Eso funciona para una pregunta y NO funciona para un "Ok". Medido el
+ * 2026-10-03: de 11 entrantes, 7 tienen 15 caracteres o menos, y de las 3
+ * conversaciones que esperaban respuesta dos eran "Yes" y "Ok". El mensaje que
+ * no necesita respuesta no es el caso raro, es la mayoría del tráfico.
+ *
+ * Sacarlo contestándole "ok" al paciente es pagar un SMS para apagar un
+ * indicador. Así que hay una tercera forma de cerrar, además de contestar:
+ * marcarlo resuelto (`resolvedAt` en el mensaje, Erick 2026-10-03).
+ *
+ * La propiedad que lo vuelve seguro —y que no es opcional— es que **un mensaje
+ * nuevo del paciente nace sin marca**, así que la conversación vuelve sola.
+ * Descartar cierra lo dicho HASTA ACÁ, no la conversación: lo peor que puede
+ * pasar con un descarte equivocado es que algo se vea tarde, nunca que se
+ * pierda. Sin eso, el botón sería un lugar donde esconder un "cancel my
+ * appointment for tomorrow".
+ *
  * ── Qué es una conversación ────────────────────────────────────────────────
  *
  * El paciente cuando se lo pudo reconocer, y el NÚMERO cuando no. Agrupar todo
@@ -50,7 +68,10 @@ export interface Conversacion {
   };
   /** Cuántos mensajes tiene la conversación, en los dos sentidos. */
   total: number;
-  /** La última palabra es del paciente: alguien tiene que contestar. */
+  /**
+   * Hay un entrante ABIERTO más nuevo que nuestra última respuesta: alguien
+   * tiene que ocuparse. Contestar lo cierra, y marcarlo resuelto también.
+   */
   pendiente: boolean;
   /**
    * Los pacientes que comparten ese número, cuando no se pudo elegir uno.
@@ -73,8 +94,12 @@ export interface Conversacion {
  */
 export async function contarPendientes(): Promise<number> {
   /**
-   * El truco: por cada conversación, el instante del último ENTRANTE y el del
-   * último SALIENTE. Si el entrante es más nuevo, nadie contestó.
+   * El truco: por cada conversación, el instante del último ENTRANTE ABIERTO y
+   * el del último SALIENTE. Si el entrante es más nuevo, nadie contestó.
+   *
+   * "Abierto" = sin `resolvedAt`. Un entrante marcado resuelto deja de contar,
+   * y como la marca va por MENSAJE, el siguiente que llegue vuelve a contar sin
+   * que haya que limpiar nada.
    *
    * `COALESCE` con una fecha mínima cubre la conversación que solo tiene
    * entrantes — ahí no hay saliente con el que comparar y sí está pendiente.
@@ -85,7 +110,7 @@ export async function contarPendientes(): Promise<number> {
         COALESCE("patientId", right(regexp_replace(
           CASE WHEN direction = 'INBOUND' THEN "fromAddress" ELSE "toAddress" END,
           '[^0-9]', '', 'g'), 10)) AS clave,
-        MAX(CASE WHEN direction = 'INBOUND'  THEN "createdAt" END) AS ultimo_entrante,
+        MAX(CASE WHEN direction = 'INBOUND' AND "resolvedAt" IS NULL THEN "createdAt" END) AS ultimo_entrante,
         MAX(CASE WHEN direction = 'OUTBOUND' THEN "createdAt" END) AS ultimo_saliente
       FROM message_logs
       WHERE channel = 'SMS'
@@ -138,20 +163,38 @@ export async function listarConversaciones(opts: {
     take: 4000,
     select: {
       direction: true, body: true, createdAt: true, readAt: true,
+      resolvedAt: true,
       fromAddress: true, toAddress: true, patientId: true,
       patient: { select: { firstName: true, lastName: true } },
     },
   });
 
   const porClave = new Map<string, Conversacion>();
+  /**
+   * Por conversación: ¿ya pasamos por un saliente?
+   *
+   * `filas` viene de la MÁS NUEVA, así que todo lo que se vea antes del primer
+   * saliente es posterior a nuestra última respuesta. Un entrante abierto ahí
+   * adentro es exactamente lo que el SQL de `contarPendientes` cuenta — y las
+   * dos definiciones tienen que coincidir, porque una pinta la lista y la otra
+   * el badge que está al lado. Si divergen, la pantalla se contradice sola.
+   */
+  const vistoSaliente = new Set<string>();
 
   for (const m of filas) {
     const deEntrada = m.direction === 'INBOUND';
     const numero = deEntrada ? m.fromAddress : m.toAddress;
     const clave = m.patientId ? `pac:${m.patientId}` : `tel:${phoneKey(numero) || numero}`;
 
+    const abierto = deEntrada && m.resolvedAt === null && !vistoSaliente.has(clave);
+    if (!deEntrada) vistoSaliente.add(clave);
+
     const ya = porClave.get(clave);
-    if (ya) { ya.total += 1; continue; }   // `filas` viene de la más nueva: la primera ES la última
+    if (ya) {
+      ya.total += 1;
+      if (abierto) ya.pendiente = true;
+      continue;
+    }
 
     porClave.set(clave, {
       clave,
@@ -165,8 +208,7 @@ export async function listarConversaciones(opts: {
         sinLeer: deEntrada && m.readAt === null,
       },
       total: 1,
-      // La última palabra es del paciente — ver el encabezado.
-      pendiente: deEntrada,
+      pendiente: abierto,
       candidatos: [],
     });
   }
@@ -221,6 +263,7 @@ export async function listarConversaciones(opts: {
 export async function mensajesDeConversacion(clave: string): Promise<Array<{
   id: string; direction: string; status: string; body: string;
   createdAt: string; sentByName: string | null; errorCode: number | null;
+  resolvedAt: string | null; resolvedByName: string | null;
 }>> {
   const esPaciente = clave.startsWith('pac:');
   const valor = clave.slice(4);
@@ -242,8 +285,13 @@ export async function mensajesDeConversacion(clave: string): Promise<Array<{
     select: {
       id: true, direction: true, status: true, body: true,
       createdAt: true, sentByName: true, errorCode: true,
+      resolvedAt: true, resolvedByName: true,
     },
   });
 
-  return filas.map((f) => ({ ...f, createdAt: f.createdAt.toISOString() }));
+  return filas.map((f) => ({
+    ...f,
+    createdAt: f.createdAt.toISOString(),
+    resolvedAt: f.resolvedAt?.toISOString() ?? null,
+  }));
 }

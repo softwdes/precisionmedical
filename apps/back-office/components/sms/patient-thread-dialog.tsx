@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from '@precision/ui';
-import { Send, AlertTriangle, Loader2, Smile, Eye } from 'lucide-react';
+import { Send, AlertTriangle, Loader2, Smile, Eye, Undo2 } from 'lucide-react';
 import { PersonAvatar, StatusPill, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 import { segmentosSms } from '@/lib/sms-segmentos';
@@ -48,6 +48,9 @@ interface Mensaje {
   createdAt: string;
   sentByName: string | null;
   errorCode: number | null;
+  /** Alguien decidio que no necesitaba respuesta. Solo en los ENTRANTES. */
+  resolvedAt: string | null;
+  resolvedByName: string | null;
 }
 
 /**
@@ -109,6 +112,33 @@ export function PatientThreadDialog({
       setError(t('assignError'));
     } finally {
       setAsignando(false);
+    }
+  };
+
+  /**
+   * Devolver la conversacion a *Por responder*.
+   *
+   * Es el deshacer que sobrevive a cerrar la pantalla: el de la lista vive en
+   * memoria y se pierde al salir, y sin este el unico camino de vuelta seria
+   * esperar a que el paciente escriba. Aparece solo cuando hay algo marcado.
+   */
+  const [reabriendo, setReabriendo] = useState(false);
+  const reabrir = async () => {
+    if (!patient || reabriendo) return;
+    setReabriendo(true);
+    try {
+      const res = await fetch('/api/admin/message-logs/conversaciones', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clave: patient.clave, abrir: true }),
+      });
+      if (!res.ok) { setError(t('resolveError')); return; }
+      await cargar(patient.clave);
+      onEnviado?.();         // la lista de atras y el badge
+    } catch {
+      setError(t('resolveError'));
+    } finally {
+      setReabriendo(false);
     }
   };
 
@@ -208,6 +238,14 @@ export function PatientThreadDialog({
     }
   };
 
+  /**
+   * El ULTIMO entrante es el que define el estado del hilo, igual que en la
+   * lista. Los viejos pueden estar marcados y no significan nada: lo que
+   * importa es si lo ultimo que dijo el paciente quedo cerrado o abierto.
+   */
+  const ultimoEntrante = [...mensajes].reverse().find((m) => m.direction === 'INBOUND');
+  const marcadoSinRespuesta = ultimoEntrante?.resolvedAt != null;
+
   const cuando = (iso: string) =>
     new Date(iso).toLocaleString(locale, {
       day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: CLINIC_TZ,
@@ -246,6 +284,29 @@ export function PatientThreadDialog({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Gris y no ambar: no es un problema ni algo que haya que atender, es
+            el estado en el que alguien dejo la conversacion a proposito. El
+            aviso existe para que se sepa POR QUE no aparece en la pestaña, y
+            para tener el camino de vuelta a mano. */}
+        {marcadoSinRespuesta && (
+          <div className="mx-4 sm:mx-6 rounded-md bg-bg-2/40 px-3 py-2 shrink-0 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-[11px] text-text-muted">
+              {ultimoEntrante?.resolvedByName
+                ? t('resolvedBy', { nombre: ultimoEntrante.resolvedByName })
+                : t('resolvedByUnknown')}
+            </span>
+            <button
+              type="button"
+              onClick={() => void reabrir()}
+              disabled={reabriendo}
+              className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-text hover:underline disabled:opacity-50"
+            >
+              {reabriendo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
+              {t('reopen')}
+            </button>
           </div>
         )}
 

@@ -116,3 +116,79 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({ ok: true, mensajes: res.count });
 }
+
+/**
+ * PATCH — "este mensaje no necesita respuesta", y el camino de vuelta.
+ *
+ * Marca los entrantes ABIERTOS de una conversación y la saca de *Por
+ * responder* sin gastar un SMS en contestarle "ok" a un "ok". Pedido de Erick
+ * (2026-10-03); por qué la marca va en el mensaje y no en la conversación está
+ * en `lib/conversaciones-sms.ts`.
+ *
+ * Se marcan TODOS los abiertos del hilo, no solo el último: lo que afirma la
+ * persona es "me hice cargo hasta acá". Marcar uno solo dejaría a los de atrás
+ * sosteniendo la conversación en la pestaña, que es justo lo que venía a
+ * resolver.
+ *
+ * ⚠️ Esto NO silencia a nadie. El mensaje que entre después nace sin marca y la
+ * conversación vuelve sola. No hace falta deshacer para que el próximo "necesito
+ * cambiar mi cita" aparezca.
+ *
+ * `abrir: true` es el deshacer. Existe porque la alternativa a tener undo es
+ * que recepción evite el botón por miedo a equivocarse, y entonces no sirve.
+ */
+const Resolver = z.object({
+  clave: z.string().min(1),
+  /** `true` deshace: devuelve la conversación a *Por responder*. */
+  abrir: z.boolean().optional(),
+});
+
+export async function PATCH(req: NextRequest): Promise<NextResponse> {
+  const acceso = await checkPatientStaff({ admin: true });
+  if (acceso.deny) return acceso.deny;
+
+  let datos;
+  try {
+    datos = Resolver.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 });
+  }
+
+  const actor = await resolveActor(req.headers);
+
+  /**
+   * El MISMO criterio de hilo que usa la pantalla: por paciente cuando se lo
+   * reconoció, y por los últimos 10 dígitos cuando no. No se reescribe acá —
+   * si esto y `mensajesDeConversacion` eligieran distinto, el botón marcaría
+   * una conversación y la lista mostraría otra.
+   */
+  const esPaciente = datos.clave.startsWith('pac:');
+  const valor = datos.clave.slice(4);
+  const deLaConversacion: Prisma.MessageLogWhereInput = esPaciente
+    ? { patientId: valor }
+    : {
+        OR: [
+          { toAddress:   { endsWith: valor } },
+          { fromAddress: { endsWith: valor } },
+        ],
+      };
+
+  const res = await db.messageLog.updateMany({
+    where: {
+      channel: 'SMS',
+      // Solo los ENTRANTES: un mensaje que mandamos nosotros no se resuelve.
+      direction: 'INBOUND',
+      ...(datos.abrir ? { resolvedAt: { not: null } } : { resolvedAt: null }),
+      ...deLaConversacion,
+    },
+    data: datos.abrir
+      ? { resolvedAt: null, resolvedByUserId: null, resolvedByName: null }
+      : {
+          resolvedAt: new Date(),
+          resolvedByUserId: actor.actorUserId ?? null,
+          resolvedByName: actor.actorName ?? null,
+        },
+  });
+
+  return NextResponse.json({ ok: true, mensajes: res.count });
+}

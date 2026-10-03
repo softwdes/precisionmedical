@@ -5960,7 +5960,14 @@
       "actionableNoPatient": "Not a patient — you can still read and reply",
       "assignAsk": "{n} patients share this number. Who is this conversation with?",
       "assignError": "Could not link the conversation",
-      "unassignedThread": "Not linked to a patient yet"
+      "unassignedThread": "Not linked to a patient yet",
+      "resolveTitle": "No reply needed",
+      "resolvedRow": "{nombre} — marked as no reply needed",
+      "undo": "Undo",
+      "reopen": "Move back to Actionable",
+      "resolvedBy": "Marked as no reply needed by {nombre}",
+      "resolvedByUnknown": "Marked as no reply needed",
+      "resolveError": "Could not mark it. Try again."
     },
     "calls": {
       "payModalTitle": "Case payment",

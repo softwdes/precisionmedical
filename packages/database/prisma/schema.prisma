@@ -4466,6 +4466,16 @@ model MessageLog {
   readAt       DateTime?
   readByUserId String?
 
+  /// Alguien decidio que este ENTRANTE no necesita respuesta. NULL = sigue
+  /// abierto. NO es `readAt`: leer no es ocuparse, y de hecho el badge lo
+  /// ignora por eso mismo (6 sin leer contra 3 esperando respuesta, medido).
+  /// Un mensaje nuevo nace en NULL, asi que el paciente reabre la
+  /// conversacion con solo volver a escribir.
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  /// El nombre, para mostrarlo en el hilo sin un join mas.
+  resolvedByName   String?
+
   toAddress   String
   fromAddress String
 
@@ -4499,6 +4509,8 @@ model MessageLog {
   /// La bandeja pregunta dos cosas: "entrantes sin leer" y "todo lo de este
   /// paciente en orden". Sin estos dos, las dos son un scan completo.
   @@index([direction, readAt])
+  /// El badge pregunta por el ultimo entrante SIN resolver.
+  @@index([direction, resolvedAt])
   @@index([patientId, createdAt])
   @@map("message_logs")
 }

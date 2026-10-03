@@ -308,6 +308,10 @@ export function SmsHistoryPanel({ onTitulo }: {
             <ConversacionesPendientes
               onAbrir={(p) => setHilo(p)}
               recargar={recargar}
+              /* Descartar baja el numero de la pestaña. Sin esto el badge
+                 seguiria diciendo 3 con la lista en 2, y un indicador que
+                 miente se deja de mirar. */
+              onCambio={() => setRecargar((r) => r + 1)}
             />
           ) : loading && !data ? (
             <SmsSkeleton />

@@ -245,8 +245,16 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
             <p className="text-[11.5px] text-text-muted leading-relaxed">{t('medHxFormHint')}</p>
             {/* Que el detalle se pueda cargar no significa que alguien lo revise:
                 el control de interacciones corre del lado de ScriptSure sobre lo
-                que está allá. Decirlo acá evita la lectura peligrosa. */}
+                que está allá. Decirlo acá evita la lectura peligrosa.
+
+                Pero la advertencia sola era un callejón sin salida —el mismo
+                error que ya arreglamos con la dirección del paciente—: dejaba al
+                médico sabiendo que ESTO no se chequea y sin saber qué sí. Por eso
+                abajo va el camino, que existe y está construido (pregunta de
+                Devin, 2026-10-02: "¿dónde registramos la medicación actual para
+                que se cruce con Surescripts?"). */}
             <p className="text-[11.5px] text-amber leading-relaxed">{t('medHxFormHintChecks')}</p>
+            <p className="text-[11.5px] text-text-2 leading-relaxed">{t('medHxFormHintDonde')}</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="sm:col-span-2">

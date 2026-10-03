@@ -2313,7 +2313,8 @@
       "chgDxEmpty": "Esta nota todavía no tiene diagnósticos. Se agregan en la sección de arriba.",
       "rxCheckStatus": "Consultar estado",
       "rxCheckStatusHint": "El estado que ves es el del momento en que se envió. La farmacia puede contestar varios minutos después, así que si acaba de salir, esperá un rato y volvé a consultar.",
-      "demogHintLarga": "ScriptSure no acepta calles de más de 35 caracteres y la de este paciente se pasa. Acortala acá —abreviá, o sacá la ciudad y el ZIP si quedaron metidos adentro— y seguimos con la receta."
+      "demogHintLarga": "ScriptSure no acepta calles de más de 35 caracteres y la de este paciente se pasa. Acortala acá —abreviá, o sacá la ciudad y el ZIP si quedaron metidos adentro— y seguimos con la receta.",
+      "medHxFormHintDonde": "Lo que el paciente retira en una farmacia SÍ se cruza: se trae con «Historial de farmacia», en el tab de Recetas, y entra dentro de ScriptSure. Esto de acá es para lo que nunca pasó por una farmacia —de venta libre, suplementos, muestras—, que por ahora no entra al control."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

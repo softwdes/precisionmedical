@@ -1,7 +1,7 @@
 'use client';
 import { localeApp } from '@/lib/fechas';
 
-import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
+import { useState, useTransition, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1467,6 +1467,19 @@ function MemberDialog({
   const [city,         setCity]         = useState(editing?.city ?? '');
   const [state,        setState]        = useState(editing?.state ?? '');
   const [zip,          setZip]          = useState(editing?.zip ?? '');
+
+  /**
+   * Las ciudades que se ofrecen. El estado se reconoce por NOMBRE o por CÓDIGO
+   * —en la base conviven los dos—, y si no se reconoce se ofrecen todas en vez
+   * de dejar la lista vacía. Mismo criterio que la ficha del paciente.
+   */
+  const ciudadesSugeridas = useMemo(() => {
+    const escrito = (state ?? '').trim();
+    const code = US_STATES.find(s => s.name.toLowerCase() === escrito.toLowerCase())?.code
+              ?? US_STATES.find(s => s.code.toLowerCase() === escrito.toLowerCase())?.code;
+    const delEstado = code ? CITIES_BY_STATE[code] : undefined;
+    return delEstado?.length ? delEstado : Object.values(CITIES_BY_STATE).flat();
+  }, [state]);
   const [memberRole,   setMemberRole]   = useState(editing?.memberRole ?? 'ATTORNEY');
   const [barNumber,    setBarNumber]    = useState(editing?.barNumber ?? '');
   const [recoveryRate, setRecoveryRate] = useState(editing?.recoveryRate != null ? String(editing.recoveryRate) : '');
@@ -1567,21 +1580,24 @@ function MemberDialog({
             <Input id="address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
           </div>
 
+          {/* City · State · Zip, el orden en que se escribe una dirección
+              (pedido de la clínica, 2026-10-03). Acá estaban invertidos, y la
+              ciudad colgada del estado como en la ficha del paciente. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <LocationSelect
-              label={t('fieldState')}
-              value={state ?? ''}
-              onChange={(v) => { setState(v); setCity(''); }}
-              options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
-              placeholder={t('selectStatePlaceholder')}
-            />
             <LocationSelect
               label={t('fieldCity')}
               value={city ?? ''}
               onChange={(v) => { setCity(v); setZip((prev) => CITY_ZIP[v] ?? prev); }}
-              options={state ? (CITIES_BY_STATE[US_STATES.find(s => s.name === state)?.code ?? ''] ?? []) : []}
-              placeholder={state ? t('selectCityPlaceholder') : t('selectStateFirst')}
-              disabled={!state}
+              options={ciudadesSugeridas}
+              placeholder={t('selectCityPlaceholder')}
+              permiteLibre
+            />
+            <LocationSelect
+              label={t('fieldState')}
+              value={state ?? ''}
+              onChange={(v) => setState(v)}
+              options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
+              placeholder={t('selectStatePlaceholder')}
             />
             <div>
               <Label htmlFor="zip">{t('fieldZipShort')}</Label>

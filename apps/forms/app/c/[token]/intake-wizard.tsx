@@ -21,7 +21,7 @@ import * as React from 'react';
  *   ✓ "Lo tomo en la clínica" fallback en Step 6
  */
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import { TEL_CLINICA } from '@/lib/clinica';
@@ -1832,6 +1832,22 @@ export function IntakeWizard({
     const lista = CITIES_BY_STATE[cod] ?? [];
     return !lista.some(c => c.toLowerCase() === ciudad.toLowerCase());
   });
+
+  /**
+   * Las ciudades que se ofrecen: las del estado elegido, o TODAS si todavia
+   * no eligio ninguno.
+   *
+   * Antes la lista era [] hasta elegir estado y el desplegable estaba apagado.
+   * Con la ciudad DELANTE del estado —el orden que pidio la clinica— un campo
+   * apagado como primero de la fila no se entiende. La salida a texto libre
+   * sigue estando para los pueblos que no figuran.
+   */
+  const ciudadesSugeridas = useMemo(() => {
+    const code = US_STATES.find(s => s.name === personal.addressState)?.code
+              ?? US_STATES.find(s => s.code === personal.addressState)?.code;
+    const delEstado = code ? CITIES_BY_STATE[code] : undefined;
+    return delEstado?.length ? delEstado : Object.values(CITIES_BY_STATE).flat();
+  }, [personal.addressState]);
   const [referralOtherError, setReferralOtherError] = useState('');
   const [phoneError, setPhoneError]                 = useState('');
   const [cellPhoneError, setCellPhoneError]         = useState('');
@@ -3049,22 +3065,8 @@ export function IntakeWizard({
                 </Field>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.addressState} req error={addressStateError}>
-                    <select
-                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressState ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.addressState}
-                      onChange={e => {
-                        setPersonal(p => ({ ...p, addressState: e.target.value, addressCity: '', addressZip: '' }));
-                        setAddressStateError(''); setCiudadALaMano(false);
-                      }}
-                    >
-                      <option value="">{lang === 'es' ? 'Seleccionar estado' : 'Select state'}</option>
-                      <option value="Utah">Utah</option>
-                      {US_STATES.filter(s => s.name !== 'Utah').map(s => (
-                        <option key={s.code} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </Field>
+                  {/* City · State · Zip: el orden en que se escribe una
+                      direccion. Pedido de la clinica, 2026-10-03. */}
                   {/* Ciudad: lista, con salida a texto libre.
                       La lista NO es exhaustiva y no puede serlo. Medido el
                       2026-09-07 contra los pacientes reales: 46 estados tienen
@@ -3083,9 +3085,8 @@ export function IntakeWizard({
                         onChange={e => { setPersonal(p => ({ ...p, addressCity: e.target.value })); setAddressCityError(''); }} />
                     ) : (
                       <select
-                        style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressCity ? '#fff' : 'rgba(255,255,255,0.35)', opacity: personal.addressState ? 1 : 0.5 }}
+                        style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressCity ? '#fff' : 'rgba(255,255,255,0.35)' }}
                         value={personal.addressCity}
-                        disabled={!personal.addressState}
                         onChange={e => {
                           const city = e.target.value;
                           if (city === OTRA_CIUDAD) {
@@ -3101,12 +3102,9 @@ export function IntakeWizard({
                           setAddressCityError('');
                         }}
                       >
-                        <option value="">{personal.addressState ? (lang === 'es' ? 'Seleccionar ciudad' : 'Select city') : (lang === 'es' ? 'Primero selecciona estado' : 'Select state first')}</option>
-                        {(personal.addressState
-                          ? (CITIES_BY_STATE[US_STATES.find(s => s.name === personal.addressState)?.code ?? ''] ?? [])
-                          : []
-                        ).map(c => <option key={c} value={c}>{c}</option>)}
-                        {personal.addressState && <option value={OTRA_CIUDAD}>{t.otraCiudad}</option>}
+                        <option value="">{lang === 'es' ? 'Seleccionar ciudad' : 'Select city'}</option>
+                        {ciudadesSugeridas.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value={OTRA_CIUDAD}>{t.otraCiudad}</option>
                       </select>
                     )}
                     {ciudadALaMano && (
@@ -3117,6 +3115,22 @@ export function IntakeWizard({
                           color: 'rgba(6,182,212,0.75)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
                         }}>{t.volverALaLista}</button>
                     )}
+                  </Field>
+                  <Field label={t.addressState} req error={addressStateError}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressState ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.addressState}
+                      onChange={e => {
+                        setPersonal(p => ({ ...p, addressState: e.target.value, addressCity: '', addressZip: '' }));
+                        setAddressStateError(''); setCiudadALaMano(false);
+                      }}
+                    >
+                      <option value="">{lang === 'es' ? 'Seleccionar estado' : 'Select state'}</option>
+                      <option value="Utah">Utah</option>
+                      {US_STATES.filter(s => s.name !== 'Utah').map(s => (
+                        <option key={s.code} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
                   </Field>
                 </div>
                 <Field label={lang === 'es' ? 'Código postal' : 'ZIP code'} req error={addressZipError}>

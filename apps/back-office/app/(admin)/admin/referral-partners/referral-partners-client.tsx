@@ -377,19 +377,22 @@ export function PartnerDialog({
                 <Input id="rp-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(385) 000-0000" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <div>
-                <Label htmlFor="rp-email">{t('fieldEmail')}</Label>
-                <Input id="rp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="front@..." />
-              </div>
-              <div>
-                <Label htmlFor="rp-city">{t('fieldCity')}</Label>
-                <Input id="rp-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
-              </div>
+            <div className="mt-3">
+              <Label htmlFor="rp-email">{t('fieldEmail')}</Label>
+              <Input id="rp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="front@..." />
             </div>
+            {/* La calle arriba y la ciudad debajo, igual que en el resto de LM
+                (pedido de la clínica, 2026-10-03). Acá la ciudad estaba junto
+                al correo y la dirección colgaba al final, sin relación visible
+                con ella. Este socio no tiene estado ni código postal: es una
+                dirección de contacto, no una postal completa. */}
             <div className="mt-3">
               <Label htmlFor="rp-address">{t('fieldAddress')}</Label>
               <Input id="rp-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div className="mt-3">
+              <Label htmlFor="rp-city">{t('fieldCity')}</Label>
+              <Input id="rp-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
             </div>
           </div>
 

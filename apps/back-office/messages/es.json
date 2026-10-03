@@ -2449,7 +2449,8 @@
       "edQuote": "Cita",
       "edLink": "Enlace",
       "edCheckbox": "Casilla",
-      "edBlank": "Campo en blanco"
+      "edBlank": "Campo en blanco",
+      "uiUseTyped": "Usar «{texto}»"
     },
     "specialties": {
       "fieldColorLabel": "Color · identificador en calendario y dashboard",

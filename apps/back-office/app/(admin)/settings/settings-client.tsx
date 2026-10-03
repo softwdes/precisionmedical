@@ -190,7 +190,16 @@ export function SettingsClient({
     });
   };
 
-  const cities = form.state ? (CITIES_BY_STATE[form.state] ?? []) : [];
+  /**
+   * Las ciudades del estado elegido, o TODAS si todavía no hay estado.
+   *
+   * Antes era `[]` y el selector quedaba deshabilitado: una lista vacía no
+   * explica qué falta. `form.state` acá ya viene normalizado a CÓDIGO por
+   * `openEdit`, que lo resuelve por nombre o por código — la ficha del paciente
+   * no hacía eso y por eso le abría vacía a 2.909 pacientes.
+   */
+  const cities = (form.state ? CITIES_BY_STATE[form.state] : undefined)
+    ?? Object.values(CITIES_BY_STATE).flat();
 
   function openCreate() { setForm(EMPTY_FORM); setError(null); setPickerOpen(false); setCreateOpen(true); }
   function openEdit(c: Clinic) {
@@ -444,8 +453,29 @@ export function SettingsClient({
                 <Input type="email" value={form.email} onChange={set('email')} placeholder="info@clinica.com" />
               </div>
 
-              {/* Estado + Ciudad */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Dirección: la calle arriba y después City · State · Zip, el
+                  mismo orden que en la ficha del paciente y el que pidió la
+                  clínica (2026-10-03). Acá estaba partido en dos filas, con el
+                  código postal separado de su ciudad y la calle al final. */}
+              <div>
+                <Label>{t('fieldAddress')}</Label>
+                <Input value={form.address} onChange={set('address')} placeholder="275 E 6100 S Suite 100" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>{t('fieldCity')}</Label>
+                  {/* Ya no se deshabilita por no haber elegido estado: si no
+                      hay, se ofrecen todas. Un campo apagado no dice qué hacer
+                      y acá la clínica es una sola, que ya tiene su estado. */}
+                  <select value={form.city} onChange={set('city')}
+                    className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand">
+                    <option value="">{t('fieldCity')}</option>
+                    {cities.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <Label>{t('fieldState')}</Label>
                   <select value={form.state} onChange={set('state')}
@@ -457,26 +487,8 @@ export function SettingsClient({
                   </select>
                 </div>
                 <div>
-                  <Label>{t('fieldCity')}</Label>
-                  <select value={form.city} onChange={set('city')} disabled={!form.state}
-                    className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-40">
-                    <option value="">{t('fieldCity')}</option>
-                    {cities.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Código postal + Dirección */}
-              <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3">
-                <div>
                   <Label>{t('fieldZip')}</Label>
                   <Input value={form.zipCode} onChange={set('zipCode')} placeholder="84107" maxLength={10} />
-                </div>
-                <div>
-                  <Label>{t('fieldAddress')}</Label>
-                  <Input value={form.address} onChange={set('address')} placeholder="275 E 6100 S Suite 100" />
                 </div>
               </div>
 

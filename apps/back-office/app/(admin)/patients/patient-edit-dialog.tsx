@@ -214,6 +214,26 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const age     = useMemo(() => edad(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
 
+  /**
+   * Las ciudades que se ofrecen, sin que la ciudad dependa del estado.
+   *
+   * El estado se reconoce **por nombre o por código**, porque en la base
+   * conviven los dos: `Utah` lo escribe este selector y `UT` vino con la
+   * migración del v2 (2.907 contra 1.539, medido el 2026-10-03). Mirar solo el
+   * nombre —que es lo que se hacía— dejaba sin ciudades a la mayoría.
+   *
+   * Si el estado no se reconoce o está vacío, se ofrecen TODAS: es mejor una
+   * lista larga con buscador que una lista vacía, y con `permiteLibre` igual se
+   * puede escribir una que no esté.
+   */
+  const ciudadesSugeridas = useMemo(() => {
+    const escrito = form.addressState.trim();
+    const code = US_STATES.find(s => s.name.toLowerCase() === escrito.toLowerCase())?.code
+              ?? US_STATES.find(s => s.code.toLowerCase() === escrito.toLowerCase())?.code;
+    const delEstado = code ? CITIES_BY_STATE[code] : undefined;
+    return delEstado?.length ? delEstado : Object.values(CITIES_BY_STATE).flat();
+  }, [form.addressState]);
+
   // ─── Tutor legal ────────────────────────────────────────────────────────
   // El tutor es un Patient vinculado por `guardianPatientId`, y su correo es el
   // canal de contacto real del menor (ver docs/plan-tutor-legal.md §3.2). Los
@@ -619,26 +639,47 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                 <FormField.Input label={t('fieldPhone2')} value={form.phone2} onChange={setPhone('phone2')} placeholder="(305) 000-0000" type="tel" />
               </div>
 
+              {/*
+                Address ARRIBA y después City · State · Zip, que es como se
+                escribe una dirección y como lo pidió la clínica (2026-10-03).
+                Antes estaba al revés —la terna primero y la calle al final— y
+                además con el estado delante de la ciudad.
+              */}
+              <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <LocationSelect
-                  label={t('fieldState')}
-                  value={form.addressState}
-                  onChange={(v) => setForm(prev => ({ ...prev, addressState: v, addressCity: '' }))}
-                  options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
-                  placeholder={t('placeholderSelectState')}
-                />
+                {/*
+                  La ciudad ya NO depende del estado.
+
+                  Antes el selector se poblaba con `CITIES_BY_STATE[code]`
+                  buscando el estado POR NOMBRE, y la mitad de las fichas lo
+                  tienen guardado como CÓDIGO: medido el 2026-10-03, a **2.909
+                  pacientes de 4.448** la lista les abría vacía y no había forma
+                  de elegir ciudad. El estado igual se veía escrito, porque este
+                  componente pinta `value` aunque no esté entre las opciones —
+                  por eso se reportaba como "no me deja la ciudad" y nunca como
+                  "se borró el estado".
+
+                  Ahora se ofrecen las del estado SI se reconoce, y si no todas;
+                  y con `permiteLibre` se puede guardar una que no esté.
+                */}
                 <LocationSelect
                   label={t('fieldCity')}
                   value={form.addressCity}
                   onChange={(v) => setForm(prev => ({ ...prev, addressCity: v, addressZip: CITY_ZIP[v] ?? prev.addressZip }))}
-                  options={form.addressState ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? []) : []}
-                  placeholder={form.addressState ? t('placeholderSelectCity') : t('placeholderSelectStateFirst')}
-                  disabled={!form.addressState}
+                  options={ciudadesSugeridas}
+                  placeholder={t('placeholderSelectCity')}
+                  permiteLibre
+                />
+                <LocationSelect
+                  label={t('fieldState')}
+                  value={form.addressState}
+                  onChange={(v) => setForm(prev => ({ ...prev, addressState: v }))}
+                  options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
+                  placeholder={t('placeholderSelectState')}
                 />
                 <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={set('addressZip')} placeholder={t("phZip")} />
               </div>
-
-              <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
 
               <div className="space-y-2">
                 <FormField.Select

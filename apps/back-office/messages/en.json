@@ -2449,7 +2449,8 @@
       "edQuote": "Quote",
       "edLink": "Link",
       "edCheckbox": "Checkbox",
-      "edBlank": "Blank field"
+      "edBlank": "Blank field",
+      "uiUseTyped": "Use \"{texto}\""
     },
     "specialties": {
       "fieldColorLabel": "Color · identifier in the calendar and dashboard",

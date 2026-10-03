@@ -413,7 +413,16 @@ export function EditarDatos({
     () => US_STATES.find(s => s.name === f.addressState || s.code === f.addressState)?.code ?? '',
     [f.addressState],
   );
-  const ciudades = CITIES_BY_STATE[codigoEstado] ?? [];
+  /**
+   * Las del estado elegido, y TODAS mientras no haya estado.
+   *
+   * Antes era `[]` y el desplegable quedaba apagado hasta elegir estado. Con la
+   * ciudad delante —que es el orden que pidió la clínica— un campo apagado como
+   * primero de la fila no se entiende; y una lista larga con buscador sirve más
+   * que una vacía.
+   */
+  const ciudades = (codigoEstado ? CITIES_BY_STATE[codigoEstado] : undefined)
+    ?? Object.values(CITIES_BY_STATE).flat();
 
   /**
    * Arranca en texto libre si la ciudad guardada no figura en el catálogo del
@@ -593,22 +602,8 @@ export function EditarDatos({
               onChange={e => set('addressLine1', e.target.value)} />
           </Campo>
           <Dos>
-            <Campo label={t.estadoUS}>
-              <select
-                style={S.select}
-                value={f.addressState}
-                onChange={e => {
-                  // Al cambiar de estado la ciudad guardada deja de tener
-                  // sentido: se limpia junto con el modo de texto libre.
-                  set('addressState', e.target.value);
-                  set('addressCity', '');
-                  setCiudadALaMano(false);
-                }}
-              >
-                <option value="">{t.seleccionar}</option>
-                {US_STATES.map(s => <option key={s.code} value={s.name}>{s.name}</option>)}
-              </select>
-            </Campo>
+            {/* City · State · Zip: el orden en que se escribe una direccion.
+                Lo pidio la clinica el 2026-10-03 y vale para todo LM. */}
             <Campo label={t.ciudad}>
               {ciudadALaMano ? (
                 <input style={S.input} value={f.addressCity}
@@ -616,7 +611,6 @@ export function EditarDatos({
               ) : (
                 <select
                   style={S.select}
-                  disabled={!f.addressState}
                   value={f.addressCity}
                   onChange={e => {
                     const ciudad = e.target.value;
@@ -632,12 +626,12 @@ export function EditarDatos({
                     if (zip) set('addressZip', zip);
                   }}
                 >
-                  <option value="">{f.addressState ? t.seleccionar : t.seleccioneEstado}</option>
+                  <option value="">{t.seleccionar}</option>
                   {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
-                  {f.addressState && <option value={OTRA_CIUDAD}>{t.otraCiudad}</option>}
+                  <option value={OTRA_CIUDAD}>{t.otraCiudad}</option>
                 </select>
               )}
-              {ciudadALaMano && f.addressState && (
+              {ciudadALaMano && (
                 <button type="button"
                   onClick={() => { setCiudadALaMano(false); set('addressCity', ''); }}
                   style={{
@@ -645,6 +639,22 @@ export function EditarDatos({
                     color: 'rgba(6,182,212,0.75)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
                   }}>{t.volverALaLista}</button>
               )}
+            </Campo>
+            <Campo label={t.estadoUS}>
+              <select
+                style={S.select}
+                value={f.addressState}
+                onChange={e => {
+                  // Al cambiar de estado la ciudad guardada deja de tener
+                  // sentido: se limpia junto con el modo de texto libre.
+                  set('addressState', e.target.value);
+                  set('addressCity', '');
+                  setCiudadALaMano(false);
+                }}
+              >
+                <option value="">{t.seleccionar}</option>
+                {US_STATES.map(s => <option key={s.code} value={s.name}>{s.name}</option>)}
+              </select>
             </Campo>
           </Dos>
           <Campo label={t.zip}>

@@ -16,9 +16,22 @@ interface Props {
   options:     string[];
   placeholder?: string;
   disabled?:   boolean;
+  /**
+   * Deja guardar lo que la persona escribió aunque no esté en la lista.
+   *
+   * Nació para la CIUDAD. El catálogo tiene 840 ciudades y aun así **430
+   * pacientes tienen una que no está** (medido el 2026-10-03): algunas son
+   * abreviaturas que entraron con la migración —"West Valley" por West Valley
+   * City, "SLC", "SALT LAKE"— y otras son ciudades de verdad que nadie cargó.
+   * Sin esto, abrir esa ficha y guardar significaba perder el dato o tener que
+   * elegir una ciudad equivocada.
+   *
+   * Es opt-in a propósito: en el ESTADO no se quiere: son 50 y están todos.
+   */
+  permiteLibre?: boolean;
 }
 
-export function LocationSelect({ label, value, onChange, options, placeholder, disabled }: Props) {
+export function LocationSelect({ label, value, onChange, options, placeholder, disabled, permiteLibre }: Props) {
   const tc = useTranslations('phoenix.common');
   const [open,   setOpen]   = useState(false);
   const [search, setSearch] = useState('');
@@ -106,7 +119,24 @@ export function LocationSelect({ label, value, onChange, options, placeholder, d
 
           {/* Options */}
           <ul className="max-h-48 overflow-y-auto py-1">
-            {filtered.length === 0 && (
+            {/*
+              Lo escrito, como primera opción, cuando no coincide con ninguna.
+              Va ARRIBA y no abajo del todo: si la lista es larga, una entrada
+              al final no se ve, y esta aparece justo cuando la lista no tiene
+              lo que la persona busca.
+            */}
+            {permiteLibre && search.trim() && !options.some(o => o.toLowerCase() === search.trim().toLowerCase()) && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => select(search.trim())}
+                  className="w-full text-left px-3 py-1.5 text-sm text-brand-text hover:bg-white/[0.04] transition-colors"
+                >
+                  {tc('uiUseTyped', { texto: search.trim() })}
+                </button>
+              </li>
+            )}
+            {filtered.length === 0 && !permiteLibre && (
               <li className="px-3 py-2 text-xs text-text-muted">{tc('uiNoResults')}</li>
             )}
             {filtered.map(opt => (

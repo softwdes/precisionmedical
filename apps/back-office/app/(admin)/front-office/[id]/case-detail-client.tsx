@@ -203,6 +203,16 @@ interface CaseInfo {
     type: string;
   } | null;
   /**
+   * El abogado y el quiropráctico escritos a mano en el alta del caso.
+   *
+   * El formulario de caso nuevo los guarda como texto en `consentsData`; la
+   * relación `attorney` solo la llena el diálogo de "Legal", eligiendo del
+   * catálogo. Son dos caminos distintos para el mismo dato y esta pantalla
+   * miraba uno solo.
+   */
+  attorneyDeclarado?: string | null;
+  chiropractorDeclarado?: string | null;
+  /**
    * El seguro de AUTO del caso — el PIP, que en un MVA es el que paga primero.
    *
    * Vive en su propia tabla y por eso faltaba: esta sección se llama "PIP + Med
@@ -793,13 +803,39 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
                     </Link>
                   ) : <span className="text-text-muted text-sm italic">{t('noFirm')}</span>
                 } />
+                {/*
+                  El abogado del CATÁLOGO primero; si no hay, el que se escribió
+                  a mano en el alta.
+
+                  La relación `attorney` solo la llena el diálogo de "Legal"; el
+                  formulario de caso nuevo guarda un texto en `consentsData`. Se
+                  miraba solo la relación, y por eso **20 casos mostraban "Not
+                  specified" teniendo el nombre escrito** (medido el 2026-10-03,
+                  a partir de Paige Schanze / MVA-3469).
+
+                  El declarado va rotulado: nadie lo enlazó al catálogo todavía,
+                  y "Steven Day" escrito a mano no es lo mismo que el abogado
+                  identificado del bufete.
+                */}
                 <InfoRow label={t('rowAttorney')} value={
                   caseInfo.attorney
                     ? <span className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</span>
-                    : <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
+                    : caseInfo.attorneyDeclarado
+                      ? <span className="text-text-1 text-sm">
+                          {caseInfo.attorneyDeclarado}
+                          <span className="text-text-muted text-[11px] ml-1.5">{t('insuranceDeclared')}</span>
+                        </span>
+                      : <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
+                {/*
+                  El quiropráctico. Esta fila estaba CABLEADA a "sin especificar"
+                  —un texto fijo, sin leer ningún dato—, así que no lo mostró
+                  nunca para nadie, y hay 36 casos con el dato cargado.
+                */}
                 <InfoRow label={t('rowChiropractor')} value={
-                  <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
+                  caseInfo.chiropractorDeclarado
+                    ? <span className="text-text-1 text-sm">{caseInfo.chiropractorDeclarado}</span>
+                    : <span className="text-text-muted text-sm italic">{t('notSpecified')}</span>
                 } />
                 {caseInfo.intakeFormCompletedAt && (
                   <InfoRow label={t('rowIntakeCompleted')} value={fecha(caseInfo.intakeFormCompletedAt)} />

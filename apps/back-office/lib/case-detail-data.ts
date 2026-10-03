@@ -46,6 +46,18 @@ export interface CaseDetailData {
  * Ordenados por fecha de creación descendente — el más nuevo primero, que es el
  * que casi siempre está mirando.
  */
+/**
+ * Un campo de texto de `consentsData`, limpio, o `null` si no hay nada.
+ *
+ * Existe para no repetir el casteo en cada campo: ese JSON no tiene tipo y
+ * leerlo a mano en varios lugares es cómo se cuelan los `undefined` que la
+ * pantalla después imprime como "undefined".
+ */
+function textoDeConsent(consentsData: unknown, clave: string): string | null {
+  const v = (consentsData as Record<string, unknown> | null)?.[clave];
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
 export async function casesOfPatientByCase(caseId: string): Promise<Array<{
   id: string; caseCode: string; caseType: string; status: string; createdAt: string;
 }>> {
@@ -367,6 +379,21 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
       insurancesCrudas: Array.isArray((caseRecord.consentsData as { insurances?: unknown } | null)?.insurances)
         ? ((caseRecord.consentsData as { insurances: unknown[] }).insurances as Record<string, unknown>[])
         : [],
+      /**
+       * El abogado y el quiropráctico que se escribieron a mano en el alta.
+       *
+       * El formulario de caso nuevo los guarda como TEXTO en `consentsData`, y
+       * la portada leía otra cosa: `attorneyId`, que es la relación al catálogo
+       * y solo la llena el diálogo de "Legal". Resultado medido el 2026-10-03:
+       * **20 casos tienen el nombre del abogado escrito y la portada dice "Not
+       * specified"**, y los 36 con quiropráctico no lo mostraban nunca —esa fila
+       * estaba cableada al texto de "sin especificar"—.
+       *
+       * Lo reportó Erick con Paige Schanze (MVA-3469): cargó los dos en el alta
+       * y la ficha salió vacía.
+       */
+      attorneyDeclarado:     textoDeConsent(caseRecord.consentsData, 'attorney'),
+      chiropractorDeclarado: textoDeConsent(caseRecord.consentsData, 'chiropractor'),
       specialty: caseRecord.specialty,
       notes: caseRecord.notes,
       appointments: caseRecord.appointments,

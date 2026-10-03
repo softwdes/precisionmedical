@@ -545,10 +545,29 @@ async function buildPDF(data: {
     YES: 'Yes', NO: 'No', NOT_APPLICABLE: 'Not applicable', UNKNOWN: 'Not checked yet',
   };
 
-  /** El abogado del caso, para la sección propia de abajo. */
-  const abogado = [caseData.attorney?.firstName, caseData.attorney?.lastName]
+  /**
+   * El abogado y el quiropráctico, para la sección Legal.
+   *
+   * El del CATÁLOGO primero —la relación `attorney`, que llena el diálogo de
+   * "Legal"— y si no hay, el que se escribió a mano al dar de alta el caso, que
+   * va a `consentsData`. Son dos caminos para el mismo dato: medido el
+   * 2026-10-03, **20 casos tienen el nombre escrito y la relación vacía**, así
+   * que mirar solo la relación los dejaba fuera del papel igual que de la
+   * pantalla.
+   *
+   * El quiropráctico **solo** existe como texto: no hay relación ni columna.
+   */
+  const abogadoCatalogo = [caseData.attorney?.firstName, caseData.attorney?.lastName]
     .filter(Boolean).join(' ').trim() || null;
-  const hayLegal = !!(caseData.lawFirm?.firmName || abogado);
+  const textoConsent = (clave: string) => {
+    const v = (cd as Record<string, unknown> | null)?.[clave];
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  };
+  const abogadoDeclarado = textoConsent('attorney');
+  const abogado = abogadoCatalogo ?? abogadoDeclarado;
+  const abogadoEsDeclarado = !abogadoCatalogo && !!abogadoDeclarado;
+  const quiropractico = textoConsent('chiropractor');
+  const hayLegal = !!(caseData.lawFirm?.firmName || abogado || quiropractico);
 
   /**
    * ¿Cuál de las cargadas es la que el staff verificó contra la tarjeta?
@@ -885,11 +904,17 @@ async function buildPDF(data: {
               />
               <TableRow2
                 l1="Attorney:"
-                v1={abogado}
+                v1={abogado ? `${abogado}${abogadoEsDeclarado ? ' (declared)' : ''}` : null}
                 l2="Phone:"
-                v2={caseData.attorney?.phone ?? null}
-                last
+                /* El teléfono es del abogado del CATÁLOGO. Si el nombre salió de
+                   lo escrito a mano, no hay teléfono que mostrar — y poner el de
+                   otro abogado sería peor que dejarlo vacío. */
+                v2={abogadoEsDeclarado ? null : (caseData.attorney?.phone ?? null)}
+                last={!quiropractico}
               />
+              {quiropractico && (
+                <TableRow label="Treating chiropractor:" value={quiropractico} last />
+              )}
             </View>
           </>
         )}

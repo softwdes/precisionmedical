@@ -28,7 +28,7 @@
       "loginErrAuth": "Error de autenticación. Volvé a intentar.",
       "loginErrNetwork": "Error de conexión. Revisá tu red y volvé a intentar.",
       "loginSessionExpired": "Tu sesión venció por inactividad. Volvé a iniciar sesión.",
-      "loginLocked": "Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar <b>mañana</b>.",
+      "loginLocked": "Account locked after 3 failed attempts. You can sign in again <b>tomorrow</b>.",
       "loginMfaHint": "Ingresá el código de 6 dígitos que muestra tu app autenticadora.",
       "loginBtnVerify": "Verificar →",
       "loginBtnBack": "← Volver",
@@ -38,7 +38,7 @@
       "loginSystemsOk": "Todos los sistemas operativos",
       "attorneyConfirmedHint": "Confirmó representación del caso · respondió por email...",
       "errLoadHistory": "No se pudo cargar el historial médico.",
-      "loginLastAttempt": "Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana."
+      "loginLastAttempt": "Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "precall": {
       "phFirstName": "María",

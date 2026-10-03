@@ -89,7 +89,7 @@
       "verifying": "Verificando…",
       "back": "← Volver",
       "mfaPrompt": "Ingresá el código de tu app autenticadora.",
-      "locked": "Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar <b>mañana</b>.",
+      "locked": "Account locked after 3 failed attempts. You can sign in again <b>tomorrow</b>.",
       "footer": "Solo abogados y bufetes registrados",
       "errCallback": "Hubo un error al iniciar sesión. Probá de nuevo.",
       "errCredentials": "El correo o la contraseña no son correctos.",
@@ -97,7 +97,7 @@
       "errNetworkShort": "No se pudo conectar.",
       "errMfaStart": "No se pudo iniciar la verificación en dos pasos.",
       "errMfaInvalid": "El código no es válido. Probá de nuevo.",
-      "lastAttempt": "Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana."
+      "lastAttempt": "Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "noAccess": {
       "title": "Sin acceso",

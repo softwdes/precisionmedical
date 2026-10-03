@@ -162,14 +162,31 @@ const dict: Record<Locale, Dict> = {
     missedCheckoutNote:    'El administrador será notificado para corregir el horario. Esto no afecta tu registro de hoy.',
     missedCheckoutDismiss: 'Entendido',
     geoBannerNeutral: 'para verificar tu lugar de trabajo. El registro se guarda igual sin permiso.',
-    sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
-    invalidCredentials: 'Email o contraseña incorrectos',
-    accountLocked: 'Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar mañana.',
-    lastAttempt: 'Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana.',
-    signingIn: 'Ingresando...',
-    signIn: 'Ingresar',
-    systemOnline: 'Sistema operativo',
-    footer: 'Precision Medical · PM Time Clock · Solo uso interno',
+    sessionExpired: 'Your session expired. Sign in again.',
+    invalidCredentials: 'Incorrect email or password',
+  /*
+   * ⚠️ TODA la pantalla de login está en INGLÉS, también acá en el bloque de
+   * español, y no es un olvido de traducción: **el login habla inglés**
+   * (Erick, 2026-10-03).
+   *
+   * El back-office y el Admin ya tenían sus mensajes de login en inglés a
+   * secas, sin pasar por i18n. Esto alinea a timeclock: hasta hoy convivían
+   * un "Email o contraseña incorrectos" con un "Incorrect password. You have
+   * 1 attempt left…" en la MISMA pantalla.
+   *
+   * Son las 8 claves que dibuja components/LoginPage.tsx. El RESTO de la app
+   * —fichar, los turnos, el historial— sigue traducido y se queda así: lo usa
+   * el personal de la clínica todos los días.
+   *
+   * Si algún día se traducen, que sea porque se decidió, no porque alguien
+   * vio inglés en el bloque español y creyó que faltaba.
+   */
+    accountLocked: 'Account locked after 3 failed attempts. You can sign in again tomorrow.',
+    lastAttempt: 'Incorrect password. You have 1 attempt left before the account locks until tomorrow.',
+    signingIn: 'Signing in...',
+    signIn: 'Sign in',
+    systemOnline: 'System online',
+    footer: 'Precision Medical · PM Time Clock · Internal use only',
 
     geoTitle: 'Verificar tu ubicación',
     geoBody: 'Permite tu ubicación para verificar que estás en la clínica.',

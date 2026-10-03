@@ -27,7 +27,7 @@
       "mfaVerifying": "Verificando…",
       "backBtn": "← Volver",
       "sessionExpired": "🔒 Tu sesión expiró por inactividad. Ingresá nuevamente.",
-      "accountLocked": "⚠️ Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar mañana.",
+      "accountLocked": "⚠️ Account locked after 3 failed attempts. You can sign in again tomorrow.",
       "footer": "Solo personal clínico autorizado · Roles: Provider · MA",
       "errAuth": "Error de autenticación. Intentá de nuevo.",
       "errCredentials": "Email o contraseña incorrectos.",
@@ -35,7 +35,7 @@
       "errMfaChallenge": "No se pudo iniciar el desafío MFA.",
       "errInvalidCode": "Código inválido. Intentá de nuevo.",
       "errConnection": "Error de conexión.",
-      "lastAttempt": "⚠️ Contraseña incorrecta. Te queda 1 intento antes de que la cuenta se bloquee hasta mañana."
+      "lastAttempt": "⚠️ Incorrect password. You have 1 attempt left before the account locks until tomorrow."
     },
     "errors": {
       "noAccess": "Sin acceso",

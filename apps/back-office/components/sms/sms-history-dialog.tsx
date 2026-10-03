@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
 import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft, Settings, ArrowLeft } from 'lucide-react';
@@ -107,6 +108,25 @@ export function SmsHistoryPanel({ onTitulo }: {
   const [dir, setDir]           = useState<DirFilter>('ALL');
   /** Se incrementa para forzar una recarga cuando algo local quedo dudoso. */
   const [recargar, setRecargar] = useState(0);
+  const router = useRouter();
+
+  /**
+   * Recargar los datos Y el badge del menu de la izquierda.
+   *
+   * Son dos cosas distintas: lo de esta pantalla se pide por `fetch`, pero el
+   * numero rojo del menu lo calcula el SERVIDOR en el layout, asi que no se
+   * entera de nada hasta que se navegue. Verificado en pantalla el 2026-10-03:
+   * al descartar una conversacion la pestaña bajaba a 2 y el menu seguia
+   * diciendo 3, uno al lado del otro.
+   *
+   * Va junto en una sola funcion porque los dos sitios que mueven ese numero
+   * —descartar y responder— necesitan las dos mitades. Arreglar una sola deja
+   * la otra mintiendo.
+   */
+  const refrescar = useCallback(() => {
+    setRecargar((n) => n + 1);
+    router.refresh();
+  }, [router]);
   /** El paciente cuya conversacion se esta mirando. */
   const [hilo, setHilo] = useState<PacienteDelHilo | null>(null);
   /** El editor de plantillas reemplaza la lista DENTRO del mismo dialogo.
@@ -311,7 +331,7 @@ export function SmsHistoryPanel({ onTitulo }: {
               /* Descartar baja el numero de la pestaña. Sin esto el badge
                  seguiria diciendo 3 con la lista en 2, y un indicador que
                  miente se deja de mirar. */
-              onCambio={() => setRecargar((r) => r + 1)}
+              onCambio={refrescar}
             />
           ) : loading && !data ? (
             <SmsSkeleton />
@@ -361,7 +381,24 @@ export function SmsHistoryPanel({ onTitulo }: {
                               <button
                                 type="button"
                                 onClick={() => setHilo({
-                                  clave: r.patient ? `pac:${r.patient.id}` : `tel:${r.contraparte.replace(/[^0-9]/g, '').slice(-10)}`,
+                                  /**
+                                   * Por PACIENTE solo cuando el mensaje esta de verdad
+                                   * vinculado. Si el paciente se reconocio por el telefono,
+                                   * la clave va por NUMERO.
+                                   *
+                                   * Verificado en pantalla el 2026-10-03: el hilo de
+                                   * (801) 638-1400 abria con 2 mensajes y faltaba el "Ok"
+                                   * del paciente, porque esa fila tiene `patientId` null y
+                                   * la busqueda por `pac:` filtra justo por esa columna.
+                                   * Mostraba media conversacion sin avisar que faltaba la
+                                   * otra mitad.
+                                   *
+                                   * Por numero es ademas lo que hace la pestaña de al lado,
+                                   * asi que las dos entradas abren lo mismo.
+                                   */
+                                  clave: r.patient && !r.patientMatchedByPhone
+                                    ? `pac:${r.patient.id}`
+                                    : `tel:${r.contraparte.replace(/[^0-9]/g, '').slice(-10)}`,
                                   id: r.patient?.id ?? null,
                                   nombre: r.patient ? `${r.patient.firstName} ${r.patient.lastName}`.trim() : null,
                                   numero: r.contraparte,
@@ -471,7 +508,7 @@ export function SmsHistoryPanel({ onTitulo }: {
       <PatientThreadDialog
         patient={hilo}
         onOpenChange={(o) => { if (!o) setHilo(null); }}
-        onEnviado={() => setRecargar(n => n + 1)}
+        onEnviado={refrescar}
       />
     </>
   );

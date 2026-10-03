@@ -431,7 +431,16 @@ async function buildPDF(data: {
     caseCode: string; caseType: string; accidentDate: Date | null; accidentType: string | null;
     intakeFormCompletedAt: Date | null; consentsData: Record<string, unknown> | null;
     consentSignaturePng: string | null;
-    lawFirm: { firmName: string | null } | null;
+    lawFirm: { firmName: string | null; phone: string | null; email: string | null } | null;
+    attorney: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null } | null;
+    autoInsurance: {
+      policyId: string | null;
+      claimNum: string | null;
+      lossDate: Date | null;
+      pipAvailable: string;
+      carrierNameRaw: string | null;
+      carrier: { name: string } | null;
+    } | null;
     primaryInsurance: { name: string } | null;
     primaryPolicyNumber: string | null;
     secondaryInsurance: { name: string } | null;
@@ -473,6 +482,73 @@ async function buildPDF(data: {
    * el PDF salía Medicare a secas.
    */
   const seguros = segurosMedicosDeclarados(cd);
+
+  /**
+   * El seguro de AUTO, que en un caso MVA es EL seguro y hasta hoy no se
+   * imprimía: salía "N/A" en 228 casos que lo tenían cargado.
+   *
+   * Hay dos lugares donde puede estar y **no se mezclan campo por campo**:
+   *
+   *   · `case_auto_insurances` — lo que carga recepción. Manda.
+   *   · una entrada `insType: 'AUTO'` en `consentsData.insurances` — resto de
+   *     cuando el de auto vivía en el JSON. Quedan 5 casos así.
+   *
+   * Mezclarlos daría un seguro que no existe. Mandy Rowland (MVA-3461) tiene
+   * **Geico en la tabla y Progressive en el JSON**, y el número de póliza solo
+   * está del lado de Progressive: campo a campo saldría impreso "Geico, póliza
+   * 878445634", que es de otra compañía. En un intake firmado ese error queda
+   * en papel.
+   *
+   * Por eso cada origen se imprime ENTERO y rotulado, y si los dos existen con
+   * aseguradoras distintas **se imprimen los dos**: que la discrepancia se vea
+   * es mejor que elegir una en silencio. Son 5 casos en toda la base y uno solo
+   * con conflicto real (medido el 2026-10-03).
+   */
+  const autoTabla = caseData.autoInsurance;
+  const autoDeclarado = (Array.isArray((cd as { insurances?: unknown } | null)?.insurances)
+    ? ((cd as { insurances: Record<string, unknown>[] }).insurances)
+    : []
+  ).find((s) => s && typeof s === 'object' && s.insType === 'AUTO') as {
+    carrier?: string; policyId?: string; claimNum?: string; lossDate?: string; pipAvailable?: string;
+  } | undefined;
+
+  const nombreAutoTabla = autoTabla?.carrier?.name ?? autoTabla?.carrierNameRaw ?? null;
+  const nombreAutoDecl  = autoDeclarado?.carrier?.trim() || null;
+  const igualIgnorandoMayus = (a: string | null, b: string | null) =>
+    (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+
+  /**
+   * La ficha que se imprime, y de dónde sale cada cosa.
+   *
+   * La fila de recepción manda, pero **muchas no tienen el nombre de la
+   * aseguradora cargado** (medido: de 274 casos MVA con seguro de auto, 19
+   * tienen la fila sin nombre y el nombre solo del lado declarado). Ahí no hay
+   * conflicto posible —hay UNA compañía, y su nombre vino del formulario—, así
+   * que se usa ese nombre y se rotula, en vez de imprimir "Carrier: —" arriba de
+   * una segunda ficha que sí lo tiene.
+   */
+  const nombreAuto = nombreAutoTabla ?? nombreAutoDecl;
+  const nombreAutoEsDeclarado = !nombreAutoTabla && !!nombreAutoDecl;
+
+  /**
+   * Dos compañías DISTINTAS, una de cada lado: ahí sí se imprimen las dos.
+   *
+   * Es el caso de Mandy Rowland —Geico en la tabla, Progressive declarado— y
+   * en toda la base son **dos** así. Elegir una en silencio escondería que el
+   * dato está en disputa justo en el papel que se firma.
+   */
+  const hayDosCompanias = !!nombreAutoTabla && !!nombreAutoDecl
+    && !igualIgnorandoMayus(nombreAutoDecl, nombreAutoTabla);
+
+  /** `UNKNOWN` se dice con todas las letras: es "nadie preguntó", no "no hay". */
+  const PIP_TEXTO: Record<string, string> = {
+    YES: 'Yes', NO: 'No', NOT_APPLICABLE: 'Not applicable', UNKNOWN: 'Not checked yet',
+  };
+
+  /** El abogado del caso, para la sección propia de abajo. */
+  const abogado = [caseData.attorney?.firstName, caseData.attorney?.lastName]
+    .filter(Boolean).join(' ').trim() || null;
+  const hayLegal = !!(caseData.lawFirm?.firmName || abogado);
 
   /**
    * ¿Cuál de las cargadas es la que el staff verificó contra la tarjeta?
@@ -711,6 +787,113 @@ async function buildPDF(data: {
           </View>
         )}
 
+        {/*
+          Auto Insurance — la sección que faltaba, y la que más falta hacía.
+
+          En un caso MVA el seguro de auto es el que paga primero, y el PDF no lo
+          imprimía NUNCA: la sección de arriba sale de la aseguradora enlazada al
+          catálogo y de los declarados, que filtran los médicos a propósito. Lo
+          reportó Erick con Mandy Rowland el 3-oct-2026; son 228 casos.
+        */}
+        {(autoTabla || autoDeclarado) && (
+          <>
+            <View style={s.sectionHeader}><Text style={s.sectionTitle}>Auto Insurance</Text></View>
+            {autoTabla ? (
+              <View style={s.sectionBody} wrap={false}>
+                <TableRow2
+                  l1="Carrier:"
+                  v1={nombreAuto ? `${nombreAuto}${nombreAutoEsDeclarado ? ' (declared)' : ''}` : '—'}
+                  l2="Policy #:"
+                  v2={autoTabla.policyId}
+                />
+                <TableRow2
+                  l1="Claim #:"
+                  v1={autoTabla.claimNum}
+                  l2="Date of loss:"
+                  /* Las fechas anteriores a 1900 son basura de la migración del
+                     v2 —65 de 269—, y acá imprimirían "01/01/0001". */
+                  v2={autoTabla.lossDate && new Date(autoTabla.lossDate).getUTCFullYear() >= 1900
+                    ? fmtDate(autoTabla.lossDate) : null}
+                />
+                <TableRow
+                  label="PIP available:"
+                  value={PIP_TEXTO[autoTabla.pipAvailable] ?? PIP_TEXTO.UNKNOWN}
+                  last={!hayDosCompanias}
+                />
+              </View>
+            ) : (
+              /* Sin fila de recepción: se imprime lo declarado, rotulado. */
+              <View style={s.sectionBody} wrap={false}>
+                <TableRow2
+                  l1="Carrier:"
+                  v1={nombreAutoDecl ? `${nombreAutoDecl} (declared)` : '—'}
+                  l2="Policy #:"
+                  v2={autoDeclarado?.policyId?.trim() || null}
+                />
+                <TableRow
+                  label="Claim #:"
+                  value={autoDeclarado?.claimNum?.trim() || null}
+                  last
+                />
+              </View>
+            )}
+            {hayDosCompanias && (
+              /*
+                La segunda compañía. Solo aparece cuando hay DOS nombres
+                distintos, uno de cada lado: fundirlos en una ficha imprimiría un
+                seguro que no existe —el número de póliza de una con el nombre de
+                la otra—, y elegir uno en silencio escondería que alguien tiene
+                que resolverlo.
+              */
+              <View style={s.sectionBody} wrap={false}>
+                <TableRow2
+                  l1="Carrier (declared):"
+                  v1={nombreAutoDecl ?? '—'}
+                  l2="Policy #:"
+                  v2={autoDeclarado?.policyId?.trim() || null}
+                />
+                <TableRow
+                  label="Claim #:"
+                  value={autoDeclarado?.claimNum?.trim() || null}
+                  last
+                />
+              </View>
+            )}
+          </>
+        )}
+
+        {/*
+          Legal — el bufete y el abogado del caso.
+
+          El PDF ya PEDÍA el bufete a la base y lo recibía como prop desde
+          siempre, pero no había una sola línea que lo imprimiera: salía solo en
+          la página del lien. Son 354 casos MVA con bufete asignado (3-oct-2026).
+
+          Va pegado al seguro y no arriba con los datos personales porque en un
+          caso de accidente es información de COBRO: quien lee el intake para
+          facturar necesita las dos juntas.
+        */}
+        {hayLegal && (
+          <>
+            <View style={s.sectionHeader}><Text style={s.sectionTitle}>Legal</Text></View>
+            <View style={s.sectionBody} wrap={false}>
+              <TableRow2
+                l1="Law firm:"
+                v1={caseData.lawFirm?.firmName ?? null}
+                l2="Phone:"
+                v2={caseData.lawFirm?.phone ?? null}
+              />
+              <TableRow2
+                l1="Attorney:"
+                v1={abogado}
+                l2="Phone:"
+                v2={caseData.attorney?.phone ?? null}
+                last
+              />
+            </View>
+          </>
+        )}
+
         {/* Medical History */}
         {intake && (
           <>
@@ -919,7 +1102,33 @@ export async function respuestaIntakePdf(
       intakeFormCompletedAt: true,
       consentsData:          true,
       consentSignaturePng:   true,
-      lawFirm:   { select: { firmName: true } },
+      /*
+        Se AGREGAN campos a lo que ya pedía el lien, sin pisarlo: el spread de
+        arriba no entra en los objetos anidados, así que un `select` nuevo acá
+        reemplaza el suyo entero y la última página se queda sin `barNumber`.
+        Es la misma trampa que el comentario del spread describe para `patient`.
+      */
+      lawFirm:   { select: { ...SELECT_DEL_LIEN.lawFirm.select,  phone: true, email: true } },
+      attorney:  { select: { ...SELECT_DEL_LIEN.attorney.select, phone: true, email: true } },
+      /**
+       * El seguro de AUTO, que en un caso MVA es EL seguro.
+       *
+       * Faltaba, y por eso **228 casos MVA imprimían "N/A"** teniendo el seguro
+       * cargado (medido el 2026-10-03, a partir de Mandy Rowland / MVA-3461).
+       * Las otras dos fuentes de esta sección no lo pueden traer: una es la
+       * aseguradora enlazada al catálogo y la otra filtra `MEDICAL` a propósito.
+       *
+       * Tercera pantalla con el mismo agujero —el dato se mudó a su tabla y
+       * quien lo mostraba no se enteró—; la portada del caso se arregló en
+       * `a3160964`.
+       */
+      autoInsurance: {
+        select: {
+          policyId: true, claimNum: true, lossDate: true, pipAvailable: true,
+          carrierNameRaw: true,
+          carrier: { select: { name: true } },
+        },
+      },
       // Los cuatro campos del seguro, no solo el nombre de la primaria: el PDF
       // ya traía ese uno y ni siquiera lo imprimía (ver la sección Insurance).
       primaryInsurance:      { select: { name: true } },
@@ -979,6 +1188,8 @@ export async function respuestaIntakePdf(
       consentsData:          caseRecord.consentsData as Record<string, unknown> | null,
       consentSignaturePng:   caseRecord.consentSignaturePng,
       lawFirm:               caseRecord.lawFirm,
+      attorney:              caseRecord.attorney,
+      autoInsurance:         caseRecord.autoInsurance,
       primaryInsurance:      caseRecord.primaryInsurance,
       primaryPolicyNumber:   caseRecord.primaryPolicyNumber,
       secondaryInsurance:    caseRecord.secondaryInsurance,

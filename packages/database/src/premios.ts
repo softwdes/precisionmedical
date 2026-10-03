@@ -151,6 +151,28 @@ export interface ProgressRow {
   metrics?: Partial<Record<MetricKey, number>>;
 }
 
+/**
+ * Qué mide una meta, sin importar a qué rol aplica. Dos metas de roles distintos
+ * con la misma clave van en la MISMA columna de las tablas (si no, "Citas
+ * salvadas" de Recepción y de Admisión salían como dos columnas repetidas).
+ */
+export function claveDeMeta(g: Pick<RewardGoal, 'kind' | 'metric' | 'categoryCode' | 'onlyNew'>): string {
+  if (g.kind === 'METRIC') return `M:${g.metric}`;
+  if (g.kind === 'CATEGORY') return `C:${g.categoryCode}:${g.onlyNew ? 1 : 0}`;
+  return g.kind;
+}
+
+/** Las columnas de una tabla de metas: una por clave, en el orden del mes. */
+export function columnasDeMetas<G extends RewardGoal>(goals: G[]): Array<{ key: string; goal: G; ids: string[] }> {
+  const cols: Array<{ key: string; goal: G; ids: string[] }> = [];
+  for (const g of [...goals].sort((a, b) => a.sortOrder - b.sortOrder)) {
+    const key = claveDeMeta(g);
+    const c = cols.find((x) => x.key === key);
+    if (c) c.ids.push(g.id); else cols.push({ key, goal: g, ids: [g.id] });
+  }
+  return cols;
+}
+
 /** ¿Esta meta le toca a este participante? Sin rol en la meta, le toca a todos. */
 export function metaAplica(goal: Pick<RewardGoal, 'roleKey'>, roleKey: string | null | undefined): boolean {
   return !goal.roleKey || goal.roleKey === (roleKey ?? null);
@@ -183,8 +205,14 @@ export interface ParticipantResult {
   goals: GoalResult[];
   goalsHit: number;
   goalsTotal: number;
-  /** 0..1. Staff: sus metas. Manager: el promedio del staff. */
+  /**
+   * 0..1. Staff: sus metas. Supervisor sin rol: el promedio del staff.
+   * Supervisor con rol: 50% sus metas + 50% el promedio del staff.
+   */
   progress: number;
+  /** Solo supervisores: avance de sus propias metas (null si no tiene rol) y del staff. */
+  ownProgress?: number | null;
+  teamProgress?: number;
   points: number;
   pending: number;
   usagePoints: number;
@@ -266,7 +294,9 @@ export function calcularPeriodo(input: {
       return { p, row: porUsuario.get(p.userId), res: fr.goals, total: fr.goalsTotal, hits: fr.goalsHit, points: fr.points, frozen: fr };
     }
     const row = porUsuario.get(p.userId);
-    const suyas = goals.filter((g) => metaAplica(g, p.roleKey));
+    // Supervisor SIN rol: no tiene metas propias (cobra 100% por el equipo).
+    // Con rol: las metas de su rol, como cualquiera (Erick, 2026-10-03: Beatriz).
+    const suyas = p.kind === 'MANAGER' && !p.roleKey ? [] : goals.filter((g) => metaAplica(g, p.roleKey));
     const res = suyas.map((g) => {
       const adj = ajuste(p.userId, g.id);
       const actual = Math.max(0, avanceDeMeta(g, row) + adj);
@@ -295,6 +325,16 @@ export function calcularPeriodo(input: {
           progress = b.hits / b.total;
           payoutCents = redondearFraccion(poolCents * b.hits, n * b.total);
         }
+      } else if (b.total > 0) {
+        // Supervisor con metas propias: mitad por lo suyo, mitad por el equipo.
+        // Fracción exacta: (hits/total + staffHits/staffTotal) / 2.
+        if (staffTotal > 0) {
+          progress = (b.hits / b.total + staffHits / staffTotal) / 2;
+          payoutCents = redondearFraccion(poolCents * (b.hits * staffTotal + staffHits * b.total), 2 * n * b.total * staffTotal);
+        } else {
+          progress = b.hits / b.total / 2;
+          payoutCents = redondearFraccion(poolCents * b.hits, 2 * n * b.total);
+        }
       } else if (staffTotal > 0) {
         progress = staffHits / staffTotal;
         payoutCents = redondearFraccion(poolCents * staffHits, n * staffTotal);
@@ -313,6 +353,9 @@ export function calcularPeriodo(input: {
       usagePoints: b.row?.usagePoints ?? 0,
       payoutCents,
       approved: false,
+      ...(b.p.kind === 'MANAGER'
+        ? { ownProgress: b.total > 0 ? b.hits / b.total : null, teamProgress: staffTotal > 0 ? staffHits / staffTotal : 0 }
+        : {}),
     };
   });
 

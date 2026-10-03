@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Coins, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
 import { Button, cn } from '@precision/ui';
 import {
-  METRICAS, USO_TOPE_DIARIO, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
+  METRICAS, USO_TOPE_DIARIO, columnasDeMetas, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
 } from '@precision-medical/database/premios';
 import {
   DataTable, EmptyState, IconAction, KpiCard, PageHeader, Skeleton, StatusPill, TagPill, useToast,
@@ -149,7 +149,11 @@ export function MisPremiosClient(): React.ReactElement {
   const porMeta = Math.round(d.shareCents / Math.max(1, me.goalsTotal));
   const resDe = (id: string) => me.goals.find((r) => r.goalId === id);
   // Metas por rol: cada uno ve solo las suyas; la manager ve todas las del equipo.
-  const misMetas = esManager ? d.goals : d.goals.filter((g) => !!resDe(g.id));
+  // Las metas propias: las de su rol. Un supervisor sin rol no tiene (cobra por su equipo).
+  const misMetas = d.goals.filter((g) => !!resDe(g.id));
+  const mixto = esManager && misMetas.length > 0;
+  // La tabla del equipo: una columna por tipo de meta, aunque cada rol tenga la suya.
+  const columnas = columnasDeMetas(d.goals);
   const faltan = misMetas.filter((g) => !resDe(g.id)?.hit).map(labelMeta);
   // Las métricas que todavía no suman (membresías): se anuncian, no se miden.
   const proximamente = (Object.keys(METRICAS) as MetricKey[]).filter((k) => METRICAS[k].comingSoon && METRICAS[k].points > 0);
@@ -168,7 +172,7 @@ export function MisPremiosClient(): React.ReactElement {
             {esManager && <TagPill label={t('managerBadge')} colorClass="bg-violet/15 text-violet-text border-violet/30" />}
           </span>
         }
-        subtitle={esManager ? `${mesTexto(d.month)} · ${t('managerExplain')}` : mesTexto(d.month)}
+        subtitle={esManager ? `${mesTexto(d.month)} · ${mixto ? t('managerExplainMixed') : t('managerExplain')}` : mesTexto(d.month)}
       />
 
       {d.previous && <MesAnterior p={d.previous} />}
@@ -200,7 +204,7 @@ export function MisPremiosClient(): React.ReactElement {
         {esManager ? (
           <KpiCard
             label={t('teamProgress')}
-            value={`${Math.round(me.progress * 1000) / 10}%`}
+            value={`${Math.round((me.teamProgress ?? me.progress) * 1000) / 10}%`}
             sub={t('teamProgressSub', { hits: (d.team ?? []).reduce((s, m) => s + m.result.goalsHit, 0), total: (d.team ?? []).reduce((s, m) => s + m.result.goalsTotal, 0) })}
             icon={Users} iconBg="bg-violet/10" iconColor="text-violet-text"
           />
@@ -227,7 +231,7 @@ export function MisPremiosClient(): React.ReactElement {
         />
       </div>
 
-      {!esManager && (
+      {misMetas.length > 0 && (
         <section className="rounded-lg bg-bg-1 p-5">
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
             <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider inline-flex items-center gap-2">
@@ -284,15 +288,16 @@ export function MisPremiosClient(): React.ReactElement {
             <DataTable.Table>
               <DataTable.Head>
                 <DataTable.Th sticky="left">{t('colName')}</DataTable.Th>
-                {d.goals.map((g) => <DataTable.Th key={g.id} align="center">{labelMeta(g)}</DataTable.Th>)}
+                {columnas.map((c) => <DataTable.Th key={c.key} align="center">{labelMeta(c.goal)}</DataTable.Th>)}
                 <DataTable.Th align="right" sticky="right">{t('colGoals')}</DataTable.Th>
               </DataTable.Head>
               <tbody>
                 {d.team.map((m) => (
                   <DataTable.Row key={m.userId}>
                     <DataTable.Td sticky="left" className="font-semibold">{m.name}</DataTable.Td>
-                    {d.goals.map((g) => {
-                      const r = m.result.goals.find((x) => x.goalId === g.id);
+                    {columnas.map((c) => {
+                      const g = c.goal;
+                      const r = m.result.goals.find((x) => c.ids.includes(x.goalId));
                       return (
                         <DataTable.Td key={g.id} align="center">
                           {r ? (

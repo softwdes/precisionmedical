@@ -2215,7 +2215,7 @@
     "role": "Rol",
     "roleAll": "Todos",
     "appliesTo": "Aplica a",
-    "roleExplain": "Rol (opcional): una meta con rol solo cuenta para quien tiene ese rol. Sin rol, la meta es de todos. La parte es la misma para todos; lo que cambia es cuántas metas tiene cada uno.",
+    "roleExplain": "Rol (opcional): una meta con rol solo cuenta para quien tiene ese rol; sin rol, es de todos. La parte es la misma para todos. Un supervisor CON rol cobra 50% por sus metas y 50% por el promedio del equipo; sin rol, 100% por el equipo.",
     "comingSoon": "próximamente",
     "eachGoalWorthByRole": "Cada meta vale: {list}",
     "kpiTeamPoints": "Puntos del equipo",
@@ -2256,6 +2256,7 @@
     "csvPct": "%",
     "csvAmount": "Monto (USD)",
     "csvStatus": "Estado",
-    "csvTotal": "Total"
+    "csvTotal": "Total",
+    "managerMixed": "Suyas {hits}/{total} · equipo {team}%"
   }
 }

@@ -2215,7 +2215,7 @@
     "role": "Role",
     "roleAll": "Everyone",
     "appliesTo": "Applies to",
-    "roleExplain": "Role (optional): a goal with a role only counts for people with that role. Without a role, the goal is for everyone. The share is the same for all; what changes is how many goals each person has.",
+    "roleExplain": "Role (optional): a goal with a role only counts for people with that role; without a role, it is for everyone. The share is the same for all. A supervisor WITH a role earns 50% from their own goals and 50% from the team average; without a role, 100% from the team.",
     "comingSoon": "coming soon",
     "eachGoalWorthByRole": "Each goal is worth: {list}",
     "kpiTeamPoints": "Team points",
@@ -2256,6 +2256,7 @@
     "csvPct": "%",
     "csvAmount": "Amount (USD)",
     "csvStatus": "Status",
-    "csvTotal": "Total"
+    "csvTotal": "Total",
+    "managerMixed": "Own {hits}/{total} · team {team}%"
   }
 }

@@ -48,7 +48,8 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approv
   const llego = pct >= 99.999;
   const faltaCents = Math.max(0, shareCents - me.payoutCents);
   const porMeta = Math.round(shareCents / total);
-  const pendientes = esManager ? [] : goals
+  // Un supervisor con rol también ve sus metas pendientes; sin rol, `goals` viene vacío.
+  const pendientes = goals
     // Por id y no por posición: con metas por rol, `me.goals` trae solo las suyas.
     .map((g) => ({ g, r: me.goals.find((x) => x.goalId === g.id) }))
     .filter((x) => x.r && !x.r.hit);
@@ -74,7 +75,7 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approv
             <Flag className="w-4 h-4 text-emerald" /> {t('title')}
           </h2>
           <p className="text-[12px] text-text-muted mt-1">
-            {esManager ? t('subtitleManager') : t('subtitle', { amount: money(porMeta) })}
+            {esManager ? (me.goalsTotal > 0 ? t('subtitleMixed') : t('subtitleManager')) : t('subtitle', { amount: money(porMeta) })}
           </p>
         </div>
         <div className="flex items-end gap-5 flex-wrap">
@@ -179,9 +180,9 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approv
         <div className="flex flex-col gap-2">
           <div className="text-[12.5px] text-text-1">
             <span className="font-semibold text-amber-text">{t('missing', { amount: money(faltaCents) })}</span>
-            {!esManager && <span className="text-text-muted"> · {t('missingGoals', { n: pendientes.length })}</span>}
+            {pendientes.length > 0 && <span className="text-text-muted"> · {t('missingGoals', { n: pendientes.length })}</span>}
           </div>
-          {!esManager && pendientes.length > 0 && (
+          {pendientes.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {pendientes.map(({ g, r }) => (
                 <span key={g.id} className="inline-flex items-center gap-1.5 rounded-full bg-bg-2/60 px-2.5 py-1 text-[11px] text-text-2">

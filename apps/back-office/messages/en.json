@@ -7305,7 +7305,8 @@
         "aria": "You have {earned} of {total}",
         "points": "Points",
         "ptsShort": "pts",
-        "approved": "Approved"
+        "approved": "Approved",
+        "subtitleMixed": "Your horse moves half with your goals and half with your team’s average"
       },
       "kpiPointsAuto": "added by the system",
       "comingSoon": "Coming soon",
@@ -7318,7 +7319,8 @@
       "prevTeam": "Team at {pct}%",
       "prevApprovedHint": "paid with the monthly bonus",
       "prevInReviewHint": "the Admin is reviewing the month; the amount may be adjusted",
-      "adjustmentsTitle": "Admin adjustments"
+      "adjustmentsTitle": "Admin adjustments",
+      "managerExplainMixed": "50% from your goals + 50% from your team’s average"
     },
     "revision": {
       "allergiesLabel": "Allergies",

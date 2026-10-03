@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 import {
-  evaluarEvidencia, METRICAS, type RewardGoal, type GoalKind, type MetricKey, type RewardEvidence, type Senal, type Veredicto,
+  evaluarEvidencia, METRICAS, columnasDeMetas, type RewardGoal, type GoalKind, type MetricKey, type RewardEvidence, type Senal, type Veredicto,
 } from '@precision-medical/database/premios';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -221,7 +221,8 @@ function MesView({ data, month, money, onSaved }: {
                 <li key={p.userId} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-bg-2/40 px-3 py-1.5">
                   <span className="min-w-0 flex-1 text-sm text-text-1 truncate">{nombres.get(p.userId) ?? '…'}</span>
                   <span className="flex items-center gap-1.5 shrink-0">
-                    {p.kind === 'STAFF' && (
+                    {/* Rol también para supervisores: con rol, cobran 50% sus metas + 50% el equipo. */}
+                    {(
                       <input
                         id={`premios-rol-${p.userId}`} list="premios-roles" value={p.roleKey ?? ''} disabled={cerrado}
                         placeholder={t('roleAll')} maxLength={40} aria-label={t('role')}
@@ -531,6 +532,8 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
   const goals = data.goals as RewardGoal[];
   const label = (g: RewardGoal) => (locale === 'en' ? g.labelEn : g.labelEs);
   const periodId = data.period!.id;
+  // Una columna por tipo de meta: "Citas salvadas" de Recepción y de Admisión van juntas.
+  const columnas = columnasDeMetas(goals);
   const cerrado = data.period!.status === 'CLOSED';
   const terminado = !!data.monthEnded;
   const approve = api.premios.approve.useMutation();
@@ -650,11 +653,11 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
       {msg && <div className={cn('rounded-md border px-3 py-2 text-xs', msg.ok ? 'border-emerald/30 bg-emerald/10 text-emerald-text' : 'border-rose/30 bg-rose/10 text-rose-text')}>{msg.text}</div>}
 
       <div className="overflow-x-auto rounded-lg bg-bg-2/30">
-        <table className="w-full text-sm" style={{ minWidth: `${560 + goals.length * 90}px` }}>
+        <table className="w-full text-sm" style={{ minWidth: `${560 + columnas.length * 90}px` }}>
           <thead>
             <tr className="border-b border-row-sep bg-bg-2 text-text-3 text-[10px] uppercase tracking-wider">
               <th className="px-4 py-2.5 text-left sticky left-0 bg-bg-2">{t('colParticipant')}</th>
-              {goals.map((g) => <th key={g.id} className="px-2 py-2.5 text-center">{label(g)}{g.roleKey ? <span className="block normal-case font-normal text-text-3">{g.roleKey}</span> : null}</th>)}
+              {columnas.map((c) => <th key={c.key} className="px-2 py-2.5 text-center">{label(c.goal)}</th>)}
               <th className="px-3 py-2.5 text-right">{t('colGoals')}</th>
               <th className="px-3 py-2.5 text-right">{t('colPoints')}</th>
               <th className="px-3 py-2.5 text-right">{t('colPayout')}</th>
@@ -674,13 +677,13 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                       {p.name}
                       {p.roleKey && <span className="ml-1.5 text-[10px] font-normal text-text-3">{p.roleKey}</span>}
                     </td>
-                    {esSup ? (
-                      <td colSpan={goals.length} className="px-3 py-2 text-[12px] text-text-3">{t('managerRow', { hits: s.staffHits, total: s.staffTotal })}</td>
-                    ) : goals.map((g) => {
-                      const r = p.result.goals.find((x) => x.goalId === g.id);
-                      if (!r) return <td key={g.id} className="px-2 py-2 text-center text-text-3">—</td>;
+                    {esSup && p.result.goals.length === 0 ? (
+                      <td colSpan={columnas.length} className="px-3 py-2 text-[12px] text-text-3">{t('managerRow', { hits: s.staffHits, total: s.staffTotal })}</td>
+                    ) : columnas.map((c) => {
+                      const r = p.result.goals.find((x) => c.ids.includes(x.goalId));
+                      if (!r) return <td key={c.key} className="px-2 py-2 text-center text-text-3">—</td>;
                       return (
-                        <td key={g.id} className="px-2 py-2 text-center">
+                        <td key={c.key} className="px-2 py-2 text-center">
                           <span className={cn('inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
                             r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}>{r.actual}/{r.target}</span>
                           {r.adjusted ? <span className="block text-[10px] text-violet-text tabular-nums">{t('adjustedBy', { n: r.adjusted > 0 ? `+${r.adjusted}` : String(r.adjusted) })}</span> : null}
@@ -688,9 +691,13 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                       );
                     })}
                     <td className="px-3 py-2 text-right tabular-nums text-text-1">
-                      {esSup ? `${Math.round(p.result.progress * 1000) / 10}%` : `${p.result.goalsHit}/${p.result.goalsTotal}`}
+                      {esSup
+                        ? (p.result.goals.length > 0
+                          ? t('managerMixed', { hits: p.result.goalsHit, total: p.result.goalsTotal, team: Math.round((p.result.teamProgress ?? 0) * 1000) / 10 })
+                          : `${Math.round(p.result.progress * 1000) / 10}%`)
+                        : `${p.result.goalsHit}/${p.result.goalsTotal}`}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-text-2">{esSup ? '—' : p.result.points}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-text-2">{esSup && p.result.goals.length === 0 ? '—' : p.result.points}</td>
                     <td className="px-3 py-2 text-right tabular-nums font-semibold text-text-1">{money(p.result.payoutCents)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {aprobado
@@ -703,7 +710,7 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                           className="rounded-md px-2 py-1 text-xs font-semibold text-text-2 hover:bg-bg-2 disabled:opacity-40">{t('undoApprove')}</button>
                       ) : (
                         <span className="inline-flex gap-1.5">
-                          {!esSup && (
+                          {p.result.goals.length > 0 && (
                             <button type="button" disabled={ocupado} onClick={() => { setAjustando(ajustando === p.userId ? null : p.userId); setAdjGoal(p.result.goals[0]?.goalId ?? ''); setAdjDelta(''); setAdjReason(''); }}
                               className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-text-1 hover:bg-bg-2 disabled:opacity-40">{t('adjust')}</button>
                           )}
@@ -720,7 +727,7 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                   </tr>
                   {ajustando === p.userId && (
                     <tr className="border-b border-row-sep">
-                      <td colSpan={goals.length + 6} className="px-4 py-2 bg-bg-2/40">
+                      <td colSpan={columnas.length + 6} className="px-4 py-2 bg-bg-2/40">
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <span className="text-text-2">{t('adjustTitle', { name: p.name })}</span>
                           <select id={`premios-adj-goal-${p.userId}`} value={adjGoal} onChange={(e) => setAdjGoal(e.target.value)}

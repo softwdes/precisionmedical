@@ -7305,7 +7305,8 @@
         "aria": "Llevas {earned} de {total}",
         "points": "Puntos",
         "ptsShort": "pts",
-        "approved": "Aprobado"
+        "approved": "Aprobado",
+        "subtitleMixed": "Tu caballo avanza mitad con tus metas y mitad con el promedio de tu equipo"
       },
       "kpiPointsAuto": "los suma el sistema",
       "comingSoon": "Próximamente",
@@ -7318,7 +7319,8 @@
       "prevTeam": "Equipo al {pct}%",
       "prevApprovedHint": "se paga con el bono del mes",
       "prevInReviewHint": "el Admin está revisando el mes; el monto puede ajustarse",
-      "adjustmentsTitle": "Ajustes del Admin"
+      "adjustmentsTitle": "Ajustes del Admin",
+      "managerExplainMixed": "50% por tus metas + 50% por el promedio de tu equipo"
     },
     "revision": {
       "allergiesLabel": "Alergias",

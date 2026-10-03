@@ -22,8 +22,59 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('trackingMva') };
 }
 
+/**
+ * Providers que ALGUNA VEZ atendieron una primera visita MVA.
+ *
+ * El selector de providers listaba los 9 activos y tres de ellos no pueden
+ * producir ni una fila acá: esta vista muestra la PRIMERA cita de cada caso
+ * MVA, y elegirlos devolvía siempre "sin resultados". Edson los tachó sobre
+ * una captura el 2026-10-02.
+ *
+ * No es una lista de nombres: es la misma idea que ya se le aplica a las
+ * aseguradoras unas líneas más abajo —"solo las que de verdad aparecen en
+ * algún caso"— y por eso se mantiene sola. El día que Scott Rigdon tome una
+ * primera visita MVA, aparece; si se suma un provider nuevo, aparece con su
+ * primer caso. Nadie tiene que acordarse de editar nada.
+ *
+ * Medido el 2026-10-02, y la separación es limpia, sin umbral que elegir:
+ *   Loder 394 · Barry Clanton 315 · Gay 142 · Miller 79 · Nielsen 75 · Broadhead 61
+ *   Rigdon 0 · Devin Clanton 0 · Stouffer 0
+ * Rigdon es el interesante: tiene 33 citas MVA y 8 en los últimos 90 días,
+ * pero NINGUNA es una primera visita — solo hace controles. Por eso un filtro
+ * por "tiene citas MVA" no alcanzaba y hay que mirar la primera de cada caso.
+ *
+ * Sin ventana de tiempo a propósito: con una, la lista cambiaría según el
+ * rango de fechas que Edson tenga puesto, y un provider desaparecería del
+ * selector justo cuando abre el rango para ir a buscarlo.
+ */
+async function providersConPrimeraVisitaMva(): Promise<Set<string>> {
+  /*
+   * `LATERAL ... LIMIT 1` y no `DISTINCT ON (cs.id)`, que es la otra forma de
+   * escribir "la primera cita de cada caso". Medido contra la base el
+   * 2026-10-02, cuatro corridas en caliente cada uno:
+   *   DISTINCT ON  302, 227, 214, 208 ms  →  1072 filas (una por caso)
+   *   LATERAL      237, 155, 153, 155 ms  →  7 filas
+   * Más rápido y, sobre todo, trae 7 filas en vez de 1072 para contestar algo
+   * que son 7 ids. Es el mismo `JOIN LATERAL` que ya usa la ruta de tracking
+   * para resolver la primera cita.
+   */
+  const filas = await db.$queryRaw<{ providerId: string | null }[]>`
+    SELECT DISTINCT pr."providerId"
+    FROM cases cs
+    CROSS JOIN LATERAL (
+      SELECT a."providerId"
+      FROM appointments a
+      WHERE a."caseId" = cs.id AND a."deletedAt" IS NULL
+      ORDER BY a."scheduledFor" ASC
+      LIMIT 1
+    ) pr
+    WHERE cs."deletedAt" IS NULL AND cs."caseType" = 'MVA'
+  `;
+  return new Set(filas.map(f => f.providerId).filter((id): id is string => !!id));
+}
+
 export default async function EdsonPage() {
-  const [clinics, providers, carriers, lawyers, firms, chiros] = await Promise.all([
+  const [clinics, providers, carriers, lawyers, firms, chiros, conFilas] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, color: true },
@@ -87,6 +138,7 @@ export default async function EdsonPage() {
       orderBy: { name: 'asc' },
       select: { name: true },
     }),
+    providersConPrimeraVisitaMva(),
   ]);
 
   return (
@@ -102,6 +154,10 @@ export default async function EdsonPage() {
         name: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim(),
       }))}
       firms={firms.map((f) => ({ id: f.id, name: f.firmName ?? '—' }))}
+      /* Solo para el SELECTOR. La celda sigue ofreciendo los 9: asignar una
+         primera visita a quien todavía no tuvo ninguna es justo como deja de
+         tener cero. */
+      providersFiltro={providers.filter((p) => conFilas.has(p.id)).map((p) => p.id)}
       chiroOptions={chiros.map((c) => c.name)}
     />
   );

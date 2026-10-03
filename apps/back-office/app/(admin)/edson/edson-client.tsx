@@ -178,6 +178,11 @@ interface Tabs { seguimiento: number; repetidos: number; archivados: number }
 interface Props {
   clinics:   { id: string; name: string; color: string | null }[];
   providers: { id: string; name: string }[];
+  /**
+   * Los que pueden aparecer como FILA: ids de quienes alguna vez atendieron una
+   * primera visita MVA. Solo acota el SELECTOR, no la celda — ver `page.tsx`.
+   */
+  providersFiltro: string[];
   carriers:  { id: string; name: string; shortCode: string; color: string }[];
   lawyers:   { id: string; name: string }[];
   /** Bufetes. La celda Attorney los pide cuando el caso todavía no tiene uno. */
@@ -297,7 +302,7 @@ function Empty() { return <span className="text-text-muted italic">—</span>; }
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chiroOptions }: Props) {
+export function EdsonClient({ clinics, providers, providersFiltro, carriers, lawyers, firms, chiroOptions }: Props) {
   const serverError = useServerError();
   const t    = useTranslations('phoenix.edsonTracking');
   const tc   = useTranslations('phoenix.common');
@@ -319,6 +324,7 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chir
   // Se funden por id: las rutas de alta devuelven al que YA existía cuando el
   // nombre se repite, y en la próxima carga el mismo llega por los dos lados.
   // Dos opciones con el mismo `id` rompen las keys de la lista.
+  const filtroProviders  = useMemo(() => new Set(providersFiltro), [providersFiltro]);
   const catalogoAbogados = useMemo(() => fundir(lawyers, nuevosAbogados), [lawyers, nuevosAbogados]);
   const catalogoBufetes  = useMemo(() => fundir(firms,   nuevosBufetes),  [firms,   nuevosBufetes]);
 
@@ -931,7 +937,19 @@ export function EdsonClient({ clinics, providers, carriers, lawyers, firms, chir
         </select>
         <select value={providerId} onChange={e => { setProviderId(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allProviders')}</option>
-          {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {/*
+            * El selector lista SOLO a los que pueden devolver filas. Tres de
+            * los nueve activos no atendieron nunca una primera visita MVA, y
+            * elegirlos daba siempre "sin resultados" — un filtro con opciones
+            * que no filtran nada. Lo marcó Edson el 2026-10-02.
+            *
+            * El que ya estaba elegido se deja aunque no esté en la lista: si
+            * no, cambiar de pestaña con un provider puesto lo borraría del
+            * desplegable y la grilla seguiría filtrada por alguien invisible.
+            */}
+          {providers
+            .filter(p => filtroProviders.has(p.id) || p.id === providerId)
+            .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <select value={apptStatus} onChange={e => { setApptStatus(e.target.value); setPage(1); }} className={selectCls}>
           <option value="">{t('allStatuses')}</option>

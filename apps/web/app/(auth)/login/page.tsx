@@ -88,7 +88,30 @@ export default function LoginPage(): React.ReactElement {
     await new Promise(r => setTimeout(r, 0));
     let navigating = false;
     try {
+      // 1 — ¿la cuenta está cerrada? Se pregunta ANTES de mandar la contraseña.
+      //
+      // Si la consulta falla, el módulo del candado responde "abierta" y lo
+      // deja pasar: un hipo del Admin no puede dejar a nadie sin entrar. La
+      // falla queda en los logs del servidor con el prefijo [candado].
+      try {
+        const res  = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
+        const dato = await res.json() as { locked?: boolean };
+        if (dato.locked) {
+          setError('Account locked after 3 failed attempts. You can sign in again tomorrow.');
+          return;
+        }
+      } catch { /* ver arriba: se deja pasar */ }
+
       const {error:ae}=await createBrowserClient().auth.signInWithPassword({email,password});
+
+      // 2 — Queda registrado el intento, bueno o malo. Sin await: el contador
+      //     no puede demorar la entrada de nadie.
+      void fetch('/api/auth/lockout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, success: !ae }),
+      });
+
       if (ae){setError('Invalid credentials. Please try again.');return;}
       rememberMe?localStorage.setItem('pm_remember_me','true'):localStorage.removeItem('pm_remember_me');
       // Reset el contador del SessionGuard de 12h. Sin esto un timestamp

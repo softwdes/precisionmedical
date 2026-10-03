@@ -121,8 +121,32 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
     setLoading(true);
     setError('');
     await new Promise(r => setTimeout(r, 0));
+    // 1 — ¿la cuenta está cerrada? Se pregunta ANTES de mandar la contraseña.
+    //
+    // Si la consulta falla, el módulo del candado responde "abierta" y lo deja
+    // pasar: un hipo del Admin no puede dejar al personal sin fichar. La falla
+    // queda en los logs del servidor con el prefijo [candado].
+    try {
+      const res  = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
+      const dato = await res.json() as { locked?: boolean };
+      if (dato.locked) {
+        setError(t.accountLocked);
+        setLoading(false);
+        return;
+      }
+    } catch { /* ver arriba: se deja pasar */ }
+
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    // 2 — Queda registrado el intento, sea bueno o malo. Sin await: el
+    //     contador no puede demorar la entrada de nadie.
+    void fetch('/api/auth/lockout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, success: !authError }),
+    });
+
     if (authError) {
       setError(t.invalidCredentials);
       setLoading(false);

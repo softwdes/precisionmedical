@@ -13,6 +13,7 @@ interface Dict {
   // ─── Login ──────────────────────────────────────────────────────────
   sessionExpired: string;
   invalidCredentials: string;
+  accountLocked: string;
   signingIn: string;
   signIn: string;
   systemOnline: string;
@@ -162,6 +163,7 @@ const dict: Record<Locale, Dict> = {
     geoBannerNeutral: 'para verificar tu lugar de trabajo. El registro se guarda igual sin permiso.',
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     invalidCredentials: 'Email o contraseña incorrectos',
+    accountLocked: 'Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar mañana.',
     signingIn: 'Ingresando...',
     signIn: 'Ingresar',
     systemOnline: 'Sistema operativo',
@@ -302,6 +304,7 @@ const dict: Record<Locale, Dict> = {
     geoBannerNeutral: 'to verify your work location. Your record is saved either way.',
     sessionExpired: 'Your session expired. Sign in again.',
     invalidCredentials: 'Incorrect email or password',
+    accountLocked: 'Account locked after 3 failed attempts. You can sign in again tomorrow.',
     signingIn: 'Signing in...',
     signIn: 'Sign in',
     systemOnline: 'System online',

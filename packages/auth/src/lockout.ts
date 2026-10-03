@@ -1,12 +1,38 @@
 /**
- * El candado del login.
+ * El candado del login — el MISMO para las cinco apps.
  *
  * **Política (Erick, 2026-10-03): 3 intentos fallidos y la cuenta queda cerrada
  * hasta el día siguiente.** El contador se reinicia con un login correcto.
  *
- * Antes eran 5 intentos y 15 minutos, duplicando en cada reincidencia. El
- * cambio no es de grado: 15 minutos es un bache y "hasta mañana" deja a alguien
- * sin trabajar el resto del día.
+ * Antes eran 5 intentos y 15 minutos, duplicando en cada reincidencia.
+ *
+ * ── Dónde vive el candado, y por qué se mudó ────────────────────────────────
+ *
+ * En la tabla `users` del proyecto **Admin**, que es donde está la cuenta con
+ * la que la gente entra. Antes vivía en `users` de **Phoenix** (la base
+ * clínica) y se escribía con Prisma, y eso dejaba afuera a dos de las cinco
+ * apps:
+ *
+ *  · **timeclock** no tiene conexión a Phoenix — ni la dependencia ni la
+ *    variable. No podía participar de ningún candado.
+ *  · **el Admin** tampoco escribía ahí.
+ *
+ * Y había un agujero medido el 2026-10-03: de las 30 cuentas del Admin, **una
+ * no tenía fila en Phoenix** (un abogado). `recordFailedAttempt` buscaba la
+ * fila, no la encontraba y salía sin hacer nada: esa cuenta estaba exenta del
+ * candado sin que nadie lo hubiera decidido.
+ *
+ * Con el candado del lado de la cuenta no hay nada que cruzar: si la persona
+ * puede entrar, tiene fila acá. Las tres columnas se agregaron al Admin el
+ * 2026-10-03.
+ *
+ * ── Por qué REST y no Prisma ────────────────────────────────────────────────
+ *
+ * Porque Prisma apunta a Phoenix, y éste es el otro proyecto. Las cinco apps ya
+ * tienen `NEXT_PUBLIC_SUPABASE_URL` apuntando acá —es contra esto que se
+ * autentican— y el Admin ya escribe en esta tabla por este mismo camino
+ * (`api/auth/record-login`). Este módulo **no importa Prisma a propósito**: es
+ * lo que permite que timeclock lo use.
  *
  * ── "Hasta el día siguiente" = medianoche de la clínica ─────────────────────
  *
@@ -15,29 +41,139 @@
  * cumple lo que la frase promete: mañana podés entrar.
  *
  * Y es medianoche en `America/Denver`, no UTC. Con UTC el candado se levanta a
- * las 18:00 hora local, o sea en mitad de la tarde del MISMO día: no sería
- * "hasta el día siguiente" en ningún sentido útil.
+ * las 18:00 hora local, o sea en mitad de la tarde del MISMO día.
  *
- * ── ⚠️ No hay forma de desbloquear a mano ───────────────────────────────────
+ * ── ⚠️ Dos límites que hay que tener presentes ──────────────────────────────
  *
- * Verificado el 2026-10-03: no existe pantalla ni endpoint que levante el
- * candado. La única salida es que pase la medianoche. Con 15 minutos eso era
- * tolerable; con esta política, alguien que se traba a las 8 de la mañana no
- * trabaja en todo el día salvo que alguien le edite la base a mano.
+ * **1. No hay pantalla para desbloquear.** Verificado el 2026-10-03: no existe
+ * endpoint ni botón que levante el candado. La salida real es
+ * `recordSuccessfulLogin` —que limpia el contador—, a la que se llega por
+ * "olvidé mi contraseña". Con 15 minutos de castigo eso daba igual; con "hasta
+ * mañana", quien se traba a las 8 no trabaja en todo el día.
  *
- * Por eso `recordSuccessfulLogin` —que ya limpiaba el contador— se vuelve la
- * salida real: el camino de "olvidé mi contraseña" termina en un login
- * correcto, y eso levanta el candado. Está dicho acá porque es la pieza que
- * hace operable a la política, no un detalle.
+ * **2. El chequeo lo dispara el NAVEGADOR.** La página pregunta antes de
+ * mandar la contraseña a Supabase. Eso frena a quien se equivoca, no a quien
+ * ataca: un cliente que le hable directo a Supabase Auth no pasa por acá. El
+ * día que haga falta parar un ataque, el login tiene que mudarse al servidor en
+ * las cinco apps — es otro trabajo y está dicho así a propósito, para que nadie
+ * lea este archivo y crea que el login está blindado.
  */
 
-import type { PrismaClient } from '@precision-medical/database';
-import { writeAuditLog } from '@precision-medical/database';
+import { randomUUID } from 'node:crypto';
 
 const MAX_ATTEMPTS = 3;
 
 /** La clínica está en Denver. El candado se mide en SU calendario, no en UTC. */
 const ZONA_CLINICA = 'America/Denver';
+
+export interface LockoutStatus {
+  locked: boolean;
+  lockedUntil?: Date;
+  remainingMs?: number;
+}
+
+interface FilaUsuario {
+  id: string;
+  failedLoginAttempts: number | null;
+  lockedUntil: string | null;
+}
+
+/* ── Acceso al proyecto Admin ──────────────────────────────────────────────── */
+
+function credenciales(): { url: string; key: string } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    // Ruidoso a propósito: sin esto el candado no existe y nadie se entera.
+    // Es exactamente lo que le falta hoy a timeclock.
+    console.error('[candado] falta NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY — el candado NO está operando');
+    return null;
+  }
+  return { url, key };
+}
+
+/**
+ * `ilike` y no `eq`: el correo que la persona escribe no siempre coincide en
+ * mayúsculas con el guardado. Con `eq`, un `Erick@…` contra un `erick@…`
+ * guardado no encuentra la fila y el candado **no se aplica, en silencio** —
+ * que es justo cómo se ve un candado roto. Sin comodines, así que sigue siendo
+ * una coincidencia exacta, solo que sin distinguir mayúsculas. Es el mismo
+ * patrón que usa `v2-apps.ts` contra esta misma tabla.
+ */
+async function buscarUsuario(email: string): Promise<FilaUsuario | null> {
+  const c = credenciales();
+  if (!c) return null;
+  try {
+    const res = await fetch(
+      `${c.url}/rest/v1/users?select=id,failedLoginAttempts,lockedUntil` +
+      `&email=ilike.${encodeURIComponent(email)}&limit=1`,
+      { headers: { apikey: c.key, Authorization: `Bearer ${c.key}` } },
+    );
+    if (!res.ok) {
+      console.error('[candado] no se pudo leer el usuario:', res.status);
+      return null;
+    }
+    const filas = (await res.json()) as FilaUsuario[];
+    return filas[0] ?? null;
+  } catch (err) {
+    console.error('[candado] error leyendo el usuario:', err);
+    return null;
+  }
+}
+
+async function actualizarUsuario(id: string, datos: Record<string, unknown>): Promise<void> {
+  const c = credenciales();
+  if (!c) return;
+  try {
+    const res = await fetch(`${c.url}/rest/v1/users?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: c.key,
+        Authorization: `Bearer ${c.key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ ...datos, updatedAt: new Date().toISOString() }),
+    });
+    if (!res.ok) console.error('[candado] no se pudo actualizar el usuario:', res.status, await res.text());
+  } catch (err) {
+    console.error('[candado] error actualizando el usuario:', err);
+  }
+}
+
+/**
+ * Una línea en `audit_logs` del Admin.
+ *
+ * El `id` va explícito y es un UUID: la columna es `text NOT NULL` sin default
+ * —el `cuid()` lo genera Prisma del lado del cliente, no Postgres—, así que un
+ * insert por REST que lo omita **muere contra el NOT NULL**. Es la misma
+ * trampa que documenta `packages/api/src/audit-log.ts`, donde ya hizo que no se
+ * escribiera una sola línea de auditoría durante meses.
+ *
+ * No lanza nunca: auditar es un efecto lateral del intento de login, y si falla
+ * no tiene sentido romperle la entrada a nadie por eso.
+ */
+async function auditar(entrada: Record<string, unknown> & { action: string }): Promise<void> {
+  const c = credenciales();
+  if (!c) return;
+  try {
+    const res = await fetch(`${c.url}/rest/v1/audit_logs`, {
+      method: 'POST',
+      headers: {
+        apikey: c.key,
+        Authorization: `Bearer ${c.key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ id: randomUUID(), createdAt: new Date().toISOString(), ...entrada }),
+    });
+    if (!res.ok) console.error(`[candado] auditoría ${entrada.action} no se registró:`, res.status);
+  } catch (err) {
+    console.error(`[candado] auditoría ${entrada.action} no se registró:`, err);
+  }
+}
+
+/* ── La medianoche de la clínica ───────────────────────────────────────────── */
 
 /**
  * Cuánto está adelantada o atrasada la zona respecto de UTC en ESE instante.
@@ -79,106 +215,81 @@ export function proximaMedianocheClinica(desde: Date): Date {
   return new Date(utc);
 }
 
-export interface LockoutStatus {
-  locked: boolean;
-  lockedUntil?: Date;
-  remainingMs?: number;
-}
+/* ── La política ───────────────────────────────────────────────────────────── */
 
-export async function checkLockout(
-  db: PrismaClient,
-  email: string,
-): Promise<LockoutStatus> {
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { lockedUntil: true },
-  });
-
+/**
+ * ¿Está cerrada esta cuenta?
+ *
+ * Si no se puede averiguar —falta la credencial, la red falla, el correo no
+ * existe— devuelve "abierta". Es **fail-open a propósito**: un hipo del Admin
+ * dejaría a toda la clínica sin poder entrar a ninguna de las cinco apps, y eso
+ * es peor que la ventana que abre. Por eso cada falla se escribe en consola con
+ * el prefijo `[candado]`.
+ */
+export async function checkLockout(email: string): Promise<LockoutStatus> {
+  const user = await buscarUsuario(email);
   if (!user?.lockedUntil) return { locked: false };
 
-  const now = new Date();
-  if (user.lockedUntil > now) {
-    return {
-      locked: true,
-      lockedUntil: user.lockedUntil,
-      remainingMs: user.lockedUntil.getTime() - now.getTime(),
-    };
+  const hasta = new Date(user.lockedUntil);
+  const ahora = new Date();
+  if (hasta > ahora) {
+    return { locked: true, lockedUntil: hasta, remainingMs: hasta.getTime() - ahora.getTime() };
   }
 
-  // Lock expired — clear it silently
-  await db.user.update({
-    where: { email },
-    data: { lockedUntil: null },
-  });
+  // Ya pasó la medianoche: se limpia en silencio y se entra.
+  await actualizarUsuario(user.id, { lockedUntil: null, failedLoginAttempts: 0 });
   return { locked: false };
 }
 
-export async function recordFailedAttempt(
-  db: PrismaClient,
-  email: string,
-  ipAddress?: string,
-): Promise<void> {
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true, failedLoginAttempts: true },
-  });
+export async function recordFailedAttempt(email: string, ipAddress?: string): Promise<void> {
+  const user = await buscarUsuario(email);
+  if (!user) return; // Correo desconocido — no se delata si existe o no.
 
-  if (!user) return; // Unknown email — don't leak existence
-
-  const newCount = user.failedLoginAttempts + 1;
-  const shouldLock = newCount >= MAX_ATTEMPTS;
+  const cuenta = (user.failedLoginAttempts ?? 0) + 1;
+  const cerrar = cuenta >= MAX_ATTEMPTS;
   // Sin escala progresiva: al tercer fallo se cierra hasta mañana, sea la
   // primera vez o la quinta. La escala existía para que el primer tropiezo
   // costara poco; con "hasta mañana" ya no hay nada que graduar.
-  const lockedUntil = shouldLock ? proximaMedianocheClinica(new Date()) : null;
+  const lockedUntil = cerrar ? proximaMedianocheClinica(new Date()) : null;
 
-  await db.user.update({
-    where: { email },
-    data: {
-      failedLoginAttempts: newCount,
-      lastFailedAttemptAt: new Date(),
-      ...(shouldLock && { lockedUntil }),
-    },
+  await actualizarUsuario(user.id, {
+    failedLoginAttempts: cuenta,
+    lastFailedAttemptAt: new Date().toISOString(),
+    ...(cerrar && { lockedUntil: lockedUntil?.toISOString() }),
   });
 
-  await writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
+  await auditar({
     actorUserId: user.id,
-    action:      shouldLock ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILED',
+    action:      cerrar ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILED',
     entityType:  'user',
     entityId:    user.id,
     ipAddress,
     metadata: {
-      failedAttempts: newCount,
-      ...(shouldLock && { lockedUntil: lockedUntil?.toISOString() }),
+      failedAttempts: cuenta,
+      ...(cerrar && { lockedUntil: lockedUntil?.toISOString() }),
     },
   });
 }
 
-export async function recordSuccessfulLogin(
-  db: PrismaClient,
-  email: string,
-  ipAddress?: string,
-): Promise<void> {
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
+/**
+ * Login correcto: se limpia todo.
+ *
+ * Esto es, hoy, **la única forma de salir de un candado** — se llega por
+ * "olvidé mi contraseña". Ver el aviso de la cabecera.
+ */
+export async function recordSuccessfulLogin(email: string, ipAddress?: string): Promise<void> {
+  const user = await buscarUsuario(email);
   if (!user) return;
 
-  await db.user.update({
-    where: { email },
-    data: {
-      failedLoginAttempts: 0,
-      lockedUntil:         null,
-      lastFailedAttemptAt: null,
-      lastLoginAt:         new Date(),
-      lastLoginIp:         ipAddress ?? null,
-    },
+  await actualizarUsuario(user.id, {
+    failedLoginAttempts: 0,
+    lockedUntil:         null,
+    lastFailedAttemptAt: null,
+    lastLoginAt:         new Date().toISOString(),
+    lastLoginIp:         ipAddress ?? null,
   });
 
-  await writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
+  await auditar({
     actorUserId: user.id,
     action:      'LOGIN_SUCCESS',
     entityType:  'user',

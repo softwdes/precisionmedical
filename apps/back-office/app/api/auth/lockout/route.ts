@@ -4,12 +4,11 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
 import {
   checkLockout,
   recordFailedAttempt,
   recordSuccessfulLogin,
-} from '@precision-medical/auth';
+} from '@precision-medical/auth/lockout';
 
 function ipFromRequest(req: NextRequest): string | undefined {
   return (
@@ -23,7 +22,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const email = req.nextUrl.searchParams.get('email')?.trim();
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
-  const status = await checkLockout(db, email);
+  const status = await checkLockout(email);
   return NextResponse.json(status);
 }
 
@@ -34,9 +33,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const ip = ipFromRequest(req);
 
   if (body.success) {
-    await recordSuccessfulLogin(db, body.email, ip);
+    await recordSuccessfulLogin(body.email, ip);
   } else {
-    await recordFailedAttempt(db, body.email, ip);
+    await recordFailedAttempt(body.email, ip);
   }
 
   return NextResponse.json({ ok: true });

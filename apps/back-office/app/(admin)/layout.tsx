@@ -10,21 +10,28 @@ import { canAskCifo } from '@/lib/cifo-access';
 import { canSeeRewards } from '@/lib/premios';
 import { contarPendientes } from '@/lib/conversaciones-sms';
 import { getSessionUser } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
 // Si no hay sesión (middleware la redirecciona primero, pero por si acaso):
 
-const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN:       'Admin',
-  CONTADOR:    'Contador',
-  EMPLOYEE:    'Empleado',
-  DOCTOR:      'Provider',
-  PROVIDER:    'Proveedor',
-  LAWYER:      'Abogado',
-  AUDITOR_AI:  'Auditor IA',
-};
+/**
+ * Roles que tienen etiqueta propia en `phoenix.roles`.
+ *
+ * Acá vivía un mapa en DURO y en español, así que la credencial bajo el nombre
+ * decía "Empleado" también en inglés — Edson lo reportó el 2026-10-02 sobre su
+ * propia cuenta. No era una traducción incompleta: ese texto nunca pasó por
+ * i18n, y con él caían igual "Contador", "Proveedor", "Abogado" y "Auditor IA".
+ *
+ * Es una lista y no `t.has()` para que el fallback siga siendo el valor crudo
+ * del enum: un rol nuevo en la base muestra `SUPER_ADMIN` en pantalla, feo pero
+ * cierto, en vez del cartel de clave faltante de next-intl.
+ */
+const ROLES_CON_ETIQUETA = [
+  'SUPER_ADMIN', 'ADMIN', 'CONTADOR', 'EMPLOYEE', 'FRONT_DESK',
+  'DOCTOR', 'PROVIDER', 'LAWYER', 'AUDITOR_AI',
+] as const;
 
 function initials(first: string, last: string): string {
   return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase();
@@ -97,6 +104,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
    */
   const smsPendientes = contarPendientes().catch(() => 0);
 
+  // Las etiquetas de rol, en el idioma de la sesión. Se pide ACÁ y no dentro
+  // del `try`: si la ficha del usuario falla, `userRole` queda vacío y no hace
+  // falta, pero pedirlo adentro ataría la traducción al éxito de una consulta
+  // al otro proyecto de Supabase.
+  const tRoles = await getTranslations('phoenix.roles');
+
   try {
     const admin = createAdminClient();
     const [fichaRes, verPedidos, preguntarCifo] = await Promise.all([
@@ -118,7 +131,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
     if (data) {
       userName  = `${data.firstName} ${data.lastName}`.trim();
-      userRole  = ROLE_LABELS[data.role as string] ?? data.role;
+      const rol = data.role as string;
+      userRole  = (ROLES_CON_ETIQUETA as readonly string[]).includes(rol)
+        ? tRoles(rol as (typeof ROLES_CON_ETIQUETA)[number])
+        : rol;
       userInits = initials(data.firstName ?? '', data.lastName ?? '');
       // Checks por menú POR USUARIO (null = "Visión completa"); admins nunca se restringen
       const isAdminRole = data.role === 'SUPER_ADMIN' || data.role === 'ADMIN';

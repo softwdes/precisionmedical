@@ -51,7 +51,16 @@
     },
     "roles": {
       "patient": "Patient",
-      "attorney": "Attorney"
+      "attorney": "Attorney",
+      "SUPER_ADMIN": "Super Admin",
+      "ADMIN": "Admin",
+      "CONTADOR": "Accountant",
+      "EMPLOYEE": "Employee",
+      "FRONT_DESK": "Front desk",
+      "DOCTOR": "Provider",
+      "PROVIDER": "Provider",
+      "LAWYER": "Attorney",
+      "AUDITOR_AI": "AI Auditor"
     },
     "security": {
       "mfaTitle": "Two-factor authentication (TOTP)",

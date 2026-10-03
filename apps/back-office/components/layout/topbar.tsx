@@ -196,7 +196,42 @@ export function Topbar({
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
+      {/*
+        * `z-[35]`: ARRIBA del encabezado fijo de la tabla, ABAJO del sidebar.
+        *
+        * Estaba en `z-20` y eso dejaba a TODOS
+        * los desplegables de esta barra —avatar, notificaciones, idioma,
+        * tema— por DEBAJO del encabezado fijo de `DataTable`, que es `z-30`.
+        *
+        * El `z-50` del menú del avatar no alcanzaba y no es un olvido: este
+        * `<header>` es `sticky` con z-index Y tiene `backdrop-blur`, así que
+        * crea su propio contexto de apilado. Todo lo de adentro queda encerrado
+        * en el z del padre, por alto que lo pongan. Lo que se compara contra la
+        * tabla es ESTE número, no el del menú.
+        *
+        * Lo reportó Edson el 2026-10-02 sobre su pantalla: el menú del usuario
+        * salía cortado por la franja de encabezados de la grilla. Se ve ahí
+        * porque es la vista con encabezado fijo a todo lo ancho, pero el
+        * defecto era de la barra y estaba en las 22 pantallas.
+        *
+        * ── Por qué 35 y no 40 ──────────────────────────────────────────────
+        *
+        * 40 es el sidebar, y el `<aside>` se pinta ANTES que esta barra: a
+        * igual z gana el último del DOM, así que el topbar habría tapado los
+        * primeros 48px del cajón en el teléfono. Es el mismo choque que ya
+        * documenta el sidebar con la barra inferior, que también es 40 y que
+        * se tuvo que resolver con un `pb-16`.
+        *
+        * 35 porque 30 tampoco alcanza: a igual z con el `th` fijo gana la
+        * tabla, que va después en el DOM. Hace falta estrictamente entre 30 y
+        * 40, y ese rango estaba vacío — medido, no supuesto: en todo
+        * `app/` + `components/` no hay un solo `z-[31..39]`.
+        *
+        * Sigue POR DEBAJO de los modales (`fixed z-50`) y de los paneles
+        * flotantes (`z-[9999]`, que además van por portal), así que no tapa
+        * nada que deba estar arriba.
+        */}
+      <header className="sticky top-0 z-[35] flex h-12 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
         {/* Mobile menu — moved to MobileBottomNav */}
 
         {/* Colapsar / expandir el menu lateral — ver nota en los props */}

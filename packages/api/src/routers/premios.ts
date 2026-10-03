@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { createClientWithCredentials } from '@precision-medical/auth';
 import {
-  calcularPeriodo, mesTerminado, METAS_POR_DEFECTO, METRICAS,
+  calcularPeriodo, claveDeMeta, mesTerminado, metaAplica, METAS_POR_DEFECTO, METRICAS, type MetasPersonales,
   type FrozenResult, type GoalKind, type MetricKey, type ProgressRow, type RewardAdjustment, type RewardGoal, type RewardEvidence,
 } from '@precision-medical/database/premios';
 import { router, adminProcedure } from '../trpc';
@@ -75,6 +75,7 @@ async function metasDelPeriodo(db: Db, periodId: string): Promise<RewardGoal[]> 
 interface PartRow {
   userId: string; kind: string; roleKey: string | null;
   approvedAt: string | null; frozenResult: FrozenResult | null;
+  targets: MetasPersonales | null;
 }
 
 /**
@@ -85,7 +86,7 @@ interface PartRow {
 async function calcularMes(db: Db, period: { id: string; poolAmount: number | string }) {
   const [goals, partRes, progRes, adjRes] = await Promise.all([
     metasDelPeriodo(db, period.id),
-    db.from('reward_participants').select('userId, kind, roleKey, approvedAt, frozenResult').eq('periodId', period.id),
+    db.from('reward_participants').select('userId, kind, roleKey, approvedAt, frozenResult, targets').eq('periodId', period.id),
     db.rpc('reward_progress', { p_period_id: period.id }),
     db.from('reward_adjustments').select('id, userId, goalId, delta, reason, createdAt').eq('periodId', period.id).order('createdAt'),
   ]);
@@ -100,6 +101,7 @@ async function calcularMes(db: Db, period: { id: string; poolAmount: number | st
     participants: parts.map((p) => ({
       userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey,
       frozenResult: p.approvedAt ? p.frozenResult : null,
+      targets: p.targets,
     })),
     progress: (progRes.data ?? []) as unknown as ProgressRow[],
     adjustments,
@@ -215,6 +217,7 @@ export const premiosRouter = router({
           .map((r) => ({
             userId: r.userId, name: nombre(porId.get(r.userId)), kind: r.kind, roleKey: r.roleKey, result: r,
             approvedAt: parts.find((p) => p.userId === r.userId)?.approvedAt ?? null,
+            targets: parts.find((p) => p.userId === r.userId)?.targets ?? null,
           }))
           .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'STAFF' ? -1 : 1)),
         summary: {
@@ -251,6 +254,38 @@ export const premiosRouter = router({
         delta: input.delta, reason: input.reason, createdByUserId: actorId, createdAt: new Date().toISOString(),
       });
       if (ins.error) falla(ins.error.message);
+      return { ok: true };
+    }),
+
+  /**
+   * Las metas propias de una persona (Erick, 2026-10-03): cada uno corre contra
+   * sí mismo. Por clave de meta (`claveDeMeta`): un número reemplaza la del rol,
+   * `null` la saca ("no aplica"). Lo que no se manda vuelve a la del rol.
+   */
+  setTargets: adminProcedure
+    .input(z.object({
+      periodId: z.string().min(1), userId: z.string().min(1),
+      targets: z.record(z.string().min(1).max(60), z.number().int().min(1).max(100000).nullable()),
+    }))
+    .mutation(async ({ input }) => {
+      const db = clinica();
+      await periodoAbierto(db, input.periodId);
+      const part = await db.from('reward_participants').select('kind, roleKey, approvedAt').eq('periodId', input.periodId).eq('userId', input.userId).maybeSingle();
+      if (!part.data) throw new TRPCError({ code: 'NOT_FOUND', message: 'NOT_FOUND' });
+      const p = part.data as { kind: string; roleKey: string | null; approvedAt: string | null };
+      if (p.approvedAt) throw new TRPCError({ code: 'CONFLICT', message: 'ALREADY_APPROVED' });
+      // Solo claves de metas que le tocan: lo demás no tendría efecto y confundiría.
+      const goals = await metasDelPeriodo(db, input.periodId);
+      const validas = new Set(goals.filter((g) => metaAplica(g, p.roleKey)).map(claveDeMeta));
+      const targets: MetasPersonales = {};
+      for (const [k, v] of Object.entries(input.targets)) {
+        if (!validas.has(k)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'GOAL_NOT_IN_ROLE' });
+        targets[k] = v;
+      }
+      const up = await db.from('reward_participants')
+        .update({ targets: Object.keys(targets).length ? targets : null })
+        .eq('periodId', input.periodId).eq('userId', input.userId);
+      if (up.error) falla(up.error.message);
       return { ok: true };
     }),
 
@@ -389,6 +424,7 @@ export const premiosRouter = router({
       const existing = await db.from('reward_periods').select('id, status').eq('month', month).maybeSingle();
       if (existing.error) falla(existing.error.message);
       let periodId: string;
+      let nuevo = false;
       if (existing.data) {
         const p = existing.data as { id: string; status: string };
         if (p.status !== 'OPEN') throw new TRPCError({ code: 'CONFLICT', message: 'PERIOD_CLOSED' });
@@ -397,6 +433,7 @@ export const premiosRouter = router({
         if (up.error) falla(up.error.message);
       } else {
         periodId = randomUUID();
+        nuevo = true;
         const ins = await db.from('reward_periods').insert({
           id: periodId, month, poolAmount: input.poolAmount, status: 'OPEN',
           createdByUserId: actorId, createdAt: ahora, updatedAt: ahora,
@@ -432,6 +469,22 @@ export const premiosRouter = router({
         target: g.target, labelEs: g.labelEs, labelEn: g.labelEn,
       })));
       if (insG.error) falla(insG.error.message);
+
+      // Mes nuevo: las metas propias se copian del mes anterior, para quien
+      // repite con el mismo rol. Las claves no dependen del id de la meta.
+      if (nuevo) {
+        const prev = await db.from('reward_periods').select('id').eq('month', aPrimerDia(mesAnterior(input.month))).maybeSingle();
+        if (prev.data) {
+          const pp = await db.from('reward_participants').select('userId, roleKey, targets')
+            .eq('periodId', (prev.data as { id: string }).id).not('targets', 'is', null);
+          for (const r of (pp.data ?? []) as Array<{ userId: string; roleKey: string | null; targets: MetasPersonales }>) {
+            const ahora = input.participants.find((p) => p.userId === r.userId);
+            if (!ahora || (ahora.roleKey || null) !== r.roleKey) continue;
+            const cp = await db.from('reward_participants').update({ targets: r.targets }).eq('periodId', periodId).eq('userId', r.userId);
+            if (cp.error) falla(cp.error.message);
+          }
+        }
+      }
 
       return { periodId };
     }),

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 import {
-  evaluarEvidencia, METRICAS, columnasDeMetas, type RewardGoal, type GoalKind, type MetricKey, type RewardEvidence, type Senal, type Veredicto,
+  evaluarEvidencia, METRICAS, columnasDeMetas, claveDeMeta, metaAplica, type MetasPersonales, type RewardGoal, type GoalKind, type MetricKey, type RewardEvidence, type Senal, type Veredicto,
 } from '@precision-medical/database/premios';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -523,6 +523,74 @@ function EvidenciaRow({ verdict, signals }: { verdict: Veredicto; signals: Senal
   );
 }
 
+// ─── Metas propias ───────────────────────────────────────────────────────────
+
+/**
+ * Las metas de UNA persona (Erick, 2026-10-03: cada uno corre contra sí mismo).
+ * Vacío = la del rol; "No aplica" = esa meta no le cuenta. La parte en dinero no
+ * cambia: solo el número a alcanzar.
+ */
+function MetasPersonalesEditor({ periodId, userId, name, goals, targets, label, onClose, onSaved, onError }: {
+  periodId: string; userId: string; name: string; goals: RewardGoal[]; targets: MetasPersonales | null;
+  label: (g: RewardGoal) => string; onClose: () => void; onSaved: () => void; onError: (e: unknown) => void;
+}): React.ReactElement {
+  const t = useTranslations('rewards');
+  const save = api.premios.setTargets.useMutation();
+  const filas = columnasDeMetas(goals).map((c) => c.goal);
+  const [valores, setValores] = useState<Record<string, string>>(() =>
+    Object.fromEntries(filas.map((g) => { const v = targets?.[claveDeMeta(g)]; return [claveDeMeta(g), typeof v === 'number' ? String(v) : '']; })));
+  const [noAplica, setNoAplica] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(filas.map((g) => [claveDeMeta(g), targets?.[claveDeMeta(g)] === null])));
+  const invalido = filas.some((g) => { const v = valores[claveDeMeta(g)]; return !noAplica[claveDeMeta(g)] && v !== '' && !(Number.isInteger(Number(v)) && Number(v) >= 1); });
+
+  async function guardar(): Promise<void> {
+    const out: MetasPersonales = {};
+    for (const g of filas) {
+      const k = claveDeMeta(g);
+      if (noAplica[k]) out[k] = null;
+      else if (valores[k] !== '' && Number(valores[k]) !== g.target) out[k] = Number(valores[k]);
+    }
+    try { await save.mutateAsync({ periodId, userId, targets: out }); onSaved(); } catch (e) { onError(e); }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-text-1">{t('personalTitle', { name })}</span>
+        <button type="button" onClick={onClose} className="rounded p-1 text-text-3" aria-label={t('cancel')}><X className="w-3.5 h-3.5" /></button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        {filas.map((g) => {
+          const k = claveDeMeta(g);
+          return (
+            <div key={k} className={cn('rounded-md bg-bg-1 p-2 flex flex-col gap-1', noAplica[k] && 'opacity-50')}>
+              <label htmlFor={`premios-meta-${userId}-${k}`} className="text-[11.5px] font-semibold text-text-1">{label(g)}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id={`premios-meta-${userId}-${k}`} type="number" min={1} disabled={noAplica[k]}
+                  value={valores[k] ?? ''} placeholder={String(g.target)}
+                  onChange={(e) => setValores((v) => ({ ...v, [k]: e.target.value }))}
+                  className="w-20 rounded-md border border-border bg-bg-2 px-2 py-1 text-xs text-text-1 tabular-nums"
+                />
+                <span className="text-[10.5px] text-text-3">{t('personalRole', { n: g.target })}</span>
+              </div>
+              <label className="inline-flex items-center gap-1.5 text-[11px] text-text-2">
+                <input type="checkbox" checked={!!noAplica[k]} onChange={(e) => setNoAplica((v) => ({ ...v, [k]: e.target.checked }))} />
+                {t('personalNotApply')}
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <p className="text-[11px] text-text-3">{t('personalHint')}</p>
+        <button type="button" disabled={save.isPending || invalido} onClick={() => void guardar()}
+          className="rounded-md bg-brand px-3 py-1 text-xs font-semibold text-white disabled:opacity-40">{t('personalSave')}</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tablero ─────────────────────────────────────────────────────────────────
 
 function TableroView({ data, money, onChanged }: { data: Overview; money: (c: number) => string; onChanged: () => void }): React.ReactElement {
@@ -542,6 +610,8 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
   const removeAdj = api.premios.removeAdjustment.useMutation();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [ajustando, setAjustando] = useState<string | null>(null);
+  // Fila abierta con el editor de metas propias (por userId).
+  const [editandoMetas, setEditandoMetas] = useState<string | null>(null);
   const [adjGoal, setAdjGoal] = useState('');
   const [adjDelta, setAdjDelta] = useState('');
   const [adjReason, setAdjReason] = useState('');
@@ -685,7 +755,8 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                       return (
                         <td key={c.key} className="px-2 py-2 text-center">
                           <span className={cn('inline-block min-w-[3rem] rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                            r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}>{r.actual}/{r.target}</span>
+                            r.hit ? 'bg-emerald/15 text-emerald-text' : 'bg-amber/15 text-amber-text')}
+                            title={r.roleTarget ? t('personalOwnTitle', { n: r.roleTarget }) : undefined}>{r.actual}/{r.target}{r.roleTarget ? '*' : ''}</span>
                           {r.adjusted ? <span className="block text-[10px] text-violet-text tabular-nums">{t('adjustedBy', { n: r.adjusted > 0 ? `+${r.adjusted}` : String(r.adjusted) })}</span> : null}
                         </td>
                       );
@@ -710,8 +781,12 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                           className="rounded-md px-2 py-1 text-xs font-semibold text-text-2 hover:bg-bg-2 disabled:opacity-40">{t('undoApprove')}</button>
                       ) : (
                         <span className="inline-flex gap-1.5">
+                          {p.roleKey && (
+                            <button type="button" disabled={ocupado} onClick={() => { setEditandoMetas(editandoMetas === p.userId ? null : p.userId); setAjustando(null); }}
+                              className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-text-1 hover:bg-bg-2 disabled:opacity-40">{t('personalGoals')}</button>
+                          )}
                           {p.result.goals.length > 0 && (
-                            <button type="button" disabled={ocupado} onClick={() => { setAjustando(ajustando === p.userId ? null : p.userId); setAdjGoal(p.result.goals[0]?.goalId ?? ''); setAdjDelta(''); setAdjReason(''); }}
+                            <button type="button" disabled={ocupado} onClick={() => { setAjustando(ajustando === p.userId ? null : p.userId); setEditandoMetas(null); setAdjGoal(p.result.goals[0]?.goalId ?? ''); setAdjDelta(''); setAdjReason(''); }}
                               className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-text-1 hover:bg-bg-2 disabled:opacity-40">{t('adjust')}</button>
                           )}
                           <button
@@ -725,6 +800,20 @@ function TableroView({ data, money, onChanged }: { data: Overview; money: (c: nu
                       ))}
                     </td>
                   </tr>
+                  {editandoMetas === p.userId && !aprobado && !cerrado && (
+                    <tr className="border-b border-row-sep">
+                      <td colSpan={columnas.length + 6} className="px-4 py-3 bg-bg-2/40">
+                        <MetasPersonalesEditor
+                          periodId={periodId} name={p.name} userId={p.userId} label={label}
+                          goals={goals.filter((g) => metaAplica(g, p.roleKey))}
+                          targets={(p.targets ?? null) as MetasPersonales | null}
+                          onClose={() => setEditandoMetas(null)}
+                          onSaved={() => { setEditandoMetas(null); onChanged(); }}
+                          onError={error}
+                        />
+                      </td>
+                    </tr>
+                  )}
                   {ajustando === p.userId && (
                     <tr className="border-b border-row-sep">
                       <td colSpan={columnas.length + 6} className="px-4 py-2 bg-bg-2/40">

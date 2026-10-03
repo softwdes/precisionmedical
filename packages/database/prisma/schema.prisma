@@ -5209,6 +5209,8 @@ model RewardParticipant {
   kind         String   @default("STAFF")
   /// Rol para las metas por rol; null = recibe solo las metas sin rol
   roleKey      String?
+  /// Metas propias (2026-10-03): { claveDeMeta: número | null }; null = no le aplica
+  targets      Json?
   shareAmount  Decimal? @db.Decimal(10, 2)
   goalsHit     Int?
   goalsTotal   Int?

@@ -16,7 +16,7 @@
 import { cache } from 'react';
 import { db, VIGENTES, AppointmentStatus } from '@precision-medical/database';
 import {
-  calcularPeriodo, mesDe, type FrozenResult, type ProgressRow, type RewardGoal, type GoalKind, type MetricKey,
+  calcularPeriodo, mesDe, type FrozenResult, type MetasPersonales, type ProgressRow, type RewardGoal, type GoalKind, type MetricKey,
   type ParticipantResult,
 } from '@precision-medical/database/premios';
 import { decryptFieldOrOriginal as dec } from './decrypt';
@@ -146,7 +146,7 @@ export async function misPremios(userId: string, cual: 'actual' | 'anterior' = '
     db.rewardGoal.findMany({ where: { periodId: period.id }, orderBy: { sortOrder: 'asc' } }),
     db.rewardParticipant.findMany({
       where: { periodId: period.id },
-      select: { userId: true, kind: true, roleKey: true, approvedAt: true, frozenResult: true },
+      select: { userId: true, kind: true, roleKey: true, approvedAt: true, frozenResult: true, targets: true },
     }),
     progresoDelPeriodo(period.id),
     db.rewardEntry.findMany({
@@ -164,6 +164,7 @@ export async function misPremios(userId: string, cual: 'actual' | 'anterior' = '
     participants: participants.map((p) => ({
       userId: p.userId, kind: p.kind === 'MANAGER' ? 'MANAGER' : 'STAFF', roleKey: p.roleKey,
       frozenResult: p.approvedAt ? (p.frozenResult as unknown as FrozenResult | null) : null,
+      targets: p.targets as MetasPersonales | null,
     })),
     progress,
     adjustments,

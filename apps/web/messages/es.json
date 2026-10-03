@@ -2154,7 +2154,8 @@
       "NOT_FOUND": "Ese registro ya no existe.",
       "MONTH_NOT_ENDED": "Todavía no terminó el mes: se aprueba después del último día.",
       "STAFF_FIRST": "Primero aprueba a todo el staff: el monto de los supervisores sale de ellos.",
-      "ALREADY_APPROVED": "Esa persona ya está aprobada: deshaz la aprobación para ajustarla."
+      "ALREADY_APPROVED": "Esa persona ya está aprobada: deshaz la aprobación para ajustarla.",
+      "GOAL_NOT_IN_ROLE": "Esa meta no es del rol de la persona."
     },
     "source": {
       "PERSONAL_REFERRAL": "Referido personal",
@@ -2257,6 +2258,13 @@
     "csvAmount": "Monto (USD)",
     "csvStatus": "Estado",
     "csvTotal": "Total",
-    "managerMixed": "Suyas {hits}/{total} · equipo {team}%"
+    "managerMixed": "Suyas {hits}/{total} · equipo {team}%",
+    "personalGoals": "Metas",
+    "personalTitle": "Metas propias de {name}",
+    "personalRole": "rol: {n}",
+    "personalNotApply": "No aplica",
+    "personalSave": "Guardar metas",
+    "personalHint": "Vacío = la meta del rol. Cada uno corre contra sí mismo: cambia el número a alcanzar, no la parte en dinero.",
+    "personalOwnTitle": "Meta propia · la del rol es {n}"
   }
 }

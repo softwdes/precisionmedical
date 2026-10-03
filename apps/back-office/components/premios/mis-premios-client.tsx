@@ -244,17 +244,19 @@ export function MisPremiosClient(): React.ReactElement {
               const r = resDe(g.id);
               const actual = r?.actual ?? 0;
               const hit = !!r?.hit;
-              const pct = Math.min(100, Math.round((actual / g.target) * 100));
+              // La meta es la de la persona: puede tener una propia, distinta a la del rol.
+              const meta = r?.target ?? g.target;
+              const pct = Math.min(100, Math.round((actual / meta) * 100));
               return (
                 <div key={g.id} className={cn('rounded-md p-3 flex flex-col gap-1.5', hit ? 'bg-emerald/10' : 'bg-bg-2/40')}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[12.5px] font-semibold text-text-1">{labelMeta(g)}</span>
                     {hit
                       ? <StatusPill state="success" label={t('goalDone')} />
-                      : <StatusPill state="warning" label={t('goalMissing', { n: g.target - actual })} />}
+                      : <StatusPill state="warning" label={t('goalMissing', { n: meta - actual })} />}
                   </div>
                   <div className="text-lg font-bold text-text-1 tabular-nums">
-                    {actual}<span className="text-text-muted text-xs font-semibold"> / {g.target}{g.kind === 'USAGE' ? ` ${t('pts')}` : ''}</span>
+                    {actual}<span className="text-text-muted text-xs font-semibold"> / {meta}{g.kind === 'USAGE' ? ` ${t('pts')}` : ''}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-bg-3 overflow-hidden">
                     <div className={cn('h-full rounded-full', hit ? 'bg-emerald' : 'bg-amber')} style={{ width: `${pct}%` }} />

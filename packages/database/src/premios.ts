@@ -178,11 +178,38 @@ export function metaAplica(goal: Pick<RewardGoal, 'roleKey'>, roleKey: string | 
   return !goal.roleKey || goal.roleKey === (roleKey ?? null);
 }
 
+/**
+ * Metas propias de una persona (Erick, 2026-10-03: cada uno corre contra sí mismo).
+ * Clave: `claveDeMeta` —no el id, porque las metas se recrean al guardar el mes—.
+ * Un número reemplaza la meta del rol; `null` = esa meta no le aplica. Sin clave,
+ * va la del rol.
+ */
+export type MetasPersonales = Record<string, number | null>;
+
+/** Las metas de una persona con su número efectivo, ya sin las que no le aplican. */
+export function metasDePersona<G extends RewardGoal>(
+  goals: G[], p: { kind: 'STAFF' | 'MANAGER'; roleKey?: string | null; targets?: MetasPersonales | null },
+): Array<G & { roleTarget: number }> {
+  // Supervisor SIN rol: no tiene metas propias (cobra 100% por el equipo).
+  if (p.kind === 'MANAGER' && !p.roleKey) return [];
+  const propias = p.targets ?? {};
+  return goals
+    .filter((g) => metaAplica(g, p.roleKey))
+    .filter((g) => propias[claveDeMeta(g)] !== null)
+    .map((g) => {
+      const k = claveDeMeta(g);
+      const v = propias[k];
+      return { ...g, roleTarget: g.target, target: typeof v === 'number' && v > 0 ? v : g.target };
+    });
+}
+
 export interface GoalResult {
   goalId: string;
   /** Lo que contó el sistema + los ajustes del Admin (nunca menos de 0). */
   actual: number;
   target: number;
+  /** La meta del rol, cuando la persona tiene una propia distinta. */
+  roleTarget?: number;
   hit: boolean;
   /** Suma de los ajustes del Admin en esta meta (0 = ninguno). */
   adjusted?: number;
@@ -275,6 +302,8 @@ export function calcularPeriodo(input: {
     userId: string; kind: 'STAFF' | 'MANAGER'; roleKey?: string | null;
     /** Si ya está aprobado: su resultado congelado, que se usa tal cual. */
     frozenResult?: FrozenResult | null;
+    /** Sus metas propias; sin ellas, las del rol. */
+    targets?: MetasPersonales | null;
   }>;
   progress: ProgressRow[];
   /** Ajustes del Admin en la revisión. Solo afectan a quien NO está aprobado. */
@@ -294,13 +323,16 @@ export function calcularPeriodo(input: {
       return { p, row: porUsuario.get(p.userId), res: fr.goals, total: fr.goalsTotal, hits: fr.goalsHit, points: fr.points, frozen: fr };
     }
     const row = porUsuario.get(p.userId);
-    // Supervisor SIN rol: no tiene metas propias (cobra 100% por el equipo).
-    // Con rol: las metas de su rol, como cualquiera (Erick, 2026-10-03: Beatriz).
-    const suyas = p.kind === 'MANAGER' && !p.roleKey ? [] : goals.filter((g) => metaAplica(g, p.roleKey));
+    // Supervisor con rol: las metas de su rol, como cualquiera (Erick, 2026-10-03: Beatriz).
+    const suyas = metasDePersona(goals, p);
     const res = suyas.map((g) => {
       const adj = ajuste(p.userId, g.id);
       const actual = Math.max(0, avanceDeMeta(g, row) + adj);
-      return { goalId: g.id, actual, target: g.target, hit: actual >= g.target, ...(adj ? { adjusted: adj } : {}) };
+      return {
+        goalId: g.id, actual, target: g.target, hit: actual >= g.target,
+        ...(g.roleTarget !== g.target ? { roleTarget: g.roleTarget } : {}),
+        ...(adj ? { adjusted: adj } : {}),
+      };
     });
     return {
       p, row, res,

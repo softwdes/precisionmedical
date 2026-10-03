@@ -2154,7 +2154,8 @@
       "NOT_FOUND": "That entry no longer exists.",
       "MONTH_NOT_ENDED": "The month hasn’t ended yet: approve after the last day.",
       "STAFF_FIRST": "Approve all staff first: the supervisors’ amount comes from them.",
-      "ALREADY_APPROVED": "That person is already approved: undo the approval to adjust them."
+      "ALREADY_APPROVED": "That person is already approved: undo the approval to adjust them.",
+      "GOAL_NOT_IN_ROLE": "That goal isn’t in this person’s role."
     },
     "source": {
       "PERSONAL_REFERRAL": "Personal referral",
@@ -2257,6 +2258,13 @@
     "csvAmount": "Amount (USD)",
     "csvStatus": "Status",
     "csvTotal": "Total",
-    "managerMixed": "Own {hits}/{total} · team {team}%"
+    "managerMixed": "Own {hits}/{total} · team {team}%",
+    "personalGoals": "Goals",
+    "personalTitle": "{name}’s own goals",
+    "personalRole": "role: {n}",
+    "personalNotApply": "Doesn’t apply",
+    "personalSave": "Save goals",
+    "personalHint": "Empty = the role’s goal. Everyone races against themselves: this changes the number to reach, not the cash share.",
+    "personalOwnTitle": "Own goal · the role’s is {n}"
   }
 }

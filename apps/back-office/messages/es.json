@@ -6121,7 +6121,9 @@
         "removeLabel": "Quitar",
         "servicesEmpty": "Este caso no tiene servicios cargados.",
         "bracesEmpty": "Este caso no tiene férulas entregadas.",
-        "loadError": "No se pudo cargar la información clínica."
+        "loadError": "No se pudo cargar la información clínica.",
+        "visitNoShow": "No se presentó",
+        "visitCancelledSameDay": "Cancelada el mismo día"
       },
       "finanzas": {
         "emptyTitle": "Sin registros de facturación",

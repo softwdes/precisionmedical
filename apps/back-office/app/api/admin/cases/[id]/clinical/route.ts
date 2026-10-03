@@ -38,12 +38,43 @@ export async function GET(
   };
 
   const appts = await db.appointment.findMany({
-    where: { ...VIGENTES, caseId: id, status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+    /**
+     * Entran las que NO OCURRIERON pero igual se cobran.
+     *
+     * La regla de penalidades (Erick, 20-ago-2026) dice que un no-show y una
+     * cancelación del MISMO DÍA consumen el horario y se cobran — con sus
+     * palabras: *"se muestra el caso para generarle un cobro de penalidad"*.
+     * Esta consulta es del 9-ago, ONCE DÍAS ANTERIOR a esa regla, y nunca se
+     * actualizó: escondía justamente la visita donde hay que colgar el cargo.
+     *
+     * Cobranza quedó sin camino. Medido el 2-oct-2026: **43 no-shows y 8
+     * cancelaciones del mismo día sin un solo cargo**, 51 de ellas en los
+     * últimos 90 días. A $100 el código de no-show son ~$5.100 que la regla
+     * manda cobrar y la pantalla no dejaba.
+     *
+     * La cancelación CON AVISO sigue afuera: esa no se cobra y no da acceso
+     * al caso, por la misma regla.
+     *
+     * ⚠️ Que la visita VENGA no significa que acepte de todo: una consulta que
+     * no ocurrió no puede recibir una nota, una receta, un lab ni una férula.
+     * Eso lo decide `visitaDestino` en `case-clinical-tabs.tsx`, que es quien
+     * elige a qué visita va lo nuevo.
+     */
+    where: {
+      ...VIGENTES,
+      caseId: id,
+      OR: [
+        { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+        { status: 'NO_SHOW' },
+        { status: 'CANCELLED', cancelledSameDay: true },
+      ],
+    },
     orderBy: { scheduledFor: 'desc' },
     select: {
       id: true,
       scheduledFor: true,
       status: true,
+      cancelledSameDay: true,
       plannedServiceCodes: true,
       provider: { select: { id: true, firstName: true, lastName: true } },
       visitNote: {
@@ -101,6 +132,8 @@ export async function GET(
     appointmentId: a.id,
     scheduledFor: a.scheduledFor.toISOString(),
     status: a.status,
+    /** Para distinguir la cancelación que se cobra de la que no. */
+    cancelledSameDay: a.cancelledSameDay ?? false,
     providerName: a.provider ? `${a.provider.firstName} ${a.provider.lastName}` : null,
     /** Para preseleccionar al solicitante de una orden nueva */
     providerId: a.provider?.id ?? null,

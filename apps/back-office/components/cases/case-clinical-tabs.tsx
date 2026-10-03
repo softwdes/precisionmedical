@@ -90,9 +90,30 @@ function visitasVisibles(visits: Visit[], visitId: string | null): Visit[] {
  * filtro a una visita, lo nuevo va A ESA: filtrar al 5 de agosto y que el cargo
  * caiga en la visita de ayer seria una trampa.
  */
-function visitaDestino(visits: Visit[], visitId: string | null, latestAppointmentId: string | null): Visit | null {
-  if (visitId) return visits.find((v) => v.appointmentId === visitId) ?? null;
-  return visits.find((v) => v.appointmentId === latestAppointmentId) ?? visits[0] ?? null;
+/**
+ * ¿Esa visita OCURRIÓ?
+ *
+ * Desde que la ruta deja pasar los no-show y las cancelaciones del mismo día
+ * —para poder cobrarles la penalidad— hay visitas en la lista a las que no
+ * se les puede colgar nada clínico: nadie atendió a nadie. El cargo sí; la
+ * nota, la receta, el lab y la férula no.
+ */
+function ocurrio(v: Visit): boolean {
+  return v.status !== 'NO_SHOW' && v.status !== 'CANCELLED';
+}
+
+/**
+ * `soloOcurridas` lo piden los tabs clínicos.
+ *
+ * Hace las dos cosas que hacen falta: no elegir una visita que no ocurrió
+ * como destino por defecto, y devolver `null` si el usuario FILTRÓ a una —
+ * que es lo que esconde el botón de "nueva orden" en una consulta que nunca
+ * pasó, en vez de ofrecerla y fallar después.
+ */
+function visitaDestino(visits: Visit[], visitId: string | null, latestAppointmentId: string | null, soloOcurridas = false): Visit | null {
+  const aptas = soloOcurridas ? visits.filter(ocurrio) : visits;
+  if (visitId) return aptas.find((v) => v.appointmentId === visitId) ?? null;
+  return aptas.find((v) => v.appointmentId === latestAppointmentId) ?? aptas[0] ?? null;
 }
 
 /** La cabecera de visita. Recibe el locale porque es funcion de modulo: el hook
@@ -122,6 +143,7 @@ const LAB_CATEGORY_ICON: Record<string, React.ElementType> = {
 function VisitHeader({ visit, action, dateIso, note }: {
   visit: Visit; action?: React.ReactNode; dateIso?: string; note?: string;
 }): React.ReactElement {
+  const t = useTranslations('phoenix.caseTabs.clinical');
   const locale = useLocale();
   return (
     // Sin border-b: el cambio de fondo ya separa la cabecera de las filas
@@ -130,6 +152,18 @@ function VisitHeader({ visit, action, dateIso, note }: {
       <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
         {fmtVisit(dateIso ?? visit.scheduledFor, locale)}
       </span>
+      {/*
+        Que NO OCURRIÓ, dicho en la cabecera.
+
+        Estas visitas llegan a la lista solo para poder cobrarles la penalidad.
+        Sin la marca, un no-show se lee igual que una consulta normal y alguien
+        le cuelga un 99214 de $300 creyendo que lo atendieron.
+      */}
+      {!ocurrio(visit) && (
+        <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-px rounded-full border border-rose/30 bg-rose/10 text-rose whitespace-nowrap">
+          {visit.status === 'NO_SHOW' ? t('visitNoShow') : t('visitCancelledSameDay')}
+        </span>
+      )}
       {visit.providerName && (
         <span className="text-[11px] text-text-2">· {visit.providerName}</span>
       )}
@@ -215,7 +249,8 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
   const locale = useLocale();
   const { visits, latestAppointmentId, loading, error, reload } = clinical;
 
-  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
+  /* `true`: una orden de lab necesita una consulta que haya ocurrido. */
+  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId, true);
 
   // "New order" abre DIRECTO el formulario (feedback de Erick: el paso
   // intermedio con la misma lista era ambiguo). La orden se cuelga de la
@@ -793,6 +828,8 @@ export function CaseServicesTab({ caseId, clinical, visitId }: ClinicalTabProps)
       : tc('errRemoveFailed');
   };
 
+  /* SIN `true`, a propósito: el no-show y la cancelación del mismo día se
+     cobran, y este es el único tab donde se les cuelga la penalidad. */
   const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
   const pickerVisit = visits.find((v) => v.appointmentId === pickerApptId) ?? null;
 
@@ -1190,7 +1227,8 @@ export function CaseBracesTab({ caseId, clinical, visitId }: ClinicalTabProps): 
   const [saving, setSaving] = React.useState(false);
   const [confirmBrace, setConfirmBrace] = React.useState<{ id: string; name: string } | null>(null);
 
-  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId);
+  /* `true`: una férula se entrega en una consulta real. */
+  const latestVisit = visitaDestino(visits, visitId, latestAppointmentId, true);
   // Por id, no por objeto: el picker queda abierto entre entregas y cada una
   // recarga la lista (mismo motivo que en Servicios).
   const pickerVisit = visits.find((v) => v.appointmentId === pickerApptId) ?? null;

@@ -6121,7 +6121,9 @@
         "removeLabel": "Remove",
         "servicesEmpty": "This case has no services recorded.",
         "bracesEmpty": "This case has no braces dispensed.",
-        "loadError": "Could not load clinical information."
+        "loadError": "Could not load clinical information.",
+        "visitNoShow": "No show",
+        "visitCancelledSameDay": "Cancelled same day"
       },
       "finanzas": {
         "emptyTitle": "No billing records",

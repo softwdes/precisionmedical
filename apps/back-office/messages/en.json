@@ -28,7 +28,7 @@
       "loginErrAuth": "Authentication error. Please try again.",
       "loginErrNetwork": "Connection error. Check your network and try again.",
       "loginSessionExpired": "Your session expired due to inactivity. Please sign in again.",
-      "loginLocked": "Account locked. Try again in <b>{tiempo}</b>.",
+      "loginLocked": "Account locked after 3 failed attempts. You can sign in again <b>tomorrow</b>.",
       "loginMfaHint": "Enter the 6-digit code from your authenticator app.",
       "loginBtnVerify": "Verify →",
       "loginBtnBack": "← Back",

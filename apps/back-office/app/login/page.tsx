@@ -125,11 +125,15 @@ export default function LoginPage(): React.ReactElement {
   const [mfaCode,     setMfaCode]     = useState('');
   const [mfaFactorId, setMfaFactorId] = useState('');
 
-  function formatLockRemaining(until: Date): string {
-    const ms  = until.getTime() - Date.now();
-    const min = Math.ceil(ms / 60_000);
-    return min <= 1 ? 'less than a minute' : `${min} minutes`;
-  }
+  /*
+   * Acá vivía `formatLockRemaining`, que contaba los minutos que faltaban.
+   * Con la política de "3 intentos y hasta mañana" (2026-10-03) ese número
+   * pasó a ser de hasta 960 minutos, y el cartel llegó a decir "volvé a
+   * intentar en 960 minutes" — en inglés, dentro de la frase en español.
+   *
+   * El mensaje ahora dice "mañana", que es la política misma y no necesita
+   * cuenta regresiva.
+   */
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -358,7 +362,7 @@ export default function LoginPage(): React.ReactElement {
               {lockedUntil && (
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(244,63,94,0.10)',border:'1px solid rgba(244,63,94,0.28)',color:'#F43F5E',fontSize:12}}>
                   <AlertCircle size={13} style={{flexShrink:0}}/>
-                  <span>{tm.rich('loginLocked', { tiempo: formatLockRemaining(lockedUntil), b: (c) => <strong>{c}</strong> })}</span>
+                  <span>{tm.rich('loginLocked', { b: (c) => <strong>{c}</strong> })}</span>
                 </div>
               )}
 

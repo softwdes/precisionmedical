@@ -27,16 +27,14 @@
       "mfaVerifying": "Verifying…",
       "backBtn": "← Back",
       "sessionExpired": "🔒 Your session expired due to inactivity. Please sign in again.",
-      "accountLocked": "⚠️ Account locked. Try again in {remaining}.",
+      "accountLocked": "⚠️ Account locked after 3 failed attempts. You can sign in again tomorrow.",
       "footer": "Authorized clinical staff only · Roles: Provider · MA",
       "errAuth": "Authentication error. Please try again.",
       "errCredentials": "Incorrect email or password.",
       "errNetwork": "Connection error. Please check your network.",
       "errMfaChallenge": "Could not start the MFA challenge.",
       "errInvalidCode": "Invalid code. Please try again.",
-      "errConnection": "Connection error.",
-      "lockLessThanMinute": "less than a minute",
-      "lockMinutes": "{min} minutes"
+      "errConnection": "Connection error."
     },
     "errors": {
       "noAccess": "No access",

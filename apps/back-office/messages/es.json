@@ -28,7 +28,7 @@
       "loginErrAuth": "Error de autenticación. Volvé a intentar.",
       "loginErrNetwork": "Error de conexión. Revisá tu red y volvé a intentar.",
       "loginSessionExpired": "Tu sesión venció por inactividad. Volvé a iniciar sesión.",
-      "loginLocked": "Cuenta bloqueada. Volvé a intentar en <b>{tiempo}</b>.",
+      "loginLocked": "Cuenta bloqueada por 3 intentos fallidos. Vas a poder entrar <b>mañana</b>.",
       "loginMfaHint": "Ingresá el código de 6 dígitos que muestra tu app autenticadora.",
       "loginBtnVerify": "Verificar →",
       "loginBtnBack": "← Volver",

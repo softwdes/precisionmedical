@@ -345,7 +345,49 @@ const MODULE_HOME: Record<string, string> = {
   billing: '/billing', messages: '/messages', settings: '/settings',
 };
 
+/**
+ * El portero, con la medición de sesión pegada a la salida — CUALQUIERA de ellas.
+ *
+ * ── El bug que esto arregla ─────────────────────────────────────────────────
+ *
+ * `updateSession` mide cuánto tardó `auth.getUser()` y pone el resultado en un
+ * header `Server-Timing`. Su docblock dice, textual, que va en **todas** las
+ * salidas *"redirecciones incluidas: si solo lo llevara la respuesta normal,
+ * justo los caminos con un salto de más —el del login, que es el que estamos
+ * mirando— quedarían sin medir"*.
+ *
+ * Y es exactamente lo que pasaba. `updateSession` cumple su parte, pero este
+ * archivo se queda con el `user` y arma **respuestas nuevas** para cada
+ * redirección (26 salidas), y una respuesta nueva no hereda el header. Medido
+ * contra producción el 2026-09-25 y otra vez el 2026-10-03: `/doctor`, `/login`
+ * y `/dashboard` vuelven **sin `Server-Timing`**.
+ *
+ * O sea: la instrumentación existía desde el 8-sep (`c58860f5`) y no produjo un
+ * solo dato del camino que se quería medir. Es el mismo patrón que ya nos mordió
+ * con el worker de la PWA — un comentario que describe una intención que el
+ * ruteo no cumple.
+ *
+ * ── Por qué un envoltorio y no 26 `conTiming(...)` ──────────────────────────
+ *
+ * Porque con 26 puntos de salida la pregunta no es si me olvido de uno, es
+ * cuál. Y un olvido acá no se ve: el header falta y nadie se entera, que es
+ * justo cómo llegamos hasta acá. Así hay **un solo lugar** por donde se sale.
+ *
+ * La `caja` se crea por invocación y no es un módulo compartido a propósito:
+ * una variable de módulo se mezclaría entre requests que corren a la vez en el
+ * mismo isolate.
+ */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const caja: { timing?: string } = {};
+  const res = await enrutar(request, caja);
+  if (caja.timing) res.headers.set('Server-Timing', caja.timing);
+  return res;
+}
+
+async function enrutar(
+  request: NextRequest,
+  caja: { timing?: string },
+): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   /**
@@ -465,6 +507,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   // Refrescar sesión Supabase (maneja cookies SSR)
   const { response, user } = await updateSession(request);
+  // Lo único que se saca de acá: cuánto costó resolver la sesión. El envoltorio
+  // lo pega en la salida, sea cual sea. Ver el docblock de `middleware`.
+  caja.timing = response.headers.get('Server-Timing') ?? undefined;
 
   // No autenticado → login
   if (!user) {

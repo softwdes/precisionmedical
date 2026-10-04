@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { ZONA_CLINICA } from '@/lib/fechas';
 import { Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
@@ -79,6 +80,8 @@ export function Topbar({
   const t             = useTranslations('phoenix.topbar');
 
   const [time,        setTime]        = useState('');
+  const [hoy,         setHoy]         = useState('');
+  const [hoyCorto,    setHoyCorto]    = useState('');
   const [cmdOpen,     setCmdOpen]     = useState(false);
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -104,16 +107,53 @@ export function Topbar({
     if (pendingLocale && currentLocale === pendingLocale) setPendingLocale(null);
   }, [currentLocale, pendingLocale]);
 
-  // Reloj
+  /*
+   * Reloj y FECHA DE HOY.
+   *
+   * La fecha la pidió Edson el 2026-10-02 y la confirmó el 04: "today's date,
+   * always, so you can see it from any screen". Por eso vive acá, en el shell,
+   * y no en la vista de tracking: tenía que sobrevivir al cambio de menú.
+   *
+   * ── Se llenan en el cliente, y no es pereza ─────────────────────────────
+   *
+   * Si el servidor pintara la fecha, su HTML y el del navegador no
+   * coincidirían —otra zona, otro locale— y Next tira error de hidratación.
+   * Por eso los dos arrancan vacíos: es lo que ya hacía el reloj, y la fecha
+   * se suma al MISMO intervalo. Sin timer nuevo, y el cambio de día a
+   * medianoche sale gratis.
+   *
+   * ── La zona es la de la CLÍNICA, no la del navegador ────────────────────
+   *
+   * `ZONA_CLINICA` (America/Denver) es lo que usa todo el sistema para fechas,
+   * y es deliberado: "una cita de las 9 AM es a las 9 AM en la clínica, no en
+   * la zona de quien mira". Si esta fecha saliera del navegador, alguien
+   * conectado desde otra zona —o cualquiera entre medianoche y las 2 AM—
+   * vería un día arriba y otro en la grilla.
+   *
+   * El RELOJ sigue en hora del navegador, como estaba. No lo cambio de paso:
+   * es un arreglo distinto, con su propio riesgo, y mezclarlo acá lo
+   * escondería dentro de un cambio que Edson pidió por otra cosa.
+   */
   useEffect(() => {
     const update = (): void => {
       const now = new Date();
       setTime(`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`);
+      setHoy(now.toLocaleDateString(currentLocale, {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+        timeZone: ZONA_CLINICA,
+      }));
+      /*
+       * La versión corta existe por ANCHO, no por gusto — la cuenta está en el
+       * comentario del render.
+       */
+      setHoyCorto(now.toLocaleDateString(currentLocale, {
+        weekday: 'short', month: 'short', day: 'numeric', timeZone: ZONA_CLINICA,
+      }));
     };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [currentLocale]);
 
   // ⌘K shortcut
   useEffect(() => {
@@ -268,7 +308,43 @@ export function Topbar({
         <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
         <div className="flex-1 sm:hidden" />
-        <div className="hidden lg:block flex-1" />
+        {/*
+          * La fecha de hoy, grande y al medio. Acá había un `flex-1` vacío que
+          * solo empujaba; ahora empuja Y dice algo.
+          *
+          * `first-letter:uppercase`: en español `toLocaleDateString` devuelve
+          * "sábado, 4 de octubre de 2026" en minúscula, y al lado del resto de
+          * la barra se lee como un error. En inglés ya viene capitalizado y la
+          * regla no hace nada.
+          *
+          * El alto se reserva con `h-5` aunque el texto todavía no esté: se
+          * llena en el cliente (ver el efecto de arriba), y sin alto fijo la
+          * barra daría un salto en cada carga.
+          *
+          * Desaparece abajo de `lg`, igual que el reloj: en el teléfono el
+          * centro es de la búsqueda y del nombre de la pantalla.
+          */}
+        <div className="hidden lg:flex flex-1 justify-center">
+          {/*
+            * DOS formatos, y el corte es `xl` por una cuenta, no por tanteo.
+            * Lo que queda libre en el centro, con el sidebar en 240, el
+            * buscador en `max-w-md` (448) y el grupo de la derecha en ~300:
+            *    1024 →  ~36px   NO entra
+            *    1280 → ~292px   entra
+            * Y el texto más largo del año es el español: "jueves, 31 de
+            * diciembre de 2026", 31 caracteres. Con una sola versión larga, en
+            * una laptop de 1024 el centro empujaría al avatar fuera de la
+            * barra.
+            *
+            * Abajo de `lg` no va ninguna: ahí el reloj tampoco está.
+            */}
+          <span className="h-5 hidden xl:flex items-center text-base font-semibold text-text-1 first-letter:uppercase whitespace-nowrap">
+            {hoy}
+          </span>
+          <span className="h-5 flex xl:hidden items-center text-sm font-semibold text-text-1 first-letter:uppercase whitespace-nowrap">
+            {hoyCorto}
+          </span>
+        </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Reloj */}

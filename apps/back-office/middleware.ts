@@ -424,7 +424,26 @@ async function enrutar(
     pathname.startsWith('/api/auth') ||
     TWILIO_WEBHOOKS.has(pathname) ||
     pathname.startsWith('/api/scriptsure/webhook') || // DAW → nosotros, Basic Auth propio
-    pathname.startsWith('/api/cron/'); // Vercel Cron → nosotros, `CRON_SECRET` propio
+    pathname.startsWith('/api/cron/') || // Vercel Cron → nosotros, `CRON_SECRET` propio
+    /*
+      `/api/version` — la SEXTA vez que esta lista tapa algo, y ahora el patrón
+      es distinto: no es una máquina pidiendo, es que **la pregunta "¿qué
+      versión está desplegada?" no se puede contestar desde adentro de la
+      sesión**. Sin sesión daba 307 a `/login`, así que nadie —ni la clínica, ni
+      otra sesión, ni un chequeo externo— podía saber si un arreglo ya salió.
+
+      Pasó tres veces en dos días: un arreglo subido a `origin/main` y la
+      clínica viendo el comportamiento viejo, sin forma de distinguir "no se
+      desplegó" de "lo tengo cacheado en el navegador". El 2026-10-04, con el
+      buscador de medicamentos: el arreglo estaba subido desde el 1-oct y la
+      pantalla seguía diciendo "No results".
+
+      Lo que devuelve —el SHA del commit y la hora del servidor— no es secreto:
+      es la versión del build, como el `?dpl=` que Vercel ya pone en cada
+      `<link>` del HTML del login, que es público. No hay PHI ni nada de la
+      clínica detrás de esta puerta.
+    */
+    pathname === '/api/version';
 
   if (isPublic) {
     /**

@@ -183,9 +183,12 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, attorneyEmail, firmName, rect, onClose, onAdd, onEditLegal,
+  caseId, attorneyName, attorneyEmail, firmName, paciente, caseCode, rect, onClose, onAdd, onEditLegal,
 }: {
   caseId: string;
+  /** De quién es este panel. Ver la nota del encabezado. */
+  paciente: string;
+  caseCode: string;
   /** Rectangulo del boton que lo abrio — ver `AnchoredPanel`. */
   rect: AnchorRect;
   attorneyName: string | null;
@@ -221,7 +224,24 @@ export function ManagersPopover({
         * de las personas que trabajan ahí, igual que los encargados.
         */}
       <div>
-        <div className="text-text-1 text-[13px] font-semibold">{firmName ?? '—'}</div>
+        {/*
+          * DE QUIÉN es este panel, arriba de todo.
+          *
+          * El encabezado era solo el bufete, y eso alcanza para creer que el
+          * guardado no funciona: Flickinger Boulton Robson Weeks tiene 10
+          * casos en la cola y 6 sin abogado, así que Edson cargaba el abogado
+          * en uno, abría otro del mismo bufete y veía otra vez "+ Add
+          * attorney" — con un panel idéntico, palabra por palabra. Lo reportó
+          * el 2026-10-04 como "sigue sin guardar"; estaba guardado.
+          *
+          * El paciente va primero y en el tamaño del título: es lo que
+          * distingue una fila de otra. El bufete baja a segunda línea, que es
+          * su papel real acá — contexto del abogado, no identidad del panel.
+          */}
+        <div className="text-text-1 text-[13px] font-semibold truncate">{paciente}</div>
+        <div className="text-text-muted text-[11px] truncate">
+          {caseCode} · {firmName ?? '—'}
+        </div>
       </div>
 
       {/*

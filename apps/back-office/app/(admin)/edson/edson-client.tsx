@@ -1561,6 +1561,8 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 attorneyName={row.attorneyName}
                                 firmName={row.firmName}
                                 attorneyEmail={row.attorneyEmail}
+                                paciente={`${row.patient.lastName}, ${row.patient.firstName}`}
+                                caseCode={row.caseCode}
                                 onClose={() => setManagersFor(null)}
                                 onAdd={() => { setEditingFocus('managers'); setEditing(row); }}
                                 onEditLegal={() => { setEditingFocus('legal'); setEditing(row); }}

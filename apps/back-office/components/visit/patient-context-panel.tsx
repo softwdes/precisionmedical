@@ -322,8 +322,21 @@ export function PatientContextPanel({
           <RevisionHistorial tipo="alergias" patientId={p.id} estado={estadoAlergias_} sello={selloAlergias} onSaved={setRev} readOnly={!editable} />
         ) : (
           <div className="space-y-1.5">
+            {/*
+              `whitespace-pre-line`: las alergias se escriben UNA POR LÍNEA y el
+              navegador colapsa esos saltos. Kaylee Schriever las tenía
+              guardadas como "Penicillin = hives\nVancomycin = leaver failure" y
+              la ficha las mostraba corridas en un solo renglón —"Penicillin =
+              hives Vancomycin = leaver failure"—, que es justo lo que la
+              clínica pidió que no pasara (2026-10-04).
+
+              El dato ya estaba bien; lo que faltaba era respetarlo al pintarlo.
+              Es el resto de que las alergias sean el ÚNICO campo de esta ficha
+              que sigue siendo texto libre: problemas, cirugías, medicación y
+              antecedentes son listas y ya salen una por fila.
+            */}
             {alergiasFicha && (
-              <div className="rounded-md border border-rose/25 bg-rose/[0.07] px-3 py-2 text-[11.5px] text-rose">
+              <div className="rounded-md border border-rose/25 bg-rose/[0.07] px-3 py-2 text-[11.5px] text-rose whitespace-pre-line">
                 {alergiasFicha}
               </div>
             )}
@@ -332,7 +345,7 @@ export function PatientContextPanel({
                 <div className="text-[9.5px] uppercase tracking-wider font-semibold text-amber">
                   {t('ctxAllergiesDeclared')}
                 </div>
-                <div className="text-[11.5px] text-amber mt-0.5">{alergiasDeclaradas}</div>
+                <div className="text-[11.5px] text-amber mt-0.5 whitespace-pre-line">{alergiasDeclaradas}</div>
               </div>
             )}
           </div>

@@ -5446,7 +5446,9 @@
             "adoptiveParent": "Adoptive parent",
             "other": "Other"
           }
-        }
+        },
+        "allergiesPlaceholder": "Penicillin = hives\nVancomycin = liver failure",
+        "allergiesHint": "One per line. Add the reaction after an \"=\" when it is known."
       },
       "tooltipCallPatient": "Call {phone}",
       "tooltipNoPhone": "No phone on file",

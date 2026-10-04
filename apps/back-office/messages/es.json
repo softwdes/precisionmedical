@@ -5446,7 +5446,9 @@
             "adoptiveParent": "Padre/Madre adoptivo(a)",
             "other": "Otro"
           }
-        }
+        },
+        "allergiesPlaceholder": "Penicilina = urticaria\nVancomicina = falla hepática",
+        "allergiesHint": "Una por línea. Después del «=» va la reacción, si se conoce."
       },
       "tooltipCallPatient": "Llamar al {phone}",
       "tooltipNoPhone": "Sin teléfono registrado",

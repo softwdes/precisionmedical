@@ -1781,23 +1781,38 @@ function AllergiesEditDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="px-6 py-5">
+          {/*
+            El placeholder ENSEÑA el formato en vez de repetir "sin alergias".
+
+            La clínica pide la reacción junto a cada alergia y que se lean hacia
+            abajo (2026-10-04). El campo es texto libre —una sola columna en la
+            base, no una tabla— así que la convención es la que ya venían usando
+            a mano: `medicina = reacción`, una por línea. La ficha ahora respeta
+            esos saltos (`whitespace-pre-line` en patient-context-panel), y con
+            el ejemplo a la vista deja de depender de que cada persona invente
+            su propia forma de escribirlo.
+          */}
           <textarea maxLength={LARGO_LARGO}
             value={value}
             onChange={e => setValue(e.target.value)}
             rows={4}
-            placeholder={t('mh.noAllergies')}
+            placeholder={t('mh.allergiesPlaceholder')}
             className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
             autoFocus
           />
+          <p className="mt-1.5 text-[11px] text-text-muted">{t('mh.allergiesHint')}</p>
         </div>
         <div className="px-6 pb-5 flex flex-col sm:flex-row gap-2 justify-end">
           <button onClick={onClose} disabled={isPending}
             className="w-full sm:w-auto px-4 py-2 rounded-md border border-border text-sm text-text-2 hover:bg-white/5 disabled:opacity-50 transition-colors">
             {tc("cancel")}
           </button>
+          {/* `tc('save')` y no 'Guardar' en duro: este diálogo mostraba el botón
+              en español con toda la app en inglés — se ve en la captura que
+              mandó la clínica el 2026-10-04. */}
           <button onClick={handleSave} disabled={isPending}
             className="w-full sm:w-auto px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
-            {isPending ? tc('saving') : 'Guardar'}
+            {isPending ? tc('saving') : tc('save')}
           </button>
         </div>
       </DialogContent>

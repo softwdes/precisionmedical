@@ -1479,12 +1479,37 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 etiqueta: (q: string) => t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
                                 crear: (q: string) => altaAbogado(q, row.lawFirmId as string),
                               }}
-                              onSave={next => saveTo(
-                                `/api/admin/cases/${row.caseId}/update-legal-insurance`,
-                                row.caseId,
-                                { attorneyName: next.id ? (catalogoAbogados.find(l => l.id === next.id)?.name ?? null) : next.text },
-                                { attorneyId: next.id, attorneyNameRaw: next.text },
-                              )}
+                              /*
+                                * Escribir el nombre del BUFETE en el campo del
+                                * abogado no guarda nada y avisa.
+                                *
+                                * La celda muestra `attorneyName ?? firmName`,
+                                * así que cuando el texto libre ES el bufete el
+                                * resultado se ve IDÉNTICO a antes de escribirlo:
+                                * ni un cambio, ni un error, ni una pista. Tres
+                                * casos quedaron así —MVA-3282, MVA-3304,
+                                * MVA-3463— y es parte de por qué Edson repitió
+                                * que "no guarda": guardaba, pero guardaba algo
+                                * invisible.
+                                *
+                                * Se devuelve `false` para que el panel quede
+                                * ABIERTO con lo escrito: el camino bueno —elegir
+                                * de la lista, o darlo de alta— está ahí mismo.
+                                */
+                              onSave={next => {
+                                const tecleado = next.text?.trim().toLowerCase();
+                                const esBufete = !!tecleado && (
+                                  tecleado === row.firmName?.trim().toLowerCase() ||
+                                  catalogoBufetes.some(f => f.name.trim().toLowerCase() === tecleado)
+                                );
+                                if (esBufete) { setError(t('attorneyIsFirm')); return Promise.resolve(false); }
+                                return saveTo(
+                                  `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                  row.caseId,
+                                  { attorneyName: next.id ? (catalogoAbogados.find(l => l.id === next.id)?.name ?? null) : next.text },
+                                  { attorneyId: next.id, attorneyNameRaw: next.text },
+                                );
+                              }}
                             />
                             ) : (
                             <InlineCombo

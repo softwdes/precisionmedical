@@ -7137,7 +7137,8 @@
       "attorneyAddToFirm": "Agregar “{nombre}” a {bufete}",
       "firmAddNew": "Agregar bufete “{nombre}”",
       "attorneyAdd": "Agregar abogado",
-      "firmAdd": "Agregar bufete"
+      "firmAdd": "Agregar bufete",
+      "attorneyIsFirm": "Ese es el bufete, no una persona. Elegí al abogado de la lista o agregalo."
     },
     "online": {
       "badge": "Cita online",

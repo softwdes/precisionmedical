@@ -7137,7 +7137,8 @@
       "attorneyAddToFirm": "Add “{nombre}” to {bufete}",
       "firmAddNew": "Add law firm “{nombre}”",
       "attorneyAdd": "Add attorney",
-      "firmAdd": "Add law firm"
+      "firmAdd": "Add law firm",
+      "attorneyIsFirm": "That is the law firm, not a person. Pick the attorney from the list or add them."
     },
     "online": {
       "badge": "Online visit",

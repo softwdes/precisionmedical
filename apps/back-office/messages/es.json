@@ -4447,7 +4447,11 @@
       "callMute": "Silenciar",
       "callUnmute": "Quitar silencio",
       "callHangUp": "Colgar",
-      "apptDetailTitle": "Detalle de la cita"
+      "apptDetailTitle": "Detalle de la cita",
+      "blockFieldClinic": "Sede (opcional)",
+      "blockClinicAllOption": "Todas las sedes",
+      "blockClinicAll": "Sin sede: el aviso vale para todas.",
+      "blockClinicOne": "Solo en esta sede."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

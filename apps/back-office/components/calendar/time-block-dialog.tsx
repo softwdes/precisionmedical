@@ -45,12 +45,24 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   providers: DoctorComboboxProvider[];
+  /**
+   * Las sedes, para poder decir a cuál afecta el aviso.
+   *
+   * Devin (2026-10-05): *"Add clinic selection to schedule notes instead of just
+   * choosing a provider. Allow to choose all clinics, one specific clinic, or a
+   * provider"*. `clinicId` ya existía en el modelo y en la API —opcional a
+   * propósito, igual que `providerId`—; lo único que faltaba era el control, así
+   * que hasta hoy se guardaba siempre en null.
+   */
+  clinics: Array<{ id: string; name: string }>;
   /** Si viene, el diálogo edita ese aviso en vez de crear uno. */
   editing?: TimeBlock | null;
   /** Prefill al crear desde una celda del calendario (YYYY-MM-DD y HH:mm). */
   defaultDate?: string;
   defaultTime?: string;
   defaultProviderId?: string;
+  /** Prefill de sede: si el calendario está filtrado por una, se arranca con esa. */
+  defaultClinicId?: string;
 }
 
 const ZONA = 'America/Denver';
@@ -153,11 +165,13 @@ const PRESETS: Preset[] = [
 ];
 
 export function TimeBlockDialog({
-  open, onClose, onSaved, providers, editing, defaultDate, defaultTime, defaultProviderId,
+  open, onClose, onSaved, providers, clinics, editing, defaultDate, defaultTime,
+  defaultProviderId, defaultClinicId,
 }: Props) {
   const t = useTranslations('phoenix.calendar');
 
   const [providerId, setProviderId] = useState('');
+  const [clinicId,   setClinicId]   = useState('');
   const [fecha,      setFecha]      = useState('');
   const [hora,       setHora]       = useState('');
   const [duracion,   setDuracion]   = useState(60);
@@ -176,6 +190,7 @@ export function TimeBlockDialog({
     if (editing) {
       const p = isoToDenverParts(editing.startsAt);
       setProviderId(editing.providerId ?? '');
+      setClinicId(editing.clinicId ?? '');
       setFecha(p.fecha); setHora(p.hora);
       setDuracion(editing.durationMinutes);
       setLabel(editing.label);
@@ -186,6 +201,7 @@ export function TimeBlockDialog({
       setPreset('OTHER');
     } else {
       setProviderId(defaultProviderId ?? '');
+      setClinicId(defaultClinicId ?? '');
       setFecha(defaultDate ?? new Date().toLocaleDateString('en-CA', { timeZone: ZONA }));
       setHora(defaultTime ?? '12:00');
       setDuracion(60);
@@ -194,7 +210,7 @@ export function TimeBlockDialog({
       setHasta('');
       setPreset('OTHER');
     }
-  }, [open, editing, defaultDate, defaultTime, defaultProviderId]);
+  }, [open, editing, defaultDate, defaultTime, defaultProviderId, defaultClinicId]);
 
   /**
    * Un preset rellena; no bloquea nada.
@@ -226,6 +242,7 @@ export function TimeBlockDialog({
     try {
       const cuerpo = {
         providerId: providerId || null,
+        clinicId: clinicId || null,
         startsAt: denverToIso(fecha, hora),
         durationMinutes: duracion,
         label: label.trim(),
@@ -240,6 +257,11 @@ export function TimeBlockDialog({
             body: JSON.stringify({
               label: cuerpo.label, startsAt: cuerpo.startsAt, durationMinutes: cuerpo.durationMinutes,
               repeatMode: cuerpo.repeatMode, repeatUntil: cuerpo.repeatUntil,
+              // Van explícitos aunque sean null: null es "todos" / "todas las
+              // sedes", y el PATCH los distingue de "no vino" por la presencia
+              // de la clave. Sin esto, el selector cambiaba en pantalla y no
+              // cambiaba nada.
+              providerId: cuerpo.providerId, clinicId: cuerpo.clinicId,
             }),
           })
         : await fetch('/api/admin/time-blocks', {
@@ -372,8 +394,26 @@ export function TimeBlockDialog({
             </div>
           )}
 
-          {/* El doctor va ULTIMO y es opcional: por defecto el aviso es de todo
-              el calendario, que es el caso comun (almuerzo general, corte de luz). */}
+          {/* La SEDE y el DOCTOR van últimos y los dos son opcionales: por
+              defecto el aviso es de todo el calendario, que es el caso común
+              (almuerzo general, corte de luz).
+
+              Van juntos y en este orden porque responden la misma pregunta —a
+              quién afecta— de lo general a lo particular: todas las sedes, una
+              sede, o una persona. Es lo que pidió Devin (2026-10-05). */}
+          <div>
+            <label className="block text-[11px] font-semibold text-text-2 mb-1">
+              {t('blockFieldClinic')}
+            </label>
+            <select value={clinicId} onChange={(e) => setClinicId(e.target.value)} className={campo}>
+              <option value="">{t('blockClinicAllOption')}</option>
+              {clinics.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <p className="text-[10px] text-text-muted mt-1">
+              {clinicId ? t('blockClinicOne') : t('blockClinicAll')}
+            </p>
+          </div>
+
           <div>
             <label className="block text-[11px] font-semibold text-text-2 mb-1">
               {t('blockFieldProvider')}

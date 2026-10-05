@@ -2842,7 +2842,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
         // `specialty` puede venir null y el combobox la exige: se normaliza acá
         // en vez de aflojar el tipo del primitivo, que lo comparten 4 pantallas.
         providers={providers.map(p => ({ ...p, specialty: p.specialty ?? '' }))}
+        clinics={clinics}
         defaultProviderId={lockedProviderId ?? filterProvider ?? undefined}
+        // Si el calendario está filtrado por una sede, el aviso nace en esa:
+        // es lo que la persona está mirando cuando aprieta el botón.
+        defaultClinicId={filterClinic || undefined}
         defaultDate={blockPrefill?.date}
         defaultTime={blockPrefill?.time}
         onClose={() => { setBlockDialogOpen(false); setEditingBlock(null); setBlockPrefill(null); }}

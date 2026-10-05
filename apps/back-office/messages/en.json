@@ -4447,7 +4447,11 @@
       "callMute": "Mute",
       "callUnmute": "Unmute",
       "callHangUp": "Hang up",
-      "apptDetailTitle": "Appointment detail"
+      "apptDetailTitle": "Appointment detail",
+      "blockFieldClinic": "Location (optional)",
+      "blockClinicAllOption": "All locations",
+      "blockClinicAll": "No location: the note applies to all of them.",
+      "blockClinicOne": "Only at this location."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

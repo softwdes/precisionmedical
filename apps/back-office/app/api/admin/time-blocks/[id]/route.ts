@@ -24,6 +24,18 @@ const PatchSchema = z.object({
    * `parentId` del PATCH de documentos.
    */
   repeatUntil:     z.string().datetime().nullable().optional(),
+  /**
+   * A quién y a qué sede afecta. Los dos nulables con intención: `null` es
+   * "a todos" / "a todas las sedes", no "no vino" — se distinguen igual que
+   * `repeatUntil`, mirando la PRESENCIA de la clave.
+   *
+   * Faltaban los dos. El diálogo ya mostraba el selector de doctor al editar y
+   * el PATCH no lo mandaba ni lo aceptaba, así que cambiarlo no hacía nada y
+   * nada lo avisaba. Al agregar el de sede (Devin, 2026-10-05) se arreglan los
+   * dos juntos, porque son el mismo campo con distinto nombre.
+   */
+  providerId:      z.string().min(1).nullable().optional(),
+  clinicId:        z.string().min(1).nullable().optional(),
 });
 
 export async function PATCH(
@@ -51,6 +63,8 @@ export async function PATCH(
       ...('repeatUntil' in (parsed.data as object) && {
         repeatUntil: d.repeatUntil ? new Date(d.repeatUntil) : null,
       }),
+      ...('providerId' in (parsed.data as object) && { providerId: d.providerId ?? null }),
+      ...('clinicId'   in (parsed.data as object) && { clinicId:   d.clinicId   ?? null }),
     },
     select: {
       id: true, startsAt: true, durationMinutes: true, label: true,
@@ -66,8 +80,16 @@ export async function PATCH(
     action:      'UPDATE_TIME_BLOCK',
     entityType:  'provider_time_blocks',
     entityId:    id,
-    before:      { label: antes.label, startsAt: antes.startsAt.toISOString(), durationMinutes: antes.durationMinutes },
-    after:       { label: block.label, startsAt: block.startsAt.toISOString(), durationMinutes: block.durationMinutes },
+    before:      {
+      label: antes.label, startsAt: antes.startsAt.toISOString(),
+      durationMinutes: antes.durationMinutes,
+      providerId: antes.providerId, clinicId: antes.clinicId,
+    },
+    after:       {
+      label: block.label, startsAt: block.startsAt.toISOString(),
+      durationMinutes: block.durationMinutes,
+      providerId: block.providerId, clinicId: block.clinicId,
+    },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });
 

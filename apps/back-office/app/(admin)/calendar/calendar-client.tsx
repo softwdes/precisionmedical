@@ -108,8 +108,26 @@ interface CalendarClientProps {
   /**
    * Portal médico: fija el calendario a las citas de UN doctor (sesión).
    * Oculta el filtro de doctor; el resto de la funcionalidad queda intacta.
+   *
+   * Desde el 2026-10-05 el portal médico ya NO lo usa — ver `initialProviderId`.
+   * Se deja porque es la única forma de un calendario realmente acotado, y
+   * mañana puede hacer falta.
    */
   lockedProviderId?: string;
+  /**
+   * Con qué doctor ARRANCA el filtro, pudiendo cambiarlo.
+   *
+   * Es la diferencia con `lockedProviderId`: aquél esconde el filtro y encierra;
+   * éste solo elige el punto de partida. Devin (2026-10-05): *"Change schedule
+   * views to show a full schedule for ALL PROVIDERS **or a toggle to do so**.
+   * Providers need to be able to see the schedules for all clinics and
+   * providers"*.
+   *
+   * Se eligió el toggle y no abrirlo de entrada: el médico entra a su portal a
+   * ver SU día, y eso sigue siendo lo primero que ve. Para ver al resto cambia
+   * el filtro a "Todos los doctores", que ya existía y estaba escondido.
+   */
+  initialProviderId?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -849,7 +867,7 @@ function LegendStats({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function CalendarClient({ clinics, providers, lockedProviderId }: CalendarClientProps) {
+export function CalendarClient({ clinics, providers, lockedProviderId, initialProviderId }: CalendarClientProps) {
   const serverError = useServerError();
   const t = useTranslations('phoenix.calendar');
   const router   = useRouter();
@@ -948,7 +966,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [filterClinic,   setFilterClinic]   = useState('');
   /** El punto de sede solo sirve mirando TODAS: filtrado, dice lo que ya sabés. */
   const mostrarColorSede = !filterClinic;
-  const [filterProvider, setFilterProvider] = useState('');
+  /** Arranca en el doctor que pida quien monta la pantalla; vacío = todos. */
+  const [filterProvider, setFilterProvider] = useState(initialProviderId ?? '');
   const [filterType,     setFilterType]     = useState('');
 
   // Patient search with dropdown

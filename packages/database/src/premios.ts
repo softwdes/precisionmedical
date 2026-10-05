@@ -441,6 +441,45 @@ export function mesDe(fecha: Date, zona = 'America/Denver'): string {
   return `${y}-${m}-01`;
 }
 
+// ─── La carrera del Admin (Erick, 2026-10-05) ────────────────────────────────
+
+/**
+ * Días hábiles (lunes a viernes) del mes y cuántos ya pasaron ANTES de hoy en
+ * Utah: el día en curso no cuenta, todavía se está trabajando. Mes terminado →
+ * pasaron todos; mes futuro → ninguno.
+ */
+export function diasHabiles(mes: string, ahora = new Date(), zona = 'America/Denver'): { total: number; pasados: number } {
+  const [y, m] = mes.slice(0, 7).split('-').map(Number) as [number, number];
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ahora);
+  let total = 0;
+  let pasados = 0;
+  const dias = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  for (let d = 1; d <= dias; d++) {
+    const f = new Date(Date.UTC(y, m - 1, d));
+    const w = f.getUTCDay();
+    if (w === 0 || w === 6) continue;
+    total++;
+    if (f.toISOString().slice(0, 10) < hoy) pasados++;
+  }
+  return { total, pasados };
+}
+
+/** Avance de una meta: lo que lleva sobre la meta, con tope en 100%. */
+export function avanceDeMetaPct(g: Pick<GoalResult, 'actual' | 'target'>): number {
+  return g.target > 0 ? Math.min(1, g.actual / g.target) : 0;
+}
+
+/** Promedio de avance de un grupo de metas (null si no hay ninguna). */
+export function avancePromedio(goals: Array<Pick<GoalResult, 'actual' | 'target'>>): number | null {
+  return goals.length ? goals.reduce((s, g) => s + avanceDeMetaPct(g), 0) / goals.length : null;
+}
+
+/** ¿A este ritmo llega a la meta a fin de mes? Sin días pasados no se proyecta. */
+export function llegaARitmo(g: Pick<GoalResult, 'actual' | 'target' | 'hit'>, dias: { total: number; pasados: number }): boolean {
+  if (g.hit) return true;
+  return dias.pasados > 0 && (g.actual / dias.pasados) * dias.total >= g.target;
+}
+
 // ─── Verificación: lo declarado contra lo que el sistema tiene ───────────────
 
 /** Una fila de `reward_evidence` (`prisma/sql/20260929b-premios-evidencia.sql`). */

@@ -36,8 +36,8 @@ function mesActual(): string {
  * y no hay registros manuales que aprobar uno por uno. La vista sigue por URL
  * para los registros viejos; a fin de mes se aprueba con el reporte del Tablero.
  */
-const TABS: PremiosTab[] = ['mes', 'tablero'];
-const TODAS: PremiosTab[] = ['mes', 'verificar', 'tablero'];
+const TABS: PremiosTab[] = ['mes', 'carrera', 'tablero'];
+const TODAS: PremiosTab[] = ['mes', 'carrera', 'verificar', 'tablero'];
 
 export default async function PremiosPage({
   searchParams,

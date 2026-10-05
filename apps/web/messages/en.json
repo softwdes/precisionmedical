@@ -2085,7 +2085,8 @@
     "tab": {
       "mes": "Month",
       "verificar": "Verify",
-      "tablero": "Board"
+      "tablero": "Board",
+      "carrera": "Race"
     },
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
@@ -2269,6 +2270,55 @@
     "personalNotApply": "Doesn’t apply",
     "personalSave": "Save goals",
     "personalHint": "Empty = the role’s goal. Everyone races against themselves: this changes the number to reach, not the cash share.",
-    "personalOwnTitle": "Own goal · the role’s is {n}"
+    "personalOwnTitle": "Own goal · the role’s is {n}",
+    "race": {
+      "title": "The month’s race",
+      "explain": "Everyone races against their own goals: the horse moves with the average of how far they are on each one. The dotted line is today’s pace: where they should be to hit the goal right at month end. Money only moves when a goal is fully met.",
+      "kpiPool": "Monthly pool",
+      "kpiPoolSub": "{n} participants · {share} each",
+      "kpiEarned": "Earned so far",
+      "kpiEarnedSub": "Pending: approved at month end",
+      "kpiProjected": "At this pace",
+      "kpiProjectedSub": "Projection from {n} business days",
+      "kpiDay": "Month",
+      "kpiDayValue": "Day {n} of {total}",
+      "kpiDaySub": "Today’s pace: {pct}",
+      "updatedNow": "Live · just updated",
+      "updatedAgo": "Live · updated {n} min ago",
+      "refresh": "Refresh now",
+      "state": {
+        "ahead": "Ahead of pace",
+        "on": "On pace",
+        "behind": "Behind",
+        "idle": "No activity"
+      },
+      "paceLine": "Today’s pace",
+      "laneAria": "{name}: progress {pct}, earning {amount}. See details",
+      "supervisor": "Supervisor",
+      "staff": "Staff",
+      "team": "team",
+      "approved": "Approved",
+      "toEarn": "Pending",
+      "goalsShort": "{hit}/{total} goals",
+      "projShort": "proj. {amount}",
+      "progressVsPace": "progress {pct} against a pace of {pace}",
+      "ownAndTeam": "own {own}, team {team}",
+      "howTitle": "How it’s scored",
+      "howStaff": "Share {share} ÷ {n} goals = {per} per goal. Met {hit} → {amount}.",
+      "howTeam": "No goals of their own: paid 100% from the team. Share {share} × team {hit}/{total} goals = {amount}.",
+      "howMixed": "Half from their own, half from the team: {share} × (½ × {hit}/{n} own + ½ × {teamHit}/{teamTotal} team) = {amount}.",
+      "projTitle": "Projection",
+      "projOwn": "At this pace they’d meet {hit}/{total} → {amount}.",
+      "projTeam": "At this pace the team would meet {hit}/{total} → {amount}.",
+      "projEarly": "With {n} business days the projection still moves a lot.",
+      "goalHit": "Met",
+      "goalOnTrack": "On track",
+      "goalOffTrack": "Won’t make it at this pace",
+      "shouldHave": "Should be at {n} today",
+      "ownGoal": "own goal (role’s is {n})",
+      "adjusted": "adjustment {n}",
+      "noOwnGoals": "No goals of their own: their horse runs with the team’s progress ({pct}).",
+      "privacy": "Admins only. Staff only see their own horse; the supervisor sees their team’s table."
+    }
   }
 }

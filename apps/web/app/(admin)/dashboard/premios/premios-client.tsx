@@ -26,8 +26,9 @@ import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 import { api } from '@/lib/trpc/client';
 import { KpiCard } from '../metricas/metricas-shared';
+import { CarreraView } from './carrera-view';
 
-export type PremiosTab = 'mes' | 'verificar' | 'tablero';
+export type PremiosTab = 'mes' | 'carrera' | 'verificar' | 'tablero';
 
 interface Category { code: string; nameEs: string; nameEn: string; pointsNew: number; pointsExisting: number; tracksSource: boolean; requiresPatient: boolean }
 interface GoalDraft {
@@ -52,7 +53,9 @@ export function PremiosClient({ tab, month }: { tab: PremiosTab; month: string }
   const t = useTranslations('rewards');
   const locale = useLocale();
   const router = useRouter();
-  const overview = api.premios.overview.useQuery({ month });
+  // La Carrera va en vivo: se recalcula cada 90 s mientras la pestaña está a la
+  // vista (react-query no pide nada con la ventana en segundo plano).
+  const overview = api.premios.overview.useQuery({ month }, { refetchInterval: tab === 'carrera' ? 90_000 : false });
 
   const money = (cents: number) =>
     new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'es-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -91,6 +94,11 @@ export function PremiosClient({ tab, month }: { tab: PremiosTab; month: string }
         <MesView data={overview.data} month={month} money={money} onSaved={() => void overview.refetch()} />
       ) : !overview.data.period ? (
         <div className="rounded-lg bg-bg-2/30 p-6 text-center text-sm text-text-3">{t('notOpenYet')}</div>
+      ) : tab === 'carrera' ? (
+        <CarreraView
+          data={overview.data} money={money} updatedAt={overview.dataUpdatedAt}
+          refreshing={overview.isFetching} onRefresh={() => void overview.refetch()}
+        />
       ) : tab === 'verificar' ? (
         <VerificarView periodId={overview.data.period.id} month={month} categories={overview.data.categories as Category[]} onChanged={() => void overview.refetch()} />
       ) : (

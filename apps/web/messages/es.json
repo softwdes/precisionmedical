@@ -2085,7 +2085,8 @@
     "tab": {
       "mes": "Mes",
       "verificar": "Verificar",
-      "tablero": "Tablero"
+      "tablero": "Tablero",
+      "carrera": "Carrera"
     },
     "prevMonth": "Mes anterior",
     "nextMonth": "Mes siguiente",
@@ -2269,6 +2270,55 @@
     "personalNotApply": "No aplica",
     "personalSave": "Guardar metas",
     "personalHint": "Vacío = la meta del rol. Cada uno corre contra sí mismo: cambia el número a alcanzar, no la parte en dinero.",
-    "personalOwnTitle": "Meta propia · la del rol es {n}"
+    "personalOwnTitle": "Meta propia · la del rol es {n}",
+    "race": {
+      "title": "La carrera del mes",
+      "explain": "Cada uno corre contra sus propias metas: el caballo avanza con el promedio de lo que lleva de cada una. La línea punteada es el ritmo de hoy: dónde tendría que ir para llegar justo a la meta a fin de mes. La plata se mueve solo cuando se cumple una meta completa.",
+      "kpiPool": "Bolsa del mes",
+      "kpiPoolSub": "{n} participantes · {share} c/u",
+      "kpiEarned": "Ganado hasta hoy",
+      "kpiEarnedSub": "Por ganar: se aprueba a fin de mes",
+      "kpiProjected": "Si siguen a este ritmo",
+      "kpiProjectedSub": "Proyección con {n} días hábiles",
+      "kpiDay": "Mes",
+      "kpiDayValue": "Día {n} de {total}",
+      "kpiDaySub": "Ritmo de hoy: {pct}",
+      "updatedNow": "En vivo · actualizado recién",
+      "updatedAgo": "En vivo · actualizado hace {n} min",
+      "refresh": "Actualizar ahora",
+      "state": {
+        "ahead": "Adelante del ritmo",
+        "on": "En ritmo",
+        "behind": "Atrasado",
+        "idle": "Sin actividad"
+      },
+      "paceLine": "Ritmo de hoy",
+      "laneAria": "{name}: avance {pct}, va ganando {amount}. Ver detalle",
+      "supervisor": "Supervisor",
+      "staff": "Staff",
+      "team": "equipo",
+      "approved": "Aprobado",
+      "toEarn": "Por ganar",
+      "goalsShort": "{hit}/{total} metas",
+      "projShort": "proy. {amount}",
+      "progressVsPace": "avance {pct} contra un ritmo de {pace}",
+      "ownAndTeam": "suyo {own}, equipo {team}",
+      "howTitle": "Cómo se califica",
+      "howStaff": "Parte {share} ÷ {n} metas = {per} por meta. Cumplió {hit} → {amount}.",
+      "howTeam": "Sin metas propias: cobra 100% por el equipo. Parte {share} × equipo {hit}/{total} metas = {amount}.",
+      "howMixed": "Mitad por lo suyo y mitad por el equipo: {share} × (½ × {hit}/{n} suyas + ½ × {teamHit}/{teamTotal} del equipo) = {amount}.",
+      "projTitle": "Proyección",
+      "projOwn": "A este ritmo cumpliría {hit}/{total} → {amount}.",
+      "projTeam": "A este ritmo el equipo cumpliría {hit}/{total} → {amount}.",
+      "projEarly": "Con {n} días hábiles la proyección todavía se mueve mucho.",
+      "goalHit": "Cumplida",
+      "goalOnTrack": "Va a llegar",
+      "goalOffTrack": "No llega a este ritmo",
+      "shouldHave": "Hoy debería llevar {n}",
+      "ownGoal": "meta propia (la del rol es {n})",
+      "adjusted": "ajuste {n}",
+      "noOwnGoals": "No tiene metas propias: su caballo corre con el avance del equipo ({pct}).",
+      "privacy": "Solo la ven los admins. Los empleados ven solo su propio caballo; la supervisora, la tabla de su equipo."
+    }
   }
 }

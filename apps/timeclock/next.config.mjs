@@ -1,8 +1,14 @@
 import withPWA from '@ducanh2912/next-pwa';
+import { cabecerasDeSeguridad } from '../../security-headers.mjs';
 import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Las cabeceras viven en `security-headers.mjs` de la raíz, para las cinco
+  // apps a la vez. Hasta el 2026-10-05 solo las tenía el back-office.
+  async headers() {
+    return cabecerasDeSeguridad('timeclock');
+  },
   transpilePackages: ['@precision-medical/observability'],
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],

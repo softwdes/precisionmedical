@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { cabecerasDeSeguridad } from '../../security-headers.mjs';
 import { withSentryConfig } from '@sentry/nextjs';
 import withSerwistInit from '@serwist/next';
 import path from 'path';
@@ -10,6 +11,11 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Las cabeceras viven en `security-headers.mjs` de la raíz, para las cinco
+  // apps a la vez. Hasta el 2026-10-05 solo las tenía el back-office.
+  async headers() {
+    return cabecerasDeSeguridad('attorney');
+  },
   outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: [
     '@precision/ui',

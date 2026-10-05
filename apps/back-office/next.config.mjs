@@ -1,6 +1,7 @@
 // @ts-check
 // build trigger: 2026-07-21
 import createNextIntlPlugin from 'next-intl/plugin';
+import { cabecerasDeSeguridad } from '../../security-headers.mjs';
 import withPWA from '@ducanh2912/next-pwa';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,18 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
-const securityHeaders = [
-  { key: 'X-DNS-Prefetch-Control',   value: 'on' },
-  { key: 'X-Frame-Options',          value: 'SAMEORIGIN' },
-  { key: 'X-Content-Type-Options',   value: 'nosniff' },
-  { key: 'Referrer-Policy',          value: 'strict-origin-when-cross-origin' },
-  // microphone=(self): lo necesita Twilio Voice (llamadas por WebRTC desde el
-  // navegador). Con microphone=() el browser bloquea el mic AUNQUE el usuario
-  // haya dado permiso al sitio -> PermissionDeniedError 31401. camera y
-  // geolocation siguen bloqueadas: no las usamos.
-  { key: 'Permissions-Policy',       value: 'camera=(), microphone=(self), geolocation=()' },
-  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -45,8 +34,10 @@ const nextConfig = {
    * exista siguen usando `.next` sin enterarse.
    */
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
+  // Las cabeceras viven en `security-headers.mjs` de la raíz. Estaban acá y
+  // SOLO acá: las otras cuatro apps no tenían ninguna hasta el 2026-10-05.
   async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }];
+    return cabecerasDeSeguridad('back-office');
   },
   // ── Prisma binary tracing (pnpm monorepo + Vercel) ───────────────────────────
   // El binario nativo .so.node no es trazado por Next.js automáticamente.

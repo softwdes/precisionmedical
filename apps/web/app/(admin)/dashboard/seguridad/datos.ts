@@ -42,7 +42,17 @@ export const MODULOS = [
  * peor que no tenerla: da tranquilidad sin cubrir nada. Si tocás una de estas
  * protecciones en una app, actualizá la fila y la fecha.
  *
- * Medido el 2026-10-05 leyendo el código de las cinco apps:
+ * ⚠️ TRES DE LOS CINCO MÓDULOS SON LA MISMA APP. Medido el 2026-10-05 contra
+ * producción: clinic, provider y attorney devuelven la MISMA `Permissions-Policy`
+ * —micrófono incluido— porque los tres hosts los sirve `apps/back-office`. Lo
+ * que se despliega de verdad son tres cosas: back-office, timeclock y el Admin.
+ *
+ * Por eso esas tres columnas van siempre iguales en las filas de infraestructura
+ * (cabeceras, freno, endpoint). Se muestran separadas igual porque para quien mira
+ * la pantalla son tres puertas distintas, y lo que cambia entre ellas —quién entra,
+ * desde dónde— sí es distinto.
+ *
+ * Medido el 2026-10-05 leyendo el código y las respuestas de producción:
  *  · cabeceras → `next.config.mjs` de cada app (solo back-office las declara;
  *    `provider` sale del mismo build que `clinic`, así que las hereda)
  *  · 2FA → si la pantalla de login tiene el paso de MFA
@@ -92,7 +102,7 @@ export const PROTECCIONES: Proteccion[] = [
   {
     id: 'cabeceras', nombre: 'Security headers',
     detalle: 'HSTS, anti-clickjacking, anti-sniffing',
-    estado: { clinica: true, providers: true, attorneys: false, timeclock: false, admin: false },
+    estado: { clinica: true, providers: true, attorneys: true, timeclock: false, admin: false },
   },
 ];
 

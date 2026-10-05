@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { cabecerasDeSeguridad } from '../../security-headers.mjs';
 import withSerwistInit from '@serwist/next';
 import { withSentryConfig } from '@sentry/nextjs';
 
@@ -13,6 +14,11 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Las cabeceras viven en `security-headers.mjs` de la raíz, para las cinco
+  // apps a la vez. Hasta el 2026-10-05 solo las tenía el back-office.
+  async headers() {
+    return cabecerasDeSeguridad('web');
+  },
   transpilePackages: [
     '@precision/ui',
     '@precision-medical/agente',

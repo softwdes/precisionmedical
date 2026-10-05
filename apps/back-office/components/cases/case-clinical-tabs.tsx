@@ -27,7 +27,7 @@
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  Pill, FlaskConical, Scan, HeartPulse, FileText, Printer, Loader2, Upload,
+  Pill, FlaskConical, Scan, HeartPulse, FileText, Printer, Loader2, Upload, Download,
   AlertTriangle, MapPin, RotateCcw, Building2, Home,
   Bandage, Briefcase, Plus, Trash2, Pencil, ArrowRight, Ban, X,
 } from 'lucide-react';
@@ -44,6 +44,7 @@ import { LabOrderPrintDialog } from '@/components/visit/lab-order-print-dialog';
 import { BracePickerDialog, type CatalogBrace, type Side as BraceSide } from '@/components/visit/brace-picker-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { PatientDemographicsDialog, type CampoFaltante } from '@/components/visit/patient-demographics-dialog';
+import { DrugHistoryConsentDialog } from '@/components/visit/drug-history-consent-dialog';
 import type { CoverageDTO } from '@/lib/coverage';
 import { codigosRepetidos, horaCobro } from '@/lib/repeated-charges';
 import { claveDia, fechaConDia } from '@/lib/fechas';
@@ -536,7 +537,7 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
    * Para poder recetar cuando el caso NO tiene ninguna visita.
    *
    * Devin (2026-10-05): las renovaciones que manda la farmacia no nacen de una
-   * consulta, y antes el botón simplemente no existía — ver `openNewRx`.
+   * consulta, y antes el botón simplemente no existía — ver `abrirWidget`.
    */
   patientId: string;
 }): React.ReactElement {
@@ -549,6 +550,10 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
   const [widgetStatus, setWidgetStatus] = React.useState<WidgetStatus>('loading');
   const [widgetUrl, setWidgetUrl] = React.useState<string | null>(null);
   const [widgetError, setWidgetError] = React.useState<string | null>(null);
+  /** Qué widget está abierto: cambia el título del modal y el reintento. */
+  const [widgetKind, setWidgetKind] = React.useState<'drug-list' | 'medicationdownload'>('drug-list');
+  /** Cita cuyo permiso de historial de farmacia se está pidiendo. */
+  const [consentPara, setConsentPara] = React.useState<string | null>(null);
   const [refillingId, setRefillingId] = React.useState<string | null>(null);
   // Cita de la receta repetida — al cerrar se sincroniza ESA cita con ScriptSure
   const syncApptRef = React.useRef<string | null>(null);
@@ -607,7 +612,17 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
   // visita más reciente que ya ocurrió. Mismo mapeo de errores que la consulta.
   const rxTargetId = visitaDestino(visits, visitId, latestAppointmentId)?.appointmentId ?? null;
 
-  const openNewRx = async (): Promise<void> => {
+  /**
+   * Abre un widget de ScriptSure sobre este caso.
+   *
+   * Una sola función para los DOS botones —recetar e historial de farmacia—
+   * porque el camino es idéntico salvo el widget que se pide: misma elección de
+   * ruta, mismos errores, mismo diálogo. Tenerlo dos veces es la receta para
+   * que mañana se arregle uno solo, que es justo lo que pasó con el formulario
+   * de dirección (tres botones, un remedio).
+   */
+  const abrirWidget = async (kind: 'drug-list' | 'medicationdownload'): Promise<void> => {
+    setWidgetKind(kind);
     setWidgetOpen(true);
     setWidgetStatus('loading');
     setWidgetUrl(null);
@@ -623,8 +638,21 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
     syncApptRef.current = rxTargetId;   // null sin visita: no hay qué sincronizar
     try {
       const res = await fetch(rxTargetId
-        ? `/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`
-        : `/api/admin/scriptsure/patient-widget/${patientId}?widget=drug-list`);
+        ? `/api/admin/scriptsure/widget/${rxTargetId}?widget=${kind}`
+        : `/api/admin/scriptsure/patient-widget/${patientId}?widget=${kind}`);
+      /**
+       * 428 = falta el permiso del paciente para consultar la red de farmacias.
+       * No es un error: se cierra el modal y se ofrece registrarlo, que es la
+       * acción que destraba esto. Al confirmarlo se reintenta solo.
+       *
+       * El permiso se guarda POR CITA, así que sin visita no hay dónde pedirlo
+       * y queda el aviso — el mismo límite que el formulario de dirección.
+       */
+      if (res.status === 428) {
+        if (rxTargetId) { setWidgetOpen(false); setConsentPara(rxTargetId); }
+        else { setWidgetStatus('error'); setWidgetError(td('rxConsentSinVisita')); }
+        return;
+      }
       if (res.status === 403) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         // Sin visita el prescriptor es quien mira, así que un no-provider no
@@ -689,7 +717,7 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
       {canPrescribe && (
         <button
           type="button"
-          onClick={() => void openNewRx()}
+          onClick={() => void abrirWidget('drug-list')}
           className="group relative w-full flex items-center gap-4 text-left rounded-xl px-5 py-4 overflow-hidden transition-all duration-200 hover:scale-[1.005] active:scale-[0.995]"
           style={{
             background: 'linear-gradient(135deg,#7C3AED 0%,#8B5CF6 55%,#A78BFA 100%)',
@@ -709,6 +737,29 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
             </div>
           </div>
           <ArrowRight className="relative w-5 h-5 text-white/80 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
+        </button>
+      )}
+
+      {/* Historial de farmacia — Devin, 2026-10-05: *"I don't see an option here
+          to pull pharmacy history, where can we do that?"*. Vivía solo en el tab
+          de Recetas de la CONSULTA; acá no estaba.
+
+          Va secundario y no con el degradé del botón principal: trae datos, no
+          manda nada, y dos llamados a la acción del mismo peso compiten. */}
+      {canPrescribe && (
+        <button
+          type="button"
+          onClick={() => void abrirWidget('medicationdownload')}
+          className="w-full flex items-center gap-3 text-left rounded-lg bg-bg-2/40 hover:bg-bg-2/60 px-4 py-3 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-md bg-cyan/10 border border-cyan/25 flex items-center justify-center shrink-0">
+            <Download className="w-4 h-4 text-cyan" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-text-1">{td('rxMedDownload')}</div>
+            <div className="text-[11px] text-text-muted mt-0.5">{td('rxMedDownloadHint')}</div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-text-muted shrink-0" />
         </button>
       )}
 
@@ -809,11 +860,20 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
       {/* Widget de ScriptSure — el mismo modal de la consulta del doctor */}
       <ScriptSureWidgetDialog
         open={widgetOpen}
-        kind="drug-list"
+        kind={widgetKind}
         status={widgetStatus}
         url={widgetUrl}
         errorDetail={widgetError}
         onClose={closeWidget}
+      />
+
+      {/* Permiso del paciente para consultar la red de farmacias. Al darlo se
+          reintenta el historial solo, sin que haya que volver a buscarlo. */}
+      <DrugHistoryConsentDialog
+        open={!!consentPara}
+        appointmentId={consentPara ?? ''}
+        onCancel={() => setConsentPara(null)}
+        onGranted={() => { setConsentPara(null); void abrirWidget('medicationdownload'); }}
       />
 
       {/* Completar dirección o teléfono sin salir del caso, y retomar la receta
@@ -829,7 +889,7 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
           setDemogPara(null);
           // Se retoma lo que se estaba haciendo, sin volver a buscarlo.
           if (pendiente?.rx) void startRefill(pendiente.rx, pendiente.appointmentId);
-          else if (pendiente) void openNewRx();
+          else if (pendiente) void abrirWidget('drug-list');
         }}
       />
     </div>

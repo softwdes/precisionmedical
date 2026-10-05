@@ -142,7 +142,7 @@ const COPY = {
     retry:       'Intentar de nuevo',
     firstPH:     'María',
     lastPH:      'García',
-    hipaa:       '🔒 Tu información está protegida bajo HIPAA. No la compartimos sin tu consentimiento. · Your information is protected under HIPAA. We do not share it without your consent.',
+    hipaa:       '🔒 Tu información está protegida. No la compartimos sin tu consentimiento. · Your information is protected. We do not share it without your consent.',
   },
   en: {
     title:       'Welcome / Bienvenido',
@@ -162,7 +162,7 @@ const COPY = {
     retry:       'Try again',
     firstPH:     'Mary',
     lastPH:      'Smith',
-    hipaa:       '🔒 Your information is protected under HIPAA. We do not share it without your consent. · Tu información está protegida bajo HIPAA. No la compartimos sin tu consentimiento.',
+    hipaa:       '🔒 Your information is protected. We do not share it without your consent. · Tu información está protegida. No la compartimos sin tu consentimiento.',
   },
 } as const;
 

@@ -40,7 +40,7 @@ const T = {
     alertToday: <><strong>Llega 30 min antes</strong> para tu registro. Trae ID válido y tarjeta de seguro.</>,
     alertFuture: <><strong>Llega 30 min antes</strong> de tu cita. Trae tu ID y tarjeta de seguro médico.</>,
     daysLabel: (n: number) => n === 1 ? 'día para tu cita' : 'días para tu cita',
-    hipaa: 'Solo información básica de tu cita. Ningún dato médico visible.',
+    hipaa: 'Tu información está protegida. Solo mostramos datos básicos de tu cita, nunca información médica.',
     newSearch: '↩',
     status: { PENDING:'Pendiente', SCHEDULED:'Confirmada', CONFIRMED:'Confirmada', CHECKED_IN:'Check-in', IN_PROGRESS:'En consulta', COMPLETED:'Completada' } as Record<string,string>,
     cifo: {
@@ -77,7 +77,7 @@ const T = {
     alertToday: <><strong>Arrive 30 min early</strong> to check in. Bring a valid ID and your insurance card.</>,
     alertFuture: <><strong>Arrive 30 min early</strong>. Bring your valid ID and health insurance card.</>,
     daysLabel: (n: number) => n === 1 ? 'day until your appointment' : 'days until your appointment',
-    hipaa: 'Basic appointment info only. No medical data is displayed.',
+    hipaa: 'Your information is protected. We only show basic appointment details, never medical information.',
     newSearch: 'New search',
     status: { PENDING:'Pending', SCHEDULED:'Confirmed', CONFIRMED:'Confirmed', CHECKED_IN:'Checked in', IN_PROGRESS:'In consultation', COMPLETED:'Completed' } as Record<string,string>,
     cifo: {
@@ -516,7 +516,7 @@ export default function CitaPage() {
         </div>
         </div>
 
-        <div className="hipaa">HIPAA · {t.hipaa}</div>
+        <div className="hipaa">🔒 {t.hipaa}</div>
       </div>
     </>
   );

@@ -40,10 +40,19 @@ export default async function LobbyPage({ params }: Props) {
 
   if (!clinic) notFound();
 
+  // Las clínicas que se pueden elegir desde el selector del encabezado: las mismas
+  // que lista /lobby (las que tienen al menos una cita). No es PHI: solo id y nombre.
+  const clinics = await db.clinic.findMany({
+    where:   { appointments: { some: {} } },
+    orderBy: { name: 'asc' },
+    select:  { id: true, name: true },
+  });
+
   return (
     <LobbyDisplay
       clinicId={clinic.id}
       clinicName={clinic.name}
+      clinics={clinics}
     />
   );
 }

@@ -13,6 +13,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
 // ─── Shared types (mirrored from API route — cannot import across [param] routes) ─
 
@@ -61,6 +62,8 @@ interface LobbyData {
 interface Props {
   clinicId:   string;
   clinicName: string;
+  /** Las clínicas entre las que se puede cambiar desde el encabezado. Con una sola, no hay selector. */
+  clinics?:   Array<{ id: string; name: string }>;
 }
 
 /**
@@ -635,7 +638,101 @@ function LobbyBoard({ rows, lang, status, banner }: {
 }
 
 // ─── Main display ─────────────────────────────────────────────────────────────
-export function LobbyDisplay({ clinicId, clinicName }: Props) {
+/**
+ * El nombre de la clínica del encabezado, convertido en selector.
+ *
+ * Cambia a la pantalla de otra clínica conservando los parámetros de la dirección
+ * (`?step=7&next=10…`, los tiempos de CIFO), para que quien ajusta la TV no los
+ * pierda al cambiar. Con una sola clínica no hay nada que elegir y se pinta el
+ * nombre a secas.
+ *
+ * No es PHI: son el id y el nombre de las clínicas, los mismos que ya lista
+ * `/lobby`. La pantalla de cada clínica sigue mostrando solo iniciales.
+ */
+function ClinicSwitcher({ clinicId, clinicName, clinics, lang }: {
+  clinicId: string; clinicName: string; clinics: Array<{ id: string; name: string }>; lang: Lang;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    const onKey  = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const nameStyle = { fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' } as const;
+  if (clinics.length < 2) return <div style={nameStyle}>{clinicName}</div>;
+
+  const ir = (id: string) => {
+    setOpen(false);
+    if (id !== clinicId) router.push(`/lobby/${id}${window.location.search}`);
+  };
+
+  return (
+    <div ref={boxRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={tx(lang, 'Elegir clínica', 'Choose clinic')}
+        style={{
+          ...nameStyle, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+          background: 'transparent', border: '1px solid transparent', borderRadius: 10,
+          padding: '2px 8px 2px 0', fontFamily: 'inherit',
+        }}
+      >
+        {clinicName}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }} aria-hidden>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div role="listbox" style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50, minWidth: 240, maxHeight: '60vh', overflowY: 'auto',
+          background: '#0f1620', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14,
+          padding: 6, boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+        }}>
+          {clinics.map(c => {
+            const actual = c.id === clinicId;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="option"
+                aria-selected={actual}
+                onClick={() => ir(c.id)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                  textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: actual ? 800 : 600,
+                  color: actual ? '#22D3EE' : 'rgba(255,255,255,0.8)',
+                  background: actual ? 'rgba(34,211,238,0.10)' : 'transparent',
+                  border: 'none', borderRadius: 9, padding: '10px 12px',
+                }}
+              >
+                {c.name}
+                {actual && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M5 12l5 5L20 7" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function LobbyDisplay({ clinicId, clinicName, clinics = [] }: Props) {
   const [data,    setData]    = useState<LobbyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
@@ -751,9 +848,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 2 }}>
                 Precision Medical
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
-                {clinicName}
-              </div>
+              <ClinicSwitcher clinicId={clinicId} clinicName={clinicName} clinics={clinics} lang={lang} />
             </div>
           </div>
 

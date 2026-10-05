@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Coins, RefreshCw, Target, Trophy, Trash2, TrendingUp, Users } from 'lucide-react';
 import { Button, cn } from '@precision/ui';
 import {
-  METRICAS, USO_TOPE_DIARIO, columnasDeMetas, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
+  METRICAS, USO_TOPE_DIARIO, columnasDeMetas, diasHabiles, llegaARitmo, type MetricKey, type ParticipantResult, type RewardCategory, type RewardGoal,
 } from '@precision-medical/database/premios';
 import {
   DataTable, EmptyState, IconAction, KpiCard, PageHeader, Skeleton, StatusPill, TagPill, useToast,
@@ -197,6 +197,8 @@ export function MisPremiosClient(): React.ReactElement {
   // Las métricas que todavía no suman (membresías): se anuncian, no se miden.
   const proximamente = (Object.keys(METRICAS) as MetricKey[]).filter((k) => METRICAS[k].comingSoon && METRICAS[k].points > 0);
   const abierto = d.status === 'OPEN';
+  const dias = diasHabiles(d.month, new Date(ahora));
+  const ritmo = dias.total > 0 ? dias.pasados / dias.total : 0;
   const nombreCat = (code: string) => {
     const c = d.categories.find((x) => x.code === code);
     return c ? (locale === 'en' ? c.nameEn : c.nameEs) : code;
@@ -230,7 +232,10 @@ export function MisPremiosClient(): React.ReactElement {
 
       {d.previous && <MesAnterior p={d.previous} />}
 
-      <PistaDelPremio me={me} goals={misMetas} shareCents={d.shareCents} labelMeta={labelMeta} money={money} approved={d.approved} />
+      <PistaDelPremio
+        me={me} goals={misMetas} shareCents={d.shareCents} labelMeta={labelMeta} money={money} approved={d.approved}
+        month={d.month} open={abierto} team={d.team?.map((m) => m.result) ?? null}
+      />
 
       {d.adjustments.length > 0 && (
         <div className="rounded-md border border-violet/30 bg-violet/10 px-3 py-2 text-[12px] text-text-1 flex flex-col gap-1">
@@ -290,7 +295,9 @@ export function MisPremiosClient(): React.ReactElement {
             <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider inline-flex items-center gap-2">
               <Target className="w-4 h-4 text-brand" /> {t('goalsTitle')}
             </h2>
-            <span className="text-[11px] text-text-muted">{t('goalEach', { amount: money(porMeta) })}</span>
+            <span className="text-[11px] text-text-muted">
+              {mixto ? t('goalEachMixed', { amount: money(Math.round(porMeta / 2)) }) : t('goalEach', { amount: money(porMeta) })}
+            </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {misMetas.map((g) => {
@@ -300,20 +307,34 @@ export function MisPremiosClient(): React.ReactElement {
               // La meta es la de la persona: puede tener una propia, distinta a la del rol.
               const meta = r?.target ?? g.target;
               const pct = Math.min(100, Math.round((actual / meta) * 100));
+              // A este ritmo, ¿llega? Y cuánto debería llevar hoy (días hábiles pasados ÷ del mes).
+              const llega = !!r && llegaARitmo(r, dias);
+              const deberia = Math.ceil(meta * ritmo);
               return (
                 <div key={g.id} className={cn('rounded-md p-3 flex flex-col gap-1.5', hit ? 'bg-emerald/10' : 'bg-bg-2/40')}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[12.5px] font-semibold text-text-1">{labelMeta(g)}</span>
                     {hit
                       ? <StatusPill state="success" label={t('goalDone')} />
-                      : <StatusPill state="warning" label={t('goalMissing', { n: meta - actual })} />}
+                      : !abierto
+                        ? <StatusPill state="warning" label={t('goalMissing', { n: meta - actual })} />
+                        : llega
+                          ? <StatusPill state="info" label={t('goalOnTrack')} />
+                          : <StatusPill state="warning" label={t('goalSpeedUp')} />}
                   </div>
                   <div className="text-lg font-bold text-text-1 tabular-nums">
                     {actual}<span className="text-text-muted text-xs font-semibold"> / {meta}{g.kind === 'USAGE' ? ` ${t('pts')}` : ''}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-bg-3 overflow-hidden">
-                    <div className={cn('h-full rounded-full', hit ? 'bg-emerald' : 'bg-amber')} style={{ width: `${pct}%` }} />
+                  <div className="relative h-1.5 rounded-full bg-bg-3">
+                    <div className={cn('h-full rounded-full', hit ? 'bg-emerald' : abierto && llega ? 'bg-cyan' : 'bg-amber')} style={{ width: `${pct}%` }} />
+                    {abierto && !hit && <div className="absolute -top-1 -bottom-1 border-l border-dashed border-text-2/70" style={{ left: `${ritmo * 100}%` }} aria-hidden />}
                   </div>
+                  {abierto && (
+                    <span className="text-[10.5px] text-text-muted">
+                      {hit ? t('goalHave') : t('goalShouldHave', { n: deberia })}
+                      {' · '}<span className="font-semibold text-emerald-text">+{money(mixto ? Math.round(porMeta / 2) : porMeta)}</span>
+                    </span>
+                  )}
                   {g.kind === 'USAGE' && <span className="text-[10.5px] text-text-muted">{t('goalUsageHint', { cap: USO_TOPE_DIARIO })}</span>}
                   {(g.kind === 'CALLS' || g.kind === 'METRIC') && <span className="text-[10.5px] text-text-muted">{t('goalAuto')}</span>}
                 </div>

@@ -6,7 +6,7 @@ import { ShieldCheck, ShieldAlert, Clock } from 'lucide-react';
 import {
   MODULOS, PROTECCIONES, MEDIDO_EL,
   type DatosSeguridad, type Evento, type PorIp,
-} from './datos';
+} from './modelo';
 
 /**
  * Security Center — la pantalla.

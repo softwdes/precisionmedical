@@ -11,7 +11,7 @@
  * Color: cyan/violet gradient (Regla #5 — mockup aprobado)
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 // ─── Shared types (mirrored from API route — cannot import across [param] routes) ─
 
 interface LobbyPatient {
@@ -204,15 +204,17 @@ function NowCallingBanner({ data, lang }: { data: NowCalling; lang: Lang }) {
 }
 
 // ─── Consultation card (large TV card) ───────────────────────────────────────
-function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: Lang }) {
+function ConsultCard({ apt, lang, spot = false }: { apt: ConsultationPatient; lang: Lang; spot?: boolean }) {
   const color = avatarColor(apt.display);
   const ini   = initials(apt.display);
 
   return (
     <div
       style={{
-        background:   'rgba(255,255,255,0.04)',
-        border:       `1px solid ${color}30`,
+        background:   spot ? 'rgba(6,182,212,0.10)' : 'rgba(255,255,255,0.04)',
+        border:       spot ? '1px solid #22D3EE' : `1px solid ${color}30`,
+        boxShadow:    spot ? '0 0 0 3px rgba(34,211,238,0.22), 0 0 40px rgba(34,211,238,0.25)' : 'none',
+        transition:   'all 0.4s',
         borderRadius: 16,
         padding:      '20px 22px',
         display:      'flex',
@@ -260,15 +262,17 @@ function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: Lang }) {
 }
 
 // ─── Triage row ───────────────────────────────────────────────────────────────
-function TriageRow({ apt, lang }: { apt: LobbyPatient; lang: Lang }) {
+function TriageRow({ apt, lang, spot = false }: { apt: LobbyPatient; lang: Lang; spot?: boolean }) {
   const color = '#F59E0B'; // amber — triage accent
   const ini   = initials(apt.display);
 
   return (
     <div
       style={{
-        background:    'rgba(245,158,11,0.06)',
-        border:        '1px solid rgba(245,158,11,0.25)',
+        background:    spot ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.06)',
+        border:        spot ? '1px solid #F59E0B' : '1px solid rgba(245,158,11,0.25)',
+        boxShadow:     spot ? '0 0 36px rgba(245,158,11,0.28)' : 'none',
+        transition:    'all 0.4s',
         borderRadius:  12,
         padding:       '14px 20px',
         display:       'flex',
@@ -307,7 +311,7 @@ function TriageRow({ apt, lang }: { apt: LobbyPatient; lang: Lang }) {
 }
 
 // ─── Waiting row ──────────────────────────────────────────────────────────────
-function WaitRow({ apt, index }: { apt: WaitingPatient; index: number }) {
+function WaitRow({ apt, index, lang, spot = false }: { apt: WaitingPatient; index: number; lang: Lang; spot?: boolean }) {
   const fmtWait = (min: number) =>
     min < 60 ? `~${min} min` : `~${Math.round(min / 60)}h`;
 
@@ -319,8 +323,11 @@ function WaitRow({ apt, index }: { apt: WaitingPatient; index: number }) {
         gap:           16,
         padding:       '12px 16px',
         borderRadius:  10,
-        background:    index % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+        background:    spot ? 'rgba(16,185,129,0.12)' : index % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
         borderBottom:  '1px solid rgba(255,255,255,0.04)',
+        outline:       spot ? '2px solid #10B981' : '2px solid transparent',
+        boxShadow:     spot ? '0 0 40px rgba(16,185,129,0.28)' : 'none',
+        transition:    'all 0.4s',
       }}
     >
       {/* Position */}
@@ -356,12 +363,129 @@ function WaitRow({ apt, index }: { apt: WaitingPatient; index: number }) {
         {fmtWait(apt.estimatedWaitMin)}
       </span>
 
+      {spot && (
+        <span style={{
+          background: '#10B981', color: '#fff', fontWeight: 800, fontSize: 12,
+          letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 99,
+        }}>
+          {tx(lang, 'SIGUIENTE', 'NEXT')}
+        </span>
+      )}
+
       {/* Doctor */}
       {apt.doctorName && (
         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>
           {apt.doctorName}
         </span>
       )}
+    </div>
+  );
+}
+
+// ─── CIFO ─────────────────────────────────────────────────────────────────────
+/**
+ * CIFO en el cartel: habla desde un globito sobre lo que REALMENTE pasa.
+ *
+ * No rota por reloj sobre datos inventados: arma una lista de escenas con lo que
+ * hay (a quién se está llamando, quién está en consulta, quién sigue) y solo
+ * alterna entre esas verdades. Sin nada que decir, saluda.
+ *
+ * HIPAA: el globito usa el MISMO código anónimo que el resto del cartel
+ * ("S.L - 65"). Nunca un nombre, y tampoco voz.
+ *
+ * El GIF que señala (cifo-1) apunta hacia la izquierda: con CIFO a la izquierda
+ * de la lista se lo espeja para que apunte a las filas. El espejo voltea el logo
+ * del pecho; la versión definitiva necesita un GIF de CIFO señalando a la derecha.
+ */
+type CifoScene =
+  | { kind: 'calling'; display: string; destination: 'consultation' | 'triage'; doctorName: string | null; spotId: string | null }
+  | { kind: 'next';    display: string; doctorName: string | null; spotId: string }
+  | { kind: 'consult'; display: string; doctorName: string | null; elapsedMin: number; spotId: string }
+  | { kind: 'idle' };
+
+const CIFO_ROTATE_MS = 8_000;
+
+function buildScenes(d: LobbyData): CifoScene[] {
+  const out: CifoScene[] = [];
+
+  if (d.nowCalling) {
+    const nc = d.nowCalling;
+    const hit = [...d.consultation, ...d.triage].find(p => p.display === nc.display);
+    out.push({ kind: 'calling', display: nc.display, destination: nc.destination, doctorName: nc.doctorName, spotId: hit?.id ?? null });
+  }
+  const first = d.waiting[0];
+  if (first) out.push({ kind: 'next', display: first.display, doctorName: first.doctorName, spotId: first.id });
+  for (const c of d.consultation.slice(0, 4)) {
+    // El que se está llamando ya tiene su escena: no se repite.
+    if (d.nowCalling && c.display === d.nowCalling.display) continue;
+    out.push({ kind: 'consult', display: c.display, doctorName: c.doctorName, elapsedMin: c.elapsedMin, spotId: c.id });
+  }
+  return out.length > 0 ? out : [{ kind: 'idle' }];
+}
+
+function CifoPanel({ scene, lang }: { scene: CifoScene; lang: Lang }) {
+  const con = (n: string | null) => (n ? tx(lang, ` con ${n}`, ` with ${n}`) : '');
+  let tag = '', big = '', sub = '', accent = '#6366F1';
+  let gif = '/cifo-1.gif', mirror = true;
+
+  if (scene.kind === 'calling') {
+    accent = '#059669';
+    tag = tx(lang, 'Ahora llamando', 'Now calling');
+    big = scene.display;
+    sub = scene.destination === 'consultation'
+      ? tx(lang, `Pasa al consultorio${con(scene.doctorName)}.`, `Please go to the exam room${con(scene.doctorName)}.`)
+      : tx(lang, 'Pasa a la sala de triaje.', 'Please go to the triage room.');
+  } else if (scene.kind === 'next') {
+    accent = '#059669';
+    tag = tx(lang, '¡Prepárate!', 'Get ready!');
+    big = scene.display;
+    sub = tx(lang, `Eres el siguiente${con(scene.doctorName)}. Ve acercándote al consultorio.`,
+                   `You are next${con(scene.doctorName)}. Please head toward the exam room.`);
+  } else if (scene.kind === 'consult') {
+    accent = '#0891B2';
+    gif = '/cifo-2.gif'; mirror = false;
+    tag = tx(lang, 'En consulta ahora', 'In consultation now');
+    big = scene.display;
+    sub = tx(lang, `${scene.doctorName ? scene.doctorName + ' · ' : ''}${scene.elapsedMin} min`,
+                   `${scene.doctorName ? scene.doctorName + ' · ' : ''}${scene.elapsedMin} min`);
+  } else {
+    mirror = false;
+    tag = tx(lang, 'Bienvenido', 'Welcome');
+    big = tx(lang, '¡Hola!', 'Hello!');
+    sub = tx(lang, 'Avísanos en recepción si necesitas algo.', 'Let reception know if you need anything.');
+  }
+
+  // `key` fuerza el remontaje: el globito entra con su animación en cada escena.
+  const key = scene.kind === 'idle' ? 'idle' : `${scene.kind}-${scene.display}`;
+
+  return (
+    <div style={{ position: 'relative', height: '100%' }}>
+      <div key={key} className="cifo-bubble" style={{
+        position: 'absolute', left: 20, right: 20, top: 20, zIndex: 5,
+        background: '#fff', color: '#0a1224', borderRadius: 26,
+        padding: 'clamp(16px, 1.6vw, 30px) clamp(18px, 1.8vw, 34px)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ fontSize: 'clamp(11px, 1vw, 19px)', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6 }}>{tag}</div>
+        <div style={{ fontSize: 'clamp(26px, 2.8vw, 54px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.02em' }}>{big}</div>
+        <div style={{ fontSize: 'clamp(13px, 1.3vw, 26px)', color: '#3b4366', marginTop: 8, lineHeight: 1.25 }}>{sub}</div>
+        <span style={{
+          position: 'absolute', left: 90, bottom: -22, width: 0, height: 0,
+          borderLeft: '18px solid transparent', borderRight: '18px solid transparent', borderTop: '24px solid #fff',
+        }} />
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        key={gif + String(mirror)}
+        src={gif}
+        alt="CIFO"
+        style={{
+          position: 'absolute', left: '50%', bottom: 16,
+          height: 'min(62vh, 620px)', width: 'auto',
+          transform: `translateX(-50%)${mirror ? ' scaleX(-1)' : ''}`,
+          filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))',
+        }}
+      />
     </div>
   );
 }
@@ -410,6 +534,15 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
      tienen español registrado— y el que ve quien no toca el selector. */
   const [lang,    setLang]    = useState<Lang>('en');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Qué escena de CIFO toca; solo alterna entre cosas ciertas (ver buildScenes). */
+  const [cifoTick, setCifoTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setCifoTick(n => n + 1), CIFO_ROTATE_MS);
+    return () => clearInterval(id);
+  }, []);
+  const scenes = useMemo(() => (data ? buildScenes(data) : [{ kind: 'idle' } as CifoScene]), [data]);
+  const scene  = scenes[cifoTick % scenes.length];
+  const spotId = scene.kind === 'idle' ? null : scene.spotId;
 
   const t = (es: string, en: string) => tx(lang, es, en);
 
@@ -456,6 +589,18 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
+        }
+        @keyframes cifo-bubble-in {
+          from { opacity: 0; transform: translateY(10px) scale(0.97); }
+          to   { opacity: 1; transform: none; }
+        }
+        .cifo-bubble { animation: cifo-bubble-in 0.4s ease-out; }
+        /* CIFO solo cabe en pantallas anchas (la TV); en chicas queda el banner de siempre. */
+        .lobby-cifo        { display: none; }
+        .lobby-banner-wide { display: block; }
+        @media (min-width: 1000px) {
+          .lobby-cifo        { display: block; }
+          .lobby-banner-wide { display: none; }
         }
       `}</style>
 
@@ -549,14 +694,18 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
         </header>
 
         {/* ── Main content ───────────────────────────────────────────────── */}
-        <main style={{
-          flex:     1,
-          overflowY: 'auto',
-          padding:   '20px 32px',
-          display:  'flex',
-          flexDirection: 'column',
-          gap:      20,
-        }}>
+        <main style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+          <aside className="lobby-cifo" style={{
+            width: 'clamp(300px, 26vw, 520px)', flexShrink: 0,
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            background: 'radial-gradient(ellipse at 50% 85%, rgba(99,102,241,0.18), transparent 65%)',
+          }}>
+            {!loading && !error && <CifoPanel scene={scene} lang={lang} />}
+          </aside>
+          <div style={{
+            flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px 32px',
+            display: 'flex', flexDirection: 'column', gap: 20,
+          }}>
 
           {/* Loading state */}
           {loading && (
@@ -578,10 +727,10 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
             }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
               <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.60)', marginBottom: 6 }}>
-                No se pudo cargar la sala de espera
+                {t('No se pudo cargar la sala de espera', 'Could not load the waiting room')}
               </div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)' }}>
-                Reintentando en 15 segundos…
+                {t('Reintentando en 15 segundos…', 'Retrying in 15 seconds…')}
               </div>
             </div>
           )}
@@ -590,7 +739,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
           {!loading && !error && data && (
             <>
               {/* "Ahora llamando" banner */}
-              {data.nowCalling && <NowCallingBanner data={data.nowCalling} lang={lang} />}
+              {data.nowCalling && <div className="lobby-banner-wide"><NowCallingBanner data={data.nowCalling} lang={lang} /></div>}
 
               {/* ── En Consulta ── */}
               {data.consultation.length > 0 && (
@@ -605,7 +754,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                     gap:                 12,
                   }}>
                     {data.consultation.map((apt: ConsultationPatient) => (
-                      <ConsultCard key={apt.id} apt={apt} lang={lang} />
+                      <ConsultCard key={apt.id} apt={apt} lang={lang} spot={spotId === apt.id} />
                     ))}
                   </div>
                 </section>
@@ -620,7 +769,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                   />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {data.triage.map((apt: LobbyPatient) => (
-                      <TriageRow key={apt.id} apt={apt} lang={lang} />
+                      <TriageRow key={apt.id} apt={apt} lang={lang} spot={spotId === apt.id} />
                     ))}
                   </div>
                 </section>
@@ -647,13 +796,14 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                 ) : (
                   <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
                     {data.waiting.map((apt: WaitingPatient, i: number) => (
-                      <WaitRow key={apt.id} apt={apt} index={i} />
+                      <WaitRow key={apt.id} apt={apt} index={i} lang={lang} spot={spotId === apt.id} />
                     ))}
                   </div>
                 )}
               </section>
             </>
           )}
+          </div>
         </main>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}

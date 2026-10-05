@@ -124,7 +124,8 @@
         "noMedications": "No active medications",
         "noAttorney": "No firm assigned",
         "noEmergencyContact": "Not registered",
-        "noData": "No data"
+        "noData": "No data",
+        "allergiesDeclared": "Declared by the patient"
       },
       "vitals": {
         "height": "📏 Height",

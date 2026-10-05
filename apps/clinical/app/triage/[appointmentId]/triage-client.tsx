@@ -24,10 +24,26 @@ import {
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * La ficha médica del paciente, tal como vive en `patients.medicalHistory`.
+ *
+ * Es un JSON sin esquema, así que todo es opcional: lo que no esté cargado no
+ * viene. Solo se declara lo que este panel muestra.
+ */
+interface FichaMedica {
+  allergies?: string | null;
+  medications?: Array<{ name?: string; dose?: string; status?: string }>;
+  problems?: Array<{ condition?: string }>;
+}
+
 interface PatientInfo {
   id: string; firstName: string; lastName: string;
   dateOfBirth: string | null; phone: string | null; email: string | null;
   accidentType: string | null; insuranceCarrier: string | null; policyNumber: string | null;
+  medicalHistory: FichaMedica | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRelation: string | null;
   lawyerReferrer: { id: string; firmName: string | null; firstName: string | null; lastName: string | null; phone: string | null } | null;
 }
 
@@ -38,6 +54,10 @@ interface AppointmentData {
     id: string; caseCode: string; accidentType: string | null;
     primaryInsurance: { id: string; name: string; claimsPhone: string | null } | null;
     primaryPolicyNumber: string | null;
+    secondaryInsurance: { id: string; name: string } | null;
+    secondaryPolicyNumber: string | null;
+    /** Lo que declaró el paciente en su formulario — ver el comentario de la ruta. */
+    intakeSubmission: { hasAllergies: boolean; allergies: string | null } | null;
     attorney: { id: string; firstName: string | null; lastName: string | null } | null;
     lawFirm: { id: string; firmName: string | null } | null;
   } | null;
@@ -449,6 +469,25 @@ export function TriageClient({
   const drName = dr ? dr.lastName : 'el Provider';
   const now    = new Date().toISOString();
 
+  /**
+   * La ficha médica, para el panel lateral.
+   *
+   * Las dos fuentes de alergias NO se fusionan —ver el comentario de la sección—
+   * y la medicación se recorta a la que el paciente TOMA HOY: en el triaje
+   * interesa lo activo, no lo que tomó hace dos años. `IN_USE` es el mismo
+   * estado que usa el back-office.
+   */
+  const ficha = p.medicalHistory ?? {};
+  const alergiasFicha = ficha.allergies?.trim() || '';
+  const alergiasDeclaradas = c?.intakeSubmission?.allergies?.trim() || '';
+  const medicacionActiva = (ficha.medications ?? [])
+    .filter((m) => m?.status === 'IN_USE')
+    .map((m) => [m.name, m.dose].filter(Boolean).join(' · '))
+    .filter(Boolean);
+  const problemas = (ficha.problems ?? [])
+    .map((pr) => pr?.condition)
+    .filter((x): x is string => !!x && !!x.trim());
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a1224' }}>
 
@@ -527,38 +566,105 @@ export function TriageClient({
 
           {/* Secondary Insurance */}
           <SbSection label={t('sidebar.secondaryInsurance')}>
-            <div style={{ marginBottom: 12 }}>
-              <EmptySlot text={t('sidebar.noSecondaryInsurance')} />
-            </div>
+            {c?.secondaryInsurance ? (
+              <div style={{
+                fontSize: 10.5, lineHeight: 1.65, marginBottom: 12,
+                padding: '6px 9px', background: 'rgba(139,92,246,0.06)',
+                borderLeft: '2px solid rgba(139,92,246,0.40)', borderRadius: 4,
+              }}>
+                <div style={{ fontWeight: 600, color: '#c4b5fd' }}>{c.secondaryInsurance.name}</div>
+                <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>
+                  {c.secondaryPolicyNumber ?? '—'}
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <EmptySlot text={t('sidebar.noSecondaryInsurance')} />
+              </div>
+            )}
           </SbSection>
 
-          {/* Allergies */}
+          {/*
+            Allergies — hasta el 2026-10-04 esta sección estaba CABLEADA: pintaba
+            "sin alergias conocidas" sin leer un solo dato, para todos los
+            pacientes. En la pantalla donde el MA toma los signos y el provider
+            decide qué recetar, eso no es un hueco: es una afirmación clínica
+            falsa. Kaylee Schriever tiene penicilina y vancomicina cargadas.
+
+            Dos fuentes, separadas y rotuladas igual que en el back-office: la
+            FICHA la revisó el staff, lo DECLARADO lo escribió el paciente de
+            memoria. Fundirlas presentaría como confirmado algo que nadie
+            confirmó.
+
+            `whiteSpace: 'pre-line'` porque se escriben una por línea, con la
+            reacción después del "=" — pedido de la clínica, el mismo día.
+          */}
           <SbSection label={t('sidebar.allergies')} amber defaultOpen>
-            <div style={{
-              fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65, marginBottom: 12,
-              padding: '6px 9px',
-              background: 'rgba(245,158,11,0.06)',
-              borderLeft: '2px solid rgba(245,158,11,0.40)',
-              borderRadius: 4,
-            }}>
-              <div>{t('sidebar.noAllergies')}</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-                {t('sidebar.confirmAllergies')}
+            {alergiasFicha || alergiasDeclaradas ? (
+              <div style={{ marginBottom: 12 }}>
+                {alergiasFicha && (
+                  <div style={{
+                    fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65,
+                    padding: '6px 9px', background: 'rgba(245,158,11,0.10)',
+                    borderLeft: '2px solid rgba(245,158,11,0.60)', borderRadius: 4,
+                    whiteSpace: 'pre-line',
+                  }}>
+                    {alergiasFicha}
+                  </div>
+                )}
+                {alergiasDeclaradas && (
+                  <div style={{
+                    fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65, marginTop: 6,
+                    padding: '6px 9px', background: 'rgba(245,158,11,0.06)',
+                    borderLeft: '2px dashed rgba(245,158,11,0.40)', borderRadius: 4,
+                    whiteSpace: 'pre-line',
+                  }}>
+                    <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.55)' }}>
+                      {t('sidebar.allergiesDeclared')}
+                    </div>
+                    {alergiasDeclaradas}
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div style={{
+                fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65, marginBottom: 12,
+                padding: '6px 9px',
+                background: 'rgba(245,158,11,0.06)',
+                borderLeft: '2px solid rgba(245,158,11,0.40)',
+                borderRadius: 4,
+              }}>
+                <div>{t('sidebar.noAllergies')}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
+                  {t('sidebar.confirmAllergies')}
+                </div>
+              </div>
+            )}
           </SbSection>
 
           {/* Problem List */}
           <SbSection label={t('sidebar.problems')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text={t('sidebar.noProblems')} />
+              {problemas.length === 0 ? (
+                <EmptySlot text={t('sidebar.noProblems')} />
+              ) : problemas.map((pr, i) => (
+                <div key={i} style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', padding: '3px 0' }}>
+                  · {pr}
+                </div>
+              ))}
             </div>
           </SbSection>
 
-          {/* Active Medication */}
+          {/* Active Medication — estaba cableada igual que las alergias. */}
           <SbSection label={t('sidebar.medications')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text={t('sidebar.noMedications')} />
+              {medicacionActiva.length === 0 ? (
+                <EmptySlot text={t('sidebar.noMedications')} />
+              ) : medicacionActiva.map((m, i) => (
+                <div key={i} style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', padding: '3px 0' }}>
+                  · {m}
+                </div>
+              ))}
             </div>
           </SbSection>
 

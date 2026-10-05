@@ -27,6 +27,20 @@ export async function GET(
           id: true, firstName: true, lastName: true,
           dateOfBirth: true, phone: true, email: true,
           accidentType: true, insuranceCarrier: true, policyNumber: true,
+          /**
+           * La ficha médica — alergias, medicación y problemas.
+           *
+           * Faltaba, y el panel del triaje tenía esas secciones **cableadas al
+           * estado vacío**: decían "sin alergias" y "sin medicación activa"
+           * siempre, para todos. En la pantalla donde el MA toma signos y el
+           * provider decide qué recetar, eso no es un hueco: es una afirmación
+           * clínica falsa. Kaylee Schriever tiene penicilina y vancomicina
+           * cargadas y ahí se leía "sin alergias" (2026-10-04).
+           */
+          medicalHistory: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          emergencyContactRelation: true,
           lawyerReferrer: {
             select: { id: true, firmName: true, firstName: true, lastName: true, phone: true },
           },
@@ -38,6 +52,16 @@ export async function GET(
           id: true, caseCode: true, accidentType: true,
           primaryInsurance: { select: { id: true, name: true, claimsPhone: true } },
           primaryPolicyNumber: true,
+          secondaryInsurance: { select: { id: true, name: true } },
+          secondaryPolicyNumber: true,
+          /**
+           * Lo que el paciente declaró en SU formulario.
+           *
+           * No se fusiona con lo de la ficha, por la misma razón que en el
+           * back-office: una la revisó el staff y la otra la escribió el
+           * paciente de memoria. Se muestran separadas y rotuladas.
+           */
+          intakeSubmission: { select: { hasAllergies: true, allergies: true } },
           attorney: { select: { id: true, firstName: true, lastName: true } },
           lawFirm: { select: { id: true, firmName: true } },
         },

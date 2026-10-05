@@ -183,7 +183,7 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, attorneyEmail, firmName, paciente, caseCode, rect, onClose, onAdd, onEditLegal,
+  caseId, attorneyName, attorneyEmail, firmName, paciente, caseCode, rect, onClose, onAdd, onEditLegal, onQuitarAbogado,
 }: {
   caseId: string;
   /** De quién es este panel. Ver la nota del encabezado. */
@@ -199,6 +199,19 @@ export function ManagersPopover({
   onAdd: () => void;
   /** Abre el modal en el bloque Legal: bufete y abogado. */
   onEditLegal: () => void;
+  /**
+   * Saca al abogado del caso, sin tocar el bufete.
+   *
+   * La tarjeta del encargado SIEMPRE tuvo su X y la del abogado no, así que
+   * desde acá se podía poner y cambiar, pero no quitar. Edson lo reportó el
+   * 2026-10-05: "can't erase the attorney's name".
+   *
+   * Por la celda se podía —borrar el texto y Enter— pero el resultado es
+   * INVISIBLE: al quedar sin abogado la columna vuelve a mostrar el bufete,
+   * que en estos casos decía exactamente lo mismo. Hacía el trabajo y no se
+   * notaba, que es como se llega a "no se puede".
+   */
+  onQuitarAbogado: () => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, loading } = useManagers(caseId);
@@ -277,6 +290,19 @@ export function ManagersPopover({
               className="shrink-0 p-1 rounded text-text-muted hover:text-text-1 hover:bg-white/[0.04]"
             >
               <Pencil className="w-3.5 h-3.5" />
+            </button>
+            {/*
+              * La X, al lado del lápiz y con el mismo gesto que la del
+              * encargado: rojo al pasar el mouse. Quita SOLO al abogado — el
+              * bufete es del caso y se saca por su propia celda.
+              */}
+            <button
+              type="button"
+              onClick={() => { onClose(); onQuitarAbogado(); }}
+              title={t('attorneyRemove')}
+              className="shrink-0 p-1 rounded text-text-muted hover:text-rose hover:bg-rose/10"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
           {attorneyEmail && (

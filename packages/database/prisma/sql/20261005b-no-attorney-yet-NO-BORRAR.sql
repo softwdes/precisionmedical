@@ -1,0 +1,52 @@
+-- 20261005b — CORRIGE al 20261004: "NO ATTORNEY YET" es un marcador de Edson
+--
+-- ⚠️ ESTE ARCHIVO NO EJECUTA NADA. Es una corrección del registro, y está acá
+-- porque el archivo que corrige SÍ se ejecutó y dejó una instrucción falsa.
+--
+-- ── Qué dice mal el 20261004-bufete-fantasma.sql ────────────────────────────
+--
+-- Ese archivo trata al bufete **"NO ATTORNEY YET"** como basura: lo llama
+-- "bufete fantasma", dice que nació porque alguien escribió una nota en la
+-- celda equivocada, y lo da de baja. Lo escribí yo el 2026-10-04 y lo apliqué.
+--
+-- **Es falso.** Erick lo aclaró el 2026-10-05: Edson crea ese bufete A
+-- PROPÓSITO, para marcar que el paciente todavía no tiene abogado. No es un
+-- descuido, es su forma de anotarlo — y es la única que tiene, porque el
+-- sistema no ofrece ningún estado de "sin abogado".
+--
+-- La prueba está en los datos: lo borré el 04 a las 23:42, y el 05 a las 20:34
+-- Edson lo volvió a crear y volvió a colgarle sus dos casos (MVA-3311 y
+-- MVA-3463). No insistía en romper nada; estaba reponiendo lo que le sacaron.
+--
+-- ── Estado real, medido el 2026-10-05 22:30 ─────────────────────────────────
+--
+--   cmurnygcm0004hihc3nqvmfnj  "NO ATTORNEY YET"  borrado (yo, 10-04)   0 casos
+--   cmuvpksb9000051fz9d6sgleo  "NO ATTORNEY YET"  VIVO    (Edson 10-05) 2 casos
+--
+--   MVA-3311  bufete: NO ATTORNEY YET  ·  abogado a mano: 'NO ATTORNEY / AT FAULT'
+--   MVA-3463  bufete: NO ATTORNEY YET  ·  abogado a mano: 'NO ATTORNEY YET'
+--
+-- El de arriba queda borrado y así está bien: no tiene casos y sería un
+-- duplicado del vivo. El vivo **NO SE TOCA**.
+--
+-- ── La regla, para la próxima sesión que mire este catálogo ─────────────────
+--
+-- **"NO ATTORNEY YET" no se borra, no se fusiona y no se "limpia".** Tampoco
+-- 'NO ATTORNEY / AT FAULT' en el campo del abogado: dice algo distinto —el
+-- paciente es el culpable del accidente— y es información de facturación.
+--
+-- Si alguna vez se construye un estado de verdad para "sin abogado", la
+-- migración tiene que PARTIR de estas filas, no borrarlas: son el registro de
+-- qué casos están en ese estado hoy.
+--
+-- Lo que sí es un error, y es otra cosa, son las PERSONAS creadas con el
+-- nombre de su propio bufete ("Claggett" + "& Sykes", "Brian" + "Hills Law",
+-- ambas del 2026-10-05 17:58/17:59). Esas salieron de un botón que ofrecía
+-- `Add "Brian Hills Law" to Brian Hills Law` y que se cerró ese mismo día.
+--
+-- ── Lo que hay que saber si el marcador se queda ────────────────────────────
+--
+-- `firmName` se imprime en Facturación y en la hoja de settlement. Un caso
+-- marcado así mostraría "NO ATTORNEY YET" como bufete en esos papeles. Hoy no
+-- molesta —un caso sin abogado no llega a settlement— pero si alguna vez llega,
+-- el lugar para resolverlo es la impresión, no borrarle el marcador a Edson.

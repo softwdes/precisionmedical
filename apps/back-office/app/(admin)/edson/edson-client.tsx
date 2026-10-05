@@ -1610,7 +1610,26 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                               * abogado no crecen ni un pixel, y las ~66 que lo
                               * tienen crecen una línea de 7,5px.
                               */}
-                            {row.attorneyName && row.firmName && (
+                            {/*
+                              * ...salvo que diga lo MISMO que el renglón de
+                              * arriba. Edson preguntó "why is duplicating the
+                              * information?" el 2026-10-05 y la respuesta honesta
+                              * es que no debería.
+                              *
+                              * Pasa en 6 de 175 filas con abogado y bufete, y no
+                              * todas son un error de datos: hay bufetes que se
+                              * llaman como su único abogado —"Bobby Udall" dentro
+                              * de "Bobby Udall"— y ahí el dato está bien, lo que
+                              * sobra es repetirlo. En las otras 169 la segunda
+                              * línea sí aporta: "Sergio Garcia" sobre
+                              * "Garcia Law".
+                              *
+                              * Se compara normalizado porque la coincidencia
+                              * viene de que alguien tecleó el nombre, no de que
+                              * sean el mismo registro.
+                              */}
+                            {row.attorneyName && row.firmName &&
+                             row.attorneyName.trim().toLowerCase() !== row.firmName.trim().toLowerCase() && (
                               <span className="block text-text-muted text-[7.5px] truncate" title={row.firmName}>
                                 {row.firmName}
                               </span>
@@ -1683,6 +1702,19 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 onClose={() => setManagersFor(null)}
                                 onAdd={() => { setEditingFocus('managers'); setEditing(row); }}
                                 onEditLegal={() => { setEditingFocus('legal'); setEditing(row); }}
+                                /*
+                                  * Mismo endpoint y mismo patrón optimista que la
+                                  * celda: se manda el par completo en null porque
+                                  * el abogado se guarda de DOS maneras —vínculo al
+                                  * catálogo o texto escrito a mano— y quitar solo
+                                  * una dejaría la otra en pie.
+                                  */
+                                onQuitarAbogado={() => void saveTo(
+                                  `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                  row.caseId,
+                                  { attorneyName: null },
+                                  { attorneyId: null, attorneyNameRaw: null },
+                                )}
                               />
                             )}
                           </div>

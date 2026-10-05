@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
 import { unlockAccount } from '@precision-medical/auth/lockout';
+import { contextoDe } from '@precision-medical/auth/freno-ip';
 import { dbRoleToRole } from '@/lib/permissions';
 
 /**
@@ -53,14 +54,13 @@ export async function POST(
     .from('users').select('email').eq('id', id).single();
   if (!objetivo?.email) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    undefined;
+  // El mismo contexto que el resto del candado: IP, país, ciudad y navegador
+  // de QUIEN DESBLOQUEA, no del desbloqueado.
+  const ctx = contextoDe(req.headers, 'admin');
 
   // Queda asentado QUIÉN desbloqueó a quién: el actor es el que llama, no el
   // desbloqueado.
-  const ok = await unlockAccount(objetivo.email, quienLlama!.id as string, ip);
+  const ok = await unlockAccount(objetivo.email, quienLlama!.id as string, ctx);
   if (!ok) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
   return NextResponse.json({ ok: true });

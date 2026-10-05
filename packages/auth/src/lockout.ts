@@ -60,6 +60,9 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import type { Contexto } from './freno-ip';
+
+export type { Contexto };
 
 const MAX_ATTEMPTS = 3;
 
@@ -153,6 +156,27 @@ async function actualizarUsuario(id: string, datos: Record<string, unknown>): Pr
  * No lanza nunca: auditar es un efecto lateral del intento de login, y si falla
  * no tiene sentido romperle la entrada a nadie por eso.
  */
+/**
+ * Reparte el contexto entre las columnas que existen y la metadata.
+ *
+ * `ipAddress` y `userAgent` son columnas de `audit_logs`; el país, la ciudad y
+ * la app no lo son, así que viajan en `metadata`. Se guarda ahí y no en columnas
+ * nuevas para no pedir otra migración por un dato de diagnóstico.
+ */
+function conContexto(ctx: Contexto, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ipAddress: ctx.ip,
+    userAgent: ctx.navegador,
+    metadata: {
+      ...extra,
+      ...(ctx.app    ? { app: ctx.app }       : {}),
+      ...(ctx.pais   ? { pais: ctx.pais }     : {}),
+      ...(ctx.region ? { region: ctx.region } : {}),
+      ...(ctx.ciudad ? { ciudad: ctx.ciudad } : {}),
+    },
+  };
+}
+
 async function auditar(entrada: Record<string, unknown> & { action: string }): Promise<void> {
   const c = credenciales();
   if (!c) return;
@@ -275,7 +299,7 @@ export interface ResultadoIntento {
  */
 const NEUTRO: ResultadoIntento = { intentos: 0, restantes: MAX_ATTEMPTS, locked: false };
 
-export async function recordFailedAttempt(email: string, ipAddress?: string): Promise<ResultadoIntento> {
+export async function recordFailedAttempt(email: string, ctx: Contexto = {}): Promise<ResultadoIntento> {
   const user = await buscarUsuario(email);
   if (!user) return NEUTRO; // Correo desconocido — no se delata si existe o no.
 
@@ -297,11 +321,10 @@ export async function recordFailedAttempt(email: string, ipAddress?: string): Pr
     action:      cerrar ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILED',
     entityType:  'user',
     entityId:    user.id,
-    ipAddress,
-    metadata: {
+    ...conContexto(ctx, {
       failedAttempts: cuenta,
       ...(cerrar && { lockedUntil: lockedUntil?.toISOString() }),
-    },
+    }),
   });
 
   return {
@@ -326,7 +349,7 @@ export async function recordFailedAttempt(email: string, ipAddress?: string): Pr
 export async function unlockAccount(
   email: string,
   actorUserId: string,
-  ipAddress?: string,
+  ctx: Contexto = {},
 ): Promise<boolean> {
   const user = await buscarUsuario(email);
   if (!user) return false;
@@ -342,8 +365,11 @@ export async function unlockAccount(
     action:     'ACCOUNT_UNLOCKED',
     entityType: 'user',
     entityId:   user.id,
-    ipAddress,
-    metadata: { email, intentosPrevios: user.failedLoginAttempts ?? 0, estabaBloqueadoHasta: user.lockedUntil },
+    ...conContexto(ctx, {
+      email,
+      intentosPrevios: user.failedLoginAttempts ?? 0,
+      estabaBloqueadoHasta: user.lockedUntil,
+    }),
   });
 
   return true;
@@ -355,7 +381,7 @@ export async function unlockAccount(
  * Esto es, hoy, **la única forma de salir de un candado** — se llega por
  * "olvidé mi contraseña". Ver el aviso de la cabecera.
  */
-export async function recordSuccessfulLogin(email: string, ipAddress?: string): Promise<void> {
+export async function recordSuccessfulLogin(email: string, ctx: Contexto = {}): Promise<void> {
   const user = await buscarUsuario(email);
   if (!user) return;
 
@@ -364,7 +390,7 @@ export async function recordSuccessfulLogin(email: string, ipAddress?: string): 
     lockedUntil:         null,
     lastFailedAttemptAt: null,
     lastLoginAt:         new Date().toISOString(),
-    lastLoginIp:         ipAddress ?? null,
+    lastLoginIp:         ctx.ip ?? null,
   });
 
   await auditar({
@@ -372,6 +398,6 @@ export async function recordSuccessfulLogin(email: string, ipAddress?: string): 
     action:      'LOGIN_SUCCESS',
     entityType:  'user',
     entityId:    user.id,
-    ipAddress,
+    ...conContexto(ctx),
   });
 }

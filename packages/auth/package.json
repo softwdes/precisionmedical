@@ -10,6 +10,7 @@
     "./admin": "./src/admin.ts",
     "./middleware": "./src/middleware.ts",
     "./lockout": "./src/lockout.ts",
+    "./freno-ip": "./src/freno-ip.ts",
     "./v2-apps": "./src/v2-apps.ts"
   },
   "dependencies": {

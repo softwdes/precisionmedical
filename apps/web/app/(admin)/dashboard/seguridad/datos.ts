@@ -131,7 +131,7 @@ export interface Cuentas {
   total: number;
   sinMfa: number;
   adminsSinMfa: number;
-  inactivasQueEntran: number;
+  pendientesQueEntran: number;
   nuncaEntraron: number;
   trabadasAhora: number;
   conIntentos: Array<{ correo: string; intentos: number; hasta: string | null }>;
@@ -154,7 +154,7 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
   const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
   const vacio: DatosSeguridad = {
     eventos: [], porIp: [], desde,
-    cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, inactivasQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [] },
+    cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, pendientesQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [] },
     ok: false,
   };
 
@@ -217,8 +217,20 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
     total: us.length,
     sinMfa: us.filter((u) => !u.mfaEnabled).length,
     adminsSinMfa: us.filter((u) => esAdmin(u.role) && !u.mfaEnabled).length,
-    // El estado dice inactiva o suspendida y el sistema la deja pasar igual.
-    inactivasQueEntran: us.filter((u) => u.status !== 'ACTIVE').length,
+    /**
+     * ⚠️ NO es "las inactivas entran". `INACTIVE` y `SUSPENDED` SÍ bloquean:
+     * están en `BLOCKING_STATUSES` y el middleware las manda a /no-access.
+     *
+     * El agujero es `PENDING_VERIFICATION`: parece un candado en la lista de
+     * usuarios y no retiene nada. Medido el 2026-10-05: las 10 cuentas no
+     * activas son exactamente de ese estado.
+     *
+     * Se cuenta así —por el estado concreto y no por "distinto de ACTIVE"—
+     * porque la primera versión de esta fila decía que las suspendidas entraban,
+     * y eso era falso. Una pantalla de seguridad que exagera un riesgo enseña a
+     * no creerle.
+     */
+    pendientesQueEntran: us.filter((u) => u.status === 'PENDING_VERIFICATION').length,
     nuncaEntraron: us.filter((u) => !u.lastLoginAt).length,
     trabadasAhora: us.filter((u) => u.lockedUntil && new Date(u.lockedUntil as string).getTime() > ahora).length,
     conIntentos: us

@@ -192,9 +192,9 @@ export function SeguridadClient({ datos }: { datos: DatosSeguridad }): React.Rea
             v={`${cuentas.sinMfa} / ${cuentas.total}`} malo={cuentas.sinMfa > 0}
           />
           <Riesgo
-            t="Can sign in even when not active"
-            d="Their status says inactive or suspended, and the system lets them in anyway"
-            v={cuentas.inactivasQueEntran} malo={cuentas.inactivasQueEntran > 0}
+            t="Pending verification, and can sign in anyway"
+            d="Inactive and suspended accounts are blocked. Pending is not — it looks like a lock and holds nothing"
+            v={cuentas.pendientesQueEntran} malo={cuentas.pendientesQueEntran > 0}
           />
           <Riesgo
             t="Never signed in"

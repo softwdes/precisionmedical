@@ -36,14 +36,6 @@ import { claveDeIp, contextoDe, frenoIp, vieneDeNuestrasPantallas } from '@preci
 const MODULO = 'attorneys';
 
 
-function ipFromRequest(req: NextRequest): string | undefined {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    undefined
-  );
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const frenoGet = frenoIp(claveDeIp(req.headers, 'lockout-get'), { max: 30, ventanaMs: 10 * 60_000 });
   if (!frenoGet.ok) {

@@ -11,7 +11,8 @@
  * Color: cyan/violet gradient (Regla #5 — mockup aprobado)
  */
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
+import type { ReactNode } from 'react';
 // ─── Shared types (mirrored from API route — cannot import across [param] routes) ─
 
 interface LobbyPatient {
@@ -59,31 +60,6 @@ interface LobbyData {
 interface Props {
   clinicId:   string;
   clinicName: string;
-}
-
-// ─── Avatar color pool (10 colors, deterministic by display string hash) ─────
-const AVATAR_COLORS = [
-  '#06B6D4', // cyan
-  '#8B5CF6', // violet
-  '#10B981', // emerald
-  '#F59E0B', // amber
-  '#6366F1', // brand
-  '#EC4899', // pink
-  '#14B8A6', // teal
-  '#A855F7', // purple
-];
-
-function avatarColor(display: string): string {
-  let h = 0;
-  for (let i = 0; i < display.length; i++) {
-    h = (h * 31 + display.charCodeAt(i)) >>> 0;
-  }
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function initials(display: string): string {
-  // "E.S - 62" → "ES"
-  return display.replace(/[^A-Z]/g, '').slice(0, 2);
 }
 
 /**
@@ -203,329 +179,457 @@ function NowCallingBanner({ data, lang }: { data: NowCalling; lang: Lang }) {
   );
 }
 
-// ─── Consultation card (large TV card) ───────────────────────────────────────
-function ConsultCard({ apt, lang, spot = false }: { apt: ConsultationPatient; lang: Lang; spot?: boolean }) {
-  const color = avatarColor(apt.display);
-  const ini   = initials(apt.display);
+// ─── Estados del cartel ───────────────────────────────────────────────────────
+/**
+ * Una sola lista, ordenada por el recorrido del paciente: cada fila lleva su
+ * estado con COLOR + TEXTO + ÍCONO (el color solo no alcanza: verde y ámbar se
+ * confunden con algunos tipos de daltonismo).
+ *
+ *   por llegar (gris) → en espera (azul) → ¡prepárate! (cian)
+ *                     → en triaje (ámbar) → en consulta (verde)
+ *
+ * "Por llegar" es el que tiene cita y todavía no hizo check-in: la API lo mezcla
+ * con "en espera" en `waiting`, y acá se separa por `checkedInAt`.
+ *
+ * Movimiento: SOLO lo que importa y lento (≥1,6 s). El texto nunca parpadea.
+ *
+ * OJO — "en consulta" sale de `IN_PROGRESS`, que hoy significa "en el cuarto", no
+ * "con el doctor" (la clínica lleva al paciente al cuarto en el check-in). Queda
+ * pendiente decidir qué momento cuenta; ver el paso 2 del plan del lobby.
+ */
+type RowState = 'consult' | 'triage' | 'next' | 'arrived' | 'expected';
 
-  return (
-    <div
-      style={{
-        background:   spot ? 'rgba(6,182,212,0.10)' : 'rgba(255,255,255,0.04)',
-        border:       spot ? '1px solid #22D3EE' : `1px solid ${color}30`,
-        boxShadow:    spot ? '0 0 0 3px rgba(34,211,238,0.22), 0 0 40px rgba(34,211,238,0.25)' : 'none',
-        transition:   'all 0.4s',
-        borderRadius: 16,
-        padding:      '20px 22px',
-        display:      'flex',
-        flexDirection: 'column',
-        gap:          10,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        {/* Avatar */}
-        <div style={{
-          width:           52, height:      52,
-          borderRadius:    '50%',
-          background:      `${color}20`,
-          border:          `2px solid ${color}60`,
-          display:         'flex',
-          alignItems:      'center',
-          justifyContent:  'center',
-          fontSize:        18,
-          fontWeight:      900,
-          color,
-          letterSpacing:   '-0.02em',
-          flexShrink:      0,
-        }}>
-          {ini}
-        </div>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '-0.02em' }}>
-            {apt.display}
-          </div>
-          {apt.doctorName && (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-              {apt.doctorName}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color }}>⏱</span>
-        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
-          {apt.elapsedMin} min · {tx(lang, 'En consulta', 'In consultation')}
-        </span>
-      </div>
-    </div>
-  );
+interface LobbyRow {
+  id:         string;
+  display:    string;
+  doctorName: string | null;
+  state:      RowState;
+  /** consulta: minutos en consulta · espera: minutos desde el check-in. */
+  minutes:    number;
+  /** Solo "por llegar": la hora de la cita, ya en hora de la clínica. */
+  apptTime:   string | null;
 }
 
-// ─── Triage row ───────────────────────────────────────────────────────────────
-function TriageRow({ apt, lang, spot = false }: { apt: LobbyPatient; lang: Lang; spot?: boolean }) {
-  const color = '#F59E0B'; // amber — triage accent
-  const ini   = initials(apt.display);
+const STATE_ORDER: RowState[] = ['consult', 'triage', 'next', 'arrived', 'expected'];
+
+const STATE_STYLE: Record<RowState, { color: string; ink: string; es: string; en: string }> = {
+  consult:  { color: '#34D399', ink: '#059669', es: 'EN CONSULTA',  en: 'IN CONSULTATION' },
+  triage:   { color: '#FBBF24', ink: '#B45309', es: 'EN TRIAJE',    en: 'IN TRIAGE' },
+  next:     { color: '#22D3EE', ink: '#0E7490', es: '¡PREPÁRATE!',  en: 'GET READY' },
+  arrived:  { color: '#6B8CFF', ink: '#3B5BDB', es: 'EN ESPERA',    en: 'WAITING' },
+  expected: { color: '#94A3B8', ink: '#475569', es: 'POR LLEGAR',   en: 'EXPECTED' },
+};
+
+/** `#RRGGBB` + alfa → `rgba(...)`. Sin `color-mix`: las TV viejas no lo tienen. */
+function hexA(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+function buildRows(d: LobbyData, now: number): LobbyRow[] {
+  const mins = (iso: string | null): number =>
+    iso ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000)) : 0;
+  const apptTime = (iso: string): string =>
+    new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+
+  const rows: LobbyRow[] = [];
+  for (const c of d.consultation) {
+    rows.push({ id: c.id, display: c.display, doctorName: c.doctorName, state: 'consult', minutes: c.elapsedMin, apptTime: null });
+  }
+  for (const p of d.triage) {
+    rows.push({ id: p.id, display: p.display, doctorName: p.doctorName, state: 'triage', minutes: mins(p.checkedInAt), apptTime: null });
+  }
+  const arrived  = d.waiting.filter(w => !!w.checkedInAt);
+  const expected = d.waiting.filter(w => !w.checkedInAt);
+  arrived.forEach((w, i) => {
+    rows.push({ id: w.id, display: w.display, doctorName: w.doctorName, state: i === 0 ? 'next' : 'arrived', minutes: mins(w.checkedInAt), apptTime: null });
+  });
+  for (const w of expected) {
+    rows.push({ id: w.id, display: w.display, doctorName: w.doctorName, state: 'expected', minutes: 0, apptTime: apptTime(w.scheduledFor) });
+  }
+  return rows;
+}
+
+function rowDetail(r: LobbyRow, lang: Lang): string {
+  switch (r.state) {
+    case 'consult':  return `${r.minutes} min`;
+    case 'triage':   return tx(lang, 'signos vitales', 'vitals');
+    case 'expected': return tx(lang, `cita ${r.apptTime ?? ''}`, `appt ${r.apptTime ?? ''}`);
+    default:         return tx(lang, `esperando ${r.minutes} min`, `waiting ${r.minutes} min`);
+  }
+}
+
+function StateIcon({ state, color, size }: { state: RowState; color: string; size: string }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (state) {
+    case 'consult':  return <svg {...common}><path d="M6 3v6a4 4 0 0 0 8 0V3M10 13v2a5 5 0 0 0 10 0v-1" /><circle cx="20" cy="12" r="2" /></svg>;
+    case 'triage':   return <svg {...common}><path d="M3 12h4l2-5 4 10 2-5h6" /></svg>;
+    case 'next':     return <svg {...common}><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
+    case 'arrived':  return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+    default:         return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
+  }
+}
+
+// ─── El recorrido de CIFO ─────────────────────────────────────────────────────
+/**
+ * CIFO baja por las primeras 5 líneas, una cada 5 s: se desliza a la altura de
+ * la fila y la señala con un rayo punteado desde su mano (es más alto que una
+ * fila, así que sin el rayo no apuntaría bien a las primeras). Al terminar hace
+ * una pausa de saludo y vuelve a empezar.
+ *
+ * TIEMPOS (Erick, 2026-10-05: "5 s es muy corto"): 7 s por fila, 10 s para "¡prepárate!"
+ * —la que le dice a alguien que se levante—, 6 s de saludo y 8 s en la fila que acaba
+ * de cambiar de estado. Ciclo completo ≈ 40 s. La gente mira la TV de reojo: 4 s
+ * de lectura útiles (5 s menos el movimiento) se les escapan; 10 s por fila hace
+ * esperar casi un minuto a quien está en la quinta. Y el saludo largo es tiempo
+ * muerto: no resalta a nadie. Cómo se ve depende de la TV y la distancia, así que
+ * se ajustan SIN tocar código: `?step=7&next=10&idle=6&event=8` (segundos).
+ *
+ * Si "¡prepárate!" quedó fuera de las 5, entra igual: es la fila más importante.
+ * Si alguien CAMBIA de estado, CIFO salta a esa fila en el acto y la fila hace un
+ * destello — el cartel reacciona a lo que pasa, no solo a un reloj.
+ *
+ * La geometría se MIDE del DOM (no se calcula a mano): sirve en cualquier TV.
+ */
+const WALK_ROWS = 5;
+
+interface WalkTimes { step: number; next: number; idle: number; event: number }
+const WALK_DEFAULTS: WalkTimes = { step: 7_000, next: 10_000, idle: 6_000, event: 8_000 };
+
+/** Los tiempos por defecto, pisados por `?step=&next=&idle=&event=` (segundos, entre 2 y 60). */
+function readWalkTimes(): WalkTimes {
+  const q = new URLSearchParams(window.location.search);
+  const get = (k: keyof WalkTimes): number => {
+    const v = Number(q.get(k));
+    return Number.isFinite(v) && v >= 2 && v <= 60 ? v * 1000 : WALK_DEFAULTS[k];
+  };
+  return { step: get('step'), next: get('next'), idle: get('idle'), event: get('event') };
+}
+
+function buildWalk(rows: LobbyRow[]): LobbyRow[] {
+  const w  = rows.slice(0, WALK_ROWS);
+  const nx = rows.find(r => r.state === 'next');
+  if (nx && !w.includes(nx)) w[w.length - 1] = nx;
+  return w;
+}
+
+interface Geo {
+  mode:      'idle' | 'point';
+  h:         number;
+  top:       number;
+  bubbleTop: number;
+  hx:        number;
+  hy:        number;
+  rx:        number;
+  ry:        number;
+}
+
+function LobbyBoard({ rows, lang, status, banner }: {
+  rows:   LobbyRow[];
+  lang:   Lang;
+  status: 'loading' | 'error' | 'ok';
+  banner: ReactNode;
+}) {
+  const t = (es: string, en: string) => tx(lang, es, en);
+
+  const mainRef   = useRef<HTMLElement | null>(null);
+  const colRef    = useRef<HTMLElement | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const rowEls    = useRef(new Map<string, HTMLDivElement>());
+
+  const [focusId,  setFocusId]  = useState<string | null>(null);
+  const [shownId,  setShownId]  = useState<string | null>(null);
+  const [fade,     setFade]     = useState(false);
+  const [flashIds, setFlashIds] = useState<string[]>([]);
+  const [geo,      setGeo]      = useState<Geo | null>(null);
+  const [size,     setSize]     = useState(0);
+
+  const rowsRef  = useRef(rows);
+  const idxRef   = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jumpRef  = useRef<((id: string) => void) | null>(null);
+  /** La fila que acaba de cambiar de estado se queda más tiempo en foco. */
+  const holdRef  = useRef<number | null>(null);
+  const prevRef  = useRef<Map<string, RowState> | null>(null);
+
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  // El recorrido. Lee las filas de `rowsRef`, así los datos nuevos del polling no lo reinician.
+  useEffect(() => {
+    const times = readWalkTimes();
+    const run = (): void => {
+      const w = buildWalk(rowsRef.current);
+      if (w.length === 0) {
+        setFocusId(null); idxRef.current = 0;
+        timerRef.current = setTimeout(run, times.step);
+        return;
+      }
+      if (idxRef.current >= w.length) {
+        setFocusId(null); idxRef.current = 0;
+        timerRef.current = setTimeout(run, times.idle);
+        return;
+      }
+      const row = w[idxRef.current];
+      setFocusId(row.id);
+      idxRef.current += 1;
+      const dwell = holdRef.current ?? (row.state === 'next' ? times.next : times.step);
+      holdRef.current = null;
+      timerRef.current = setTimeout(run, dwell);
+    };
+    jumpRef.current = (id: string): void => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const w = buildWalk(rowsRef.current);
+      const k = w.findIndex(r => r.id === id);
+      idxRef.current = k < 0 ? 0 : k;
+      holdRef.current = times.event;
+      run();
+    };
+    run();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  // Evento real: alguien cambió de estado → CIFO salta a esa fila y la fila destella.
+  useEffect(() => {
+    const cur = new Map(rows.map(r => [r.id, r.state] as const));
+    const prev = prevRef.current;
+    if (prev) {
+      const changed = rows.filter(r => { const p = prev.get(r.id); return p !== undefined && p !== r.state; });
+      if (changed.length > 0) {
+        setFlashIds(changed.map(r => r.id));
+        jumpRef.current?.(changed[0].id);
+        const id = setTimeout(() => setFlashIds([]), 3_300);
+        prevRef.current = cur;
+        return () => clearTimeout(id);
+      }
+    }
+    prevRef.current = cur;
+    return undefined;
+  }, [rows]);
+
+  // El texto del globito se cambia con un fundido, mientras CIFO ya se está moviendo.
+  useEffect(() => {
+    setFade(true);
+    const id = setTimeout(() => { setShownId(focusId); setFade(false); }, 260);
+    return () => clearTimeout(id);
+  }, [focusId]);
+
+  useEffect(() => {
+    const onResize = (): void => setSize(n => n + 1);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Geometría: se mide, no se calcula.
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    const col  = colRef.current;
+    if (!main || !col || col.clientHeight === 0) { setGeo(null); return; }
+    const colH = col.clientHeight;
+    const colW = col.clientWidth;
+    const bubbleH = bubbleRef.current?.offsetHeight ?? 150;
+
+    const el = focusId ? rowEls.current.get(focusId) : undefined;
+    if (!focusId || !el) {
+      const h = Math.round(Math.min(520, colH * 0.5));
+      setGeo({ mode: 'idle', h, top: colH - h - 16, bubbleTop: 20, hx: 0, hy: 0, rx: 0, ry: 0 });
+      return;
+    }
+    const CH   = Math.round(Math.min(380, Math.max(220, colH * 0.37)));
+    const mr   = main.getBoundingClientRect();
+    const rr   = el.getBoundingClientRect();
+    const rowY = rr.top - mr.top + rr.height / 2;
+    const handY = CH * 0.56;
+    const top  = Math.max(0, Math.min(colH - CH, rowY - handY));
+    const bubbleTop = top > colH / 2
+      ? Math.max(8, top - bubbleH - 12)
+      : Math.min(colH - bubbleH - 8, top + CH + 12);
+    setGeo({
+      mode: 'point', h: CH, top, bubbleTop,
+      hx: colW / 2 + (CH * 200 / 356) / 2 - 6, hy: top + handY,
+      rx: rr.left - mr.left - 4, ry: rowY,
+    });
+  }, [focusId, rows, lang, size]);
+
+  const shown = shownId ? rows.find(r => r.id === shownId) ?? null : null;
+  const con = (n: string | null): string => (n ? tx(lang, ` con ${n}`, ` with ${n}`) : '');
+
+  let bTag: string, bBig: string, bSub: string, bColor: string;
+  if (shown) {
+    const st = STATE_STYLE[shown.state];
+    bTag = tx(lang, st.es, st.en);
+    bColor = st.ink;
+    bBig = shown.display;
+    const who = shown.doctorName ? `${shown.doctorName} · ` : '';
+    bSub = shown.state === 'next'
+      ? tx(lang, `Eres el siguiente${con(shown.doctorName)}.`, `You are next${con(shown.doctorName)}.`)
+      : `${who}${rowDetail(shown, lang)}`;
+  } else {
+    bTag = t('Bienvenido', 'Welcome');
+    bColor = '#6366F1';
+    bBig = t('¡Hola!', 'Hello!');
+    bSub = rows.length === 0
+      ? t('Hoy no hay pacientes esperando.', 'Nobody is waiting right now.')
+      : t('Avísanos en recepción si necesitas algo.', 'Let reception know if you need anything.');
+  }
+
+  const dim = focusId !== null;
+  const pointing = geo?.mode === 'point';
+  const beamLen = geo && pointing ? Math.hypot(geo.rx - geo.hx, geo.ry - geo.hy) : 0;
+  const beamAng = geo && pointing ? Math.atan2(geo.ry - geo.hy, geo.rx - geo.hx) : 0;
 
   return (
-    <div
-      style={{
-        background:    spot ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.06)',
-        border:        spot ? '1px solid #F59E0B' : '1px solid rgba(245,158,11,0.25)',
-        boxShadow:     spot ? '0 0 36px rgba(245,158,11,0.28)' : 'none',
-        transition:    'all 0.4s',
-        borderRadius:  12,
-        padding:       '14px 20px',
-        display:       'flex',
-        alignItems:    'center',
-        gap:           16,
-      }}
-    >
-      <div style={{
-        width:          40, height:         40,
-        borderRadius:   '50%',
-        background:     'rgba(245,158,11,0.15)',
-        border:         '2px solid rgba(245,158,11,0.40)',
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        fontSize:       14,
-        fontWeight:     900,
-        color,
-        flexShrink:     0,
+    <main ref={mainRef} style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      <aside ref={colRef} className="lobby-cifo" style={{
+        width: 'clamp(300px, 26vw, 520px)', flexShrink: 0, position: 'relative',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: 'radial-gradient(ellipse at 50% 85%, rgba(99,102,241,0.18), transparent 65%)',
       }}>
-        {ini}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{apt.display}</div>
-        {apt.doctorName && (
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
-            {apt.doctorName}
+        {status === 'ok' && geo && (
+          <>
+            <div ref={bubbleRef} style={{
+              position: 'absolute', left: 20, right: 20, top: geo.bubbleTop, zIndex: 6,
+              background: '#fff', color: '#0a1224', borderRadius: 26,
+              padding: 'clamp(12px, 1.1vw, 22px) clamp(16px, 1.5vw, 28px)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              opacity: fade ? 0 : 1,
+              transition: 'top 0.8s cubic-bezier(.45,.05,.25,1), opacity 0.26s',
+            }}>
+              <div style={{ fontSize: 'clamp(10px, 0.95vw, 18px)', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: bColor, marginBottom: 4 }}>{bTag}</div>
+              <div style={{ fontSize: 'clamp(24px, 2.4vw, 46px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.02em' }}>{bBig}</div>
+              <div style={{ fontSize: 'clamp(12px, 1.25vw, 24px)', color: '#3b4366', marginTop: 6, lineHeight: 1.2 }}>{bSub}</div>
+            </div>
+            {/* El GIF que señala (cifo-1) apunta a la izquierda: se espeja para apuntar a la lista.
+                El espejo voltea el logo del pecho; la versión final pide un GIF señalando a la derecha. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pointing ? '/cifo-1.gif' : '/cifo-saluda.gif'}
+              alt="CIFO"
+              style={{
+                position: 'absolute', left: '50%', top: geo.top, height: geo.h, width: 'auto', zIndex: 4,
+                transform: `translateX(-50%)${pointing ? ' scaleX(-1)' : ''}`,
+                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))',
+                transition: 'top 0.8s cubic-bezier(.45,.05,.25,1)',
+              }}
+            />
+          </>
+        )}
+      </aside>
+
+      {/* El rayo de la mano de CIFO a la fila */}
+      {status === 'ok' && geo && (
+        <div aria-hidden style={{
+          position: 'absolute', left: geo.hx, top: geo.hy, width: beamLen, height: 0, zIndex: 5,
+          borderTop: '4px dotted #fff', transformOrigin: '0 50%', transform: `rotate(${beamAng}rad)`,
+          filter: 'drop-shadow(0 0 6px #fff)', pointerEvents: 'none',
+          opacity: pointing ? 1 : 0,
+          transition: 'width 0.8s cubic-bezier(.45,.05,.25,1), transform 0.8s cubic-bezier(.45,.05,.25,1), left 0.8s, top 0.8s, opacity 0.3s',
+        }}>
+          <span style={{ position: 'absolute', right: -9, top: -11, width: 18, height: 18, borderRadius: '50%', background: '#fff', boxShadow: '0 0 12px #fff' }} />
+        </div>
+      )}
+
+      <div style={{
+        flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px 32px',
+        display: 'flex', flexDirection: 'column', gap: 14,
+      }}>
+        {status === 'loading' && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <span style={{ fontSize: 20, animation: 'spin-slow 1.2s linear infinite', display: 'inline-block' }}>⟳</span>
+            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>{t('Cargando sala de espera…', 'Loading waiting room…')}</span>
           </div>
         )}
+
+        {status === 'error' && (
+          <div style={{
+            margin: 'auto', textAlign: 'center', padding: '40px 20px', borderRadius: 16,
+            background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.20)',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.60)', marginBottom: 6 }}>
+              {t('No se pudo cargar la sala de espera', 'Could not load the waiting room')}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)' }}>
+              {t('Reintentando en 15 segundos…', 'Retrying in 15 seconds…')}
+            </div>
+          </div>
+        )}
+
+        {status === 'ok' && (
+          <>
+            {banner}
+
+            {rows.length === 0 ? (
+              <div style={{
+                padding: '24px 20px', borderRadius: 12, background: 'rgba(6,182,212,0.04)',
+                border: '1px dashed rgba(6,182,212,0.15)', textAlign: 'center',
+                color: 'rgba(255,255,255,0.30)', fontSize: 14,
+              }}>
+                {t('Sala de espera libre', 'Waiting room clear')}
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '0 clamp(12px, 1.35vw, 26px)',
+                  fontSize: 'clamp(10px, 1vw, 20px)', fontWeight: 800, letterSpacing: '0.14em',
+                  textTransform: 'uppercase', color: 'rgba(255,255,255,0.40)',
+                }}>
+                  <span style={{ width: 'clamp(110px, 13vw, 250px)' }}>{t('Paciente', 'Patient')}</span>
+                  <span style={{ flex: 1 }}>Provider</span>
+                  <span style={{ width: 'clamp(200px, 26vw, 500px)' }}>{t('Estado', 'Status')}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {rows.map(r => {
+                    const st = STATE_STYLE[r.state];
+                    const focus = r.id === focusId;
+                    const flash = flashIds.includes(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        ref={el => { if (el) rowEls.current.set(r.id, el); else rowEls.current.delete(r.id); }}
+                        className={`lb-row lb-${r.state}${flash ? ' lb-flash' : ''}`}
+                        style={{
+                          ['--lb-c' as string]: st.color,
+                          ['--lb-flash' as string]: hexA(st.color, 0.5),
+                          position: 'relative', overflow: 'hidden',
+                          display: 'flex', alignItems: 'center', gap: 14,
+                          padding: 'clamp(8px, 0.85vw, 16px) clamp(12px, 1.35vw, 26px)',
+                          borderRadius: 16,
+                          background: focus ? hexA(st.color, 0.12) : '#101935',
+                          border: `2px solid ${focus ? st.color : 'transparent'}`,
+                          boxShadow: focus ? `0 0 44px ${hexA(st.color, 0.35)}` : 'none',
+                          opacity: dim && !focus ? 0.55 : 1,
+                          transform: focus ? 'scale(1.012)' : 'none',
+                          transition: 'opacity 0.5s, background 0.5s, border-color 0.5s, box-shadow 0.5s, transform 0.5s',
+                        }}
+                      >
+                        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 8, background: st.color }} />
+                        <div style={{ width: 'clamp(110px, 13vw, 250px)', fontSize: 'clamp(18px, 2.2vw, 42px)', fontWeight: 900, letterSpacing: '-0.01em' }}>{r.display}</div>
+                        <div style={{ flex: 1, fontSize: 'clamp(12px, 1.25vw, 24px)', color: 'rgba(255,255,255,0.45)' }}>{r.doctorName ?? ''}</div>
+                        <div style={{ width: 'clamp(200px, 26vw, 500px)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 10,
+                            padding: 'clamp(3px, 0.4vw, 8px) clamp(8px, 1vw, 20px)', borderRadius: 99,
+                            fontWeight: 800, letterSpacing: '0.07em', fontSize: 'clamp(10px, 1.2vw, 23px)',
+                            color: st.color, background: hexA(st.color, 0.15), border: `1.5px solid ${hexA(st.color, 0.45)}`,
+                          }}>
+                            <span className="lb-ic" style={{ display: 'inline-flex' }}><StateIcon state={r.state} color={st.color} size="1.3em" /></span>
+                            {tx(lang, st.es, st.en)}
+                          </span>
+                          <span style={{ fontSize: 'clamp(11px, 1.25vw, 24px)', color: r.state === 'consult' ? '#fff' : 'rgba(255,255,255,0.45)', fontWeight: r.state === 'consult' ? 700 : 400, whiteSpace: 'nowrap' }}>
+                            {rowDetail(r, lang)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
-      <div style={{ fontSize: 12, color, fontWeight: 600, letterSpacing: '0.04em' }}>
-        📈 {tx(lang, 'En triaje', 'In triage')}
-      </div>
-    </div>
-  );
-}
-
-// ─── Waiting row ──────────────────────────────────────────────────────────────
-function WaitRow({ apt, index, lang, spot = false }: { apt: WaitingPatient; index: number; lang: Lang; spot?: boolean }) {
-  const fmtWait = (min: number) =>
-    min < 60 ? `~${min} min` : `~${Math.round(min / 60)}h`;
-
-  return (
-    <div
-      style={{
-        display:       'flex',
-        alignItems:    'center',
-        gap:           16,
-        padding:       '12px 16px',
-        borderRadius:  10,
-        background:    spot ? 'rgba(16,185,129,0.12)' : index % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
-        borderBottom:  '1px solid rgba(255,255,255,0.04)',
-        outline:       spot ? '2px solid #10B981' : '2px solid transparent',
-        boxShadow:     spot ? '0 0 40px rgba(16,185,129,0.28)' : 'none',
-        transition:    'all 0.4s',
-      }}
-    >
-      {/* Position */}
-      <span style={{
-        width:          28, height:        28,
-        borderRadius:   '50%',
-        background:     'rgba(99,102,241,0.15)',
-        border:         '1px solid rgba(99,102,241,0.30)',
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        fontSize:       12,
-        fontWeight:     800,
-        color:          '#a5b4fc',
-        flexShrink:     0,
-      }}>
-        {apt.position}
-      </span>
-
-      {/* ID */}
-      <span style={{ fontSize: 18, fontWeight: 700, color: '#fff', minWidth: 90 }}>
-        {apt.display}
-      </span>
-
-      {/* Wait estimate */}
-      <span style={{
-        fontSize:     12,
-        color:        'rgba(255,255,255,0.40)',
-        background:   'rgba(255,255,255,0.05)',
-        borderRadius: 6,
-        padding:      '3px 8px',
-      }}>
-        {fmtWait(apt.estimatedWaitMin)}
-      </span>
-
-      {spot && (
-        <span style={{
-          background: '#10B981', color: '#fff', fontWeight: 800, fontSize: 12,
-          letterSpacing: '0.1em', padding: '3px 10px', borderRadius: 99,
-        }}>
-          {tx(lang, 'SIGUIENTE', 'NEXT')}
-        </span>
-      )}
-
-      {/* Doctor */}
-      {apt.doctorName && (
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginLeft: 'auto' }}>
-          {apt.doctorName}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─── CIFO ─────────────────────────────────────────────────────────────────────
-/**
- * CIFO en el cartel: habla desde un globito sobre lo que REALMENTE pasa.
- *
- * No rota por reloj sobre datos inventados: arma una lista de escenas con lo que
- * hay (a quién se está llamando, quién está en consulta, quién sigue) y solo
- * alterna entre esas verdades. Sin nada que decir, saluda.
- *
- * HIPAA: el globito usa el MISMO código anónimo que el resto del cartel
- * ("S.L - 65"). Nunca un nombre, y tampoco voz.
- *
- * El GIF que señala (cifo-1) apunta hacia la izquierda: con CIFO a la izquierda
- * de la lista se lo espeja para que apunte a las filas. El espejo voltea el logo
- * del pecho; la versión definitiva necesita un GIF de CIFO señalando a la derecha.
- */
-type CifoScene =
-  | { kind: 'calling'; display: string; destination: 'consultation' | 'triage'; doctorName: string | null; spotId: string | null }
-  | { kind: 'next';    display: string; doctorName: string | null; spotId: string }
-  | { kind: 'consult'; display: string; doctorName: string | null; elapsedMin: number; spotId: string }
-  | { kind: 'idle' };
-
-const CIFO_ROTATE_MS = 8_000;
-
-function buildScenes(d: LobbyData): CifoScene[] {
-  const out: CifoScene[] = [];
-
-  if (d.nowCalling) {
-    const nc = d.nowCalling;
-    const hit = [...d.consultation, ...d.triage].find(p => p.display === nc.display);
-    out.push({ kind: 'calling', display: nc.display, destination: nc.destination, doctorName: nc.doctorName, spotId: hit?.id ?? null });
-  }
-  const first = d.waiting[0];
-  if (first) out.push({ kind: 'next', display: first.display, doctorName: first.doctorName, spotId: first.id });
-  for (const c of d.consultation.slice(0, 4)) {
-    // El que se está llamando ya tiene su escena: no se repite.
-    if (d.nowCalling && c.display === d.nowCalling.display) continue;
-    out.push({ kind: 'consult', display: c.display, doctorName: c.doctorName, elapsedMin: c.elapsedMin, spotId: c.id });
-  }
-  return out.length > 0 ? out : [{ kind: 'idle' }];
-}
-
-function CifoPanel({ scene, lang }: { scene: CifoScene; lang: Lang }) {
-  const con = (n: string | null) => (n ? tx(lang, ` con ${n}`, ` with ${n}`) : '');
-  let tag = '', big = '', sub = '', accent = '#6366F1';
-  let gif = '/cifo-1.gif', mirror = true;
-  /* Alto máximo por GIF = poco más que su tamaño real. cifo-1/2 son de 200x356 px y
-     estirados a 620 px se veían pixelados; cifo-saluda es de 300x533. */
-  let maxH = 440;
-
-  if (scene.kind === 'calling') {
-    accent = '#059669';
-    tag = tx(lang, 'Ahora llamando', 'Now calling');
-    big = scene.display;
-    sub = scene.destination === 'consultation'
-      ? tx(lang, `Pasa al consultorio${con(scene.doctorName)}.`, `Please go to the exam room${con(scene.doctorName)}.`)
-      : tx(lang, 'Pasa a la sala de triaje.', 'Please go to the triage room.');
-  } else if (scene.kind === 'next') {
-    accent = '#059669';
-    tag = tx(lang, '¡Prepárate!', 'Get ready!');
-    big = scene.display;
-    sub = tx(lang, `Eres el siguiente${con(scene.doctorName)}. Ve acercándote al consultorio.`,
-                   `You are next${con(scene.doctorName)}. Please head toward the exam room.`);
-  } else if (scene.kind === 'consult') {
-    accent = '#0891B2';
-    gif = '/cifo-2.gif'; mirror = false;
-    tag = tx(lang, 'En consulta ahora', 'In consultation now');
-    big = scene.display;
-    sub = tx(lang, `${scene.doctorName ? scene.doctorName + ' · ' : ''}${scene.elapsedMin} min`,
-                   `${scene.doctorName ? scene.doctorName + ' · ' : ''}${scene.elapsedMin} min`);
-  } else {
-    mirror = false;
-    gif = '/cifo-saluda.gif'; maxH = 533;
-    tag = tx(lang, 'Bienvenido', 'Welcome');
-    big = tx(lang, '¡Hola!', 'Hello!');
-    sub = tx(lang, 'Avísanos en recepción si necesitas algo.', 'Let reception know if you need anything.');
-  }
-
-  // `key` fuerza el remontaje: el globito entra con su animación en cada escena.
-  const key = scene.kind === 'idle' ? 'idle' : `${scene.kind}-${scene.display}`;
-
-  return (
-    <div style={{ position: 'relative', height: '100%' }}>
-      <div key={key} className="cifo-bubble" style={{
-        position: 'absolute', left: 20, right: 20, top: 20, zIndex: 5,
-        background: '#fff', color: '#0a1224', borderRadius: 26,
-        padding: 'clamp(16px, 1.6vw, 30px) clamp(18px, 1.8vw, 34px)',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-      }}>
-        <div style={{ fontSize: 'clamp(11px, 1vw, 19px)', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6 }}>{tag}</div>
-        <div style={{ fontSize: 'clamp(26px, 2.8vw, 54px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.02em' }}>{big}</div>
-        <div style={{ fontSize: 'clamp(13px, 1.3vw, 26px)', color: '#3b4366', marginTop: 8, lineHeight: 1.25 }}>{sub}</div>
-        <span style={{
-          position: 'absolute', left: 90, bottom: -22, width: 0, height: 0,
-          borderLeft: '18px solid transparent', borderRight: '18px solid transparent', borderTop: '24px solid #fff',
-        }} />
-      </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        key={gif + String(mirror)}
-        src={gif}
-        alt="CIFO"
-        style={{
-          position: 'absolute', left: '50%', bottom: 16,
-          height: `min(62vh, ${maxH}px)`, width: 'auto',
-          transform: `translateX(-50%)${mirror ? ' scaleX(-1)' : ''}`,
-          filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))',
-        }}
-      />
-    </div>
-  );
-}
-
-// ─── Section header ───────────────────────────────────────────────────────────
-function SectionHeader({ emoji, es, en, count, color, lang }: {
-  emoji: string; es: string; en: string;
-  count: number; color: string; lang: Lang;
-}) {
-  const label = tx(lang, es, en);
-  return (
-    <div style={{
-      display:       'flex',
-      alignItems:    'center',
-      gap:           10,
-      marginBottom:  12,
-      paddingBottom: 8,
-      borderBottom:  `1px solid ${color}25`,
-    }}>
-      <span style={{ fontSize: 18 }}>{emoji}</span>
-      <span style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-        {label}
-      </span>
-      <span style={{
-        marginLeft:    'auto',
-        background:    `${color}20`,
-        border:        `1px solid ${color}35`,
-        borderRadius:  20,
-        padding:       '2px 10px',
-        fontSize:      12,
-        fontWeight:    700,
-        color,
-      }}>
-        {count}
-      </span>
-    </div>
+    </main>
   );
 }
 
@@ -538,15 +642,20 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
      tienen español registrado— y el que ve quien no toca el selector. */
   const [lang,    setLang]    = useState<Lang>('en');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** Qué escena de CIFO toca; solo alterna entre cosas ciertas (ver buildScenes). */
-  const [cifoTick, setCifoTick] = useState(0);
+  /** Reloj de los "esperando N min": se recalcula cada 30 s, sin esperar al polling. */
+  const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setCifoTick(n => n + 1), CIFO_ROTATE_MS);
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
-  const scenes = useMemo(() => (data ? buildScenes(data) : [{ kind: 'idle' } as CifoScene]), [data]);
-  const scene  = scenes[cifoTick % scenes.length];
-  const spotId = scene.kind === 'idle' ? null : scene.spotId;
+  const nowMin = Math.floor(nowMs / 60_000);
+  const rows = useMemo(() => (data ? buildRows(data, nowMin * 60_000) : []), [data, nowMin]);
+  const counts = useMemo(() => ({
+    waiting:  rows.filter(r => r.state === 'arrived' || r.state === 'next').length,
+    triage:   rows.filter(r => r.state === 'triage').length,
+    consult:  rows.filter(r => r.state === 'consult').length,
+    expected: rows.filter(r => r.state === 'expected').length,
+  }), [rows]);
 
   const t = (es: string, en: string) => tx(lang, es, en);
 
@@ -594,11 +703,15 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
-        @keyframes cifo-bubble-in {
-          from { opacity: 0; transform: translateY(10px) scale(0.97); }
-          to   { opacity: 1; transform: none; }
-        }
-        .cifo-bubble { animation: cifo-bubble-in 0.4s ease-out; }
+        /* Movimiento del tablero: solo lo que importa y lento; el texto nunca parpadea. */
+        @keyframes lb-blink   { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes lb-breathe { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.6; } }
+        @keyframes lb-glow    { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } 50% { box-shadow: 0 0 40px rgba(34,211,238,0.32); } }
+        @keyframes lb-flash   { 0% { background: var(--lb-flash); } 100% { background-color: transparent; } }
+        .lb-consult .lb-ic { animation: lb-blink 1.8s ease-in-out infinite; }
+        .lb-triage  .lb-ic { animation: lb-breathe 2.4s ease-in-out infinite; }
+        .lb-next { animation: lb-glow 2s ease-in-out infinite; }
+        .lb-flash { animation: lb-flash 3.2s ease-out; }
         /* CIFO solo cabe en pantallas anchas (la TV); en chicas queda el banner de siempre. */
         .lobby-cifo        { display: none; }
         .lobby-banner-wide { display: block; }
@@ -609,7 +722,8 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
       `}</style>
 
       <div style={{
-        minHeight:   '100vh',
+        /* Alto FIJO, no mínimo: en una TV la página no scrollea; si sobran filas las absorbe la lista. */
+        height:      '100vh',
         background:  '#0a1224',
         display:     'flex',
         flexDirection: 'column',
@@ -698,117 +812,14 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
         </header>
 
         {/* ── Main content ───────────────────────────────────────────────── */}
-        <main style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-          <aside className="lobby-cifo" style={{
-            width: 'clamp(300px, 26vw, 520px)', flexShrink: 0,
-            borderRight: '1px solid rgba(255,255,255,0.06)',
-            background: 'radial-gradient(ellipse at 50% 85%, rgba(99,102,241,0.18), transparent 65%)',
-          }}>
-            {!loading && !error && <CifoPanel scene={scene} lang={lang} />}
-          </aside>
-          <div style={{
-            flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px 32px',
-            display: 'flex', flexDirection: 'column', gap: 20,
-          }}>
-
-          {/* Loading state */}
-          {loading && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              <span style={{ fontSize: 20, animation: 'spin-slow 1.2s linear infinite', display: 'inline-block' }}>⟳</span>
-              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>{t('Cargando sala de espera…', 'Loading waiting room…')}</span>
-            </div>
-          )}
-
-          {/* Error state */}
-          {!loading && error && (
-            <div style={{
-              margin:       'auto',
-              textAlign:    'center',
-              padding:      '40px 20px',
-              borderRadius: 16,
-              background:   'rgba(244,63,94,0.06)',
-              border:       '1px solid rgba(244,63,94,0.20)',
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-              <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.60)', marginBottom: 6 }}>
-                {t('No se pudo cargar la sala de espera', 'Could not load the waiting room')}
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)' }}>
-                {t('Reintentando en 15 segundos…', 'Retrying in 15 seconds…')}
-              </div>
-            </div>
-          )}
-
-          {/* Content */}
-          {!loading && !error && data && (
-            <>
-              {/* "Ahora llamando" banner */}
-              {data.nowCalling && <div className="lobby-banner-wide"><NowCallingBanner data={data.nowCalling} lang={lang} /></div>}
-
-              {/* ── En Consulta ── */}
-              {data.consultation.length > 0 && (
-                <section>
-                  <SectionHeader
-                    emoji="🩺" es="En Consulta" en="In Consultation" lang={lang}
-                    count={data.consultation.length} color="#8B5CF6"
-                  />
-                  <div style={{
-                    display:             'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                    gap:                 12,
-                  }}>
-                    {data.consultation.map((apt: ConsultationPatient) => (
-                      <ConsultCard key={apt.id} apt={apt} lang={lang} spot={spotId === apt.id} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* ── En Triaje ── */}
-              {data.triage.length > 0 && (
-                <section>
-                  <SectionHeader
-                    emoji="📈" es="En Triaje" en="In Triage" lang={lang}
-                    count={data.triage.length} color="#F59E0B"
-                  />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {data.triage.map((apt: LobbyPatient) => (
-                      <TriageRow key={apt.id} apt={apt} lang={lang} spot={spotId === apt.id} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* ── Esperando ── */}
-              <section>
-                <SectionHeader
-                  emoji="⏱" es="Esperando" en="Waiting" lang={lang}
-                  count={data.waiting.length} color="#06B6D4"
-                />
-                {data.waiting.length === 0 ? (
-                  <div style={{
-                    padding:      '24px 20px',
-                    borderRadius: 12,
-                    background:   'rgba(6,182,212,0.04)',
-                    border:       '1px dashed rgba(6,182,212,0.15)',
-                    textAlign:    'center',
-                    color:        'rgba(255,255,255,0.30)',
-                    fontSize:     14,
-                  }}>
-                    {t('Sala de espera libre', 'Waiting room clear')}
-                  </div>
-                ) : (
-                  <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    {data.waiting.map((apt: WaitingPatient, i: number) => (
-                      <WaitRow key={apt.id} apt={apt} index={i} lang={lang} spot={spotId === apt.id} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-          </div>
-        </main>
+        <LobbyBoard
+          rows={rows}
+          lang={lang}
+          status={loading ? 'loading' : error ? 'error' : 'ok'}
+          banner={data?.nowCalling
+            ? <div className="lobby-banner-wide"><NowCallingBanner data={data.nowCalling} lang={lang} /></div>
+            : null}
+        />
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
         <footer style={{
@@ -831,11 +842,13 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               fontSize: 13,
               flexWrap: 'wrap',
             }}>
-              <StatPill value={data.stats.waiting}      label={t('esperando', 'waiting')}    color="#06B6D4" />
+              <StatPill value={counts.waiting}  label={t('esperando', 'waiting')}    color="#6B8CFF" />
               <Divider />
-              <StatPill value={data.stats.triage}       label={t('en triaje', 'in triage')}  color="#F59E0B" />
+              <StatPill value={counts.triage}   label={t('en triaje', 'in triage')}  color="#FBBF24" />
               <Divider />
-              <StatPill value={data.stats.consultation} label={t('en consulta', 'in consult')} color="#8B5CF6" />
+              <StatPill value={counts.consult}  label={t('en consulta', 'in consult')} color="#34D399" />
+              <Divider />
+              <StatPill value={counts.expected} label={t('por llegar', 'expected')}   color="#94A3B8" />
               <Divider />
               <span style={{ color: 'rgba(255,255,255,0.35)' }}>
                 {t('Pacientes hoy', 'Today')}:{' '}

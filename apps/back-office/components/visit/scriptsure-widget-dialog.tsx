@@ -65,6 +65,18 @@ export interface RefillLaunchResult {
   status: WidgetStatus;
   url: string | null;
   errorDetail: string | null;
+  /**
+   * Qué campos de la ficha faltan, cuando el corte fue por eso.
+   *
+   * El servidor los manda y acá se tiraban. Por eso REPETIR una receta llegaba
+   * a pantalla como un cartel sin salida, mientras que prescribir de cero sí
+   * abría el formulario para completarlos: dos caminos al mismo error, uno con
+   * remedio y el otro no. Erick lo pegó el 2026-10-05 probando desde Day
+   * Admission: *"eso debería mostrar la opción de poder agregarlo ahí"*.
+   */
+  missingFields: string[];
+  /** El código crudo, para distinguir "falta" de "es demasiado larga". */
+  errorCode: string | null;
 }
 
 /**
@@ -75,17 +87,19 @@ export interface RefillLaunchResult {
 export async function launchRefill(prescriptionId: string): Promise<RefillLaunchResult> {
   try {
     const res = await fetch(`/api/admin/scriptsure/refill/${prescriptionId}`, { method: 'POST' });
-    if (res.status === 403) return { status: 'forbidden', url: null, errorDetail: null };
+    const sinDatos = { url: null, errorDetail: null, missingFields: [], errorCode: null };
+    if (res.status === 403) return { status: 'forbidden', ...sinDatos };
     if (res.status === 409) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
       return {
         status: body?.error === 'NO_SCRIPTSURE_USER' ? 'no_scriptsure_user' : 'not_onboarded',
-        url: null,
-        errorDetail: null,
+        ...sinDatos,
+        errorCode: body?.error ?? null,
       };
     }
     if (res.status === 422) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      const body = (await res.json().catch(() => null)) as
+        { error?: string; missingFields?: string[] } | null;
       return {
         status: body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
           : body?.error === 'MISSING_DRUG_IDS' ? 'no_refill'
@@ -93,6 +107,9 @@ export async function launchRefill(prescriptionId: string): Promise<RefillLaunch
           : 'missing_address',
         url: null,
         errorDetail: null,
+        // Lo que el servidor ya sabía y se perdía en el camino.
+        missingFields: body?.missingFields ?? [],
+        errorCode: body?.error ?? null,
       };
     }
     if (!res.ok) {
@@ -100,12 +117,12 @@ export async function launchRefill(prescriptionId: string): Promise<RefillLaunch
       // buscarlo al audit log cada vez que su formato no coincide.
       const body = (await res.json().catch(() => null)) as { raw?: unknown; message?: string } | null;
       const detail = typeof body?.raw === 'string' ? body.raw : body?.message ?? null;
-      return { status: 'error', url: null, errorDetail: detail ? detail.slice(0, 400) : null };
+      return { status: 'error', ...sinDatos, errorDetail: detail ? detail.slice(0, 400) : null };
     }
     const data = (await res.json()) as { url: string };
-    return { status: 'ready', url: data.url, errorDetail: null };
+    return { status: 'ready', ...sinDatos, url: data.url };
   } catch {
-    return { status: 'error', url: null, errorDetail: null };
+    return { status: 'error', url: null, errorDetail: null, missingFields: [], errorCode: null };
   }
 }
 

@@ -154,6 +154,12 @@ export function RxIntegrationStatus({
   const [consentPara, setConsentPara] = React.useState<WidgetKind | null>(null);
   /** Widget que quedó esperando que se completen los datos del paciente (422). */
   const [demogPara, setDemogPara] = React.useState<WidgetKind | null>(null);
+  /**
+   * La receta que se estaba repitiendo cuando saltó el formulario de datos.
+   * Al guardar se reintenta ELLA, no el widget vacío: si no, la persona
+   * completa la dirección y tiene que volver a buscar cuál estaba repitiendo.
+   */
+  const [reintentarRefill, setReintentarRefill] = React.useState<SentRx | null>(null);
   const [faltantes, setFaltantes] = React.useState<CampoFaltante[]>([]);
   const [motivoDemog, setMotivoDemog] = React.useState<'faltan' | 'muy-larga'>('faltan');
 
@@ -254,10 +260,32 @@ export function RxIntegrationStatus({
     // El POST y el mapeo de respuestas viven en el helper compartido — misma
     // traducción de errores acá y en el tab de recetas del detalle de caso.
     const result = await launchRefill(rx.id);
+    setRefillingId(null);
+
+    /**
+     * Si lo único que traba es un dato de la ficha, se ofrece completarlo acá
+     * mismo — igual que al prescribir de cero.
+     *
+     * Hasta el 2026-10-05 este camino mostraba el cartel y nada más: el mismo
+     * callejón sin salida que ya se había arreglado en `openWidget`, vivo en el
+     * botón de al lado. Lo pegó Erick probando desde Day Admission.
+     *
+     * La fecha de nacimiento NO entra: es identidad, no contacto, y corregirla
+     * en un atajo puesto para destrabar una receta es pedir un error caro. Ese
+     * criterio ya estaba y se respeta.
+     */
+    if (result.status === 'missing_address' || result.status === 'missing_phone') {
+      setActive(null);
+      setFaltantes(result.missingFields as CampoFaltante[]);
+      setMotivoDemog(result.errorCode === 'PATIENT_ADDRESS_TOO_LONG' ? 'muy-larga' : 'faltan');
+      setReintentarRefill(rx);
+      setDemogPara('drug-list');
+      return;
+    }
+
     setStatus(result.status);
     setUrl(result.url);
     setErrorDetail(result.errorDetail);
-    setRefillingId(null);
   }
 
   /**
@@ -506,11 +534,16 @@ export function RxIntegrationStatus({
         appointmentId={appointmentId}
         faltantes={faltantes}
         motivo={motivoDemog}
-        onCancel={() => setDemogPara(null)}
+        onCancel={() => { setDemogPara(null); setReintentarRefill(null); }}
         onSaved={() => {
           const widget = demogPara;
+          const rx = reintentarRefill;
           setDemogPara(null);
-          if (widget) void openWidget(widget);
+          setReintentarRefill(null);
+          // Se retoma lo que se estaba haciendo: la receta que se repetía, o el
+          // widget que se había trabado.
+          if (rx) void refill(rx);
+          else if (widget) void openWidget(widget);
           // El panel de contexto y el resumen leen la ficha: que reflejen el
           // dato recién cargado sin tener que recargar a mano.
           startTransition(() => { router.refresh(); });

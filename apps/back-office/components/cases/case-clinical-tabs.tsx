@@ -43,6 +43,7 @@ import { LabOrderDialog } from '@/components/visit/lab-order-dialog';
 import { LabOrderPrintDialog } from '@/components/visit/lab-order-print-dialog';
 import { BracePickerDialog, type CatalogBrace, type Side as BraceSide } from '@/components/visit/brace-picker-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { PatientDemographicsDialog, type CampoFaltante } from '@/components/visit/patient-demographics-dialog';
 import type { CoverageDTO } from '@/lib/coverage';
 import { codigosRepetidos, horaCobro } from '@/lib/repeated-charges';
 import { claveDia, fechaConDia } from '@/lib/fechas';
@@ -545,6 +546,16 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
   // Cita de la receta repetida — al cerrar se sincroniza ESA cita con ScriptSure
   const syncApptRef = React.useRef<string | null>(null);
 
+  /**
+   * Datos de la ficha que faltan para repetir, y qué receta retomar al
+   * guardarlos. Mismo remedio que en la consulta: el cartel sin salida obligaba
+   * a irse a la ficha del paciente, completarla y volver a buscar la receta.
+   */
+  /** `rx: null` = se estaba prescribiendo de cero, no repitiendo. */
+  const [demogPara, setDemogPara] = React.useState<{ appointmentId: string; rx: RxRow | null } | null>(null);
+  const [faltantes, setFaltantes] = React.useState<CampoFaltante[]>([]);
+  const [motivoDemog, setMotivoDemog] = React.useState<'faltan' | 'muy-larga'>('faltan');
+
   const startRefill = async (rx: RxRow, appointmentId: string): Promise<void> => {
     setRefillingId(rx.id);
     setWidgetOpen(true);
@@ -553,10 +564,21 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
     setWidgetError(null);
     syncApptRef.current = appointmentId;
     const result = await launchRefill(rx.id);
+    setRefillingId(null);
+
+    // La fecha de nacimiento queda afuera a propósito: es identidad, no
+    // contacto, y no se toca desde un atajo para destrabar una receta.
+    if (result.status === 'missing_address' || result.status === 'missing_phone') {
+      setWidgetOpen(false);
+      setFaltantes(result.missingFields as CampoFaltante[]);
+      setMotivoDemog(result.errorCode === 'PATIENT_ADDRESS_TOO_LONG' ? 'muy-larga' : 'faltan');
+      setDemogPara({ appointmentId, rx });
+      return;
+    }
+
     setWidgetStatus(result.status);
     setWidgetUrl(result.url);
     setWidgetError(result.errorDetail);
-    setRefillingId(null);
   };
 
   const closeWidget = (): void => {
@@ -588,10 +610,28 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
     try {
       const res = await fetch(`/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`);
       if (res.status === 403) { setWidgetStatus('forbidden'); return; }
-      if (res.status === 409) { setWidgetStatus('not_onboarded'); return; }
-      if (res.status === 422) {
+      if (res.status === 409) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setWidgetStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob' : 'missing_address');
+        setWidgetStatus(body?.error === 'NO_SCRIPTSURE_USER' ? 'no_scriptsure_user' : 'not_onboarded');
+        return;
+      }
+      if (res.status === 422) {
+        const body = (await res.json().catch(() => null)) as
+          { error?: string; missingFields?: string[] } | null;
+        // Identidad no: la fecha de nacimiento se avisa y se corrige en la ficha.
+        if (body?.error === 'PATIENT_MISSING_DOB') { setWidgetStatus('missing_dob'); return; }
+        /**
+         * Dirección y teléfono se completan acá mismo.
+         *
+         * Este botón mostraba el cartel y nada más — el MISMO callejón sin
+         * salida que ya se había arreglado en el tab de la consulta, vivo en
+         * este otro. Erick lo pegó el 2026-10-05 probando desde Day Admission,
+         * que abre el caso como modal y entra justo por acá.
+         */
+        setWidgetOpen(false);
+        setFaltantes((body?.missingFields ?? []) as CampoFaltante[]);
+        setMotivoDemog(body?.error === 'PATIENT_ADDRESS_TOO_LONG' ? 'muy-larga' : 'faltan');
+        setDemogPara({ appointmentId: rxTargetId, rx: null });
         return;
       }
       if (!res.ok) { setWidgetStatus('error'); return; }
@@ -740,6 +780,23 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
         url={widgetUrl}
         errorDetail={widgetError}
         onClose={closeWidget}
+      />
+
+      {/* Completar dirección o teléfono sin salir del caso, y retomar la receta
+          que se estaba repitiendo. */}
+      <PatientDemographicsDialog
+        open={!!demogPara}
+        appointmentId={demogPara?.appointmentId ?? ''}
+        faltantes={faltantes}
+        motivo={motivoDemog}
+        onCancel={() => setDemogPara(null)}
+        onSaved={() => {
+          const pendiente = demogPara;
+          setDemogPara(null);
+          // Se retoma lo que se estaba haciendo, sin volver a buscarlo.
+          if (pendiente?.rx) void startRefill(pendiente.rx, pendiente.appointmentId);
+          else if (pendiente) void openNewRx();
+        }}
       />
     </div>
   );
